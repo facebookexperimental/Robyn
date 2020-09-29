@@ -1,0 +1,1 @@
+{"version":3,"file":"BrowserOnly.d.ts","sourceRoot":"","sources":["../../../src/client/exports/BrowserOnly.tsx"],"names":[],"mappings":"AAAA;;;;;GAKG;;AAKH,iBAAS,WAAW,CAAC,EACnB,QAAQ,EACR,QAAQ,GACT,EAAE;IACD,QAAQ,CAAC,EAAE,MAAM,GAAG,CAAC,OAAO,CAAC;IAC7B,QAAQ,CAAC,EAAE,GAAG,CAAC,OAAO,CAAC;CACxB,GAAG,GAAG,CAAC,OAAO,GAAG,IAAI,CAMrB;AAED,eAAe,WAAW,CAAC"}
