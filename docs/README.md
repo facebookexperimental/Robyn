@@ -1,41 +1,38 @@
-# Website
+FB NextGen MMM beta R script, v19
+2020-10-06
 
-This website is built using [Docusaurus 2](https://v2.docusaurus.io/), a modern static website generator.
+###### How To Start ######
 
-### Installation
+The following files are contained in the zip:
 
-```
-$ yarn
-```
+Four .R script files:
+- fb_nextgen_mmm_v19.exec.R # you only need this script to execute, it calls the other 3 scripts
+- fb_nextgen_mmm_v19.func.R # this contains all major functions and data preparation
+- fb_nextgen_mmm_v19.plot.R # this contains all plot functions
+- fb_nextgen_mmm_v19.bayes.R # this contains adapted functions from the library parBayesianOptimization
 
-### Local Development
+Two .csv files:
+- de_simulated_data.csv # this is our simulated data set
+- generated_holidays.csv # this contains holidays of all countries from the library prophet
 
-```
-$ yarn start
-```
+All files should be placed in the same folder
 
-This command starts a local development server and open up a browser window. Most changes are reflected live without having to restart the server.
+Please make sure you've installed all library specified in fb_nextgen_mmm_v19.exec.R first
 
-### Build
+Initial setting is running 1000 random search trails with geometric adstockinng. After installing all libraries, if you select all and run in fb_nextgen_mmm_v19.exec.R, the script should run and produce one plot
 
-```
-$ yarn build
-```
+Script execution details please see comments in scripts
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+## Join the FB NextGen MMM community ##
 
-### Deployment
+###### FB Contact ######
 
-```
-$ GIT_USER=<Your GitHub username> USE_SSH=true yarn deploy
-```
+gufeng@fb.com, Gufeng Zhou, Marketing Science Partner
+leonelsentana@fb.com, Leonel Sentana, Marketing Science Partner
+aprada@fb.com, Antonio Prada, Marketing Science Partner
+igorskokan@fb.com, Igor Skokan, Marketing Science Partner
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
 
-### Continuous Integration
-
-Some common defaults for linting/formatting have been set for you. If you integrate your project with an open source Continuous Integration system (e.g. Travis CI, CircleCI), you may check for issues using the following command.
-
-```
-$ yarn ci
-```
+## License
+FB NextGen MMM R script is MIT licensed, as found in the LICENSE file.
