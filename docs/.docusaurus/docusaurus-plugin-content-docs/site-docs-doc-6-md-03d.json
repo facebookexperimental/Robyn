@@ -1,0 +1,19 @@
+{
+  "unversionedId": "doc6",
+  "id": "doc6",
+  "isDocsHomePage": false,
+  "title": "Facebook Prophet - Trend, Seasonality and Holiday Effects",
+  "description": "Prophet has been included in the code in order to improve fit and forecast time series by decomposing the data into trend, seasonality and holiday components.",
+  "source": "@site/docs/doc6.md",
+  "permalink": "/Robyn/docs/doc6",
+  "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc6.md",
+  "sidebar": "someSidebar",
+  "previous": {
+    "title": "Variable Transformations",
+    "permalink": "/Robyn/docs/doc5"
+  },
+  "next": {
+    "title": "Automated hyperparameter selection and optimization",
+    "permalink": "/Robyn/docs/doc7"
+  }
+}

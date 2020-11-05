@@ -1,0 +1,19 @@
+{
+  "unversionedId": "doc5",
+  "id": "doc5",
+  "isDocsHomePage": false,
+  "title": "Variable Transformations",
+  "description": "There are two main variable transformations in the code:",
+  "source": "@site/docs/doc5.md",
+  "permalink": "/Robyn/docs/doc5",
+  "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc5.md",
+  "sidebar": "someSidebar",
+  "previous": {
+    "title": "Ridge Regression",
+    "permalink": "/Robyn/docs/doc4"
+  },
+  "next": {
+    "title": "Facebook Prophet - Trend, Seasonality and Holiday Effects",
+    "permalink": "/Robyn/docs/doc6"
+  }
+}

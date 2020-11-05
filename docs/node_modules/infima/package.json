@@ -1,0 +1,38 @@
+{
+  "name": "infima",
+  "version": "0.2.0-alpha.12",
+  "description": "A UI framework for content-centric websites.",
+  "main": "index.js",
+  "author": "Yangshun Tay",
+  "license": "MIT",
+  "keywords": [
+    "css",
+    "responsive",
+    "front-end",
+    "framework",
+    "web",
+    "dark mode"
+  ],
+  "devDependencies": {
+    "cssnano": "^4.1.10",
+    "del": "^4.1.0",
+    "gulp": "^4.0.0",
+    "gulp-postcss": "^8.0.0",
+    "gulp-rename": "^1.2.2",
+    "gulp-sass": "^4.0.1",
+    "gulp-webserver": "^0.9.1",
+    "natives": "^1.1.6",
+    "postcss-preset-infima": "^0.2.0-alpha.12"
+  },
+  "scripts": {
+    "start": "gulp",
+    "build": "gulp build"
+  },
+  "engines": {
+    "node": ">=8"
+  },
+  "files": [
+    "dist/{css,js}/**/*.{css,js}",
+    "styles/**/*.css"
+  ]
+}
