@@ -6,6 +6,10 @@
  *
  * @format
  */
+<<<<<<< HEAD
+=======
+
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
 import React from 'react';
 import clsx from 'clsx';
 import Layout from '@theme/Layout';
@@ -16,6 +20,7 @@ import styles from './styles.module.css';
 
 const features = [
   {
+<<<<<<< HEAD
     title: <>Advanced</>,
     imageUrl: 'img/take_control.svg',
     description: (
@@ -42,10 +47,19 @@ const features = [
       <li> Increase the number of models and frequency as faster to run and automated</li>
       <li> Model all of the outputs that matter to your business</li>
     </ul>
+=======
+    title: <>Easy to Use</>,
+    imageUrl: 'img/undraw_docusaurus_mountain.svg',
+    description: (
+      <>
+        Docusaurus was designed from the ground up to be easily installed and
+        used to get your website up and running quickly.
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
       </>
     ),
   },
   {
+<<<<<<< HEAD
     title: <>Actionable</>,
     imageUrl: 'img/focus_on_what matters.svg',
     description: (
@@ -56,10 +70,19 @@ const features = [
       <li> Includes integrated marketing budget optimizer with the ability to apply custom restraints</li>
       <li> Not dependent on Facebook advertising but can connect to measurement products in Facebook Ads Manager for granular insights</li>
     </ul>
+=======
+    title: <>Focus on What Matters</>,
+    imageUrl: 'img/undraw_docusaurus_tree.svg',
+    description: (
+      <>
+        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
+        ahead and move your docs into the <code>docs</code> directory.
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
       </>
     ),
   },
   {
+<<<<<<< HEAD
     description: (
       <>
       </>
@@ -76,6 +99,17 @@ const features = [
       </>
     ),
   }
+=======
+    title: <>Powered by React</>,
+    imageUrl: 'img/undraw_docusaurus_react.svg',
+    description: (
+      <>
+        Extend or customize your website layout by reusing React. Docusaurus can
+        be extended while reusing the same header and footer.
+      </>
+    ),
+  },
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
 ];
 
 function Feature({imageUrl, title, description}) {
