@@ -80,7 +80,7 @@ export default {
       {
         "docs": {
           "homePageId": "doc2",
-          "sidebarPath": "/Users/leonelsentana/Robyn-master/docs/sidebars.js",
+          "sidebarPath": "/Users/leonelsentana/Robyn/docs/sidebars.js",
           "editUrl": "https://github.com/facebookexperimental/Robyn"
         },
         "blog": {
@@ -88,7 +88,7 @@ export default {
           "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/blog/"
         },
         "theme": {
-          "customCss": "/Users/leonelsentana/Robyn-master/docs/src/css/custom.css"
+          "customCss": "/Users/leonelsentana/Robyn/docs/src/css/custom.css"
         }
       }
     ]
