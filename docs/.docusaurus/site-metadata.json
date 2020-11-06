@@ -1,0 +1,26 @@
+{
+  "docusaurusVersion": "2.0.0-alpha.61",
+  "siteVersion": "0.0.0",
+  "pluginVersions": {
+    "docusaurus-plugin-content-docs": {
+      "type": "package",
+      "version": "2.0.0-alpha.61"
+    },
+    "docusaurus-plugin-content-blog": {
+      "type": "package",
+      "version": "2.0.0-alpha.61"
+    },
+    "docusaurus-plugin-content-pages": {
+      "type": "package",
+      "version": "2.0.0-alpha.61"
+    },
+    "docusaurus-plugin-sitemap": {
+      "type": "package",
+      "version": "2.0.0-alpha.61"
+    },
+    "docusaurus-theme-classic": {
+      "type": "package",
+      "version": "2.0.0-alpha.61"
+    }
+  }
+}

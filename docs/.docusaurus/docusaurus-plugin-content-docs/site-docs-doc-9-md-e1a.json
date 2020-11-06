@@ -1,0 +1,19 @@
+{
+  "unversionedId": "doc9",
+  "id": "doc9",
+  "isDocsHomePage": false,
+  "title": "Outputs and diagnostics",
+  "description": "The MMM code will automatically generate & select models and then autorank the top models according to statistical properties",
+  "source": "@site/docs/doc9.md",
+  "permalink": "/Robyn/docs/doc9",
+  "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc9.md",
+  "sidebar": "someSidebar",
+  "previous": {
+    "title": "Calibration using experimental results",
+    "permalink": "/Robyn/docs/doc8"
+  },
+  "next": {
+    "title": "Getting help and contributing",
+    "permalink": "/Robyn/docs/doc10"
+  }
+}

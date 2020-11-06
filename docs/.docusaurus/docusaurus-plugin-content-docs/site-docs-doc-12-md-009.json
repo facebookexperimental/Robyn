@@ -1,0 +1,10 @@
+{
+  "unversionedId": "doc12",
+  "id": "doc12",
+  "isDocsHomePage": false,
+  "title": "Step-by-step guide",
+  "description": "Load data & scripts",
+  "source": "@site/docs/doc12.md",
+  "permalink": "/Robyn/docs/doc12",
+  "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc12.md"
+}

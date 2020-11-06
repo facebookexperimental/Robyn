@@ -1,0 +1,15 @@
+{
+  "unversionedId": "doc11",
+  "id": "doc11",
+  "isDocsHomePage": false,
+  "title": "About Robyn",
+  "description": "Why did we build this?",
+  "source": "@site/docs/doc11.md",
+  "permalink": "/Robyn/docs/doc11",
+  "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc11.md",
+  "sidebar": "someSidebar",
+  "previous": {
+    "title": "Getting help and contributing",
+    "permalink": "/Robyn/docs/doc10"
+  }
+}

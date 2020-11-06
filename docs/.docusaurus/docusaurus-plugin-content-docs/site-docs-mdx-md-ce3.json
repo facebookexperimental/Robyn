@@ -1,0 +1,10 @@
+{
+  "unversionedId": "mdx",
+  "id": "mdx",
+  "isDocsHomePage": false,
+  "title": "Powered by MDX",
+  "description": "You can write JSX and use React components within your Markdown thanks to MDX.",
+  "source": "@site/docs/mdx.md",
+  "permalink": "/Robyn/docs/mdx",
+  "editUrl": "https://github.com/facebookexperimental/Robyn/docs/mdx.md"
+}
