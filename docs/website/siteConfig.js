@@ -37,12 +37,22 @@ const siteConfig = {
   //   organizationName: 'JoelMarcey'
 
   // For no header links in the top nav bar -> headerLinks: [],
+<<<<<<< HEAD
   headerLinks: [],
+=======
+  headerLinks: [
+    {doc: 'doc1', label: 'Docs'},
+    {doc: 'doc4', label: 'API'},
+    {page: 'help', label: 'Help'},
+    {blog: true, label: 'Blog'},
+  ],
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
 
   // If you have users set above, you add it here:
   users,
 
   /* path to images for header/footer */
+<<<<<<< HEAD
   headerIcon: 'img/robyn_logo.png',
   footerIcon: 'img/robyn_logo.png',
   favicon: 'img/robyn_logo.png',
@@ -51,6 +61,16 @@ const siteConfig = {
   colors: {
     primaryColor: '#52e2ff',
     secondaryColor: '#5cd9e3',
+=======
+  headerIcon: 'img/favicon.ico',
+  footerIcon: 'img/favicon.ico',
+  favicon: 'img/favicon.ico',
+
+  /* Colors for website */
+  colors: {
+    primaryColor: '#24915d',
+    secondaryColor: '#196541',
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   },
 
   /* Custom fonts for website */

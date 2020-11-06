@@ -5,6 +5,7 @@
   "title": "Quick Start",
   "description": "Once you have loaded all scripts, we will focus on the ‘.exec.R’ one to quickly start testing the code and understanding how to use it. Below you will find the steps to follow:",
   "source": "@site/docs/doc3.md",
+<<<<<<< HEAD
   "permalink": "/Robyn/docs/doc3",
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc3.md",
   "sidebar": "someSidebar",
@@ -15,5 +16,17 @@
   "next": {
     "title": "Ridge Regression",
     "permalink": "/Robyn/docs/doc4"
+=======
+  "permalink": "/docs/doc3",
+  "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/docs/doc3.md",
+  "sidebar": "someSidebar",
+  "previous": {
+    "title": "Installation",
+    "permalink": "/docs/"
+  },
+  "next": {
+    "title": "Ridge Regression",
+    "permalink": "/docs/doc4"
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   }
 }

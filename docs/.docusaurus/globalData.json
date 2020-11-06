@@ -1,16 +1,25 @@
 {
   "docusaurus-plugin-content-docs": {
     "default": {
+<<<<<<< HEAD
       "path": "/Robyn/docs",
+=======
+      "path": "/docs",
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
       "latestVersionName": null,
       "versions": [
         {
           "name": null,
+<<<<<<< HEAD
           "path": "/Robyn/docs",
+=======
+          "path": "/docs",
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
           "mainDocId": "doc2",
           "docs": [
             {
               "id": "doc1",
+<<<<<<< HEAD
               "path": "/Robyn/docs/doc1"
             },
             {
@@ -52,6 +61,49 @@
             {
               "id": "doc9",
               "path": "/Robyn/docs/doc9"
+=======
+              "path": "/docs/doc1"
+            },
+            {
+              "id": "doc10",
+              "path": "/docs/doc10"
+            },
+            {
+              "id": "doc2",
+              "path": "/docs/"
+            },
+            {
+              "id": "doc3",
+              "path": "/docs/doc3"
+            },
+            {
+              "id": "doc4",
+              "path": "/docs/doc4"
+            },
+            {
+              "id": "doc5",
+              "path": "/docs/doc5"
+            },
+            {
+              "id": "doc6",
+              "path": "/docs/doc6"
+            },
+            {
+              "id": "doc7",
+              "path": "/docs/doc7"
+            },
+            {
+              "id": "doc8",
+              "path": "/docs/doc8"
+            },
+            {
+              "id": "doc9",
+              "path": "/docs/doc9"
+            },
+            {
+              "id": "mdx",
+              "path": "/docs/mdx"
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
             }
           ]
         }

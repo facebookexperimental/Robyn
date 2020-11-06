@@ -5,6 +5,11 @@
   "title": "Powered by MDX",
   "description": "You can write JSX and use React components within your Markdown thanks to MDX.",
   "source": "@site/docs/mdx.md",
+<<<<<<< HEAD
   "permalink": "/Robyn/docs/mdx",
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/mdx.md"
+=======
+  "permalink": "/docs/mdx",
+  "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/docs/mdx.md"
+>>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
 }
