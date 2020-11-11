@@ -5,7 +5,6 @@
   "title": "Getting help and contributing",
   "description": "This project has a non-fixed release cycle but we will be making bug fixes in response to user feedback and adding features. Please let us know if you encounter a bug by filing an issue. Github issues is also the right place to ask questions about using the code.",
   "source": "@site/docs/doc10.md",
-<<<<<<< HEAD
   "permalink": "/Robyn/docs/doc10",
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc10.md",
   "sidebar": "someSidebar",
@@ -16,13 +15,5 @@
   "next": {
     "title": "About Robyn",
     "permalink": "/Robyn/docs/doc11"
-=======
-  "permalink": "/docs/doc10",
-  "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/docs/doc10.md",
-  "sidebar": "someSidebar",
-  "previous": {
-    "title": "Outputs and diagnostics",
-    "permalink": "/docs/doc9"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   }
 }

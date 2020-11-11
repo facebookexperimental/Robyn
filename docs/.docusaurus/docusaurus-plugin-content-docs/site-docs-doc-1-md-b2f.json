@@ -5,12 +5,7 @@
   "title": "Style Guide",
   "description": "You can write content using GitHub-flavored Markdown syntax.",
   "source": "@site/docs/doc1.md",
-<<<<<<< HEAD
   "permalink": "/Robyn/docs/doc1",
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc1.md",
-=======
-  "permalink": "/docs/doc1",
-  "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/docs/doc1.md",
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   "sidebar_label": "Style Guide"
 }

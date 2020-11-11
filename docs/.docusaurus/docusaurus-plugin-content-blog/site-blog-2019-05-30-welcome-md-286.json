@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
   "permalink": "/Robyn/blog/welcome",
-=======
-  "permalink": "/blog/welcome",
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/blog/blog/2019-05-30-welcome.md",
   "source": "@site/blog/2019-05-30-welcome.md",
   "description": "Blog features are powered by the blog plugin. Simply add files to the blog directory. It supports tags as well!",
@@ -11,7 +7,6 @@
   "tags": [
     {
       "label": "facebook",
-<<<<<<< HEAD
       "permalink": "/Robyn/blog/tags/facebook"
     },
     {
@@ -21,17 +16,6 @@
     {
       "label": "docusaurus",
       "permalink": "/Robyn/blog/tags/docusaurus"
-=======
-      "permalink": "/blog/tags/facebook"
-    },
-    {
-      "label": "hello",
-      "permalink": "/blog/tags/hello"
-    },
-    {
-      "label": "docusaurus",
-      "permalink": "/blog/tags/docusaurus"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
     }
   ],
   "title": "Welcome",
@@ -39,10 +23,6 @@
   "truncated": false,
   "nextItem": {
     "title": "Hello",
-<<<<<<< HEAD
     "permalink": "/Robyn/blog/hello-world"
-=======
-    "permalink": "/blog/hello-world"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   }
 }

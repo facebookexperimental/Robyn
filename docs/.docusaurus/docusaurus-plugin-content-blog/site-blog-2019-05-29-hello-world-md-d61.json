@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
   "permalink": "/Robyn/blog/hello-world",
-=======
-  "permalink": "/blog/hello-world",
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/blog/blog/2019-05-29-hello-world.md",
   "source": "@site/blog/2019-05-29-hello-world.md",
   "description": "Welcome to this blog. This blog is created with Docusaurus 2 alpha.",
@@ -11,19 +7,11 @@
   "tags": [
     {
       "label": "hello",
-<<<<<<< HEAD
       "permalink": "/Robyn/blog/tags/hello"
     },
     {
       "label": "docusaurus",
       "permalink": "/Robyn/blog/tags/docusaurus"
-=======
-      "permalink": "/blog/tags/hello"
-    },
-    {
-      "label": "docusaurus",
-      "permalink": "/blog/tags/docusaurus"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
     }
   ],
   "title": "Hello",
@@ -31,18 +19,10 @@
   "truncated": true,
   "prevItem": {
     "title": "Welcome",
-<<<<<<< HEAD
     "permalink": "/Robyn/blog/welcome"
   },
   "nextItem": {
     "title": "Hola",
     "permalink": "/Robyn/blog/hola"
-=======
-    "permalink": "/blog/welcome"
-  },
-  "nextItem": {
-    "title": "Hola",
-    "permalink": "/blog/hola"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   }
 }

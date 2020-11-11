@@ -5,7 +5,6 @@
   "title": "Outputs and diagnostics",
   "description": "The MMM code will automatically generate & select models and then autorank the top models according to statistical properties",
   "source": "@site/docs/doc9.md",
-<<<<<<< HEAD
   "permalink": "/Robyn/docs/doc9",
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc9.md",
   "sidebar": "someSidebar",
@@ -16,17 +15,5 @@
   "next": {
     "title": "Getting help and contributing",
     "permalink": "/Robyn/docs/doc10"
-=======
-  "permalink": "/docs/doc9",
-  "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/docs/doc9.md",
-  "sidebar": "someSidebar",
-  "previous": {
-    "title": "Calibration using experimental results",
-    "permalink": "/docs/doc8"
-  },
-  "next": {
-    "title": "Getting help and contributing",
-    "permalink": "/docs/doc10"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   }
 }

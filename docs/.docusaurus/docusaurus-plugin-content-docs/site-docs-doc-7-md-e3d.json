@@ -5,7 +5,6 @@
   "title": "Automated hyperparameter selection and optimization",
   "description": "MMMs are likely to contain high cardinality of parameters, ie. alphas, thetas and gammas for geometric ad stock transformation. In addition, parameters dimensionality increases proportionally with the total number of marketing channels to be measured. Thus, it is extremely necessary to deal with a high dimensionality parameter space where, the greater the number of parameters, the greater the model complexity and computational requirements. In order to achieve computational efficiency while maintaining overall model accuracy, we utilize a set of techniques and algorithms:",
   "source": "@site/docs/doc7.md",
-<<<<<<< HEAD
   "permalink": "/Robyn/docs/doc7",
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc7.md",
   "sidebar": "someSidebar",
@@ -16,17 +15,5 @@
   "next": {
     "title": "Calibration using experimental results",
     "permalink": "/Robyn/docs/doc8"
-=======
-  "permalink": "/docs/doc7",
-  "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/docs/doc7.md",
-  "sidebar": "someSidebar",
-  "previous": {
-    "title": "Facebook Prophet - Trend, Seasonality and Holiday Effects",
-    "permalink": "/docs/doc6"
-  },
-  "next": {
-    "title": "Calibration using experimental results",
-    "permalink": "/docs/doc8"
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   }
 }
