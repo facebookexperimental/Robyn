@@ -10,10 +10,6 @@
 module.exports = {
   someSidebar: {
     'How-to guide': ['doc2', 'doc3'],
-<<<<<<< HEAD
     Features: ['doc4', 'doc5', 'doc6', 'doc7', 'doc8', 'doc9', 'doc10', 'doc11'],
-=======
-    Features: ['doc4', 'doc5', 'doc6', 'doc7', 'doc8', 'doc9', 'doc10'],
->>>>>>> 88a95a753303f58e6c9f4b7b4e8c8c7a4488fdec
   },
 };
