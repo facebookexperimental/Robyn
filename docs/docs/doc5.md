@@ -59,3 +59,10 @@ However, the most common approach is to use the flexible S-curve transformation:
 The variations of the parameters give modelers full flexibility on the look of the S-curve, specifically the shape and the inflection points:
 
 <img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns3.png')} />
+
+This is the function within the code for Diminishing Returns (Hill function):
+```
+## step 3: s-curve transformation
+gammaTrans <- round(quantile(seq(range(x_normalized)[1], range(x_normalized)[2], length.out = 100), gamma),4)
+x_scurve <-  x_normalized**alpha / (x_normalized**alpha + gammaTrans**alpha)
+```
