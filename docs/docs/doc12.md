@@ -142,14 +142,14 @@ In this section you will have to define parameters values and bounds for the mod
         1. In order to make more informed decisions to define hyperparameter values, it’s very helpful to know which hyperparameter is doing what during the media transformation. The plot function f.plotAdstockCurves helps you understand exactly that.
         2. Below is the geometric adstock that is a one parameter (theta) function. Assume the time unit is week, then we can see that when theta=0.9, meaning 90% of the media effect this week carries over to the next week, the halflife enters after 8 weeks (halflife value in legend). In other words, it takes 8 weeks until the media effect decays to half when theta=0.9. This should help you having a more tangible feeling about if the theta value for this certain channel makes normal sense.
 
-```
+
 <img alt="adstockintro chart" src={useBaseUrl('/img/adstockintro.png')} />
-```
+
 Similar to above, this plot visualises the two-parameter (scale & shape) Weibull function. The upper plot shows changes in scale while keeping shape constant. We can observe that the larger the scale, the later the inflexion point. When scale=0.5 and shape = 2, it takes 18 weeks until the media effect decays to half (see legend). The lower plot shows changes in shape while keeping scale constant. When shape is smaller, the curve  rather takes on the L-shape. When shape is larger, the curve rather takes on S-shape.
 
-```
+
 <img alt="adstockintro2 chart" src={useBaseUrl('/img/adstockintro2.png')} />
-```
+
 
 In order to start setting model parameters we recommend to start with the Geometric function.
 
@@ -161,9 +161,9 @@ This function is simpler and therefore easier to understand compared to the weib
 
 Once you run one of the iterations you may notice theta's values and if certain optimums have been found by looking into variables including 'thetas' on their names and identifying the number of times an optimum was found (epoch.optim).
 
-```
+
 <img alt="coderesults1 chart" src={useBaseUrl('/img/coderesults1.png')} />
-```
+
 
 In the example above, you will see that Facebook and TV thetas are still missing an optimum given that optim.found column has still TRUE values on it, for this we suggest to increase epoch number to Inf (Infinity) until an optimum is found.
 ```
@@ -177,9 +177,9 @@ model_output <- f.mmmRobyn(set_hyperBoundGlobal
 ```
 Below an example reaching optimum in 33 epochs:
 
-```
+
 <img alt="coderesults2 chart" src={useBaseUrl('/img/coderesults2.png')} />
-```
+
 You may note all parameters state FALSE which means there are not any more optimums to find. This indicates that the values found are optimal, and that if wanted, you could use some of these mode values to fix hyperparameter values in the #### tune channel hyperparameters bounds section.
 
 
@@ -212,9 +212,9 @@ This command will enable you to define the bounds each media’s parameter shoul
 
 The hyperparameters tuning section is especially handy when we know there is an expected behavior behind parameters e.g. adstocking for TV decay rate taking only a value within a range. In this case, we would recommend you to guide the model towards a solution that is both optimal and meets your needs based on experience from previous analyses.
 
-```
+
 <img alt="coderesults2 chart" src={useBaseUrl('/img/coderesults2.png')} />
-```
+
 
 If we consider our previous example, it could be the case where you may want to tune Theta decay rates to control for the adstocking decay pacing of TV to **tv_S_thetas = c(0.25, 0.35)**. If we also fix other values where optimums have been reached, we would reach something like the example below with fix values and ranges based on previous iterations and past experience:
 ```
@@ -242,9 +242,9 @@ If we consider our previous example, it could be the case where you may want to 
 
 If we apply the above bounds to our media related variables, you may see that results now reach an optimum much faster, after only 2 epochs instead of 33. You may also observe that the new bounds for **tv_S_thetas = c(0.25, 0.35)** have been applied, therefore the new optimum found is 0.2706085 instead of the 0.1478256 from the previous example.
 
-```
+
 <img alt="coderesults3 chart" src={useBaseUrl('/img/coderesults3.png')} />
-```
+
 
 ## Plotting and understanding results
 
@@ -271,9 +271,9 @@ After that, you may execute each plot separately and analyze it.
 The plot below illustrates how to better translate the relationship between spend and reach so that you can apply it to performance ROI (Revenue/spend) calculations. It is possible to choose reach variables (GRP, impressions, actual reach, etc.) in the model. Understanding that relationship can help with the translation of reach to spend and vice versa.
 LM (Linear Model) and NLS (Non-linear least squares) comparison shows why it is better to use a non-linear model, which is the technique applied in the code. The linear model is actually as primitive as just using average to scale, because in our case the intercept is omitted given that we assume no spend involves no reach. Whereas NLS are more flexible and should adapt better to the underlying correlation patterns between both variables.
 
-```
+
 <img alt="plotSpendModel chart" src={useBaseUrl('/img/plotSpendModel.png')} />
-```
+
 
 ### f.plotHyperSamp: checking latin hypercube sampling distribution
 The overall idea of these charts is to validate the **Latin hypercube sampling (LHS)**, which is a statistical method for generating a near-random sample of parameter values from the multidimensional distribution of hyperparameters. It consists of two main charts:
@@ -281,18 +281,18 @@ The overall idea of these charts is to validate the **Latin hypercube sampling (
 - **Latin Hypercube Sampling distribution:** The key aspect is to concentrate on the randomness of the points on this chart. If all dots seem to cover evenly the space as in the example below, then sampling is ok. However, beware of high concentrations of dots or clear areas without any dots which may mean you will have to increase the sampling to have a better representation of the hyperspace.
 - **Latin Hypercube Sampling distribution transformed:** This is a half violin chart that represents the distribution of each media parameter values. It helps you understand the actual range of values that each parameter is taking in order to represent uniformly the hyperparameter space. It will also depend on the set_hyperBoundGlobal variable and its bound definitions.
 
-```
+
 <img alt="plotHyperSamp chart" src={useBaseUrl('/img/plotHyperSamp.png')} />
-```
+
 ### f.plotTrendSeason: Understanding trend and seasonality
 This plot describes the trend, holidays and seasonality along the analyzed period.
 - The **trend** is the component of a time series that represents low frequency variations in time. It reflects the underlying tendency behind the dependent variable which can reflect growth, stability or shrinkage depending on the time unit analyzed.
 - **Holidays** are basically days defined by governments where people commemorate events which can affect consumption behaviors. Some holidays may have more impact than others, therefore the different magnitudes on the chart.
 - **Seasonality** is a characteristic of a time series in which the time series experiences regular and predictable changes that recur every calendar year. Any predictable fluctuation or pattern that recurs or repeats over a one-year period is said to be seasonal. Below we have the yearly seasonality as an example, which shows higher demand between October and December, and lower demand between April and July.
 
-```
+
 <img alt="plotTrendSeason chart" src={useBaseUrl('/img/plotTrendSeason.png')} />
-```
+
 
 ### bestAdstock: Adstock carryover and diminishing returns effects
 This plot represents the relationship between spend or ROI, and the response variable (Sales, conversions, etc.).
@@ -307,35 +307,35 @@ set_mediaVarName
 bestAdstock <- f.plotMediaTransform(T, channelPlot = set_mediaVarName[c(1,2,5)])
 ```
 
-```
+
 <img alt="bestAdstock chart" src={useBaseUrl('/img/bestAdstock.png')} />
-```
+
 ### f.plotBestDecomp: Understanding the effect of baseline, media variables trend and seasonality along time
 
 The aim of this chart is to display the breakdown of the response variable through time and the relationship with each of its regressing components. As with all marketing mix models, both media and non-media related explanatory factors are displayed, including baseline effects such as price and promotions, as well as, trend , seasonality and holidays. In order to be able to make a proper description and forecast of performance, we must know to what extent each component is present in the data.
 
-```
+
 <img alt="plotBestDecomp chart" src={useBaseUrl('/img/plotBestDecomp.png')} />
-```
+
 
 The chart below illustrates the contribution of each regressor variable to the overall response (Sales in this case) You may find for example that Facebook impressions had a 7.6% contribution to overall sales which represent in total $28.8 million.
 
-```
+
 <img alt="bestDecomp2 chart" src={useBaseUrl('/img/bestDecomp2.png')} />
-```
+
 
 The next chart shows the difference between real and predicted values. The closer the lines for y and y_pred, the better. You may also find RSQ and MAPE metrics. RSQ or R-squared (R2) is a statistical measure that represents the proportion of the variance for a dependent variable that is explained by an independent variable or variables in a regression model. In general terms, the closer to one, the better.  Whereas, the mean absolute percentage error (MAPE) is the mean or average of the absolute percentage errors of forecasts. Error is defined as actual or observed value minus the forecasted value. As a general rule, the closer to zero the better.
 
-```
+
 <img alt="bestDecomp3 chart" src={useBaseUrl('/img/bestDecomp3.png')} />
-```
+
 
 ### f.plotMAPEConverge: Understanding MAPE evolution per Random Search iteration and minutes spent
 The chart below displays the evolution of the mean absolute percentage error (MAPE) with every minute spent on computing. This chart will help you understand how many random search iterations to include in the model under **set_iter** variable. If you increase set_iter from 100 to 10000, you will reach a point where MAPE will not decrease in time. Therefore, finding the optimum may be between 100 and 10000 may be your next step until you find the balance between computing time and MAPE reduction.
 
-```
+
 <img alt="plotMAPEConverge chart" src={useBaseUrl('/img/plotMAPEConverge.png')} />
-```
+
 ### f.plotBestModDiagnostic: plot best model diagnostics: residual vs fitted, QQ plot and residual vs. actual
 Across these plots we analyze residuals, which are the difference between the observed value of the dependent variable (y) and the predicted value (ŷ).
 
@@ -346,31 +346,31 @@ Across these plots we analyze residuals, which are the difference between the ob
 - **Observed vs. Residual:** Compared to the Fitted vs. Residual plot, this plot shows more correlation between observed/true response vs. residuals when the model R2 is lower. Normally, a certain degree of correlation here means either the data is just noisy or there’s still missing patterns within the error. In the context of MMM, we would recommend to assume the latter one and look for potential additional predictors to also capture these patterns.
 When conducting a residual analysis, a "residuals versus observed plot" is commonly used as a complement of residual vs. fitted plots. It is a scatter plot of residuals on the y axis and observed values (Actual responses) on the x axis. The plot is used to detect non-linearity, unequal error variances, and outliers. The more uniform the dots distribution in this plot and the more horizontal the smooth line, the better as it would mean independent error variances and absence of outliers. The contrast between fitted and observed vs. residual charts helps to understand if there are common relationships between both and residuals.
 
-```
+
 <img alt="f.plotBestModDiagnostic chart" src={useBaseUrl('/img/f.plotBestModDiagnostic.png')} />
-```
+
 ### f.plotChannelROI: Understanding performance with spend and return of investment charts
 
 The plot below reflects a simple comparison of ROI and Spend per channel. The greater the ROI (Return on investment) the better.
 
-```
+
 <img alt="plotChannelROI chart" src={useBaseUrl('/img/plotChannelROI.png')} />
-```
+
 
 ### f.plotHypConverge: Correlation and convergence of hyperparameters and MAPE (Mean Absolute Percentage Error)
 The plot below describes the relationship between mean absolute percentage error (MAPE) and each hyperparameter range of values. It aims to assist you in finding the right Hyperparameters bounds that will help on MAPE reduction, its minimum values are indicated with a vertical line.
 
-```
+
 <img alt="plotHypConverge chart" src={useBaseUrl('/img/f.plotHypConverge.png')} />
-```
+
 
 ### f.plotHyperBoundOptim: Improved plot for convergence of hyperparameters and MAPE (Mean Absolute Percentage Error)
 
 Similar to the previous plot, this plot illustrates the relationship between mean absolute percentage error (MAPE) and each hyperparameter range of values via kurtosis distributions. It aims to assist you in finding the right Hyperparameters bounds that will help on MAPE reduction, its minimum values are indicated with a vertical line, in this case the mode. The mode can be taken as the most frequent value, therefore indicating, together with low and up vertical lines, the possible bounds to be adjusted on **set_hyperBoundLocal** variable
 
-```
+
 <img alt="f.plotHyperBoundOptim chart" src={useBaseUrl('/img/f.plotHyperBoundOptim.png')} />
-```
+
 ## Using the optimiser
 
 Optimiser is also named scenario planner. It gives you the optimum media mix, meaning getting the most return out of a certain spend level, while holding true to a set of constraints.
@@ -380,17 +380,16 @@ Technically, the optimiser consumes the response curve (Hill function) for each 
 Our current optimiser has two scenarios:
 - Maximum historical response (max_hostorical_response): Assuming two years of data for five media channels is used to build the model. Total spend was 1MM € with 40/30/15/10/5 split for both channels and total return was 2MM€. The optimiser will output the optimum split for the historical spend level of 1MM€. For example, a maximum return of 2.5MM would be achieved with 35/25/20/12/8 split of the 1MM€ spent.
 
-```
+
 <img alt="optimiser1 chart" src={useBaseUrl('/img/optimiser1.png')} />
-```
+
 - Maximum response of expected spend (max_response_expected_soend): Compared to the above, this scenario outputs the optimum split of spend for a certain spend level, not the historical spend level. For example, if you have 100k€ for the next quarter, you would define expected_spend = 100000 and expected_spend_days = 90.
-```
+
 <img alt="optimiser2 chart" src={useBaseUrl('/img/optimiser2.png')} />
-```
+
 For both scenarios, you must also define the constraints (lower and upper bounds) for each channel with the parameter channel_constr_low and channel_constr_up. Assuming for channel A you’ve spent 10k€ per week on average, then channel_constr_low = 0.7 and channel_constr_up = 1.2 will not allow the optimiser to go lower than 7k€ or higher than 12k€ for channel A when running the optimisation.
 In general, please use realistic scenarios and avoid putting too extreme values. The optimiser is still based on your historical performance. For example, if you put 10 times as much as your historical spend, the optimiser result might not be making sense.
 
 The result would look like the following. Again, we want to address that the result of optimiser will only be interpretable if the MMM result makes sense.
-```
+
 <img alt="optimiser3 chart" src={useBaseUrl('/img/optimiser3.png')} />
-```
