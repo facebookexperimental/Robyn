@@ -8,6 +8,11 @@ export default [
   exact: true,
 },
 {
+  path: '/Robyn/__docusaurus/debug',
+  component: ComponentCreator('/Robyn/__docusaurus/debug','2b8'),
+  exact: true,
+},
+{
   path: '/Robyn/blog',
   component: ComponentCreator('/Robyn/blog','9e2'),
   exact: true,
@@ -54,7 +59,7 @@ export default [
 },
 {
   path: '/Robyn/docs',
-  component: ComponentCreator('/Robyn/docs','0c1'),
+  component: ComponentCreator('/Robyn/docs','61a'),
   
   routes: [
 {
@@ -75,6 +80,11 @@ export default [
 {
   path: '/Robyn/docs/doc11',
   component: ComponentCreator('/Robyn/docs/doc11','7f3'),
+  exact: true,
+},
+{
+  path: '/Robyn/docs/doc12',
+  component: ComponentCreator('/Robyn/docs/doc12','c8b'),
   exact: true,
 },
 {

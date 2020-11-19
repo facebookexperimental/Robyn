@@ -15,6 +15,11 @@
             "type": "link",
             "label": "Quick Start",
             "href": "/Robyn/docs/doc3"
+          },
+          {
+            "type": "link",
+            "label": "Step-by-step guide",
+            "href": "/Robyn/docs/doc12"
           }
         ]
       },
@@ -71,6 +76,7 @@
     "/Robyn/docs/": "someSidebar",
     "/Robyn/docs/doc10": "someSidebar",
     "/Robyn/docs/doc11": "someSidebar",
+    "/Robyn/docs/doc12": "someSidebar",
     "/Robyn/docs/doc3": "someSidebar",
     "/Robyn/docs/doc4": "someSidebar",
     "/Robyn/docs/doc5": "someSidebar",

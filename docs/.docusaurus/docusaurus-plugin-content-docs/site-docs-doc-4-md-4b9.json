@@ -9,8 +9,8 @@
   "editUrl": "https://github.com/facebookexperimental/Robyn/docs/doc4.md",
   "sidebar": "someSidebar",
   "previous": {
-    "title": "Quick Start",
-    "permalink": "/Robyn/docs/doc3"
+    "title": "Step-by-step guide",
+    "permalink": "/Robyn/docs/doc12"
   },
   "next": {
     "title": "Variable Transformations",

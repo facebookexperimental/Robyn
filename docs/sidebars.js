@@ -9,7 +9,7 @@
 
 module.exports = {
   someSidebar: {
-    'How-to guide': ['doc2', 'doc3'],
+    'How-to guide': ['doc2', 'doc3', 'doc12'],
     Features: ['doc4', 'doc5', 'doc6', 'doc7', 'doc8', 'doc9', 'doc10', 'doc11'],
   },
 };
