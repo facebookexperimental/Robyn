@@ -8,11 +8,6 @@ export default [
   exact: true,
 },
 {
-  path: '/Robyn/__docusaurus/debug',
-  component: ComponentCreator('/Robyn/__docusaurus/debug','2b8'),
-  exact: true,
-},
-{
   path: '/Robyn/blog',
   component: ComponentCreator('/Robyn/blog','9e2'),
   exact: true,

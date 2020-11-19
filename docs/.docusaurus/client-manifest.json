@@ -7,190 +7,193 @@
       0,
       2,
       3,
-      4,
-      7,
-      12,
-      20,
-      26,
+      5,
+      8,
+      13,
+      21,
       27,
-      36,
+      28,
       37,
+      38,
       1
     ],
     "2": [
       0,
       1,
       3,
-      4,
-      12,
-      20,
-      26,
+      5,
+      13,
+      21,
       27,
-      36,
+      28,
       37,
+      38,
       2
     ],
     "3": [
       0,
       1,
       2,
-      12,
-      20,
-      27,
+      13,
+      21,
+      28,
       3
     ],
     "styles": [
       1,
       2,
       3,
-      4,
-      7,
-      12,
-      20,
-      26,
+      5,
+      8,
+      13,
+      21,
       27,
-      34,
+      28,
       35,
       36,
       37,
+      38,
       0
+    ],
+    "@site/docs/doc12.md": [
+      4
     ],
     "@theme/BlogTagsListPage": [
       0,
       1,
       2,
-      4
-    ],
-    "~blog/robyn-blog-tags-tags-53f.json": [
       5
     ],
-    "@site/docs/doc6.md": [
+    "~blog/robyn-blog-tags-tags-53f.json": [
       6
+    ],
+    "@site/docs/doc6.md": [
+      7
     ],
     "@theme/DocItem": [
       0,
       1,
-      7
-    ],
-    "@site/blog/2019-05-30-welcome.md": [
       8
     ],
-    "@site/blog/2019-05-29-hello-world.md?truncated=true": [
+    "@site/blog/2019-05-30-welcome.md": [
       9
     ],
-    "@site/docs/doc4.md": [
+    "@site/blog/2019-05-29-hello-world.md?truncated=true": [
       10
     ],
-    "@site/docs/doc3.md": [
+    "@site/docs/doc4.md": [
       11
+    ],
+    "@site/docs/doc3.md": [
+      12
     ],
     "@theme/BlogTagsPostsPage": [
       0,
       1,
       2,
       3,
-      12
-    ],
-    "~blog/robyn-blog-bb4.json": [
       13
     ],
-    "@site/docs/doc8.md": [
+    "~blog/robyn-blog-bb4.json": [
       14
     ],
-    "@site/docs/doc10.md": [
+    "@site/docs/doc8.md": [
       15
     ],
-    "~blog/robyn-blog-tags-facebook-f3f.json": [
+    "@site/docs/doc10.md": [
       16
     ],
-    "~blog/robyn-blog-tags-hello-efd.json": [
+    "~blog/robyn-blog-tags-facebook-f3f.json": [
       17
     ],
-    "@site/blog/2019-05-28-hola.md?truncated=true": [
+    "~blog/robyn-blog-tags-hello-efd.json": [
       18
     ],
-    "@site/docs/doc11.md": [
+    "@site/blog/2019-05-28-hola.md?truncated=true": [
       19
+    ],
+    "@site/docs/doc11.md": [
+      20
     ],
     "@theme/BlogListPage": [
       0,
       1,
       2,
       3,
-      20
-    ],
-    "@site/blog/2019-05-30-welcome.md?truncated=true": [
       21
     ],
-    "@site/docs/doc1.md": [
+    "@site/blog/2019-05-30-welcome.md?truncated=true": [
       22
     ],
-    "@site/blog/2019-05-28-hola.md": [
+    "@site/docs/doc1.md": [
       23
     ],
-    "~blog/robyn-blog-tags-docusaurus-16b.json": [
+    "@site/blog/2019-05-28-hola.md": [
       24
     ],
-    "@site/docs/doc5.md": [
+    "~blog/robyn-blog-tags-docusaurus-16b.json": [
       25
+    ],
+    "@site/docs/doc5.md": [
+      26
     ],
     "@site/src/pages/index.js": [
       0,
       1,
       2,
-      26
+      27
     ],
     "@theme/BlogPostPage": [
       0,
       1,
       2,
       3,
-      27
-    ],
-    "@site/blog/2019-05-29-hello-world.md": [
       28
     ],
-    "~blog/robyn-blog-tags-hola-1cf.json": [
+    "@site/blog/2019-05-29-hello-world.md": [
       29
     ],
-    "@site/docs/doc2.md": [
+    "~blog/robyn-blog-tags-hola-1cf.json": [
       30
     ],
-    "@site/docs/doc9.md": [
+    "@site/docs/doc2.md": [
       31
     ],
-    "@site/docs/doc7.md": [
+    "@site/docs/doc9.md": [
       32
     ],
-    "~docs/robyn-docs-route-d48.json": [
+    "@site/docs/doc7.md": [
       33
+    ],
+    "~docs/robyn-docs-route-d48.json": [
+      34
     ],
     "@generated/docusaurus.config": [
       0,
-      35,
-      34
+      36,
+      35
     ],
     "main": [
       0,
-      35,
-      34
+      36,
+      35
     ],
     "runtime~main": [
       0,
-      34,
-      35
+      35,
+      36
     ],
     "@theme/DocPage": [
       0,
       1,
       2,
-      37
+      38
     ],
     "@theme/NotFound": [
       0,
       1,
       2,
-      37
+      38
     ]
   },
   "assets": {
@@ -198,344 +201,353 @@
       "css": [
         {
           "file": "styles.68a92949.css",
-          "hash": "b6be3a556d215b925875",
+          "hash": "3f88d6e692ce240653ad",
           "publicPath": "/Robyn/styles.68a92949.css"
         }
       ],
       "js": [
         {
-          "file": "styles.bfe6b70b.js",
-          "hash": "b6be3a556d215b925875",
-          "publicPath": "/Robyn/styles.bfe6b70b.js"
+          "file": "styles.4cc764fa.js",
+          "hash": "3f88d6e692ce240653ad",
+          "publicPath": "/Robyn/styles.4cc764fa.js"
         }
       ]
     },
     "1": {
       "js": [
         {
-          "file": "1.825a405d.js",
-          "hash": "a022f5072252c75a175e",
-          "publicPath": "/Robyn/1.825a405d.js"
+          "file": "1.9195704b.js",
+          "hash": "854ce1b5ed6922127bcd",
+          "publicPath": "/Robyn/1.9195704b.js"
         }
       ]
     },
     "2": {
       "js": [
         {
-          "file": "2.35a060ae.js",
-          "hash": "331c6ae0f56c14d11fe5",
-          "publicPath": "/Robyn/2.35a060ae.js"
+          "file": "2.a0708de6.js",
+          "hash": "c6dca11bfee0f75bed5c",
+          "publicPath": "/Robyn/2.a0708de6.js"
         }
       ]
     },
     "3": {
       "js": [
         {
-          "file": "3.198c3790.js",
-          "hash": "27430a8927da1d97280c",
-          "publicPath": "/Robyn/3.198c3790.js"
+          "file": "3.39d8b915.js",
+          "hash": "06fb566f803f16562372",
+          "publicPath": "/Robyn/3.39d8b915.js"
         }
       ]
     },
     "4": {
       "js": [
         {
-          "file": "01a85c17.5a95bee5.js",
-          "hash": "f50692901c85ffa22204",
-          "publicPath": "/Robyn/01a85c17.5a95bee5.js"
+          "file": "009561a5.e1722eea.js",
+          "hash": "771ccaf5a82315ae47b4",
+          "publicPath": "/Robyn/009561a5.e1722eea.js"
         }
       ]
     },
     "5": {
       "js": [
         {
-          "file": "037b6058.f3927094.js",
-          "hash": "81a04bdbc507e60b4579",
-          "publicPath": "/Robyn/037b6058.f3927094.js"
+          "file": "01a85c17.5f3c2998.js",
+          "hash": "51f39867f07dc545d341",
+          "publicPath": "/Robyn/01a85c17.5f3c2998.js"
         }
       ]
     },
     "6": {
       "js": [
         {
-          "file": "03d550ee.c8a6768e.js",
-          "hash": "109fc196f68bba09b17f",
-          "publicPath": "/Robyn/03d550ee.c8a6768e.js"
+          "file": "037b6058.5d7c59bb.js",
+          "hash": "8a48e161b24dc7f7e51a",
+          "publicPath": "/Robyn/037b6058.5d7c59bb.js"
         }
       ]
     },
     "7": {
       "js": [
         {
-          "file": "17896441.680f2216.js",
-          "hash": "2ea4411c889c55fa6a6e",
-          "publicPath": "/Robyn/17896441.680f2216.js"
+          "file": "03d550ee.33a99b65.js",
+          "hash": "2f8ef40e78e542b3aaef",
+          "publicPath": "/Robyn/03d550ee.33a99b65.js"
         }
       ]
     },
     "8": {
       "js": [
         {
-          "file": "2868cdab.50392f97.js",
-          "hash": "a768dc43249eb67d4bd9",
-          "publicPath": "/Robyn/2868cdab.50392f97.js"
+          "file": "17896441.adbb25ee.js",
+          "hash": "122249f22c1889ced1ce",
+          "publicPath": "/Robyn/17896441.adbb25ee.js"
         }
       ]
     },
     "9": {
       "js": [
         {
-          "file": "3570154c.b7856583.js",
-          "hash": "fea88a7b1a97e1b2542d",
-          "publicPath": "/Robyn/3570154c.b7856583.js"
+          "file": "2868cdab.2140293d.js",
+          "hash": "ed4f273a20e3a08925c2",
+          "publicPath": "/Robyn/2868cdab.2140293d.js"
         }
       ]
     },
     "10": {
       "js": [
         {
-          "file": "4b91c96a.1b938f80.js",
-          "hash": "e4df8eadfeb454306291",
-          "publicPath": "/Robyn/4b91c96a.1b938f80.js"
+          "file": "3570154c.f0d5b37b.js",
+          "hash": "7d4f595feb1f5876f85e",
+          "publicPath": "/Robyn/3570154c.f0d5b37b.js"
         }
       ]
     },
     "11": {
       "js": [
         {
-          "file": "616665f6.c8fcd231.js",
-          "hash": "a4f01ca4c718f1196928",
-          "publicPath": "/Robyn/616665f6.c8fcd231.js"
+          "file": "4b91c96a.841767a6.js",
+          "hash": "7982923f71de3c7f3e9a",
+          "publicPath": "/Robyn/4b91c96a.841767a6.js"
         }
       ]
     },
     "12": {
       "js": [
         {
-          "file": "6875c492.8d0b8aea.js",
-          "hash": "3e377cacf7f04a639cca",
-          "publicPath": "/Robyn/6875c492.8d0b8aea.js"
+          "file": "616665f6.99c27961.js",
+          "hash": "ad21f9f6414fef1a3584",
+          "publicPath": "/Robyn/616665f6.99c27961.js"
         }
       ]
     },
     "13": {
       "js": [
         {
-          "file": "6d79fa26.45edbeb9.js",
-          "hash": "3e05aeb3d12aff31307e",
-          "publicPath": "/Robyn/6d79fa26.45edbeb9.js"
+          "file": "6875c492.f23650c5.js",
+          "hash": "c564ca01df5916a71185",
+          "publicPath": "/Robyn/6875c492.f23650c5.js"
         }
       ]
     },
     "14": {
       "js": [
         {
-          "file": "7c556f21.b3318326.js",
-          "hash": "d1dd1f28dd3fa9c61d2a",
-          "publicPath": "/Robyn/7c556f21.b3318326.js"
+          "file": "6d79fa26.c5e9b6fd.js",
+          "hash": "2db1df0f82869ae297ac",
+          "publicPath": "/Robyn/6d79fa26.c5e9b6fd.js"
         }
       ]
     },
     "15": {
       "js": [
         {
-          "file": "7dedd42b.3cf09231.js",
-          "hash": "07b9175c80ce89cf086b",
-          "publicPath": "/Robyn/7dedd42b.3cf09231.js"
+          "file": "7c556f21.4bf993fa.js",
+          "hash": "76d3752bebba3ce79f01",
+          "publicPath": "/Robyn/7c556f21.4bf993fa.js"
         }
       ]
     },
     "16": {
       "js": [
         {
-          "file": "879b8e83.f04682b4.js",
-          "hash": "9359f1f69d6d35f8d34c",
-          "publicPath": "/Robyn/879b8e83.f04682b4.js"
+          "file": "7dedd42b.335f6844.js",
+          "hash": "83c11dea0eb630dbecf6",
+          "publicPath": "/Robyn/7dedd42b.335f6844.js"
         }
       ]
     },
     "17": {
       "js": [
         {
-          "file": "8c2e1b52.9d426a99.js",
-          "hash": "05dff08a604d359ba310",
-          "publicPath": "/Robyn/8c2e1b52.9d426a99.js"
+          "file": "879b8e83.f1a96ab5.js",
+          "hash": "74ce6625b75df61e0396",
+          "publicPath": "/Robyn/879b8e83.f1a96ab5.js"
         }
       ]
     },
     "18": {
       "js": [
         {
-          "file": "8e9f0a8a.e5265225.js",
-          "hash": "fde732ee4a96cd05a1b5",
-          "publicPath": "/Robyn/8e9f0a8a.e5265225.js"
+          "file": "8c2e1b52.58b8045b.js",
+          "hash": "7b2f829be36416859fcc",
+          "publicPath": "/Robyn/8c2e1b52.58b8045b.js"
         }
       ]
     },
     "19": {
       "js": [
         {
-          "file": "a5c48b51.b20f8b60.js",
-          "hash": "3ece5427ce440f56c7cd",
-          "publicPath": "/Robyn/a5c48b51.b20f8b60.js"
+          "file": "8e9f0a8a.ad69c115.js",
+          "hash": "6e88c4222bb772f80a1a",
+          "publicPath": "/Robyn/8e9f0a8a.ad69c115.js"
         }
       ]
     },
     "20": {
       "js": [
         {
-          "file": "a6aa9e1f.a29da778.js",
-          "hash": "1a259ba6bdccd1f1d7d8",
-          "publicPath": "/Robyn/a6aa9e1f.a29da778.js"
+          "file": "a5c48b51.bca06727.js",
+          "hash": "7b4904e0a0b3f9d3f047",
+          "publicPath": "/Robyn/a5c48b51.bca06727.js"
         }
       ]
     },
     "21": {
       "js": [
         {
-          "file": "af172acd.8cb43bea.js",
-          "hash": "06ea53fffb61730ff7a2",
-          "publicPath": "/Robyn/af172acd.8cb43bea.js"
+          "file": "a6aa9e1f.d270e275.js",
+          "hash": "930b090282eea418431c",
+          "publicPath": "/Robyn/a6aa9e1f.d270e275.js"
         }
       ]
     },
     "22": {
       "js": [
         {
-          "file": "b2f90839.33f92976.js",
-          "hash": "4cbc21aeb0048a0086f5",
-          "publicPath": "/Robyn/b2f90839.33f92976.js"
+          "file": "af172acd.2436885e.js",
+          "hash": "d76b5025e382261b2f6f",
+          "publicPath": "/Robyn/af172acd.2436885e.js"
         }
       ]
     },
     "23": {
       "js": [
         {
-          "file": "bdd709f1.84daec59.js",
-          "hash": "8e19295dec271b8c7e91",
-          "publicPath": "/Robyn/bdd709f1.84daec59.js"
+          "file": "b2f90839.ee20bba3.js",
+          "hash": "599670aecc918b33312b",
+          "publicPath": "/Robyn/b2f90839.ee20bba3.js"
         }
       ]
     },
     "24": {
       "js": [
         {
-          "file": "bec1061c.95117275.js",
-          "hash": "2662c31b0c406755635d",
-          "publicPath": "/Robyn/bec1061c.95117275.js"
+          "file": "bdd709f1.3036e120.js",
+          "hash": "30b67a61c78fcb83558c",
+          "publicPath": "/Robyn/bdd709f1.3036e120.js"
         }
       ]
     },
     "25": {
       "js": [
         {
-          "file": "c1130eb1.4852aa7f.js",
-          "hash": "154648f393f31795a6ac",
-          "publicPath": "/Robyn/c1130eb1.4852aa7f.js"
+          "file": "bec1061c.b7ea4d81.js",
+          "hash": "969eb2f841909277245a",
+          "publicPath": "/Robyn/bec1061c.b7ea4d81.js"
         }
       ]
     },
     "26": {
       "js": [
         {
-          "file": "c4f5d8e4.c9b08bf9.js",
-          "hash": "bfe83beedda0be94f7de",
-          "publicPath": "/Robyn/c4f5d8e4.c9b08bf9.js"
+          "file": "c1130eb1.5ce413e7.js",
+          "hash": "cbed85e929763d513044",
+          "publicPath": "/Robyn/c1130eb1.5ce413e7.js"
         }
       ]
     },
     "27": {
       "js": [
         {
-          "file": "ccc49370.e66ea7c6.js",
-          "hash": "9cdf7f3ec9ae4d8555cd",
-          "publicPath": "/Robyn/ccc49370.e66ea7c6.js"
+          "file": "c4f5d8e4.e680c2d2.js",
+          "hash": "e38b2e6fe0367af38e04",
+          "publicPath": "/Robyn/c4f5d8e4.e680c2d2.js"
         }
       ]
     },
     "28": {
       "js": [
         {
-          "file": "d610846f.9d05176e.js",
-          "hash": "344c8e9942bd344d7ec0",
-          "publicPath": "/Robyn/d610846f.9d05176e.js"
+          "file": "ccc49370.1df2c204.js",
+          "hash": "bc58ecf2e117efa9aea7",
+          "publicPath": "/Robyn/ccc49370.1df2c204.js"
         }
       ]
     },
     "29": {
       "js": [
         {
-          "file": "dc287d1d.4046f1f4.js",
-          "hash": "38e2ff4663ef1ff3b97e",
-          "publicPath": "/Robyn/dc287d1d.4046f1f4.js"
+          "file": "d610846f.ffd93c51.js",
+          "hash": "9247d24a0db9b20dd362",
+          "publicPath": "/Robyn/d610846f.ffd93c51.js"
         }
       ]
     },
     "30": {
       "js": [
         {
-          "file": "df361e2b.f8f5d9dc.js",
-          "hash": "62af140633acb77d4519",
-          "publicPath": "/Robyn/df361e2b.f8f5d9dc.js"
+          "file": "dc287d1d.0bd9987e.js",
+          "hash": "1fd91ec9ced7adf0c392",
+          "publicPath": "/Robyn/dc287d1d.0bd9987e.js"
         }
       ]
     },
     "31": {
       "js": [
         {
-          "file": "e1a7ef00.3554716d.js",
-          "hash": "b3bbbc0766d914a231eb",
-          "publicPath": "/Robyn/e1a7ef00.3554716d.js"
+          "file": "df361e2b.969665ca.js",
+          "hash": "941baba400b4c796b602",
+          "publicPath": "/Robyn/df361e2b.969665ca.js"
         }
       ]
     },
     "32": {
       "js": [
         {
-          "file": "e3d09484.ccbbfb3b.js",
-          "hash": "87efaf09216602d2a6dd",
-          "publicPath": "/Robyn/e3d09484.ccbbfb3b.js"
+          "file": "e1a7ef00.aedd0a7c.js",
+          "hash": "fe349e1602adbde72580",
+          "publicPath": "/Robyn/e1a7ef00.aedd0a7c.js"
         }
       ]
     },
     "33": {
       "js": [
         {
-          "file": "f0959ab0.fe6279b5.js",
-          "hash": "200452f9fa91b9166a9c",
-          "publicPath": "/Robyn/f0959ab0.fe6279b5.js"
+          "file": "e3d09484.90554b80.js",
+          "hash": "5bc4f5350d6786f2ce4d",
+          "publicPath": "/Robyn/e3d09484.90554b80.js"
         }
       ]
     },
     "34": {
       "js": [
         {
-          "file": "main.a108aa4c.js",
-          "hash": "6a4693c2864c4c01bec7",
-          "publicPath": "/Robyn/main.a108aa4c.js"
+          "file": "f0959ab0.02453dde.js",
+          "hash": "6f58b916a9e840a9f6c8",
+          "publicPath": "/Robyn/f0959ab0.02453dde.js"
         }
       ]
     },
     "35": {
       "js": [
         {
-          "file": "runtime~main.eb0df960.js",
-          "hash": "d4e22708291bacf9f5a0",
-          "publicPath": "/Robyn/runtime~main.eb0df960.js"
+          "file": "main.ccfdadb7.js",
+          "hash": "e9d3bda663abb773f884",
+          "publicPath": "/Robyn/main.ccfdadb7.js"
         }
       ]
     },
-    "37": {
+    "36": {
       "js": [
         {
-          "file": "36.2bbdc9d4.js",
-          "hash": "a72527b85cc6618b419a",
-          "publicPath": "/Robyn/36.2bbdc9d4.js"
+          "file": "runtime~main.3637bd7a.js",
+          "hash": "75616bc237997d5baf47",
+          "publicPath": "/Robyn/runtime~main.3637bd7a.js"
+        }
+      ]
+    },
+    "38": {
+      "js": [
+        {
+          "file": "37.8847f74d.js",
+          "hash": "00bc36cf82638539b3e1",
+          "publicPath": "/Robyn/37.8847f74d.js"
         },
         {
-          "file": "37.0034c13f.js",
-          "hash": "2e7a79d1c3a18c3c2b1e",
-          "publicPath": "/Robyn/37.0034c13f.js"
+          "file": "38.3475b877.js",
+          "hash": "41468963e8a7875e5f54",
+          "publicPath": "/Robyn/38.3475b877.js"
         }
       ]
     }
