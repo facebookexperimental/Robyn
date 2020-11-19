@@ -2,6 +2,8 @@
 id: doc12
 title: Step-by-step guide
 ---
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 ## Load data & scripts
 
 The first step is to load data and scripts, you can start with our simulated data file (de_simulated_data.csv) if you want to practice at the beginning.
