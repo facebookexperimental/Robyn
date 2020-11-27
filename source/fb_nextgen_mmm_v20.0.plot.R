@@ -9,7 +9,9 @@
 f.plotTrainSize <- function(plotTrainSize) {
   
   if(plotTrainSize) {
-    bhattaVar <- unique(c(set_depVarName, set_baseVarName, set_mediaVarName, set_mediaSpendName))
+    if(activate_baseline & exists("set_baseVarName")) {
+      bhattaVar <- unique(c(set_depVarName, set_baseVarName, set_mediaVarName, set_mediaSpendName))
+    } else {stop("either set activate_baseline = F or fill set_baseVarName")}
     bhattaVar <- setdiff(bhattaVar, set_factorVarName)
     dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
     
@@ -19,7 +21,7 @@ f.plotTrainSize <- function(plotTrainSize) {
       ldet.s <- unlist(determinant(Sig, logarithm = TRUE))[1]
       ldet.s1 <- unlist(determinant(Sigma1, logarithm = TRUE))[1]
       ldet.s2 <- unlist(determinant(Sigma2, logarithm = TRUE))[1]
-      d1 <- mahalanobis(mu1, mu2, Sig)/8
+      d1 <- mahalanobis(mu1, mu2, Sig, tol=1e-20)/8
       d2 <- 0.5 * ldet.s - 0.25 * ldet.s1 - 0.25 * ldet.s2
       d <- d1 + d2
       bhatta.coef <- 1/exp(d)
@@ -116,7 +118,43 @@ f.plotAdstockCurves <- function(plotAdstockCurves) {
   }
 }
 
-
+f.plotResponseCurves <- function(plotResponseCurves) {
+  if (plotResponseCurves) {
+    xSample <- 1:100
+    alphaSamp <- c(0.1, 0.5, 1, 2, 3)
+    gammaSamp <- c(0.1, 0.3, 0.5, 0.7, 0.9)
+    
+    ## plot alphas
+    hillAlphaCollect <- list()
+    for (i in 1:length(alphaSamp)) {
+      hillAlphaCollect[[i]] <- data.table(x=xSample
+                                          ,y=xSample**alphaSamp[i] / (xSample**alphaSamp[i] + (0.5*100)**alphaSamp[i])
+                                          ,alpha=alphaSamp[i])
+    }
+    hillAlphaCollect <- rbindlist(hillAlphaCollect)
+    hillAlphaCollect[, alpha:=as.factor(alpha)]
+    p1 <- ggplot(hillAlphaCollect, aes(x=x, y=y, color=alpha)) + 
+      geom_line() +
+      labs(title = "Cost response with hill function"
+           ,subtitle = "Alpha changes while gamma = 0.5")
+    
+    ## plot gammas
+    hillGammaCollect <- list()
+    for (i in 1:length(gammaSamp)) {
+      hillGammaCollect[[i]] <- data.table(x=xSample
+                                          ,y=xSample**2 / (xSample**2 + (gammaSamp[i]*100)**2)
+                                          ,gamma=gammaSamp[i])
+    }
+    hillGammaCollect <- rbindlist(hillGammaCollect)
+    hillGammaCollect[, gamma:=as.factor(gamma)]
+    p2 <- ggplot(hillGammaCollect, aes(x=x, y=y, color=gamma)) + 
+      geom_line() +
+      labs(title = "Cost response with hill function"
+           ,subtitle = "Gamma changes while alpha = 2")
+    
+    grid.arrange(p1,p2, nrow=1)
+  }
+}
 
 
 #####################################
@@ -394,11 +432,11 @@ f.plotMediaTransform <- function(plotMediaTransform, channelPlot = NULL) {
 
 f.unit_format <- function(x_in) {
   x_out <- sapply(x_in, function(x) {
-    if (x >= 1000000000) {
+    if (abs(x) >= 1000000000) {
       x_out <- paste0(round(x/1000000000, 1), " bln")
-    } else if (x >= 1000000 & x<1000000000) {
+    } else if (abs(x) >= 1000000 & abs(x)<1000000000) {
       x_out <- paste0(round(x/1000000, 1), " mio")
-    } else if (x >= 1000 & x<1000000) {
+    } else if (abs(x) >= 1000 & abs(x)<1000000) {
       x_out <- paste0(round(x/1000, 1), " tsd")
     } else {
       x_out <- round(x,0)
@@ -443,10 +481,13 @@ f.plotBestDecomp <- function(plotBestDecomp=T) {
     ## Line chart for actual vs fitted
     lineDT <- plotDT$resultCollect$xDecompVec[iterRS == best_iter]
     suppressWarnings(lineDT.melt <- melt.data.table(lineDT[, .(ds, y, y_pred)], id.vars = "ds"))
+    dateIntercept <- lineDT[floor(set_modTrainSize* nrow(lineDT)), ds]
     print(ggplot(aes(y = value, x = ds, colour = variable), data = lineDT.melt) + 
             geom_line(stat="identity") +
+            geom_vline(aes(xintercept = dateIntercept), colour="gray", linetype= "dashed") +
+            geom_text(data = lineDT, aes(x = dateIntercept, y = max(y), angle = 90, vjust = -0.5, hjust= 1, label = paste0("training size: ",round(set_modTrainSize*100),"%")), colour="gray") +
             labs(title="Sales actual vs. fitted", 
-                 subtitle=paste0("rsq = ", round(best.rsq,4), " , mape = ", round(best.mape,4) ),
+                 subtitle=paste0("test.rsq = ", round(best.rsq,4), " , test.mape = ", round(best.mape,4) ),
                  x="ds",
                  y="Sales"))
     
@@ -668,7 +709,7 @@ f.plotHyperBoundOptim <- function(plotHyperBoundOptim, channelPlot = NULL, model
     best.rsq <- model_output$resultCollect$xDecompAgg[iterRS == best.iter, rsq_test] 
     best.mape <- model_output$resultCollect$xDecompAgg[iterRS == best.iter, mape] 
     
-  } 
+
   
   ## filter max. 3 channels at one time
   if (plotHyperBoundOptim & is.null(channelPlot)) {
@@ -766,6 +807,10 @@ f.plotHyperBoundOptim <- function(plotHyperBoundOptim, channelPlot = NULL, model
   
   plt.out[, variable := str_sub(plt.out$variable, rep(1,nVar), str_locate(plt.out$variable, "\n")[,1]-1)]
   return(plt.out)
+  
+  } else {
+    warning("run f.mmmRobyn first to get model_output for this plot")
+  }
 }
 
 #####################################

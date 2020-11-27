@@ -12,7 +12,11 @@
 
 f.checkConditions <- function(dt_transform) {
   
-  if (set_iter <= 50000) {message("we recommend to run at least 100k iterations per epoch at the beginning")}
+  if (set_iter <= 50000) {message("we recommend to run at least 50k iterations per epoch at the beginning")}
+
+  if (activate_prophet & !all(set_prophet %in% c("trend","season", "weekday", "holiday"))) {
+    stop("set_prophet must be 'trend', 'season', 'weekday' or 'holiday")
+  }
   
   if (activate_baseline) {
     if(length(set_baseVarName) != length(set_baseVarSign)) {stop("set_baseVarName and set_baseVarSign have to be the same length")}
@@ -22,6 +26,8 @@ f.checkConditions <- function(dt_transform) {
     stop("set_mediaVarName must be specified")
   } else {
     if(length(set_mediaVarName) != length(set_mediaVarSign)) {stop("set_mediaVarName and set_mediaVarSign have to be the same length")}
+    if(!all(c(set_prophetVarSign, set_baseVarSign, set_mediaVarSign) %in% c("positive", "negative", "default"))) {
+      stop("set_prophetVarSign, set_baseVarSign & set_mediaVarSign must be 'positive', 'negative' or 'default'")}
   }
   
   if(activate_calibration) {
@@ -90,6 +96,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   
   #hypName <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas") # defind hyperparameter names
   dayInterval <- as.integer(difftime(sort(unique(dt_transform$ds))[2], sort(unique(dt_transform$ds))[1], units = "days"))
+  intervalType <- if(dayInterval==1) {"day"} else if (dayInterval==7) {"week"} else if (dayInterval %in% 28:31) {"month"} else {stop("input data has to be daily, weekly or monthly")}
   assign("dayInterval", dayInterval, envir = .GlobalEnv)
   mediaVarCount <- length(set_mediaVarName)
   
@@ -160,6 +167,11 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         yhatLM <- predict(modLM)
         modLMSum <- summary(modLM)
         
+        # compare NLS & LM, takes LM if NLS fits worse
+        rsq_nls <- f.rsq(dt_spendModInput$reach, yhatNLS)
+        rsq_lm <- f.rsq(dt_spendModInput$reach, yhatLM) #reach = v  * spend / (k + spend)
+        costSelector[i] <- rsq_nls > rsq_lm
+        
         modNLSCollect[[set_mediaVarName[i]]] <- data.table(channel = set_mediaVarName[i],
                                                              Vmax = modNLSSum$coefficients[1,1],
                                                              Km = modNLSSum$coefficients[2,1],
@@ -167,12 +179,12 @@ f.inputWrangling <- function(dt_transform = dt_input) {
                                                              aic_lm = AIC(modLM),
                                                              bic_nls = BIC(modNLS),
                                                              bic_lm = BIC(modLM),
-                                                             rsq_nls = f.rsq(dt_spendModInput$reach, yhatNLS),
-                                                             rsq_lm = f.rsq(dt_spendModInput$reach, yhatLM)
+                                                             rsq_nls = rsq_nls,
+                                                             rsq_lm = rsq_lm
         )
         
         dt_plotNLS <- data.table(channel = set_mediaVarName[i],
-                                yhatNLS = yhatNLS,
+                                yhatNLS = if(costSelector[i]) {yhatNLS} else {yhatLM},
                                 yhatLM = yhatLM,
                                 y = dt_spendModInput$reach,
                                 x = dt_spendModInput$spend)
@@ -186,14 +198,14 @@ f.inputWrangling <- function(dt_transform = dt_input) {
           geom_point() +
           geom_line(aes(y=yhat, x=x, color = models)) +
           labs(subtitle = paste0("y=",set_mediaVarName[i],", x=", set_mediaSpendName[i],
-                                 "\nnls: aic=", round(AIC(modNLS),0), ", rsq=", round(f.rsq(dt_spendModInput$reach, yhatNLS),4),
-                                 "\nlm: aic= ", round(AIC(modLM),0), ", rsq=", round(f.rsq(dt_spendModInput$reach, yhatLM),4)),
+                                 "\nnls: aic=", round(AIC(if(costSelector[i]) {modNLS} else {modLM}),0), ", rsq=", round(if(costSelector[i]) {rsq_nls} else {rsq_lm},4),
+                                 "\nlm: aic= ", round(AIC(modLM),0), ", rsq=", round(rsq_lm,4)),
                x = "spend",
                y = "reach"
                ) +
           theme(legend.position = 'bottom')
         
-      } 
+      }
     }
     
     modNLSCollect <- rbindlist(modNLSCollect)
@@ -237,15 +249,36 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   if (activate_prophet) {
     
     if(length(set_prophet) != length(set_prophetVarSign)) {stop("set_prophet and set_prophetVarSign have to be the same length")}
-    if(any(length(set_prophet)==0, length(set_prophetVarSign)==0)) {
-      stop("if activate_prophet == TRUE, set_prophet and set_prophetVarSign must to specified")
-    } 
+    if(any(length(set_prophet)==0, length(set_prophetVarSign)==0)) {stop("if activate_prophet == TRUE, set_prophet and set_prophetVarSign must to specified")}
+    if(!(set_country %in% dt_holidays$country)) {stop("set_country must be already included in the holidays.csv and as ISO 3166-1 alpha-2 abbreviation")}
     
     recurrance <- dt_transform[, .(ds = ds, y = depVar)]
     use_trend <- any(str_detect("trend", set_prophet))
     use_season <- any(str_detect("season", set_prophet))
     use_weekday <- any(str_detect("weekday", set_prophet))
     use_holiday <- any(str_detect("holiday", set_prophet))
+    
+    if (intervalType == "day") {
+      
+      holidays <- dt_holidays
+      
+    } else if (intervalType == "week") {
+      
+      weekStartInput <- weekdays(dt_transform[1, ds])
+      weekStartMonday <- if(weekStartInput=="Monday") {TRUE} else if (weekStartInput=="Sunday") {FALSE} else {stop("week start has to be Monday or Sunday")}
+      dt_holidays[, dsWeekStart:= cut(as.Date(ds), breaks = intervalType, start.on.monday = weekStartMonday)]
+      holidays <- dt_holidays[, .(ds=dsWeekStart, holiday, country, year)]
+      holidays <- holidays[, lapply(.SD, paste0, collapse="#"), by = c("ds", "country", "year"), .SDcols = "holiday"]
+      
+    } else if (intervalType == "month") {
+      
+      monthStartInput <- all(day(dt_transform[, ds]) ==1)
+      if (monthStartInput==FALSE) {stop("monthly data should have first day of month as datestampe, e.g.'2020-01-01' ")}
+      dt_holidays[, dsMonthStart:= cut(as.Date(ds), intervalType)]
+      holidays <- dt_holidays[, .(ds=dsMonthStart, holiday, country, year)]
+      holidays <- holidays[, lapply(.SD, paste0, collapse="#"), by = c("ds", "country", "year"), .SDcols = "holiday"]
+      
+    }
     
     modelRecurrance<-prophet(recurrance
                              ,holidays = if(use_holiday) {holidays[country==set_country]} else {NULL}
@@ -257,7 +290,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
                              #,changepoint.prior.scale = 0.1
     )
     
-    futureDS <- make_future_dataframe(modelRecurrance, periods=1)
+    futureDS <- make_future_dataframe(modelRecurrance, periods=1, freq = intervalType)
     forecastRecurrance <- predict(modelRecurrance, futureDS)
     assign("modelRecurrance", modelRecurrance, envir = .GlobalEnv)
     assign("forecastRecurrance", forecastRecurrance, envir = .GlobalEnv)
