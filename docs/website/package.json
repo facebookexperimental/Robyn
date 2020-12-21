@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "docusaurus": "^1.14.6"
+  },
+  "dependencies": {
+    "highlight.js": "^10.4.1"
   }
 }
