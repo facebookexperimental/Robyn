@@ -1,6 +1,6 @@
 {
   "name": "postcss-calc",
-  "version": "7.0.4",
+  "version": "7.0.5",
   "description": "PostCSS plugin to reduce calc()",
   "keywords": [
     "css",
