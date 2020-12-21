@@ -1,3 +1,14 @@
+3.1.2 / 2020-11-24
+=================
+  * [Robustness] remove dependency on `.apply`
+  * [Deps] update `es-abstract`; use `call-bind` and `get-intrinsic` where applicable
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `functions-have-names`, `tape`; add `aud`, `safe-publish-latest`
+  * [actions] add "Allow Edits" workflow
+  * [actions] switch Automatic Rebase workflow to `pull_request_target` event
+  * [Tests] migrate tests to Github Actions
+  * [Tests] run `nyc` on all tests
+  * [Tests] add `implementation` test; run `es-shim-api` in postlint; use `tape` runner
+
 3.1.1 / 2019-12-21
 =================
   * [Fix] IE < 9 does not have index access on strings

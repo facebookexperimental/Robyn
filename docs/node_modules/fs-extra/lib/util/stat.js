@@ -1,70 +1,29 @@
 'use strict'
 
-const fs = require('graceful-fs')
+const fs = require('../fs')
 const path = require('path')
+const util = require('util')
+const atLeastNode = require('at-least-node')
 
-const NODE_VERSION_MAJOR_WITH_BIGINT = 10
-const NODE_VERSION_MINOR_WITH_BIGINT = 5
-const NODE_VERSION_PATCH_WITH_BIGINT = 0
-const nodeVersion = process.versions.node.split('.')
-const nodeVersionMajor = Number.parseInt(nodeVersion[0], 10)
-const nodeVersionMinor = Number.parseInt(nodeVersion[1], 10)
-const nodeVersionPatch = Number.parseInt(nodeVersion[2], 10)
+const nodeSupportsBigInt = atLeastNode('10.5.0')
+const stat = (file) => nodeSupportsBigInt ? fs.stat(file, { bigint: true }) : fs.stat(file)
+const statSync = (file) => nodeSupportsBigInt ? fs.statSync(file, { bigint: true }) : fs.statSync(file)
 
-function nodeSupportsBigInt () {
-  if (nodeVersionMajor > NODE_VERSION_MAJOR_WITH_BIGINT) {
-    return true
-  } else if (nodeVersionMajor === NODE_VERSION_MAJOR_WITH_BIGINT) {
-    if (nodeVersionMinor > NODE_VERSION_MINOR_WITH_BIGINT) {
-      return true
-    } else if (nodeVersionMinor === NODE_VERSION_MINOR_WITH_BIGINT) {
-      if (nodeVersionPatch >= NODE_VERSION_PATCH_WITH_BIGINT) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-function getStats (src, dest, cb) {
-  if (nodeSupportsBigInt()) {
-    fs.stat(src, { bigint: true }, (err, srcStat) => {
-      if (err) return cb(err)
-      fs.stat(dest, { bigint: true }, (err, destStat) => {
-        if (err) {
-          if (err.code === 'ENOENT') return cb(null, { srcStat, destStat: null })
-          return cb(err)
-        }
-        return cb(null, { srcStat, destStat })
-      })
+function getStats (src, dest) {
+  return Promise.all([
+    stat(src),
+    stat(dest).catch(err => {
+      if (err.code === 'ENOENT') return null
+      throw err
     })
-  } else {
-    fs.stat(src, (err, srcStat) => {
-      if (err) return cb(err)
-      fs.stat(dest, (err, destStat) => {
-        if (err) {
-          if (err.code === 'ENOENT') return cb(null, { srcStat, destStat: null })
-          return cb(err)
-        }
-        return cb(null, { srcStat, destStat })
-      })
-    })
-  }
+  ]).then(([srcStat, destStat]) => ({ srcStat, destStat }))
 }
 
 function getStatsSync (src, dest) {
-  let srcStat, destStat
-  if (nodeSupportsBigInt()) {
-    srcStat = fs.statSync(src, { bigint: true })
-  } else {
-    srcStat = fs.statSync(src)
-  }
+  let destStat
+  const srcStat = statSync(src)
   try {
-    if (nodeSupportsBigInt()) {
-      destStat = fs.statSync(dest, { bigint: true })
-    } else {
-      destStat = fs.statSync(dest)
-    }
+    destStat = statSync(dest)
   } catch (err) {
     if (err.code === 'ENOENT') return { srcStat, destStat: null }
     throw err
@@ -73,10 +32,10 @@ function getStatsSync (src, dest) {
 }
 
 function checkPaths (src, dest, funcName, cb) {
-  getStats(src, dest, (err, stats) => {
+  util.callbackify(getStats)(src, dest, (err, stats) => {
     if (err) return cb(err)
     const { srcStat, destStat } = stats
-    if (destStat && destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev) {
+    if (destStat && areIdentical(srcStat, destStat)) {
       return cb(new Error('Source and destination must not be the same.'))
     }
     if (srcStat.isDirectory() && isSrcSubdir(src, dest)) {
@@ -88,7 +47,7 @@ function checkPaths (src, dest, funcName, cb) {
 
 function checkPathsSync (src, dest, funcName) {
   const { srcStat, destStat } = getStatsSync(src, dest)
-  if (destStat && destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev) {
+  if (destStat && areIdentical(srcStat, destStat)) {
     throw new Error('Source and destination must not be the same.')
   }
   if (srcStat.isDirectory() && isSrcSubdir(src, dest)) {
@@ -105,29 +64,18 @@ function checkParentPaths (src, srcStat, dest, funcName, cb) {
   const srcParent = path.resolve(path.dirname(src))
   const destParent = path.resolve(path.dirname(dest))
   if (destParent === srcParent || destParent === path.parse(destParent).root) return cb()
-  if (nodeSupportsBigInt()) {
-    fs.stat(destParent, { bigint: true }, (err, destStat) => {
-      if (err) {
-        if (err.code === 'ENOENT') return cb()
-        return cb(err)
-      }
-      if (destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev) {
-        return cb(new Error(errMsg(src, dest, funcName)))
-      }
-      return checkParentPaths(src, srcStat, destParent, funcName, cb)
-    })
-  } else {
-    fs.stat(destParent, (err, destStat) => {
-      if (err) {
-        if (err.code === 'ENOENT') return cb()
-        return cb(err)
-      }
-      if (destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev) {
-        return cb(new Error(errMsg(src, dest, funcName)))
-      }
-      return checkParentPaths(src, srcStat, destParent, funcName, cb)
-    })
+  const callback = (err, destStat) => {
+    if (err) {
+      if (err.code === 'ENOENT') return cb()
+      return cb(err)
+    }
+    if (areIdentical(srcStat, destStat)) {
+      return cb(new Error(errMsg(src, dest, funcName)))
+    }
+    return checkParentPaths(src, srcStat, destParent, funcName, cb)
   }
+  if (nodeSupportsBigInt) fs.stat(destParent, { bigint: true }, callback)
+  else fs.stat(destParent, callback)
 }
 
 function checkParentPathsSync (src, srcStat, dest, funcName) {
@@ -136,19 +84,38 @@ function checkParentPathsSync (src, srcStat, dest, funcName) {
   if (destParent === srcParent || destParent === path.parse(destParent).root) return
   let destStat
   try {
-    if (nodeSupportsBigInt()) {
-      destStat = fs.statSync(destParent, { bigint: true })
-    } else {
-      destStat = fs.statSync(destParent)
-    }
+    destStat = statSync(destParent)
   } catch (err) {
     if (err.code === 'ENOENT') return
     throw err
   }
-  if (destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev) {
+  if (areIdentical(srcStat, destStat)) {
     throw new Error(errMsg(src, dest, funcName))
   }
   return checkParentPathsSync(src, srcStat, destParent, funcName)
+}
+
+function areIdentical (srcStat, destStat) {
+  if (destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev) {
+    if (nodeSupportsBigInt || destStat.ino < Number.MAX_SAFE_INTEGER) {
+      // definitive answer
+      return true
+    }
+    // Use additional heuristics if we can't use 'bigint'.
+    // Different 'ino' could be represented the same if they are >= Number.MAX_SAFE_INTEGER
+    // See issue 657
+    if (destStat.size === srcStat.size &&
+        destStat.mode === srcStat.mode &&
+        destStat.nlink === srcStat.nlink &&
+        destStat.atimeMs === srcStat.atimeMs &&
+        destStat.mtimeMs === srcStat.mtimeMs &&
+        destStat.ctimeMs === srcStat.ctimeMs &&
+        destStat.birthtimeMs === srcStat.birthtimeMs) {
+      // heuristic answer
+      return true
+    }
+  }
+  return false
 }
 
 // return true if dest is a subdir of src, otherwise false.

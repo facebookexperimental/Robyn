@@ -1,7 +1,7 @@
 /**
  * react-loadable-ssr-addon
  * @author Marcos Gonçalves <contact@themgoncalves.com>
- * @version 0.2.3
+ * @version 0.3.0
  */
 
 import ReactLoadableSSRAddon from './ReactLoadableSSRAddon';

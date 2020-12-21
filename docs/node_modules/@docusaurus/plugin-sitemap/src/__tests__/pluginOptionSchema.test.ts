@@ -29,6 +29,7 @@ describe('normalizeSitemapPluginOptions', () => {
       cacheTime: 300,
       changefreq: 'yearly',
       priority: 0.9,
+      trailingSlash: false,
     };
     const {value} = await PluginOptionSchema.validate(userOptions);
     expect(value).toEqual(userOptions);
@@ -58,7 +59,7 @@ describe('normalizeSitemapPluginOptions', () => {
         changefreq: 'annually',
       });
     }).toThrowErrorMatchingInlineSnapshot(
-      `"\\"changefreq\\" must be one of [always, hourly, daily, weekly, monthly, yearly, never]"`,
+      `"\\"changefreq\\" must be one of [daily, monthly, always, hourly, weekly, yearly, never]"`,
     );
   });
 });

@@ -3,6 +3,12 @@
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
+Object.defineProperty(exports, 'messageParent', {
+  enumerable: true,
+  get: function () {
+    return _messageParent.default;
+  }
+});
 exports.default = void 0;
 
 function _os() {
@@ -15,9 +21,11 @@ function _os() {
   return data;
 }
 
+var _Farm = _interopRequireDefault(require('./Farm'));
+
 var _WorkerPool = _interopRequireDefault(require('./WorkerPool'));
 
-var _Farm = _interopRequireDefault(require('./Farm'));
+var _messageParent = _interopRequireDefault(require('./workers/messageParent'));
 
 function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : {default: obj};
@@ -44,7 +52,7 @@ function getExposedMethods(workerPath, options) {
     const module = require(workerPath);
 
     exposedMethods = Object.keys(module).filter(
-      // @ts-ignore: no index
+      // @ts-expect-error: no index
       name => typeof module[name] === 'function'
     );
 
@@ -83,6 +91,13 @@ function getExposedMethods(workerPath, options) {
 
 class JestWorker {
   constructor(workerPath, options) {
+    var _this$_options$enable,
+      _this$_options$forkOp,
+      _this$_options$maxRet,
+      _this$_options$numWor,
+      _this$_options$resour,
+      _this$_options$setupA;
+
     _defineProperty(this, '_ending', void 0);
 
     _defineProperty(this, '_farm', void 0);
@@ -94,16 +109,40 @@ class JestWorker {
     this._options = {...options};
     this._ending = false;
     const workerPoolOptions = {
-      enableWorkerThreads: this._options.enableWorkerThreads || false,
-      forkOptions: this._options.forkOptions || {},
-      maxRetries: this._options.maxRetries || 3,
+      enableWorkerThreads:
+        (_this$_options$enable = this._options.enableWorkerThreads) !== null &&
+        _this$_options$enable !== void 0
+          ? _this$_options$enable
+          : false,
+      forkOptions:
+        (_this$_options$forkOp = this._options.forkOptions) !== null &&
+        _this$_options$forkOp !== void 0
+          ? _this$_options$forkOp
+          : {},
+      maxRetries:
+        (_this$_options$maxRet = this._options.maxRetries) !== null &&
+        _this$_options$maxRet !== void 0
+          ? _this$_options$maxRet
+          : 3,
       numWorkers:
-        this._options.numWorkers || Math.max((0, _os().cpus)().length - 1, 1),
-      setupArgs: this._options.setupArgs || []
+        (_this$_options$numWor = this._options.numWorkers) !== null &&
+        _this$_options$numWor !== void 0
+          ? _this$_options$numWor
+          : Math.max((0, _os().cpus)().length - 1, 1),
+      resourceLimits:
+        (_this$_options$resour = this._options.resourceLimits) !== null &&
+        _this$_options$resour !== void 0
+          ? _this$_options$resour
+          : {},
+      setupArgs:
+        (_this$_options$setupA = this._options.setupArgs) !== null &&
+        _this$_options$setupA !== void 0
+          ? _this$_options$setupA
+          : []
     };
 
     if (this._options.WorkerPool) {
-      // @ts-ignore: constructor target any?
+      // @ts-expect-error: constructor target any?
       this._workerPool = new this._options.WorkerPool(
         workerPath,
         workerPoolOptions
@@ -129,7 +168,7 @@ class JestWorker {
 
       if (this.constructor.prototype.hasOwnProperty(name)) {
         throw new TypeError('Cannot define a method called ' + name);
-      } // @ts-ignore: dynamic extension of the class instance is expected.
+      } // @ts-expect-error: dynamic extension of the class instance is expected.
 
       this[name] = this._callFunctionWithArgs.bind(this, name);
     });

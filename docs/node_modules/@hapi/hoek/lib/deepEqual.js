@@ -119,8 +119,8 @@ internals.hasOwnEnumerableProperty = function (obj, key) {
 
 internals.isSetSimpleEqual = function (obj, ref) {
 
-    for (const entry of obj) {
-        if (!ref.has(entry)) {
+    for (const entry of Set.prototype.values.call(obj)) {
+        if (!Set.prototype.has.call(ref, entry)) {
             return false;
         }
     }
@@ -170,8 +170,8 @@ internals.isDeepEqualObj = function (instanceType, obj, ref, options, seen) {
 
             // Check for deep equality
 
-            const ref2 = new Set(ref);
-            for (const objEntry of obj) {
+            const ref2 = new Set(Set.prototype.values.call(ref));
+            for (const objEntry of Set.prototype.values.call(obj)) {
                 if (ref2.delete(objEntry)) {
                     continue;
                 }
@@ -196,12 +196,12 @@ internals.isDeepEqualObj = function (instanceType, obj, ref, options, seen) {
             return false;
         }
 
-        for (const [key, value] of obj) {
-            if (value === undefined && !ref.has(key)) {
+        for (const [key, value] of Map.prototype.entries.call(obj)) {
+            if (value === undefined && !Map.prototype.has.call(ref, key)) {
                 return false;
             }
 
-            if (!isDeepEqual(value, ref.get(key), options, seen)) {
+            if (!isDeepEqual(value, Map.prototype.get.call(ref, key), options, seen)) {
                 return false;
             }
         }

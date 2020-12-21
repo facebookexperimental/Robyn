@@ -9,16 +9,16 @@ import React from 'react';
 
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
+import type {Props} from '@theme/BlogTagsListPage';
+import BlogSidebar from '@theme/BlogSidebar';
 
 function getCategoryOfTag(tag: string) {
   // tag's category should be customizable
   return tag[0].toUpperCase();
 }
 
-type Tag = {permalink: string; name: string; count: number};
-
-function BlogTagsListPage(props: {tags: Record<string, Tag>}): JSX.Element {
-  const {tags} = props;
+function BlogTagsListPage(props: Props): JSX.Element {
+  const {tags, sidebar} = props;
 
   const tagCategories: {[category: string]: string[]} = {};
   Object.keys(tags).forEach((tag) => {
@@ -50,10 +50,16 @@ function BlogTagsListPage(props: {tags: Record<string, Tag>}): JSX.Element {
     .filter((item) => item != null);
 
   return (
-    <Layout title="Tags" description="Blog Tags">
+    <Layout
+      title="Tags"
+      description="Blog Tags"
+      wrapperClassName="blog-wrapper">
       <div className="container margin-vert--lg">
         <div className="row">
-          <main className="col col--8 col--offset-2">
+          <div className="col col--2">
+            <BlogSidebar sidebar={sidebar} />
+          </div>
+          <main className="col col--8">
             <h1>Tags</h1>
             <div className="margin-vert--lg">{tagsSection}</div>
           </main>

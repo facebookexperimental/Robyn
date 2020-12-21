@@ -2,19 +2,150 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [2.3.8](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v2.3.7...v2.3.8) (2020-08-12)
-
-
-### Chore
-
-* update `serialize-javascript`
-
-### [2.3.7](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v2.3.6...v2.3.7) (2020-06-03)
+### [4.2.3](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v4.2.2...v4.2.3) (2020-10-07)
 
 
 ### Bug Fixes
 
-* security problem ([#258](https://github.com/webpack-contrib/terser-webpack-plugin/issues/258)) ([9954ad5](https://github.com/webpack-contrib/terser-webpack-plugin/commit/9954ad59895dd18b524253784cd13f1b173f99ed))
+* better minimizing `mjs` assets ([#329](https://github.com/webpack-contrib/terser-webpack-plugin/issues/329)) ([041b392](https://github.com/webpack-contrib/terser-webpack-plugin/commit/041b39208d364c8af9cd2b3f8e503b05a77ae067))
+* minify `cjs` assets ([#328](https://github.com/webpack-contrib/terser-webpack-plugin/issues/328)) ([b9c694d](https://github.com/webpack-contrib/terser-webpack-plugin/commit/b9c694d2c1193438d3ef72fed8d1789d9a48a367))
+
+### [4.2.2](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v4.2.1...v4.2.2) (2020-09-19)
+
+
+### Bug Fixes
+
+* related asset info ([a75dc8b](https://github.com/webpack-contrib/terser-webpack-plugin/commit/a75dc8bed97daecc509387a23a72699620695ab2))
+
+### [4.2.1](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v4.2.0...v4.2.1) (2020-09-15)
+
+
+### Bug Fixes
+
+* cache for extracted comments ([#314](https://github.com/webpack-contrib/terser-webpack-plugin/issues/314)) ([5340814](https://github.com/webpack-contrib/terser-webpack-plugin/commit/5340814188d53031b0444b8f588995dcbede88fc))
+* compatibility with webpack@5 ([f5bd8f8](https://github.com/webpack-contrib/terser-webpack-plugin/commit/f5bd8f8b1c0fc807fd00c57207e449056aeea35d))
+
+## [4.2.0](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v4.1.0...v4.2.0) (2020-09-11)
+
+
+### Features
+
+* improve caching ([defde64](https://github.com/webpack-contrib/terser-webpack-plugin/commit/defde640c8a2448fe7a5fee95a516af6e1bba8e4))
+* pass the `terserOptions` to the `minify` option ([#311](https://github.com/webpack-contrib/terser-webpack-plugin/issues/311)) ([4bd622c](https://github.com/webpack-contrib/terser-webpack-plugin/commit/4bd622cdaeb51be5d5151925f64ac1054298a214))
+
+
+### Bug Fixes
+
+* compatibility with webpack@5 ([#301](https://github.com/webpack-contrib/terser-webpack-plugin/issues/301)) ([9d861d8](https://github.com/webpack-contrib/terser-webpack-plugin/commit/9d861d8484eb36fa62c67f03b980cad2a43c3d2a))
+
+## [4.1.0](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v4.0.0...v4.1.0) (2020-08-10)
+
+
+### Features
+
+* pass license files as related assets for webpack@5 ([7d3ae95](https://github.com/webpack-contrib/terser-webpack-plugin/commit/7d3ae95bc890a5211efe234301050815ef8e687e))
+
+### Bug Fixes
+
+* compatibility with `10.13` version of `Node.js`
+
+## [4.0.0](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.1.0...v4.0.0) (2020-08-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* the `warningsFilter` option was removed without replacement, 
+* `terser` version is `5`, 
+* return value of the `minify` option was changed, only `code`/`map`/`extractedComments` are valid
+
+
+### Features
+
+* improved compatibility with webpack@5
+
+
+## [3.1.0](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.8...v3.1.0) (2020-08-03)
+
+
+### Features
+
+* show minimized assets in stats for webpack@5 ([#289](https://github.com/webpack-contrib/terser-webpack-plugin/issues/289)) ([d59eae2](https://github.com/webpack-contrib/terser-webpack-plugin/commit/d59eae2108ba43f3f7ce6c83195a8438634a9b55))
+
+
+### Bug Fixes
+
+* compatibility cache feature with webpack@5 ([5d2bd29](https://github.com/webpack-contrib/terser-webpack-plugin/commit/5d2bd29403f614296795664a81e437712469bc05))
+* skip double compression for child compilation ([37cc813](https://github.com/webpack-contrib/terser-webpack-plugin/commit/37cc8132df50ad7b374ec2606df1d0e202a579d1))
+
+### [3.0.8](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.7...v3.0.8) (2020-07-27)
+
+
+### Bug Fixes
+
+* compatibility with child compilations ([9da4add](https://github.com/webpack-contrib/terser-webpack-plugin/commit/9da4add75390a583366b7f030d366c437a52137b))
+
+### [3.0.7](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.6...v3.0.7) (2020-07-16)
+
+
+### Bug Fixes
+
+* uglify additional assets ([100e38e](https://github.com/webpack-contrib/terser-webpack-plugin/commit/100e38e0db035f6eb21bbec2bbc1f8b12aee9f60))
+
+### [3.0.6](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.5...v3.0.6) (2020-06-18)
+
+
+### Bug Fixes
+
+* do not crash on buffer assets ([3c67023](https://github.com/webpack-contrib/terser-webpack-plugin/commit/3c670238952ddd5cbbf17f223e13a921f3b76521))
+
+### [3.0.5](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.4...v3.0.5) (2020-06-15)
+
+
+### Bug Fixes
+
+* multi-compiler crash ([f6499af](https://github.com/webpack-contrib/terser-webpack-plugin/commit/f6499afb40f7a3b434c880d555261d62e0de4fd7))
+
+### [3.0.4](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.3...v3.0.4) (2020-06-13)
+
+
+### Chore
+
+* update `p-limit` and `serialize-javascript` packages
+
+### [3.0.3](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.1...v3.0.3) (2020-06-03)
+
+
+### Bug Fixes
+
+* compatibility with `>= 10.13` versions of Node.js
+* security problem ([#259](https://github.com/webpack-contrib/terser-webpack-plugin/issues/259)) ([522aa2c](https://github.com/webpack-contrib/terser-webpack-plugin/commit/522aa2cd4e9c4b508b268eef99572c7c808fe0b6))
+
+### [3.0.2](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.1...v3.0.2) (2020-05-26)
+
+
+### Bug Fixes
+
+* compatibility with webpack@5 ([#250](https://github.com/webpack-contrib/terser-webpack-plugin/issues/250)) ([d3ff61c](https://github.com/webpack-contrib/terser-webpack-plugin/commit/d3ff61cbb714da8fb6ee1f7659bf6796774ab4cc))
+
+### [3.0.1](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v3.0.0...v3.0.1) (2020-05-06)
+
+
+### Bug Fixes
+
+* parallelism in multi compilation mode ([0ee7ed2](https://github.com/webpack-contrib/terser-webpack-plugin/commit/0ee7ed270b8cbf6312cc1009c5aa5f909fc7fbb7))
+* remove redundant code for the `chunkFilter` option ([#243](https://github.com/webpack-contrib/terser-webpack-plugin/issues/243)) ([7220734](https://github.com/webpack-contrib/terser-webpack-plugin/commit/722073494ae708e7cd94cdb9df26fb483e93e8de))
+
+## [3.0.0](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v2.3.6...v3.0.0) (2020-05-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* minimum supported Node.js version is `10.13`
+* the `chunkFilter` was removed, please use `test`/`include`/`exclude` options
+* change arguments order for the `warningFilter` option from `Function<(warning, file, source) -> Boolean>` to `Function<(file, warning, source) -> Boolean>`
+* when the `extractComments.filename` option is a function it pass only one argument and it is object with `filename`, `basename`, `query` and `hash` properties
+* if the value from the `extractComments.filename` option conflicts with existing assets, an error will be thrown instead of a warning
+* use the `optimizeAssets` hook for webpack@5
 
 ### [2.3.6](https://github.com/webpack-contrib/terser-webpack-plugin/compare/v2.3.5...v2.3.6) (2020-04-25)
 

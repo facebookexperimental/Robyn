@@ -109,39 +109,9 @@ module.exports = {
 };
 ```
 
-### `chunkFilter`
-
-Type: `Function<(chunk) -> boolean>`
-Default: `() => true`
-
-Allowing to filter which chunks should be uglified (by default all chunks are uglified).
-Return `true` to uglify the chunk, `false` otherwise.
-
-**webpack.config.js**
-
-```js
-module.exports = {
-  optimization: {
-    minimize: true,
-    minimizer: [
-      new TerserPlugin({
-        chunkFilter: (chunk) => {
-          // Exclude uglification for the `vendor` chunk
-          if (chunk.name === 'vendor') {
-            return false;
-          }
-
-          return true;
-        },
-      }),
-    ],
-  },
-};
-```
-
 ### `cache`
 
-> ⚠ Doesn't work with webpack 5!
+> ⚠ Ignored in webpack 5! Please use https://webpack.js.org/configuration/other-options/#cache.
 
 Type: `Boolean|String`
 Default: `true`
@@ -191,7 +161,7 @@ module.exports = {
 
 ### `cacheKeys`
 
-> ⚠ Doesn't work with webpack 5!
+> ⚠ Ignored in webpack 5! Please use https://webpack.js.org/configuration/other-options/#cache.
 
 Type: `Function<(defaultCacheKeys, file) -> Object>`
 Default: `defaultCacheKeys => defaultCacheKeys`
@@ -205,11 +175,9 @@ Default cache keys:
   terser: require('terser/package.json').version, // terser version
   'terser-webpack-plugin': require('../package.json').version, // plugin version
   'terser-webpack-plugin-options': this.options, // plugin options
-  path: compiler.outputPath ? `${compiler.outputPath}/${file}` : file, // asset path
-  hash: crypto
-    .createHash('md4')
-    .update(input)
-    .digest('hex'), // source file hash
+  nodeVersion: process.version, // Node.js version
+  name: file, // asset path
+  contentHash: crypto.createHash('md4').update(input).digest('hex'), // source file hash
 });
 ```
 
@@ -336,17 +304,23 @@ module.exports = {
     minimize: true,
     minimizer: [
       new TerserPlugin({
-        minify: (file, sourceMap) => {
+        terserOptions: {
+          myCustomOption: true,
+        },
+        // Can be async
+        minify: (file, sourceMap, minimizerOptions) => {
+          // The `minimizerOptions` option contains option from the `terserOptions` option
+          // You can use `minimizerOptions.myCustomOption`
           const extractedComments = [];
 
           // Custom logic for extract comments
 
-          const { error, map, code, warnings } = require('uglify-module') // Or require('./path/to/uglify-module')
+          const { map, code } = require('uglify-module') // Or require('./path/to/uglify-module')
             .minify(file, {
               /* Your options for minification */
             });
 
-          return { error, map, code, warnings, extractedComments };
+          return { map, code, extractedComments };
         },
       }),
     ],
@@ -371,7 +345,6 @@ module.exports = {
       new TerserPlugin({
         terserOptions: {
           ecma: undefined,
-          warnings: false,
           parse: {},
           compress: {},
           mangle: true, // Note `mangle.properties` is `false` by default.
@@ -496,13 +469,9 @@ module.exports = {
       new TerserPlugin({
         extractComments: {
           condition: /^\**!|@preserve|@license|@cc_on/i,
-          filename: (file, fileData) => {
-            // ⚠ webpack 5: there is only fileData parameter
-
-            // A file can contain a query string (for example when you have `output.filename: '[name].js?[chunkhash]'`)
-            // You must consider this
-            // The "fileData" argument contains object with "filename", "basename", "query"
-            return file.replace(/\.(\w+)($|\?)/, '.$1.LICENSE.txt$2');
+          filename: (fileData) => {
+            // The "fileData" argument contains object with "filename", "basename", "query" and "hash"
+            return `${fileData.filename}.LICENSE.txt${fileData.query}`;
           },
           banner: (licenseFile) => {
             return `License information can be found in ${licenseFile}`;
@@ -530,12 +499,9 @@ module.exports = {
       new TerserPlugin({
         extractComments: {
           condition: 'some',
-          filename: (file, fileData) => {
-            // ⚠ webpack 5: there is only fileData parameter
-
-            // A file can contain a query string (for example when you have `output.filename: '[name].js?[chunkhash]'`)
-            // You must consider this
-            return file.replace(/\.(\w+)($|\?)/, '.$1.LICENSE.txt$2');
+          filename: (fileData) => {
+            // The "fileData" argument contains object with "filename", "basename", "query" and "hash"
+            return `${fileData.filename}.LICENSE.txt${fileData.query}`;
           },
           banner: (licenseFile) => {
             return `License information can be found in ${licenseFile}`;
@@ -556,6 +522,8 @@ Available placeholders: `[file]`, `[query]` and `[filebase]` (`[base]` for webpa
 
 The file where the extracted comments will be stored.
 Default is to append the suffix `.LICENSE.txt` to the original filename.
+
+> ⚠️ We highly recommend using the `txt` extension. Using `js`/`cjs`/`mjs` extensions may conflict with existing assets which leads to broken code.
 
 **webpack.config.js**
 
@@ -597,55 +565,13 @@ module.exports = {
       new TerserPlugin({
         extractComments: {
           condition: true,
-          filename: (file, fileData) => {
-            // ⚠ webpack 5: there is only fileData parameter
-
-            // A file can contain a query string (for example when you have `output.filename: '[name].js?[chunkhash]'`)
-            // You must consider this
-            return file.replace(/\.(\w+)($|\?)/, '.$1.LICENSE.txt$2');
+          filename: (fileData) => {
+            // The "fileData" argument contains object with "filename", "basename", "query" and "hash"
+            return `${fileData.filename}.LICENSE.txt${fileData.query}`;
           },
           banner: (commentsFile) => {
             return `My custom banner about license information ${commentsFile}`;
           },
-        },
-      }),
-    ],
-  },
-};
-```
-
-### `warningsFilter`
-
-Type: `Function<(warning, source, file) -> Boolean>`
-Default: `() => true`
-
-Allow to filter [terser](https://github.com/terser-js/terser) warnings.
-Return `true` to keep the warning, a falsy value (`false`/`null`/`undefined`) otherwise.
-
-> ⚠️ The `source` argument will contain `undefined` if you don't use source maps.
-
-**webpack.config.js**
-
-```js
-module.exports = {
-  optimization: {
-    minimize: true,
-    minimizer: [
-      new TerserPlugin({
-        warningsFilter: (warning, source, file) => {
-          if (/Dropping unreachable code/i.test(warning)) {
-            return true;
-          }
-
-          if (/source\.js/i.test(source)) {
-            return true;
-          }
-
-          if (/file\.js/i.test(file)) {
-            return true;
-          }
-
-          return false;
         },
       }),
     ],

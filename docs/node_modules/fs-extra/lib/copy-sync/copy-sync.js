@@ -2,8 +2,8 @@
 
 const fs = require('graceful-fs')
 const path = require('path')
-const mkdirpSync = require('../mkdirs').mkdirsSync
-const utimesSync = require('../util/utimes.js').utimesMillisSync
+const mkdirsSync = require('../mkdirs').mkdirsSync
+const utimesMillisSync = require('../util/utimes').utimesMillisSync
 const stat = require('../util/stat')
 
 function copySync (src, dest, opts) {
@@ -29,7 +29,7 @@ function copySync (src, dest, opts) {
 function handleFilterAndCopy (destStat, src, dest, opts) {
   if (opts.filter && !opts.filter(src, dest)) return
   const destParent = path.dirname(dest)
-  if (!fs.existsSync(destParent)) mkdirpSync(destParent)
+  if (!fs.existsSync(destParent)) mkdirsSync(destParent)
   return startCopy(destStat, src, dest, opts)
 }
 
@@ -64,49 +64,51 @@ function mayCopyFile (srcStat, src, dest, opts) {
 }
 
 function copyFile (srcStat, src, dest, opts) {
-  if (typeof fs.copyFileSync === 'function') {
-    fs.copyFileSync(src, dest)
-    fs.chmodSync(dest, srcStat.mode)
-    if (opts.preserveTimestamps) {
-      return utimesSync(dest, srcStat.atime, srcStat.mtime)
-    }
-    return
-  }
-  return copyFileFallback(srcStat, src, dest, opts)
+  fs.copyFileSync(src, dest)
+  if (opts.preserveTimestamps) handleTimestamps(srcStat.mode, src, dest)
+  return setDestMode(dest, srcStat.mode)
 }
 
-function copyFileFallback (srcStat, src, dest, opts) {
-  const BUF_LENGTH = 64 * 1024
-  const _buff = require('../util/buffer')(BUF_LENGTH)
+function handleTimestamps (srcMode, src, dest) {
+  // Make sure the file is writable before setting the timestamp
+  // otherwise open fails with EPERM when invoked with 'r+'
+  // (through utimes call)
+  if (fileIsNotWritable(srcMode)) makeFileWritable(dest, srcMode)
+  return setDestTimestamps(src, dest)
+}
 
-  const fdr = fs.openSync(src, 'r')
-  const fdw = fs.openSync(dest, 'w', srcStat.mode)
-  let pos = 0
+function fileIsNotWritable (srcMode) {
+  return (srcMode & 0o200) === 0
+}
 
-  while (pos < srcStat.size) {
-    const bytesRead = fs.readSync(fdr, _buff, 0, BUF_LENGTH, pos)
-    fs.writeSync(fdw, _buff, 0, bytesRead)
-    pos += bytesRead
-  }
+function makeFileWritable (dest, srcMode) {
+  return setDestMode(dest, srcMode | 0o200)
+}
 
-  if (opts.preserveTimestamps) fs.futimesSync(fdw, srcStat.atime, srcStat.mtime)
+function setDestMode (dest, srcMode) {
+  return fs.chmodSync(dest, srcMode)
+}
 
-  fs.closeSync(fdr)
-  fs.closeSync(fdw)
+function setDestTimestamps (src, dest) {
+  // The initial srcStat.atime cannot be trusted
+  // because it is modified by the read(2) system call
+  // (See https://nodejs.org/api/fs.html#fs_stat_time_values)
+  const updatedSrcStat = fs.statSync(src)
+  return utimesMillisSync(dest, updatedSrcStat.atime, updatedSrcStat.mtime)
 }
 
 function onDir (srcStat, destStat, src, dest, opts) {
-  if (!destStat) return mkDirAndCopy(srcStat, src, dest, opts)
+  if (!destStat) return mkDirAndCopy(srcStat.mode, src, dest, opts)
   if (destStat && !destStat.isDirectory()) {
     throw new Error(`Cannot overwrite non-directory '${dest}' with directory '${src}'.`)
   }
   return copyDir(src, dest, opts)
 }
 
-function mkDirAndCopy (srcStat, src, dest, opts) {
+function mkDirAndCopy (srcMode, src, dest, opts) {
   fs.mkdirSync(dest)
   copyDir(src, dest, opts)
-  return fs.chmodSync(dest, srcStat.mode)
+  return setDestMode(dest, srcMode)
 }
 
 function copyDir (src, dest, opts) {

@@ -3,8 +3,10 @@
 module.exports = text
 
 var u = require('unist-builder')
-var trimLines = require('trim-lines')
 
 function text(h, node) {
-  return h.augment(node, u('text', trimLines(node.value)))
+  return h.augment(
+    node,
+    u('text', String(node.value).replace(/[ \t]*(\r?\n|\r)[ \t]*/g, '$1'))
+  )
 }

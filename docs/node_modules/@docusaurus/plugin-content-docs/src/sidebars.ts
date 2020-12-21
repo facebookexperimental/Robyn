@@ -9,19 +9,50 @@ import flatMap from 'lodash.flatmap';
 import fs from 'fs-extra';
 import importFresh from 'import-fresh';
 import {
-  Sidebar,
-  SidebarRaw,
+  Sidebars,
   SidebarItem,
-  SidebarItemCategoryRaw,
-  SidebarItemRaw,
+  SidebarItemBase,
   SidebarItemLink,
   SidebarItemDoc,
-  SidebarCategoryShorthandRaw,
+  Sidebar,
+  SidebarItemCategory,
+  SidebarItemType,
 } from './types';
+import {mapValues, flatten, difference} from 'lodash';
+import {getElementsAround} from '@docusaurus/utils';
+
+type SidebarItemCategoryJSON = SidebarItemBase & {
+  type: 'category';
+  label: string;
+  items: SidebarItemJSON[];
+  collapsed?: boolean;
+};
+
+type SidebarItemJSON =
+  | string
+  | SidebarCategoryShorthandJSON
+  | SidebarItemDoc
+  | SidebarItemLink
+  | SidebarItemCategoryJSON
+  | {
+      type: string;
+      [key: string]: unknown;
+    };
+
+type SidebarCategoryShorthandJSON = {
+  [sidebarCategory: string]: SidebarItemJSON[];
+};
+
+type SidebarJSON = SidebarCategoryShorthandJSON | SidebarItemJSON[];
+
+// Sidebar given by user that is not normalized yet. e.g: sidebars.json
+type SidebarsJSON = {
+  [sidebarId: string]: SidebarJSON;
+};
 
 function isCategoryShorthand(
-  item: SidebarItemRaw,
-): item is SidebarCategoryShorthandRaw {
+  item: SidebarItemJSON,
+): item is SidebarCategoryShorthandJSON {
   return typeof item !== 'string' && !item.type;
 }
 
@@ -32,8 +63,8 @@ const defaultCategoryCollapsedValue = true;
  * Convert {category1: [item1,item2]} shorthand syntax to long-form syntax
  */
 function normalizeCategoryShorthand(
-  sidebar: SidebarCategoryShorthandRaw,
-): SidebarItemCategoryRaw[] {
+  sidebar: SidebarCategoryShorthandJSON,
+): SidebarItemCategoryJSON[] {
   return Object.entries(sidebar).map(([label, items]) => ({
     type: 'category',
     collapsed: defaultCategoryCollapsedValue,
@@ -65,8 +96,8 @@ function assertItem<K extends string>(
 
 function assertIsCategory(
   item: unknown,
-): asserts item is SidebarItemCategoryRaw {
-  assertItem(item, ['items', 'label', 'collapsed']);
+): asserts item is SidebarItemCategoryJSON {
+  assertItem(item, ['items', 'label', 'collapsed', 'customProps']);
   if (typeof item.label !== 'string') {
     throw new Error(
       `Error loading ${JSON.stringify(item)}. "label" must be a string.`,
@@ -86,7 +117,7 @@ function assertIsCategory(
 }
 
 function assertIsDoc(item: unknown): asserts item is SidebarItemDoc {
-  assertItem(item, ['id']);
+  assertItem(item, ['id', 'customProps']);
   if (typeof item.id !== 'string') {
     throw new Error(
       `Error loading ${JSON.stringify(item)}. "id" must be a string.`,
@@ -95,7 +126,7 @@ function assertIsDoc(item: unknown): asserts item is SidebarItemDoc {
 }
 
 function assertIsLink(item: unknown): asserts item is SidebarItemLink {
-  assertItem(item, ['href', 'label']);
+  assertItem(item, ['href', 'label', 'customProps']);
   if (typeof item.href !== 'string') {
     throw new Error(
       `Error loading ${JSON.stringify(item)}. "href" must be a string.`,
@@ -112,7 +143,7 @@ function assertIsLink(item: unknown): asserts item is SidebarItemLink {
  * Normalizes recursively item and all its children. Ensures that at the end
  * each item will be an object with the corresponding type.
  */
-function normalizeItem(item: SidebarItemRaw): SidebarItem[] {
+function normalizeItem(item: SidebarItemJSON): SidebarItem[] {
   if (typeof item === 'string') {
     return [
       {
@@ -155,38 +186,152 @@ function normalizeItem(item: SidebarItemRaw): SidebarItem[] {
   }
 }
 
-/**
- * Converts sidebars object to mapping to arrays of sidebar item objects.
- */
-function normalizeSidebar(sidebars: SidebarRaw): Sidebar {
-  return Object.entries(sidebars).reduce(
-    (acc: Sidebar, [sidebarId, sidebar]) => {
-      const normalizedSidebar: SidebarItemRaw[] = Array.isArray(sidebar)
-        ? sidebar
-        : normalizeCategoryShorthand(sidebar);
+function normalizeSidebar(sidebar: SidebarJSON) {
+  const normalizedSidebar: SidebarItemJSON[] = Array.isArray(sidebar)
+    ? sidebar
+    : normalizeCategoryShorthand(sidebar);
 
-      acc[sidebarId] = flatMap(normalizedSidebar, normalizeItem);
-
-      return acc;
-    },
-    {},
-  );
+  return flatMap(normalizedSidebar, normalizeItem);
 }
 
-export default function loadSidebars(sidebarPaths?: string[]): Sidebar {
-  // We don't want sidebars to be cached because of hot reloading.
-  const allSidebars: SidebarRaw = {};
+function normalizeSidebars(sidebars: SidebarsJSON): Sidebars {
+  return mapValues(sidebars, normalizeSidebar);
+}
 
-  if (!sidebarPaths || !sidebarPaths.length) {
-    return {} as Sidebar;
+// TODO refactor: make async
+export function loadSidebars(sidebarFilePath: string): Sidebars {
+  if (!sidebarFilePath) {
+    throw new Error(`sidebarFilePath not provided: ${sidebarFilePath}`);
   }
 
-  sidebarPaths.forEach((sidebarPath) => {
-    if (sidebarPath && fs.existsSync(sidebarPath)) {
-      const sidebar = importFresh(sidebarPath) as SidebarRaw;
-      Object.assign(allSidebars, sidebar);
-    }
-  });
+  // sidebars file is optional, some users use docs without sidebars!
+  // See https://github.com/facebook/docusaurus/issues/3366
+  if (!fs.existsSync(sidebarFilePath)) {
+    // throw new Error(`No sidebar file exist at path: ${sidebarFilePath}`);
+    return {};
+  }
 
-  return normalizeSidebar(allSidebars);
+  // We don't want sidebars to be cached because of hot reloading.
+  const sidebarJson = importFresh(sidebarFilePath) as SidebarsJSON;
+  return normalizeSidebars(sidebarJson);
+}
+
+function collectSidebarItemsOfType<
+  Type extends SidebarItemType,
+  Item extends SidebarItem & {type: SidebarItemType}
+>(type: Type, sidebar: Sidebar): Item[] {
+  function collectRecursive(item: SidebarItem): Item[] {
+    const currentItemsCollected: Item[] =
+      item.type === type ? [item as Item] : [];
+
+    const childItemsCollected: Item[] =
+      item.type === 'category' ? flatten(item.items.map(collectRecursive)) : [];
+
+    return [...currentItemsCollected, ...childItemsCollected];
+  }
+
+  return flatten(sidebar.map(collectRecursive));
+}
+
+export function collectSidebarDocItems(sidebar: Sidebar): SidebarItemDoc[] {
+  return collectSidebarItemsOfType('doc', sidebar);
+}
+export function collectSidebarCategories(
+  sidebar: Sidebar,
+): SidebarItemCategory[] {
+  return collectSidebarItemsOfType('category', sidebar);
+}
+export function collectSidebarLinks(sidebar: Sidebar): SidebarItemLink[] {
+  return collectSidebarItemsOfType('link', sidebar);
+}
+
+export function transformSidebarItems(
+  sidebar: Sidebar,
+  updateFn: (item: SidebarItem) => SidebarItem,
+): Sidebar {
+  function transformRecursive(item: SidebarItem): SidebarItem {
+    if (item.type === 'category') {
+      return updateFn({
+        ...item,
+        items: item.items.map(transformRecursive),
+      });
+    }
+    return updateFn(item);
+  }
+  return sidebar.map(transformRecursive);
+}
+
+export function collectSidebarsDocIds(
+  sidebars: Sidebars,
+): Record<string, string[]> {
+  return mapValues(sidebars, (sidebar) => {
+    return collectSidebarDocItems(sidebar).map((docItem) => docItem.id);
+  });
+}
+
+export function createSidebarsUtils(
+  sidebars: Sidebars,
+): Record<string, Function> {
+  const sidebarNameToDocIds = collectSidebarsDocIds(sidebars);
+
+  function getFirstDocIdOfFirstSidebar(): string | undefined {
+    return Object.values(sidebarNameToDocIds)[0]?.[0];
+  }
+
+  function getSidebarNameByDocId(docId: string): string | undefined {
+    // TODO lookup speed can be optimized
+    const entry = Object.entries(
+      sidebarNameToDocIds,
+    ).find(([_sidebarName, docIds]) => docIds.includes(docId));
+
+    return entry?.[0];
+  }
+
+  function getDocNavigation(
+    docId: string,
+  ): {
+    sidebarName: string | undefined;
+    previousId: string | undefined;
+    nextId: string | undefined;
+  } {
+    const sidebarName = getSidebarNameByDocId(docId);
+    if (sidebarName) {
+      const docIds = sidebarNameToDocIds[sidebarName];
+      const currentIndex = docIds.indexOf(docId);
+      const {previous, next} = getElementsAround(docIds, currentIndex);
+      return {
+        sidebarName,
+        previousId: previous,
+        nextId: next,
+      };
+    } else {
+      return {
+        sidebarName: undefined,
+        previousId: undefined,
+        nextId: undefined,
+      };
+    }
+  }
+
+  function checkSidebarsDocIds(validDocIds: string[]) {
+    const allSidebarDocIds = flatten(Object.values(sidebarNameToDocIds));
+    const invalidSidebarDocIds = difference(allSidebarDocIds, validDocIds);
+    if (invalidSidebarDocIds.length > 0) {
+      throw new Error(
+        `Bad sidebars file.
+These sidebar document ids do not exist:
+- ${invalidSidebarDocIds.sort().join('\n- ')},
+
+Available document ids=
+- ${validDocIds.sort().join('\n- ')}`,
+      );
+    }
+  }
+
+  return {
+    getFirstDocIdOfFirstSidebar,
+    getSidebarNameByDocId,
+    getDocNavigation,
+    checkSidebarsDocIds,
+  };
 }

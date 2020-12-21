@@ -45,7 +45,7 @@ you will get:
 
 ```css
 h2 {
-  font-feature-settings: "c2sc";
+  font-feature-settings: "smcp";
   font-variant-caps: small-caps;
 }
 

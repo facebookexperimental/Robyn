@@ -6,7 +6,6 @@ const {
 
 const buildTerserOptions = ({
   ecma,
-  warnings,
   parse = {},
   compress = {},
   mangle,
@@ -23,8 +22,6 @@ const buildTerserOptions = ({
   /* eslint-enable camelcase */
   safari10
 } = {}) => ({
-  ecma,
-  warnings,
   parse: { ...parse
   },
   compress: typeof compress === 'boolean' ? compress : { ...compress
@@ -36,15 +33,16 @@ const buildTerserOptions = ({
     beautify: false,
     ...output
   },
-  module,
   // Ignoring sourceMap from options
   sourceMap: null,
-  toplevel,
-  nameCache,
-  ie8,
+  ecma,
   keep_classnames,
   keep_fnames,
-  safari10
+  ie8,
+  module,
+  nameCache,
+  safari10,
+  toplevel
 });
 
 function isObject(value) {
@@ -52,13 +50,12 @@ function isObject(value) {
   return value != null && (type === 'object' || type === 'function');
 }
 
-const buildComments = (options, terserOptions, extractedComments) => {
+const buildComments = (extractComments, terserOptions, extractedComments) => {
   const condition = {};
-  const commentsOpts = terserOptions.output.comments;
   const {
-    extractComments
-  } = options;
-  condition.preserve = typeof commentsOpts !== 'undefined' ? commentsOpts : false;
+    comments
+  } = terserOptions.output;
+  condition.preserve = typeof comments !== 'undefined' ? comments : false;
 
   if (typeof extractComments === 'boolean' && extractComments) {
     condition.extract = 'some';
@@ -71,7 +68,7 @@ const buildComments = (options, terserOptions, extractedComments) => {
   } else {
     // No extract
     // Preserve using "commentsOpts" or "some"
-    condition.preserve = typeof commentsOpts !== 'undefined' ? commentsOpts : 'some';
+    condition.preserve = typeof comments !== 'undefined' ? comments : 'some';
     condition.extract = false;
   } // Ensure that both conditions are functions
 
@@ -133,22 +130,23 @@ const buildComments = (options, terserOptions, extractedComments) => {
   };
 };
 
-const minify = options => {
+async function minify(options) {
   const {
-    file,
+    name,
     input,
     inputSourceMap,
-    minify: minifyFn
+    minify: minifyFn,
+    minimizerOptions
   } = options;
 
   if (minifyFn) {
     return minifyFn({
-      [file]: input
-    }, inputSourceMap);
+      [name]: input
+    }, inputSourceMap, minimizerOptions);
   } // Copy terser options
 
 
-  const terserOptions = buildTerserOptions(options.terserOptions); // Let terser generate a SourceMap
+  const terserOptions = buildTerserOptions(minimizerOptions); // Let terser generate a SourceMap
 
   if (inputSourceMap) {
     terserOptions.sourceMap = {
@@ -157,22 +155,25 @@ const minify = options => {
   }
 
   const extractedComments = [];
-  terserOptions.output.comments = buildComments(options, terserOptions, extractedComments);
   const {
-    error,
-    map,
-    code,
-    warnings
-  } = terserMinify({
-    [file]: input
+    extractComments
+  } = options;
+  terserOptions.output.comments = buildComments(extractComments, terserOptions, extractedComments);
+  const result = await terserMinify({
+    [name]: input
   }, terserOptions);
-  return {
-    error,
-    map,
-    code,
-    warnings,
+  return { ...result,
     extractedComments
   };
-};
+}
 
-module.exports = minify;
+function transform(options) {
+  // 'use strict' => this === undefined (Clean Scope)
+  // Safer for possible security issues, albeit not critical at all here
+  // eslint-disable-next-line no-new-func, no-param-reassign
+  options = new Function('exports', 'require', 'module', '__filename', '__dirname', `'use strict'\nreturn ${options}`)(exports, require, module, __filename, __dirname);
+  return minify(options);
+}
+
+module.exports.minify = minify;
+module.exports.transform = transform;

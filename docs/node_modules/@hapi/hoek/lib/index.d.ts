@@ -433,10 +433,11 @@ export function stringify(value: any, replacer?: any, space?: string | number): 
  * Returns a Promise that resolves after the requested timeout.
  *
  * @param timeout - The number of milliseconds to wait before resolving the Promise.
+ * @param returnValue - The value that the Promise will resolve to.
  *
- * @return A Promise.
+ * @return A Promise that resolves with `returnValue`.
  */
-export function wait(timeout?: number): Promise<void>;
+export function wait<T>(timeout?: number, returnValue?: T): Promise<T>;
 
 
 /**

@@ -10,11 +10,8 @@
 
 .badge {
   background-color: var(--ifm-badge-background-color);
-  border-color: var(--ifm-badge-border-color);
-  border-style: solid;
-  border-width: var(--ifm-badge-border-width);
+  border: var(--ifm-badge-border-width) solid var(--ifm-badge-border-color);
   border-radius: var(--ifm-badge-border-radius);
-  box-sizing: border-box;
   color: var(--ifm-badge-color);
   display: inline-block;
   font-size: 75%;

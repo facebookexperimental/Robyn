@@ -7,8 +7,7 @@
 
 import {useState, useEffect} from 'react';
 import ExecutionEnvironment from '@docusaurus/ExecutionEnvironment';
-
-type ScrollPosition = {scrollX: number; scrollY: number};
+import type {ScrollPosition} from '@theme/hooks/useScrollPosition';
 
 const getScrollPosition = (): ScrollPosition => ({
   scrollX: ExecutionEnvironment.canUseDOM ? window.pageXOffset : 0,
@@ -16,7 +15,7 @@ const getScrollPosition = (): ScrollPosition => ({
 });
 
 const useScrollPosition = (
-  effect: (position: ScrollPosition) => void,
+  effect?: (position: ScrollPosition) => void,
   deps = [],
 ): ScrollPosition => {
   const [scrollPosition, setScrollPosition] = useState(getScrollPosition());
@@ -32,13 +31,13 @@ const useScrollPosition = (
   };
 
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll);
+    const opts: AddEventListenerOptions & EventListenerOptions = {
+      passive: true,
+    };
 
-    return () =>
-      window.removeEventListener('scroll', handleScroll, {
-        // @ts-expect-error: See https://github.com/microsoft/TypeScript/issues/32912
-        passive: true,
-      });
+    window.addEventListener('scroll', handleScroll, opts);
+
+    return () => window.removeEventListener('scroll', handleScroll, opts);
   }, deps);
 
   return scrollPosition;

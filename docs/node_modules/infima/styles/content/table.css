@@ -16,10 +16,8 @@
 
 table {
   border-collapse: collapse;
-  border-spacing: 0;
   display: block;
   margin-bottom: var(--ifm-spacing-vertical);
-  margin-top: 0;
   overflow: auto;
   width: 100%;
 

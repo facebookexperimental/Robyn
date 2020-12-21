@@ -4,21 +4,25 @@ import {Point} from 'unist'
 import {VFile} from 'vfile'
 
 declare namespace vfileLocation {
-  type Position = Pick<Point, 'line' | 'column'>
-  type PositionWithOffset = Required<Point>
+  type PositionalPoint = Pick<Point, 'line' | 'column'>
+  type FullPoint = Required<Point>
   type Offset = NonNullable<Point['offset']>
+  /** @deprecated */
+  type Position = PositionalPoint
 
   interface Location {
     /**
      * Get the offset for a line and column based position in the bound file.
      * Returns `-1` when given invalid or out of bounds input.
      */
-    toOffset: (position: Position) => Offset
+    toOffset: (point: PositionalPoint) => Offset
 
     /**
-     * Get the line and column-based position for offset in the bound file.
+     * Get the line and column-based point for offset in the bound file.
      */
-    toPosition: (offset: Offset) => PositionWithOffset
+    toPoint: (offset: Offset) => FullPoint
+    /** @deprecated */
+    toPosition: (offset: Offset) => FullPoint
   }
 }
 

@@ -8,8 +8,7 @@
 // Lists
 ul,
 ol {
-  margin-bottom: var(--ifm-list-margin);
-  margin-top: 0;
+  margin: 0 0 var(--ifm-list-margin);
   padding-left: var(--ifm-list-left-padding);
 }
 
@@ -22,8 +21,7 @@ ul ul,
 ul ol,
 ol ol,
 ol ul {
-  margin-bottom: 0;
-  margin-top: 0;
+  margin: 0;
 }
 
 ul ul ol,

@@ -1,3 +1,8 @@
+# 3.1.0
+
+* Update to eslint 7.7.0
+* Add a third option to specify number of linebreaks after the header. (#29)
+
 # 3.0.0
 
 * Allow regexp in multiline arrays (#23)

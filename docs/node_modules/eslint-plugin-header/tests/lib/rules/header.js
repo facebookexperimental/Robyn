@@ -16,7 +16,7 @@ ruleTester.run("header", rule, {
         },
         {
             code: "/*Copyright 2015, My Company*/",
-            options: ["block", "Copyright 2015, My Company"]
+            options: ["block", "Copyright 2015, My Company", 0]
         },
         {
             code: "//Copyright 2015\n//My Company\nconsole.log(1)",
@@ -53,15 +53,15 @@ ruleTester.run("header", rule, {
         },
         {
             code: "// Copyright 2017",
-            options: ["line", {pattern: "^ Copyright \\d+$"}]
+            options: ["line", {pattern: "^ Copyright \\d+$"}, 0]
         },
         {
             code: "// Copyright 2017\n// Author: abc@example.com",
-            options: ["line", [{pattern: "^ Copyright \\d+$"}, {pattern: "^ Author: \\w+@\\w+\\.\\w+$"}]]
+            options: ["line", [{pattern: "^ Copyright \\d+$"}, {pattern: "^ Author: \\w+@\\w+\\.\\w+$"}], 0]
         },
         {
             code: "/* Copyright 2017\n Author: abc@example.com */",
-            options: ["block", {pattern: "^ Copyright \\d{4}\\n Author: \\w+@\\w+\\.\\w+ $"}]
+            options: ["block", {pattern: "^ Copyright \\d{4}\\n Author: \\w+@\\w+\\.\\w+ $"}, 0]
         },
         {
             code: "#!/usr/bin/env node\n/**\n * Copyright\n */",
@@ -69,7 +69,7 @@ ruleTester.run("header", rule, {
                 "*",
                 " * Copyright",
                 " "
-            ]]
+            ], 0]
         },
         {
             code: "// Copyright 2015\r\n// My Company\r\nconsole.log(1)",
@@ -95,6 +95,26 @@ ruleTester.run("header", rule, {
                 " * My Company",
                 " ************************"
             ]]
+        },
+        {
+            code: "/*Copyright 2020, My Company*/\nconsole.log(1);",
+            options: ["block", "Copyright 2020, My Company", 1],
+        },
+        {
+            code: "/*Copyright 2020, My Company*/\n\nconsole.log(1);",
+            options: ["block", "Copyright 2020, My Company", 2],
+        },
+        {
+            code: "/*Copyright 2020, My Company*/\n\n// Log number one\nconsole.log(1);",
+            options: ["block", "Copyright 2020, My Company", 2],
+        },
+        {
+            code: "/*Copyright 2020, My Company*/\n\n/*Log number one*/\nconsole.log(1);",
+            options: ["block", "Copyright 2020, My Company", 2],
+        },
+        {
+            code: "/**\n * Copyright 2020\n * My Company\n **/\n\n/*Log number one*/\nconsole.log(1);",
+            options: ["block", "*\n * Copyright 2020\n * My Company\n *", 2],
         }
     ],
     invalid: [
@@ -212,6 +232,46 @@ ruleTester.run("header", rule, {
                 {message: "incorrect header"}
             ],
             output: "/*************************\n * Copyright 2019\n * My Company\n *************************/\nconsole.log(1)"
+        },
+        {
+            code: "/*Copyright 2020, My Company*/console.log(1);",
+            options: ["block", "Copyright 2020, My Company", 2],
+            errors: [
+                {message: "no newline after header"}
+            ],
+            output: "/*Copyright 2020, My Company*/\n\nconsole.log(1);"
+        },
+        {
+            code: "/*Copyright 2020, My Company*/console.log(1);",
+            options: ["block", "Copyright 2020, My Company", 1],
+            errors: [
+                {message: "no newline after header"}
+            ],
+            output: "/*Copyright 2020, My Company*/\nconsole.log(1);"
+        },
+        {
+            code: "//Copyright 2020\n//My Company\nconsole.log(1);",
+            options: ["line", ["Copyright 2020", "My Company"], 2],
+            errors: [
+                {message: "no newline after header"}
+            ],
+            output: "//Copyright 2020\n//My Company\n\nconsole.log(1);"
+        },
+        {
+            code: "/*Copyright 2020, My Company*/\nconsole.log(1);\n//Comment\nconsole.log(2);\n//Comment",
+            options: ["block", "Copyright 2020, My Company", 2],
+            errors: [
+                {message: "no newline after header"}
+            ],
+            output: "/*Copyright 2020, My Company*/\n\nconsole.log(1);\n//Comment\nconsole.log(2);\n//Comment"
+        },
+        {
+            code: "//Copyright 2020\n//My Company\nconsole.log(1);\n//Comment\nconsole.log(2);\n//Comment",
+            options: ["line", ["Copyright 2020", "My Company"], 2],
+            errors: [
+                {message: "no newline after header"}
+            ],
+            output: "//Copyright 2020\n//My Company\n\nconsole.log(1);\n//Comment\nconsole.log(2);\n//Comment"
         }
     ]
 });

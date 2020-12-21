@@ -176,6 +176,9 @@ function wrap(tree, file) {
 
   function raw(node) {
     var start = pos.start(node)
+    var line = start.line || 1
+    var column = start.column || 1
+    var offset = start.offset || 0
     var token
 
     // Reset preprocessor:
@@ -189,11 +192,11 @@ function wrap(tree, file) {
     // Reset preprocessor mixin:
     // See: <https://github.com/inikulin/parse5/blob/0491902/packages/parse5/lib/extensions/position-tracking/preprocessor-mixin.js>.
     posTracker.droppedBufferSize = 0
-    posTracker.line = start.line
+    posTracker.line = line
     posTracker.col = 1
     posTracker.offset = 0
-    posTracker.lineStartPos = -start.column + 1
-    posTracker.droppedBufferSize = start.offset
+    posTracker.lineStartPos = -column + 1
+    posTracker.droppedBufferSize = offset
 
     // Reset location tracker:
     // See: <https://github.com/inikulin/parse5/blob/0491902/packages/parse5/lib/extensions/location-info/tokenizer-mixin.js>.

@@ -7,7 +7,7 @@ Often you will want to have a copyright notice at the top of every file. This ES
 
 ## Usage
 
-This rule takes 1 or 2 arguments with an optional settings object.
+This rule takes 1, 2 or 3 arguments with an optional settings object.
 
 ### 1 argument
 
@@ -46,6 +46,61 @@ In the 2 argument form the first must be either `"block"` or `"line"` to indicat
         "header/header": [2, "block", "Copyright 2015\nMy Company"]
     }
 }
+```
+
+### 3 arguments
+
+The optional third argument which defaults to 1 specifies the number of newlines that are enforced after the header.
+
+Zero newlines:
+```json
+{
+    "plugins": [
+        "header"
+    ],
+    "rules": {
+        "header/header": [2, "block", [" Copyright now","My Company "], 0]
+    }
+}
+```
+```js
+/* Copyright now
+My Company */ console.log(1)
+```
+
+One newline (default)
+```json
+{
+    "plugins": [
+        "header"
+    ],
+    "rules": {
+        "header/header": [2, "block", [" Copyright now","My Company "], 1]
+    }
+}
+```
+```js
+/* Copyright now
+My Company */
+console.log(1)
+```
+
+two newlines
+```json
+{
+    "plugins": [
+        "header"
+    ],
+    "rules": {
+        "header/header": [2, "block", [" Copyright now","My Company "], 2]
+    }
+}
+```
+```js
+/* Copyright now
+My Company */
+
+console.log(1)
 ```
 
 #### Regular expressions

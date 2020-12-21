@@ -1,3 +1,8 @@
+5.1.3 / 2020-08-14
+------------------
+
+- Add support for defined but not implemented Symbol.for (#252)
+
 5.1.2 / 2020-05-20
 ------------------
 

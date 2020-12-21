@@ -2,11 +2,10 @@
 
 module.exports = code
 
-var detab = require('detab')
 var u = require('unist-builder')
 
 function code(h, node) {
-  var value = node.value ? detab(node.value + '\n') : ''
+  var value = node.value ? node.value + '\n' : ''
   var lang = node.lang && node.lang.match(/^[^ \t]+(?=[ \t]|$)/)
   var props = {}
 

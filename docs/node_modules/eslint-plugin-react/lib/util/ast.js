@@ -201,6 +201,72 @@ function unwrapTSAsExpression(node) {
   return node;
 }
 
+function isTSTypeReference(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeReference';
+}
+
+function isTSTypeAnnotation(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeAnnotation';
+}
+
+function isTSTypeLiteral(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeLiteral';
+}
+
+function isTSIntersectionType(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSIntersectionType';
+}
+
+function isTSInterfaceHeritage(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSInterfaceHeritage';
+}
+
+function isTSInterfaceDeclaration(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSInterfaceDeclaration';
+}
+
+function isTSTypeAliasDeclaration(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeAliasDeclaration';
+}
+
+function isTSParenthesizedType(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeAliasDeclaration';
+}
+
+function isTSFunctionType(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSFunctionType';
+}
+
+function isTSTypeQuery(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeQuery';
+}
+
+function isTSTypeParameterInstantiation(node) {
+  if (!node) return false;
+  const nodeType = node.type;
+  return nodeType === 'TSTypeParameterInstantiation';
+}
+
 module.exports = {
   findReturnStatement,
   getFirstNodeInLine,
@@ -213,5 +279,16 @@ module.exports = {
   isFunction,
   isFunctionLikeExpression,
   isNodeFirstInLine,
-  unwrapTSAsExpression
+  unwrapTSAsExpression,
+  isTSTypeReference,
+  isTSTypeAnnotation,
+  isTSTypeLiteral,
+  isTSIntersectionType,
+  isTSInterfaceHeritage,
+  isTSInterfaceDeclaration,
+  isTSTypeAliasDeclaration,
+  isTSParenthesizedType,
+  isTSFunctionType,
+  isTSTypeQuery,
+  isTSTypeParameterInstantiation
 };

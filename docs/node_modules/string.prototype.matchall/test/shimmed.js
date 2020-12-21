@@ -7,7 +7,7 @@ matchAllShim.shim();
 
 var test = require('tape');
 var defineProperties = require('define-properties');
-var bind = require('function-bind');
+var callBind = require('call-bind');
 var hasSymbols = require('has-symbols')();
 var regexMatchAll = require('../regexp-matchall');
 
@@ -68,8 +68,8 @@ test('shimmed', function (t) {
 	});
 
 	runTests(
-		bind.call(Function.call, String.prototype.matchAll),
-		bind.call(Function.call, hasSymbols ? RegExp.prototype[Symbol.matchAll] : regexMatchAll),
+		callBind(String.prototype.matchAll),
+		callBind(hasSymbols ? RegExp.prototype[Symbol.matchAll] : regexMatchAll),
 		t
 	);
 

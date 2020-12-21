@@ -39,6 +39,7 @@
 // Utilities
 @import 'utilities/shadow';
 @import 'utilities/text';
+@import 'utilities/custom_scrollbar';
 
 // Mode
 @import 'common/dark-mode';

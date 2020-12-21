@@ -1,3 +1,7 @@
+# 4.0.1 - 2020-10-28
+
+- Fixed: Incorrect conversion of small-caps ([#15](https://github.com/postcss/postcss-font-variant/pull/15))
+
 # 4.0.0 - 2018-09-17
 
 - Changed: use PostCSS 7 API

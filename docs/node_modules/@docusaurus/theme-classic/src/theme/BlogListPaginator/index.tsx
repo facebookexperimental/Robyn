@@ -7,8 +7,9 @@
 
 import React from 'react';
 import Link from '@docusaurus/Link';
+import type {Metadata} from '@theme/BlogListPage';
 
-function BlogListPaginator(props): JSX.Element {
+function BlogListPaginator(props: {readonly metadata: Metadata}): JSX.Element {
   const {metadata} = props;
   const {previousPage, nextPage} = metadata;
 
@@ -17,14 +18,14 @@ function BlogListPaginator(props): JSX.Element {
       <div className="pagination-nav__item">
         {previousPage && (
           <Link className="pagination-nav__link" to={previousPage}>
-            <h4 className="pagination-nav__label">&laquo; Newer Entries</h4>
+            <div className="pagination-nav__label">&laquo; Newer Entries</div>
           </Link>
         )}
       </div>
       <div className="pagination-nav__item pagination-nav__item--next">
         {nextPage && (
           <Link className="pagination-nav__link" to={nextPage}>
-            <h4 className="pagination-nav__label">Older Entries &raquo;</h4>
+            <div className="pagination-nav__label">Older Entries &raquo;</div>
           </Link>
         )}
       </div>

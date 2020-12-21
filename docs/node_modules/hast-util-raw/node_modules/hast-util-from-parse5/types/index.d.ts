@@ -40,7 +40,7 @@ declare namespace hastUtilFromParse5 {
 }
 
 /**
- * Transform [Parse5’s AST](https://github.com/inikulin/parse5/blob/master/packages/parse5/docs/tree-adapter/default/interface-list.md)
+ * Transform [Parse5’s AST](https://github.com/inikulin/parse5/blob/HEAD/packages/parse5/docs/tree-adapter/default/interface-list.md)
  * to a [**hast**](https://github.com/syntax-tree/hast)
  * [*tree*](https://github.com/syntax-tree/unist#tree).
  *

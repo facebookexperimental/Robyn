@@ -229,6 +229,7 @@
   // Transitions.
   --ifm-transition-fast: 200ms;
   --ifm-transition-slow: 400ms;
+  --ifm-transition-timing-default: cubic-bezier(0.08, 0.52, 0.52, 1);
 
   // Shadows.
   --ifm-global-shadow-lw: 0 1px 2px 0 rgba(0, 0, 0, 0.1);

@@ -23,7 +23,7 @@ function wrap(nodes, loose) {
     result.push(nodes[index])
   }
 
-  if (loose && nodes.length !== 0) {
+  if (loose && nodes.length > 0) {
     result.push(u('text', '\n'))
   }
 

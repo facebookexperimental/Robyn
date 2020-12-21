@@ -1,6 +1,6 @@
 'use strict';
 const errorEx = require('error-ex');
-const fallback = require('json-parse-better-errors');
+const fallback = require('json-parse-even-better-errors');
 const {default: LinesAndColumns} = require('lines-and-columns');
 const {codeFrameColumns} = require('@babel/code-frame');
 

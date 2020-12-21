@@ -12,26 +12,22 @@ function getDefinitionFactory(node, options) {
 }
 
 // Gather all definitions in `node`
-function gather(node, options) {
+function gather(node) {
   var cache = {}
 
   if (!node || !node.type) {
     throw new Error('mdast-util-definitions expected node')
   }
 
-  visit(node, 'definition', options && options.commonmark ? commonmark : normal)
+  visit(node, 'definition', ondefinition)
 
   return cache
 
-  function commonmark(definition) {
+  function ondefinition(definition) {
     var id = normalise(definition.identifier)
     if (!own.call(cache, id)) {
       cache[id] = definition
     }
-  }
-
-  function normal(definition) {
-    cache[normalise(definition.identifier)] = definition
   }
 }
 

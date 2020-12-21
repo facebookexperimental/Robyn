@@ -337,6 +337,9 @@ containing an `array of objects` with the following format:
 <br />
 
 ## Release History
+* 0.3.0
+    * NEW: [`@babel/runtime` become a explicit dependency](https://github.com/themgoncalves/react-loadable-ssr-addon/pull/22) by [@RDIL](https://github.com/RDIL)
+        > Requirement for `yarn v2`.
 * 0.2.3
     * FIX: [Parsing `null` or `undefined` to object on `getBundles()`](https://github.com/themgoncalves/react-loadable-ssr-addon/pull/21) reported by [@slorber](https://github.com/slorber)
 * 0.2.2
@@ -345,6 +348,10 @@ containing an `array of objects` with the following format:
     * FIX: [Possible missing chunk](https://github.com/themgoncalves/react-loadable-ssr-addon/pull/20) reported by [@lex111](https://github.com/lex111)
 * 0.2.0
     * Improvement: Reduce memory consumption ([Issue #17](https://github.com/themgoncalves/react-loadable-ssr-addon/issues/17)) reported by [@endiliey](https://github.com/endiliey)
+
+<details>
+  <summary>See older release note</summary>
+
 * 0.1.9
     * FIX: [Missing entry in origins](https://github.com/themgoncalves/react-loadable-ssr-addon/pull/13) reported by [@p-j](https://github.com/p-j);
 * 0.1.8
@@ -357,10 +364,6 @@ containing an `array of objects` with the following format:
     * FIX: `getManifestOutputPath` method when requested from `Webpack Dev Middleware`;
 * 0.1.5
     * FIX: [Issue #7](https://github.com/themgoncalves/react-loadable-ssr-addon/issues/7) reported by [@themgoncalves](https://github.com/themgoncalves) and [@tomkelsey](https://github.com/tomkelsey)
-
-<details>
-  <summary>See older release note</summary>
-
 * 0.1.4
     * FIX: [Issue #5](https://github.com/themgoncalves/react-loadable-ssr-addon/issues/5) reported by [@tomkelsey](https://github.com/tomkelsey)
 * 0.1.3

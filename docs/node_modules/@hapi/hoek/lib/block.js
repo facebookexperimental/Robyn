@@ -8,5 +8,5 @@ const internals = {};
 
 module.exports = function () {
 
-    return new Promise(Ignore);         // $lab:coverage:ignore$
+    return new Promise(Ignore);
 };

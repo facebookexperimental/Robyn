@@ -24,7 +24,7 @@ var fontVariantProperties = {
   },
 
   "font-variant-caps": {
-    "small-caps": "\"c2sc\"",
+    "small-caps": "\"smcp\"",
     "all-small-caps": "\"smcp\", \"c2sc\"",
     "petite-caps": "\"pcap\"",
     "all-petite-caps": "\"pcap\", \"c2pc\"",

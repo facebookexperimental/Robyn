@@ -7,8 +7,9 @@
 
 import {useState, useCallback, useEffect} from 'react';
 
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import ExecutionEnvironment from '@docusaurus/ExecutionEnvironment';
+import type {useThemeReturns} from '@theme/hooks/useTheme';
+import {useThemeConfig} from '@docusaurus/theme-common';
 
 const themes = {
   light: 'light',
@@ -35,16 +36,10 @@ const storeTheme = (newTheme) => {
   }
 };
 
-const useTheme = (): {
-  isDarkTheme: boolean;
-  setLightTheme: () => void;
-  setDarkTheme: () => void;
-} => {
+const useTheme = (): useThemeReturns => {
   const {
-    siteConfig: {
-      themeConfig: {colorMode: {disableSwitch = false} = {}} = {},
-    } = {},
-  } = useDocusaurusContext();
+    colorMode: {disableSwitch, respectPrefersColorScheme},
+  } = useThemeConfig();
   const [theme, setTheme] = useState(getInitialTheme);
 
   const setLightTheme = useCallback(() => {
@@ -76,7 +71,7 @@ const useTheme = (): {
   }, [setTheme]);
 
   useEffect(() => {
-    if (disableSwitch) {
+    if (disableSwitch && !respectPrefersColorScheme) {
       return;
     }
 

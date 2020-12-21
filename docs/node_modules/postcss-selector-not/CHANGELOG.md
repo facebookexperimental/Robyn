@@ -1,3 +1,7 @@
+# 4.0.1 - 2020-12-18
+
+- Fixed: error when attribute selector containing :not ([#17](https://github.com/postcss/postcss-selector-not/pull/17))
+
 # 4.0.0 - 2018-09-17
 
 - Added: compatibility with postcss v7.x
@@ -5,7 +9,7 @@
 
 # 3.0.1 - 2017-05-15
 
-- Fixed: incorrect export ([#69](https://github.com/postcss/postcss-selector-not/issues/8))
+- Fixed: incorrect export ([#8](https://github.com/postcss/postcss-selector-not/issues/8))
 
 # 3.0.0 - 2017-05-11
 

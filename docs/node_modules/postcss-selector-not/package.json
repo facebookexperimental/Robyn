@@ -1,6 +1,6 @@
 {
   "name": "postcss-selector-not",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "PostCSS plugin to transform :not() W3C CSS level 4 pseudo class to :not() CSS level 3 selectors",
   "keywords": [
     "postcss",

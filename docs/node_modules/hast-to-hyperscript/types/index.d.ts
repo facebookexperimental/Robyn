@@ -11,7 +11,7 @@ declare namespace hastToHyperScript {
    */
   type CreateElementLike = (
     name: string,
-    attributes: {[key: string]: any},
+    attributes: Record<string, any>,
     children: any[]
   ) => any
 

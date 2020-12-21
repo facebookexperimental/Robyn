@@ -1,6 +1,6 @@
 declare module 'reading-time' {
   interface IOptions {
-    wordBound?: () => boolean;
+    wordBound?: (char: string) => boolean;
     wordsPerMinute?: number;
   }
 

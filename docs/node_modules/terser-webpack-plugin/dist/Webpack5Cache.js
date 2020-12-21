@@ -5,76 +5,31 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
-var _getLazyHashedEtag = _interopRequireDefault(require("webpack/lib/cache/getLazyHashedEtag"));
-
-var _serializeJavascript = _interopRequireDefault(require("serialize-javascript"));
-
-var _webpack = require("webpack");
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// eslint-disable-next-line import/extensions,import/no-unresolved
 class Cache {
-  constructor(compiler, compilation, options) {
-    this.compiler = compiler;
-    this.compilation = compilation;
-    this.options = options;
+  constructor(compilation) {
+    this.cache = compilation.getCache('TerserWebpackPlugin');
   }
 
-  isEnabled() {
-    return !!this.compilation.cache;
+  async get(cacheData) {
+    // eslint-disable-next-line no-param-reassign
+    cacheData.eTag = cacheData.eTag || Array.isArray(cacheData.inputSource) ? cacheData.inputSource.map(item => this.cache.getLazyHashedEtag(item)).reduce((previousValue, currentValue) => this.cache.mergeEtags(previousValue, currentValue)) : this.cache.getLazyHashedEtag(cacheData.inputSource);
+    return this.cache.getPromise(cacheData.name, cacheData.eTag);
   }
 
-  createCacheIdent(task) {
-    const {
-      outputOptions: {
-        hashSalt,
-        hashDigest,
-        hashDigestLength,
-        hashFunction
-      }
-    } = this.compilation;
+  async store(cacheData) {
+    let data;
 
-    const hash = _webpack.util.createHash(hashFunction);
-
-    if (hashSalt) {
-      hash.update(hashSalt);
+    if (cacheData.target === 'comments') {
+      data = cacheData.output;
+    } else {
+      data = {
+        source: cacheData.source,
+        extractedCommentsSource: cacheData.extractedCommentsSource,
+        commentsFilename: cacheData.commentsFilename
+      };
     }
 
-    hash.update((0, _serializeJavascript.default)(task.cacheKeys));
-    const digest = hash.digest(hashDigest);
-    const cacheKeys = digest.substr(0, hashDigestLength);
-    return `${this.compilation.compilerPath}/TerserWebpackPlugin/${cacheKeys}/${task.file}`;
-  }
-
-  get(task) {
-    // eslint-disable-next-line no-param-reassign
-    task.cacheIdent = task.cacheIdent || this.createCacheIdent(task); // eslint-disable-next-line no-param-reassign
-
-    task.cacheETag = task.cacheETag || (0, _getLazyHashedEtag.default)(task.asset);
-    return new Promise((resolve, reject) => {
-      this.compilation.cache.get(task.cacheIdent, task.cacheETag, (err, result) => {
-        if (err) {
-          reject(err);
-        } else if (result) {
-          resolve(result);
-        } else {
-          reject();
-        }
-      });
-    });
-  }
-
-  store(task, data) {
-    return new Promise((resolve, reject) => {
-      this.compilation.cache.store(task.cacheIdent, task.cacheETag, data, err => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(data);
-        }
-      });
-    });
+    return this.cache.storePromise(cacheData.name, cacheData.eTag, data);
   }
 
 }
