@@ -714,10 +714,16 @@ f.mmm <- function(...
   } else {
     hyperParams <- hyperParams.global
   }
-  
+  library("reticulate")
+  # reticulate::use_python("/Users/oteytaud/r-miniconda3/envs/robynng/bin/python")
+  # reticulate::use_python("/Users/oteytaud/Library/r-miniconda/envs/robynng/bin/python")
+  conda_create("r-reticulate")
+  use_condaenv("r-reticulate")
+
+  conda_install("r-reticulate", "nevergrad", pip=TRUE)
   assign("hyperparameters", hyperParams, envir = .GlobalEnv)
   
-  for (i in 1:length(hyperParams)) {
+  for (i in 1:length(hyperParams)) {  # This is a loop over the e.g. 50 000 hyperparam vectors
     assign(names(hyperParams)[i], hyperParams[[i]])
   } #hyperParams <- mapply(FUN = function(x,y) {assign(y, x)}, x = hyperParams, y= names(hyperParams))
   
@@ -749,6 +755,8 @@ f.mmm <- function(...
   getDoParWorkers()
   
   ################################################
+  ng <- import("nevergrad")
+  optimizer <-  ng$optimizers$registry["DiscreteOnePlusOne"](length(hyperParams[[1]]))
   #### Start parallel loop
   t0 <- Sys.time()
   sysTimeDopar <- system.time({
@@ -774,9 +782,15 @@ f.mmm <- function(...
       #####################################
       #### Get hyperparameter sample
       
+      # Let us create a vector of hyperparameters using Nevergrad.
+      #nevergrad_hp <- optimizer$ask()
+      # Now we must cast it to the bounds.
+      # ... TODO ! This is missing
+
       hypParamSam <-  sapply(hyperParams, function(x) {if (length(x) > 1) { x[i] } else {x} }); hypParamSam
       hypParamSamName <- names(hypParamSam)
       
+
       #####################################
       #### Tranform media with hyperparameters
       dt_modAdstocked <- dt_mod[, .SD, .SDcols = setdiff(names(dt_mod), "ds")]

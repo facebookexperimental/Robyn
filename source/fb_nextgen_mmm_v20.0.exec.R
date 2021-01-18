@@ -9,10 +9,6 @@
 #############################################################################################
 
 ################################################################
-#### set locale for non English R
-Sys.setlocale("LC_TIME", "English")
-
-################################################################
 #### load libraries
 ## R version 3.6.0 (2019-04-26)
 ## RStudio version 1.2.1335
@@ -36,10 +32,12 @@ library(see) # version 0.5.0
 library(PerformanceAnalytics) # version 2.0.4
 library(nloptr) # version 1.2.1
 library(minpack.lm) # version 1.2
+library(reticulate)
 
 ################################################################
 #### load data & scripts
 script_path <- str_sub(rstudioapi::getActiveDocumentContext()$path, start = 1, end = max(unlist(str_locate_all(rstudioapi::getActiveDocumentContext()$path, "/"))))
+# script_path <- ""
 dt_input <- fread(paste0(script_path,'de_simulated_data.csv')) # input time series should be daily, weekly or monthly
 dt_holidays <- fread(paste0(script_path,'holidays.csv')) # when using own holidays, please keep the header c("ds", "holiday", "country", "year")
 
@@ -82,7 +80,7 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 1000  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
@@ -149,7 +147,7 @@ model_output <- f.mmmRobyn(set_hyperBoundGlobal
                           ,set_cores = set_cores
                           ,epochN = Inf # set to Inf to auto-optimise until no optimum found
                           ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
-                          ,temp.csv.path = '/Users/gufengzhou/Documents/mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
+                          ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
                           )
 
 best_model <- f.mmmCollect(model_output$optimParRS)
