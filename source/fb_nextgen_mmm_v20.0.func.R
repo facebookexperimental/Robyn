@@ -717,10 +717,10 @@ f.mmm <- function(...
   library("reticulate")
   # reticulate::use_python("/Users/oteytaud/r-miniconda3/envs/robynng/bin/python")
   # reticulate::use_python("/Users/oteytaud/Library/r-miniconda/envs/robynng/bin/python")
-  conda_create("r-reticulate")
+  #conda_create("r-reticulate")
   use_condaenv("r-reticulate")
 
-  conda_install("r-reticulate", "nevergrad", pip=TRUE)
+  #conda_install("r-reticulate", "nevergrad", pip=TRUE)
   assign("hyperparameters", hyperParams, envir = .GlobalEnv)
   
   for (i in 1:length(hyperParams)) {  # This is a loop over the e.g. 50 000 hyperparam vectors
@@ -747,12 +747,12 @@ f.mmm <- function(...
 
   ## set paralle backend
   cat("\nRunning", iterRS,"random search trails with",lambda.n,"trails lambda cross-validation each on",set_cores,"cores...\n")
-  cl <- makeCluster(set_cores)# makeSOCKcluster(set_cores) #makeCluster(set_cores)
-  registerDoSNOW(cl)
+  #cl <- makeCluster(set_cores)# makeSOCKcluster(set_cores) #makeCluster(set_cores)
+  #registerDoSNOW(cl)
   pb <- txtProgressBar(max = iterRS, style = 3)
   opts <- list(progress = function(n) setTxtProgressBar(pb, n))
 
-  getDoParWorkers()
+  #getDoParWorkers()
   
   ################################################
   ng <- import("nevergrad")
@@ -760,9 +760,11 @@ f.mmm <- function(...
   t0 <- Sys.time()
 
   # Creating an optimizer.
-  optimizer <-  ng$optimizers$registry["DiscreteOnePlusOne"](length(hyperParams[[1]]))
+  my_tuple <- tuple(length(hyperParams[[1]]))
+  instrumentation <- ng$p$Array(shape=my_tuple)
+  instrumentation$set_bounds(0., 1.)
+  optimizer <-  ng$optimizers$registry["DiscreteOnePlusOne"](instrumentation)  # length(hyperParams[[1]]))
   # Creating an hyperparameter vector to be used in the next learning.
-  nevergrad_hp <- optimizer$ask()
 
   sysTimeDopar <- system.time({
     doparCollect <- foreach (
@@ -944,6 +946,7 @@ f.mmm <- function(...
       )
       
       setTxtProgressBar(pb, i)
+      optimizer$tell(nevergrad_hp, mape)
       
       return(resultCollect)
     } # end dopar
@@ -952,7 +955,7 @@ f.mmm <- function(...
   
   cat("\ndone for", iterRS,"random search trails in",sysTimeDopar[3]/60,"mins")
   close(pb)
-  stopCluster(cl)
+  #stopCluster(cl)
   
   registerDoSEQ(); getDoParWorkers()
   
