@@ -756,9 +756,14 @@ f.mmm <- function(...
   
   ################################################
   ng <- import("nevergrad")
-  optimizer <-  ng$optimizers$registry["DiscreteOnePlusOne"](length(hyperParams[[1]]))
   #### Start parallel loop
   t0 <- Sys.time()
+
+  # Creating an optimizer.
+  optimizer <-  ng$optimizers$registry["DiscreteOnePlusOne"](length(hyperParams[[1]]))
+  # Creating an hyperparameter vector to be used in the next learning.
+  nevergrad_hp <- optimizer$ask()
+
   sysTimeDopar <- system.time({
     doparCollect <- foreach (
       i = 1:iterRS
@@ -783,7 +788,7 @@ f.mmm <- function(...
       #### Get hyperparameter sample
       
       # Let us create a vector of hyperparameters using Nevergrad.
-      #nevergrad_hp <- optimizer$ask()
+      nevergrad_hp <- optimizer$ask()
       # Now we must cast it to the bounds.
       # ... TODO ! This is missing
 
