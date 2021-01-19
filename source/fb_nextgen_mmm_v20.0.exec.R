@@ -83,7 +83,7 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 100  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 20  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation

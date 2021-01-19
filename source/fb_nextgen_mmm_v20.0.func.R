@@ -770,8 +770,8 @@ f.mmm <- function(...
       optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation)  # length(hyperParams[[1]]))
       # Creating an hyperparameter vector to be used in the next learning.
   }
-  best_mape <- Inf
   sysTimeDopar <- system.time({
+  best_mape <- Inf
     doparCollect <- foreach (
       i = 1:iterRS
       , .export = c('f.adstockGeometric'
@@ -840,8 +840,8 @@ f.mmm <- function(...
                 hypParamSam[hypNameLoop] <- xt    # <--- bad syntax
               }
               ##### previous code was: transLHS <- dcast.data.table(transLHS, index ~ vars, value.var = "xt")[, !"index"]
-                 #print("we get this:")
-                 #print(hypParamSam)
+                 print("we get this:")
+                 print(hypParamSam)
                  #####################################
    }
       #### Tranform media with hyperparameters
@@ -995,13 +995,17 @@ f.mmm <- function(...
           optimizer$tell(nevergrad_hp, mape)
       }
       best_mape <- min(best_mape, mape)
+	      print(best_mape)
       return(resultCollect)
     } # end dopar
+  print(optimizer_name)
+  print(" get ")
+  print(best_mape)
   }) # end system.time
   ## end multicore
   
   cat("\ndone for", iterRS,"random search trails in",sysTimeDopar[3]/60,"mins")
-  print(optimizer_name, " get ", best_mape)
+  please_stop_here()
   close(pb)
   #stopCluster(cl)
   registerDoSEQ(); getDoParWorkers()
