@@ -994,7 +994,7 @@ f.mmm <- function(...
       if (optimizer_name != "none") {
           optimizer$tell(nevergrad_hp, mape)
       }
-      best_mape = min(best_mape, mape)
+      best_mape <- min(best_mape, mape)
       return(resultCollect)
     } # end dopar
   }) # end system.time
