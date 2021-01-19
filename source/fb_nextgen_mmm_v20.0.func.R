@@ -994,7 +994,6 @@ f.mmm <- function(...
       if (optimizer_name != "none") {
           optimizer$tell(nevergrad_hp, mape)
       }
-      print(i, " --> ", mape)
       best_mape = min(best_mape, mape)
       return(resultCollect)
     } # end dopar
@@ -1005,7 +1004,6 @@ f.mmm <- function(...
   print(optimizer_name, " get ", best_mape)
   close(pb)
   #stopCluster(cl)
-  let_us_stop_here() 
   registerDoSEQ(); getDoParWorkers()
   
   # aggregate result
