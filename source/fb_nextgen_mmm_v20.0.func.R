@@ -763,7 +763,7 @@ f.mmm <- function(...
   my_tuple <- tuple(length(hyperParams[[1]]))
   instrumentation <- ng$p$Array(shape=my_tuple)
   instrumentation$set_bounds(0., 1.)
-  optimizer <-  ng$optimizers$registry["DiscreteOnePlusOne"](instrumentation)  # length(hyperParams[[1]]))
+  optimizer <-  ng$optimizers$registry["DoubleFastGADiscreteOnePlusOne"](instrumentation)  # length(hyperParams[[1]]))
   # Creating an hyperparameter vector to be used in the next learning.
 
   sysTimeDopar <- system.time({
@@ -791,12 +791,54 @@ f.mmm <- function(...
       
       # Let us create a vector of hyperparameters using Nevergrad.
       nevergrad_hp <- optimizer$ask()
-      # Now we must cast it to the bounds.
-      # ... TODO ! This is missing
 
       hypParamSam <-  sapply(hyperParams, function(x) {if (length(x) > 1) { x[i] } else {x} }); hypParamSam
       hypParamSamName <- names(hypParamSam)
-      
+      print("nevergrad provides:")
+      print(nevergrad_hp)
+      # Now we must cast it to the bounds.
+      # ... TODO ! This is missing
+
+# the code below is supposed to cast to the bounds ?
+#
+#  # rescale local bounds
+#  ===   ### rewrite this code, replacing "initLHS" by "nevergrad_hp". ========================================================= BEGIN =================
+#  ===   transLHS_collect <- list()
+   for (hypNameLoop in local_name.all) { # hypNameLoop <- local_name.all[1]
+     
+     # get channel bounds
+     # This should be done once and for all, not everytime. TODO
+     if (activate_hyperBoundLocalTuning ==F | !exists("activate_hyperBoundLocalTuning")) {
+       if (epoch.iter==1) { # no manual tuning, first epoch --> take global bounds
+         channelBound <- unlist(hyper_bound_global[str_match(hypNameLoop, paste0(global_name, collapse = "|"))])
+       } else { # no manual tuning, not first epoch --> take auto-updated bounds
+         channelBound <- unlist(hyperbound.local.auto[hypNameLoop])
+       }
+     } else { 
+       if (epoch.iter==1 | !identical(set_hyperBoundLocal, set_hyperBoundLocal.update))  { # Manual tuning, first epoch --> take manual params
+         channelBound <- unlist(set_hyperBoundLocal[hypNameLoop])
+       } else { # manual tuning, not first epoch --> take auto-updated bounds
+         channelBound <- unlist(hyperbound.local.auto[hypNameLoop])
+       }
+     }
+     
+     # adjust sampling to bounds
+     if (length(channelBound)==2 & channelBound[1] != channelBound[2]) {
+       ####channelLHS <- unlist(initLHS[, hypNameLoop, with = F])
+       
+       xt <- qunif(nevergrad_hp[index in the loop on hypNameLoop], min(channelBound), max(channelBound))  # <--- bad syntax
+     } else {
+       xt <- rep(set_hyperBoundLocal[[hypNameLoop]], set_iter)
+     }
+     hypParamSam[hypNameLoop] <- xt    # <--- bad syntax
+     #### transLHS_collect[[hypNameLoop]] <- data.table(index = 1:set_iter, xt = xt, vars = hypNameLoop)    # <--- this should be applied on 
+   }
+   ##### transLHS <- rbindlist(transLHS_collect)
+   ##### transLHS <- dcast.data.table(transLHS, index ~ vars, value.var = "xt")[, !"index"]
+   # I must then put transLHS (which is a table) into hypParamSam (which is a vector) 
+#  ===  #################################  ============================================================= END ===========================================
+      print("what we have is:")
+      print(hypParamSam)
 
       #####################################
       #### Tranform media with hyperparameters
@@ -947,6 +989,7 @@ f.mmm <- function(...
       
       setTxtProgressBar(pb, i)
       optimizer$tell(nevergrad_hp, mape)
+      print(i, " --> ", mape)
       
       return(resultCollect)
     } # end dopar
@@ -956,7 +999,7 @@ f.mmm <- function(...
   cat("\ndone for", iterRS,"random search trails in",sysTimeDopar[3]/60,"mins")
   close(pb)
   #stopCluster(cl)
-  
+  let_us_stop_here() 
   registerDoSEQ(); getDoParWorkers()
   
   # aggregate result
