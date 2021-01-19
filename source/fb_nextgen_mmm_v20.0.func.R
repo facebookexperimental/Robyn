@@ -759,15 +759,28 @@ f.mmm <- function(...
   #### Start parallel loop
   t0 <- Sys.time()
 
-  # Creating an optimizer.
-  optimizer_name <- "none"
+  # Creating an optimizer. Use "none" for the good old LHS.
+  optimizer_name <- "none"  # good old LHS :-)
   # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
-  optimizer_name <- "CMA"
+  # optimizer_name <- "OnePlusOne"
+  # optimizer_name <- "DE"
+  # optimizer_name <- "RandomSearch"
+  # optimizer_name <- "TwoPointsDE"
+  # optimizer_name <- "Powell"
+  # optimizer_name <- "MetaModel"  CRASH !!!!
+  # optimizer_name <- "SQP"
+  # optimizer_name <- "Cobyla"
+  # optimizer_name <- "NaiveTBPSA"
+  # optimizer_name <- "DiscreteOnePlusOne"
+  # optimizer_name <- "cGA"
+  # optimizer_name <- "ScrHammersleySearch"
+  print("working with ")
+  print(optimizer_name)
   if (optimizer_name != "none") {
       my_tuple <- tuple(length(names(hyperParams)))
       instrumentation <- ng$p$Array(shape=my_tuple)
       instrumentation$set_bounds(0., 1.)
-      optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation)  # length(hyperParams[[1]]))
+      optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation, budget=iterRS)  # length(hyperParams[[1]]))
       # Creating an hyperparameter vector to be used in the next learning.
   }
   sysTimeDopar <- system.time({
@@ -840,8 +853,8 @@ f.mmm <- function(...
                 hypParamSam[hypNameLoop] <- xt    # <--- bad syntax
               }
               ##### previous code was: transLHS <- dcast.data.table(transLHS, index ~ vars, value.var = "xt")[, !"index"]
-                 print("we get this:")
-                 print(hypParamSam)
+                 #print("we get this:")
+                 #print(hypParamSam)
                  #####################################
    }
       #### Tranform media with hyperparameters
@@ -995,18 +1008,21 @@ f.mmm <- function(...
           optimizer$tell(nevergrad_hp, mape)
       }
       best_mape <- min(best_mape, mape)
-	      print(best_mape)
+      if (i == iterRS) {
+	 print(" === ")
+         print(optimizer_name)
+         print(i)
+         print('->')
+         print(best_mape)
+      }
       return(resultCollect)
     } # end dopar
-  print(optimizer_name)
-  print(" get ")
-  print(best_mape)
   }) # end system.time
   ## end multicore
   
   cat("\ndone for", iterRS,"random search trails in",sysTimeDopar[3]/60,"mins")
-  please_stop_here()
   close(pb)
+  #please_stop_here()
   #stopCluster(cl)
   registerDoSEQ(); getDoParWorkers()
   
@@ -1027,6 +1043,10 @@ f.mmm <- function(...
   resultCollect$elapsed.min <- sysTimeDopar[3]/60
   resultCollect$resultHypParam[, ElapsedAccum:= ElapsedAccum - min(ElapsedAccum) + resultCollect$resultHypParam[which.min(ElapsedAccum), Elapsed]] # adjust accummulated time
   
+  #print(optimizer_name)
+  #print(" get ")
+  #print(best_mape)
+  #please_stop_here()
   return(list(Score =  -resultCollect$mape[iterRS] # score for BO
               ,resultCollect = resultCollect))
 }

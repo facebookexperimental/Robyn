@@ -81,9 +81,9 @@ set_cores <- 6 # I am using 6 cores from 8 on my local machine. Use detectCores(
 f.plotTrainSize(F) # insert TRUE to plot training size guidance. Please balance between higher Bhattacharyya coefficient and sufficient training size
 set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to test the model. Use f.plotTrainSize to get split estimation
 
-## set model core features
+## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 20  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 50000  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
