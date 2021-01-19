@@ -770,7 +770,7 @@ f.mmm <- function(...
       optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation)  # length(hyperParams[[1]]))
       # Creating an hyperparameter vector to be used in the next learning.
   }
-  best_mape = Inf
+  best_mape <- Inf
   sysTimeDopar <- system.time({
     doparCollect <- foreach (
       i = 1:iterRS
