@@ -922,7 +922,7 @@ f.mmm <- function(...
       
       ## adstock objective: sum of squared infinite sum of decay to be minimised
       dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
-      decay.ssisd <- dt_decaySum[, sum(decaySum^2)]
+      adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
       
       ## saturation objective:
 
@@ -934,15 +934,29 @@ f.mmm <- function(...
       
       resultCollect <- list(
         resultHypParam = resultHypParam[, ':='(mape = mape
+                                               ,decomp.ssd = decomp.ssd
+                                               ,adstock.ssisd = adstock.ssisd
                                                ,rsq_test = mod_out$rsq_test
                                                ,pos = prod(decompCollect$xDecompAgg$pos)
                                                ,Score = -mape
                                                ,Elapsed = as.numeric(difftime(Sys.time(),t1, units = "secs"))
                                                ,ElapsedAccum = as.numeric(difftime(Sys.time(),t0, units = "secs"))
                                                ,iterRS= i)],
-        xDecompVec = if (out ==T) {decompCollect$xDecompVec[, ':='(mape = mape, rsq_test = mod_out$rsq_test, iterRS= i)]} else{NULL} ,
-        xDecompAgg = decompCollect$xDecompAgg[, ':='(mape = mape, rsq_test = mod_out$rsq_test, iterRS= i)] ,
-        liftCalibration = if (activate_calibration) {liftCollect[, ':='(mape = mape, rsq_test = mod_out$rsq_test, iterRS= i)] } else {NULL},
+        xDecompVec = if (out ==T) {decompCollect$xDecompVec[, ':='(mape = mape
+                                                                   ,decomp.ssd = decomp.ssd
+                                                                   ,adstock.ssisd = adstock.ssisd
+                                                                   ,rsq_test = mod_out$rsq_test
+                                                                   ,iterRS= i)]} else{NULL} ,
+        xDecompAgg = decompCollect$xDecompAgg[, ':='(mape = mape
+                                                     ,decomp.ssd = decomp.ssd
+                                                     ,adstock.ssisd = adstock.ssisd
+                                                     ,rsq_test = mod_out$rsq_test
+                                                     ,iterRS= i)] ,
+        liftCalibration = if (activate_calibration) {liftCollect[, ':='(mape = mape
+                                                                        ,decomp.ssd = decomp.ssd
+                                                                        ,adstock.ssisd = adstock.ssisd
+                                                                        ,rsq_test = mod_out$rsq_test
+                                                                        ,iterRS= i)] } else {NULL},
         mape = mape,
         iterRS = i
         #,cvmod = cvmod

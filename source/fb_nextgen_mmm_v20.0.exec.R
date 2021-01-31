@@ -36,6 +36,7 @@ library(see) # version 0.5.0
 library(PerformanceAnalytics) # version 2.0.4
 library(nloptr) # version 1.2.1
 library(minpack.lm) # version 1.2
+library(reticulate)
 
 ################################################################
 #### load data & scripts
