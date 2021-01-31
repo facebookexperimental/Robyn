@@ -118,7 +118,7 @@ f.plotAdstockCurves <- function(plotAdstockCurves) {
   }
 }
 
-f.plotResponseCurves <- function(plotResponseCurves) {
+f.plotResponseCurves <- function(plotResponseCurves, alphaFix = 2, gammaFix = 0.5) {
   if (plotResponseCurves) {
     xSample <- 1:100
     alphaSamp <- c(0.1, 0.5, 1, 2, 3)
@@ -128,7 +128,7 @@ f.plotResponseCurves <- function(plotResponseCurves) {
     hillAlphaCollect <- list()
     for (i in 1:length(alphaSamp)) {
       hillAlphaCollect[[i]] <- data.table(x=xSample
-                                          ,y=xSample**alphaSamp[i] / (xSample**alphaSamp[i] + (0.5*100)**alphaSamp[i])
+                                          ,y=xSample**alphaSamp[i] / (xSample**alphaSamp[i] + (gammaFix*100)**alphaSamp[i])
                                           ,alpha=alphaSamp[i])
     }
     hillAlphaCollect <- rbindlist(hillAlphaCollect)
@@ -136,13 +136,13 @@ f.plotResponseCurves <- function(plotResponseCurves) {
     p1 <- ggplot(hillAlphaCollect, aes(x=x, y=y, color=alpha)) + 
       geom_line() +
       labs(title = "Cost response with hill function"
-           ,subtitle = "Alpha changes while gamma = 0.5")
+           ,subtitle = paste0("Alpha changes while gamma = ", gammaFix))
     
     ## plot gammas
     hillGammaCollect <- list()
     for (i in 1:length(gammaSamp)) {
       hillGammaCollect[[i]] <- data.table(x=xSample
-                                          ,y=xSample**2 / (xSample**2 + (gammaSamp[i]*100)**2)
+                                          ,y=xSample**alphaFix / (xSample**alphaFix + (gammaSamp[i]*100)**alphaFix)
                                           ,gamma=gammaSamp[i])
     }
     hillGammaCollect <- rbindlist(hillGammaCollect)
@@ -150,7 +150,7 @@ f.plotResponseCurves <- function(plotResponseCurves) {
     p2 <- ggplot(hillGammaCollect, aes(x=x, y=y, color=gamma)) + 
       geom_line() +
       labs(title = "Cost response with hill function"
-           ,subtitle = "Gamma changes while alpha = 2")
+           ,subtitle = paste0("Gamma changes while alpha = ", alphaFix))
     
     grid.arrange(p1,p2, nrow=1)
   }

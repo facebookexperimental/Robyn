@@ -721,7 +721,12 @@ f.mmm <- function(...
     assign(names(hyperParams)[i], hyperParams[[i]])
   } #hyperParams <- mapply(FUN = function(x,y) {assign(y, x)}, x = hyperParams, y= names(hyperParams))
   
+  ################################################
+  #### Get spend share
   
+  dt_spendShare <- dt_input[, .(rn = set_mediaVarName, 
+                                total_spend = sapply(.SD, sum)), .SDcols=set_mediaSpendName]
+  dt_spendShare[, ':='(spend_share = total_spend / sum(total_spend))]
   
   ################################################
   #### Setup environment
@@ -781,6 +786,7 @@ f.mmm <- function(...
       #### Tranform media with hyperparameters
       dt_modAdstocked <- dt_mod[, .SD, .SDcols = setdiff(names(dt_mod), "ds")]
       mediaAdstocked <- list()
+      mediaVecCum <- list()
       for (v in 1:length(set_mediaVarName)) {
         
         m <- dt_modAdstocked[, get(set_mediaVarName[v])]
@@ -790,6 +796,7 @@ f.mmm <- function(...
           alpha = hypParamSam[str_which(hypParamSamName, paste0(set_mediaVarName[v],".*alphas"))] 
           gamma = hypParamSam[str_which(hypParamSamName, paste0(set_mediaVarName[v],".*gammas"))] 
           mediaAdstocked[[v]] <- f.transformation(x=m, theta=theta, shape = shape, scale = scale, alpha=alpha, gamma=gamma, alternative = adstock)
+          mediaVecCum[[v]] <- f.transformation(x=m, theta=theta, shape = shape, scale = scale, alpha=alpha, gamma=gamma, alternative = adstock, stage = "thetaVecCum")
           
         } else if (adstock == "weibull") {
           shape = hypParamSam[str_which(hypParamSamName, paste0(set_mediaVarName[v],".*shapes"))]
@@ -797,12 +804,14 @@ f.mmm <- function(...
           alpha = hypParamSam[str_which(hypParamSamName, paste0(set_mediaVarName[v],".*alphas"))] 
           gamma = hypParamSam[str_which(hypParamSamName, paste0(set_mediaVarName[v],".*gammas"))] 
           mediaAdstocked[[v]] <- f.transformation(x=m, theta=theta, shape = shape, scale = scale, alpha=alpha, gamma=gamma, alternative = adstock)
+          mediaVecCum[[v]] <- f.transformation(x=m, theta=theta, shape = shape, scale = scale, alpha=alpha, gamma=gamma, alternative = adstock, stage = "thetaVecCum")
         } else {break; print("adstock parameter must be geometric or weibull")}
       } 
       
       names(mediaAdstocked) <- set_mediaVarName
       dt_modAdstocked[, (set_mediaVarName) := mediaAdstocked]
-      
+      dt_mediaVecCum <- data.table()[, (set_mediaVarName):= mediaVecCum]
+
       #####################################
       #### Split and prepare data for modelling
       
@@ -902,6 +911,21 @@ f.mmm <- function(...
         hypParamSamName <- names(hypParamSam)
         
       } 
+      
+      #####################################
+      #### calculate multi-objectives for pareto optimality
+      
+      ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
+      dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompPerc)]
+      dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share)], on = "rn"]
+      decomp.ssd <- dt_decompSpendDist[, sum((xDecompPerc-spend_share)^2) ] 
+      
+      ## adstock objective: sum of squared infinite sum of decay to be minimised
+      dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
+      decay.ssisd <- dt_decaySum[, sum(decaySum^2)]
+      
+      ## saturation objective:
+
       
       #####################################
       #### Collect output

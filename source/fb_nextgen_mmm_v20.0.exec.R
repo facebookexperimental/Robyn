@@ -91,7 +91,7 @@ set_hyperBoundGlobal <- list(thetas = c(0, 0.3) # geometric decay rate
                           ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape, the more S-shape. The smaller, the more L-shape
                           ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
                           ,alphas = c(0.0001, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more L-shape
-                          ,gammas = c(0.0001, 1) # hill functionn pararmeter that controls the scale of trarnsforrmation. The larger the gamma, the later the inflexion point in the response curve 
+                          ,gammas = c(0.3, 1) # hill functionn pararmeter that controls the scale of trarnsforrmation. The larger the gamma, the later the inflexion point in the response curve 
                           ,lambdas = c(0, 1)) # regularised regression parameter
 global_name <- names(set_hyperBoundGlobal)
 
