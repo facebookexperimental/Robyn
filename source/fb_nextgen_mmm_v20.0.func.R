@@ -918,7 +918,7 @@ f.mmm <- function(...
       ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
       dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompPerc)]
       dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share)], on = "rn"]
-      decomp.ssd <- dt_decompSpendDist[, sum((xDecompPerc-spend_share)^2) ] 
+      decomp.rssd <- dt_decompSpendDist[, sqrt(sum((xDecompPerc*100-spend_share*100)^2))] 
       
       ## adstock objective: sum of squared infinite sum of decay to be minimised
       dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
@@ -934,7 +934,7 @@ f.mmm <- function(...
       
       resultCollect <- list(
         resultHypParam = resultHypParam[, ':='(mape = mape
-                                               ,decomp.ssd = decomp.ssd
+                                               ,decomp.rssd = decomp.rssd
                                                ,adstock.ssisd = adstock.ssisd
                                                ,rsq_test = mod_out$rsq_test
                                                ,pos = prod(decompCollect$xDecompAgg$pos)
@@ -943,17 +943,17 @@ f.mmm <- function(...
                                                ,ElapsedAccum = as.numeric(difftime(Sys.time(),t0, units = "secs"))
                                                ,iterRS= i)],
         xDecompVec = if (out ==T) {decompCollect$xDecompVec[, ':='(mape = mape
-                                                                   ,decomp.ssd = decomp.ssd
+                                                                   ,decomp.rssd = decomp.rssd
                                                                    ,adstock.ssisd = adstock.ssisd
                                                                    ,rsq_test = mod_out$rsq_test
                                                                    ,iterRS= i)]} else{NULL} ,
         xDecompAgg = decompCollect$xDecompAgg[, ':='(mape = mape
-                                                     ,decomp.ssd = decomp.ssd
+                                                     ,decomp.rssd = decomp.rssd
                                                      ,adstock.ssisd = adstock.ssisd
                                                      ,rsq_test = mod_out$rsq_test
                                                      ,iterRS= i)] ,
         liftCalibration = if (activate_calibration) {liftCollect[, ':='(mape = mape
-                                                                        ,decomp.ssd = decomp.ssd
+                                                                        ,decomp.rssd = decomp.rssd
                                                                         ,adstock.ssisd = adstock.ssisd
                                                                         ,rsq_test = mod_out$rsq_test
                                                                         ,iterRS= i)] } else {NULL},
