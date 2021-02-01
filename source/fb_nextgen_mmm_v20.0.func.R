@@ -921,6 +921,9 @@ f.mmm <- function(...
       dt_decompSpendDist[, effect_share:= xDecompPerc/sum(xDecompPerc)]
       decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share-spend_share)^2))] 
       
+      ## madia objective: share of media effect to maximise --> share of baseline to minimise
+      baseline.share <- 1-dt_decompSpendDist[, sum(xDecompPerc)]
+      
       ## adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
       dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
       adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
