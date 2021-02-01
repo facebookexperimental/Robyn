@@ -706,7 +706,7 @@ f.mmm <- function(...
   ################################################
   #### Collect hyperparameters
   
-  hyperParams.global <- unlist(list(...), recursive = F) # hyperParams.global <- set_hyperBoundGlobal 
+  hyperParams.global <- unlist(list(...), recursive = F) # hyperParams.global <- set_hyperBoundGlobal # epoch.iter <- 1
   
   if (out == F) {
     lhsOut <- f.hypSamLHS(set_mediaVarName, set_iter = iterRS, hyperParams.global, adstock)
@@ -918,13 +918,16 @@ f.mmm <- function(...
       ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
       dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompPerc)]
       dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share)], on = "rn"]
-      decomp.rssd <- dt_decompSpendDist[, sqrt(sum((xDecompPerc*100-spend_share*100)^2))] 
+      dt_decompSpendDist[, effect_share:= xDecompPerc/sum(xDecompPerc)]
+      decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share-spend_share)^2))] 
       
-      ## adstock objective: sum of squared infinite sum of decay to be minimised
+      ## adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
       dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
       adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
       
-      ## saturation objective:
+      ## saturation objective: probably not necessary
+      
+      ## calibration objective: not calbration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
 
       
       #####################################
