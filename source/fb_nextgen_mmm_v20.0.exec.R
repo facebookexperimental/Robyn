@@ -83,16 +83,16 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 250  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 50000  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
 f.plotResponseCurves(F) # s-curve transformation example plot, helping you understand hill/alpha/gamma transformation
 set_hyperBoundGlobal <- list(thetas = c(0, 0.3) # geometric decay rate
-                          ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape value, the more S-shape. The smaller, the more L-shape
+                          ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape, the more S-shape. The smaller, the more L-shape
                           ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
-                          ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more C-shape
-                          ,gammas = c(0.3, 1) # hill function parameter that controls the scale of transformation. The larger the gamma, the later the inflection point in the response curve 
+                          ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more L-shape
+                          ,gammas = c(0.3, 1) # hill functionn pararmeter that controls the scale of trarnsforrmation. The larger the gamma, the later the inflexion point in the response curve 
                           ,lambdas = c(0, 1)) # regularised regression parameter
 global_name <- names(set_hyperBoundGlobal)
 
@@ -144,27 +144,17 @@ dt_mod <- f.inputWrangling()
 
 ################################################################
 #### Run models
-# Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
-# In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
-
-optimizer_name <- "none"  # Latin Hypercube Sampling
-# optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
-# optimizer_name <- "DiscreteOnePlusOne"
 
 model_output <- f.mmmRobyn(set_hyperBoundGlobal
                           ,set_iter = set_iter
                           ,set_cores = set_cores
-                          ,epochN = 1 # set to Inf to auto-optimise until no optimum found
+                          ,epochN = Inf # set to Inf to auto-optimise until no optimum found
                           ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
                           ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
                           )
 
 best_model <- f.mmmCollect(model_output$optimParRS)
 # best_model <- f.mmmCollect(set_hyperBoundLocal)
-
-# Save models for each 'set_iter' to a .CSV file
-# all_models <- model_output$resultCollect$resultHypParam
-# fwrite(all_models,paste0(script_path,'all_models_GADISCRETEONEPLUSONE_with_pareto_optimality_10_epochs.csv'))
 
 ################################################################
 #### Plot section
@@ -174,12 +164,13 @@ f.plotSpendModel(F)
 f.plotHyperSamp(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot latin hypercube hyperparameter sampling balance. Max. 3 channels per plot
 f.plotTrendSeason(F) # plot prophet trend, season and holiday decomposition
 bestAdstock <- f.plotMediaTransform(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # 3 plots of best model media transformation: adstock decay rate, adstock effect & response curve. Max. 3 channels per plot
-f.plotBestDecomp(T) # 3 plots of best model decomposition: sales decomp, actual vs fitted over time, & sales decomp area plot
+f.plotBestDecomp(F) # 3 plots of best model decomposition: sales decomp, actual vs fitted over time, & sales decomp area plot
 f.plotMAPEConverge(F) # plot RS MAPE convergence, only for random search
 f.plotBestModDiagnostic(F) # plot best model diagnostics: residual vs fitted, QQ plot and residual vs. actual
 f.plotChannelROI(F)
 f.plotHypConverge(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot hyperparameter vs MAPE convergence. Max. 3 channels per plot
 boundOptim <- f.plotHyperBoundOptim(F, channelPlot = c("tv_S", "ooh_S", "facebook_I"), model_output, kurt.tuner = optim.sensitivity)  # improved hyperparameter plot to better visualise trends in each hyperparameter
+
 
 ################################################################
 #### Optimiser - Beta

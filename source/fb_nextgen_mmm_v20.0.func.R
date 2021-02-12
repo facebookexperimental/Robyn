@@ -60,7 +60,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
     dateCheck <- as.Date(dateCheck)
   },
   error= function() {
-    stop("input date variable should have format '2020-01-01'")
+    stop("input date variable does should have format '2020-01-01'")
   })
 
   ## check variables existence
@@ -697,8 +697,8 @@ f.refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, uppe
 #### Define major mmm function
 
 f.mmm <- function(...
-                  , iterRS = 250
-                  , set_cores = 6
+                  , iterRS = 1
+                  , set_cores = 1
                   , lambda.n = 100
                   , out = F
 ) {
@@ -706,7 +706,7 @@ f.mmm <- function(...
   ################################################
   #### Collect hyperparameters
 
-  hyperParams.global <- unlist(list(...), recursive = F) # hyperParams.global <- set_hyperBoundGlobal # epoch.iter <- 1 # iterRS = 250
+  hyperParams.global <- unlist(list(...), recursive = F) # hyperParams.global <- set_hyperBoundGlobal # epoch.iter <- 1
   hyper_bound_global = hyperParams.global
 
   if (out == F) {
@@ -715,25 +715,15 @@ f.mmm <- function(...
   } else {
     hyperParams <- hyperParams.global
   }
-  
-  ####### We should definitely move this to the .exec script
-  # Load reticulate to use it as a python interface for nevergrad:
   library("reticulate")
-  
-  # reticulate::use_python("/Users/leonelsentana/Library/r-miniconda/envs/r-reticulate/bin/python")
+  # reticulate::use_python("/Users/oteytaud/r-miniconda3/envs/robynng/bin/python")
   # reticulate::use_python("/Users/oteytaud/Library/r-miniconda/envs/robynng/bin/python")
-  
-  # Create and define r-reticulate conda environment to use
-  # conda_create("r-reticulate")
+  #conda_create("r-reticulate")
   use_condaenv("r-reticulate")
-  
-  # Install nevergrad package within conda:
-  # conda_install("r-reticulate", "nevergrad", pip=TRUE)
-  ####### We should definitely move this to the .exec script
-  
-  #Assign names to sampled hyperparameter vectors
+
+  #conda_install("r-reticulate", "nevergrad", pip=TRUE)
   assign("hyperparameters", hyperParams, envir = .GlobalEnv)
-  
+
   for (i in 1:length(hyperParams)) {  # This is a loop over the e.g. 50 000 hyperparam vectors
     assign(names(hyperParams)[i], hyperParams[[i]])
   } #hyperParams <- mapply(FUN = function(x,y) {assign(y, x)}, x = hyperParams, y= names(hyperParams))
@@ -760,11 +750,14 @@ f.mmm <- function(...
   set_prophetVarSign <- set_prophetVarSign
   set_factorVarName <- set_factorVarName
   set_lift <- set_lift
-  
-  ## set parallel backend
+
+  ## set paralle backend
   cat("\nRunning", iterRS,"random search trails with",lambda.n,"trails lambda cross-validation each on",set_cores,"cores...\n")
   #cl <- makeCluster(set_cores)# makeSOCKcluster(set_cores) #makeCluster(set_cores)
   #registerDoSNOW(cl)
+  pb <- txtProgressBar(max = iterRS, style = 3)
+  opts <- list(progress = function(n) setTxtProgressBar(pb, n))
+
   #getDoParWorkers()
 
   ################################################
@@ -773,7 +766,7 @@ f.mmm <- function(...
   t0 <- Sys.time()
 
   # Creating an optimizer. Use "none" for the good old LHS.
-  # optimizer_name <- "none"  # good old LHS :-)
+  optimizer_name <- "none"  # good old LHS :-)
   # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
   # optimizer_name <- "OnePlusOne"
   # optimizer_name <- "DE"
@@ -787,21 +780,14 @@ f.mmm <- function(...
   # optimizer_name <- "DiscreteOnePlusOne"
   # optimizer_name <- "cGA"
   # optimizer_name <- "ScrHammersleySearch"
-   
-  cat('\n',"Working with: ", optimizer_name,'\n')
-  pb <- txtProgressBar(max = iterRS, style = 3)
-  opts <- list(progress = function(n) setTxtProgressBar(pb, n))
-  
-  # If optimizer_name is "none" then we take the hyperParams already in lhsOut <- f.hypSamLHS() 
-  # on the "Collect hyperparameters" section above.
-  # If optimizer_name is not "none" then we will create a vector of hyperparameters using Nevergrad (nevergrad_hp_val)
-  
+  print("working with ")
+  print(optimizer_name)
   if (optimizer_name != "none") {
       my_tuple <- tuple(length(names(hyperParams)))
       instrumentation <- ng$p$Array(shape=my_tuple)
       instrumentation$set_bounds(0., 1.)
-      optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation, budget=iterRS)
-      # Creating a hyperparameter vector to be used in the next learning.
+      optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation, budget=iterRS)  # length(hyperParams[[1]]))
+      # Creating an hyperparameter vector to be used in the next learning.
   }
   sysTimeDopar <- system.time({
   best_mape <- Inf
@@ -827,17 +813,20 @@ f.mmm <- function(...
       #####################################
       #### Get hyperparameter sample
 
-      # Let us create a vector of hyperparameters using Nevergrad (nevergrad_hp_val).
-      # Note: Maybe we should add LHS within the IF so that we skip running LHS if (optimizer_name != "none")?
+      # Let us create a vector of hyperparameters using Nevergrad.
       hypParamSam <-  sapply(hyperParams, function(x) {if (length(x) > 1) { x[i] } else {x} }); hypParamSam
       hypParamSamName <- names(hypParamSam)
       if (optimizer_name != "none") {
               nevergrad_hp <- optimizer$ask()
               nevergrad_hp_val <- nevergrad_hp$value
 
-              #print(paste0("LHS provides this:", hypParamSam,"nevergrad provides: ", nevergrad_hp_val, 
-              # ", this is a pure vector, to be cast to some bounds and converted into a table, which is done below" ))
-              
+
+              #print("LHS provides this:")
+              #print(hypParamSam)
+              #print("nevergrad provides:")
+              #print(nevergrad_hp_val)
+              #print("this is a pure vector, to be cast to some bounds and converted into a table, which is done below")
+
               index <- 0
               #print(hypParamSamName)
               for (hypNameLoop in hypParamSamName) { # hypNameLoop <- local_name.all[1]
@@ -1016,7 +1005,9 @@ f.mmm <- function(...
       dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
       adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
 
-      ## calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
+      ## saturation objective: probably not necessary
+
+      ## calibration objective: not calbration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
 
 
       #####################################
@@ -1034,7 +1025,7 @@ f.mmm <- function(...
                                                ,Elapsed = as.numeric(difftime(Sys.time(),t1, units = "secs"))
                                                ,ElapsedAccum = as.numeric(difftime(Sys.time(),t0, units = "secs"))
                                                ,iterRS= i)],
-        xDecompVec = if (out == T) {decompCollect$xDecompVec[, ':='(mape = mape
+        xDecompVec = if (out ==T) {decompCollect$xDecompVec[, ':='(mape = mape
                                                                    ,decomp.rssd = decomp.rssd
                                                                    ,adstock.ssisd = adstock.ssisd
                                                                    ,rsq_test = mod_out$rsq_test
@@ -1056,12 +1047,15 @@ f.mmm <- function(...
 
       setTxtProgressBar(pb, i)
       if (optimizer_name != "none") {
-          optimizer$tell(nevergrad_hp, tuple(mape, decomp.rssd))
+          optimizer$tell(nevergrad_hp, mape)
       }
       best_mape <- min(best_mape, mape)
       if (i == iterRS) {
 	 print(" === ")
-         print(paste0("Optimizer_name: ",optimizer_name, ";  Total_iterations: ", i, ";   best_mape: ",best_mape))
+         print(optimizer_name)
+         print(i)
+         print('->')
+         print(best_mape)
       }
       return(resultCollect)
     } # end dopar
@@ -1070,15 +1064,6 @@ f.mmm <- function(...
 
   cat("\ndone for", iterRS,"random search trails in",sysTimeDopar[3]/60,"mins")
   close(pb)
-  
-  #Printing pareto optimal results for last epoch only when using nevergrad algorithms
-if (optimizer_name != "none") {
-     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$value[],4))),as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$losses[],4)))))
-     pareto_results_names<-setnames(pareto_results, c(names(hyperParams),"mape", "decomp.rssd") )
-     pareto_results_ordered<-setorder(pareto_results_names, "mape", "decomp.rssd")
-     print(pareto_results_ordered)
-}
-  
   #please_stop_here()
   #stopCluster(cl)
   registerDoSEQ(); getDoParWorkers()
@@ -1099,7 +1084,7 @@ if (optimizer_name != "none") {
   resultCollect$best.iter <- resultCollect$resultHypParam$iterRS[1]
   resultCollect$elapsed.min <- sysTimeDopar[3]/60
   resultCollect$resultHypParam[, ElapsedAccum:= ElapsedAccum - min(ElapsedAccum) + resultCollect$resultHypParam[which.min(ElapsedAccum), Elapsed]] # adjust accummulated time
-resultCollect$resultHypParam
+
   #print(optimizer_name)
   #print(" get ")
   #print(best_mape)
