@@ -682,9 +682,14 @@ f.refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, uppe
   mape_mod<- mean(abs((y_test - y_testPred)/y_test)* 100); mape_mod
   coefs <- as.matrix(coef(mod))
   y_pred <- c(y_trainPred, y_testPred)
+  
+  rmse_train <- sqrt(mean(sum((y_train - y_trainPred)^2)))
+  rmse_test <- sqrt(mean(sum((y_test - y_testPred)^2)))
 
   mod_out <- list(rsq_train = rsq_train
                   ,rsq_test = rsq_test
+                  ,rmse_train = rmse_train
+                  ,rmse_test = rmse_test
                   ,mape_mod = mape_mod
                   ,coefs = coefs
                   ,y_pred = y_pred
@@ -718,14 +723,14 @@ f.mmm <- function(...
   
   ####### We should definitely move this to the .exec script
   # Load reticulate to use it as a python interface for nevergrad:
-  library("reticulate")
+  #library("reticulate")
   
   # reticulate::use_python("/Users/leonelsentana/Library/r-miniconda/envs/r-reticulate/bin/python")
   # reticulate::use_python("/Users/oteytaud/Library/r-miniconda/envs/robynng/bin/python")
   
   # Create and define r-reticulate conda environment to use
   # conda_create("r-reticulate")
-  use_condaenv("r-reticulate")
+  #use_condaenv("r-reticulate")
   
   # Install nevergrad package within conda:
   # conda_install("r-reticulate", "nevergrad", pip=TRUE)
@@ -976,6 +981,7 @@ f.mmm <- function(...
         decompCollect <- f.decomp(coefs=mod_out$coefs, dt_modAdstocked, x, y_pred=mod_out$y_pred, i)
 
         mape <- mod_out$mape_mod
+        rmse <- mod_out$rmse_test
 
       } else {
 
@@ -998,6 +1004,8 @@ f.mmm <- function(...
         decompCollect <- f.decomp(mod_out$coefs, dt_modAdstocked, x, mod_out$y_pred, i)
         liftCollect <- f.calibrateLift(decompCollect, set_lift)
 
+        rmse <- mod_out$rmse_test
+        
         hypParamSam["lambdas"] <- lambda_seq_calibrate[which.min(mape)]
         hypParamSamName <- names(hypParamSam)
 
@@ -1056,7 +1064,7 @@ f.mmm <- function(...
 
       setTxtProgressBar(pb, i)
       if (optimizer_name != "none") {
-          optimizer$tell(nevergrad_hp, tuple(mape, decomp.rssd))
+          optimizer$tell(nevergrad_hp, tuple(rmse, decomp.rssd))
       }
       best_mape <- min(best_mape, mape)
       if (i == iterRS) {
@@ -1073,9 +1081,10 @@ f.mmm <- function(...
   
   #Printing pareto optimal results for last epoch only when using nevergrad algorithms
 if (optimizer_name != "none") {
-     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$value[],4))),as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$losses[],4)))))
-     pareto_results_names<-setnames(pareto_results, c(names(hyperParams),"mape", "decomp.rssd") )
-     pareto_results_ordered<-setorder(pareto_results_names, "mape", "decomp.rssd")
+     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$value[],4))),
+                                     as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$losses[],4)))))
+     pareto_results_names<-setnames(pareto_results, c(names(hyperParams),"rmse", "decomp.rssd") )
+     pareto_results_ordered<-setorder(pareto_results_names, "rmse", "decomp.rssd")
      print(pareto_results_ordered)
 }
   

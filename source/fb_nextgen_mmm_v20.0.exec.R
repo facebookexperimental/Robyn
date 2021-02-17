@@ -36,6 +36,8 @@ library(PerformanceAnalytics) # version 2.0.4
 library(nloptr) # version 1.2.1
 library(minpack.lm) # version 1.2
 library(reticulate)
+use_condaenv("r-reticulate")
+#conda_install("r-reticulate", "nevergrad", pip=TRUE)
 
 ################################################################
 #### load data & scripts
@@ -147,7 +149,7 @@ dt_mod <- f.inputWrangling()
 # Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
 # In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
 
-optimizer_name <- "none"  # Latin Hypercube Sampling
+optimizer_name <- "DoubleFastGADiscreteOnePlusOne"  # Latin Hypercube Sampling
 # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
 # optimizer_name <- "DiscreteOnePlusOne"
 
