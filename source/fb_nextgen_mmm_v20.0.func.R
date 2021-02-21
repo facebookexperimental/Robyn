@@ -391,8 +391,14 @@ f.hypSamLHS <- function(set_mediaVarName, set_iter, hyper_bound_global, adstock)
   assign("local_name.update", local_name.update, envir = .GlobalEnv)
 
   # generate random latin hypercube sampling
+  
   initLHS <- data.table(randomLHS(set_iter,length(local_name.update)))
   names(initLHS) <- local_name.update
+  
+  if(optimizer_name != "none") {
+
+  } 
+
 
   # rescale local bounds
   transLHS_collect <- list()
@@ -683,13 +689,13 @@ f.refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, uppe
   coefs <- as.matrix(coef(mod))
   y_pred <- c(y_trainPred, y_testPred)
   
-  rmse_train <- sqrt(mean(sum((y_train - y_trainPred)^2)))
-  rmse_test <- sqrt(mean(sum((y_test - y_testPred)^2)))
+  nrmse_train <- sqrt(mean(sum((y_train - y_trainPred)^2))) / (max(y_train) - min(y_train)) # mean(y_train) sd(y_train)
+  nrmse_test <- sqrt(mean(sum((y_test - y_testPred)^2))) / (max(y_test) - min(y_test)) # mean(y_test) sd(y_test)
 
   mod_out <- list(rsq_train = rsq_train
                   ,rsq_test = rsq_test
-                  ,rmse_train = rmse_train
-                  ,rmse_test = rmse_test
+                  ,nrmse_train = nrmse_train
+                  ,nrmse_test = nrmse_test
                   ,mape_mod = mape_mod
                   ,coefs = coefs
                   ,y_pred = y_pred
@@ -806,6 +812,8 @@ f.mmm <- function(...
       instrumentation <- ng$p$Array(shape=my_tuple)
       instrumentation$set_bounds(0., 1.)
       optimizer <-  ng$optimizers$registry[optimizer_name](instrumentation, budget=iterRS)
+      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1.0, 1.0))
+      # optimizer$num_workers <- set_cores
       # Creating a hyperparameter vector to be used in the next learning.
   }
   sysTimeDopar <- system.time({
@@ -981,7 +989,7 @@ f.mmm <- function(...
         decompCollect <- f.decomp(coefs=mod_out$coefs, dt_modAdstocked, x, y_pred=mod_out$y_pred, i)
 
         mape <- mod_out$mape_mod
-        rmse <- mod_out$rmse_test
+        nrmse <- mod_out$nrmse_test
 
       } else {
 
@@ -1004,7 +1012,7 @@ f.mmm <- function(...
         decompCollect <- f.decomp(mod_out$coefs, dt_modAdstocked, x, mod_out$y_pred, i)
         liftCollect <- f.calibrateLift(decompCollect, set_lift)
 
-        rmse <- mod_out$rmse_test
+        nrmse <- mod_out$nrmse_test
         
         hypParamSam["lambdas"] <- lambda_seq_calibrate[which.min(mape)]
         hypParamSamName <- names(hypParamSam)
@@ -1034,8 +1042,10 @@ f.mmm <- function(...
 
       resultCollect <- list(
         resultHypParam = resultHypParam[, ':='(mape = mape
+                                               ,nrmse = nrmse
                                                ,decomp.rssd = decomp.rssd
                                                ,adstock.ssisd = adstock.ssisd
+                                               ,rsq_train = mod_out$rsq_train
                                                ,rsq_test = mod_out$rsq_test
                                                ,pos = prod(decompCollect$xDecompAgg$pos)
                                                ,Score = -mape
@@ -1043,18 +1053,24 @@ f.mmm <- function(...
                                                ,ElapsedAccum = as.numeric(difftime(Sys.time(),t0, units = "secs"))
                                                ,iterRS= i)],
         xDecompVec = if (out == T) {decompCollect$xDecompVec[, ':='(mape = mape
+                                                                   ,nrmse = nrmse
                                                                    ,decomp.rssd = decomp.rssd
                                                                    ,adstock.ssisd = adstock.ssisd
+                                                                   ,rsq_train = mod_out$rsq_train
                                                                    ,rsq_test = mod_out$rsq_test
                                                                    ,iterRS= i)]} else{NULL} ,
         xDecompAgg = decompCollect$xDecompAgg[, ':='(mape = mape
+                                                     ,nrmse = nrmse
                                                      ,decomp.rssd = decomp.rssd
                                                      ,adstock.ssisd = adstock.ssisd
+                                                     ,rsq_train = mod_out$rsq_train
                                                      ,rsq_test = mod_out$rsq_test
                                                      ,iterRS= i)] ,
         liftCalibration = if (activate_calibration) {liftCollect[, ':='(mape = mape
+                                                                        ,nrmse = nrmse
                                                                         ,decomp.rssd = decomp.rssd
                                                                         ,adstock.ssisd = adstock.ssisd
+                                                                        ,rsq_train = mod_out$rsq_train
                                                                         ,rsq_test = mod_out$rsq_test
                                                                         ,iterRS= i)] } else {NULL},
         mape = mape,
@@ -1064,7 +1080,8 @@ f.mmm <- function(...
 
       setTxtProgressBar(pb, i)
       if (optimizer_name != "none") {
-          optimizer$tell(nevergrad_hp, tuple(rmse, decomp.rssd))
+
+        optimizer$tell(nevergrad_hp, tuple(nrmse, decomp.rssd)) 
       }
       best_mape <- min(best_mape, mape)
       if (i == iterRS) {
@@ -1079,14 +1096,15 @@ f.mmm <- function(...
   cat("\ndone for", iterRS,"random search trails in",sysTimeDopar[3]/60,"mins")
   close(pb)
   
-  #Printing pareto optimal results for last epoch only when using nevergrad algorithms
+  ## Get pareto optimal results when using nevergrad algorithms
 if (optimizer_name != "none") {
-     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$value[],4))),
-                                     as.data.table(sapply(optimizer$pareto_front(30, subset="loss-covering"), function(p) round(p$losses[],4)))))
-     pareto_results_names<-setnames(pareto_results, c(names(hyperParams),"rmse", "decomp.rssd") )
-     pareto_results_ordered<-setorder(pareto_results_names, "rmse", "decomp.rssd")
+     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$value[],4))),
+                                     as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$losses[],4)))))
+     pareto_results_names<-setnames(pareto_results, c(names(hyperParams),"nrmse", "decomp.rssd") )
+     pareto_results_ordered<-setorder(pareto_results_names, "nrmse", "decomp.rssd")
      print(pareto_results_ordered)
 }
+  
   
   #please_stop_here()
   #stopCluster(cl)
@@ -1101,18 +1119,20 @@ if (optimizer_name != "none") {
     xDecompAgg = rbindlist(lapply(doparCollect, function(x) x$xDecompAgg))[order(mape)],
     liftCalibration = if(activate_calibration) {rbindlist(lapply(doparCollect, function(x) x$liftCalibration))[order(mape, liftMedia, liftStart)]} else {NULL},
     mape = unlist(lapply(doparCollect, function(x) x$mape)),
-    iterRS = unlist(lapply(doparCollect, function(x) x$iterRS))
+    iterRS = unlist(lapply(doparCollect, function(x) x$iterRS)),
+    paretoFront= as.data.table(pareto_results_ordered)
     #,cvmod = lapply(doparCollect, function(x) x$cvmod)
   )
   resultCollect$iter <- length(resultCollect$mape)
   resultCollect$best.iter <- resultCollect$resultHypParam$iterRS[1]
   resultCollect$elapsed.min <- sysTimeDopar[3]/60
   resultCollect$resultHypParam[, ElapsedAccum:= ElapsedAccum - min(ElapsedAccum) + resultCollect$resultHypParam[which.min(ElapsedAccum), Elapsed]] # adjust accummulated time
-resultCollect$resultHypParam
+  resultCollect$resultHypParam
   #print(optimizer_name)
   #print(" get ")
   #print(best_mape)
   #please_stop_here()
+
   return(list(Score =  -resultCollect$mape[iterRS] # score for BO
               ,resultCollect = resultCollect))
 }
@@ -1184,10 +1204,10 @@ f.mmmRobyn <- function(hyper_bound_global = set_hyperBoundGlobal
       param.optim <- optimParRS[optim.found == T, variable]
       param.noOptim <- optimParRS[optim.found == F, variable]
 
-      cat("\n## Hyperbounds optimisation epoch", epoch.iter-1, "took", round(sysTimeRS[3]/3600,4),"hours to run",set_iter,"iterations...\n##"
-          ,length(param.optim), "out of",nrow(optimParRS),"hyperparameters found optimum:" , param.optim, "\n##"
-          ,"Updated bounds are...\n\n")
-      print(optimParRS[, !c("kurt"), with = F])
+      # cat("\n## Hyperbounds optimisation epoch", epoch.iter-1, "took", round(sysTimeRS[3]/3600,4),"hours to run",set_iter,"iterations...\n##"
+      #     ,length(param.optim), "out of",nrow(optimParRS),"hyperparameters found optimum:" , param.optim, "\n##"
+      #     ,"Updated bounds are...\n\n")
+      # print(optimParRS[, !c("kurt"), with = F])
 
       # update bounds
       hyperbound.local.auto <- lapply(hyperparameters, range)
@@ -1211,10 +1231,10 @@ f.mmmRobyn <- function(hyper_bound_global = set_hyperBoundGlobal
 
       optimParRS[, epoch.optim:= epoch.optim.update]
       #optimParRS[, optim.found:= epoch.optim.update>0]
-      cat("\n####################################\nAfter"
-          , epoch.iter-1, "epoches, no further hyperparameter optimisation can be found. Final bounds are...\n\n")
-      print(optimParRS[, !c("kurt"), with = F])
-      cat("####################################\n")
+      # cat("\n####################################\nAfter"
+      #     , epoch.iter-1, "epoches, no further hyperparameter optimisation can be found. Final bounds are...\n\n")
+      # print(optimParRS[, !c("kurt"), with = F])
+      # cat("####################################\n")
       if (epoch.iter == 1) {lhsOut <- NULL}
       optim.loop <- F
       epoch.iter <- epoch.iter + 1
@@ -1227,9 +1247,9 @@ f.mmmRobyn <- function(hyper_bound_global = set_hyperBoundGlobal
   if (optim.iter>epochN) {
     optimParRS[, epoch.optim:= epoch.optim.update]
     #optimParRS[, optim.found:= epoch.optim.update>0]
-    cat("\n####################################\nThere are still local optimum found. Increase epochN to reach optimum. Current bounds are...\n\n")
-    print(optimParRS[, !c("kurt"), with = F])
-    cat("####################################\n")
+    # cat("\n####################################\nThere are still local optimum found. Increase epochN to reach optimum. Current bounds are...\n\n")
+    # print(optimParRS[, !c("kurt"), with = F])
+    # cat("####################################\n")
   }
 
   model_output[["lhsOut"]] <- lhsOut

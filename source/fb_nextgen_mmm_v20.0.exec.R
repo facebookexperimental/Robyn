@@ -36,6 +36,7 @@ library(PerformanceAnalytics) # version 2.0.4
 library(nloptr) # version 1.2.1
 library(minpack.lm) # version 1.2
 library(reticulate)
+library(rPref)
 use_condaenv("r-reticulate")
 #conda_install("r-reticulate", "nevergrad", pip=TRUE)
 
@@ -85,17 +86,17 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 250  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 100  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
 f.plotResponseCurves(F) # s-curve transformation example plot, helping you understand hill/alpha/gamma transformation
 set_hyperBoundGlobal <- list(thetas = c(0, 0.3) # geometric decay rate
-                          ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape value, the more S-shape. The smaller, the more L-shape
-                          ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
-                          ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more C-shape
-                          ,gammas = c(0.3, 1) # hill function parameter that controls the scale of transformation. The larger the gamma, the later the inflection point in the response curve 
-                          ,lambdas = c(0, 1)) # regularised regression parameter
+                             ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape value, the more S-shape. The smaller, the more L-shape
+                             ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
+                             ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more C-shape
+                             ,gammas = c(0.3, 1) # hill function parameter that controls the scale of transformation. The larger the gamma, the later the inflection point in the response curve 
+                             ,lambdas = c(0, 1)) # regularised regression parameter
 global_name <- names(set_hyperBoundGlobal)
 
 ################################################################
@@ -108,26 +109,26 @@ local_name <- f.getHyperNames(); local_name # get hyperparameter names for each 
 ## each bound can be either a range (e.g c(0.1,0.3)) or one fixed value
 
 set_hyperBoundLocal <- list(
-  facebook_I_alphas = c(2, 3) # example bounds for digital channels: the larger alpha, the more S-shape for response curve
-  ,facebook_I_gammas = c(0.0001, 0.2) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
-  ,facebook_I_thetas = c(0, 0.2) # example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
-
-  ,ooh_S_alphas = c(0.0001, 1) # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
-  ,ooh_S_gammas = c(0.0001, 0.5) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
-  ,ooh_S_thetas = c(0.3, 0.5) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
-
-  ,print_S_alphas = c(0.0001, 1)
-  ,print_S_gammas = c(0.0001, 0.5)
-  ,print_S_thetas = c(0.3, 0.5)
-
-  ,tv_S_alphas = c(0.0001, 1)
-  ,tv_S_gammas = c(0.0001, 0.5)
-  ,tv_S_thetas = c(0.3, 0.5)
-
-  ,search_clicks_P_alphas = c(2, 3)
-  ,search_clicks_P_gammas = c(0.0001, 0.2)
-  ,search_clicks_P_thetas = c(0, 0.1)
-
+  facebook_I_alphas = c(0.5, 3)  # example bounds for digital channels: the larger alpha, the more S-shape for response curve
+  ,facebook_I_gammas = c(0.3, 1) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
+  ,facebook_I_thetas = c(0, 0.3) # example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
+  
+  ,ooh_S_alphas = c(0.5, 3)  # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
+  ,ooh_S_gammas = c(0.3, 1) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
+  ,ooh_S_thetas = c(0, 0.3) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
+  
+  ,print_S_alphas = c(0.5, 3) 
+  ,print_S_gammas = c(0.3, 1)
+  ,print_S_thetas = c(0, 0.3)
+  
+  ,tv_S_alphas = c(0.5, 3) 
+  ,tv_S_gammas = c(0.3, 1)
+  ,tv_S_thetas = c(0, 0.3)
+  
+  ,search_clicks_P_alphas = c(0.5, 3) 
+  ,search_clicks_P_gammas = c(0.3, 1)
+  ,search_clicks_P_thetas = c(0, 0.3)
+  
 )
 
 ################################################################
@@ -152,50 +153,149 @@ dt_mod <- f.inputWrangling()
 optimizer_name <- "DoubleFastGADiscreteOnePlusOne"  # Latin Hypercube Sampling
 # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
 # optimizer_name <- "DiscreteOnePlusOne"
+# optimizer_name <- "TwoPointsDE"
 
-model_output <- f.mmmRobyn(set_hyperBoundGlobal
-                          ,set_iter = set_iter
-                          ,set_cores = set_cores
-                          ,epochN = 1 # set to Inf to auto-optimise until no optimum found
-                          ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
-                          ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
-                          )
 
-best_model <- f.mmmCollect(model_output$optimParRS)
-# best_model <- f.mmmCollect(set_hyperBoundLocal)
 
-# Save models for each 'set_iter' to a .CSV file
-# all_models <- model_output$resultCollect$resultHypParam
-# fwrite(all_models,paste0(script_path,'all_models_GADISCRETEONEPLUSONE_with_pareto_optimality_10_epochs.csv'))
+ng_out <- list()
+ng_algos <- c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
+ng_iters <- c(1000, 10000)
+ng_trial <- c(10, 1)
 
-################################################################
-#### Plot section
+t0 <- Sys.time()
+for (optmz in ng_algos) {
+  optimizer_name <- optmz
+  ng_collect <- list()
+  for (itrs in ng_iters) {
+    set_iter <- itrs
+    ng_trials <- list()
+    loop_trial <- ng_trial[which(ng_iters == itrs)]
+    for (ngt in 1:loop_trial) {
+      
+      rm(model_output)
+      model_output <- f.mmmRobyn(set_hyperBoundGlobal
+                                 ,set_iter = set_iter
+                                 ,set_cores = set_cores
+                                 ,epochN = 1 # set to Inf to auto-optimise until no optimum found
+                                 ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
+                                 ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
+      )
+      
+      
+      ng_trials[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optimizer_name)]
+      
+      #model_output_pareto <- f.mmm(set_hyperBoundLocal, out = T)
+    }
+    ng_trials <- rbindlist(ng_trials)
+    px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
+    ng_collect[[which(ng_iters== set_iter)]] <- psel(ng_trials, px, top = nrow(ng_trials))[order(trials, nrmse)]
+  }
+  ng_out[[which(ng_algos==optimizer_name)]] <- rbindlist(ng_collect)
+}
+ng_out <- rbindlist(ng_out)
+setnames(ng_out, ".level", "manual_pareto")
+# ng_trials <- rbindlist(ng_trials)
+# px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
+# pres <- psel(ng_trials, px, top = nrow(ng_trials))[order(.level, nrmse)]
+fwrite(ng_out, './paretoRes.csv')
 
-## insert TRUE into plot functions to plot. Use 'channelPlot' to select max. 3 channels per plot
-f.plotSpendModel(F)
-f.plotHyperSamp(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot latin hypercube hyperparameter sampling balance. Max. 3 channels per plot
-f.plotTrendSeason(F) # plot prophet trend, season and holiday decomposition
-bestAdstock <- f.plotMediaTransform(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # 3 plots of best model media transformation: adstock decay rate, adstock effect & response curve. Max. 3 channels per plot
-f.plotBestDecomp(T) # 3 plots of best model decomposition: sales decomp, actual vs fitted over time, & sales decomp area plot
-f.plotMAPEConverge(F) # plot RS MAPE convergence, only for random search
-f.plotBestModDiagnostic(F) # plot best model diagnostics: residual vs fitted, QQ plot and residual vs. actual
-f.plotChannelROI(F)
-f.plotHypConverge(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot hyperparameter vs MAPE convergence. Max. 3 channels per plot
-boundOptim <- f.plotHyperBoundOptim(F, channelPlot = c("tv_S", "ooh_S", "facebook_I"), model_output, kurt.tuner = optim.sensitivity)  # improved hyperparameter plot to better visualise trends in each hyperparameter
 
-################################################################
-#### Optimiser - Beta
+for (its in ng_iters) {
+  loop_trial <- ng_trial[which(ng_iters == its)]
+  for (los in c("nrmse", "decomp.rssd")) {
+    
+    ng_out_plot <- ng_out[iters==its]
+    ng_out_med <- ng_out_plot[, .SD, .SDcols = c(los, "ng_optmz")]
+    setnames(ng_out_plot, los, "loss"); setnames(ng_out_med, los, "loss")
+    ng_out_med <- ng_out_med[, .(xMaxDen= density(loss)$x[which.max(density(loss)$y)],
+                                 yMaxDen= which.max(density(loss)$y)), by = "ng_optmz"]
+    
+    print(ggplot(data = ng_out_plot) +
+            stat_density(geom = "line", aes(x=loss), adjust = 1) +
+            facet_wrap(~ng_optmz, scales = "free") +
+            labs(title="Nevergrad performance", 
+                 subtitle=paste0("loss = ", los, ", iterations = ", its , " * ", loop_trial, " trials"),
+                 x=toupper(los),
+                 y="Density")+
+            xlim(0, 1) +
+            geom_vline(data= ng_out_med, mapping = aes(xintercept = xMaxDen), colour="blue")+
+            geom_text(data = ng_out_med, aes(x = xMaxDen, y = 0, angle = 90, vjust = -0.5, hjust= -1, label = paste0("mode: ",round(xMaxDen,4))), colour="blue")
+    )
+    
+    ng_out_plot_melted_loop <- melt.data.table(ng_out_plot[, c(local_name, "loss", "trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("loss","trials", "iters", "ng_optmz", "manual_pareto"))
+    print(ggplot(data = ng_out_plot_melted_loop, aes(x=value, y = loss, color = variable)) +
+            geom_point(size = 0.2) +
+            facet_wrap(~ng_optmz, scales = "free") +
+            stat_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.5)+
+            labs(title="Nevergrad performance",
+                 subtitle=paste0("loss = ", los, ", iterations = ", its , " * ", loop_trial, " trials"),
+                 x="HYPERPARAMETERS",
+                 y=toupper(los))+
+            xlim(0, 1)
+         )
+  }
+  
+  print(ggplot(data = ng_out[iters == its], aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
+          geom_point(size = 0.5) +
+          stat_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"))+
+          labs(title="Nevergrad performance",
+               subtitle=paste0("Pareto front, iterations = ", its , " * ", loop_trial, " trials"),
+               x="NRMSE",
+               y="DECOMP.RSSD")
+        )
+  
+  
+  ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(local_name,"trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
+  print(ggplot(data = ng_out_plot_melted ) +
+          stat_density(geom = "line", aes(x=value, color = variable), adjust = 1) +
+          facet_wrap(~ng_optmz, scales = "free") +
+          labs(title="Nevergrad performance", 
+               subtitle=paste0("Hyperparameters", ", iterations = ", its, " * ", loop_trial, " trials"),
+               x=toupper("Hyperparameters"),
+               y="Density")+
+          xlim(0, 1))
+  }
 
-## Optimiser requires further validation. Please use this result with caution.
-## Please don't interpret optimiser result with intermediate MMM output.
-## Optimiser result is only interpretable when MMM result is finalised/ hyperparameters are fixed. 
+difftime(Sys.time(),t0, units = "mins")
 
-optim_result <- f.optimiser(scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
-                            #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
-                            #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
-                            ,channel_constr_low = c(0.7, 0.75, 0.60, 0.5, 0.65) # must be between 0.01-1 and has same length and order as set_mediaVarName
-                            ,channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5) # not recommended to 'exaggerate' upper bounds. 1.5 means channel budget can increase to 150% of current level
-                            ) 
 
-print(optim_result$dt_optimOut)
-f.plotOptimiser(F) # 3 plots of optimiser result: budget re-allocation, ROI comparison & response comparison 
+
+# 
+# best_model <- f.mmmCollect(model_output$optimParRS)
+# # best_model <- f.mmmCollect(set_hyperBoundLocal)
+# 
+# # Save models for each 'set_iter' to a .CSV file
+# # all_models <- model_output$resultCollect$resultHypParam
+# # fwrite(all_models,paste0(script_path,'all_models_GADISCRETEONEPLUSONE_with_pareto_optimality_10_epochs.csv'))
+# 
+# ################################################################
+# #### Plot section
+# 
+# ## insert TRUE into plot functions to plot. Use 'channelPlot' to select max. 3 channels per plot
+# f.plotSpendModel(F)
+# f.plotHyperSamp(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot latin hypercube hyperparameter sampling balance. Max. 3 channels per plot
+# f.plotTrendSeason(F) # plot prophet trend, season and holiday decomposition
+# bestAdstock <- f.plotMediaTransform(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # 3 plots of best model media transformation: adstock decay rate, adstock effect & response curve. Max. 3 channels per plot
+# f.plotBestDecomp(T) # 3 plots of best model decomposition: sales decomp, actual vs fitted over time, & sales decomp area plot
+# f.plotMAPEConverge(F) # plot RS MAPE convergence, only for random search
+# f.plotBestModDiagnostic(F) # plot best model diagnostics: residual vs fitted, QQ plot and residual vs. actual
+# f.plotChannelROI(F)
+# f.plotHypConverge(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot hyperparameter vs MAPE convergence. Max. 3 channels per plot
+# boundOptim <- f.plotHyperBoundOptim(F, channelPlot = c("tv_S", "ooh_S", "facebook_I"), model_output, kurt.tuner = optim.sensitivity)  # improved hyperparameter plot to better visualise trends in each hyperparameter
+# 
+# ################################################################
+# #### Optimiser - Beta
+# 
+# ## Optimiser requires further validation. Please use this result with caution.
+# ## Please don't interpret optimiser result with intermediate MMM output.
+# ## Optimiser result is only interpretable when MMM result is finalised/ hyperparameters are fixed. 
+# 
+# optim_result <- f.optimiser(scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
+#                             #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
+#                             #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
+#                             ,channel_constr_low = c(0.7, 0.75, 0.60, 0.5, 0.65) # must be between 0.01-1 and has same length and order as set_mediaVarName
+#                             ,channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5) # not recommended to 'exaggerate' upper bounds. 1.5 means channel budget can increase to 150% of current level
+# ) 
+# 
+# print(optim_result$dt_optimOut)
+# f.plotOptimiser(F) # 3 plots of optimiser result: budget re-allocation, ROI comparison & response comparison 
