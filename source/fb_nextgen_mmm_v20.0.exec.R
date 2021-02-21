@@ -159,8 +159,8 @@ optimizer_name <- "DoubleFastGADiscreteOnePlusOne"  # Latin Hypercube Sampling
 
 ng_out <- list()
 ng_algos <- c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
-ng_iters <- c(1000, 10000)
-ng_trial <- c(10, 1)
+ng_iters <- c(1000, 20000)
+ng_trial <- c(20, 1)
 
 t0 <- Sys.time()
 for (optmz in ng_algos) {
@@ -221,36 +221,26 @@ for (its in ng_iters) {
             geom_vline(data= ng_out_med, mapping = aes(xintercept = xMaxDen), colour="blue")+
             geom_text(data = ng_out_med, aes(x = xMaxDen, y = 0, angle = 90, vjust = -0.5, hjust= -1, label = paste0("mode: ",round(xMaxDen,4))), colour="blue")
     )
-    
-    ng_out_plot_melted_loop <- melt.data.table(ng_out_plot[, c(local_name, "loss", "trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("loss","trials", "iters", "ng_optmz", "manual_pareto"))
-    print(ggplot(data = ng_out_plot_melted_loop, aes(x=value, y = loss, color = variable)) +
-            geom_point(size = 0.2) +
-            facet_wrap(~ng_optmz, scales = "free") +
-            stat_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.5)+
-            labs(title="Nevergrad performance",
-                 subtitle=paste0("loss = ", los, ", iterations = ", its , " * ", loop_trial, " trials"),
-                 x="HYPERPARAMETERS",
-                 y=toupper(los))+
-            xlim(0, 1)
-         )
   }
   
   print(ggplot(data = ng_out[iters == its], aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
           geom_point(size = 0.5) +
-          stat_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"))+
+          stat_smooth(data = ng_out[iters == its], method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
+          geom_line(data = ng_out[iters == its & manual_pareto ==1])+
           labs(title="Nevergrad performance",
-               subtitle=paste0("Pareto front, iterations = ", its , " * ", loop_trial, " trials"),
+               subtitle=paste0("2D Pareto front, iterations = ", its , " * ", loop_trial, " trials"),
                x="NRMSE",
                y="DECOMP.RSSD")
         )
   
   
   ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(local_name,"trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
-  print(ggplot(data = ng_out_plot_melted ) +
-          stat_density(geom = "line", aes(x=value, color = variable), adjust = 1) +
+  print(ggplot(data = ng_out_plot_melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
+          geom_violin(alpha = .5, size = 0) +
+          geom_point(size = 0.2) +
           facet_wrap(~ng_optmz, scales = "free") +
           labs(title="Nevergrad performance", 
-               subtitle=paste0("Hyperparameters", ", iterations = ", its, " * ", loop_trial, " trials"),
+               subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", its, " * ", loop_trial, " trials"),
                x=toupper("Hyperparameters"),
                y="Density")+
           xlim(0, 1))
