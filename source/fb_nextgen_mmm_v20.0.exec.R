@@ -78,7 +78,7 @@ set_factorVarName <- c() # please specify which variable above should be factor,
 
 ## set cores for parallel computing
 registerDoSEQ(); detectCores()
-set_cores <- 6 # I am using 6 cores from 8 on my local machine. Use detectCores() to find out cores
+set_cores <- 1 # I am using 6 cores from 8 on my local machine. Use detectCores() to find out cores
 
 ## set training size
 f.plotTrainSize(F) # insert TRUE to plot training size guidance. Please balance between higher Bhattacharyya coefficient and sufficient training size
@@ -86,7 +86,7 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 100  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 200  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
@@ -158,19 +158,19 @@ optimizer_name <- "DoubleFastGADiscreteOnePlusOne"  # Latin Hypercube Sampling
 
 
 ng_out <- list()
-ng_algos <- c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
-ng_iters <- c(1000, 20000)
-ng_trial <- c(20, 1)
+ng_algos <- "DiscreteOnePlusOne" #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
+#ng_iters <- c(300)
+ng_trial <- 5
 
 t0 <- Sys.time()
 for (optmz in ng_algos) {
   optimizer_name <- optmz
   ng_collect <- list()
-  for (itrs in ng_iters) {
-    set_iter <- itrs
-    ng_trials <- list()
-    loop_trial <- ng_trial[which(ng_iters == itrs)]
-    for (ngt in 1:loop_trial) {
+  # for (itrs in ng_iters) {
+  #   set_iter <- itrs
+  #   ng_trials <- list()
+   # loop_trial <- ng_trial[which(ng_iters == itrs)]
+    for (ngt in 1:ng_trial) {
       
       rm(model_output)
       model_output <- f.mmmRobyn(set_hyperBoundGlobal
@@ -182,15 +182,16 @@ for (optmz in ng_algos) {
       )
       
       
-      ng_trials[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optimizer_name)]
+      ng_collect[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optimizer_name)]
       
       #model_output_pareto <- f.mmm(set_hyperBoundLocal, out = T)
     }
-    ng_trials <- rbindlist(ng_trials)
-    px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
-    ng_collect[[which(ng_iters== set_iter)]] <- psel(ng_trials, px, top = nrow(ng_trials))[order(trials, nrmse)]
-  }
-  ng_out[[which(ng_algos==optimizer_name)]] <- rbindlist(ng_collect)
+    ng_collect <- rbindlist(ng_collect)
+    px <- low(ng_collect$nrmse) * low(ng_collect$decomp.rssd)
+    ng_collect <- psel(ng_collect, px, top = nrow(ng_collect))[order(trials, nrmse)]
+ # }
+  
+  ng_out[[which(ng_algos==optimizer_name)]] <- ng_collect
 }
 ng_out <- rbindlist(ng_out)
 setnames(ng_out, ".level", "manual_pareto")
@@ -200,11 +201,11 @@ setnames(ng_out, ".level", "manual_pareto")
 fwrite(ng_out, './paretoRes.csv')
 
 
-for (its in ng_iters) {
-  loop_trial <- ng_trial[which(ng_iters == its)]
+# for (its in ng_iters) {
+#   loop_trial <- ng_trial[which(ng_iters == its)]
   for (los in c("nrmse", "decomp.rssd")) {
     
-    ng_out_plot <- ng_out[iters==its]
+    ng_out_plot <- copy(ng_out)
     ng_out_med <- ng_out_plot[, .SD, .SDcols = c(los, "ng_optmz")]
     setnames(ng_out_plot, los, "loss"); setnames(ng_out_med, los, "loss")
     ng_out_med <- ng_out_med[, .(xMaxDen= density(loss)$x[which.max(density(loss)$y)],
@@ -214,7 +215,7 @@ for (its in ng_iters) {
             stat_density(geom = "line", aes(x=loss), adjust = 1) +
             facet_wrap(~ng_optmz, scales = "free") +
             labs(title="Nevergrad performance", 
-                 subtitle=paste0("loss = ", los, ", iterations = ", its , " * ", loop_trial, " trials"),
+                 subtitle=paste0("loss = ", los, ", iterations = ", set_iter , " * ", ng_trial, " trials"),
                  x=toupper(los),
                  y="Density")+
             xlim(0, 1) +
@@ -223,12 +224,12 @@ for (its in ng_iters) {
     )
   }
   
-  print(ggplot(data = ng_out[iters == its], aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
+  print(ggplot(data = ng_out, aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
           geom_point(size = 0.5) +
-          stat_smooth(data = ng_out[iters == its], method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
-          geom_line(data = ng_out[iters == its & manual_pareto ==1])+
+          stat_smooth(data = ng_out, method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
+          geom_line(data = ng_out[ manual_pareto ==1])+
           labs(title="Nevergrad performance",
-               subtitle=paste0("2D Pareto front, iterations = ", its , " * ", loop_trial, " trials"),
+               subtitle=paste0("2D Pareto front, iterations = ", set_iter , " * ", ng_trial, " trials"),
                x="NRMSE",
                y="DECOMP.RSSD")
         )
@@ -240,11 +241,11 @@ for (its in ng_iters) {
           geom_point(size = 0.2) +
           facet_wrap(~ng_optmz, scales = "free") +
           labs(title="Nevergrad performance", 
-               subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", its, " * ", loop_trial, " trials"),
+               subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", ng_trial, " trials"),
                x=toupper("Hyperparameters"),
                y="Density")+
           xlim(0, 1))
-  }
+  #}
 
 difftime(Sys.time(),t0, units = "mins")
 
