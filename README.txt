@@ -31,9 +31,11 @@ gufeng@fb.com, Gufeng Zhou, Marketing Science Partner
 leonelsentana@fb.com, Leonel Sentana, Marketing Science Partner
 aprada@fb.com, Antonio Prada, Marketing Science Partner
 igorskokan@fb.com, Igor Skokan, Marketing Science Partner
-kylescotshank@fb.com, Kyle Scot Shank, Marketing Science Partner 
 
 See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
 
 ## License
 FB NextGen MMM R script is MIT licensed, as found in the LICENSE file.
+
+Terms of Use - https://opensource.facebook.com/legal/terms
+Privacy Policy - https://opensource.facebook.com/legal/privacy
