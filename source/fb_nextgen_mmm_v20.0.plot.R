@@ -758,12 +758,9 @@ f.plotHyperBoundOptim <- function(plotHyperBoundOptim, channelPlot = NULL, model
   kurt <- sapply(denYList, kurtosis, method = "fisher")
   kurt <- kurt + 1.6 + 0.2 * kurt.tuner# adjust kurt level
   optim.found <- kurt > 0
-  if (activate_hyperBoundLocalTuning==T) {
     bounds_whichfixed_plot <- bounds_whichfixed[hyperNamePlot]
     optim.found <- (optim.found * !bounds_whichfixed_plot) > 0
-  } else {
-    bounds_whichfixed_plot <- rep(FALSE, nVar)
-  }
+
   boundRecomm <- t(mapply(function(x,y) {
     xMode <- x[which.max(y)]
     c(mode = xMode,

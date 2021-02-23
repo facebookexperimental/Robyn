@@ -22,10 +22,10 @@ library(data.table) # version 1.12.2
 library(stringr) # version 1.4.0
 library(lubridate) # version 1.7.4
 library(doParallel) # version 1.0.15
-library(doSNOW) # version 1.0.18
+#library(doSNOW) # version 1.0.18
 library(foreach) # version 1.4.8
 library(glmnet) # version 2.0.18
-library(lhs) # version 1.0.1
+#library(lhs) # version 1.0.1
 library(car) # version 3.0.3
 library(StanHeaders) # version 2.21.0
 library(prophet) # version 0.5
@@ -78,7 +78,7 @@ set_factorVarName <- c() # please specify which variable above should be factor,
 
 ## set cores for parallel computing
 registerDoSEQ(); detectCores()
-set_cores <- 1 # I am using 6 cores from 8 on my local machine. Use detectCores() to find out cores
+set_cores <- 6 # I am using 6 cores from 8 on my local machine. Use detectCores() to find out cores
 
 ## set training size
 f.plotTrainSize(F) # insert TRUE to plot training size guidance. Please balance between higher Bhattacharyya coefficient and sufficient training size
@@ -86,23 +86,23 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 200  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 60  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
 f.plotResponseCurves(F) # s-curve transformation example plot, helping you understand hill/alpha/gamma transformation
-set_hyperBoundGlobal <- list(thetas = c(0, 0.3) # geometric decay rate
-                             ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape value, the more S-shape. The smaller, the more L-shape
-                             ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
-                             ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more C-shape
-                             ,gammas = c(0.3, 1) # hill function parameter that controls the scale of transformation. The larger the gamma, the later the inflection point in the response curve 
-                             ,lambdas = c(0, 1)) # regularised regression parameter
-global_name <- names(set_hyperBoundGlobal)
+# set_hyperBoundGlobal <- list(thetas = c(0, 0.3) # geometric decay rate
+#                              ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape value, the more S-shape. The smaller, the more L-shape
+#                              ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
+#                              ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more C-shape
+#                              ,gammas = c(0.3, 1) # hill function parameter that controls the scale of transformation. The larger the gamma, the later the inflection point in the response curve 
+#                              ,lambdas = c(0, 1)) # regularised regression parameter
+# global_name <- names(set_hyperBoundGlobal)
 
 ################################################################
 #### tune channel hyperparameters bounds
 
-activate_hyperBoundLocalTuning <- F # change setChannelBounds = T when setting bounds for each media individually
+#activate_hyperBoundLocalTuning <- T # change setChannelBounds = T when setting bounds for each media individually
 local_name <- f.getHyperNames(); local_name # get hyperparameter names for each channel. channel bound names must be identical as in local_name
 
 ## channel bounds have to stay within set_hyperBoundGlobal as specified above. Unhide set_hyperBoundLocal below to set channel level bounds
@@ -111,7 +111,7 @@ local_name <- f.getHyperNames(); local_name # get hyperparameter names for each 
 set_hyperBoundLocal <- list(
   facebook_I_alphas = c(0.5, 3)  # example bounds for digital channels: the larger alpha, the more S-shape for response curve
   ,facebook_I_gammas = c(0.3, 1) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
-  ,facebook_I_thetas = c(0, 0.3) # example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
+  ,facebook_I_thetas = c(0, 0.3)# example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
   
   ,ooh_S_alphas = c(0.5, 3)  # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
   ,ooh_S_gammas = c(0.3, 1) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
@@ -125,7 +125,7 @@ set_hyperBoundLocal <- list(
   ,tv_S_gammas = c(0.3, 1)
   ,tv_S_thetas = c(0, 0.3)
   
-  ,search_clicks_P_alphas = c(0.5, 3) 
+  ,search_clicks_P_alphas = c(0.5, 3)  
   ,search_clicks_P_gammas = c(0.3, 1)
   ,search_clicks_P_thetas = c(0, 0.3)
   
@@ -150,59 +150,61 @@ dt_mod <- f.inputWrangling()
 # Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
 # In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
 
-optimizer_name <- "DoubleFastGADiscreteOnePlusOne"  # Latin Hypercube Sampling
+optimizer_name <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
 # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
 # optimizer_name <- "DiscreteOnePlusOne"
 # optimizer_name <- "TwoPointsDE"
 
 
+hyperparameter_fixed <- all(sapply(set_hyperBoundLocal, length)==1)
 
-ng_out <- list()
-ng_algos <- "DiscreteOnePlusOne" #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
-#ng_iters <- c(300)
-ng_trial <- 5
-
-t0 <- Sys.time()
-for (optmz in ng_algos) {
-  optimizer_name <- optmz
-  ng_collect <- list()
-  # for (itrs in ng_iters) {
-  #   set_iter <- itrs
-  #   ng_trials <- list()
-   # loop_trial <- ng_trial[which(ng_iters == itrs)]
+if (!hyperparameter_fixed) {
+  ng_out <- list()
+  ng_algos <- "DiscreteOnePlusOne" #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
+  #ng_iters <- c(300)
+  ng_trial <- 2
+  
+  t0 <- Sys.time()
+  for (optmz in ng_algos) {
+    ng_collect <- list()
+    # for (itrs in ng_iters) {
+    #   set_iter <- itrs
+    #   ng_trials <- list()
+    # loop_trial <- ng_trial[which(ng_iters == itrs)]
     for (ngt in 1:ng_trial) {
       
-      rm(model_output)
-      model_output <- f.mmmRobyn(set_hyperBoundGlobal
-                                 ,set_iter = set_iter
-                                 ,set_cores = set_cores
-                                 ,epochN = 1 # set to Inf to auto-optimise until no optimum found
-                                 ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
-                                 ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
+      # rm(model_output)
+      model_output <- f.mmm(set_hyperBoundLocal
+                            ,iterRS = set_iter
+                            ,set_cores = set_cores
+                            ,optimizer_name = optmz
+                            # ,epochN = 1 # set to Inf to auto-optimise until no optimum found
+                            # ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
+                            # ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
       )
       
       
-      ng_collect[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optimizer_name)]
+      ng_collect[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optmz)]
       
       #model_output_pareto <- f.mmm(set_hyperBoundLocal, out = T)
     }
     ng_collect <- rbindlist(ng_collect)
     px <- low(ng_collect$nrmse) * low(ng_collect$decomp.rssd)
     ng_collect <- psel(ng_collect, px, top = nrow(ng_collect))[order(trials, nrmse)]
- # }
+    # }
+    
+    ng_out[[which(ng_algos==optmz)]] <- ng_collect
+  }
+  ng_out <- rbindlist(ng_out)
+  setnames(ng_out, ".level", "manual_pareto")
+  # ng_trials <- rbindlist(ng_trials)
+  # px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
+  # pres <- psel(ng_trials, px, top = nrow(ng_trials))[order(.level, nrmse)]
+  fwrite(ng_out, './paretoRes.csv')
   
-  ng_out[[which(ng_algos==optimizer_name)]] <- ng_collect
-}
-ng_out <- rbindlist(ng_out)
-setnames(ng_out, ".level", "manual_pareto")
-# ng_trials <- rbindlist(ng_trials)
-# px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
-# pres <- psel(ng_trials, px, top = nrow(ng_trials))[order(.level, nrmse)]
-fwrite(ng_out, './paretoRes.csv')
-
-
-# for (its in ng_iters) {
-#   loop_trial <- ng_trial[which(ng_iters == its)]
+  
+  # for (its in ng_iters) {
+  #   loop_trial <- ng_trial[which(ng_iters == its)]
   for (los in c("nrmse", "decomp.rssd")) {
     
     ng_out_plot <- copy(ng_out)
@@ -232,10 +234,12 @@ fwrite(ng_out, './paretoRes.csv')
                subtitle=paste0("2D Pareto front, iterations = ", set_iter , " * ", ng_trial, " trials"),
                x="NRMSE",
                y="DECOMP.RSSD")
-        )
+  )
   
   
-  ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(local_name,"trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
+  # get hyperparameters for Nevergrad
+  get_plot_name <- names(ng_out_plot)[str_detect(names(ng_out_plot), paste(set_mediaVarName, collapse = "|"))]
+  ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(get_plot_name, "trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
   print(ggplot(data = ng_out_plot_melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
           geom_violin(alpha = .5, size = 0) +
           geom_point(size = 0.2) +
@@ -246,8 +250,23 @@ fwrite(ng_out, './paretoRes.csv')
                y="Density")+
           xlim(0, 1))
   #}
+  
+  difftime(Sys.time(),t0, units = "mins")
+  
+} else {
+  
+  model_output <- f.mmm(set_hyperBoundLocal
+                        ,iterRS = 1
+                        ,set_cores = 1
+                        ,optimizer_name = optimizer_name
+                        # ,epochN = 1 # set to Inf to auto-optimise until no optimum found
+                        # ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
+                        # ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
+  )
+  
+  print(model_output$resultCollect$xDecompAgg)
+}
 
-difftime(Sys.time(),t0, units = "mins")
 
 
 
