@@ -9,7 +9,7 @@
 #############################################################################################
 ################################################################
 #### set locale for non English R
-#Sys.setlocale("LC_TIME", "English")
+Sys.setlocale("LC_TIME", "English")
 
 ################################################################
 #### load libraries
@@ -31,6 +31,7 @@ library(StanHeaders) # version 2.21.0
 library(prophet) # version 0.5
 library(ggplot2) # version 3.3.0
 library(gridExtra) # version 2.3
+library(ggpubr)
 library(see) # version 0.5.0
 library(PerformanceAnalytics) # version 2.0.4
 library(nloptr) # version 1.2.1
@@ -86,7 +87,8 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 60  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 500  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_trial <- 30
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
@@ -115,17 +117,17 @@ set_hyperBoundLocal <- list(
   
   ,ooh_S_alphas = c(0.5, 3)  # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
   ,ooh_S_gammas = c(0.3, 1) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
-  ,ooh_S_thetas = c(0, 0.3) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
+  ,ooh_S_thetas = c(0.1, 0.4) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
   
   ,print_S_alphas = c(0.5, 3) 
   ,print_S_gammas = c(0.3, 1)
-  ,print_S_thetas = c(0, 0.3)
+  ,print_S_thetas = c(0.1, 0.4)
   
   ,tv_S_alphas = c(0.5, 3) 
   ,tv_S_gammas = c(0.3, 1)
-  ,tv_S_thetas = c(0, 0.3)
+  ,tv_S_thetas = c(0.3, 0.8)
   
-  ,search_clicks_P_alphas = c(0.5, 3)  
+  ,search_clicks_P_alphas = c(0.5, 3) 
   ,search_clicks_P_gammas = c(0.3, 1)
   ,search_clicks_P_thetas = c(0, 0.3)
   
@@ -150,125 +152,17 @@ dt_mod <- f.inputWrangling()
 # Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
 # In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
 
-optimizer_name <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
+set_hyperOptimAlgo <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
 # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
 # optimizer_name <- "DiscreteOnePlusOne"
 # optimizer_name <- "TwoPointsDE"
 
 
-hyperparameter_fixed <- all(sapply(set_hyperBoundLocal, length)==1)
-
-if (!hyperparameter_fixed) {
-  ng_out <- list()
-  ng_algos <- "DiscreteOnePlusOne" #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
-  #ng_iters <- c(300)
-  ng_trial <- 2
-  
-  t0 <- Sys.time()
-  for (optmz in ng_algos) {
-    ng_collect <- list()
-    # for (itrs in ng_iters) {
-    #   set_iter <- itrs
-    #   ng_trials <- list()
-    # loop_trial <- ng_trial[which(ng_iters == itrs)]
-    for (ngt in 1:ng_trial) {
-      
-      # rm(model_output)
-      model_output <- f.mmm(set_hyperBoundLocal
-                            ,iterRS = set_iter
-                            ,set_cores = set_cores
-                            ,optimizer_name = optmz
-                            # ,epochN = 1 # set to Inf to auto-optimise until no optimum found
-                            # ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
-                            # ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
-      )
-      
-      
-      ng_collect[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optmz)]
-      
-      #model_output_pareto <- f.mmm(set_hyperBoundLocal, out = T)
-    }
-    ng_collect <- rbindlist(ng_collect)
-    px <- low(ng_collect$nrmse) * low(ng_collect$decomp.rssd)
-    ng_collect <- psel(ng_collect, px, top = nrow(ng_collect))[order(trials, nrmse)]
-    # }
-    
-    ng_out[[which(ng_algos==optmz)]] <- ng_collect
-  }
-  ng_out <- rbindlist(ng_out)
-  setnames(ng_out, ".level", "manual_pareto")
-  # ng_trials <- rbindlist(ng_trials)
-  # px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
-  # pres <- psel(ng_trials, px, top = nrow(ng_trials))[order(.level, nrmse)]
-  fwrite(ng_out, './paretoRes.csv')
-  
-  
-  # for (its in ng_iters) {
-  #   loop_trial <- ng_trial[which(ng_iters == its)]
-  for (los in c("nrmse", "decomp.rssd")) {
-    
-    ng_out_plot <- copy(ng_out)
-    ng_out_med <- ng_out_plot[, .SD, .SDcols = c(los, "ng_optmz")]
-    setnames(ng_out_plot, los, "loss"); setnames(ng_out_med, los, "loss")
-    ng_out_med <- ng_out_med[, .(xMaxDen= density(loss)$x[which.max(density(loss)$y)],
-                                 yMaxDen= which.max(density(loss)$y)), by = "ng_optmz"]
-    
-    print(ggplot(data = ng_out_plot) +
-            stat_density(geom = "line", aes(x=loss), adjust = 1) +
-            facet_wrap(~ng_optmz, scales = "free") +
-            labs(title="Nevergrad performance", 
-                 subtitle=paste0("loss = ", los, ", iterations = ", set_iter , " * ", ng_trial, " trials"),
-                 x=toupper(los),
-                 y="Density")+
-            xlim(0, 1) +
-            geom_vline(data= ng_out_med, mapping = aes(xintercept = xMaxDen), colour="blue")+
-            geom_text(data = ng_out_med, aes(x = xMaxDen, y = 0, angle = 90, vjust = -0.5, hjust= -1, label = paste0("mode: ",round(xMaxDen,4))), colour="blue")
-    )
-  }
-  
-  print(ggplot(data = ng_out, aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
-          geom_point(size = 0.5) +
-          stat_smooth(data = ng_out, method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
-          geom_line(data = ng_out[ manual_pareto ==1])+
-          labs(title="Nevergrad performance",
-               subtitle=paste0("2D Pareto front, iterations = ", set_iter , " * ", ng_trial, " trials"),
-               x="NRMSE",
-               y="DECOMP.RSSD")
-  )
-  
-  
-  # get hyperparameters for Nevergrad
-  get_plot_name <- names(ng_out_plot)[str_detect(names(ng_out_plot), paste(set_mediaVarName, collapse = "|"))]
-  ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(get_plot_name, "trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
-  print(ggplot(data = ng_out_plot_melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
-          geom_violin(alpha = .5, size = 0) +
-          geom_point(size = 0.2) +
-          facet_wrap(~ng_optmz, scales = "free") +
-          labs(title="Nevergrad performance", 
-               subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", ng_trial, " trials"),
-               x=toupper("Hyperparameters"),
-               y="Density")+
-          xlim(0, 1))
-  #}
-  
-  difftime(Sys.time(),t0, units = "mins")
-  
-} else {
-  
-  model_output <- f.mmm(set_hyperBoundLocal
-                        ,iterRS = 1
-                        ,set_cores = 1
-                        ,optimizer_name = optimizer_name
-                        # ,epochN = 1 # set to Inf to auto-optimise until no optimum found
-                        # ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
-                        # ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
-  )
-  
-  print(model_output$resultCollect$xDecompAgg)
-}
-
-
-
+model_output_collect <- f.mmmRobyn(set_hyperBoundLocal
+                                   ,optimizer_name = set_hyperOptimAlgo
+                                   ,ng_trial = set_trial
+                                   ,set_cores = set_cores
+                                   ,plot_folder = "~/Documents/GitHub/plots")
 
 # 
 # best_model <- f.mmmCollect(model_output$optimParRS)

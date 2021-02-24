@@ -339,92 +339,6 @@ f.getHyperNames <- function() {
   return(local_name)
 }
 
-
-################################################
-#### Define latin hypercube sampling function
-
-# f.hypSamLHS <- function(set_mediaVarName, set_iter, set_hyperBoundLocal, adstock) { # hyper_bound_global <- set_hyperBoundGlobal
-#   
-#   # translate global to local hyperparameters
-#   local_name.all <- f.getHyperNames()
-#   
-#   # global_name <- c("thetas",  "shapes",  "scales",  "alphas",  "gammas",  "lambdas")
-#   # #set_mediaVarName <- toupper(set_mediaVarName)
-#   # if (adstock == "geometric") {
-#   #   local_name.all <- sort(apply(expand.grid(set_mediaVarName, global_name[global_name %like% 'thetas|alphas|gammas']), 1, paste, collapse="_"))
-#   # } else if (adstock == "weibull") {
-#   #   local_name.all <- sort(apply(expand.grid(set_mediaVarName, global_name[global_name %like% 'shapes|scales|alphas|gammas']), 1, paste, collapse="_"))
-#   # } else {break; print("adstock must be geometric or weibull")}
-#   
-#   # check if any bounds are fixed
-#     
-#     # if (!exists("bounds_whichfixed") & epoch.iter>1) {
-#     #   stop("You have just changed to manual tuning mode. Please rerun the whole script")
-#     # }
-#     
-#     set_hyperBoundLocalLen <- sapply(set_hyperBoundLocal, length)
-#     set_hyperBoundLocalLen <- set_hyperBoundLocalLen[order(names(set_hyperBoundLocalLen))]
-#     
-#     if ((length(set_hyperBoundLocalLen) != length(local_name.all)) | !all(set_hyperBoundLocalLen %in% c(1,2))) {
-#       stop("set_hyperBoundLocal must contain all hyperparameters correctly. Every parameter can contain 2 values as lower and upper bound or 1 value as fixed value.")
-#     }
-#     
-#     if (all(sapply(set_hyperBoundLocal, length)==1)) {stop("all set_hyperBoundLocal hyperparameters are fixed. run f.mmmCollect(set_hyperBoundLocal) to get final result")}
-#     
-#     bounds_whichfixed <- set_hyperBoundLocalLen==1
-#     local_name.update <- local_name.all[!bounds_whichfixed]
-#     
-#     # if start with tuning and  change parameters again
-#     # if (epoch.iter==1) {
-#     #   assign("set_hyperBoundLocal.update", set_hyperBoundLocal, envir = .GlobalEnv)
-#     # } else {
-#     #   if (!identical(set_hyperBoundLocal, set_hyperBoundLocal.update)) {
-#     #     stop("set_hyperBoundLocal has been changed. Please rerun the whole script")
-#     #   }
-#     # }
-#     
-#     # assign("bounds_whichfixed", bounds_whichfixed, envir = .GlobalEnv)
-# 
-#   # assign("local_name.update", local_name.update, envir = .GlobalEnv)
-#   
-#   # generate random latin hypercube sampling
-#   
-#   initLHS <- data.table(randomLHS(set_iter,length(local_name.update)))
-#   names(initLHS) <- local_name.update
-#   
-#   # rescale local bounds
-#   transLHS_collect <- list()
-#   for (hypNameLoop in local_name.all) { # hypNameLoop <- local_name.all[1]
-#     
-#     # get channel bounds
-# 
-#       if (epoch.iter==1 | !identical(set_hyperBoundLocal, set_hyperBoundLocal.update))  { # Manual tuning, first epoch --> take manual params
-#         channelBound <- unlist(set_hyperBoundLocal[hypNameLoop])
-#       } else { # manual tuning, not first epoch --> take auto-updated bounds
-#         channelBound <- unlist(hyperbound.local.auto[hypNameLoop])
-#       }
-#     
-#     
-#     # adjust sampling to bounds
-#     if (length(channelBound)==2 & channelBound[1] != channelBound[2]) {
-#       channelLHS <- unlist(initLHS[, hypNameLoop, with = F])
-#       xt <- qunif(channelLHS, min(channelBound), max(channelBound))
-#     } else {
-#       xt <- rep(set_hyperBoundLocal[[hypNameLoop]], set_iter)
-#     }
-#     #xt <- min(channelBound) + qexp(channelLHS)/10* (max(channelBound) - min(channelBound))
-#     
-#     transLHS_collect[[hypNameLoop]] <- data.table(index = 1:set_iter, xt = xt, vars = hypNameLoop)
-#   }
-#   
-#   transLHS <- rbindlist(transLHS_collect)
-#   transLHS <- dcast.data.table(transLHS, index ~ vars, value.var = "xt")[, !"index"]
-#   
-#   transLHS.list <- lapply(transLHS, function(x) x)
-#   lhsOut <- list(transLHS.list=transLHS.list, initLHS=initLHS, transLHS=transLHS)
-#   return(lhsOut)
-# }
-
 ################################################
 #### Define adstock geometric function
 
@@ -694,17 +608,23 @@ f.refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, uppe
 #### Define major mmm function
 
 f.mmm <- function(...
-                  , iterRS = 100
+                  , set_iter = 100
                   , set_cores = 6
                   , lambda.n = 100
-                  #, fixed.out = F
+                  , fixed.out = F
                   , optimizer_name = "DiscreteOnePlusOne" # c("DiscreteOnePlusOne", "DoubleFastGADiscreteOnePlusOne", "TwoPointsDE", "DE")
 ) {
   
   ################################################
   #### Collect hyperparameters
   
-  input.collect <- unlist(list(...), recursive = F) # input.collect <- set_hyperBoundLocal hyperParams.global <- set_hyperBoundGlobal # epoch.iter <- 1 # iterRS = 250  
+  #input.collect <- unlist(list(...), recursive = F) # input.collect <- set_hyperBoundLocal input.fixed <- dt_hyperResult fixed.out = T
+  if (fixed.out==F) {
+    input.collect <- unlist(list(...), recursive = F)
+  } else {
+    input.collect <- set_hyperBoundLocal
+    input.fixed <- dt_hyperResult
+  }
   hypParamSamName <- f.getHyperNames()
   
   # sort hyperparameter list by name
@@ -719,6 +639,7 @@ f.mmm <- function(...
   hyper_bound_local_ng <- hyper_bound_local[bounds_ng]
   hyper_bound_local_ng_name <- names(hyper_bound_local_ng)
   num_hyppar_ng <- length(hyper_bound_local_ng)
+  if (num_hyppar_ng == 0) {fixed.out <- T}
   
   # get fixed hyperparameters
   bounds_fixed <- which(sapply(hyper_bound_local, length)==1)
@@ -818,11 +739,19 @@ f.mmm <- function(...
   ## Nevergrad parallel loop
   
   #loopNG <- ifelse(optimizer_name != "none", ceiling(iterRS / set_cores), 1)
-  iterPar <-  ifelse(num_hyppar_ng != 0, set_cores, 1)
-  iterTotal <- ifelse(num_hyppar_ng != 0, iterRS, 1) 
-  iterNG <-  ifelse(num_hyppar_ng != 0, ceiling(iterRS/set_cores), 1) 
+  if (fixed.out == F) {
+    iterTotal <- set_iter
+    iterPar <- set_cores
+  } else if (num_hyppar_ng==0 & fixed.out == T) {
+    iterTotal <- 1
+    iterPar <- 1
+  } else {
+    iterTotal <- nrow(input.fixed)
+    iterPar <- nrow(input.fixed)
+  }
+  iterNG <-  ifelse(fixed.out == F, ceiling(set_iter/set_cores), 1)
   
-  cat("\nRunning", iterTotal,"random search trails with",lambda.n,"trails lambda cross-validation each on",set_cores,"cores...\n")
+  cat("\nRunning", iterTotal,"iterations with",lambda.n,"-fold lambda cross-validation each on",set_cores,"cores...\n")
   
   if (length(hyper_bound_local_ng) !=0) {
     my_tuple <- tuple(num_hyppar_ng)
@@ -837,7 +766,7 @@ f.mmm <- function(...
   resultCollectNG <- list()
   cnt <- 0
   cat('\n',"Working with: ", optimizer_name,'\n')
-  pb <- txtProgressBar(max = iterTotal, style = 3)
+  if(fixed.out==F) {pb <- txtProgressBar(max = iterTotal, style = 3)}
   #opts <- list(progress = function(n) setTxtProgressBar(pb, n))
   sysTimeDopar <- system.time({
     for (lng in 1:iterNG) {
@@ -847,14 +776,14 @@ f.mmm <- function(...
       hypParamSamList <- list()
       hypParamSamNG <- c()
       
-      if (num_hyppar_ng != 0) {
+      if (fixed.out == F) {
         for (co in 1:iterPar) {
           nevergrad_hp[[co]] <- optimizer$ask()
           nevergrad_hp_val[[co]] <- nevergrad_hp[[co]]$value
           
           #print(paste0("LHS provides this:", hypParamSam,"nevergrad provides: ", nevergrad_hp_val, 
           # ", this is a pure vector, to be cast to some bounds and converted into a table, which is done below" ))
-          
+         
           #print(hypParamSamName)
           for (hypNameLoop in hyper_bound_local_ng_name) { # hypNameLoop <- local_name.all[1]
             #for (hypNameLoop in local_name.all) { # hypNameLoop <- local_name.all[1]
@@ -872,12 +801,12 @@ f.mmm <- function(...
             # adjust sampling to bounds
             # if (length(channelBound)==2 & channelBound[1] != channelBound[2]) {
             ####channelLHS <- unlist(initLHS[, hypNameLoop, with = F])
-            data_for_qunif <- nevergrad_hp_val[[co]][index]  # <--- bad syntax
-            xt <- qunif( data_for_qunif, min(channelBound), max(channelBound))  # <--- bad syntax
+            hyppar_for_qunif <- nevergrad_hp_val[[co]][index]  # <--- bad syntax
+            hyppar_scaled <- qunif(hyppar_for_qunif, min(channelBound), max(channelBound))  # <--- bad syntax
             # } else if (length(channelBound)==1) {
             #   xt <- channelBound
             # }
-            hypParamSamNG[hypNameLoop] <- xt    # <--- bad syntax
+            hypParamSamNG[hypNameLoop] <- hyppar_scaled    # <--- bad syntax
           }
           hypParamSamList[[co]] <- transpose(data.table(hypParamSamNG))
           ##### previous code was: transLHS <- dcast.data.table(transLHS, index ~ vars, value.var = "xt")[, !"index"]
@@ -895,10 +824,13 @@ f.mmm <- function(...
           hypParamSamNG <- cbind(hypParamSamNG, hyper_bound_local_fixed_dt)
           hypParamSamNG <- setcolorder(hypParamSamNG, hypParamSamName)
         }
-      } else {
+      } else if (num_hyppar_ng==0 & fixed.out == T) {
         hypParamSamNG <- as.data.table(matrix(unlist(hyper_bound_local), nrow = 1))
         setnames(hypParamSamNG, names(hypParamSamNG), hypParamSamName)
+      } else {
+        hypParamSamNG <- input.fixed[, hypParamSamName, with = F]
       }
+      
       
       
       ## Parallel start
@@ -964,7 +896,7 @@ f.mmm <- function(...
         names(mediaAdstocked) <- set_mediaVarName
         dt_modAdstocked[, (set_mediaVarName) := mediaAdstocked]
         dt_mediaVecCum <- data.table()[, (set_mediaVarName):= mediaVecCum]
-        
+
         #####################################
         #### Split and prepare data for modelling
         
@@ -1031,8 +963,8 @@ f.mmm <- function(...
           ## if no lift calibration, refit using best lambda
           
           mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=cvmod$lambda.1se, lower.limits, upper.limits)
-          
-          hypParamSam["lambdas"] <- cvmod$lambda.1se
+          lambda <- cvmod$lambda.1se
+          #hypParamSam["lambdas"] <- cvmod$lambda.1se
           #hypParamSamName <- names(hypParamSam)
           
           decompCollect <- f.decomp(coefs=mod_out$coefs, dt_modAdstocked, x, y_pred=mod_out$y_pred, i)
@@ -1062,8 +994,8 @@ f.mmm <- function(...
           liftCollect <- f.calibrateLift(decompCollect, set_lift)
           
           nrmse <- mod_out$nrmse_test
-          
-          hypParamSam["lambdas"] <- lambda_seq_calibrate[which.min(mape)]
+          lambda <- lambda_seq_calibrate[which.min(mape)]
+          #hypParamSam["lambdas"] <- lambda_seq_calibrate[which.min(mape)]
           #hypParamSamName <- names(hypParamSam)
           
         }
@@ -1083,7 +1015,6 @@ f.mmm <- function(...
         
         ## calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
         
-        
         #####################################
         #### Collect output
         
@@ -1097,17 +1028,19 @@ f.mmm <- function(...
                                                  ,rsq_train = mod_out$rsq_train
                                                  ,rsq_test = mod_out$rsq_test
                                                  ,pos = prod(decompCollect$xDecompAgg$pos)
-                                                 ,Score = -mape
+                                                 ,lambda=lambda
+                                                 #,Score = -mape
                                                  ,Elapsed = as.numeric(difftime(Sys.time(),t1, units = "secs"))
                                                  ,ElapsedAccum = as.numeric(difftime(Sys.time(),t0, units = "secs"))
                                                  ,iterPar= i
                                                  ,iterNG = lng)],
-          xDecompVec = if (num_hyppar_ng == 0) {decompCollect$xDecompVec[, ':='(mape = mape
+          xDecompVec = if (fixed.out == T) {decompCollect$xDecompVec[, ':='(mape = mape
                                                                       ,nrmse = nrmse
                                                                       ,decomp.rssd = decomp.rssd
                                                                       ,adstock.ssisd = adstock.ssisd
                                                                       ,rsq_train = mod_out$rsq_train
                                                                       ,rsq_test = mod_out$rsq_test
+                                                                      ,lambda=lambda
                                                                       ,iterPar= i
                                                                       ,iterNG = lng)]} else{NULL} ,
           xDecompAgg = decompCollect$xDecompAgg[, ':='(mape = mape
@@ -1116,6 +1049,7 @@ f.mmm <- function(...
                                                        ,adstock.ssisd = adstock.ssisd
                                                        ,rsq_train = mod_out$rsq_train
                                                        ,rsq_test = mod_out$rsq_test
+                                                       ,lambda=lambda
                                                        ,iterPar= i
                                                        ,iterNG = lng)] ,
           liftCalibration = if (activate_calibration) {liftCollect[, ':='(mape = mape
@@ -1124,8 +1058,18 @@ f.mmm <- function(...
                                                                           ,adstock.ssisd = adstock.ssisd
                                                                           ,rsq_train = mod_out$rsq_train
                                                                           ,rsq_test = mod_out$rsq_test
+                                                                          ,lambda=lambda
                                                                           ,iterPar= i
                                                                           ,iterNG = lng)] } else {NULL},
+          decompSpendDist = dt_decompSpendDist[, ':='(mape = mape
+                                                      ,nrmse = nrmse
+                                                      ,decomp.rssd = decomp.rssd
+                                                      ,adstock.ssisd = adstock.ssisd
+                                                      ,rsq_train = mod_out$rsq_train
+                                                      ,rsq_test = mod_out$rsq_test
+                                                      ,lambda=lambda
+                                                      ,iterPar= i
+                                                      ,iterNG = lng)],
           mape = mape,
           nrmse = nrmse,
           decomp.rssd = decomp.rssd,
@@ -1133,8 +1077,7 @@ f.mmm <- function(...
           iterNG = lng
           #,cvmod = cvmod
         )
-        
-        
+
         best_mape <- min(best_mape, mape)
         if (cnt == iterTotal) {
           print(" === ")
@@ -1147,7 +1090,7 @@ f.mmm <- function(...
       nrmse.coolect <- sapply(doparCollect, function(x) x$nrmse)
       decomp.rssd.coolect <- sapply(doparCollect, function(x) x$decomp.rssd)
       
-      if (num_hyppar_ng != 0) {
+      if (fixed.out == F) {
         for (co in 1:iterPar) {
           optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.coolect[co], decomp.rssd.coolect[co])) 
         }
@@ -1155,24 +1098,23 @@ f.mmm <- function(...
       
       resultCollectNG[[lng]] <- doparCollect
       cnt <- cnt + iterPar
-      setTxtProgressBar(pb, cnt)
+      if(fixed.out==F) {setTxtProgressBar(pb, cnt)}
       
     } ## end NG loop
   }) # end system.time
   
-  cat("\ndone for", iterTotal,"random search trails in",sysTimeDopar[3]/60,"mins")
-  close(pb)
+  cat("\n Finished in",sysTimeDopar[3]/60,"mins\n")
+  if(fixed.out==F) {close(pb)}
   registerDoSEQ(); getDoParWorkers()
-  
   
   ## Get pareto optimal results when using nevergrad algorithms
   
-  if (num_hyppar_ng != 0) {
+  if (fixed.out == F) {
     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$value[],4))),
                                     as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$losses[],4)))))
     pareto_results_names<-setnames(pareto_results, c(hyper_bound_local_ng_name,"nrmse", "decomp.rssd") )
     pareto_results_ordered<-setorder(pareto_results_names, "nrmse", "decomp.rssd")
-    print(pareto_results_ordered)
+    #print(pareto_results_ordered)
   } else {
     pareto_results_ordered <- NULL
   }
@@ -1183,12 +1125,13 @@ f.mmm <- function(...
   #stopCluster(cl)
   # aggregate result
   
-  max.row <- ifelse(nrow(dt_mod)*iterRS>=1000000,1000000, nrow(dt_mod)*iterRS)  ## max row to avoid memory exceed
+  #max.row <- ifelse(nrow(dt_mod)*iterRS>=1000000,1000000, nrow(dt_mod)*iterRS)  ## max row to avoid memory exceed
   resultCollect <- list(
     resultHypParam = rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$resultHypParam))}))[order(nrmse)],
-    xDecompVec = if (num_hyppar_ng == 0) {rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$xDecompVec))}))[order(nrmse, ds)][1:max.row]} else {NULL},
+    xDecompVec = if (fixed.out==T) {rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$xDecompVec))}))[order(nrmse, ds)]} else {NULL},
     xDecompAgg =   rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$xDecompAgg))}))[order(nrmse)],
     liftCalibration = if(activate_calibration) {rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$liftCalibration))}))[order(mape, liftMedia, liftStart)]} else {NULL},
+    decompSpendDist = rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$decompSpendDist))}))[order(nrmse)],
     #mape = unlist(lapply(doparCollect, function(x) x$mape)),
     #iterRS = unlist(lapply(doparCollect, function(x) x$iterRS)),
     paretoFront= as.data.table(pareto_results_ordered)
@@ -1205,7 +1148,9 @@ f.mmm <- function(...
   #please_stop_here()
   
   return(list(#Score =  -resultCollect$mape[iterRS], # score for BO
-    resultCollect = resultCollect))
+    resultCollect = resultCollect
+    ,hyperBoundNG = hyper_bound_local_ng
+    ,hyperBoundFixed = hyper_bound_local_fixed))
 }
 
 #####################################
@@ -1215,143 +1160,366 @@ f.getOptimParRS <- function(model_output, kurt.tuner = 0) {
   return(f.plotHyperBoundOptim(F, channelPlot = NULL, model_output = model_output, kurt.tuner = kurt.tuner))
 }
 
-#####################################
-#### Define Robyn (Random-search and kurtOsis Based hYperparameter optimiesatioN) function
 
-# f.mmmRobyn <- function(hyper_bound_global = set_hyperBoundGlobal
-#                        ,set_iter = set_iter
-#                        ,set_cores = set_cores
-#                        ,epochN = Inf
-#                        ,out = F
-#                        ,temp.csv.path
-#                        ,optim.sensitivity = 0
-# ) {
-#   
-#   assign("set_iter", set_iter, envir = .GlobalEnv)
-#   
-#   # hyper optimisation loop
-#   optim.loop <- T
-#   optim.iter <- 1
-#   if (!exists("model_output")) {
-#     epoch.iter <- 1
-#     optimParRS.collect <- list()
-#   } else {
-#     epoch.iter <- epoch.iter + 1
-#     optimParRS.collect <- list(model_output[["optimParRS"]])
-#   }
-#   
-#   if (optim.sensitivity >1 | optim.sensitivity < -1) {stop("optim.sensitivity must be between -1 and 1")}
-#   assign("optim.sensitivity", optim.sensitivity, envir = .GlobalEnv)
-#   
-#   while (optim.loop & optim.iter <= epochN) {
-#     
-#     assign("epoch.iter", epoch.iter, envir = .GlobalEnv)
-#     assign("optim.iter", optim.iter, envir = .GlobalEnv)
-#     # run RS model with adapted
-#     
-#     sysTimeRS <- system.time({
-#       model_output <- f.mmm(hyper_bound_global
-#                             ,iterRS = set_iter
-#                             ,set_cores = set_cores
-#                             ,out = out
-#       )})
-#     
-#     # get optimum parameters based on mode of top10% mape density
-#     optimParRS <- f.getOptimParRS(model_output, kurt.tuner = optim.sensitivity)
-#     
-#     if(optim.iter==1 & epoch.iter==1) {
-#       optimParRS[, epoch.optim := 0]
-#       epoch.optim.update <- optimParRS$optim.found*1
-#     } else {
-#       optimParRS[, epoch.optim:= epoch.optim.update]
-#       epoch.optim.update <- epoch.optim.update + optimParRS$optim.found*1
-#     }
-#     optimParRS[, epochN:= epoch.iter-1]
-#     assign("epoch.optim.update", epoch.optim.update, envir = .GlobalEnv)
-#     
-#     if(any(optimParRS$optim.found)) {
-#       
-#       # get optimised bounds
-#       param.optim <- optimParRS[optim.found == T, variable]
-#       param.noOptim <- optimParRS[optim.found == F, variable]
-#       
-#       # cat("\n## Hyperbounds optimisation epoch", epoch.iter-1, "took", round(sysTimeRS[3]/3600,4),"hours to run",set_iter,"iterations...\n##"
-#       #     ,length(param.optim), "out of",nrow(optimParRS),"hyperparameters found optimum:" , param.optim, "\n##"
-#       #     ,"Updated bounds are...\n\n")
-#       # print(optimParRS[, !c("kurt"), with = F])
-#       
-#       # update bounds
-#       hyperbound.local.auto <- lapply(hyperparameters, range)
-#       hyperbound.local.auto <- mapply(function(x, xName, low, up) {
-#         if(xName %in% param.optim) {
-#           x <- c(low, up)
-#           return(x)
-#         } else {return(x)}
-#       }, x=hyperbound.local.auto, xName = names(hyperbound.local.auto), low= optimParRS$low, up = optimParRS$up, SIMPLIFY = F)
-#       
-#       assign("hyperbound.local.auto", hyperbound.local.auto, envir = .GlobalEnv)
-#       
-#       lhsOut <- f.hypSamLHS(set_mediaVarName, set_iter = set_iter, hyper_bound_global, adstock)
-#       
-#       hyperparameters <- lhsOut$transLHS.list
-#       assign("hyperparameters", hyperparameters, envir = .GlobalEnv)
-#       
-#       optim.iter <- optim.iter + 1
-#       epoch.iter <- epoch.iter + 1
-#     } else {
-#       
-#       optimParRS[, epoch.optim:= epoch.optim.update]
-#       #optimParRS[, optim.found:= epoch.optim.update>0]
-#       # cat("\n####################################\nAfter"
-#       #     , epoch.iter-1, "epoches, no further hyperparameter optimisation can be found. Final bounds are...\n\n")
-#       # print(optimParRS[, !c("kurt"), with = F])
-#       # cat("####################################\n")
-#       if (epoch.iter == 1) {lhsOut <- NULL}
-#       optim.loop <- F
-#       epoch.iter <- epoch.iter + 1
-#     }
-#     optimParRS.collect[[epoch.iter]] <- optimParRS
-#     fwrite(optimParRS, temp.csv.path)
-#     closeAllConnections()
-#   } # while loop end
-#   
-#   if (optim.iter>epochN) {
-#     optimParRS[, epoch.optim:= epoch.optim.update]
-#     #optimParRS[, optim.found:= epoch.optim.update>0]
-#     # cat("\n####################################\nThere are still local optimum found. Increase epochN to reach optimum. Current bounds are...\n\n")
-#     # print(optimParRS[, !c("kurt"), with = F])
-#     # cat("####################################\n")
-#   }
-#   
-#   model_output[["lhsOut"]] <- lhsOut
-#   model_output[["optimParRS"]] <- rbindlist(optimParRS.collect)
-#   return(model_output)
-# }
-# 
-# #####################################
-# #### Define result collection function
-# 
-# f.mmmCollect <- function(optimParRS) { # optimParRS = model_output$optimParRS
-#   
-#   getSpendSum <- dt_input[, lapply(.SD, sum), .SDcols=set_mediaSpendName]
-#   names(getSpendSum) <- set_mediaVarName
-#   getSpendSum <- suppressWarnings(melt.data.table(getSpendSum, measure.vars= set_mediaVarName, variable.name = "rn", value.name = "spend"))
-#   
-#   if (all(sapply(set_hyperBoundLocal, length)==1) & !is.null(set_hyperBoundLocal)) {
-#     model_output <- f.mmm(set_hyperBoundLocal, out = T)
-#     model_output$resultCollect$xDecompAgg <- model_output$resultCollect$xDecompAgg[getSpendSum, on = "rn", spend:=i.spend]
-#     model_output$resultCollect$xDecompAgg[, roi := xDecompAgg / spend]
-#     assign("model_output", model_output, envir = .GlobalEnv)
-#     
-#   } else {
-#     optimParRS.last <- optimParRS[epochN==max(epochN)]
-#     bestParRS <- lapply(optimParRS.last$mode, function(x) x)
-#     names(bestParRS) <- optimParRS.last$variable
-#     set_hyperBoundLocal <- bestParRS
-#     model_output <- f.mmm(bestParRS, out = T)
-#     model_output$resultCollect$xDecompAgg <- model_output$resultCollect$xDecompAgg[getSpendSum, on = "rn", spend:=i.spend]
-#     model_output$resultCollect$xDecompAgg[, roi := xDecompAgg / spend]
-#   }
-#   
-#   return(model_output)
-# }
+f.mmmRobyn <- function(set_hyperBoundLocal
+                       ,optimizer_name = set_hyperOptimAlgo
+                       ,ng_trial = set_trial # ng_trial <- 3
+                       ,set_cores = set_cores
+                       ,plot_folder = "~/Documents/GitHub/plots") {
+  
+  t0 <- Sys.time()
+  hyperparameter_fixed <- all(sapply(set_hyperBoundLocal, length)==1)
+  
+  if (!hyperparameter_fixed) {
+    ng_out <- list()
+    ng_algos <- optimizer_name #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
+    #ng_iters <- c(300)
+    
+    
+    t0 <- Sys.time()
+    for (optmz in ng_algos) {
+      ng_collect <- list()
+      model_output_collect <- list()
+      # for (itrs in ng_iters) {
+      #   set_iter <- itrs
+      #   ng_trials <- list()
+      # loop_trial <- ng_trial[which(ng_iters == itrs)]
+      for (ngt in 1:ng_trial) { 
+        
+        cat("\nRunning trial nr.", ngt,"out of",ng_trial,"...\n")
+        # rm(model_output)
+        model_output <- f.mmm(set_hyperBoundLocal
+                              ,set_iter = set_iter
+                              ,set_cores = set_cores
+                              ,optimizer_name = optmz
+        )
+        
+        model_output["trials"] <- ngt
+        ng_collect[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optmz)]
+        model_output_collect[[ngt]] <- model_output
+        #model_output_pareto <- f.mmm(set_hyperBoundLocal, out = T)
+      }
+      ng_collect <- rbindlist(ng_collect)
+      px <- low(ng_collect$nrmse) * low(ng_collect$decomp.rssd)
+      ng_collect <- psel(ng_collect, px, top = nrow(ng_collect))[order(trials, nrmse)]
+      # }
+      
+      ng_out[[which(ng_algos==optmz)]] <- ng_collect
+    }
+    ng_out <- rbindlist(ng_out)
+    setnames(ng_out, ".level", "manual_pareto")
+    # ng_trials <- rbindlist(ng_trials)
+    # px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
+    # pres <- psel(ng_trials, px, top = nrow(ng_trials))[order(.level, nrmse)]
+    # fwrite(ng_out, './paretoRes.csv')
+    
+    plot_folder <- "~/Documents/GitHub/plots"
+    if (!exists("plot_folder_sub")) {
+      plot_folder_sub <- format(Sys.time(), "%Y-%m-%d %H.%M")
+      plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
+    }
+
+    
+    ## plot Pareto front
+    
+    resultHypParam <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$resultHypParam[, trials:= x$trials] ))
+    px <- low(resultHypParam$nrmse) * low(resultHypParam$decomp.rssd)
+    resultHypParam <- psel(resultHypParam, px, top = nrow(resultHypParam))[order(iterNG, iterPar, nrmse)]
+    setnames(resultHypParam, ".level", "robynPareto")
+    num_pareto1 <- resultHypParam[robynPareto==1, .N]
+    
+    cat("\nPlotting", num_pareto1,"pareto optimum models...\n")
+    
+    pParFront <- ggplot(data = resultHypParam, aes(x=nrmse, y=decomp.rssd, color = robynPareto)) +
+      geom_point(size = 0.5) +
+      stat_smooth(data = resultHypParam, method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
+      geom_line(data = resultHypParam[robynPareto ==1], aes(x=nrmse, y=decomp.rssd), colour = "coral")+
+      labs(title="Nevergrad performance",
+           subtitle=paste0("2D Pareto front with ",optimizer_name,", iterations = ", set_iter , " * ", ng_trial, " trials"),
+           x="NRMSE",
+           y="DECOMP.RSSD")
+    
+    print(pParFront)
+    
+    ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png")
+           , plot = pParFront
+           , dpi = 800, width = 12, height = 7)
+    
+    ## plot hyperparameter sampling distribution
+    
+    resultHypParam.melted <- melt.data.table(resultHypParam[, c(local_name,"robynPareto"), with = F], id.vars = c("robynPareto"))
+    
+    pSamp <- ggplot(data = resultHypParam.melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
+      geom_violin(alpha = .5, size = 0) +
+      geom_point(size = 0.2) +
+      theme(legend.position = "none") +
+      labs(title="Nevergrad performance", 
+           subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", ng_trial, " trials"),
+           x="Hyperparameter space",
+           y="")
+    print(pSamp)
+    ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png")
+           , plot = pSamp
+           , dpi = 800, width = 12, height = 7)
+    
+    
+    ## plot Pareto solutions
+    
+    decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
+    decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
+    decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    
+    xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
+    xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
+    xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    
+    resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    
+    
+    paretoFronts <- c(1)
+    
+    for (i in paretoFronts) {
+      
+      plotMediaShare <- decompSpendDist[robynPareto == i]
+      plotWaterfall <- xDecompAgg[robynPareto ==i]
+      
+      uniqueSol <- plotMediaShare[, unique(solID)]
+      for (j in 1:length(uniqueSol)) {
+        
+        ## plot spend x effect share comparison
+        plotMediaShareLoop <- plotMediaShare[solID == uniqueSol[j]]
+        rsq_test_plot <- plotMediaShareLoop[, round(unique(rsq_test),4)]
+        nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse),4)]
+        decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd),4)]
+        plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_test" ), measure.vars = c("spend_share", "effect_share"))
+        p1 <- ggplot(plotMediaShareLoop, aes(x=rn, y=value, fill = variable)) +
+          geom_bar(stat = "identity", width = 0.5, position = "dodge") +
+          coord_flip() +
+          theme( legend.title = element_blank(), legend.position = c(0.9, 0.2) ) +
+          scale_fill_brewer(palette = "Paired") +
+          geom_text(aes(label=paste0(round(value*100,2),"%")),  position=position_dodge(width=0.5), fontface = "bold") +
+          labs(title = "Share of Spend VS Share of Effect"
+               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+                                  ", nrmse = ", nrmse_plot, 
+                                  ", decomp.rssd = ", decomp_rssd_plot)
+               ,y="", x="")
+        
+        ## plot waterfall
+        plotWaterfallLoop <- plotWaterfall[solID == uniqueSol[j]][order(-xDecompPerc)]
+        plotWaterfallLoop[, end := cumsum(xDecompPerc)]
+        plotWaterfallLoop[, ':='(start =shift(end, fill = 0, type = "lag")
+                                 ,id = 1:nrow(plotWaterfallLoop)
+                                 ,rn = as.factor(rn)
+                                 ,sign = as.factor(ifelse(xDecompPerc>=0, "pos", "neg")))]
+        
+        p2 <- suppressWarnings(ggplot(plotWaterfallLoop, aes(x= id, fill = sign)) +
+                                 geom_rect(aes(x = rn, xmin = id - 0.45, xmax = id + 0.45, ymin = end, ymax = start), stat="identity") +
+                                 scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn)+
+                                 theme(axis.text.x = element_text(angle=65, vjust=0.6), legend.position = c(0.9, 0.1))  +
+                                 geom_text(mapping = aes(label = paste0(f.unit_format(xDecompAgg),"\n", round(xDecompPerc*100, 2), "%"),y = rowSums(cbind(start,xDecompPerc/2))), fontface = "bold") +
+                                 labs(title="Response decomposition waterfall by predictor"
+                                      ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+                                                         ", nrmse = ", nrmse_plot, 
+                                                         ", decomp.rssd = ", decomp_rssd_plot)
+                                      ,x=""
+                                      ,y=""))
+        
+        ## plot adstock rate
+        
+        resultHypParamLoop <- resultHypParam[solID == uniqueSol[j]]
+        
+        hypParam <- unlist(resultHypParamLoop[, local_name, with =F])
+        adstockDT <- dt_mod[, c("ds", set_mediaVarName), with =F]
+        
+        ## adstock decay vector
+        m_decayRate <- list()
+        if (adstock == "geometric") {
+          for (med in 1:length(set_mediaVarName)) {
+            m <- adstockDT[, get(set_mediaVarName[med])]
+            theta <- hypParam[which(paste0(set_mediaVarName[med], "_thetas")==names(hypParam))]
+            alpha <- hypParam[which(paste0(set_mediaVarName[med], "_alphas")==names(hypParam))]
+            gamma <- hypParam[which(paste0(set_mediaVarName[med], "_gammas")==names(hypParam))]
+            m_decayRate[[med]] <- data.table((f.transformation(x=m, theta=theta, alpha=alpha, gamma=gamma, alternative = adstock, stage="thetaVecCum")))
+            setnames(m_decayRate[[med]], "V1", paste0(set_mediaVarName[med], "_decayRate"))
+          }
+          subVal <- hypParam[str_detect(names(hypParam), paste0("(",paste(set_mediaVarName, collapse = "|"),").*", "theta"))]
+          subT <- paste(paste0(names(subVal), ": ", round(subVal,4)), collapse = "|")
+        } else if (adstock == "weibull") {
+          for (med in 1:length(set_mediaVarName)) {
+            m <- adstockDT[, get(set_mediaVarName[med])]
+            shape <- hypParam[which(paste0(set_mediaVarName[med], "_shapes")==names(hypParam))]
+            scale <- hypParam[which(paste0(set_mediaVarName[med], "_scales")==names(hypParam))]
+            alpha <- hypParam[which(paste0(set_mediaVarName[med], "_alphas")==names(hypParam))]
+            gamma <- hypParam[which(paste0(set_mediaVarName[med], "_gammas")==names(hypParam))]
+            m_decayRate[[med]] <- data.table((f.transformation(x=m, shape= shape, scale=scale, alpha=alpha, gamma=gamma, alternative = adstock, stage="thetaVecCum")))
+            setnames(m_decayRate[[med]], "V1", paste0(set_mediaVarName[med], "_decayRate"))
+          }
+          subVal <- hypParam[str_detect(names(hypParam), paste0("(",paste(set_mediaVarName, collapse = "|"),").*", "(shape|scale)") )]
+          subT <- paste(paste0(names(subVal), ": ", round(subVal,4)), collapse = "|")
+        }
+        
+        m_decayRate <- data.table(cbind(sapply(m_decayRate, function(x) sapply(x, function(y)y))))
+        setnames(m_decayRate, names(m_decayRate), set_mediaVarName)
+        m_decayRate <- m_decayRate[, lapply(.SD, sum), .SDcols = set_mediaVarName]
+        
+        decayRate.melt <- suppressWarnings(melt.data.table(m_decayRate))
+        
+        #decayRate.melt[, channel:=str_extract(decayRate.melt$variable, paste0(set_mediaVarName, collapse = "|"))]
+        #decayRate.melt[, variable:=str_replace(decayRate.melt$variable, paste0(paste0(set_mediaVarName,"_"), collapse = "|"), "")]
+        
+        ## get geometric reference
+        decayVec <- seq(0, 0.9, by = 0.001)
+        decayInfSum <- c()
+        for (i in 1:length(decayVec)) {
+          decayInfSum[i] <- 1 / (1 - decayVec[i])-1
+        }
+        
+        decayOut <- c()
+        for (i in 1:nrow(decayRate.melt)) {
+          decayOut[i] <- decayVec[which.min(abs(decayRate.melt$value[i] - decayInfSum))]
+        }
+        decayRate.melt[, avg_decay_rate:= decayOut]
+        
+        p3 <- ggplot(decayRate.melt, aes(x=variable, y=avg_decay_rate, fill = "coral")) +
+          geom_bar(stat = "identity", width = 0.5) +
+          theme(legend.position = "none") +
+          coord_flip() +
+          geom_text(aes(label=paste0(round(avg_decay_rate*100,1), "%")),  position=position_dodge(width=0.5), fontface = "bold") +
+          ylim(0,1) +
+          labs(title = "Average adstock decay rate"
+               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+                                  ", nrmse = ", nrmse_plot, 
+                                  ", decomp.rssd = ", decomp_rssd_plot)
+               ,y="", x="")
+        
+        modID <- paste0("Model selection pareto front ", i,", ID: ", uniqueSol[j])
+        
+        #png(paste0(plot_folder, "/", plot_folder_sub,"/", uniqueSol[j], ".png"))
+        pg <- grid.arrange(p1,p2,p3, ncol=2, top = text_grob(modID, size = 15, face = "bold") )
+        #dev.off()
+        ggsave(filename=paste0(plot_folder, "/", plot_folder_sub,"/", uniqueSol[j],".png")
+               , plot = pg
+               , dpi = 900, width = 18, height = 12)
+        
+      }
+    }
+  } else {
+    
+    model_output_fixed <- f.mmm(set_hyperBoundLocal
+                          ,set_iter = 1
+                          ,set_cores = 1
+                          ,optimizer_name = optimizer_name
+                          # ,epochN = 1 # set to Inf to auto-optimise until no optimum found
+                          # ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
+                          # ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
+    )
+    
+    print(model_output_fixed$resultCollect$xDecompAgg)
+  }
+  
+  cat("Total time: ",difftime(Sys.time(),t0, units = "mins"), "mins\n")
+  
+  return(list(resultHypParam=resultHypParam,
+              xDecompAgg=xDecompAgg,
+              resultHypParam=resultHypParam,
+              model_output_fixed=if(exists("model_output_fixed")) {model_output_fixed} else {NULL}))
+  
+  
+  # for (its in ng_iters) {
+  #   loop_trial <- ng_trial[which(ng_iters == its)]
+  # for (los in c("nrmse", "decomp.rssd")) {
+  # 
+  #   ng_out_plot <- copy(ng_out)
+  #   ng_out_med <- ng_out_plot[, .SD, .SDcols = c(los, "ng_optmz")]
+  #   setnames(ng_out_plot, los, "loss"); setnames(ng_out_med, los, "loss")
+  #   ng_out_med <- ng_out_med[, .(xMaxDen= density(loss)$x[which.max(density(loss)$y)],
+  #                                yMaxDen= which.max(density(loss)$y)), by = "ng_optmz"]
+  # 
+  # 
+  #   # print(ggplot(data = ng_out_plot) +
+  #   #         stat_density(geom = "line", aes(x=loss), adjust = 1) +
+  #   #         facet_wrap(~ng_optmz, scales = "free") +
+  #   #         labs(title="Nevergrad performance",
+  #   #              subtitle=paste0("loss = ", los, ", iterations = ", set_iter , " * ", ng_trial, " trials"),
+  #   #              x=toupper(los),
+  #   #              y="Density")+
+  #   #         xlim(0, 1) +
+  #   #         geom_vline(data= ng_out_med, mapping = aes(xintercept = xMaxDen), colour="blue")+
+  #   #         geom_text(data = ng_out_med, aes(x = xMaxDen, y = 0, angle = 90, vjust = -0.5, hjust= -1, label = paste0("mode: ",round(xMaxDen,4))), colour="blue")
+  #   # )
+  # }
+  # #}
+  # 
+  # #png(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png"))
+  # # print(ggplot(data = ng_out, aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
+  # #         geom_point(size = 0.5) +
+  # #         stat_smooth(data = ng_out, method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
+  # #         geom_line(data = ng_out[ manual_pareto ==1])+
+  # #         labs(title="Nevergrad performance",
+  # #              subtitle=paste0("2D Pareto front, iterations = ", set_iter , " * ", ng_trial, " trials"),
+  # #              x="NRMSE",
+  # #              y="DECOMP.RSSD")
+  # # )
+  # #dev.off()
+  # 
+  # 
+  # # get hyperparameters for Nevergrad
+  # get_plot_name <- names(ng_out_plot)[str_detect(names(ng_out_plot), paste(set_mediaVarName, collapse = "|"))]
+  # ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(get_plot_name, "trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
+  # 
+  # print(ggplot(data = ng_out_plot_melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
+  #         geom_violin(alpha = .5, size = 0) +
+  #         geom_point(size = 0.2) +
+  #         facet_wrap(~ng_optmz, scales = "free") +
+  #         theme(legend.position = "none") +
+  #         labs(title="Nevergrad performance", 
+  #              subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", ng_trial, " trials"),
+  #              x="Hyperparameter space",
+  #              y="")+
+  #         xlim(0, 1))
+  # ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png"), dpi = 800, width = 12, height = 7)
+  # 
+  # #}
+  # 
+  # difftime(Sys.time(),t0, units = "mins")
+  # 
+  # ## get result stats
+  # ng_out_pareto1 <- ng_out[manual_pareto==1]
+  # numRep <- nrow(ng_out_pareto1)
+  # NGBounds <- model_output$hyperBoundNG
+  # NGLocalName <- names(model_output$hyperBoundNG)
+  # 
+  # hypparCollect <- list()
+  # for (i in 1:numRep) {
+  #   hypparCollectLoop <- c()
+  #   for (j in 1:length(NGLocalName)) {
+  #     channelBound <- unlist(NGBounds[NGLocalName[j]])
+  #     hyppar_for_qunif <- unlist(ng_out_pareto1[i, NGLocalName[j], with =F])
+  #     hypparCollectLoop[j] <- qunif(hyppar_for_qunif, min(channelBound), max(channelBound))
+  #   }
+  #   hypparCollect[[i]] <- transpose(data.table(hypparCollectLoop))
+  # }
+  # dt_hyperResult <- rbindlist(hypparCollect)
+  # setnames(dt_hyperResult, names(dt_hyperResult), NGLocalName)
+  # 
+  # # combine fixed hyperparameters
+  # fixedLocalName <- names(model_output$hyperBoundFixed)
+  # numCol <- length(fixedLocalName)
+  # #getFixedLocalHyperWhich <- which(sapply(set_hyperBoundLocal, length)==1)
+  # 
+  # if (numCol!=0) {
+  #   fixedLocalBounds <- model_output$hyperBoundFixed
+  #   dt_fixedLocalBounds <- as.data.table(matrix(unlist(rep(fixedLocalBounds, numRep)), nrow = numRep, ncol = numCol, byrow = T))
+  #   setnames(dt_fixedLocalBounds, names(dt_fixedLocalBounds), fixedLocalName)
+  #   dt_hyperResult <- cbind(dt_hyperResult, dt_fixedLocalBounds)
+  # }
+  # 
+  # setcolorder(dt_hyperResult, c(local_name))
+  # 
+  # model_output_pareto <- f.mmm(set_hyperBoundLocal, fixed.out = T)
+  # model_output_pareto$resultCollect$decompSpendDist
+  # model_output_pareto$resultCollect$resultHypParam[, .(nrmse, decomp.rssd, iterPar, iterNG)]
+  # ng_out[manual_pareto==1, .(manual_pareto, nrmse, decomp.rssd)][order(nrmse)]
+  
+  
+}
