@@ -9,7 +9,8 @@
 
 module.exports = {
   title: 'Robyn',
-  tagline: 'Robyn is a Marketing Mix Modeling (MMM) code. It can be used to build end-to-end time series regression models and as an econometrics code library. Automated, built for very large data sets, and is suitable for digital and complex consumer behaviour',
+  tagline:
+    'Robyn is a Marketing Mix Modeling (MMM) code. It can be used to build end-to-end time series regression models and as an econometrics code library. Automated, built for very large data sets, and is suitable for digital and complex consumer behaviour',
   url: 'https://facebookexperimental.github.io/Robyn/',
   baseUrl: '/Robyn/',
   onBrokenLinks: 'throw',
@@ -83,14 +84,7 @@ module.exports = {
           homePageId: 'doc2',
           sidebarPath: require.resolve('./sidebars.js'),
           // Please change this to your repo.
-          editUrl:
-            'https://github.com/facebookexperimental/Robyn',
-        },
-        blog: {
-          showReadingTime: true,
-          // Please change this to your repo.
-          editUrl:
-            'https://github.com/facebook/docusaurus/edit/master/website/blog/',
+          editUrl: 'https://github.com/facebookexperimental/Robyn',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
