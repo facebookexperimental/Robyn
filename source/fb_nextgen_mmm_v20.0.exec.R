@@ -87,8 +87,13 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 500  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
-set_trial <- 30
+set_iter <- 100  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+
+set_hyperOptimAlgo <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
+set_trial <- 3
+# optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
+# optimizer_name <- "DiscreteOnePlusOne"
+# optimizer_name <- "TwoPointsDE"
 
 # no need to change
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
@@ -151,12 +156,6 @@ dt_mod <- f.inputWrangling()
 #### Run models
 # Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
 # In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
-
-set_hyperOptimAlgo <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
-# optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
-# optimizer_name <- "DiscreteOnePlusOne"
-# optimizer_name <- "TwoPointsDE"
-
 
 model_output_collect <- f.mmmRobyn(set_hyperBoundLocal
                                    ,optimizer_name = set_hyperOptimAlgo

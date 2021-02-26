@@ -177,7 +177,8 @@ f.inputWrangling <- function(dt_transform = dt_input) {
                                                            bic_nls = BIC(modNLS),
                                                            bic_lm = BIC(modLM),
                                                            rsq_nls = rsq_nls,
-                                                           rsq_lm = rsq_lm
+                                                           rsq_lm = rsq_lm,
+                                                           coef_lm = coef(modLMSum)[1]
         )
         
         dt_plotNLS <- data.table(channel = set_mediaVarName[i],
@@ -207,6 +208,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
     
     modNLSCollect <- rbindlist(modNLSCollect)
     yhatNLSCollect <- rbindlist(yhatCollect)
+    yhatNLSCollect[, ds:= rep(dt_transform$ds, nrow(yhatNLSCollect)/nrow(dt_transform))]
     assign("plotNLSCollect", plotNLSCollect, envir = .GlobalEnv)
     assign("modNLSCollect", modNLSCollect, envir = .GlobalEnv)
     assign("yhatNLSCollect", yhatNLSCollect, envir = .GlobalEnv)
@@ -1005,7 +1007,7 @@ f.mmm <- function(...
         
         ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
         dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompPerc)]
-        dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share)], on = "rn"]
+        dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share, total_spend)], on = "rn"]
         dt_decompSpendDist[, effect_share:= xDecompPerc/sum(xDecompPerc)]
         decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share-spend_share)^2))]
         
@@ -1208,18 +1210,13 @@ f.mmmRobyn <- function(set_hyperBoundLocal
     }
     ng_out <- rbindlist(ng_out)
     setnames(ng_out, ".level", "manual_pareto")
-    # ng_trials <- rbindlist(ng_trials)
-    # px <- low(ng_trials$nrmse) * low(ng_trials$decomp.rssd)
-    # pres <- psel(ng_trials, px, top = nrow(ng_trials))[order(.level, nrmse)]
     # fwrite(ng_out, './paretoRes.csv')
     
-    plot_folder <- "~/Documents/GitHub/plots"
     if (!exists("plot_folder_sub")) {
       plot_folder_sub <- format(Sys.time(), "%Y-%m-%d %H.%M")
       plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
     }
 
-    
     ## plot Pareto front
     
     resultHypParam <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$resultHypParam[, trials:= x$trials] ))
@@ -1240,7 +1237,6 @@ f.mmmRobyn <- function(set_hyperBoundLocal
            y="DECOMP.RSSD")
     
     print(pParFront)
-    
     ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png")
            , plot = pParFront
            , dpi = 800, width = 12, height = 7)
@@ -1265,15 +1261,17 @@ f.mmmRobyn <- function(set_hyperBoundLocal
     
     ## plot Pareto solutions
     
-    decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
-    decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
-    decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
     
     xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
     xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
     xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
     
-    resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
+    decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
+    decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
+    decompSpendDist[, roi := xDecompAgg/total_spend ]
     
     
     paretoFronts <- c(1)
@@ -1291,13 +1289,25 @@ f.mmmRobyn <- function(set_hyperBoundLocal
         rsq_test_plot <- plotMediaShareLoop[, round(unique(rsq_test),4)]
         nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse),4)]
         decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd),4)]
-        plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_test" ), measure.vars = c("spend_share", "effect_share"))
-        p1 <- ggplot(plotMediaShareLoop, aes(x=rn, y=value, fill = variable)) +
+        
+        plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_test" ), measure.vars = c("spend_share", "effect_share", "roi"))
+        plotMediaShareLoop[, rn:= factor(rn, levels = sort(set_mediaVarName))]
+        plotMediaShareLoopBar <- plotMediaShareLoop[variable %in% c("spend_share", "effect_share")]
+        plotMediaShareLoopLine <- plotMediaShareLoop[variable =="roi"]
+        ySecScale <- max(plotMediaShareLoopLine$value)/max(plotMediaShareLoopBar$value)*1.1
+        
+        p1 <- ggplot(plotMediaShareLoopBar, aes(x=rn, y=value, fill = variable)) +
           geom_bar(stat = "identity", width = 0.5, position = "dodge") +
+          geom_text(aes(label=paste0(round(value*100,2),"%")), color = "darkblue",  position=position_dodge(width=0.5), fontface = "bold") +
+          
+          geom_line(data = plotMediaShareLoopLine, aes(x = rn, y=value/ySecScale, group = 1, color = variable), inherit.aes = FALSE) +
+          geom_point(data = plotMediaShareLoopLine, aes(x = rn, y=value/ySecScale, group = 1, color = variable), inherit.aes = FALSE) +
+          geom_text(data = plotMediaShareLoopLine, aes(label=round(value,2), x = rn, y=value/ySecScale, group = 1, color = variable)
+                    , fontface = "bold", inherit.aes = FALSE, hjust = -1, size = 5) +
+          scale_y_continuous(sec.axis = sec_axis(~.* ySecScale)) +          
           coord_flip() +
-          theme( legend.title = element_blank(), legend.position = c(0.9, 0.2) ) +
+          theme( legend.title = element_blank(), legend.position = c(0.9, 0.2) ,axis.text.x = element_blank()) +
           scale_fill_brewer(palette = "Paired") +
-          geom_text(aes(label=paste0(round(value*100,2),"%")),  position=position_dodge(width=0.5), fontface = "bold") +
           labs(title = "Share of Spend VS Share of Effect"
                ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
                                   ", nrmse = ", nrmse_plot, 
@@ -1305,18 +1315,21 @@ f.mmmRobyn <- function(set_hyperBoundLocal
                ,y="", x="")
         
         ## plot waterfall
-        plotWaterfallLoop <- plotWaterfall[solID == uniqueSol[j]][order(-xDecompPerc)]
+        plotWaterfallLoop <- plotWaterfall[solID == uniqueSol[j]][order(xDecompPerc)]
         plotWaterfallLoop[, end := cumsum(xDecompPerc)]
-        plotWaterfallLoop[, ':='(start =shift(end, fill = 0, type = "lag")
+        plotWaterfallLoop[, end := 1-end]
+        plotWaterfallLoop[, ':='(start =shift(end, fill = 1, type = "lag")
                                  ,id = 1:nrow(plotWaterfallLoop)
                                  ,rn = as.factor(rn)
                                  ,sign = as.factor(ifelse(xDecompPerc>=0, "pos", "neg")))]
-        
+
         p2 <- suppressWarnings(ggplot(plotWaterfallLoop, aes(x= id, fill = sign)) +
                                  geom_rect(aes(x = rn, xmin = id - 0.45, xmax = id + 0.45, ymin = end, ymax = start), stat="identity") +
                                  scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn)+
-                                 theme(axis.text.x = element_text(angle=65, vjust=0.6), legend.position = c(0.9, 0.1))  +
-                                 geom_text(mapping = aes(label = paste0(f.unit_format(xDecompAgg),"\n", round(xDecompPerc*100, 2), "%"),y = rowSums(cbind(start,xDecompPerc/2))), fontface = "bold") +
+                                 theme(axis.text.x = element_text(angle=65, vjust=0.6), legend.position = c(0.1, 0.1))  +
+                                 geom_text(mapping = aes(label = paste0(f.unit_format(xDecompAgg),"\n", round(xDecompPerc*100, 2), "%")
+                                                         ,y = rowSums(cbind(end,xDecompPerc/2))), fontface = "bold") +
+                                 coord_flip() +
                                  labs(title="Response decomposition waterfall by predictor"
                                       ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
                                                          ", nrmse = ", nrmse_plot, 
@@ -1329,40 +1342,65 @@ f.mmmRobyn <- function(set_hyperBoundLocal
         resultHypParamLoop <- resultHypParam[solID == uniqueSol[j]]
         
         hypParam <- unlist(resultHypParamLoop[, local_name, with =F])
-        adstockDT <- dt_mod[, c("ds", set_mediaVarName), with =F]
+        dt_transformPlot <- dt_mod[, c("ds", set_mediaVarName), with =F] # independent variables
+        dt_transformSpend <- cbind(dt_transformPlot[,.(ds)], dt_input[, c(set_mediaSpendName), with =F]) # spends of indep vars
+        setnames(dt_transformSpend, names(dt_transformSpend), c("ds", set_mediaVarName))
+        dt_transformSpendMod <- copy(dt_transformPlot) # prepare dt for 
+        dt_transformAdstock <- copy(dt_transformPlot)
+        dt_transformSaturation <- copy(dt_transformPlot)
+        chnl_non_spend <- set_mediaVarName[!(set_mediaVarName==set_mediaSpendName)]
         
-        ## adstock decay vector
         m_decayRate <- list()
         if (adstock == "geometric") {
           for (med in 1:length(set_mediaVarName)) {
-            m <- adstockDT[, get(set_mediaVarName[med])]
+            
+            med_select <- set_mediaVarName[med]
+            # update non-spend variables
+            if (med_select %in% chnl_non_spend) {
+              sel_nls <- ifelse(modNLSCollect[channel == med_select, rsq_nls>rsq_lm],"nls","lm")
+              dt_transformSpendMod[, (med_select):= yhatNLSCollect[channel==med_select & models == sel_nls, yhat]]
+            }
+            m <- dt_transformPlot[, get(med_select)]
             theta <- hypParam[which(paste0(set_mediaVarName[med], "_thetas")==names(hypParam))]
             alpha <- hypParam[which(paste0(set_mediaVarName[med], "_alphas")==names(hypParam))]
             gamma <- hypParam[which(paste0(set_mediaVarName[med], "_gammas")==names(hypParam))]
+            dt_transformAdstock[, (med_select):= f.transformation(x=m, theta=theta, alpha=alpha, gamma=gamma, alternative = adstock, stage=1)] 
+            dt_transformSaturation[, (med_select):= f.transformation(x=m, theta=theta, alpha=alpha, gamma=gamma, alternative = adstock, stage=3)] 
+
+            m <- dt_transformPlot[, get(set_mediaVarName[med])]
             m_decayRate[[med]] <- data.table((f.transformation(x=m, theta=theta, alpha=alpha, gamma=gamma, alternative = adstock, stage="thetaVecCum")))
+            
             setnames(m_decayRate[[med]], "V1", paste0(set_mediaVarName[med], "_decayRate"))
           }
-          subVal <- hypParam[str_detect(names(hypParam), paste0("(",paste(set_mediaVarName, collapse = "|"),").*", "theta"))]
-          subT <- paste(paste0(names(subVal), ": ", round(subVal,4)), collapse = "|")
+
         } else if (adstock == "weibull") {
           for (med in 1:length(set_mediaVarName)) {
-            m <- adstockDT[, get(set_mediaVarName[med])]
+            
+            med_select <- set_mediaVarName[med]
+            # update non-spend variables
+            if (med_select %in% chnl_non_spend) {
+              sel_nls <- ifelse(modNLSCollect[channel == med_select, rsq_nls>rsq_lm],"nls","lm")
+              dt_transformSpendMod[, (med_select):= yhatNLSCollect[channel==med_select & models == sel_nls, yhat]]
+            }
+            m <- dt_transformPlot[, get(med_select)]
             shape <- hypParam[which(paste0(set_mediaVarName[med], "_shapes")==names(hypParam))]
             scale <- hypParam[which(paste0(set_mediaVarName[med], "_scales")==names(hypParam))]
             alpha <- hypParam[which(paste0(set_mediaVarName[med], "_alphas")==names(hypParam))]
             gamma <- hypParam[which(paste0(set_mediaVarName[med], "_gammas")==names(hypParam))]
+            dt_transformAdstock[, (med_select):= f.transformation(x=m, theta=theta, alpha=alpha, gamma=gamma, alternative = adstock, stage=1)] 
+            dt_transformSaturation[, (med_select):= f.transformation(x=m, theta=theta, alpha=alpha, gamma=gamma, alternative = adstock, stage=3)] 
+            
+            m <- dt_transformPlot[, get(set_mediaVarName[med])]
             m_decayRate[[med]] <- data.table((f.transformation(x=m, shape= shape, scale=scale, alpha=alpha, gamma=gamma, alternative = adstock, stage="thetaVecCum")))
             setnames(m_decayRate[[med]], "V1", paste0(set_mediaVarName[med], "_decayRate"))
           }
-          subVal <- hypParam[str_detect(names(hypParam), paste0("(",paste(set_mediaVarName, collapse = "|"),").*", "(shape|scale)") )]
-          subT <- paste(paste0(names(subVal), ": ", round(subVal,4)), collapse = "|")
         }
         
         m_decayRate <- data.table(cbind(sapply(m_decayRate, function(x) sapply(x, function(y)y))))
         setnames(m_decayRate, names(m_decayRate), set_mediaVarName)
-        m_decayRate <- m_decayRate[, lapply(.SD, sum), .SDcols = set_mediaVarName]
+        m_decayRateSum <- m_decayRate[, lapply(.SD, sum), .SDcols = set_mediaVarName]
         
-        decayRate.melt <- suppressWarnings(melt.data.table(m_decayRate))
+        decayRate.melt <- suppressWarnings(melt.data.table(m_decayRateSum))
         
         #decayRate.melt[, channel:=str_extract(decayRate.melt$variable, paste0(set_mediaVarName, collapse = "|"))]
         #decayRate.melt[, variable:=str_replace(decayRate.melt$variable, paste0(paste0(set_mediaVarName,"_"), collapse = "|"), "")]
@@ -1379,6 +1417,7 @@ f.mmmRobyn <- function(set_hyperBoundLocal
           decayOut[i] <- decayVec[which.min(abs(decayRate.melt$value[i] - decayInfSum))]
         }
         decayRate.melt[, avg_decay_rate:= decayOut]
+        decayRate.melt[, variable:= factor(variable, levels = sort(set_mediaVarName))]
         
         p3 <- ggplot(decayRate.melt, aes(x=variable, y=avg_decay_rate, fill = "coral")) +
           geom_bar(stat = "identity", width = 0.5) +
@@ -1392,10 +1431,74 @@ f.mmmRobyn <- function(set_hyperBoundLocal
                                   ", decomp.rssd = ", decomp_rssd_plot)
                ,y="", x="")
         
+        
+        
+        ## plot response curve
+        
+        dt_transformSaturationDecomp <- copy(dt_transformSaturation)
+        for (i in 1:length(set_mediaVarName)) {
+          coef <- plotWaterfallLoop[rn == set_mediaVarName[i], coef]
+          dt_transformSaturationDecomp[, (set_mediaVarName[i]):= .SD * coef, .SDcols = set_mediaVarName[i]]
+        }
+        
+        #mediaAdstockFactorPlot <- dt_transformPlot[, lapply(.SD, sum), .SDcols = set_mediaVarName]  / dt_transformAdstock[, lapply(.SD, sum), .SDcols = set_mediaVarName]
+        #dt_transformSaturationAdstockReverse <- data.table(mapply(function(x, y) {x*y},x= dt_transformAdstock[, set_mediaVarName, with=F], y= mediaAdstockFactorPlot))
+        dt_transformSaturationSpendReverse <- copy(dt_transformAdstock)
+        
+        for (i in 1:length(set_mediaVarName)) {
+          chn <- set_mediaVarName[i]
+          if (chn %in% set_mediaVarName[costSelector]) {
+            Vmax <- modNLSCollect[channel == chn, Vmax]
+            Km <- modNLSCollect[channel == chn, Km]
+            dt_transformSaturationSpendReverse[, (chn):=.SD * Km / (Vmax - .SD), .SDcols = chn] # reach to spend, reverse Michaelis Menthen: x = y*Km/(Vmax-y)
+          } else if (chn %in% chnl_non_spend) {
+            coef_lm <- modNLSCollect[channel == chn, coef_lm]
+            dt_transformSaturationSpendReverse[, (chn):= .SD/coef_lm, .SDcols = chn] 
+          } 
+          # spendRatioFitted <- decompSpendDist[rn == chn, mean(total_spend)] / dt_transformSaturationSpendReverse[, sum(.SD), .SDcols = chn]
+          # dt_transformSaturationSpendReverse[, (chn):= .SD * spendRatioFitted, .SDcols = chn]
+        }
+        
+        dt_scurvePlot <- cbind(melt.data.table(dt_transformSaturationDecomp, id.vars = "ds", variable.name = "channel",value.name = "response"),
+                               melt.data.table(dt_transformSaturationSpendReverse, id.vars = "ds", value.name = "spend")[, .(spend)]) 
+        
+        
+        dt_scurvePlotMean <- dt_transformSpend[, !"ds"][, lapply(.SD, mean), .SDcols = set_mediaVarName]
+        dt_scurvePlotMean <- melt.data.table(dt_scurvePlotMean, measure.vars = set_mediaVarName, value.name = "mean_spend", variable.name = "channel")
+        dt_scurvePlotMean[, ':='(mean_response=0, next_dollar_response=0)]
+        
+        for (med in 1:length(set_mediaVarName)) {
+          m <- dt_transformSaturationSpendReverse[, get(set_mediaVarName[med])]
+          alpha <- hypParam[which(paste0(set_mediaVarName[med], "_alphas")==names(hypParam))]
+          gamma <- hypParam[which(paste0(set_mediaVarName[med], "_gammas")==names(hypParam))]
+          gammaTrans <- round(quantile(seq(range(m)[1], range(m)[2], length.out = 100), gamma),4)
+          get_spend <- dt_scurvePlotMean[channel == set_mediaVarName[med], mean_spend]
+          get_response <-  get_spend**alpha / (get_spend**alpha + gammaTrans**alpha)
+          get_response_marginal <- (get_spend+1)**alpha / ((get_spend+1)**alpha + gammaTrans**alpha)
+          coef <- plotWaterfallLoop[rn == set_mediaVarName[med], coef]
+          dt_scurvePlotMean[channel == set_mediaVarName[med], mean_response := get_response * coef]
+          dt_scurvePlotMean[channel == set_mediaVarName[med], next_dollar_response := get_response_marginal * coef - mean_response]
+          
+        }
+
+
+        p4 <- ggplot(data= dt_scurvePlot, aes(x=spend, y=response, color = channel)) +
+          geom_line() +
+          geom_point(data = dt_scurvePlotMean, aes(x=mean_spend, y=mean_response, color = channel)) +
+          geom_text(data = dt_scurvePlotMean, aes(x=mean_spend, y=mean_response,  label = round(mean_spend,0)), show.legend = F, hjust = -0.2)+
+          theme(legend.position = c(0.9, 0.2)) +
+          labs(title="Response curve and mean spend by channel"
+               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+                                  ", nrmse = ", nrmse_plot, 
+                                  ", decomp.rssd = ", decomp_rssd_plot)
+               ,x="Spend" ,y="response")
+
+        
+        
         modID <- paste0("Model selection pareto front ", i,", ID: ", uniqueSol[j])
         
         #png(paste0(plot_folder, "/", plot_folder_sub,"/", uniqueSol[j], ".png"))
-        pg <- grid.arrange(p1,p2,p3, ncol=2, top = text_grob(modID, size = 15, face = "bold") )
+        pg <- grid.arrange(p1,p2,p3, p4, ncol=2, top = text_grob(modID, size = 15, face = "bold") )
         #dev.off()
         ggsave(filename=paste0(plot_folder, "/", plot_folder_sub,"/", uniqueSol[j],".png")
                , plot = pg
@@ -1409,9 +1512,6 @@ f.mmmRobyn <- function(set_hyperBoundLocal
                           ,set_iter = 1
                           ,set_cores = 1
                           ,optimizer_name = optimizer_name
-                          # ,epochN = 1 # set to Inf to auto-optimise until no optimum found
-                          # ,optim.sensitivity = 0 # must be from -1 to 1. Higher sensitivity means finding optimum easier
-                          # ,temp.csv.path = './mmm.tempout.csv' # output optimisation result for each epoch. Use getwd() to find path
     )
     
     print(model_output_fixed$resultCollect$xDecompAgg)
