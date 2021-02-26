@@ -26,10 +26,14 @@ module.exports = {
       },
       items: [
         {
-          to: 'docs/doc11',
-          activeBasePath: 'docs',
-          label: 'About Robyn',
-          position: 'right',
+          to: 'docs/',
+          label: 'Docs',
+          position: 'left',
+        },
+        {
+          to: 'docs/about',
+          label: 'About',
+          position: 'left',
         },
         // Please keep GitHub link to the right for consistency.
         {
@@ -80,8 +84,6 @@ module.exports = {
       '@docusaurus/preset-classic',
       {
         docs: {
-          // It is recommended to set document id as docs home page (`docs/` path).
-          homePageId: 'doc2',
           sidebarPath: require.resolve('./sidebars.js'),
           // Please change this to your repo.
           editUrl: 'https://github.com/facebookexperimental/Robyn',

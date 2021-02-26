@@ -1,5 +1,5 @@
 ---
-id: doc12
+id: step-by-step-guide
 title: Step-by-step guide
 ---
 

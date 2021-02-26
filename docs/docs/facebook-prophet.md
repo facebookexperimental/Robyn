@@ -1,5 +1,5 @@
 ---
-id: doc6
+id: facebook-prophet
 title: Facebook Prophet - Trend, Seasonality and Holiday Effects
 ---
 

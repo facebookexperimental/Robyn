@@ -1,5 +1,5 @@
 ---
-id: doc3
+id: quick-start
 title: Quick Start
 ---
 

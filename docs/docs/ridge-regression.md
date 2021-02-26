@@ -1,5 +1,5 @@
 ---
-id: doc4
+id: ridge-regression
 title: Ridge Regression
 ---
 

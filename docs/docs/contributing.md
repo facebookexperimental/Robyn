@@ -1,5 +1,5 @@
 ---
-id: doc10
+id: contributing
 title: Getting help and contributing
 ---
 

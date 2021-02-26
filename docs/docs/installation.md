@@ -1,8 +1,7 @@
 ---
-id: doc2
+id: installation
 title: Installation
-hide_title: false
-hide_table_of_contents: false
+slug: /
 ---
 
 It is necessary to have R installed in order to be able to run this code. R is a

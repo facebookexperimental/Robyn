@@ -1,5 +1,5 @@
 ---
-id: doc7
+id: automated-hyperparameter-selection-optimization
 title: Automated hyperparameter selection and optimization
 ---
 

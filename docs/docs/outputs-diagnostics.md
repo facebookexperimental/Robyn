@@ -1,5 +1,5 @@
 ---
-id: doc9
+id: outputs-diagnostics
 title: Outputs and diagnostics
 ---
 
