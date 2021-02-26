@@ -35,12 +35,12 @@ Script execution details please see comments in scripts
 
 ## Join the FB NextGen MMM community
 
-###### FB Contact
+## FB Contact
 
-gufeng@fb.com, Gufeng Zhou, Marketing Science Partner leonelsentana@fb.com,
-Leonel Sentana, Marketing Science Partner aprada@fb.com, Antonio Prada,
-Marketing Science Partner igorskokan@fb.com, Igor Skokan, Marketing Science
-Partner
+- gufeng@fb.com, Gufeng Zhou, Marketing Science Partner
+- leonelsentana@fb.com, Leonel Sentana, Marketing Science Partner
+- aprada@fb.com, Antonio Prada, Marketing Science Partner
+- igorskokan@fb.com, Igor Skokan, Marketing Science Partner
 
 See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
 
