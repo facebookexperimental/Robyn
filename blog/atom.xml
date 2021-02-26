@@ -2,30 +2,9 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://facebookexperimental.github.io/Robyn/blog</id>
     <title>Robyn Blog</title>
-    <updated>2019-05-30T00:00:00.000Z</updated>
+    <updated>2015-10-25T23:29:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://facebookexperimental.github.io/Robyn/blog"/>
     <subtitle>Robyn Blog</subtitle>
     <icon>https://facebookexperimental.github.io/Robyn/img/robyn_logo.png</icon>
-    <entry>
-        <title type="html"><![CDATA[Welcome]]></title>
-        <id>Welcome</id>
-        <link href="https://facebookexperimental.github.io/Robyn/Robyn/blog/2019/05/30/welcome"/>
-        <updated>2019-05-30T00:00:00.000Z</updated>
-        <summary type="html"><![CDATA[Blog features are powered by the blog plugin. Simply add files to the blog directory. It supports tags as well!]]></summary>
-    </entry>
-    <entry>
-        <title type="html"><![CDATA[Hello]]></title>
-        <id>Hello</id>
-        <link href="https://facebookexperimental.github.io/Robyn/Robyn/blog/2019/05/29/hello-world"/>
-        <updated>2019-05-29T00:00:00.000Z</updated>
-        <summary type="html"><![CDATA[Welcome to this blog. This blog is created with Docusaurus 2 alpha.]]></summary>
-    </entry>
-    <entry>
-        <title type="html"><![CDATA[Hola]]></title>
-        <id>Hola</id>
-        <link href="https://facebookexperimental.github.io/Robyn/Robyn/blog/2019/05/28/hola"/>
-        <updated>2019-05-28T00:00:00.000Z</updated>
-        <summary type="html"><![CDATA[Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque elementum dignissim ultricies. Fusce rhoncus ipsum tempor eros aliquam consequat. Lorem ipsum dolor sit amet]]></summary>
-    </entry>
 </feed>
