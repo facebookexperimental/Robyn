@@ -43,7 +43,7 @@ f.checkConditions <- function(dt_transform) {
   if((adstock %in% c("geometric", "weibull")) == F) {stop("adstock must be 'geometric' or 'weibull'")}
   
   num_hp_channel <- ifelse(adstock == "geometric", 3, 4)
-  if( all(str_detect(names(set_hyperBoundLocal) ,paste0(local_name, collapse = "|")))==F & length(unique(names(set_hyperBoundLocal))) != length(set_mediaVarName)*num_hp_channel) {
+  if( all(str_detect(names(set_hyperBoundLocal) ,paste0(local_name, collapse = "|")))==F | length(unique(names(set_hyperBoundLocal))) != length(set_mediaVarName)*num_hp_channel) {
     local_names <- f.getHyperNames()
     stop("set_hyperBoundLocal has incorrect hyperparameters. names of hyperparameters must be: \n", paste(local_names, collapse = ", "))
   }
@@ -1181,40 +1181,41 @@ f.mmm <- function(...
 #####################################
 #### Define best model parameter collection function
 
-f.getOptimParRS <- function(model_output, kurt.tuner = 0) {
-  return(f.plotHyperBoundOptim(F, channelPlot = NULL, model_output = model_output, kurt.tuner = kurt.tuner))
-}
+# f.getOptimParRS <- function(model_output, kurt.tuner = 0) {
+#   return(f.plotHyperBoundOptim(F, channelPlot = NULL, model_output = model_output, kurt.tuner = kurt.tuner))
+# }
 
 
-f.mmmRobyn <- function(set_hyperBoundLocal
+f.robyn <- function(set_hyperBoundLocal
                        ,optimizer_name = set_hyperOptimAlgo
-                       ,ng_trial = set_trial # ng_trial <- 3
+                       ,set_trial = set_trial # set_trial <- 3
                        ,set_cores = set_cores
                        ,plot_folder = "~/Documents/GitHub/plots") {
   
   t0 <- Sys.time()
+  #####################################
+  #### Run f.mmm on set_trials
+
   hyperparameter_fixed <- all(sapply(set_hyperBoundLocal, length)==1)
   
   if (!hyperparameter_fixed) {
+    
+    ## Run f.mmm on set_trials if hyperparameters are not all fixed
+    
     ng_out <- list()
     ng_algos <- optimizer_name #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
-    #ng_iters <- c(300)
-    
     
     t0 <- Sys.time()
     for (optmz in ng_algos) {
       ng_collect <- list()
       model_output_collect <- list()
-      # for (itrs in ng_iters) {
-      #   set_iter <- itrs
-      #   ng_trials <- list()
-      # loop_trial <- ng_trial[which(ng_iters == itrs)]
-      for (ngt in 1:ng_trial) { 
+
+      for (ngt in 1:set_trial) { 
         
         if (activate_calibration == F) {
-          cat("\nRunning trial nr.", ngt,"out of",ng_trial,"...\n")
+          cat("\nRunning trial nr.", ngt,"out of",set_trial,"...\n")
         } else {
-          cat("\nRunning trial nr.", ngt,"out of",ng_trial,"with calibration...\n")
+          cat("\nRunning trial nr.", ngt,"out of",set_trial,"with calibration...\n")
           
         }
         # rm(model_output)
@@ -1232,23 +1233,35 @@ f.mmmRobyn <- function(set_hyperBoundLocal
       ng_collect <- rbindlist(ng_collect)
       px <- low(ng_collect$nrmse) * low(ng_collect$decomp.rssd)
       ng_collect <- psel(ng_collect, px, top = nrow(ng_collect))[order(trials, nrmse)]
-      # }
-      
       ng_out[[which(ng_algos==optmz)]] <- ng_collect
     }
     ng_out <- rbindlist(ng_out)
     setnames(ng_out, ".level", "manual_pareto")
-    # fwrite(ng_out, './paretoRes.csv')
-    
-    if (!exists("plot_folder_sub")) {
-      plot_folder_sub <- format(Sys.time(), "%Y-%m-%d %H.%M")
-      plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
-    }
 
-    ## plot Pareto front
+  } else {
     
-    resultHypParam <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$resultHypParam[, trials:= x$trials] ))
-    resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    ## Run f.mmm on set_trials if hyperparameters are all fixed
+    model_output_collect <- list()
+    model_output_collect[[1]] <- f.mmm(set_hyperBoundLocal
+                                ,set_iter = 1
+                                ,set_cores = 1
+                                ,optimizer_name = optimizer_name
+    )
+    model_output_collect[[1]]$trials <- 1
+    
+    cat("\n######################\nHyperparameters are all fixed\n######################\n")
+    print(model_output_collect[[1]]$resultCollect$xDecompAgg)
+  }
+    
+  
+  #####################################
+  #### Collect results for plotting
+  
+  ## collect hyperparameter results
+  resultHypParam <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$resultHypParam[, trials:= x$trials]))
+  resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  
+  if (!hyperparameter_fixed) {
     mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = 0.10)
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90)
@@ -1262,12 +1275,46 @@ f.mmmRobyn <- function(set_hyperBoundLocal
     setkey(resultHypParam,solID)
     setkey(resultHypParamPareto,solID)
     resultHypParam <- merge(resultHypParam,resultHypParamPareto[, .(solID, robynPareto)], all.x=TRUE)
+    
+  } else {
+    resultHypParam[, ':='(mape.qt10 = T, robynPareto =1)]
+  }
+  
+  ## collect aggregated decomp results
+  xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
+  xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
+  xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  
+  decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
+  decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
+  decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
+  decompSpendDist[, roi := xDecompAgg/total_spend ]
 
-    num_pareto123 <- resultHypParam[robynPareto %in% c(1,2,3), .N]
+  setkey(xDecompAgg,solID, rn)
+  setkey(decompSpendDist,solID, rn)
+  xDecompAgg <- merge(xDecompAgg,decompSpendDist[, .(rn, solID, total_spend, spend_share, effect_share, roi)], all.x=TRUE)
+
+  
+  #####################################
+  #### Plot results
+  
+  ## set folder to save plat
+    if (!exists("plot_folder_sub")) {
+      plot_folder_sub <- format(Sys.time(), "%Y-%m-%d %H.%M")
+      plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
+    }
+  
+  paretoFronts <- ifelse(!hyperparameter_fixed, 1:3, 1)
+  num_pareto123 <- resultHypParam[robynPareto %in% paretoFronts, .N]
+  cat("\nPlotting", num_pareto123,"pareto optimum models in to folder",paste0(plot_folder, "/", plot_folder_sub,"/"),"...\n")
+  pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+
+  ## plot overview plots
+  
+  if (!hyperparameter_fixed) {
     
-    cat("\nPlotting", num_pareto123,"pareto optimum models in to folder",paste0(plot_folder, "/", plot_folder_sub,"/"),"...\n")
-    pbplot <- txtProgressBar(max = num_pareto123, style = 3)
-    
+    ## plot Pareto front
     
     pParFront <- ggplot(data = resultHypParam, aes(x=nrmse, y=decomp.rssd, color = robynPareto)) +
       geom_point(size = 0.5) +
@@ -1276,8 +1323,8 @@ f.mmmRobyn <- function(set_hyperBoundLocal
       geom_line(data = resultHypParam[robynPareto ==2], aes(x=nrmse, y=decomp.rssd), colour = "coral3")+
       geom_line(data = resultHypParam[robynPareto ==3], aes(x=nrmse, y=decomp.rssd), colour = "coral")+
       scale_colour_gradient(low = "navyblue", high = "skyblue") +
-    labs(title="Model selection",
-           subtitle=paste0("2D Pareto front 1-3 with ",optimizer_name,", iterations = ", set_iter , " * ", ng_trial, " trials"),
+      labs(title="Model selection",
+           subtitle=paste0("2D Pareto front 1-3 with ",optimizer_name,", iterations = ", set_iter , " * ", set_trial, " trials"),
            x="NRMSE",
            y="DECOMP.RSSD")
     
@@ -1295,36 +1342,27 @@ f.mmmRobyn <- function(set_hyperBoundLocal
       geom_point(size = 0.2) +
       theme(legend.position = "none") +
       labs(title="Model selection", 
-           subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", ng_trial, " trials"),
+           subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", set_trial, " trials"),
            x="Hyperparameter space",
            y="")
     print(pSamp)
     ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png")
            , plot = pSamp
            , dpi = 800, width = 12, height = 7)
+  }
+
     
-    
-    ## plot Pareto solutions
-    
-    xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
-    xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
-    xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
-    
-    decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
-    decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
-    decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
-    decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
-    decompSpendDist[, roi := xDecompAgg/total_spend ]
-    
-    
-    paretoFronts <- c(1,2,3)
+    ## plot each Pareto solution
+
     cnt <- 0
+    mediaVecCollect <- list()
+    xDecompVecCollect <- list()
     for (pf in paretoFronts) {
       
-      plotMediaShare <- decompSpendDist[robynPareto == pf]
+      plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% set_mediaVarName]
       plotWaterfall <- xDecompAgg[robynPareto == pf]
-      
       uniqueSol <- plotMediaShare[, unique(solID)]
+      
       for (j in 1:length(uniqueSol)) {
         
         cnt <- cnt+1
@@ -1333,6 +1371,7 @@ f.mmmRobyn <- function(set_hyperBoundLocal
         rsq_test_plot <- plotMediaShareLoop[, round(unique(rsq_test),4)]
         nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse),4)]
         decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd),4)]
+        mape_lift_plot <- ifelse(activate_calibration, plotMediaShareLoop[, round(unique(mape),4)], NA)
         
         plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_test" ), measure.vars = c("spend_share", "effect_share", "roi"))
         plotMediaShareLoop[, rn:= factor(rn, levels = sort(set_mediaVarName))]
@@ -1355,7 +1394,8 @@ f.mmmRobyn <- function(set_hyperBoundLocal
           labs(title = "Share of Spend VS Share of Effect"
                ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
                                   ", nrmse = ", nrmse_plot, 
-                                  ", decomp.rssd = ", decomp_rssd_plot)
+                                  ", decomp.rssd = ", decomp_rssd_plot,
+                                  ", mape.lift = ", mape_lift_plot)
                ,y="", x="")
         
         ## plot waterfall
@@ -1377,7 +1417,8 @@ f.mmmRobyn <- function(set_hyperBoundLocal
                                  labs(title="Response decomposition waterfall by predictor"
                                       ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
                                                          ", nrmse = ", nrmse_plot, 
-                                                         ", decomp.rssd = ", decomp_rssd_plot)
+                                                         ", decomp.rssd = ", decomp_rssd_plot,
+                                                         ", mape.lift = ", mape_lift_plot)
                                       ,x=""
                                       ,y=""))
         
@@ -1389,7 +1430,7 @@ f.mmmRobyn <- function(set_hyperBoundLocal
         dt_transformPlot <- dt_mod[, c("ds", set_mediaVarName), with =F] # independent variables
         dt_transformSpend <- cbind(dt_transformPlot[,.(ds)], dt_input[, c(set_mediaSpendName), with =F]) # spends of indep vars
         setnames(dt_transformSpend, names(dt_transformSpend), c("ds", set_mediaVarName))
-        dt_transformSpendMod <- copy(dt_transformPlot) # prepare dt for 
+        dt_transformSpendMod <- copy(dt_transformPlot) 
         dt_transformAdstock <- copy(dt_transformPlot)
         dt_transformSaturation <- copy(dt_transformPlot)
         chnl_non_spend <- set_mediaVarName[!(set_mediaVarName==set_mediaSpendName)]
@@ -1472,7 +1513,8 @@ f.mmmRobyn <- function(set_hyperBoundLocal
           labs(title = "Average adstock decay rate"
                ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
                                   ", nrmse = ", nrmse_plot, 
-                                  ", decomp.rssd = ", decomp_rssd_plot)
+                                  ", decomp.rssd = ", decomp_rssd_plot,
+                                  ", mape.lift = ", mape_lift_plot)
                ,y="", x="")
         
         
@@ -1499,7 +1541,7 @@ f.mmmRobyn <- function(set_hyperBoundLocal
             coef_lm <- modNLSCollect[channel == chn, coef_lm]
             dt_transformSaturationSpendReverse[, (chn):= .SD/coef_lm, .SDcols = chn] 
           } 
-          # spendRatioFitted <- decompSpendDist[rn == chn, mean(total_spend)] / dt_transformSaturationSpendReverse[, sum(.SD), .SDcols = chn]
+          # spendRatioFitted <- xDecompAgg[rn == chn, mean(total_spend)] / dt_transformSaturationSpendReverse[, sum(.SD), .SDcols = chn]
           # dt_transformSaturationSpendReverse[, (chn):= .SD * spendRatioFitted, .SDcols = chn]
         }
         
@@ -1534,137 +1576,100 @@ f.mmmRobyn <- function(set_hyperBoundLocal
           labs(title="Response curve and mean spend by channel"
                ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
                                   ", nrmse = ", nrmse_plot, 
-                                  ", decomp.rssd = ", decomp_rssd_plot)
+                                  ", decomp.rssd = ", decomp_rssd_plot,
+                                  ", mape.lift = ", mape_lift_plot)
                ,x="Spend" ,y="response")
 
         
+        ## plot fitted vs actual
+        
+        if(activate_prophet) {
+          dt_transformDecomp <- cbind(dt_mod[, c("ds", "depVar", set_prophet, set_baseVarName), with=F], dt_transformSaturation[, set_mediaVarName, with=F])
+          col_order <- c("ds", "depVar", set_prophet, set_baseVarName, set_mediaVarName)
+        } else {
+          dt_transformDecomp <- cbind(dt_mod[, c("ds", "depVar", set_baseVarName), with=F], dt_transformSaturation[, set_mediaVarName, with=F])
+          col_order <- c("ds", "depVar", set_baseVarName, set_mediaVarName)
+        }
+        setcolorder(dt_transformDecomp, neworder = col_order)
+        xDecompVec <- dcast.data.table(xDecompAgg[solID==uniqueSol[j], .(rn, coef, solID)],  solID ~ rn, value.var = "coef")
+        setcolorder(xDecompVec, neworder = c("solID", "(Intercept)",col_order[!(col_order %in% c("ds", "depVar"))]))
+        
+        xDecompVec <- data.table(mapply(function(scurved,coefs) { scurved * coefs}, 
+                                        scurved=dt_transformDecomp[, !c("ds", "depVar"), with=F] , 
+                                        coefs = xDecompVec[, !c("solID", "(Intercept)")]))
+        xDecompVec[, ':='(depVarHat=rowSums(xDecompVec), solID = uniqueSol[j])]
+        xDecompVec <- cbind(dt_transformDecomp[, .(ds, depVar)], xDecompVec)
+        
+        xDecompVecPlot <- xDecompVec[, .(ds, depVar, depVarHat)]
+        setnames(xDecompVecPlot, new = c("ds", "actual", "predicted"))
+        xDecompVecPlotMelted <- melt.data.table(xDecompVecPlot, id.vars = "ds")
+
+        p5 <- ggplot(xDecompVecPlotMelted, aes(x=ds, y = value, color = variable)) +
+          geom_line()+
+          theme(legend.position = c(0.9, 0.9)) +
+          labs(title="Actual vs. predicted response"
+               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+                                  ", nrmse = ", nrmse_plot, 
+                                  ", decomp.rssd = ", decomp_rssd_plot,
+                                  ", mape.lift = ", mape_lift_plot)
+               ,x="Spend" ,y="response")
+        
+        ## plot diagnostic: fitted vs residual
+        
+        p6 <- qplot(x=predicted, y = actual - predicted, data = xDecompVecPlot) +
+          geom_hline(yintercept = 0) +
+          geom_smooth(se = T, method = 'loess', formula = 'y ~ x') + 
+          xlab("fitted") + ylab("resid") + ggtitle("fitted vs. residual")
+        
+        
+        ## save and aggregate one-pager plots
         
         modID <- paste0("Model one-pager, on pareto front ", pf,", ID: ", uniqueSol[j])
 
-        pg <- arrangeGrob(p1,p2,p3, p4, ncol=2, top = text_grob(modID, size = 15, face = "bold"))
-        #grid.draw(pg)
+        pg <- arrangeGrob(p2,p5,p1, p4, p3, p6, ncol=2, top = text_grob(modID, size = 15, face = "bold"))
+        # grid.draw(pg)
         ggsave(filename=paste0(plot_folder, "/", plot_folder_sub,"/", uniqueSol[j],".png")
                , plot = pg
-               , dpi = 900, width = 18, height = 12)
+               , dpi = 900, width = 18, height = 18)
         
         setTxtProgressBar(pbplot, cnt)
         
-      }
-    }
-  } else {
-    
-    model_output_fixed <- f.mmm(set_hyperBoundLocal
-                          ,set_iter = 1
-                          ,set_cores = 1
-                          ,optimizer_name = optimizer_name
-    )
-    
-    print(model_output_fixed$resultCollect$xDecompAgg)
-  }
-  
+        ## prepare output
+        
+        
+        mediaVecCollect[[cnt]] <- rbind(dt_transformPlot[, ':='(type="rawMedia", solID=uniqueSol[j])]
+                                        ,dt_transformSpend[, ':='(type="rawSpend", solID=uniqueSol[j])]
+                                        ,dt_transformSpendMod[, ':='(type="predictedReach", solID=uniqueSol[j])]
+                                        ,dt_transformAdstock[, ':='(type="adstockedMedia", solID=uniqueSol[j])]
+                                        ,dt_transformSaturation[, ':='(type="saturatedMedia", solID=uniqueSol[j])]
+                                        ,dt_transformSaturationSpendReverse[, ':='(type="saturatedSpendReversed", solID=uniqueSol[j])]
+                                        ,dt_transformSaturationDecomp[, ':='(type="decompMedia", solID=uniqueSol[j])])
+        
+        xDecompVecCollect[[cnt]] <- xDecompVec
+      } # end solution loop
+    } # end pareto front loop
+    mediaVecCollect <- rbindlist(mediaVecCollect)
+    xDecompVecCollect <- rbindlist(xDecompVecCollect)
+
   cat("\nTotal time: ",difftime(Sys.time(),t0, units = "mins"), "mins\n")
   
-  return(list(resultHypParam=resultHypParam,
-              xDecompAgg=xDecompAgg,
-              resultHypParam=resultHypParam,
-              model_output_fixed=if(exists("model_output_fixed")) {model_output_fixed} else {NULL}))
+  #####################################
+  #### Collect results for output
   
+  allSolutions <- xDecompVecCollect[, unique(solID)]
   
-  # for (its in ng_iters) {
-  #   loop_trial <- ng_trial[which(ng_iters == its)]
-  # for (los in c("nrmse", "decomp.rssd")) {
-  # 
-  #   ng_out_plot <- copy(ng_out)
-  #   ng_out_med <- ng_out_plot[, .SD, .SDcols = c(los, "ng_optmz")]
-  #   setnames(ng_out_plot, los, "loss"); setnames(ng_out_med, los, "loss")
-  #   ng_out_med <- ng_out_med[, .(xMaxDen= density(loss)$x[which.max(density(loss)$y)],
-  #                                yMaxDen= which.max(density(loss)$y)), by = "ng_optmz"]
-  # 
-  # 
-  #   # print(ggplot(data = ng_out_plot) +
-  #   #         stat_density(geom = "line", aes(x=loss), adjust = 1) +
-  #   #         facet_wrap(~ng_optmz, scales = "free") +
-  #   #         labs(title="Nevergrad performance",
-  #   #              subtitle=paste0("loss = ", los, ", iterations = ", set_iter , " * ", ng_trial, " trials"),
-  #   #              x=toupper(los),
-  #   #              y="Density")+
-  #   #         xlim(0, 1) +
-  #   #         geom_vline(data= ng_out_med, mapping = aes(xintercept = xMaxDen), colour="blue")+
-  #   #         geom_text(data = ng_out_med, aes(x = xMaxDen, y = 0, angle = 90, vjust = -0.5, hjust= -1, label = paste0("mode: ",round(xMaxDen,4))), colour="blue")
-  #   # )
-  # }
-  # #}
-  # 
-  # #png(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png"))
-  # # print(ggplot(data = ng_out, aes(x=nrmse, y=decomp.rssd,  color = ng_optmz)) +
-  # #         geom_point(size = 0.5) +
-  # #         stat_smooth(data = ng_out, method = 'gam', formula = y ~ s(x, bs = "cs"), size = 0.2, fill = "grey100", linetype="dashed")+
-  # #         geom_line(data = ng_out[ manual_pareto ==1])+
-  # #         labs(title="Nevergrad performance",
-  # #              subtitle=paste0("2D Pareto front, iterations = ", set_iter , " * ", ng_trial, " trials"),
-  # #              x="NRMSE",
-  # #              y="DECOMP.RSSD")
-  # # )
-  # #dev.off()
-  # 
-  # 
-  # # get hyperparameters for Nevergrad
-  # get_plot_name <- names(ng_out_plot)[str_detect(names(ng_out_plot), paste(set_mediaVarName, collapse = "|"))]
-  # ng_out_plot_melted <- melt.data.table(ng_out_plot[, c(get_plot_name, "trials", "iters", "ng_optmz", "manual_pareto"), with = F], id.vars = c("trials", "iters", "ng_optmz", "manual_pareto"))
-  # 
-  # print(ggplot(data = ng_out_plot_melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
-  #         geom_violin(alpha = .5, size = 0) +
-  #         geom_point(size = 0.2) +
-  #         facet_wrap(~ng_optmz, scales = "free") +
-  #         theme(legend.position = "none") +
-  #         labs(title="Nevergrad performance", 
-  #              subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", ng_trial, " trials"),
-  #              x="Hyperparameter space",
-  #              y="")+
-  #         xlim(0, 1))
-  # ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png"), dpi = 800, width = 12, height = 7)
-  # 
-  # #}
-  # 
-  # difftime(Sys.time(),t0, units = "mins")
-  # 
-  # ## get result stats
-  # ng_out_pareto1 <- ng_out[manual_pareto==1]
-  # numRep <- nrow(ng_out_pareto1)
-  # NGBounds <- model_output$hyperBoundNG
-  # NGLocalName <- names(model_output$hyperBoundNG)
-  # 
-  # hypparCollect <- list()
-  # for (i in 1:numRep) {
-  #   hypparCollectLoop <- c()
-  #   for (j in 1:length(NGLocalName)) {
-  #     channelBound <- unlist(NGBounds[NGLocalName[j]])
-  #     hyppar_for_qunif <- unlist(ng_out_pareto1[i, NGLocalName[j], with =F])
-  #     hypparCollectLoop[j] <- qunif(hyppar_for_qunif, min(channelBound), max(channelBound))
-  #   }
-  #   hypparCollect[[i]] <- transpose(data.table(hypparCollectLoop))
-  # }
-  # dt_hyperResult <- rbindlist(hypparCollect)
-  # setnames(dt_hyperResult, names(dt_hyperResult), NGLocalName)
-  # 
-  # # combine fixed hyperparameters
-  # fixedLocalName <- names(model_output$hyperBoundFixed)
-  # numCol <- length(fixedLocalName)
-  # #getFixedLocalHyperWhich <- which(sapply(set_hyperBoundLocal, length)==1)
-  # 
-  # if (numCol!=0) {
-  #   fixedLocalBounds <- model_output$hyperBoundFixed
-  #   dt_fixedLocalBounds <- as.data.table(matrix(unlist(rep(fixedLocalBounds, numRep)), nrow = numRep, ncol = numCol, byrow = T))
-  #   setnames(dt_fixedLocalBounds, names(dt_fixedLocalBounds), fixedLocalName)
-  #   dt_hyperResult <- cbind(dt_hyperResult, dt_fixedLocalBounds)
-  # }
-  # 
-  # setcolorder(dt_hyperResult, c(local_name))
-  # 
-  # model_output_pareto <- f.mmm(set_hyperBoundLocal, fixed.out = T)
-  # model_output_pareto$resultCollect$decompSpendDist
-  # model_output_pareto$resultCollect$resultHypParam[, .(nrmse, decomp.rssd, iterPar, iterNG)]
-  # ng_out[manual_pareto==1, .(manual_pareto, nrmse, decomp.rssd)][order(nrmse)]
+  fwrite(resultHypParam[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_hyperparameters.csv"))
+  fwrite(xDecompAgg[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_aggregated.csv"))
+  fwrite(mediaVecCollect, paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_media_transform_matrix.csv"))
+  fwrite(xDecompVecCollect, paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_alldecomp_matrix.csv"))
+  
+  return(list(resultHypParam=resultHypParam[solID %in% allSolutions],
+              xDecompAgg=xDecompAgg[solID %in% allSolutions],
+              mediaVecCollect=mediaVecCollect,
+              xDecompVecCollect=xDecompVecCollect,
+              model_output_collect=model_output_collect,
+              allSolutions = allSolutions,
+              folder_path= paste0(plot_folder, "/", plot_folder_sub,"/")))
   
   
 }

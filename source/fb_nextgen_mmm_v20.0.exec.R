@@ -32,7 +32,7 @@ library(prophet) # version 0.5
 library(ggplot2) # version 3.3.0
 library(gridExtra) # version 2.3
 library(grid)
-library(ggpubr)
+#library(ggpubr)
 library(see) # version 0.5.0
 library(PerformanceAnalytics) # version 2.0.4
 library(nloptr) # version 1.2.1
@@ -88,10 +88,10 @@ set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to tes
 
 ## set model core features/
 adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 500  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+set_iter <- 250  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
 
 set_hyperOptimAlgo <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
-set_trial <- 30
+set_trial <- 3
 # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
 # optimizer_name <- "DiscreteOnePlusOne"
 # optimizer_name <- "TwoPointsDE"
@@ -118,41 +118,73 @@ local_name <- f.getHyperNames(); local_name # get hyperparameter names for each 
 
 set_hyperBoundLocal <- list(
   facebook_I_alphas = c(0.5, 3)  # example bounds for digital channels: the larger alpha, the more S-shape for response curve
-  ,facebook_I_gammas = c(0.3, 1) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
-  ,facebook_I_thetas = c(0, 0.3)# example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
-#  ,facebook_I_shapes = c(0.0001, 2)
-#  ,facebook_I_scales = c(0, 0.05)
+ ,facebook_I_gammas = c(0.3, 1) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
+ ,facebook_I_thetas = c(0, 0.3)# example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
+ #,facebook_I_shapes = c(0.0001, 2)
+ #,facebook_I_scales = c(0, 0.05)
   
   ,ooh_S_alphas = c(0.5, 3)  # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
   ,ooh_S_gammas = c(0.3, 1) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
   ,ooh_S_thetas = c(0.1, 0.4) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
-#  ,ooh_S_shapes = c(0.0001, 2)
-#  ,ooh_S_scales = c(0, 0.05) 
+ #,ooh_S_shapes = c(0.0001, 2)
+ #,ooh_S_scales = c(0, 0.05)
   
   ,print_S_alphas = c(0.5, 3) 
   ,print_S_gammas = c(0.3, 1)
-  ,print_S_thetas = c(0.1, 0.4)
-#  ,print_S_shapes = c(0.0001, 2)
-#  ,print_S_scales = c(0, 0.05) 
+ ,print_S_thetas = c(0.1, 0.4)
+ #,print_S_shapes = c(0.0001, 2)
+ #,print_S_scales = c(0, 0.05)
   
   ,tv_S_alphas = c(0.5, 3) 
   ,tv_S_gammas = c(0.3, 1)
   ,tv_S_thetas = c(0.3, 0.8)
-#  ,tv_S_shapes = c(0.0001, 2)
-#  ,tv_S_scales= c(0, 0.05) 
+ #,tv_S_shapes = c(0.0001, 2)
+ #,tv_S_scales= c(0, 0.05)
   
-  ,search_clicks_P_alphas = c(0.5, 3) 
-  ,search_clicks_P_gammas = c(0.3, 1)
-  ,search_clicks_P_thetas = c(0, 0.3)
-#  ,search_clicks_P_shapes = c(0.0001, 2)
-#  ,search_clicks_P_scales = c(0, 0.05) 
+  ,search_clicks_P_alphas = c(0.5) 
+  ,search_clicks_P_gammas = c(0.4)
+  ,search_clicks_P_thetas = c(0.3)
+ #,search_clicks_P_shapes = c(0.0001, 2)
+ #,search_clicks_P_scales = c(0, 0.05)
   
 )
 
+# set_hyperBoundLocal <- list(
+#   facebook_I_alphas = c(0.5)  # example bounds for digital channels: the larger alpha, the more S-shape for response curve
+#   ,facebook_I_gammas = c(0.4) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
+#   ,facebook_I_thetas = c(0.3)# example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
+#   #  ,facebook_I_shapes = c(0.0001, 2)
+#   #  ,facebook_I_scales = c(0, 0.05)
+#   
+#   ,ooh_S_alphas = c(0.5)  # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
+#   ,ooh_S_gammas = c(0.4) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
+#   ,ooh_S_thetas = c(0.3) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
+#   #  ,ooh_S_shapes = c(0.0001, 2)
+#   #  ,ooh_S_scales = c(0, 0.05) 
+#   
+#   ,print_S_alphas = c(0.5) 
+#   ,print_S_gammas = c(0.4)
+#   ,print_S_thetas = c(0.3)
+#   #  ,print_S_shapes = c(0.0001, 2)
+#   #  ,print_S_scales = c(0, 0.05) 
+#   
+#   ,tv_S_alphas = c(0.5) 
+#   ,tv_S_gammas = c(0.3)
+#   ,tv_S_thetas = c(0.3)
+#   #  ,tv_S_shapes = c(0.0001, 2)
+#   #  ,tv_S_scales= c(0, 0.05) 
+#   
+#   ,search_clicks_P_alphas = c(0.5) 
+#   ,search_clicks_P_gammas = c(0.4)
+#   ,search_clicks_P_thetas = c(0.3)
+#   #  ,search_clicks_P_shapes = c(0.0001, 2)
+#   #  ,search_clicks_P_scales = c(0, 0.05) 
+#   
+# )
 ################################################################
 #### define experimental results
 
-activate_calibration <- F # Switch to TRUE to calibrate model. This takes longer as extra validation is required
+activate_calibration <- T # Switch to TRUE to calibrate model. This takes longer as extra validation is required
 set_lift <- data.table(channel = c("facebook_I",  "tv_S", "facebook_I"),
                        liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01")),
                        liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20")),
@@ -168,11 +200,11 @@ dt_mod <- f.inputWrangling()
 # Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
 # In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
 
-model_output_collect <- f.mmmRobyn(set_hyperBoundLocal
-                                   ,optimizer_name = set_hyperOptimAlgo
-                                   ,ng_trial = set_trial
-                                   ,set_cores = set_cores
-                                   ,plot_folder = "~/Documents/GitHub/plots")
+model_output_collect <- f.robyn(set_hyperBoundLocal
+                                ,optimizer_name = set_hyperOptimAlgo
+                                ,set_trial = set_trial
+                                ,set_cores = set_cores
+                                ,plot_folder = "~/Documents/GitHub/plots")
 
 # 
 # best_model <- f.mmmCollect(model_output$optimParRS)
@@ -204,7 +236,7 @@ model_output_collect <- f.mmmRobyn(set_hyperBoundLocal
 ## Please don't interpret optimiser result with intermediate MMM output.
 ## Optimiser result is only interpretable when MMM result is finalised/ hyperparameters are fixed.
 
-optim_result <- f.budgetAllocator(modID = "2_11_6" 
+optim_result <- f.budgetAllocator(modID = "1_34_2"
                                   ,scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
                                   #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
                                   #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
@@ -212,5 +244,4 @@ optim_result <- f.budgetAllocator(modID = "2_11_6"
                                   ,channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5) # not recommended to 'exaggerate' upper bounds. 1.5 means channel budget can increase to 150% of current level
 )
 
-print(optim_result$dt_optimOut)
-f.plotOptimiser(T) # 3 plots of optimiser result: budget re-allocation, ROI comparison & response comparison
+#f.plotOptimiser(F) # 3 plots of optimiser result: budget re-allocation, ROI comparison & response comparison

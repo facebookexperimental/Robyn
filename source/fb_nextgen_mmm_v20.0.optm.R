@@ -20,6 +20,7 @@ f.budgetAllocator <- function(modID = NULL
     stop("must provide modID, the model ID")
   }
   
+  cat("\nRunning budget allocator for model ID", modID, "...\n")
   
   ## check input parameters
   if (any(channel_constr_low <0.01) | any(channel_constr_low >1)) {stop("channel_constr_low must be between 0.01 and 1")}
@@ -336,7 +337,86 @@ f.budgetAllocator <- function(modID = NULL
   )
   
   dt_optimOut[, optmResponseUnitTotalLift:= (optmResponseUnitTotal / initResponseUnitTotal) -1]
+  print(dt_optimOut)
   
+  
+  
+  ## plot allocator results
+  
+  plotDT_total <- copy(dt_optimOut) # plotDT_total <- optim_result$dt_optimOut
+  
+  # ROI comparison plot
+  
+  plotDT_roi <- plotDT_total[, c("channels", "initRoiUnit", "optmRoiUnit")][order(initRoiUnit)]
+  plotDT_roi[, channels:=as.factor(channels)]
+  chn_levels <- plotDT_roi[, as.character(channels)]
+  plotDT_roi[, channels:=factor(channels, levels = chn_levels)]
+  setnames(plotDT_roi, names(plotDT_roi), new = c("channel", "initial roi", "optimised roi"))
+  
+  plotDT_roi <- suppressWarnings(melt.data.table(plotDT_roi, id.vars = "channel", value.name = "roi"))
+  p11 <- ggplot(plotDT_roi, aes(x=channel, y=roi, fill = channel)) +
+          geom_bar(stat = "identity", width = 0.5) +
+          coord_flip() +
+          facet_wrap(~variable, scales = "free") +
+          scale_fill_brewer(palette = "GnBu") +
+          geom_text(aes(label=round(roi,2), hjust=1, fontface = "bold")) +
+          labs(title = "Optimised media mix ROI comparison"
+               ,subtitle = paste0("Total spend increases ", plotDT_total[, round(mean(optmSpendUnitTotalDelta)*100,1)], "%"
+                                  ,"\nTotal response increases ", plotDT_total[, round(mean(optmResponseUnitTotalLift)*100,1)], "% with optimised spend allocation"
+               )
+               ,y="", x="Channels")
+  
+  # Response comparison plot
+  plotDT_resp <- plotDT_total[, c("channels", "initResponseUnit", "optmResponseUnit")][order(initResponseUnit)]
+  plotDT_resp[, channels:=as.factor(channels)]
+  chn_levels <- plotDT_resp[, as.character(channels)]
+  plotDT_resp[, channels:=factor(channels, levels = chn_levels)]
+  setnames(plotDT_resp, names(plotDT_resp), new = c("channel", "initial response / time unit", "optimised response / time unit"))
+  
+  plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
+  p12 <- ggplot(plotDT_resp, aes(x=channel, y=response, fill = channel)) +
+          geom_bar(stat = "identity", width = 0.5) +
+          coord_flip() +
+          facet_wrap(~variable, scales = "free") +
+          scale_fill_brewer(palette = "GnBu") +
+          geom_text(aes(label=round(response,0), hjust=1, fontface = "bold")) +
+          labs(title = "Optimised media mix response comparison"
+               ,subtitle = paste0("Total spend increases ", plotDT_total[, round(mean(optmSpendUnitTotalDelta)*100,1)], "%"
+                                  ,"\nTotal response increases ", plotDT_total[, round(mean(optmResponseUnitTotalLift)*100,1)], "% with optimised spend allocation"
+               )
+               ,y="", x="Channels")
+  
+  # budget share comparison plot
+  plotDT_share <- plotDT_total[, c("channels", "initSpendShare", "optmSpendShareUnit")][order(initSpendShare)]
+  plotDT_share[, channels:=as.factor(channels)]
+  chn_levels <- plotDT_share[, as.character(channels)]
+  plotDT_share[, channels:=factor(channels, levels = chn_levels)]
+  setnames(plotDT_share, names(plotDT_share), new = c("channel", "initial spend share", "optimised spend share"))
+  
+  plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
+  p13 <- ggplot(plotDT_share, aes(x=channel, y=spend_share, fill = channel)) +
+    geom_bar(stat = "identity", width = 0.5) +
+    coord_flip() +
+    facet_wrap(~variable, scales = "free") +
+    scale_fill_brewer(palette = "GnBu") +
+    geom_text(aes(label=paste0(round(spend_share*100,2),"%")), hjust=1, size=2.5,fontface = "bold") +
+    labs(title = "Optimised media mix budget allocation"
+         ,subtitle = paste0("Total spend increases ", plotDT_total[, round(mean(optmSpendUnitTotalDelta)*100,1)], "%"
+                            ,"\nTotal response increases ", plotDT_total[, round(mean(optmResponseUnitTotalLift)*100,1)], "% with optimised spend allocation"
+         )
+         ,y="", x="Channels")
+  
+  grobTitle <- paste0("Budget allocator optimum result for model ID ", modID)
+  
+  pgbl <- arrangeGrob(p11,p12,p13, ncol=2, top = text_grob(grobTitle, size = 15, face = "bold"))
+  grid.draw(pgbl)
+  
+  cat("\nSaving plots to ", paste0(model_output_collect$folder_path, modID,"_reallocated.png"), "...\n")
+  ggsave(filename=paste0(model_output_collect$folder_path, modID,"_reallocated.png")
+         , plot = pgbl
+         , dpi = 600, width = 18, height = 12)
+  
+  fwrite(dt_optimOut, paste0(model_output_collect$folder_path, modID,"_reallocated.csv"))
   return(list(dt_optimOut=dt_optimOut, nlsMod=nlsMod))
 }
 
