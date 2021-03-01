@@ -35,9 +35,9 @@ f.checkConditions <- function(dt_transform) {
     if ((min(set_lift$liftStartDate) < min(dt_transform$ds)) | (max(set_lift$liftEndDate) >  (max(dt_transform$ds) + dayInterval-1))) {
       stop("we recommend you to only use lift results conducted within your MMM input data date range")
     }
-    if (set_iter < 500 | set_trial < 30) {message("you are calibrating MMM. we recommend to run at least 500 iterations per trial and at least 60 trials at the beginning")}
+    if (set_iter < 500 | set_trial < 30) {message("you are calibrating MMM. we recommend to run at least 500 iterations per trial and at least 80 trials at the beginning")}
   } else {
-    if (set_iter < 500 | set_trial < 30) {message("we recommend to run at least 500 iterations per trial and at least 30 trials at the beginning")}
+    if (set_iter < 500 | set_trial < 30) {message("we recommend to run at least 500 iterations per trial and at least 40 trials at the beginning")}
   }
   
   if((adstock %in% c("geometric", "weibull")) == F) {stop("adstock must be 'geometric' or 'weibull'")}
@@ -106,6 +106,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   mediaCostFactor <- unlist(dt_input[, lapply(.SD, sum), .SDcols = set_mediaSpendName] / dt_input[, lapply(.SD, sum), .SDcols = set_mediaVarName])
   names(mediaCostFactor) <- set_mediaVarName
   costSelector <- !(set_mediaSpendName == set_mediaVarName)
+  names(costSelector) <- set_mediaVarName
   
   if (any(costSelector)) {
     modNLSCollect <- list()
@@ -676,7 +677,7 @@ f.mmm <- function(...
   
   # Create and define r-reticulate conda environment to use
   # conda_create("r-reticulate")
-  #use_condaenv("r-reticulate")
+  # use_condaenv("r-reticulate")
   
   # Install nevergrad package within conda:
   # conda_install("r-reticulate", "nevergrad", pip=TRUE)
@@ -1331,7 +1332,7 @@ f.robyn <- function(set_hyperBoundLocal
     print(pParFront)
     ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png")
            , plot = pParFront
-           , dpi = 800, width = 12, height = 7)
+           , dpi = 600, width = 12, height = 7)
     
     ## plot hyperparameter sampling distribution
     
@@ -1348,7 +1349,7 @@ f.robyn <- function(set_hyperBoundLocal
     print(pSamp)
     ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png")
            , plot = pSamp
-           , dpi = 800, width = 12, height = 7)
+           , dpi = 600, width = 12, height = 7)
   }
 
     
@@ -1357,6 +1358,7 @@ f.robyn <- function(set_hyperBoundLocal
     cnt <- 0
     mediaVecCollect <- list()
     xDecompVecCollect <- list()
+    meanResponseCollect <- list()
     for (pf in paretoFronts) {
       
       plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% set_mediaVarName]
@@ -1377,6 +1379,7 @@ f.robyn <- function(set_hyperBoundLocal
         plotMediaShareLoop[, rn:= factor(rn, levels = sort(set_mediaVarName))]
         plotMediaShareLoopBar <- plotMediaShareLoop[variable %in% c("spend_share", "effect_share")]
         plotMediaShareLoopLine <- plotMediaShareLoop[variable =="roi"]
+        plotMediaShareLoopLine[, variable:= "total roi"]
         ySecScale <- max(plotMediaShareLoopLine$value)/max(plotMediaShareLoopBar$value)*1.1
         
         p1 <- ggplot(plotMediaShareLoopBar, aes(x=rn, y=value, fill = variable)) +
@@ -1551,7 +1554,7 @@ f.robyn <- function(set_hyperBoundLocal
         
         dt_scurvePlotMean <- dt_transformSpend[, !"ds"][, lapply(.SD, mean), .SDcols = set_mediaVarName]
         dt_scurvePlotMean <- melt.data.table(dt_scurvePlotMean, measure.vars = set_mediaVarName, value.name = "mean_spend", variable.name = "channel")
-        dt_scurvePlotMean[, ':='(mean_response=0, next_dollar_response=0)]
+        dt_scurvePlotMean[, ':='(mean_response=0, next_unit_response=0)]
         
         for (med in 1:length(set_mediaVarName)) {
           m <- dt_transformSaturationSpendReverse[, get(set_mediaVarName[med])]
@@ -1563,10 +1566,10 @@ f.robyn <- function(set_hyperBoundLocal
           get_response_marginal <- (get_spend+1)**alpha / ((get_spend+1)**alpha + gammaTrans**alpha)
           coef <- plotWaterfallLoop[rn == set_mediaVarName[med], coef]
           dt_scurvePlotMean[channel == set_mediaVarName[med], mean_response := get_response * coef]
-          dt_scurvePlotMean[channel == set_mediaVarName[med], next_dollar_response := get_response_marginal * coef - mean_response]
+          dt_scurvePlotMean[channel == set_mediaVarName[med], next_unit_response := get_response_marginal * coef - mean_response]
           
         }
-
+        dt_scurvePlotMean[, solID:= uniqueSol[j]]
 
         p4 <- ggplot(data= dt_scurvePlot, aes(x=spend, y=response, color = channel)) +
           geom_line() +
@@ -1579,7 +1582,6 @@ f.robyn <- function(set_hyperBoundLocal
                                   ", decomp.rssd = ", decomp_rssd_plot,
                                   ", mape.lift = ", mape_lift_plot)
                ,x="Spend" ,y="response")
-
         
         ## plot fitted vs actual
         
@@ -1630,7 +1632,7 @@ f.robyn <- function(set_hyperBoundLocal
         # grid.draw(pg)
         ggsave(filename=paste0(plot_folder, "/", plot_folder_sub,"/", uniqueSol[j],".png")
                , plot = pg
-               , dpi = 900, width = 18, height = 18)
+               , dpi = 600, width = 18, height = 18)
         
         setTxtProgressBar(pbplot, cnt)
         
@@ -1646,10 +1648,18 @@ f.robyn <- function(set_hyperBoundLocal
                                         ,dt_transformSaturationDecomp[, ':='(type="decompMedia", solID=uniqueSol[j])])
         
         xDecompVecCollect[[cnt]] <- xDecompVec
+        meanResponseCollect[[cnt]] <- dt_scurvePlotMean
+        
       } # end solution loop
     } # end pareto front loop
     mediaVecCollect <- rbindlist(mediaVecCollect)
     xDecompVecCollect <- rbindlist(xDecompVecCollect)
+    meanResponseCollect <- rbindlist(meanResponseCollect)
+    
+    setnames(meanResponseCollect, old = "channel", new = "rn")
+    setkey(meanResponseCollect, solID, rn)
+    xDecompAgg <- merge(xDecompAgg,meanResponseCollect[, .(rn, solID, mean_spend, mean_response, next_unit_response)], all.x=TRUE)
+    
 
   cat("\nTotal time: ",difftime(Sys.time(),t0, units = "mins"), "mins\n")
   
