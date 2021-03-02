@@ -2,7 +2,7 @@
 
 2021-03-03
 
-###### How To Start
+## How To Start
 
 There are three .R script files:
 
@@ -26,7 +26,7 @@ Test run:
 After installing all libraries, if you select all and run in
 fb_robyn.exec.R, the script should run through and save some plots on your selected folder
 
-## Usage guidelines
+## Usage Guidelines
 - Latest script usage guideline: Please see comments in scripts within the source code in fb_robyn.exec.R 
 - Guidelines on the website to be updated soon: https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide
 
@@ -45,5 +45,5 @@ See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
 
 FB Robyn MMM R script is MIT licensed, as found in the LICENSE file.
 
-Terms of Use - https://opensource.facebook.com/legal/terms Privacy Policy -
-https://opensource.facebook.com/legal/privacy
+- Terms of Use - https://opensource.facebook.com/legal/terms 
+- Privacy Policy - https://opensource.facebook.com/legal/privacy
