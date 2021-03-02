@@ -1,20 +1,15 @@
-# FB NextGen MMM beta R script, v19
+# Robyn MMM Open Source Project
 
-2020-04-29
+2021-03-03
 
 ###### How To Start
 
-The following files are contained in the zip:
+There are three .R script files:
 
-Four .R script files:
-
-- fb_nextgen_mmm_v19.exec.R # you only need this script to execute, it calls the
-  other 3 scripts
-- fb_nextgen_mmm_v19.func.R # this contains all major functions and data
-  preparation
-- fb_nextgen_mmm_v19.plot.R # this contains all plot functions
-- fb_nextgen_mmm_v19.bayes.R # this contains adapted functions from the library
-  parBayesianOptimization
+- fb_robyn.exec.R # you only need this script to execute, it calls the
+  other 2 scripts
+- fb_robyn.func.R # this contains feature engineering, modelling functions and plotting
+- fb_robyn.optm.R # this contains the budget allocator and plotting
 
 Two .csv files:
 
@@ -25,15 +20,17 @@ Two .csv files:
 All files should be placed in the same folder
 
 Please make sure you've installed all library specified in
-fb_nextgen_mmm_v19.exec.R first
+fb_robyn.exec.R first
 
-Initial setting is running 1000 random search trails with geometric adstockinng.
+Test run:
 After installing all libraries, if you select all and run in
-fb_nextgen_mmm_v19.exec.R, the script should run and produce one plot
+fb_robyn.exec.R, the script should run through and save some plots on your selected folder
 
-Script execution details please see comments in scripts
+## Usage guidelines
+- Latest script usage guideline: Please see comments in scripts within the source code in fb_robyn.exec.R 
+- Guidelines on the website to be updated soon: https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide
 
-## Join the FB NextGen MMM community
+## Join the FB Robyn MMM community. **Coming soon**
 
 ## FB Contact
 
@@ -46,7 +43,7 @@ See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
 
 ## License
 
-FB NextGen MMM R script is MIT licensed, as found in the LICENSE file.
+FB Robyn MMM R script is MIT licensed, as found in the LICENSE file.
 
 Terms of Use - https://opensource.facebook.com/legal/terms Privacy Policy -
 https://opensource.facebook.com/legal/privacy
