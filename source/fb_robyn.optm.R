@@ -159,7 +159,7 @@ f.budgetAllocator <- function(modID = NULL
             }
             
             # adstock scales
-            xAdstocked <- xScaled* adstockMultiplier
+            xAdstocked <- xScaled#* adstockMultiplier
             
             # hill transformation
             #xOut <- coeff * sum( (1 + gammaTran**alpha / (x/costMultiplier*adstockMultiplier) **alpha)**-1) 
@@ -180,8 +180,10 @@ f.budgetAllocator <- function(modID = NULL
             # apply Michaelis Menten model to scale spend to reach
             if (criteria) {
               xScaled <- vmax * x / (km + x)
+            } else if (chnName %in% modNLSCollect$channel) {
+              xScaled <- x * modNLSCollect[channel == chnName, coef_lm]
             } else {
-              xScaled <- x
+              xScaled <- x 
             }
             
             # adstock scales
@@ -206,8 +208,10 @@ f.budgetAllocator <- function(modID = NULL
             # apply Michaelis Menten model to scale spend to reach
             if (criteria) {
               xScaled <- vmax * x / (km + x)
+            } else if (chnName %in% modNLSCollect$channel) {
+              xScaled <- x * modNLSCollect[channel == chnName, coef_lm]
             } else {
-              xScaled <- x
+              xScaled <- x 
             }
             
             # adstock scales
