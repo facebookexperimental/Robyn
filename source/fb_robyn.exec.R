@@ -40,7 +40,7 @@ library(rPref)
 library(reticulate)
 
 ## please see https://rstudio.github.io/reticulate/index.html for info on installing reticulate
-# conda_create("r-reticulate") 
+# conda_create("r-reticulate") # must run this line once
 # conda_install("r-reticulate", "nevergrad", pip=TRUE)  #  must install nevergrad in conda before running Robyn
 use_condaenv("r-reticulate") 
 
@@ -50,8 +50,8 @@ script_path <- str_sub(rstudioapi::getActiveDocumentContext()$path, start = 1, e
 dt_input <- fread(paste0(script_path,'de_simulated_data.csv')) # input time series should be daily, weekly or monthly
 dt_holidays <- fread(paste0(script_path,'holidays.csv')) # when using own holidays, please keep the header c("ds", "holiday", "country", "year")
 
-source(paste(script_path, "fb_nextgen_mmm_v20.0.func.R", sep=""))
-source(paste(script_path, "fb_nextgen_mmm_v20.0.optm.R", sep=""))
+source(paste(script_path, "fb_robyn.func.R", sep=""))
+source(paste(script_path, "fb_robyn.optm.R", sep=""))
 
 ################################################################
 #### set model input variables
@@ -91,7 +91,8 @@ adstock <- "geometric" # geometric or weibull. weibull is more flexible, yet has
 set_iter <- 500  # number of allowed iterations per trial. 500 is recommended
 
 set_hyperOptimAlgo <- "DiscreteOnePlusOne" # selected algorithm for Nevergrad, the gradient-free optimisation library https://facebookresearch.github.io/nevergrad/index.html
-set_trial <- 40 # number of allowed iterations per trial. 40 is recommended without calibration, 100 with calibration
+set_trial <- 40 # number of allowed iterations per trial. 40 is recommended without calibration, 100 with calibration.
+## Time estimation: with geometric adstock, 500 iterations * 40 trials and 6 cores, it takes less than 1 hour. Weibull takes at least twice as much time.
 
 ## helper plots: set plot to TRUE for transformation examples
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
