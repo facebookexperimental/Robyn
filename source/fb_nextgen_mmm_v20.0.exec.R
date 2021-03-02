@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################    Facebook MMM Open Source 'Robyn' Beta - V20.0  ######################
-####################                    2020-11-30                     ######################
+####################    Facebook MMM Open Source 'Robyn' Beta - V21.0  ######################
+####################                    2021-03-03                     ######################
 #############################################################################################
 ################################################################
 #### set locale for non English R
@@ -18,34 +18,34 @@
 rm(list=ls()); gc()
 
 ## Please make sure to install all libraries before rurnning the scripts
-library(data.table) # version 1.12.2
-library(stringr) # version 1.4.0
-library(lubridate) # version 1.7.4
-library(doParallel) # version 1.0.15
-#library(doSNOW) # version 1.0.18
-library(foreach) # version 1.4.8
-library(glmnet) # version 2.0.18
-#library(lhs) # version 1.0.1
-library(car) # version 3.0.3
-library(StanHeaders) # version 2.21.0
-library(prophet) # version 0.5
-library(ggplot2) # version 3.3.0
-library(gridExtra) # version 2.3
+library(data.table) 
+library(stringr) 
+library(lubridate) 
+library(doParallel) 
+library(foreach) 
+library(glmnet) 
+library(car) 
+library(StanHeaders)
+library(prophet)
+library(ggplot2)
+library(gridExtra)
 library(grid)
 library(ggpubr)
-library(see) # version 0.5.0
-library(PerformanceAnalytics) # version 2.0.4
-library(nloptr) # version 1.2.1
-library(minpack.lm) # version 1.2
-library(reticulate)
+library(see)
+library(PerformanceAnalytics)
+library(nloptr)
+library(minpack.lm)
 library(rPref)
-use_condaenv("r-reticulate")
-# conda_install("r-reticulate", "nevergrad", pip=TRUE)
+library(reticulate)
+
+## please see https://rstudio.github.io/reticulate/index.html for info on installing reticulate
+# conda_create("r-reticulate") 
+# conda_install("r-reticulate", "nevergrad", pip=TRUE)  #  must install nevergrad in conda before running Robyn
+use_condaenv("r-reticulate") 
 
 ################################################################
 #### load data & scripts
 script_path <- str_sub(rstudioapi::getActiveDocumentContext()$path, start = 1, end = max(unlist(str_locate_all(rstudioapi::getActiveDocumentContext()$path, "/"))))
-# script_path <- ""
 dt_input <- fread(paste0(script_path,'de_simulated_data.csv')) # input time series should be daily, weekly or monthly
 dt_holidays <- fread(paste0(script_path,'holidays.csv')) # when using own holidays, please keep the header c("ds", "holiday", "country", "year")
 
@@ -86,77 +86,75 @@ set_cores <- 6 # I am using 6 cores from 8 on my local machine. Use detectCores(
 f.plotTrainSize(F) # insert TRUE to plot training size guidance. Please balance between higher Bhattacharyya coefficient and sufficient training size
 set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to test the model. Use f.plotTrainSize to get split estimation
 
-## set model core features/
-adstock <- "geometric" # geometric or weibull . weibull is more flexible, yet has one more parameter and thus takes longer
-set_iter <- 250  #50000 # We recommend to run at least 50k iteration at the beginning, when hyperparameter bounds are not optimised
+## set model core features
+adstock <- "geometric" # geometric or weibull. weibull is more flexible, yet has one more parameter and thus takes longer
+set_iter <- 500  # number of allowed iterations per trial. 500 is recommended
 
-set_hyperOptimAlgo <- "DiscreteOnePlusOne"  # Latin Hypercube Sampling
-set_trial <- 3
-# optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
-# optimizer_name <- "DiscreteOnePlusOne"
-# optimizer_name <- "TwoPointsDE"
+set_hyperOptimAlgo <- "DiscreteOnePlusOne" # selected algorithm for Nevergrad, the gradient-free optimisation library https://facebookresearch.github.io/nevergrad/index.html
+set_trial <- 40 # number of allowed iterations per trial. 40 is recommended without calibration, 100 with calibration
 
-# no need to change
+## helper plots: set plot to TRUE for transformation examples
 f.plotAdstockCurves(F) # adstock transformation example plot, helping you understand geometric/theta and weibull/shape/scale transformation
 f.plotResponseCurves(F) # s-curve transformation example plot, helping you understand hill/alpha/gamma transformation
-# set_hyperBoundGlobal <- list(thetas = c(0, 0.3) # geometric decay rate
-#                              ,shapes = c(0.0001, 2) # weibull parameter that controls the decay shape between exponential and s-shape. The larger the shape value, the more S-shape. The smaller, the more L-shape
-#                              ,scales = c(0, 0.05) # weibull parameter that controls the position of inflection point. Be very careful with scale, because moving inflexion point has strong effect to adstock transformation
-#                              ,alphas = c(0.5, 3) # hill function parameter that controls the shape between exponential and s-shape. The larger the alpha, the more S-shape. The smaller, the more C-shape
-#                              ,gammas = c(0.3, 1) # hill function parameter that controls the scale of transformation. The larger the gamma, the later the inflection point in the response curve 
-#                              ,lambdas = c(0, 1)) # regularised regression parameter
-# global_name <- names(set_hyperBoundGlobal)
 
 ################################################################
 #### tune channel hyperparameters bounds
 
-#activate_hyperBoundLocalTuning <- T # change setChannelBounds = T when setting bounds for each media individually
-local_name <- f.getHyperNames(); local_name # get hyperparameter names for each channel. channel bound names must be identical as in local_name
+#### Guidance to set hypereparameter bounds #### 
 
-## channel bounds have to stay within set_hyperBoundGlobal as specified above. Unhide set_hyperBoundLocal below to set channel level bounds
-## each bound can be either a range (e.g c(0.1,0.3)) or one fixed value
+## 1. get correct hyperparameter names: 
+local_name <- f.getHyperNames(); local_name # names in set_hyperBoundLocal must equal names in local_name, case sensitive
 
+## 2. get guidance for setting hyperparameter bounds:
+# For geometric adstock, use theta, alpha & gamma. For weibull adstock, use shape, scale, alpha, gamma
+# theta: In geometric adstock, theta is decay rate. guideline for usual media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
+# shape: In weibull adstock, shape controls the decay shape. Recommended c(0.0001, 2). The larger, the more S-shape. The smaller, the more L-shape
+# scale: In weibull adstock, scale controls the decay inflexion point. Very conservative recommended bounce c(0, 0.1), becausee scale can increase adstocking half-life greaetly
+# alpha: In s-curve transformation with hill function, alpha controls the shape between exponential and s-shape. Recommended c(0.5, 3). The larger the alpha, the more S-shape. The smaller, the more C-shape
+# gamma: In s-curve transformation with hill function, gamma controls the inflexion point. Recommended bounce c(0.3, 1). The larger the gamma, the later the inflection point in the response curve 
+   
+## 3. set each hyperparameter bounds. They either contains two values e.g. c(0, 0.5), or only one value (in which case you've "fixed" that hyperparameter)
 set_hyperBoundLocal <- list(
-  facebook_I_alphas = c(0.5, 3)  # example bounds for digital channels: the larger alpha, the more S-shape for response curve
- ,facebook_I_gammas = c(0.3, 1) # example bounds for digital channels: the smaller gamma, the earlier inflexion point occurs
- ,facebook_I_thetas = c(0, 0.3)# example bounds for digital channels: the smaller theta for geometric adstock, the lower the decay/half-life
- #,facebook_I_shapes = c(0.0001, 2)
- #,facebook_I_scales = c(0, 0.05)
+  facebook_I_alphas = c(0.5, 3) # example bounds for alpha
+ ,facebook_I_gammas = c(0.3, 1) # example bounds for gamma
+ ,facebook_I_thetas = c(0, 0.3) # example bounds for theta
+ #,facebook_I_shapes = c(0.0001, 2) # example bounds for shape
+ #,facebook_I_scales = c(0, 0.1) # example bounds for scale
   
-  ,ooh_S_alphas = c(0.5, 3)  # example bounds for traditional channels: the smaller alpha, the more L-shape for response curve
-  ,ooh_S_gammas = c(0.3, 1) # example bounds for traditional channels: the larger gamma, the later inflexion point occurs
-  ,ooh_S_thetas = c(0.1, 0.4) # example bounds for digital channels: the larger theta for geometric adstock, the higher the decay/half-life
+  ,ooh_S_alphas = c(0.5, 3)
+  ,ooh_S_gammas = c(0.3, 1)
+  ,ooh_S_thetas = c(0.1, 0.4) 
  #,ooh_S_shapes = c(0.0001, 2)
- #,ooh_S_scales = c(0, 0.05)
+ #,ooh_S_scales = c(0, 0.1)
   
   ,print_S_alphas = c(0.5, 3) 
   ,print_S_gammas = c(0.3, 1)
  ,print_S_thetas = c(0.1, 0.4)
  #,print_S_shapes = c(0.0001, 2)
- #,print_S_scales = c(0, 0.05)
+ #,print_S_scales = c(0, 0.1)
   
   ,tv_S_alphas = c(0.5, 3) 
   ,tv_S_gammas = c(0.3, 1)
   ,tv_S_thetas = c(0.3, 0.8)
  #,tv_S_shapes = c(0.0001, 2)
- #,tv_S_scales= c(0, 0.05)
+ #,tv_S_scales= c(0, 0.1)
   
-  ,search_clicks_P_alphas = c(0.5) 
-  ,search_clicks_P_gammas = c(0.4)
-  ,search_clicks_P_thetas = c(0.3)
+  ,search_clicks_P_alphas = c(0.5, 3)  
+  ,search_clicks_P_gammas = c(0.3, 1)
+  ,search_clicks_P_thetas = c(0, 0.3)
  #,search_clicks_P_shapes = c(0.0001, 2)
- #,search_clicks_P_scales = c(0, 0.05)
+ #,search_clicks_P_scales = c(0, 0.1)
   
 )
 
 ################################################################
-#### define experimental results
+#### define ground truth (e.g. Geo test, FB Lift test, MTA etc.)
 
-activate_calibration <- F # Switch to TRUE to calibrate model. This takes longer as extra validation is required
-set_lift <- data.table(channel = c("facebook_I",  "tv_S", "facebook_I"),
-                       liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01")),
-                       liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20")),
-                       liftAbs = c(400000, 300000, 200000))
+activate_calibration <- F # Switch to TRUE to calibrate model.
+# set_lift <- data.table(channel = c("facebook_I",  "tv_S", "facebook_I"),
+#                        liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01")),
+#                        liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20")),
+#                        liftAbs = c(400000, 300000, 200000))
 
 ################################################################
 #### Prepare input data
@@ -165,53 +163,25 @@ dt_mod <- f.inputWrangling()
 
 ################################################################
 #### Run models
-# Set optimizer_name: You will have to set it to "none" to use the classic Latin Hypercube Sampling.
-# In case you wanted to test Nevergrad algorithms, we would recommend trying "DoubleFastGADiscreteOnePlusOne" or "DiscreteOnePlusOne" 
 
 model_output_collect <- f.robyn(set_hyperBoundLocal
                                 ,optimizer_name = set_hyperOptimAlgo
                                 ,set_trial = set_trial
                                 ,set_cores = set_cores
-                                ,plot_folder = "~/Documents/GitHub/plots")
+                                ,plot_folder = "~/Documents/GitHub/plots") # please set your folder path to save plots
 
 ################################################################
 #### Budget Allocator - Beta
 
-## Optimiser requires further validation. Please use this result with caution.
-## Please don't interpret optimiser result with intermediate MMM output.
-## Optimiser result is only interpretable when MMM result is finalised/ hyperparameters are fixed.
-model_output_collect$allSolutions
+## Budget allocator result requires further validation. Please use this result with caution.
+## Please don't interpret budget allocation result if there's no satisfying MMM result
 
-optim_result <- f.budgetAllocator(modID = model_output_collect$allSolutions[1]
+model_output_collect$allSolutions
+optim_result <- f.budgetAllocator(modID = "1_24_1" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
                                   ,scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
                                   #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
                                   #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
-                                  ,channel_constr_low = c(0.7, 0.75, 0.60, 0.5, 0.65) # must be between 0.01-1 and has same length and order as set_mediaVarName
-                                  ,channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5) # not recommended to 'exaggerate' upper bounds. 1.5 means channel budget can increase to 150% of current level
+                                  ,channel_constr_low = c(0.7, 0.75, 0.60, 0.8, 0.65) # must be between 0.01-1 and has same length and order as set_mediaVarName
+                                  ,channel_constr_up = c(1.2, 1.5, 1.5, 2, 1.5) # not recommended to 'exaggerate' upper bounds. 1.5 means channel budget can increase to 150% of current level
 )
 
-#f.plotOptimiser(F) # 3 plots of optimiser result: budget re-allocation, ROI comparison & response comparison
-
-# 
-# best_model <- f.mmmCollect(model_output$optimParRS)
-# # best_model <- f.mmmCollect(set_hyperBoundLocal)
-# 
-# # Save models for each 'set_iter' to a .CSV file
-# # all_models <- model_output$resultCollect$resultHypParam
-# # fwrite(all_models,paste0(script_path,'all_models_GADISCRETEONEPLUSONE_with_pareto_optimality_10_epochs.csv'))
-# 
-# ################################################################
-# #### Plot section
-# 
-# ## insert TRUE into plot functions to plot. Use 'channelPlot' to select max. 3 channels per plot
-# f.plotSpendModel(F)
-# f.plotHyperSamp(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot latin hypercube hyperparameter sampling balance. Max. 3 channels per plot
-# f.plotTrendSeason(F) # plot prophet trend, season and holiday decomposition
-# bestAdstock <- f.plotMediaTransform(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # 3 plots of best model media transformation: adstock decay rate, adstock effect & response curve. Max. 3 channels per plot
-# f.plotBestDecomp(T) # 3 plots of best model decomposition: sales decomp, actual vs fitted over time, & sales decomp area plot
-# f.plotMAPEConverge(F) # plot RS MAPE convergence, only for random search
-# f.plotBestModDiagnostic(F) # plot best model diagnostics: residual vs fitted, QQ plot and residual vs. actual
-# f.plotChannelROI(F)
-# f.plotHypConverge(F, channelPlot = c("tv_S", "ooh_S", "facebook_I")) # plot hyperparameter vs MAPE convergence. Max. 3 channels per plot
-# boundOptim <- f.plotHyperBoundOptim(F, channelPlot = c("tv_S", "ooh_S", "facebook_I"), model_output, kurt.tuner = optim.sensitivity)  # improved hyperparameter plot to better visualise trends in each hyperparameter
-# 

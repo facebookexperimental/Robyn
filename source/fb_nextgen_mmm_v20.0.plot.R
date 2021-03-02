@@ -427,23 +427,7 @@ f.plotMediaTransform <- function(plotMediaTransform, channelPlot = NULL) {
   }
 }
 
-#####################################
-#### Define helper unit format function for axis 
 
-f.unit_format <- function(x_in) {
-  x_out <- sapply(x_in, function(x) {
-    if (abs(x) >= 1000000000) {
-      x_out <- paste0(round(x/1000000000, 1), " bln")
-    } else if (abs(x) >= 1000000 & abs(x)<1000000000) {
-      x_out <- paste0(round(x/1000000, 1), " mio")
-    } else if (abs(x) >= 1000 & abs(x)<1000000) {
-      x_out <- paste0(round(x/1000, 1), " tsd")
-    } else {
-      x_out <- round(x,0)
-    }
-  }, simplify = T) 
-  return(x_out)
-}
 
 #####################################
 #### Plotting model decomp results, incl. 3 plots: decomp waterfall plot, actual vs. fitted line plot and decomp area plot

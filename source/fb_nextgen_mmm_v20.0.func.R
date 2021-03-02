@@ -52,6 +52,24 @@ f.checkConditions <- function(dt_transform) {
   
 }
 
+#####################################
+#### Define helper unit format function for axis 
+
+f.unit_format <- function(x_in) {
+  x_out <- sapply(x_in, function(x) {
+    if (abs(x) >= 1000000000) {
+      x_out <- paste0(round(x/1000000000, 1), " bln")
+    } else if (abs(x) >= 1000000 & abs(x)<1000000000) {
+      x_out <- paste0(round(x/1000000, 1), " mio")
+    } else if (abs(x) >= 1000 & abs(x)<1000000) {
+      x_out <- paste0(round(x/1000, 1), " tsd")
+    } else {
+      x_out <- round(x,0)
+    }
+  }, simplify = T) 
+  return(x_out)
+}
+
 ################################################################
 #### Define major input data transformation function
 
@@ -405,7 +423,7 @@ f.transformation <- function (x, theta= NULL, shape= NULL, scale= NULL, alpha=NU
     print("alternative must be geometric or weibull")
   }
   
-  ## step 2: normalize decayed independent variable # deprecated
+  ## step 2: normalize decayed independent variable ############ deprecated
   #x_normalized <- scale(x_decayed, center =F) # plot(x_normalized) summary(x_normalized)
   x_normalized <- x_decayed
   
@@ -627,7 +645,6 @@ f.mmm <- function(...
   ################################################
   #### Collect hyperparameters
   
-  #input.collect <- unlist(list(...), recursive = F) # input.collect <- set_hyperBoundLocal input.fixed <- dt_hyperResult fixed.out = T
   if (fixed.out==F) {
     input.collect <- unlist(list(...), recursive = F)
   } else {
@@ -664,32 +681,6 @@ f.mmm <- function(...
     names(hyper_bound_local_fixed_dt) <- hyper_bound_local_fixed_name
   }
   
-  # if (fixed.out == T) {
-  #   hyperParams <- input.collect
-  # }
-  
-  ####### We should definitely move this to the .exec script
-  # Load reticulate to use it as a python interface for nevergrad:
-  #library("reticulate")
-  
-  # reticulate::use_python("/Users/leonelsentana/Library/r-miniconda/envs/r-reticulate/bin/python")
-  # reticulate::use_python("/Users/oteytaud/Library/r-miniconda/envs/robynng/bin/python")
-  
-  # Create and define r-reticulate conda environment to use
-  # conda_create("r-reticulate")
-  # use_condaenv("r-reticulate")
-  
-  # Install nevergrad package within conda:
-  # conda_install("r-reticulate", "nevergrad", pip=TRUE)
-  ####### We should definitely move this to the .exec script
-  
-  #Assign names to sampled hyperparameter vectors
-  
-  # assign("hyperparameters", hyperParams, envir = .GlobalEnv)
-  
-  # for (i in 1:length(hyperParams)) {  # This is a loop over the e.g. 50 000 hyperparam vectors
-  #   assign(names(hyperParams)[i], hyperParams[[i]])
-  # } #hyperParams <- mapply(FUN = function(x,y) {assign(y, x)}, x = hyperParams, y= names(hyperParams))
   
   ################################################
   #### Get spend share
@@ -714,19 +705,9 @@ f.mmm <- function(...
   set_factorVarName <- set_factorVarName
   set_lift <- set_lift
   
-  ## set parallel backend
-  #cl <- makeCluster(set_cores)# makeSOCKcluster(set_cores) #makeCluster(set_cores)
-  # registerDoSNOW(cl)
-  # getDoParWorkers()
-  
-  
-  ################################################
   ng <- import("nevergrad")
-  #### Start parallel loop
-  t0 <- Sys.time()
   
-  # Creating an optimizer. Use "none" for the good old LHS.
-  # optimizer_name <- "none"  # good old LHS :-)
+  # available optimizers in ng
   # optimizer_name <- "DoubleFastGADiscreteOnePlusOne"
   # optimizer_name <- "OnePlusOne"
   # optimizer_name <- "DE"
@@ -741,13 +722,12 @@ f.mmm <- function(...
   # optimizer_name <- "cGA"
   # optimizer_name <- "ScrHammersleySearch"
   
-  # If optimizer_name is "none" then we take the hyperParams already in lhsOut <- f.hypSamLHS() 
-  # on the "Collect hyperparameters" section above.
-  # If optimizer_name is not "none" then we will create a vector of hyperparameters using Nevergrad (nevergrad_hp_val)
+  ################################################
+  #### Start Nevergrad loop
   
-  ## Nevergrad parallel loop
+  t0 <- Sys.time()
   
-  #loopNG <- ifelse(optimizer_name != "none", ceiling(iterRS / set_cores), 1)
+  ## set iterations
   if (fixed.out == F) {
     iterTotal <- set_iter
     iterPar <- set_cores
@@ -762,6 +742,8 @@ f.mmm <- function(...
   
   cat("\nRunning", iterTotal,"iterations with evolutionary algorithm on",adstock, "adstocking,", length(hyper_bound_local_ng),"hyperparameters,",lambda.n,"-fold ridge x-validation using",set_cores,"cores...\n")
   
+  ## start Nevergrad optimiser
+  
   if (length(hyper_bound_local_ng) !=0) {
     my_tuple <- tuple(num_hyppar_ng)
     instrumentation <- ng$p$Array(shape=my_tuple)
@@ -775,6 +757,7 @@ f.mmm <- function(...
     # Creating a hyperparameter vector to be used in the next learning.
   }
   
+  ## start loop
   
   resultCollectNG <- list()
   cnt <- 0
@@ -791,41 +774,20 @@ f.mmm <- function(...
       
       if (fixed.out == F) {
         for (co in 1:iterPar) {
+          
+          ## get hyperparameter sample with ask
           nevergrad_hp[[co]] <- optimizer$ask()
           nevergrad_hp_val[[co]] <- nevergrad_hp[[co]]$value
           
-          #print(paste0("LHS provides this:", hypParamSam,"nevergrad provides: ", nevergrad_hp_val, 
-          # ", this is a pure vector, to be cast to some bounds and converted into a table, which is done below" ))
-         
-          #print(hypParamSamName)
+          ## scale sample to given bounds
           for (hypNameLoop in hyper_bound_local_ng_name) { # hypNameLoop <- local_name.all[1]
-            #for (hypNameLoop in local_name.all) { # hypNameLoop <- local_name.all[1]
             index <- which(hypNameLoop == hyper_bound_local_ng_name)
-            # get channel bounds
-            # This should be done once and for all, not everytime. TODO
-            
-            #if (epoch.iter==1 | !identical(set_hyperBoundLocal, set_hyperBoundLocal.update))  { # Manual tuning, first epoch --> take manual params
             channelBound <- unlist(hyper_bound_local_ng[hypNameLoop])
-            # } else { # manual tuning, not first epoch --> take auto-updated bounds
-            #   channelBound <- unlist(hyperbound.local.auto[hypNameLoop])
-            # }
-            
-            
-            # adjust sampling to bounds
-            # if (length(channelBound)==2 & channelBound[1] != channelBound[2]) {
-            ####channelLHS <- unlist(initLHS[, hypNameLoop, with = F])
-            hyppar_for_qunif <- nevergrad_hp_val[[co]][index]  # <--- bad syntax
-            hyppar_scaled <- qunif(hyppar_for_qunif, min(channelBound), max(channelBound))  # <--- bad syntax
-            # } else if (length(channelBound)==1) {
-            #   xt <- channelBound
-            # }
-            hypParamSamNG[hypNameLoop] <- hyppar_scaled    # <--- bad syntax
+            hyppar_for_qunif <- nevergrad_hp_val[[co]][index]  
+            hyppar_scaled <- qunif(hyppar_for_qunif, min(channelBound), max(channelBound))  
+            hypParamSamNG[hypNameLoop] <- hyppar_scaled 
           }
           hypParamSamList[[co]] <- transpose(data.table(hypParamSamNG))
-          ##### previous code was: transLHS <- dcast.data.table(transLHS, index ~ vars, value.var = "xt")[, !"index"]
-          #print("we get this:")
-          #print(hypParamSam)
-          #####################################
         }
         
         hypParamSamNG<- rbindlist(hypParamSamList)
@@ -843,8 +805,6 @@ f.mmm <- function(...
       } else {
         hypParamSamNG <- input.fixed[, hypParamSamName, with = F]
       }
-      
-      
       
       ## Parallel start
       
@@ -874,11 +834,7 @@ f.mmm <- function(...
         
         #####################################
         #### Get hyperparameter sample
-        
-        # Let us create a vector of hyperparameters using Nevergrad (nevergrad_hp_val).
-        # Note: Maybe we should add LHS within the IF so that we skip running LHS if (optimizer_name != "none")?
-        # hypParamSam <-  sapply(hyperParams, function(x) {if (length(x) > 1) { x[i] } else {x} }); hypParamSam
-        
+
         hypParamSam <- unlist(hypParamSamNG[i])
         
         #### Tranform media with hyperparameters
@@ -951,8 +907,6 @@ f.mmm <- function(...
           }
         }
         
-        
-        
         #####################################
         #### fit ridge regression with x-validation
         cvmod <- cv.glmnet(x_train
@@ -966,7 +920,6 @@ f.mmm <- function(...
                            #,nlambda = 100
                            #,intercept = FALSE
         ) # plot(cvmod) coef(cvmod)
-        
         
         
         #####################################
@@ -984,29 +937,14 @@ f.mmm <- function(...
           nrmse <- mod_out$nrmse_test
           mape <- 0
           
-         if (activate_calibration == T) {
           
-          ## if lift calibration, refit using sub lambda sequence with lower error to allow lift calibration
-          # lambda_seq_calibrate <- lambda_seq[lambda_seq >= cvmod$lambda.min & lambda_seq <=cvmod$lambda.1se]
-          # mape <- c()
-          #for (l in 1:length(lambda_seq_calibrate)) {
-            
-            # mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=lambda_seq_calibrate[l], lower.limits, upper.limits)
-            # decompCollect <- f.decomp(mod_out$coefs, dt_modAdstocked, x, mod_out$y_pred, i)
+          #####################################
+          #### get calibration mape
+          
+         if (activate_calibration == T) {
+
             liftCollect <- f.calibrateLift(decompCollect, set_lift)
             mape <- liftCollect[, mean(mape_lift)]
-            #mape[l] <- mean(c(mod_out$mape_mod, mape_lift))
-          #}
-          
-          # mape <- mape[which.min(mape)]
-          # mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=lambda_seq_calibrate[which.min(mape)], lower.limits, upper.limits)
-          # decompCollect <- f.decomp(mod_out$coefs, dt_modAdstocked, x, mod_out$y_pred, i)
-          # liftCollect <- f.calibrateLift(decompCollect, set_lift)
-          # 
-          # nrmse <- mod_out$nrmse_test
-          # lambda <- lambda_seq_calibrate[which.min(mape)]
-          #hypParamSam["lambdas"] <- lambda_seq_calibrate[which.min(mape)]
-          #hypParamSamName <- names(hypParamSam)
           
         }
         
@@ -1101,6 +1039,10 @@ f.mmm <- function(...
       decomp.rssd.coolect <- sapply(doparCollect, function(x) x$decomp.rssd)
       mape.lift.coolect <- sapply(doparCollect, function(x) x$mape.lift)
       
+      
+      #####################################
+      #### Nevergrad tells objectives
+      
       if (fixed.out == F) {
         if (activate_calibration == F) {
           for (co in 1:iterPar) {
@@ -1111,8 +1053,6 @@ f.mmm <- function(...
             optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.coolect[co], decomp.rssd.coolect[co], mape.lift.coolect[co])) 
           }
         }
-
-        
       }
       
       resultCollectNG[[lng]] <- doparCollect
@@ -1126,7 +1066,8 @@ f.mmm <- function(...
   if(fixed.out==F) {close(pb)}
   registerDoSEQ(); getDoParWorkers()
   
-  ## Get pareto optimal results when using nevergrad algorithms
+  #####################################
+  #### Get nevergrad pareto results 
   
   if (fixed.out == F) {
     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$value[],4))),
@@ -1138,20 +1079,14 @@ f.mmm <- function(...
       pareto_results_names<-setnames(pareto_results, c(hyper_bound_local_ng_name,"nrmse", "decomp.rssd", "mape.lift") )
       pareto_results_ordered<-setorder(pareto_results_names, "nrmse", "decomp.rssd", "mape.lift")
     }
-    
-
     #print(pareto_results_ordered)
   } else {
     pareto_results_ordered <- NULL
   }
 
-
+  #####################################
+  #### Final result collect
   
-  #please_stop_here()
-  #stopCluster(cl)
-  # aggregate result
-  
-  #max.row <- ifelse(nrow(dt_mod)*iterRS>=1000000,1000000, nrow(dt_mod)*iterRS)  ## max row to avoid memory exceed
   resultCollect <- list(
     resultHypParam = rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$resultHypParam))}))[order(nrmse)],
     xDecompVec = if (fixed.out==T) {rbindlist(lapply(resultCollectNG, function(x) {rbindlist(lapply(x, function(y) y$xDecompVec))}))[order(nrmse, ds)]} else {NULL},
@@ -1164,13 +1099,12 @@ f.mmm <- function(...
     #,cvmod = lapply(doparCollect, function(x) x$cvmod)
   )
   resultCollect$iter <- length(resultCollect$mape)
-  resultCollect$best.iter <- resultCollect$resultHypParam$iterRS[1]
+  #resultCollect$best.iter <- resultCollect$resultHypParam$iterRS[1]
   resultCollect$elapsed.min <- sysTimeDopar[3]/60
   resultCollect$resultHypParam[, ElapsedAccum:= ElapsedAccum - min(ElapsedAccum) + resultCollect$resultHypParam[which.min(ElapsedAccum), Elapsed]] # adjust accummulated time
   resultCollect$resultHypParam
   #print(optimizer_name)
   #print(" get ")
-  #print(best_mape)
   #please_stop_here()
   
   return(list(#Score =  -resultCollect$mape[iterRS], # score for BO
@@ -1179,21 +1113,20 @@ f.mmm <- function(...
     ,hyperBoundFixed = hyper_bound_local_fixed))
 }
 
-#####################################
-#### Define best model parameter collection function
 
-# f.getOptimParRS <- function(model_output, kurt.tuner = 0) {
-#   return(f.plotHyperBoundOptim(F, channelPlot = NULL, model_output = model_output, kurt.tuner = kurt.tuner))
-# }
+
+#####################################
+#### Define f.robyn, the main trial looping and plotting function
 
 
 f.robyn <- function(set_hyperBoundLocal
                        ,optimizer_name = set_hyperOptimAlgo
-                       ,set_trial = set_trial # set_trial <- 3
+                       ,set_trial = set_trial 
                        ,set_cores = set_cores
                        ,plot_folder = "~/Documents/GitHub/plots") {
   
   t0 <- Sys.time()
+  
   #####################################
   #### Run f.mmm on set_trials
 
@@ -1204,7 +1137,7 @@ f.robyn <- function(set_hyperBoundLocal
     ## Run f.mmm on set_trials if hyperparameters are not all fixed
     
     ng_out <- list()
-    ng_algos <- optimizer_name #c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
+    ng_algos <- optimizer_name # c("DoubleFastGADiscreteOnePlusOne", "DiscreteOnePlusOne", "TwoPointsDE", "DE")
     
     t0 <- Sys.time()
     for (optmz in ng_algos) {
@@ -1306,7 +1239,12 @@ f.robyn <- function(set_hyperBoundLocal
       plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
     }
   
-  paretoFronts <- ifelse(!hyperparameter_fixed, 1:3, 1)
+  #paretoFronts <- ifelse(!hyperparameter_fixed, c(1,2,3), 1)
+  if (!hyperparameter_fixed) {
+    paretoFronts <- c(1,2,3)
+  } else {
+    paretoFronts <- 1
+  }
   num_pareto123 <- resultHypParam[robynPareto %in% paretoFronts, .N]
   cat("\nPlotting", num_pareto123,"pareto optimum models in to folder",paste0(plot_folder, "/", plot_folder_sub,"/"),"...\n")
   pbplot <- txtProgressBar(max = num_pareto123, style = 3)
@@ -1315,6 +1253,49 @@ f.robyn <- function(set_hyperBoundLocal
   
   if (!hyperparameter_fixed) {
     
+    ## plot prophet
+    
+    if (activate_prophet) {
+      pProphet <- prophet_plot_components(modelRecurrance, forecastRecurrance, render_plot = T)
+      # ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "prophet.png")
+      #        , dpi = 600, width = 12, height = 7)
+    }
+    
+    
+    ## plot spend reach model
+    
+    if(any(costSelector)) {
+      pSpendReach <- arrangeGrob(grobs = plotNLSCollect
+                                 ,ncol= ifelse(length(plotNLSCollect)<=3, length(plotNLSCollect), 3)
+                                 ,top = "Spend-reach fitting with Michaelis-Menten model")
+      #grid.draw(pSpendReach)
+      ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "spend_reach_fitting.png")
+             , plot = pSpendReach
+             , dpi = 600, width = 12, height = 7)
+      
+    } else {
+      message("no spend model needed. all media variables used for mmm are spend variables ")
+    }
+    
+    
+    ## plot hyperparameter sampling distribution
+    
+    resultHypParam.melted <- melt.data.table(resultHypParam[, c(local_name,"robynPareto"), with = F], id.vars = c("robynPareto"))
+    
+    pSamp <- ggplot(data = resultHypParam.melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
+      geom_violin(alpha = .5, size = 0) +
+      geom_point(size = 0.2) +
+      theme(legend.position = "none") +
+      labs(title="Model selection", 
+           subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", set_trial, " trials"),
+           x="Hyperparameter space",
+           y="")
+    print(pSamp)
+    ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png")
+           , plot = pSamp
+           , dpi = 600, width = 12, height = 7)
+    
+
     ## plot Pareto front
     
     pParFront <- ggplot(data = resultHypParam, aes(x=nrmse, y=decomp.rssd, color = robynPareto)) +
@@ -1333,23 +1314,8 @@ f.robyn <- function(set_hyperBoundLocal
     ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png")
            , plot = pParFront
            , dpi = 600, width = 12, height = 7)
+
     
-    ## plot hyperparameter sampling distribution
-    
-    resultHypParam.melted <- melt.data.table(resultHypParam[, c(local_name,"robynPareto"), with = F], id.vars = c("robynPareto"))
-    
-    pSamp <- ggplot(data = resultHypParam.melted,  aes( x = value, y=variable, color = variable, fill = variable) ) +
-      geom_violin(alpha = .5, size = 0) +
-      geom_point(size = 0.2) +
-      theme(legend.position = "none") +
-      labs(title="Model selection", 
-           subtitle=paste0("Hyperparameter pareto sample distribution", ", iterations = ", set_iter, " * ", set_trial, " trials"),
-           x="Hyperparameter space",
-           y="")
-    print(pSamp)
-    ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "hypersampling.png")
-           , plot = pSamp
-           , dpi = 600, width = 12, height = 7)
   }
 
     
