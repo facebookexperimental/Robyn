@@ -1,5 +1,7 @@
 .DS_Store
 
+.Rproj.user
+
 # Logs
 logs
 *.log
