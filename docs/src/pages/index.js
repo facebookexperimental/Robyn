@@ -14,82 +14,56 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import styles from './styles.module.css';
 
+
 const features = [
   {
-    title: <>Advanced</>,
+    title: <>Reduces human bias</>,
     imageUrl: 'img/take_control.svg',
     description: (
       <>
         <ul>
-          <li> Automated code, making it significantly faster to run </li>
-          <li> Can be calibrated and validated using real world experiments</li>
-          <li> Fully customisable adstock to suit your business</li>
-          <li>
-            {' '}
-            Automated seasonality and richer external variables using Facebook
-            code ‘Prophet’, increasing interpretability and model fit
-          </li>
-          <li> Uses Ridge Regression to solve for multicollinearity</li>
-          <li>
-            {' '}
-            Built to manage large data sets and numbers of variables making it
-            ideal for digital marketing and complex consumer behaviour
-          </li>
+          <li> Automated hyperparameter optimization with evolutionary algorithms from Facebook's AI library <a href="https://facebookresearch.github.io/nevergrad">Nevergrad</a></li>
+          <li> Ridge regression with cross-validation to regularize multi-collinearity and prevent overfitting</li>
+          <li> Facebook's <a href="https://facebook.github.io/prophet/">Prophet</a> library to automatically decompose the trend, seasonality and holidays patterns</li>
         </ul>
       </>
     ),
   },
   {
-    title: <>Controllable and Scalable</>,
+    title: <>Aligns with the ground-truth</>,
     imageUrl: 'img/calibrate.svg',
     description: (
       <>
         <ul>
           <li>
             {' '}
-            Standardised and stable code to limit analyst bias and subjectivity,
-            making models scaleable and transferable
+            It calibrates models based on ground-truth methodologies (Geo-based, Facebook lift, MTA, etc.)
           </li>
           <li>
             {' '}
-            Fully customisable to accommodate multiple unique variables that
-            matter your business
+            Facebook <a href="https://facebookresearch.github.io/nevergrad">Nevergrad</a>'s multi-objective optimization minimizing the error between MMM prediction and ground-truth
           </li>
-          <li>
-            {' '}
-            Increase the number of models and frequency as faster to run and
-            automated
-          </li>
-          <li> Model all of the outputs that matter to your business</li>
         </ul>
       </>
     ),
   },
   {
-    title: <>Actionable</>,
+    title: <>Enables actionable decision making</>,
     imageUrl: 'img/focus_on_what matters.svg',
     description: (
       <>
         <ul>
           <li>
             {' '}
-            No need to wait until your campaigns have finished. Faster modeling
-            allows for inflight campaign optimization.
+            Budget allocator using a gradient-based constrained non-linear solver to maximize the outcome by reallocating budgets
           </li>
           <li>
             {' '}
-            Continuous modeling helps you to understand the performance of your
-            marketing in almost real time.
+            Enables frequent modeling outcomes due to stronger automation
           </li>
           <li>
             {' '}
-            Includes integrated marketing budget optimizer with the ability to
-            apply custom restraints
-          </li>
-          <li>
-            {' '}
-            Not dependent on Facebook advertising but can connect to measurement
-            products in Facebook Ads Manager for granular insights
+            Allows intuitive model comparisons via automatically generated model one-pagers
           </li>
         </ul>
       </>
