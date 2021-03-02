@@ -35,9 +35,9 @@ f.checkConditions <- function(dt_transform) {
     if ((min(set_lift$liftStartDate) < min(dt_transform$ds)) | (max(set_lift$liftEndDate) >  (max(dt_transform$ds) + dayInterval-1))) {
       stop("we recommend you to only use lift results conducted within your MMM input data date range")
     }
-    if (set_iter < 500 | set_trial < 30) {message("you are calibrating MMM. we recommend to run at least 500 iterations per trial and at least 80 trials at the beginning")}
+    if (set_iter < 500 | set_trial < 80) {message("you are calibrating MMM. we recommend to run at least 500 iterations per trial and at least 80 trials at the beginning")}
   } else {
-    if (set_iter < 500 | set_trial < 30) {message("we recommend to run at least 500 iterations per trial and at least 40 trials at the beginning")}
+    if (set_iter < 500 | set_trial < 40) {message("we recommend to run at least 500 iterations per trial and at least 40 trials at the beginning")}
   }
   
   if((adstock %in% c("geometric", "weibull")) == F) {stop("adstock must be 'geometric' or 'weibull'")}
@@ -1195,11 +1195,17 @@ f.robyn <- function(set_hyperBoundLocal
   resultHypParam <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$resultHypParam[, trials:= x$trials]))
   resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
   
+  xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
+  xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  xDecompAggCoef0 <- xDecompAgg[rn %in% set_mediaVarName, .(coef0=min(coef)==0), by = "solID"]
+  
   if (!hyperparameter_fixed) {
     mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = 0.10)
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90)
-    resultHypParam[, mape.qt10:= mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90]
+    resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
+    resultHypParam[, mape.qt10:= mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90 & coef0 ==FALSE]
+
     
     resultHypParamPareto <- resultHypParam[mape.qt10==T]
     px <- low(resultHypParamPareto$nrmse) * low(resultHypParamPareto$decomp.rssd)
@@ -1214,10 +1220,7 @@ f.robyn <- function(set_hyperBoundLocal
     resultHypParam[, ':='(mape.qt10 = T, robynPareto =1)]
   }
   
-  ## collect aggregated decomp results
-  xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
   xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
-  xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
   
   decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
   decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]

@@ -7,13 +7,14 @@
 ####################    Facebook MMM Open Source 'Robyn' Beta - V21.0  ######################
 ####################                    2021-03-03                     ######################
 #############################################################################################
+
 ################################################################
 #### set locale for non English R
 # Sys.setlocale("LC_TIME", "English")
 
 ################################################################
 #### load libraries
-## R version 3.6.0 (2019-04-26)
+## R version 4.0.3 (2020-10-10)
 ## RStudio version 1.2.1335
 rm(list=ls()); gc()
 
@@ -50,7 +51,6 @@ dt_input <- fread(paste0(script_path,'de_simulated_data.csv')) # input time seri
 dt_holidays <- fread(paste0(script_path,'holidays.csv')) # when using own holidays, please keep the header c("ds", "holiday", "country", "year")
 
 source(paste(script_path, "fb_nextgen_mmm_v20.0.func.R", sep=""))
-source(paste(script_path, "fb_nextgen_mmm_v20.0.plot.R", sep=""))
 source(paste(script_path, "fb_nextgen_mmm_v20.0.optm.R", sep=""))
 
 ################################################################
@@ -168,7 +168,7 @@ model_output_collect <- f.robyn(set_hyperBoundLocal
                                 ,optimizer_name = set_hyperOptimAlgo
                                 ,set_trial = set_trial
                                 ,set_cores = set_cores
-                                ,plot_folder = "~/Documents/GitHub/plots") # please set your folder path to save plots
+                                ,plot_folder = "~/Documents/GitHub/plots") # please set your folder path to save plots. It ends without "/".
 
 ################################################################
 #### Budget Allocator - Beta
@@ -177,7 +177,7 @@ model_output_collect <- f.robyn(set_hyperBoundLocal
 ## Please don't interpret budget allocation result if there's no satisfying MMM result
 
 model_output_collect$allSolutions
-optim_result <- f.budgetAllocator(modID = "1_24_1" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
+optim_result <- f.budgetAllocator(modID = "3_11_5" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
                                   ,scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
                                   #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
                                   #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
