@@ -8,6 +8,164 @@
 ########################################################################
 
 ################################################################
+#### Define training size guidance plot using Bhattacharyya coefficient
+
+f.plotTrainSize <- function(plotTrainSize) {
+  
+  if(plotTrainSize) {
+    if(activate_baseline & exists("set_baseVarName")) {
+      bhattaVar <- unique(c(set_depVarName, set_baseVarName, set_mediaVarName, set_mediaSpendName))
+    } else {stop("either set activate_baseline = F or fill set_baseVarName")}
+    bhattaVar <- setdiff(bhattaVar, set_factorVarName)
+    if (!("depVar" %in% names(dt_input))) {
+      dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
+    } else {
+      bhattaVar <- str_replace(bhattaVar, set_depVarName, "depVar")
+      dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
+    }
+    
+    ## define bhattacharyya distance function
+    f.bhattaCoef <- function (mu1, mu2, Sigma1, Sigma2) {
+      Sig <- (Sigma1 + Sigma2)/2
+      ldet.s <- unlist(determinant(Sig, logarithm = TRUE))[1]
+      ldet.s1 <- unlist(determinant(Sigma1, logarithm = TRUE))[1]
+      ldet.s2 <- unlist(determinant(Sigma2, logarithm = TRUE))[1]
+      d1 <- mahalanobis(mu1, mu2, Sig, tol=1e-20)/8
+      d2 <- 0.5 * ldet.s - 0.25 * ldet.s1 - 0.25 * ldet.s2
+      d <- d1 + d2
+      bhatta.coef <- 1/exp(d)
+      return(bhatta.coef)
+    }
+    
+    ## loop all train sizes
+    bcCollect <- c()
+    sizeVec <- seq(from=0.5, to=0.9, by=0.01)
+    
+    for (i in 1:length(sizeVec)) {
+      test1 <- dt_bhatta[1:floor(nrow(dt_bhatta)*sizeVec[i]), ]
+      test2 <- dt_bhatta[(floor(nrow(dt_bhatta)*sizeVec[i])+1):nrow(dt_bhatta), ]
+      bcCollect[i] <- f.bhattaCoef(colMeans(test1),colMeans(test2),cov(test1),cov(test2)) 
+    }
+    
+    dt_bdPlot <- data.table(train_size=sizeVec, bhatta_coef=bcCollect)
+    
+    print(ggplot(dt_bdPlot, aes(x=train_size, y=bhatta_coef)) + 
+            geom_line() +
+            labs(title = "Bhattacharyya coef. of train/test split"
+                 ,subtitle = "Select the training size with larger bhatta_coef"))
+  }
+}
+
+f.plotAdstockCurves <- function(plotAdstockCurves) {
+  if (plotAdstockCurves) {
+    if (adstock == "weibull") {
+      weibullCollect <- list()
+      shapeVec <- c(2, 2, 2, 2, 2, 2, 0.01, 0.1, 0.5, 1, 1.5, 2)
+      scaleVec <- c(0.01, 0.05, 0.1, 0.15, 0.2, 0.5, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05)
+      paramRotate <- c(rep("scale",6), rep("shape",6))
+      
+      for (v in 1:length(shapeVec)) {
+        dt_weibull<- data.table(x=1:100,
+                                decay_accumulated=f.adstockWeibull(rep(1, 100), shape=shapeVec[v], scale=scaleVec[v])$thetaVecCum
+                                ,shape=shapeVec[v]
+                                ,scale=scaleVec[v]
+                                ,param=paramRotate[v])
+        dt_weibull[, halflife:= which.min(abs(decay_accumulated -0.5))]
+        
+        weibullCollect[[v]] <- dt_weibull
+      }
+      
+      weibullCollect <- rbindlist(weibullCollect)
+      #weibullCollect[, ':='(shape=as.factor(shape), scale=as.factor(scale))]
+      weibullCollect[, scale_shape_halflife:=paste(scale, shape,halflife, sep = "_")]
+      p1 <- ggplot(weibullCollect[param=="scale"], aes(x=x, y=decay_accumulated)) + 
+        geom_line(aes(color=scale_shape_halflife)) +
+        geom_hline(yintercept=0.5, linetype="dashed", color = "gray") +
+        geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust= 1, label = "Halflife = time until effect reduces to 50%"), colour="gray") +
+        labs(title="Weibull adstock transformation - scale changes", 
+             subtitle="Halflife = time until effect reduces to 50%",
+             x="time unit",
+             y="Media decay accumulated") 
+      p2 <- ggplot(weibullCollect[param=="shape"], aes(x=x, y=decay_accumulated)) + 
+        geom_line(aes(color=scale_shape_halflife)) +
+        geom_hline(yintercept=0.5, linetype="dashed", color = "gray") +
+        geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust= 1, label = "Halflife = time until effect reduces to 50%"), colour="gray") +
+        labs(title="Weibull adstock transformation - shape changes", 
+             subtitle="Halflife = time until effect reduces to 50%",
+             x="time unit",
+             y="Media decay accumulated") 
+      
+      grid.arrange(p1,p2)
+      
+    } else if (adstock == "geometric") {
+      
+      geomCollect <- list()
+      thetaVec <- c(0.01, 0.05, 0.1, 0.2, 0.5, 0.6, 0.7, 0.8, 0.9)
+      
+      for (v in 1:length(thetaVec)) {
+        thetaVecCum <- 1
+        for (t in 2:100) {thetaVecCum[t] <- thetaVecCum[t-1]*thetaVec[v]}
+        dt_geom <- data.table(x=1:100,
+                              decay_accumulated = thetaVecCum,
+                              theta=thetaVec[v])
+        dt_geom[, halflife:= which.min(abs(decay_accumulated -0.5))]
+        geomCollect[[v]] <- dt_geom
+      }
+      geomCollect <- rbindlist(geomCollect)
+      geomCollect[, theta_halflife:=paste(theta,halflife, sep = "_")]
+      
+      p3 <- ggplot(geomCollect, aes(x=x, y=decay_accumulated)) + 
+        geom_line(aes(color=theta_halflife)) +
+        geom_hline(yintercept=0.5, linetype="dashed", color = "gray") +
+        geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust= 1, label = "Halflife = time until effect reduces to 50%"), colour="gray") +
+        labs(title="Geometric adstock transformation - theta changes", 
+             subtitle="Halflife = time until effect reduces to 50%",
+             x="time unit",
+             y="Media decay accumulated") 
+      print(p3)
+    }
+  }
+}
+
+f.plotResponseCurves <- function(plotResponseCurves) {
+  if (plotResponseCurves) {
+    xSample <- 1:100
+    alphaSamp <- c(0.1, 0.5, 1, 2, 3)
+    gammaSamp <- c(0.1, 0.3, 0.5, 0.7, 0.9)
+    
+    ## plot alphas
+    hillAlphaCollect <- list()
+    for (i in 1:length(alphaSamp)) {
+      hillAlphaCollect[[i]] <- data.table(x=xSample
+                                          ,y=xSample**alphaSamp[i] / (xSample**alphaSamp[i] + (0.5*100)**alphaSamp[i])
+                                          ,alpha=alphaSamp[i])
+    }
+    hillAlphaCollect <- rbindlist(hillAlphaCollect)
+    hillAlphaCollect[, alpha:=as.factor(alpha)]
+    p1 <- ggplot(hillAlphaCollect, aes(x=x, y=y, color=alpha)) + 
+      geom_line() +
+      labs(title = "Cost response with hill function"
+           ,subtitle = "Alpha changes while gamma = 0.5")
+    
+    ## plot gammas
+    hillGammaCollect <- list()
+    for (i in 1:length(gammaSamp)) {
+      hillGammaCollect[[i]] <- data.table(x=xSample
+                                          ,y=xSample**2 / (xSample**2 + (gammaSamp[i]*100)**2)
+                                          ,gamma=gammaSamp[i])
+    }
+    hillGammaCollect <- rbindlist(hillGammaCollect)
+    hillGammaCollect[, gamma:=as.factor(gamma)]
+    p2 <- ggplot(hillGammaCollect, aes(x=x, y=y, color=gamma)) + 
+      geom_line() +
+      labs(title = "Cost response with hill function"
+           ,subtitle = "Gamma changes while alpha = 2")
+    
+    grid.arrange(p1,p2, nrow=1)
+  }
+}
+
+################################################################
 #### Define basic condition check function
 
 f.checkConditions <- function(dt_transform) {
