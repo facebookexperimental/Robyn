@@ -27,8 +27,17 @@ After installing all libraries, if you select all and run in
 fb_robyn.exec.R, the script should run through and save some plots on your selected folder
 
 ## Usage Guidelines
+
 - Latest script usage guideline: Please see comments in scripts within the source code in fb_robyn.exec.R 
 - Guidelines on the website to be updated soon: https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide
+
+## Model selection with evolutionary algorithm
+
+Using Facebook AI's open source gradient-free optimisation library [Nevergrad](https://facebookresearch.github.io/nevergrad/), Robyn is able to leverage evolutionary algorithms to perform multi-objective hyperparameter optimisation and output a set of Pareto-optimal solutions. Besides NRMSE as loss function for the optimisation, Robyn also minimises on a business logic "decomposition distance", or DECOMP.RSSD that is aiming to steer the model towards more realistic decomposition results. In case of calibration, a third loss function MAPE.LIFT is added too.
+
+The following plot demonstrates typical Pareto fronts 1-3 on NRMSE and DECOMP.RSSD:
+![paretofront](https://user-images.githubusercontent.com/14415136/110000483-a3269f00-7d13-11eb-85de-0bae918f4f5c.png)
+
 
 ## Join the FB Robyn MMM community. **Coming soon**
 
