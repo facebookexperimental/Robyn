@@ -1231,10 +1231,10 @@ f.mmm <- function(...
     pareto_results<-transpose(rbind(as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$value[],4))),
                                     as.data.table(sapply(optimizer$pareto_front(997, subset="domain-covering", subset_tentatives=500), function(p) round(p$losses[],4)))))
     if (activate_calibration == F) {
-      pareto_results_names<-setnames(pareto_results, c(hyper_bound_local_ng_name,"nrmse", "decomp.rssd") )
+      pareto_results_names<-setnames(pareto_results, old=names(pareto_results), new=c(hyper_bound_local_ng_name,"nrmse", "decomp.rssd") )
       pareto_results_ordered<-setorder(pareto_results_names, "nrmse", "decomp.rssd")
     } else {
-      pareto_results_names<-setnames(pareto_results, c(hyper_bound_local_ng_name,"nrmse", "decomp.rssd", "mape.lift") )
+      pareto_results_names<-setnames(pareto_results, old=names(pareto_results), new=c(hyper_bound_local_ng_name,"nrmse", "decomp.rssd", "mape.lift") )
       pareto_results_ordered<-setorder(pareto_results_names, "nrmse", "decomp.rssd", "mape.lift")
     }
     #print(pareto_results_ordered)
@@ -1730,7 +1730,7 @@ f.robyn <- function(set_hyperBoundLocal
         xDecompVec <- cbind(dt_transformDecomp[, .(ds, depVar)], xDecompVec)
         
         xDecompVecPlot <- xDecompVec[, .(ds, depVar, depVarHat)]
-        setnames(xDecompVecPlot, new = c("ds", "actual", "predicted"))
+        setnames(xDecompVecPlot, old = c("ds", "depVar", "depVarHat"), new = c("ds", "actual", "predicted"))
         xDecompVecPlotMelted <- melt.data.table(xDecompVecPlot, id.vars = "ds")
 
         p5 <- ggplot(xDecompVecPlotMelted, aes(x=ds, y = value, color = variable)) +

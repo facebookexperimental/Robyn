@@ -14,7 +14,7 @@
 
 ################################################################
 #### load libraries
-## R version 4.0.3 (2020-10-10)
+## R version 4.0.3 (2020-10-10) ## Update to R version 4.0.3 to avoid potential errors
 ## RStudio version 1.2.1335
 rm(list=ls()); gc()
 
@@ -38,6 +38,7 @@ library(nloptr)
 library(minpack.lm)
 library(rPref)
 library(reticulate)
+library(rstudioapi)
 
 ## please see https://rstudio.github.io/reticulate/index.html for info on installing reticulate
 # conda_create("r-reticulate") # must run this line once
