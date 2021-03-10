@@ -43,6 +43,7 @@ library(rstudioapi)
 ## please see https://rstudio.github.io/reticulate/index.html for info on installing reticulate
 # conda_create("r-reticulate") # must run this line once
 # conda_install("r-reticulate", "nevergrad", pip=TRUE)  #  must install nevergrad in conda before running Robyn
+# use_python("/Users/gufengzhou/Library/r-miniconda/envs/r-reticulate/bin/python3.6") # in case nevergrad still can't be imported after installation, please locate your python file and run this line
 use_condaenv("r-reticulate") 
 
 ################################################################

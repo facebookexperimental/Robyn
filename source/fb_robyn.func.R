@@ -233,12 +233,18 @@ f.unit_format <- function(x_in) {
 
 f.inputWrangling <- function(dt_transform = dt_input) {
   
+  dt_transform <- copy(dt_transform)
+  setnames(dt_transform, set_dateVarName, "ds", skip_absent = T)
+  dt_transform[, ':='(ds= as.Date(ds))]
+  
+  setnames(dt_transform, set_depVarName, "depVar", skip_absent = T) #; set_depVarName <- "depVar"
+  #indepName <- c(set_prophet, set_baseVarName, set_mediaVarName)
+  
   ## check date format
   tryCatch({
-    dateCheck <- as.matrix(dt_transform[,  set_dateVarName, with=F])
-    dateCheck <- as.Date(dateCheck)
+    dateCheck <- as.Date(dt_transform$ds)
   },
-  error= function() {
+  error= function(cond) {
     stop("input date variable should have format '2020-01-01'")
   })
   
@@ -263,12 +269,6 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   } else if(length(set_mediaVarName) != length(set_mediaSpendName)) {
     stop("set_mediaSpendName and set_mediaVarName have to be the same length and same order")}
   
-  
-  setnames(dt_transform, set_dateVarName, "ds")
-  dt_transform[, ':='(ds= as.Date(ds))]
-  
-  setnames(dt_transform, set_depVarName, "depVar") #; set_depVarName <- "depVar"
-  #indepName <- c(set_prophet, set_baseVarName, set_mediaVarName)
   
   #hypName <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas") # defind hyperparameter names
   dayInterval <- as.integer(difftime(sort(unique(dt_transform$ds))[2], sort(unique(dt_transform$ds))[1], units = "days"))
@@ -459,7 +459,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
       
     }
     
-    modelRecurrance<-prophet(recurrance
+    modelRecurrance<- prophet(recurrance
                              ,holidays = if(use_holiday) {holidays[country==set_country]} else {NULL}
                              ,yearly.seasonality = use_season
                              ,weekly.seasonality = use_weekday
@@ -469,11 +469,28 @@ f.inputWrangling <- function(dt_transform = dt_input) {
                              #,changepoint.prior.scale = 0.1
     )
     
-    futureDS <- make_future_dataframe(modelRecurrance, periods=1, freq = intervalType)
-    forecastRecurrance <- predict(modelRecurrance, futureDS)
+    #futureDS <- make_future_dataframe(modelRecurrance, periods=1, freq = intervalType)
+    forecastRecurrance <- predict(modelRecurrance, dt_transform[, "ds", with =F])
+    
+    # if (use_regressor) {
+    #   m.recurrance <- cbind(recurrance, dt_transform[, c(set_baseVarName, set_mediaVarName), with =F])
+    #   modelRecurrance <- prophet(holidays = if(use_holiday) {holidays[country==set_country]} else {NULL}
+    #                 ,yearly.seasonality = use_season
+    #                 ,weekly.seasonality = use_weekday 
+    #                 ,daily.seasonality= F)
+    #   for (addreg in c(set_baseVarName, set_mediaVarName)) {
+    #     modelRecurrance <- add_regressor(modelRecurrance, addreg)
+    #   }
+    #   modelRecurrance <- fit.prophet(modelRecurrance, m.recurrance)
+    #   forecastRecurrance <- predict(modelRecurrance, dt_transform[, c("ds",set_baseVarName, set_mediaVarName), with =F])
+    #   prophet_plot_components(modelRecurrance, forecastRecurrance)
+    # }
+    
+    
     assign("modelRecurrance", modelRecurrance, envir = .GlobalEnv)
     assign("forecastRecurrance", forecastRecurrance, envir = .GlobalEnv)
     #plot(modelRecurrance, forecastRecurrance)
+    #prophet_plot_components(modelRecurrance, forecastRecurrance, render_plot = T)
     
     if (use_trend) {
       fc_trend <- forecastRecurrance$trend[1:NROW(recurrance)]
@@ -969,7 +986,8 @@ f.mmm <- function(...
       nrmse.collect <- c()
       decomp.rssd.collect <- c()
       best_mape <- Inf
-      registerDoParallel(cores=set_cores)
+      closeAllConnections()
+      registerDoParallel(set_cores)  #registerDoParallel(cores=set_cores)
       getDoParWorkers()
       doparCollect <- foreach (
         i = 1:iterPar
