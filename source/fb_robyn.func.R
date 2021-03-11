@@ -316,7 +316,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         modNLS <- tryCatch(
           {
             nlsStartVal <- list(Vmax = dt_spendModInput[, max(reach)/2], Km = dt_spendModInput[, max(reach)])
-            modNLS <- minpack.lmnlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
+            modNLS <- nlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
                                       data = dt_spendModInput,
                                       start = nlsStartVal
                                       ,control = nls.control(warnOnly = T))
