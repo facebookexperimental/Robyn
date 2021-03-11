@@ -1380,7 +1380,7 @@ f.robyn <- function(set_hyperBoundLocal
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90)
     resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
-    resultHypParam[, mape.qt10:= mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90 & coef0 ==FALSE]
+    resultHypParam[, mape.qt10:= mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90]
 
     
     resultHypParamPareto <- resultHypParam[mape.qt10==T]
