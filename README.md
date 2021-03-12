@@ -19,6 +19,7 @@
   * It's highly recommended to update to R version 4.0.3 to avoid potential errors
   * Please make sure you've installed all library specified in fb_robyn.exec.R first
   * Please also install Anaconda for reticulate. Simple instruction please check fb_robyn.exec.R in the library section
+  * For Windows, if you get openssl error, please see instructions [here](https://stackoverflow.com/questions/54558389/how-to-solve-this-error-while-installing-python-packages-in-rstudio/54566647) and [here](https://dev.to/danilovieira/installing-openssl-on-windows-and-adding-to-path-3mbf) to install and update openssl
 
 3. Test run with sample data
   * Please follow all instructions in fb_robyn.exec.R
