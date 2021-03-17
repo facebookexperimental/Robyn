@@ -55,7 +55,8 @@ f.budgetAllocator <- function(modID = NULL
   channelNames <- sort(set_mediaVarName)
   channelNames <- channelNames[coefSelectorSorted]
   if(!all(coefSelectorSorted)) {
-    message(paste(setdiff(set_mediaVarName, channelNames), collapse = ", "), " are excluded in optimiser because their coeffients are 0")
+    chn_coef0 <- setdiff(set_mediaVarName, channelNames)
+    message(paste(chn_coef0, collapse = ", "), " are excluded in optimiser because their coeffients are 0")
   }
   
   dt_bestHyperParam <- dt_bestHyperParam[, .SD, .SDcols = na.omit(str_extract(names(dt_bestHyperParam),paste(paste0(channelNames,".*"),collapse = "|")))]
@@ -88,6 +89,7 @@ f.budgetAllocator <- function(modID = NULL
   #names(costSelector) <- set_mediaVarName
   costSelectorSorted <- costSelector[order(set_mediaVarName)]
   costSelectorSorted <- costSelectorSorted[coefSelectorSorted]
+  costSelectorSorted <- costSelectorSorted[channelNames]
   
   names(channel_constr_low) <- set_mediaVarName; names(channel_constr_up) <- set_mediaVarName
   channelConstrLowSorted <- channel_constr_low[order(set_mediaVarName)][coefSelectorSorted]
@@ -233,9 +235,11 @@ f.budgetAllocator <- function(modID = NULL
   
   ## build contraints function with scenarios
   nPeriod <- nrow(dt_optimCost)
+  xDecompAggMedia <- model_output_collect$xDecompAgg[solID==modID & rn %in% set_mediaVarName][order(rn)]
+  
   if (scenario == "max_historical_response") {
-    expected_spend <- sum(dt_optimCost)
-    expSpendUnitTotal <- expected_spend / nPeriod
+    expected_spend <- sum(xDecompAggMedia$total_spend)
+    expSpendUnitTotal <- sum(xDecompAggMedia$mean_spend)  #expected_spend / nPeriod
     
   } else if (scenario == "max_response_expected_spend") {
     
@@ -245,12 +249,26 @@ f.budgetAllocator <- function(modID = NULL
     expSpendUnitTotal <- expected_spend / (expected_spend_days / dayInterval)
   }
   
-  histSpend <- colSums(dt_optimCost)
+  histSpend <- xDecompAggMedia[,.(rn, total_spend)]
+  histSpend <- histSpend$total_spend; names(histSpend) <- sort(set_mediaVarName)
+  #histSpend <- colSums(dt_optimCost)
   histSpendTotal <- sum(histSpend)
-  histSpendUnitTotal <- histSpendTotal/ nPeriod
-  histSpendShare <- histSpend / histSpendTotal
-  histSpendUnit <- histSpendUnitTotal * histSpendShare
-  histResponseUnit <- -eval_f(histSpendUnit)[["objective.channel"]]
+  histSpendUnitTotal <- sum(xDecompAggMedia$mean_spend) # histSpendTotal/ nPeriod
+  #histSpendShare <- histSpend / histSpendTotal
+  #histSpendUnit <- histSpendUnitTotal * histSpendShare
+  histSpendUnit <- xDecompAggMedia[rn %in% channelNames, mean_spend]; names(histSpendUnit) <- channelNames
+  histSpendShare <- xDecompAggMedia[rn %in% channelNames, spend_share]; names(histSpendShare) <- channelNames
+  
+  # QA: check if objective function correctly implemented
+  histResponseUnitModel <- xDecompAggMedia[rn %in% channelNames, get("mean_response")]; names(histResponseUnitModel) <- channelNames
+  histResponseUnitAllocator <- unlist(-eval_f(histSpendUnit)[["objective.channel"]])
+  identical(round(histResponseUnitModel,3), round(histResponseUnitAllocator,3))
+  
+  # for (i in 1:length(chn_coef0)) {
+  #   histResponseUnit[length(channelNames)+i] <- 0
+  #   names(histResponseUnit)[length(channelNames)+i] <- chn_coef0[i]
+  # }
+  # histResponseUnit <- histResponseUnit[names(histSpend)]
   
   # expSpendUnit <- histSpendShare * expSpendUnitTotal
   # expResponseUnit <- -eval_f(expSpendUnit)[["objective.channel"]]
@@ -306,15 +324,13 @@ f.budgetAllocator <- function(modID = NULL
   #print(nlsMod)
   
   
-  
-  
   ## collect output 
   
   dt_bestModel <- dt_bestCoef[, .(rn, spend, xDecompAgg, roi)][order(rn)]
   
   dt_optimOut <- data.table(
     channels = channelNames
-    ,histSpend = histSpend
+    ,histSpend = histSpend[channelNames]
     ,histSpendTotal = histSpendTotal
     ,initSpendUnitTotal = histSpendUnitTotal
     ,initSpendUnit = histSpendUnit
@@ -323,9 +339,9 @@ f.budgetAllocator <- function(modID = NULL
     # ,histResponseTotal = sum(dt_bestModel$xDecompAgg)
     # ,histResponseUnit = dt_bestModel$xDecompAgg/nPeriod
     # ,histResponseUnitTotal = sum(dt_bestModel$xDecompAgg/nPeriod)
-    ,initResponseUnit = histResponseUnit
-    ,initResponseUnitTotal = sum(histResponseUnit)
-    ,initRoiUnit = histResponseUnit/histSpendUnit
+    ,initResponseUnit = histResponseUnitModel
+    ,initResponseUnitTotal = sum(xDecompAggMedia$mean_response)
+    ,initRoiUnit = histResponseUnitModel/histSpendUnit
     ,expSpendTotal = expected_spend
     ,expSpendUnitTotal = expSpendUnitTotal
     ,expSpendUnitDelta = expSpendUnitTotal/histSpendUnitTotal-1
@@ -341,13 +357,11 @@ f.budgetAllocator <- function(modID = NULL
     ,optmResponseUnit = -eval_f(nlsMod$solution)[["objective.channel"]]
     ,optmResponseUnitTotal = sum(-eval_f(nlsMod$solution)[["objective.channel"]])
     ,optmRoiUnit = -eval_f(nlsMod$solution)[["objective.channel"]] / nlsMod$solution
-    ,optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnit) -1
+    ,optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) -1
   )
   
   dt_optimOut[, optmResponseUnitTotalLift:= (optmResponseUnitTotal / initResponseUnitTotal) -1]
   print(dt_optimOut)
-  
-  
   
   ## plot allocator results
   
@@ -399,7 +413,7 @@ f.budgetAllocator <- function(modID = NULL
   plotDT_share[, channels:=as.factor(channels)]
   chn_levels <- plotDT_share[, as.character(channels)]
   plotDT_share[, channels:=factor(channels, levels = chn_levels)]
-  setnames(plotDT_share, names(plotDT_share), new = c("channel", "initial spend share", "optimised spend share"))
+  setnames(plotDT_share, names(plotDT_share), new = c("channel", "initial avg.spend share", "optimised avg.spend share"))
   
   plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
   p13 <- ggplot(plotDT_share, aes(x=channel, y=spend_share, fill = variable)) +
@@ -420,6 +434,7 @@ f.budgetAllocator <- function(modID = NULL
   plotDT_saturation <- melt.data.table(model_output_collect$mediaVecCollect[solID==modID & type == "saturatedSpendReversed"], id.vars = "ds", measure.vars = set_mediaVarName, value.name = "spend", variable.name = "channel")
   plotDT_decomp <- melt.data.table(model_output_collect$mediaVecCollect[solID==modID & type == "decompMedia"], id.vars = "ds", measure.vars = set_mediaVarName, value.name = "response", variable.name = "channel")
   plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
+  plotDT_scurve <- plotDT_scurve[spend>=0] # remove outlier introduced by MM nls fitting
   plotDT_scurveMeanResponse <- model_output_collect$xDecompAgg[solID==modID & rn %in% set_mediaVarName]
   dt_optimOutScurve <- rbind(dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type:="initial"], dt_optimOut[, .(channels, optmSpendUnit, optmResponseUnit)][, type:="optimised"], use.names = F)
   setnames(dt_optimOutScurve, c("channels", "spend", "response", "type"))

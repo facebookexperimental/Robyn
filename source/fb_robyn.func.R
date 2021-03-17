@@ -270,6 +270,15 @@ f.inputWrangling <- function(dt_transform = dt_input) {
     stop("set_mediaSpendName and set_mediaVarName have to be the same length and same order")}
   
   
+  trainSize <- round(nrow(dt_transform)* set_modTrainSize)
+  dt_train <- dt_transform[1:trainSize, set_mediaVarName, with =F]
+  train_all0 <- colSums(dt_train)==0
+  if(any(train_all0)) {
+    stop("These media channels contains only 0 within training period ",dt_transform$ds[1], " to ", dt_transform$ds[trainSize], ": ", paste(names(dt_train)[train_all0], collapse = ", ")
+         , " \nRecommendation: increase set_modTrainSize, remove or combine these channels")
+  }
+  
+  
   #hypName <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas") # defind hyperparameter names
   dayInterval <- as.integer(difftime(sort(unique(dt_transform$ds))[2], sort(unique(dt_transform$ds))[1], units = "days"))
   intervalType <- if(dayInterval==1) {"day"} else if (dayInterval==7) {"week"} else if (dayInterval %in% 28:31) {"month"} else {stop("input data has to be daily, weekly or monthly")}
@@ -316,10 +325,10 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         modNLS <- tryCatch(
           {
             nlsStartVal <- list(Vmax = dt_spendModInput[, max(reach)/2], Km = dt_spendModInput[, max(reach)])
-            modNLS <- nlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
+            suppressWarnings(modNLS <- nlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
                                       data = dt_spendModInput,
                                       start = nlsStartVal
-                                      ,control = nls.control(warnOnly = T))
+                                      ,control = nls.control(warnOnly = T)))
           },
           error=function(cond) {
             nlsStartVal <- list(Vmax=1, Km=1)
@@ -680,8 +689,11 @@ f.decomp <- function(coefs, dt_modAdstocked, x, y_pred, i) {
   
   xDecompOutAgg <- sapply(xDecompOut[, c("intercept", indepVarName), with =F], function(x) sum(x))
   xDecompOutAggPerc <- xDecompOutAgg / sum(y_hat)
-  xDecompOutAggPerc.scaled <- abs(xDecompOutAggPerc)/sum(abs(xDecompOutAggPerc))
-  xDecompOutAgg.scaled <- sum(xDecompOutAgg)*xDecompOutAggPerc.scaled
+  xDecompOutAggMeanNon0 <- sapply(xDecompOut[, c("intercept", indepVarName), with =F], function(x) mean(x[x>0]))
+  xDecompOutAggMeanNon0[is.nan(xDecompOutAggMeanNon0)] <- 0
+  xDecompOutAggMeanNon0Perc <- xDecompOutAggMeanNon0/sum(xDecompOutAggMeanNon0)
+  #xDecompOutAggPerc.scaled <- abs(xDecompOutAggPerc)/sum(abs(xDecompOutAggPerc))
+  #xDecompOutAgg.scaled <- sum(xDecompOutAgg)*xDecompOutAggPerc.scaled
   
   coefsOut <- data.table(coefs, keep.rownames = T)
   coefsOut[, rn := if (length(indepVarCat) == 0) {rn} else {sapply(indepVarCat, function(x) str_replace(coefsOut$rn, paste0(x,".*"), x))}]
@@ -689,8 +701,11 @@ f.decomp <- function(coefs, dt_modAdstocked, x, y_pred, i) {
   
   decompOutAgg <- cbind(coefsOut, data.table(xDecompAgg = xDecompOutAgg
                                              ,xDecompPerc = xDecompOutAggPerc
-                                             ,xDecompAgg.scaled = xDecompOutAgg.scaled
-                                             ,xDecompPerc.scaled = xDecompOutAggPerc.scaled))
+                                             ,xDecompMeanNon0 = xDecompOutAggMeanNon0
+                                             ,xDecompMeanNon0Perc = xDecompOutAggMeanNon0Perc
+                                             #,xDecompAgg.scaled = xDecompOutAgg.scaled
+                                             #,xDecompPerc.scaled = xDecompOutAggPerc.scaled
+                                             ))
   decompOutAgg[, pos:= xDecompAgg>=0]
   
   decompCollect <- list(xDecompVec= xDecompOut, xDecompVec.scaled=xDecompOut.scaled, xDecompAgg = decompOutAgg)
@@ -861,8 +876,9 @@ f.mmm <- function(...
   #### Get spend share
   
   dt_spendShare <- dt_input[, .(rn = set_mediaVarName,
-                                total_spend = sapply(.SD, sum)), .SDcols=set_mediaSpendName]
-  dt_spendShare[, ':='(spend_share = total_spend / sum(total_spend))]
+                                total_spend = sapply(.SD, sum),
+                                mean_spend = sapply(.SD, function(x) mean(x[x>0]))), .SDcols=set_mediaSpendName]
+  dt_spendShare[, ':='(spend_share = mean_spend / sum(mean_spend))]
   
   ################################################
   #### Setup environment
@@ -1058,7 +1074,7 @@ f.mmm <- function(...
         x <- rbind(x_train, x_test)
         
         ## create lambda sequence with x and y
-        lambda_seq <- f.lambdaRidge(x=x_train, y=y_train, seq_len = lambda.n, lambda_min_ratio = 0.0001)
+        # lambda_seq <- f.lambdaRidge(x=x_train, y=y_train, seq_len = lambda.n, lambda_min_ratio = 0.0001)
         
         ## define sign control
         dt_sign <- dt_modAdstocked[, !"depVar"] #names(dt_sign)
@@ -1128,9 +1144,9 @@ f.mmm <- function(...
         #### calculate multi-objectives for pareto optimality
         
         ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
-        dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompPerc)]
-        dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share, total_spend)], on = "rn"]
-        dt_decompSpendDist[, effect_share:= xDecompPerc/sum(xDecompPerc)]
+        dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0)]
+        dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share, mean_spend, total_spend)], on = "rn"]
+        dt_decompSpendDist[, effect_share:= xDecompMeanNon0Perc/sum(xDecompMeanNon0Perc)]
         decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share-spend_share)^2))]
         
         ## adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
@@ -1402,11 +1418,11 @@ f.robyn <- function(set_hyperBoundLocal
   decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
   decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
   decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
-  decompSpendDist[, roi := xDecompAgg/total_spend ]
+  decompSpendDist[, roi := xDecompMeanNon0/mean_spend]
 
   setkey(xDecompAgg,solID, rn)
   setkey(decompSpendDist,solID, rn)
-  xDecompAgg <- merge(xDecompAgg,decompSpendDist[, .(rn, solID, total_spend, spend_share, effect_share, roi)], all.x=TRUE)
+  xDecompAgg <- merge(xDecompAgg,decompSpendDist[, .(rn, solID, total_spend, mean_spend, spend_share, effect_share, roi)], all.x=TRUE)
 
   
   #####################################
@@ -1493,8 +1509,6 @@ f.robyn <- function(set_hyperBoundLocal
     ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "pareto_front.png")
            , plot = pParFront
            , dpi = 600, width = 12, height = 7)
-
-    
   }
 
     
@@ -1523,8 +1537,9 @@ f.robyn <- function(set_hyperBoundLocal
         plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_test" ), measure.vars = c("spend_share", "effect_share", "roi"))
         plotMediaShareLoop[, rn:= factor(rn, levels = sort(set_mediaVarName))]
         plotMediaShareLoopBar <- plotMediaShareLoop[variable %in% c("spend_share", "effect_share")]
+        plotMediaShareLoopBar[, variable:= ifelse(variable=="spend_share", "avg.spend share", "avg.effect share")]
         plotMediaShareLoopLine <- plotMediaShareLoop[variable =="roi"]
-        plotMediaShareLoopLine[, variable:= "total roi"]
+        plotMediaShareLoopLine[, variable:= "avg.roi"]
         ySecScale <- max(plotMediaShareLoopLine$value)/max(plotMediaShareLoopBar$value)*1.1
         
         p1 <- ggplot(plotMediaShareLoopBar, aes(x=rn, y=value, fill = variable)) +
@@ -1665,8 +1680,6 @@ f.robyn <- function(set_hyperBoundLocal
                                   ", mape.lift = ", mape_lift_plot)
                ,y="", x="")
         
-        
-        
         ## plot response curve
         
         dt_transformSaturationDecomp <- copy(dt_transformSaturation)
@@ -1682,9 +1695,15 @@ f.robyn <- function(set_hyperBoundLocal
         for (i in 1:length(set_mediaVarName)) {
           chn <- set_mediaVarName[i]
           if (chn %in% set_mediaVarName[costSelector]) {
+            
+            # get Michaelis Menten nls fitting param
+            get_chn <- dt_transformSaturationSpendReverse[, chn, with =F]
             Vmax <- modNLSCollect[channel == chn, Vmax]
             Km <- modNLSCollect[channel == chn, Km]
+            
+            # reverse exposure to spend
             dt_transformSaturationSpendReverse[, (chn):=.SD * Km / (Vmax - .SD), .SDcols = chn] # reach to spend, reverse Michaelis Menthen: x = y*Km/(Vmax-y)
+            
           } else if (chn %in% chnl_non_spend) {
             coef_lm <- modNLSCollect[channel == chn, coef_lm]
             dt_transformSaturationSpendReverse[, (chn):= .SD/coef_lm, .SDcols = chn] 
@@ -1694,22 +1713,37 @@ f.robyn <- function(set_hyperBoundLocal
         }
         
         dt_scurvePlot <- cbind(melt.data.table(dt_transformSaturationDecomp, id.vars = "ds", variable.name = "channel",value.name = "response"),
-                               melt.data.table(dt_transformSaturationSpendReverse, id.vars = "ds", value.name = "spend")[, .(spend)]) 
+                               melt.data.table(dt_transformSaturationSpendReverse, id.vars = "ds", value.name = "spend")[, .(spend)])
+        dt_scurvePlot <- dt_scurvePlot[spend>=0] # remove outlier introduced by MM nls fitting
         
         
-        dt_scurvePlotMean <- dt_transformSpend[, !"ds"][, lapply(.SD, mean), .SDcols = set_mediaVarName]
+        dt_scurvePlotMean <- dt_transformSpend[, !"ds"][, lapply(.SD, function(x) mean(x[x>0])), .SDcols = set_mediaVarName]
         dt_scurvePlotMean <- melt.data.table(dt_scurvePlotMean, measure.vars = set_mediaVarName, value.name = "mean_spend", variable.name = "channel")
-        dt_scurvePlotMean[, ':='(mean_response=0, next_unit_response=0)]
+        dt_scurvePlotMean[, ':='(mean_spend_scaled=0, mean_response=0, next_unit_response=0)]
         
         for (med in 1:length(set_mediaVarName)) {
-          m <- dt_transformSaturationSpendReverse[, get(set_mediaVarName[med])]
+          m <- dt_transformAdstock[, get(set_mediaVarName[med])]
+          # m <- m[m>0] # remove outlier introduced by MM nls fitting
           alpha <- hypParam[which(paste0(set_mediaVarName[med], "_alphas")==names(hypParam))]
           gamma <- hypParam[which(paste0(set_mediaVarName[med], "_gammas")==names(hypParam))]
           gammaTrans <- round(quantile(seq(range(m)[1], range(m)[2], length.out = 100), gamma),4)
           get_spend <- dt_scurvePlotMean[channel == set_mediaVarName[med], mean_spend]
-          get_response <-  get_spend**alpha / (get_spend**alpha + gammaTrans**alpha)
-          get_response_marginal <- (get_spend+1)**alpha / ((get_spend+1)**alpha + gammaTrans**alpha)
+          
+          if (set_mediaVarName[med] %in% set_mediaVarName[costSelector]) {
+            Vmax <- modNLSCollect[channel == set_mediaVarName[med], Vmax]
+            Km <- modNLSCollect[channel == set_mediaVarName[med], Km]
+            get_spend_mm <- Vmax * get_spend/(Km + get_spend)
+          } else if (set_mediaVarName[med] %in% chnl_non_spend) {
+            coef_lm <- modNLSCollect[channel == set_mediaVarName[med], coef_lm]
+            get_spend_mm <- get_spend*coef_lm
+          } else {
+            get_spend_mm <- get_spend
+          }
+          
+          get_response <-  get_spend_mm**alpha / (get_spend_mm**alpha + gammaTrans**alpha)
+          get_response_marginal <- (get_spend_mm+1)**alpha / ((get_spend_mm+1)**alpha + gammaTrans**alpha)
           coef <- plotWaterfallLoop[rn == set_mediaVarName[med], coef]
+          dt_scurvePlotMean[channel == set_mediaVarName[med], mean_spend_scaled := get_spend_mm]
           dt_scurvePlotMean[channel == set_mediaVarName[med], mean_response := get_response * coef]
           dt_scurvePlotMean[channel == set_mediaVarName[med], next_unit_response := get_response_marginal * coef - mean_response]
           
@@ -1749,7 +1783,7 @@ f.robyn <- function(set_hyperBoundLocal
         
         xDecompVecPlot <- xDecompVec[, .(ds, depVar, depVarHat)]
         setnames(xDecompVecPlot, old = c("ds", "depVar", "depVarHat"), new = c("ds", "actual", "predicted"))
-        xDecompVecPlotMelted <- melt.data.table(xDecompVecPlot, id.vars = "ds")
+        suppressWarnings(xDecompVecPlotMelted <- melt.data.table(xDecompVecPlot, id.vars = "ds"))
 
         p5 <- ggplot(xDecompVecPlotMelted, aes(x=ds, y = value, color = variable)) +
           geom_line()+
@@ -1803,7 +1837,7 @@ f.robyn <- function(set_hyperBoundLocal
     
     setnames(meanResponseCollect, old = "channel", new = "rn")
     setkey(meanResponseCollect, solID, rn)
-    xDecompAgg <- merge(xDecompAgg,meanResponseCollect[, .(rn, solID, mean_spend, mean_response, next_unit_response)], all.x=TRUE)
+    xDecompAgg <- merge(xDecompAgg,meanResponseCollect[, .(rn, solID, mean_response, next_unit_response)], all.x=TRUE)
     
 
   cat("\nTotal time: ",difftime(Sys.time(),t0, units = "mins"), "mins\n")

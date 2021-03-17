@@ -71,7 +71,7 @@ activate_baseline <- T
 set_baseVarName <- c("competitor_sales_B") # typically competitors, price & promotion, temperature,  unemployment rate etc
 set_baseVarSign <- c("negative") # c("default", "positive", and "negative"), control the signs of coefficients for baseline variables
 
-set_mediaVarName <- c("tv_S"	,"ooh_S",	"print_S"	,"facebook_I"	,"search_clicks_P") # c("tv_S"	,"ooh_S",	"print_S"	,"facebook_I", "facebook_S"	,"search_clicks_P"	,"search_S") we recommend to use media pressure metrics like impressions, GRP etc for the model. If not applicable, use spend instead
+set_mediaVarName <- c("tv_S"	,"ooh_S",	"print_S"	,"facebook_I"	,"search_clicks_P") # c("tv_S"	,"ooh_S",	"print_S"	,"facebook_I", "facebook_S"	,"search_clicks_P"	,"search_S") we recommend to use media exposure metrics like impressions, GRP etc for the model. If not applicable, use spend instead
 set_mediaVarSign <- c("positive", "positive", "positive", "positive", "positive") # c("default", "positive", and "negative"), control the signs of coefficients for media variables
 set_mediaSpendName <- c("tv_S"	,"ooh_S",	"print_S"	,"facebook_S"	,"search_S") # spends must have same order and same length as set_mediaVarName
 
@@ -123,26 +123,26 @@ set_hyperBoundLocal <- list(
  ,facebook_I_thetas = c(0, 0.3) # example bounds for theta
  #,facebook_I_shapes = c(0.0001, 2) # example bounds for shape
  #,facebook_I_scales = c(0, 0.1) # example bounds for scale
-  
+
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
-  ,ooh_S_thetas = c(0.1, 0.4) 
+  ,ooh_S_thetas = c(0.1, 0.4)
  #,ooh_S_shapes = c(0.0001, 2)
  #,ooh_S_scales = c(0, 0.1)
-  
-  ,print_S_alphas = c(0.5, 3) 
+
+  ,print_S_alphas = c(0.5, 3)
   ,print_S_gammas = c(0.3, 1)
  ,print_S_thetas = c(0.1, 0.4)
  #,print_S_shapes = c(0.0001, 2)
  #,print_S_scales = c(0, 0.1)
-  
-  ,tv_S_alphas = c(0.5, 3) 
+
+  ,tv_S_alphas = c(0.5, 3)
   ,tv_S_gammas = c(0.3, 1)
   ,tv_S_thetas = c(0.3, 0.8)
  #,tv_S_shapes = c(0.0001, 2)
  #,tv_S_scales= c(0, 0.1)
-  
-  ,search_clicks_P_alphas = c(0.5, 3)  
+
+  ,search_clicks_P_alphas = c(0.5, 3)
   ,search_clicks_P_gammas = c(0.3, 1)
   ,search_clicks_P_thetas = c(0, 0.3)
  #,search_clicks_P_shapes = c(0.0001, 2)
@@ -187,4 +187,3 @@ optim_result <- f.budgetAllocator(modID = "3_11_5" # input one of the model IDs 
                                   ,channel_constr_low = c(0.7, 0.75, 0.60, 0.8, 0.65) # must be between 0.01-1 and has same length and order as set_mediaVarName
                                   ,channel_constr_up = c(1.2, 1.5, 1.5, 2, 1.5) # not recommended to 'exaggerate' upper bounds. 1.5 means channel budget can increase to 150% of current level
 )
-
