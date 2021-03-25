@@ -144,6 +144,13 @@ f.budgetAllocator <- function(modID = NULL
   coefs <- dt_bestCoef[,coef]; names(coefs) <- dt_bestCoef[,rn]
   
   ## build evaluation funciton
+  if(exists("modNLSCollect")) {
+    mm_lm_coefs <- modNLSCollect$coef_lm
+    names(mm_lm_coefs) <- modNLSCollect$channel
+  } else {
+    mm_lm_coefs <- c()
+  }
+
   eval_f <- function(X) {
     return(
       list(
@@ -154,10 +161,8 @@ f.budgetAllocator <- function(modID = NULL
             # apply Michaelis Menten model to scale spend to reach
             if (criteria) {
               xScaled <- vmax * x / (km + x)
-            } else if (exists("modNLSCollect")) {
-              if (chnName %in% modNLSCollect$channel) {
-                xScaled <- x * modNLSCollect[channel == chnName, coef_lm]
-              }
+            } else if (chnName %in% names(mm_lm_coefs)) {
+                xScaled <- x * mm_lm_coefs[chnName]
             } else {
               xScaled <- x 
             }
@@ -184,10 +189,8 @@ f.budgetAllocator <- function(modID = NULL
             # apply Michaelis Menten model to scale spend to reach
             if (criteria) {
               xScaled <- vmax * x / (km + x)
-            } else if (exists("modNLSCollect")) {
-              if (chnName %in% modNLSCollect$channel) {
-                xScaled <- x * modNLSCollect[channel == chnName, coef_lm]
-              }
+            } else if (chnName %in% names(mm_lm_coefs)) {
+              xScaled <- x * mm_lm_coefs[chnName]
             } else {
               xScaled <- x 
             }
@@ -214,10 +217,8 @@ f.budgetAllocator <- function(modID = NULL
             # apply Michaelis Menten model to scale spend to reach
             if (criteria) {
               xScaled <- vmax * x / (km + x)
-            } else if (exists("modNLSCollect")) {
-              if (chnName %in% modNLSCollect$channel) {
-                xScaled <- x * modNLSCollect[channel == chnName, coef_lm]
-              }
+            } else if (chnName %in% names(mm_lm_coefs)) {
+              xScaled <- x * mm_lm_coefs[chnName]
             } else {
               xScaled <- x 
             }
