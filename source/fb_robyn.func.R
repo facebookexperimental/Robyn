@@ -195,7 +195,7 @@ f.checkConditions <- function(dt_transform) {
     }
     if (set_iter < 500 | set_trial < 80) {message("you are calibrating MMM. we recommend to run at least 500 iterations per trial and at least 80 trials at the beginning")}
   } else {
-    if (set_iter < 500 | set_trial < 40) {message("we recommend to run at least 500 iterations per trial and at least 40 trials at the beginning")}
+    if (set_iter < 500 | set_trial < 40) {message("\nwe recommend to run at least 500 iterations per trial and at least 40 trials at the beginning")}
   }
   
   if((adstock %in% c("geometric", "weibull")) == F) {stop("adstock must be 'geometric' or 'weibull'")}
@@ -1148,6 +1148,11 @@ f.mmm <- function(...
         dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share, mean_spend, total_spend)], on = "rn"]
         dt_decompSpendDist[, effect_share:= xDecompMeanNon0Perc/sum(xDecompMeanNon0Perc)]
         decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share-spend_share)^2))]
+        if (is.nan(decomp.rssd)) {
+          message("all media in this iteration have 0 coefficients")
+          decomp.rssd <- Inf
+          dt_decompSpendDist[, effect_share:=0]
+        }
         
         ## adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
         dt_decaySum <- dt_mediaVecCum[,  .(rn = set_mediaVarName, decaySum = sapply(.SD, sum)), .SDcols = set_mediaVarName]
@@ -1315,9 +1320,14 @@ f.robyn <- function(set_hyperBoundLocal
                        ,optimizer_name = set_hyperOptimAlgo
                        ,set_trial = set_trial 
                        ,set_cores = set_cores
-                       ,plot_folder = "~/Documents/GitHub/plots") {
+                       ,plot_folder = getwd()) {
   
   t0 <- Sys.time()
+  
+  if (!dir.exists(plot_folder)) {
+    plot_folder <- getwd()
+    message("provided plot_folder doesn't exist. Using default plot_folder = getwd(): ", getwd())
+  }
   
   #####################################
   #### Run f.mmm on set_trials
@@ -1350,6 +1360,14 @@ f.robyn <- function(set_hyperBoundLocal
                               ,set_cores = set_cores
                               ,optimizer_name = optmz
         )
+        
+        check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
+        if (check_coef0) {
+          num_coef0_mod <- model_output$resultCollect$decompSpendDist[decomp.rssd == Inf, uniqueN(paste0(iterNG,"_",iterPar))]
+          num_coef0_mod <- ifelse(num_coef0_mod>set_iter, set_iter, num_coef0_mod)
+          message("\nThis trial contains ", num_coef0_mod," iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
+                  \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels on theta (max.reco. c(0, 0.9) ) and gamma (max.reco. c(0.1, 1) ) to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
+        }
         
         model_output["trials"] <- ngt
         ng_collect[[ngt]] <- model_output$resultCollect$paretoFront[, ':='(trials=ngt, iters = set_iter, ng_optmz = optmz)]
