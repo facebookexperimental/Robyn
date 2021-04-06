@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-    <id>https://facebookexperimental.github.io/Robyn/blog</id>
+    <id>https://facebookexperimental.github.io/blog</id>
     <title>Robyn Blog</title>
     <updated>2015-10-25T23:29:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
-    <link rel="alternate" href="https://facebookexperimental.github.io/Robyn/blog"/>
+    <link rel="alternate" href="https://facebookexperimental.github.io/blog"/>
     <subtitle>Robyn Blog</subtitle>
-    <icon>https://facebookexperimental.github.io/Robyn/img/robyn_logo.png</icon>
+    <icon>https://facebookexperimental.github.io/img/robyn_logo.png</icon>
 </feed>
