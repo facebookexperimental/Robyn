@@ -9,7 +9,16 @@
 
 module.exports = {
   someSidebar: {
-    'How-to guide': ['doc2', 'doc3', 'doc12'],
-    Features: ['doc4', 'doc5', 'doc6', 'doc7', 'doc8', 'doc9', 'doc10', 'doc11'],
+    'How-to guide': ['installation', 'quick-start', 'step-by-step-guide'],
+    Features: [
+      'ridge-regression',
+      'variable-transformations',
+      'facebook-prophet',
+      'automated-hyperparameter-selection-optimization',
+      'calibration',
+      'outputs-diagnostics',
+      'contributing',
+      'about',
+    ],
   },
 };

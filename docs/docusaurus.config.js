@@ -9,7 +9,7 @@
 
 module.exports = {
   title: 'Robyn',
-  tagline: 'Robyn is a Marketing Mix Modeling (MMM) code. It can be used to build end-to-end time series regression models and as an econometrics code library. Automated, built for very large data sets, and is suitable for digital and complex consumer behaviour',
+  tagline:'Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation',
   url: 'https://facebookexperimental.github.io/Robyn/',
   baseUrl: '/Robyn/',
   onBrokenLinks: 'throw',
@@ -25,10 +25,14 @@ module.exports = {
       },
       items: [
         {
-          to: 'docs/doc11',
-          activeBasePath: 'docs',
-          label: 'About Robyn',
-          position: 'right',
+          to: 'docs/',
+          label: 'Docs',
+          position: 'left',
+        },
+        {
+          to: 'docs/about',
+          label: 'About',
+          position: 'left',
         },
         // Please keep GitHub link to the right for consistency.
         {
@@ -47,6 +51,15 @@ module.exports = {
             {
               label: 'GitHub',
               href: 'https://github.com/facebookexperimental/Robyn',
+            },
+          ],
+        },
+        {
+          title: 'Community',
+          items: [
+            {
+              label: 'Discord chat',
+              href: 'https://discord.gg/BYhqMedCcN',
             },
           ],
         },
@@ -79,18 +92,9 @@ module.exports = {
       '@docusaurus/preset-classic',
       {
         docs: {
-          // It is recommended to set document id as docs home page (`docs/` path).
-          homePageId: 'doc2',
           sidebarPath: require.resolve('./sidebars.js'),
           // Please change this to your repo.
-          editUrl:
-            'https://github.com/facebookexperimental/Robyn',
-        },
-        blog: {
-          showReadingTime: true,
-          // Please change this to your repo.
-          editUrl:
-            'https://github.com/facebook/docusaurus/edit/master/website/blog/',
+          editUrl: 'https://github.com/facebookexperimental/Robyn',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
