@@ -1,6 +1,5 @@
 # string.prototype.matchall <sup>[![Version Badge][npm-version-svg]][package-url]</sup>
 
-[![Build Status][travis-svg]][travis-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -60,9 +59,7 @@ assert.throws(() => matchAll(str, nonGlobalRegex)); // non-global regexes throw
 Simply clone the repo, `npm install`, and run `npm test`
 
 [package-url]: https://npmjs.com/package/string.prototype.matchall
-[npm-version-svg]: http://versionbadg.es/es-shims/String.prototype.matchAll.svg
-[travis-svg]: https://travis-ci.org/es-shims/String.prototype.matchAll.svg
-[travis-url]: https://travis-ci.org/es-shims/String.prototype.matchAll
+[npm-version-svg]: https://versionbadg.es/es-shims/String.prototype.matchAll.svg
 [deps-svg]: https://david-dm.org/es-shims/String.prototype.matchAll.svg
 [deps-url]: https://david-dm.org/es-shims/String.prototype.matchAll
 [dev-deps-svg]: https://david-dm.org/es-shims/String.prototype.matchAll/dev-status.svg
@@ -70,7 +67,7 @@ Simply clone the repo, `npm install`, and run `npm test`
 [testling-svg]: https://ci.testling.com/es-shims/String.prototype.matchAll.png
 [testling-url]: https://ci.testling.com/es-shims/String.prototype.matchAll
 [npm-badge-png]: https://nodei.co/npm/string.prototype.matchall.png?downloads=true&stars=true
-[license-image]: http://img.shields.io/npm/l/string.prototype.matchall.svg
+[license-image]: https://img.shields.io/npm/l/string.prototype.matchall.svg
 [license-url]: LICENSE
-[downloads-image]: http://img.shields.io/npm/dm/string.prototype.matchall.svg
-[downloads-url]: http://npm-stat.com/charts.html?package=string.prototype.matchall
+[downloads-image]: https://img.shields.io/npm/dm/string.prototype.matchall.svg
+[downloads-url]: https://npm-stat.com/charts.html?package=string.prototype.matchall

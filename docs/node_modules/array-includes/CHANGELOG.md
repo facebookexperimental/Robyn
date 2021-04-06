@@ -1,3 +1,12 @@
+3.1.3 / 2021-02-20
+=================
+  * [Deps] update `call-bind`, `es-abstract`, `get-intrinsic`
+  * [meta] do not publish github action workflow files
+  * [meta] gitignore coverage output
+  * [actions] update workflows
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `functions-have-names`, `has-strict-mode`, `tape`
+  * [Tests] increase coverage
+
 3.1.2 / 2020-11-24
 =================
   * [Robustness] remove dependency on `.apply`

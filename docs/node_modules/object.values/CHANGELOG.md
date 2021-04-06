@@ -1,3 +1,11 @@
+1.1.3 / 2021-02-22
+=================
+  * [readme] remove travis badge
+  * [meta] do not publish github action workflow files
+  * [Deps] update `call-bind`, `es-abstract`
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `functions-have-names`, `has-strict-mode`, `tape`
+  * [actions] update workflows
+
 1.1.2 / 2020-11-26
 =================
   * [Fix] do not mutate the native function when present

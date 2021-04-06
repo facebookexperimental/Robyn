@@ -32,14 +32,16 @@ function readingTime(text, options) {
 
   // calculate the number of words
   for (i = start; i <= end;) {
-    for (; i <= end && !wordBound(text[i]); i++) ;
+    for (; i <= end && !wordBound(text[i]); i++);
     words++
-    for (; i <= end && wordBound(text[i]); i++) ;
+    for (; i <= end && wordBound(text[i]); i++);
   }
 
   // reading time stats
   var minutes = words / options.wordsPerMinute
-  var time = minutes * 60 * 1000
+  // Math.round used to resolve floating point funkyness
+  //   http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html
+  var time = Math.round(minutes * 60 * 1000)
   var displayed = Math.ceil(minutes.toFixed(2))
 
   return {

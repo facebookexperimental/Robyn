@@ -1,3 +1,7 @@
+# 3.1.1
+
+* Fix detecting header below shebang comment with Windows EOL (#30)
+
 # 3.1.0
 
 * Update to eslint 7.7.0

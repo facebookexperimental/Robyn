@@ -2,60 +2,68 @@
   "docusaurus-plugin-content-docs": {
     "default": {
       "path": "/Robyn/docs",
-      "latestVersionName": null,
       "versions": [
         {
-          "name": null,
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
           "path": "/Robyn/docs",
-          "mainDocId": "doc2",
+          "mainDocId": "installation",
           "docs": [
             {
-              "id": "doc1",
-              "path": "/Robyn/docs/doc1"
+              "id": "about",
+              "path": "/Robyn/docs/about",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc10",
-              "path": "/Robyn/docs/doc10"
+              "id": "automated-hyperparameter-selection-optimization",
+              "path": "/Robyn/docs/automated-hyperparameter-selection-optimization",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc11",
-              "path": "/Robyn/docs/doc11"
+              "id": "calibration",
+              "path": "/Robyn/docs/calibration",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc12",
-              "path": "/Robyn/docs/doc12"
+              "id": "contributing",
+              "path": "/Robyn/docs/contributing",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc2",
-              "path": "/Robyn/docs/"
+              "id": "facebook-prophet",
+              "path": "/Robyn/docs/facebook-prophet",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc3",
-              "path": "/Robyn/docs/doc3"
+              "id": "installation",
+              "path": "/Robyn/docs/",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc4",
-              "path": "/Robyn/docs/doc4"
+              "id": "outputs-diagnostics",
+              "path": "/Robyn/docs/outputs-diagnostics",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc5",
-              "path": "/Robyn/docs/doc5"
+              "id": "quick-start",
+              "path": "/Robyn/docs/quick-start",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc6",
-              "path": "/Robyn/docs/doc6"
+              "id": "ridge-regression",
+              "path": "/Robyn/docs/ridge-regression",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc7",
-              "path": "/Robyn/docs/doc7"
+              "id": "step-by-step-guide",
+              "path": "/Robyn/docs/step-by-step-guide",
+              "sidebar": "someSidebar"
             },
             {
-              "id": "doc8",
-              "path": "/Robyn/docs/doc8"
-            },
-            {
-              "id": "doc9",
-              "path": "/Robyn/docs/doc9"
+              "id": "variable-transformations",
+              "path": "/Robyn/docs/variable-transformations",
+              "sidebar": "someSidebar"
             }
           ]
         }

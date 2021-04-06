@@ -1,6 +1,5 @@
 # object.values <sup>[![Version Badge][npm-version-svg]][package-url]</sup>
 
-[![Build Status][travis-svg]][travis-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -43,9 +42,7 @@ assert.deepEqual(Object.values(obj), expected);
 Simply clone the repo, `npm install`, and run `npm test`
 
 [package-url]: https://npmjs.com/package/object.values
-[npm-version-svg]: http://versionbadg.es/es-shims/Object.values.svg
-[travis-svg]: https://travis-ci.org/es-shims/Object.values.svg
-[travis-url]: https://travis-ci.org/es-shims/Object.values
+[npm-version-svg]: https://versionbadg.es/es-shims/Object.values.svg
 [deps-svg]: https://david-dm.org/es-shims/Object.values.svg
 [deps-url]: https://david-dm.org/es-shims/Object.values
 [dev-deps-svg]: https://david-dm.org/es-shims/Object.values/dev-status.svg
@@ -53,7 +50,7 @@ Simply clone the repo, `npm install`, and run `npm test`
 [testling-svg]: https://ci.testling.com/es-shims/Object.values.png
 [testling-url]: https://ci.testling.com/es-shims/Object.values
 [npm-badge-png]: https://nodei.co/npm/object.values.png?downloads=true&stars=true
-[license-image]: http://img.shields.io/npm/l/object.values.svg
+[license-image]: https://img.shields.io/npm/l/object.values.svg
 [license-url]: LICENSE
-[downloads-image]: http://img.shields.io/npm/dm/object.values.svg
-[downloads-url]: http://npm-stat.com/charts.html?package=object.values
+[downloads-image]: https://img.shields.io/npm/dm/object.values.svg
+[downloads-url]: https://npm-stat.com/charts.html?package=object.values

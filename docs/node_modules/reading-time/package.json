@@ -1,6 +1,6 @@
 {
   "name": "reading-time",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Medium's like reading time estimation.",
   "main": "index.js",
   "types": "index.d.ts",

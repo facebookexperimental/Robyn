@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.5](https://github.com/es-shims/object-is/compare/v1.1.4...v1.1.5) - 2021-02-20
+
+### Commits
+
+- [meta] do not publish github action workflow files [`ec00b0f`](https://github.com/es-shims/object-is/commit/ec00b0f3a5096a7d57884e201c76ded3052a1b9c)
+- [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `tape` [`279645e`](https://github.com/es-shims/object-is/commit/279645e330da410da9776455274aa6b3c89b585b)
+- [actions] update workflows [`6b4ef5a`](https://github.com/es-shims/object-is/commit/6b4ef5a219fc3982433fc3df2ad9d57994be0761)
+- [Dev Deps] update `eslint`, `functions-have-names`, `tape` [`f5fd32a`](https://github.com/es-shims/object-is/commit/f5fd32ace61d4643fe0bf67ca83a6674a65906be)
+- [Deps] update `call-bind` [`0fafc13`](https://github.com/es-shims/object-is/commit/0fafc13ec1a20d3075512ae9d2c0b0ee252169a9)
+- [Deps] update `call-bind` [`e28a929`](https://github.com/es-shims/object-is/commit/e28a929b71fc1939a4c4d5c92ca0c04a0b27ff81)
+- [readme] Add note about es-shim API [`f903cc1`](https://github.com/es-shims/object-is/commit/f903cc11186e0d5c6c4173821d6b7bf2a49f6c01)
+
 ## [v1.1.4](https://github.com/es-shims/object-is/compare/v1.1.3...v1.1.4) - 2020-11-26
 
 ### Commits

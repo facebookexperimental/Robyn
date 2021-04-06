@@ -1,5 +1,19 @@
 # Change Log
 
+## [4.2.2](https://github.com/jpmonette/feed/tree/4.2.2) (2021-01-22)
+[Full Changelog](https://github.com/jpmonette/feed/compare/4.2.1...4.2.2)
+
+**Implemented enhancements:**
+
+- Export types in feed [\#128](https://github.com/jpmonette/feed/issues/128)
+
+**Merged pull requests:**
+
+- Bump node-notifier from 8.0.0 to 8.0.1 [\#137](https://github.com/jpmonette/feed/pull/137) ([dependabot[bot]](https://github.com/apps/dependabot))
+- fix: export types from feed [\#136](https://github.com/jpmonette/feed/pull/136) ([gustavkj](https://github.com/gustavkj))
+- Bump deps [\#129](https://github.com/jpmonette/feed/pull/129) ([jpmonette](https://github.com/jpmonette))
+- Bump lodash from 4.17.15 to 4.17.19 [\#127](https://github.com/jpmonette/feed/pull/127) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [4.2.1](https://github.com/jpmonette/feed/tree/4.2.1) (2020-07-05)
 [Full Changelog](https://github.com/jpmonette/feed/compare/4.2.0...4.2.1)
 
@@ -54,6 +68,7 @@
 **Merged pull requests:**
 
 - Push to 4.0.0 [\#95](https://github.com/jpmonette/feed/pull/95) ([jpmonette](https://github.com/jpmonette))
+- Update homepage to github repo [\#92](https://github.com/jpmonette/feed/pull/92) ([kevinsimper](https://github.com/kevinsimper))
 
 ## [3.0.0](https://github.com/jpmonette/feed/tree/3.0.0) (2019-05-28)
 [Full Changelog](https://github.com/jpmonette/feed/compare/2.0.4...3.0.0)
@@ -153,7 +168,6 @@
 
 **Merged pull requests:**
 
-- Update homepage to github repo [\#92](https://github.com/jpmonette/feed/pull/92) ([kevinsimper](https://github.com/kevinsimper))
 - Initial Babel migration commit [\#49](https://github.com/jpmonette/feed/pull/49) ([jpmonette](https://github.com/jpmonette))
 - Resolves \#41 - Fix “author” tag based on W3 Validator [\#48](https://github.com/jpmonette/feed/pull/48) ([jpmonette](https://github.com/jpmonette))
 - fixed the failing test due to date provided [\#45](https://github.com/jpmonette/feed/pull/45) ([parit](https://github.com/parit))

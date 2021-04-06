@@ -58,8 +58,8 @@ fs.createReadStream('foo')
   - `options.wordsPerMinute`: (optional) the words per minute an average reader can read (default: 200)
   - `options.wordBound`: (optional) a function that returns a boolean value depending on if a character is considered as a word bound (default: spaces, new lines and tabulations)
 
-## Author
+## Other projects
 
-| [![twitter/ngryman](http://gravatar.com/avatar/2e1c2b5e153872e9fb021a6e4e376ead?size=70)](http://twitter.com/ngryman 'Follow @ngryman on Twitter') |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Nicolas Gryman](http://ngryman.sh)                                                                                                                |
+- [Fauda](https://github.com/ngryman/fauda): configuration made simple.
+- [Badge Size](https://github.com/ngryman/badge-size): Displays the size of a given file in your repository.
+- [Commitizen Emoji](https://github.com/ngryman/cz-emoji): Commitizen adapter formatting commit messages using emojis.

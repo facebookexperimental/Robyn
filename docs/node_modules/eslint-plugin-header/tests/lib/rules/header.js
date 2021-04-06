@@ -115,6 +115,14 @@ ruleTester.run("header", rule, {
         {
             code: "/**\n * Copyright 2020\n * My Company\n **/\n\n/*Log number one*/\nconsole.log(1);",
             options: ["block", "*\n * Copyright 2020\n * My Company\n *", 2],
+        },
+        {
+            code: "#!/usr/bin/env node\r\n/**\r\n * Copyright\r\n */",
+            options: ["block", [
+                "*",
+                " * Copyright",
+                " "
+            ], 0]
         }
     ],
     invalid: [

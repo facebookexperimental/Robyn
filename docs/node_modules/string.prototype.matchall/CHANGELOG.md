@@ -1,14 +1,23 @@
+4.0.4 / 2021-02-21
+==================
+  * [readme] fix repo URLs; remove travis badge
+  * [meta] gitignore coverage output
+  * [Deps] update `call-bind`, `es-abstract`, `internal-slot`, `regexp.prototype.flags`, `side-channel`
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `es5-shim`, `functions-have-names`, `object-inspect`, `object.entries`, `tape`
+  * [Tests] increase coverage
+  * [actions] update workflows
+
 4.0.3 / 2020-11-19
 ==================
-* [meta] do not publish github action workflow files
-* [Deps] update `es-abstract`, `side-channel`; use `call-bind` where applicable; remove `function-bind`
-* [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `es5-shim`, `es6-shim`, `functions-have-names`, `object-inspect`, `object.assign`, `object.entries`, `tape`
-* [actions] add "Allow Edits" workflow
-* [actions] switch Automatic Rebase workflow to `pull_request_target` event
-* [Tests] migrate tests to Github Actions
-* [Tests] run `nyc` on all tests
-* [Tests] run `es-shim-api` in postlint; use `tape` runner
-* [Tests] only audit prod deps
+  * [meta] do not publish github action workflow files
+  * [Deps] update `es-abstract`, `side-channel`; use `call-bind` where applicable; remove `function-bind`
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `es5-shim`, `es6-shim`, `functions-have-names`, `object-inspect`, `object.assign`, `object.entries`, `tape`
+  * [actions] add "Allow Edits" workflow
+  * [actions] switch Automatic Rebase workflow to `pull_request_target` event
+  * [Tests] migrate tests to Github Actions
+  * [Tests] run `nyc` on all tests
+  * [Tests] run `es-shim-api` in postlint; use `tape` runner
+  * [Tests] only audit prod deps
 
 4.0.2 / 2019-12-22
 ==================

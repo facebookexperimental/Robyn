@@ -1,7 +1,10 @@
 'use strict';
-var toString = Object.prototype.toString;
 
-module.exports = function (x) {
-	var prototype;
-	return toString.call(x) === '[object Object]' && (prototype = Object.getPrototypeOf(x), prototype === null || prototype === Object.getPrototypeOf({}));
+module.exports = value => {
+	if (Object.prototype.toString.call(value) !== '[object Object]') {
+		return false;
+	}
+
+	const prototype = Object.getPrototypeOf(value);
+	return prototype === null || prototype === Object.prototype;
 };

@@ -2,8 +2,7 @@
 
 require('es5-shim');
 require('es6-shim');
-var matchAllShim = require('../');
-matchAllShim.shim();
+require('../auto');
 
 var test = require('tape');
 var defineProperties = require('define-properties');

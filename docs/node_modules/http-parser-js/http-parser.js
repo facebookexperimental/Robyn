@@ -33,10 +33,13 @@ HTTPParser.encoding = 'ascii';
 HTTPParser.maxHeaderSize = 80 * 1024; // maxHeaderSize (in bytes) is configurable, but 80kb by default;
 HTTPParser.REQUEST = 'REQUEST';
 HTTPParser.RESPONSE = 'RESPONSE';
-var kOnHeaders = HTTPParser.kOnHeaders = 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete = 1;
-var kOnBody = HTTPParser.kOnBody = 2;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete = 3;
+
+// Note: *not* starting with kOnHeaders=0 line the Node parser, because any
+//   newly added constants (kOnTimeout in Node v12.19.0) will overwrite 0!
+var kOnHeaders = HTTPParser.kOnHeaders = 1;
+var kOnHeadersComplete = HTTPParser.kOnHeadersComplete = 2;
+var kOnBody = HTTPParser.kOnBody = 3;
+var kOnMessageComplete = HTTPParser.kOnMessageComplete = 4;
 
 // Some handler stubs, needed for compatibility
 HTTPParser.prototype[kOnHeaders] =
@@ -49,7 +52,7 @@ Object.defineProperty(HTTPParser, 'kOnExecute', {
     get: function () {
       // hack for backward compatibility
       compatMode0_12 = false;
-      return 4;
+      return 99;
     }
   });
 

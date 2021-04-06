@@ -1,5 +1,5 @@
-/*! axe v4.1.1
- * Copyright (c) 2020 Deque Systems, Inc.
+/*! axe v4.1.2
+ * Copyright (c) 2021 Deque Systems, Inc.
  *
  * Your use of this Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -27,7 +27,7 @@
     return _typeof(obj);
   }
   var axe = axe || {};
-  axe.version = '4.1.1';
+  axe.version = '4.1.2';
   if (typeof define === 'function' && define.amd) {
     define('axe-core', [], function() {
       return axe;
@@ -5873,7 +5873,13 @@
           toRoot: true
         };
       }
-      this.source = this.spec.source !== void 0 ? this.spec.source : getSource(element);
+      if (axe._audit && axe._audit.noHtml) {
+        this.source = null;
+      } else if (this.spec.source !== void 0) {
+        this.source = this.spec.source;
+      } else {
+        this.source = getSource(element);
+      }
       this._element = element;
     }
     DqElement.prototype = {
@@ -6396,7 +6402,7 @@
     function verify(postedMessage) {
       if (_typeof(postedMessage) === 'object' && typeof postedMessage.uuid === 'string' && postedMessage._respondable === true) {
         var messageSource = _getSource();
-        return postedMessage._source === messageSource || postedMessage._source === 'axeAPI.x.y.z' || messageSource === 'axeAPI.x.y.z';
+        return postedMessage._source === messageSource;
       }
       return false;
     }
@@ -19004,6 +19010,7 @@
         config = {};
       }
       config.reporter = config.reporter || null;
+      config.noHtml = config.noHtml || false;
       config.rules = config.rules || [];
       config.checks = config.checks || [];
       config.data = _extends({
@@ -19194,6 +19201,7 @@
           this.brand = 'axe';
           this.application = 'axeAPI';
           this.tagExclude = [ 'experimental' ];
+          this.noHtml = audit3.noHtml;
           unpackToObject(audit3.rules, this, 'addRule');
           unpackToObject(audit3.checks, this, 'addCheck');
           this.data = {};
@@ -19796,6 +19804,9 @@
       }
       if (spec.standards) {
         configureStandards(spec.standards);
+      }
+      if (spec.noHtml) {
+        audit3.noHtml = true;
       }
     }
     var configure_default = configure;

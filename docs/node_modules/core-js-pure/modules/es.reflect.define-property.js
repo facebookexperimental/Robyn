@@ -7,12 +7,12 @@ var fails = require('../internals/fails');
 
 // MS Edge has broken Reflect.defineProperty - throwing instead of returning false
 var ERROR_INSTEAD_OF_FALSE = fails(function () {
-  // eslint-disable-next-line no-undef
+  /* global Reflect -- required for testing */
   Reflect.defineProperty(definePropertyModule.f({}, 1, { value: 1 }), 1, { value: 2 });
 });
 
 // `Reflect.defineProperty` method
-// https://tc39.github.io/ecma262/#sec-reflect.defineproperty
+// https://tc39.es/ecma262/#sec-reflect.defineproperty
 $({ target: 'Reflect', stat: true, forced: ERROR_INSTEAD_OF_FALSE, sham: !DESCRIPTORS }, {
   defineProperty: function defineProperty(target, propertyKey, attributes) {
     anObject(target);

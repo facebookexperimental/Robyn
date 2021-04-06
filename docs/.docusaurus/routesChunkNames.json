@@ -3,132 +3,52 @@
     "component": "c4f5d8e4",
     "config": "5e9f5e1a"
   },
-  "/Robyn/blog-9e2": {
-    "component": "a6aa9e1f",
-    "items": [
-      {
-        "content": "af172acd"
-      },
-      {
-        "content": "3570154c"
-      },
-      {
-        "content": "8e9f0a8a"
-      }
-    ],
-    "metadata": "6d79fa26"
-  },
-  "/Robyn/blog/hello-world-368": {
-    "component": "ccc49370",
-    "content": "d610846f"
-  },
-  "/Robyn/blog/hola-4bf": {
-    "component": "ccc49370",
-    "content": "bdd709f1"
-  },
-  "/Robyn/blog/tags-925": {
-    "component": "01a85c17",
-    "tags": "037b6058"
-  },
-  "/Robyn/blog/tags/docusaurus-629": {
-    "component": "6875c492",
-    "items": [
-      {
-        "content": "af172acd"
-      },
-      {
-        "content": "3570154c"
-      },
-      {
-        "content": "8e9f0a8a"
-      }
-    ],
-    "metadata": "bec1061c"
-  },
-  "/Robyn/blog/tags/facebook-5fb": {
-    "component": "6875c492",
-    "items": [
-      {
-        "content": "af172acd"
-      }
-    ],
-    "metadata": "879b8e83"
-  },
-  "/Robyn/blog/tags/hello-b4e": {
-    "component": "6875c492",
-    "items": [
-      {
-        "content": "af172acd"
-      },
-      {
-        "content": "3570154c"
-      }
-    ],
-    "metadata": "8c2e1b52"
-  },
-  "/Robyn/blog/tags/hola-bc9": {
-    "component": "6875c492",
-    "items": [
-      {
-        "content": "8e9f0a8a"
-      }
-    ],
-    "metadata": "dc287d1d"
-  },
-  "/Robyn/blog/welcome-11f": {
-    "component": "ccc49370",
-    "content": "2868cdab"
-  },
-  "/Robyn/docs-61a": {
+  "/Robyn/docs-701": {
     "component": "1be78505",
-    "docsMetadata": "f0959ab0"
+    "versionMetadata": "935f2afb"
   },
-  "/Robyn/docs/-345": {
+  "/Robyn/docs/-982": {
     "component": "17896441",
-    "content": "df361e2b"
+    "content": "3b8c55ea"
   },
-  "/Robyn/docs/doc1-17f": {
+  "/Robyn/docs/about-9e5": {
     "component": "17896441",
-    "content": "b2f90839"
+    "content": "3d8d21df"
   },
-  "/Robyn/docs/doc10-3fe": {
+  "/Robyn/docs/automated-hyperparameter-selection-optimization-49b": {
     "component": "17896441",
-    "content": "7dedd42b"
+    "content": "46566515"
   },
-  "/Robyn/docs/doc11-7f3": {
+  "/Robyn/docs/calibration-e3c": {
     "component": "17896441",
-    "content": "a5c48b51"
+    "content": "8f394379"
   },
-  "/Robyn/docs/doc12-c8b": {
+  "/Robyn/docs/contributing-2c9": {
     "component": "17896441",
-    "content": "009561a5"
+    "content": "4d54d076"
   },
-  "/Robyn/docs/doc3-005": {
+  "/Robyn/docs/facebook-prophet-607": {
     "component": "17896441",
-    "content": "616665f6"
+    "content": "5c28ff1f"
   },
-  "/Robyn/docs/doc4-5fe": {
+  "/Robyn/docs/outputs-diagnostics-a83": {
     "component": "17896441",
-    "content": "4b91c96a"
+    "content": "f6e8425a"
   },
-  "/Robyn/docs/doc5-eb4": {
+  "/Robyn/docs/quick-start-723": {
     "component": "17896441",
-    "content": "c1130eb1"
+    "content": "72e14192"
   },
-  "/Robyn/docs/doc6-71f": {
+  "/Robyn/docs/ridge-regression-8d0": {
     "component": "17896441",
-    "content": "03d550ee"
+    "content": "8539f100"
   },
-  "/Robyn/docs/doc7-79c": {
+  "/Robyn/docs/step-by-step-guide-315": {
     "component": "17896441",
-    "content": "e3d09484"
+    "content": "53ffea86"
   },
-  "/Robyn/docs/doc8-c77": {
+  "/Robyn/docs/variable-transformations-67d": {
     "component": "17896441",
-    "content": "7c556f21"
-  },
-  "/Robyn/docs/doc9-d37": {
-    "component": "17896441",
-    "content": "e1a7ef00"
+    "content": "0d9eee57"
   }
 }

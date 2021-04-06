@@ -13,11 +13,13 @@ class RootPlugin {
 	 * @param {string | ResolveStepHook} source source hook
 	 * @param {Array<string>} root roots
 	 * @param {string | ResolveStepHook} target target hook
+	 * @param {boolean=} ignoreErrors ignore error during resolving of root paths
 	 */
-	constructor(source, root, target) {
+	constructor(source, root, target, ignoreErrors) {
 		this.root = root;
 		this.source = source;
 		this.target = target;
+		this._ignoreErrors = ignoreErrors;
 	}
 
 	/**
@@ -44,7 +46,20 @@ class RootPlugin {
 					obj,
 					`root path ${this.root}`,
 					resolveContext,
-					callback
+					this._ignoreErrors
+						? (err, result) => {
+								if (err) {
+									if (resolveContext.log) {
+										resolveContext.log(
+											`Ignored fatal error while resolving root path:\n${err}`
+										);
+									}
+									return callback();
+								}
+								if (result) return callback(null, result);
+								callback();
+						  }
+						: callback
 				);
 			});
 	}

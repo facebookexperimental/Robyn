@@ -39,7 +39,7 @@ var regExpExec = function (R, S) {
   } return regExpBuiltinExec.call(R, S);
 };
 
-// eslint-disable-next-line max-len
+// eslint-disable-next-line max-len -- ignore
 var $RegExpStringIterator = createIteratorConstructor(function RegExpStringIterator(regexp, string, global, fullUnicode) {
   setInternalState(this, {
     type: REGEXP_STRING_ITERATOR,
@@ -82,7 +82,7 @@ var $matchAll = function (string) {
 };
 
 // `String.prototype.matchAll` method
-// https://github.com/tc39/proposal-string-matchall
+// https://tc39.es/ecma262/#sec-string.prototype.matchall
 $({ target: 'String', proto: true, forced: WORKS_WITH_NON_GLOBAL_REGEX }, {
   matchAll: function matchAll(regexp) {
     var O = requireObjectCoercible(this);

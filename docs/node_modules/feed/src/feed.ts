@@ -3,6 +3,8 @@ import renderJSON from "./json";
 import renderRSS from "./rss2";
 import { Author, Extension, FeedOptions, Item } from "./typings";
 
+export { Author, Extension, FeedOptions, Item };
+
 /**
  * Class used to generate Feeds
  */

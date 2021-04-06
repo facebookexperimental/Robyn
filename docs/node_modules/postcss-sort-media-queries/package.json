@@ -1,0 +1,55 @@
+{
+  "name": "postcss-sort-media-queries",
+  "version": "1.31.21",
+  "description": "PostCSS plugin for combine and sort CSS media queries with mobile first or desktop first methods.",
+  "keywords": [
+    "postcss",
+    "css",
+    "postcss-plugin",
+    "sort",
+    "media-queries",
+    "mediaquery",
+    "mq",
+    "optimization"
+  ],
+  "scripts": {
+    "test": "jest && eslint . --fix"
+  },
+  "author": "Yunus Gaziev <yunusga@yandex.ru>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yunusga/postcss-sort-media-queries.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yunusga/postcss-sort-media-queries/issues"
+  },
+  "homepage": "https://github.com/yunusga/postcss-sort-media-queries",
+  "dependencies": {
+    "postcss": "^7.0.27",
+    "sort-css-media-queries": "1.5.0"
+  },
+  "devDependencies": {
+    "@logux/eslint-config": "^36.0.0",
+    "eslint": "^6.8.0",
+    "eslint-config-standard": "^14.1.0",
+    "eslint-plugin-import": "^2.20.1",
+    "eslint-plugin-jest": "^23.7.0",
+    "eslint-plugin-node": "^11.0.0",
+    "eslint-plugin-prefer-let": "^1.0.1",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-security": "^1.4.0",
+    "eslint-plugin-standard": "^4.0.1",
+    "eslint-plugin-unicorn": "^16.1.1",
+    "jest": "^25.1.0"
+  },
+  "eslintConfig": {
+    "extends": "@logux/eslint-config"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}

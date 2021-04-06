@@ -1,0 +1,48 @@
+{
+  "name": "sort-css-media-queries",
+  "version": "1.5.0",
+  "description": "The custom `sort` method (mobile-first / desktop-first) of CSS media queries for `postcss-sort-media-queries`, `css-mqpacker` or `pleeease` (which uses css-mqpacker) or, perhaps, something else ))",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run standard && npm run jest",
+    "jest": "jest",
+    "standard": "standard \"index.js\" \"tests/*.js\" --fix --global it --global expect | snazzy"
+  },
+  "jest": {
+    "verbose": true,
+    "testURL": "http://localhost"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dutchenkoOleg/sort-css-media-queries.git"
+  },
+  "keywords": [
+    "postcss",
+    "css-mqpacker",
+    "node-css-mqpacker",
+    "pleeease",
+    "mobile-first",
+    "combine",
+    "mq",
+    "media",
+    "queries",
+    "mobile-first",
+    "desktop-first",
+    "sort"
+  ],
+  "author": "Oleg Dutchenko <dutchenko.o.dev@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dutchenkoOleg/sort-css-media-queries/issues"
+  },
+  "engines": {
+    "node": ">= 6.3.0"
+  },
+  "homepage": "https://github.com/dutchenkoOleg/sort-css-media-queries#readme",
+  "devDependencies": {
+    "chalk": "^2.4.1",
+    "jest": "^23.4.2",
+    "snazzy": "^7.1.1",
+    "standard": "^11.0.1"
+  }
+}

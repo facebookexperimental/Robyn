@@ -47,6 +47,24 @@ function worker (arg, cb) {
 }
 ```
 
+or
+
+```js
+var queue = require('fastq').promise(worker, 1)
+
+async function worker (arg) {
+  return 42 * 2
+}
+
+async function run () {
+  const result = await queue.push(42)
+  console.log('the result is', result)
+})
+}
+
+run()
+```
+
 ### Setting this
 
 ```js
@@ -84,6 +102,7 @@ function worker (arg, cb) {
 * <a href="#drain"><code>queue#<b>drain</b></code></a>
 * <a href="#empty"><code>queue#<b>empty</b></code></a>
 * <a href="#saturated"><code>queue#<b>saturated</b></code></a>
+* <a href="#promise"><code>fastqueue.promise()</code></a>
 
 -------------------------------------------------------
 <a name="fastqueue"></a>
@@ -195,6 +214,35 @@ It can be altered at runtime.
 Function that will be called when the queue hits the concurrency
 limit.
 It can be altered at runtime.
+
+-------------------------------------------------------
+<a name="promise"></a>
+### fastqueue.promise([that], worker(arg), concurrency)
+
+Creates a new queue with `Promise` apis. It also offers all the methods
+and properties of the object returned by [`fastqueue`](#fastqueue) with the modified
+[`push`](#pushPromise) and [`unshift`](#unshiftPromise) methods.
+
+Node v10+ is required to use the promisified version.
+
+Arguments:
+* `that`, optional context of the `worker` function.
+* `worker`, worker function, it would be called with `that` as `this`,
+  if that is specified. It MUST return a `Promise`.
+* `concurrency`, number of concurrent tasks that could be executed in
+  parallel.
+
+<a name="pushPromise"></a>
+#### queue.push(task) => Promise
+
+Add a task at the end of the queue. The returned `Promise`  will be fulfilled
+when the task is processed.
+
+<a name="unshiftPromise"></a>
+#### queue.unshift(task) => Promise
+
+Add a task at the beginning of the queue. The returned `Promise`  will be fulfilled
+when the task is processed.
 
 ## License
 

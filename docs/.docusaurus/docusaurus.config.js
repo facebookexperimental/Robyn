@@ -1,6 +1,6 @@
 export default {
   "title": "Robyn",
-  "tagline": "Robyn is a Marketing Mix Modeling (MMM) code. It can be used to build end-to-end time series regression models and as an econometrics code library. Automated, built for very large data sets, and is suitable for digital and complex consumer behaviour",
+  "tagline": "Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation",
   "url": "https://facebookexperimental.github.io/Robyn/",
   "baseUrl": "/Robyn/",
   "onBrokenLinks": "throw",
@@ -16,10 +16,14 @@ export default {
       },
       "items": [
         {
-          "to": "docs/doc11",
-          "activeBasePath": "docs",
-          "label": "About Robyn",
-          "position": "right"
+          "to": "docs/",
+          "label": "Docs",
+          "position": "left"
+        },
+        {
+          "to": "docs/about",
+          "label": "About",
+          "position": "left"
         },
         {
           "href": "https://github.com/facebookexperimental/Robyn",
@@ -42,6 +46,15 @@ export default {
           ]
         },
         {
+          "title": "Community",
+          "items": [
+            {
+              "label": "Discord chat",
+              "href": "https://discord.gg/BYhqMedCcN"
+            }
+          ]
+        },
+        {
           "title": "Legal",
           "items": [
             {
@@ -60,7 +73,7 @@ export default {
         "src": "img/oss_logo.png",
         "href": "https://opensource.facebook.com"
       },
-      "copyright": "Copyright © 2020 Facebook, Inc. Built with Docusaurus."
+      "copyright": "Copyright © 2021 Facebook, Inc. Built with Docusaurus."
     },
     "colorMode": {
       "defaultMode": "light",
@@ -72,20 +85,23 @@ export default {
         "lightIcon": "🌞",
         "lightIconStyle": {}
       }
-    }
+    },
+    "docs": {
+      "versionPersistence": "localStorage"
+    },
+    "metadatas": [],
+    "prism": {
+      "additionalLanguages": []
+    },
+    "hideableSidebar": false
   },
   "presets": [
     [
       "@docusaurus/preset-classic",
       {
         "docs": {
-          "homePageId": "doc2",
           "sidebarPath": "/Users/leonelsentana/Robyn/docs/sidebars.js",
           "editUrl": "https://github.com/facebookexperimental/Robyn"
-        },
-        "blog": {
-          "showReadingTime": true,
-          "editUrl": "https://github.com/facebook/docusaurus/edit/master/website/blog/"
         },
         "theme": {
           "customCss": "/Users/leonelsentana/Robyn/docs/src/css/custom.css"
@@ -93,8 +109,19 @@ export default {
       }
     ]
   ],
+  "baseUrlIssueBanner": true,
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": [
+      "en"
+    ],
+    "localeConfigs": {}
+  },
+  "onBrokenMarkdownLinks": "warn",
   "onDuplicateRoutes": "warn",
   "customFields": {},
   "plugins": [],
-  "themes": []
+  "themes": [],
+  "titleDelimiter": "|",
+  "noIndex": false
 };

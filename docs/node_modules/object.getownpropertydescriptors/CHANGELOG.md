@@ -1,3 +1,11 @@
+2.1.2 / 2021-02-20
+=================
+  * [Deps] update `call-bind`, `es-abstract`
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `aud`, `functions-have-names`, `has-strict-mode`, `tape`
+  * [meta] do not publish github action workflow files
+  * [meta] gitignore coverage output
+  * [actions] update workflows
+
 2.1.1 / 2020-11-26
 =================
   * [Fix] do not mutate the native function when present
