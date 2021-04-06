@@ -31,9 +31,9 @@
 ![result_optimised](https://user-images.githubusercontent.com/14415136/110111552-ceab9700-7db0-11eb-84b5-9f105c49b09b.png)
 
 
-## Step-by-step Guide Website **to be updated soon**
+## Step-by-step Guide Website
 
-* Guidelines on the website to be updated soon: https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide
+* Guidelines on the website: https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide
 
 ## Model selection with evolutionary algorithm
 
