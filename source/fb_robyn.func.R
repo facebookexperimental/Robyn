@@ -830,46 +830,59 @@ f.mmm <- function(...
                   , lambda.n = 100
                   , fixed.out = F
                   , optimizer_name = "DiscreteOnePlusOne" # c("DiscreteOnePlusOne", "DoubleFastGADiscreteOnePlusOne", "TwoPointsDE", "DE")
+                  , fixed.lambda = NULL
 ) {
   
   ################################################
   #### Collect hyperparameters
   
-  if (fixed.out==F) {
-    input.collect <- unlist(list(...), recursive = F)
-  } else {
-    input.collect <- set_hyperBoundLocal
-    input.fixed <- dt_hyperResult
-  }
   hypParamSamName <- f.getHyperNames()
   
-  # sort hyperparameter list by name
-  hyper_bound_local <- list()
-  for (i in 1:length(hypParamSamName)) {
-    hyper_bound_local[i] <- input.collect[hypParamSamName[i]]
-    names(hyper_bound_local)[i] <- hypParamSamName[i]
-  }
-  
-  # get hyperparameters for Nevergrad
-  bounds_ng <- which(sapply(hyper_bound_local, length)==2)
-  hyper_bound_local_ng <- hyper_bound_local[bounds_ng]
-  hyper_bound_local_ng_name <- names(hyper_bound_local_ng)
-  num_hyppar_ng <- length(hyper_bound_local_ng)
-  if (num_hyppar_ng == 0) {fixed.out <- T}
-  
-  # get fixed hyperparameters
-  bounds_fixed <- which(sapply(hyper_bound_local, length)==1)
-  hyper_bound_local_fixed <- hyper_bound_local[bounds_fixed]
-  hyper_bound_local_fixed_name <- names(hyper_bound_local_fixed)  
-  num_hyppar_fixed <- length(hyper_bound_local_fixed)
-  
-  #hyper_bound_local_fixed <- list(print_S_alphas = 1 , print_S_gammas = 0.5)
-  if (set_cores >1) {
-    hyper_bound_local_fixed_dt <- data.table(sapply(hyper_bound_local_fixed, function(x) rep(x, set_cores)))
+  if (fixed.out==F) {
+    input.collect <- unlist(list(...), recursive = F) # input.collect <- set_hyperBoundLocal
+    
+    # sort hyperparameter list by name
+    hyper_bound_local <- list()
+    for (i in 1:length(hypParamSamName)) {
+      hyper_bound_local[i] <- input.collect[hypParamSamName[i]]
+      names(hyper_bound_local)[i] <- hypParamSamName[i]
+    }
+    
+    # get hyperparameters for Nevergrad
+    bounds_ng <- which(sapply(hyper_bound_local, length)==2)
+    hyper_bound_local_ng <- hyper_bound_local[bounds_ng]
+    hyper_bound_local_ng_name <- names(hyper_bound_local_ng)
+    num_hyppar_ng <- length(hyper_bound_local_ng)
+    if (num_hyppar_ng == 0) {fixed.out <- T}
+    
+    # get fixed hyperparameters
+    bounds_fixed <- which(sapply(hyper_bound_local, length)==1)
+    hyper_bound_local_fixed <- hyper_bound_local[bounds_fixed]
+    hyper_bound_local_fixed_name <- names(hyper_bound_local_fixed)  
+    num_hyppar_fixed <- length(hyper_bound_local_fixed)
+    
+    #hyper_bound_local_fixed <- list(print_S_alphas = 1 , print_S_gammas = 0.5)
+    if (set_cores >1) {
+      hyper_bound_local_fixed_dt <- data.table(sapply(hyper_bound_local_fixed, function(x) rep(x, set_cores)))
+    } else {
+      hyper_bound_local_fixed_dt <- as.data.table(matrix(hyper_bound_local_fixed, nrow = 1))
+      names(hyper_bound_local_fixed_dt) <- hyper_bound_local_fixed_name
+    }
+    
   } else {
-    hyper_bound_local_fixed_dt <- as.data.table(matrix(hyper_bound_local_fixed, nrow = 1))
-    names(hyper_bound_local_fixed_dt) <- hyper_bound_local_fixed_name
+    #input.collect <- set_hyperBoundLocal
+    #input.fixed <- dt_hyperResult
+    input.fixed <- list(...)[[1]]
+    num_hyppar_ng <- length(hypParamSamName)
+    hyper_bound_local_ng <- NULL
+    hyper_bound_local_ng_name <- NULL
+    hyper_bound_local_fixed <- NULL
+    fixed.lambda
   }
+  
+
+  
+  
   
   
   ################################################
@@ -1119,9 +1132,14 @@ f.mmm <- function(...
 
           
           ## if no lift calibration, refit using best lambda
-          
-          mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=cvmod$lambda.1se, lower.limits, upper.limits)
-          lambda <- cvmod$lambda.1se
+          if (fixed.out == F) {
+            mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=cvmod$lambda.1se, lower.limits, upper.limits)
+            lambda <- cvmod$lambda.1se
+          } else {
+            mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=fixed.lambda[i], lower.limits, upper.limits)
+            lambda <- fixed.lambda[i]
+          }
+
           #hypParamSam["lambdas"] <- cvmod$lambda.1se
           #hypParamSamName <- names(hypParamSam)
           
@@ -1317,10 +1335,12 @@ f.mmm <- function(...
 
 
 f.robyn <- function(set_hyperBoundLocal
-                       ,optimizer_name = set_hyperOptimAlgo
-                       ,set_trial = set_trial 
-                       ,set_cores = set_cores
-                       ,plot_folder = getwd()) {
+                    ,optimizer_name = set_hyperOptimAlgo
+                    ,set_trial = set_trial 
+                    ,set_cores = set_cores
+                    ,plot_folder = getwd()
+                    ,fixed.out = F
+                    ,fixed.hyppar.dt = NULL) {
   
   t0 <- Sys.time()
   
@@ -1333,8 +1353,53 @@ f.robyn <- function(set_hyperBoundLocal
   #### Run f.mmm on set_trials
 
   hyperparameter_fixed <- all(sapply(set_hyperBoundLocal, length)==1)
+  hypParamSamName <- f.getHyperNames()
   
-  if (!hyperparameter_fixed) {
+  if (fixed.out == T) {
+    
+    ## Run f.mmm if using old model result tables
+    
+    if (is.null(fixed.hyppar.dt)) {stop("when fixed.out=T, please provide the table model_output_collect$resultHypParam from previous runs or pareto_hyperparameters.csv with desired model IDs")}
+    if (!all(c(hypParamSamName, "lambda") %in% names(fixed.hyppar.dt))) {stop("fixed.hyppar.dt is provided with wrong input. please provide the table model_output_collect$resultHypParam from previous runs or pareto_hyperparameters.csv with desired model ID")}
+    
+    model_output_collect <- list()
+    model_output_collect[[1]] <- f.mmm(fixed.hyppar.dt[, hypParamSamName, with = F]
+                                       ,set_iter = set_iter
+                                       ,set_cores = set_cores
+                                       ,optimizer_name = optimizer_name
+                                       ,fixed.out = T
+                                       ,fixed.lambda = unlist(fixed.hyppar.dt$lambda))
+    
+    model_output_collect[[1]]$trials <- 1
+    model_output_collect[[1]]$resultCollect$resultHypParam <- model_output_collect[[1]]$resultCollect$resultHypParam[order(iterPar)]
+    
+    dt_IDmatch <- data.table(solID = fixed.hyppar.dt$solID, 
+                             iterPar = model_output_collect[[1]]$resultCollect$resultHypParam$iterPar)
+    
+    model_output_collect[[1]]$resultCollect$resultHypParam[dt_IDmatch, on =.(iterPar), "solID" := .(i.solID)]
+    model_output_collect[[1]]$resultCollect$xDecompAgg[dt_IDmatch, on =.(iterPar), "solID" := .(i.solID)]
+    model_output_collect[[1]]$resultCollect$xDecompVec[dt_IDmatch, on =.(iterPar), "solID" := .(i.solID)]
+    model_output_collect[[1]]$resultCollect$decompSpendDist[dt_IDmatch, on =.(iterPar), "solID" := .(i.solID)]
+    
+    cat("\n######################\nHyperparameters are all fixed\n######################\n")
+    print(model_output_collect[[1]]$resultCollect$xDecompAgg)
+    
+  } else if (hyperparameter_fixed) {
+    
+    ## Run f.mmm on set_trials if hyperparameters are all fixed
+    model_output_collect <- list()
+    model_output_collect[[1]] <- f.mmm(set_hyperBoundLocal
+                                       ,set_iter = 1
+                                       ,set_cores = 1
+                                       ,optimizer_name = optimizer_name
+    )
+    model_output_collect[[1]]$trials <- 1
+    
+    cat("\n######################\nHyperparameters are all fixed\n######################\n")
+    print(model_output_collect[[1]]$resultCollect$xDecompAgg)
+    
+
+  } else {
     
     ## Run f.mmm on set_trials if hyperparameters are not all fixed
     
@@ -1345,7 +1410,7 @@ f.robyn <- function(set_hyperBoundLocal
     for (optmz in ng_algos) {
       ng_collect <- list()
       model_output_collect <- list()
-
+      
       for (ngt in 1:set_trial) { 
         
         if (activate_calibration == F) {
@@ -1381,20 +1446,7 @@ f.robyn <- function(set_hyperBoundLocal
     }
     ng_out <- rbindlist(ng_out)
     setnames(ng_out, ".level", "manual_pareto")
-
-  } else {
     
-    ## Run f.mmm on set_trials if hyperparameters are all fixed
-    model_output_collect <- list()
-    model_output_collect[[1]] <- f.mmm(set_hyperBoundLocal
-                                ,set_iter = 1
-                                ,set_cores = 1
-                                ,optimizer_name = optimizer_name
-    )
-    model_output_collect[[1]]$trials <- 1
-    
-    cat("\n######################\nHyperparameters are all fixed\n######################\n")
-    print(model_output_collect[[1]]$resultCollect$xDecompAgg)
   }
     
   
@@ -1403,10 +1455,12 @@ f.robyn <- function(set_hyperBoundLocal
   
   ## collect hyperparameter results
   resultHypParam <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$resultHypParam[, trials:= x$trials]))
-  resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
-  
   xDecompAgg <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$xDecompAgg[, trials:= x$trials]))
-  xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  
+  if (fixed.out != T) {
+    resultHypParam[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+    xDecompAgg[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  }
   xDecompAggCoef0 <- xDecompAgg[rn %in% set_mediaVarName, .(coef0=min(coef)==0), by = "solID"]
   
   if (!hyperparameter_fixed) {
@@ -1434,7 +1488,7 @@ f.robyn <- function(set_hyperBoundLocal
   
   decompSpendDist <- rbindlist(lapply(model_output_collect, function (x) x$resultCollect$decompSpendDist[, trials:= x$trials]))
   decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trials")]
-  decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]
+  if (fixed.out != T) {decompSpendDist[, solID:= (paste(trials,iterNG, iterPar, sep = "_"))]}
   decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% set_mediaVarName, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
   decompSpendDist[, roi := xDecompMeanNon0/mean_spend]
 
@@ -1453,18 +1507,20 @@ f.robyn <- function(set_hyperBoundLocal
     }
   
   #paretoFronts <- ifelse(!hyperparameter_fixed, c(1,2,3), 1)
-  if (!hyperparameter_fixed) {
+  if (!hyperparameter_fixed & fixed.out ==F) {
     paretoFronts <- c(1,2,3)
+    num_pareto123 <- resultHypParam[robynPareto %in% paretoFronts, .N]
   } else {
     paretoFronts <- 1
+    num_pareto123 <- nrow(resultHypParam)
   }
-  num_pareto123 <- resultHypParam[robynPareto %in% paretoFronts, .N]
+  
   cat("\nPlotting", num_pareto123,"pareto optimum models in to folder",paste0(plot_folder, "/", plot_folder_sub,"/"),"...\n")
   pbplot <- txtProgressBar(max = num_pareto123, style = 3)
 
   ## plot overview plots
   
-  if (!hyperparameter_fixed) {
+  if (!hyperparameter_fixed & fixed.out ==F) {
     
     ## plot prophet
     
@@ -1538,9 +1594,15 @@ f.robyn <- function(set_hyperBoundLocal
     meanResponseCollect <- list()
     for (pf in paretoFronts) {
       
-      plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% set_mediaVarName]
-      plotWaterfall <- xDecompAgg[robynPareto == pf]
-      uniqueSol <- plotMediaShare[, unique(solID)]
+      if (!hyperparameter_fixed & fixed.out ==F) {
+        plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% set_mediaVarName]
+        plotWaterfall <- xDecompAgg[robynPareto == pf]
+        uniqueSol <- plotMediaShare[, unique(solID)]
+      } else {
+        plotMediaShare <- xDecompAgg[rn %in% set_mediaVarName]
+        plotWaterfall <- copy(xDecompAgg)
+        uniqueSol <- plotMediaShare[, unique(solID)]
+      }
       
       for (j in 1:length(uniqueSol)) {
         
@@ -1880,3 +1942,28 @@ f.robyn <- function(set_hyperBoundLocal
   
   
 }
+
+#####################################
+#### Define f.robyn.fixed, the function to load old model hyperparameters from csv
+
+f.robyn.fixed <- function(plot_folder = getwd()
+                          ,fixed.hyppar.dt = NULL) {
+  
+  ## check condition
+  if (!dir.exists(plot_folder)) {
+    plot_folder <- getwd()
+    message("provided plot_folder doesn't exist. Using default plot_folder = getwd(): ", getwd())
+  }
+  if (is.null(fixed.hyppar.dt)) {stop("Please provide the table model_output_collect$resultHypParam from previous runs or pareto_hyperparameters.csv with desired model IDs")}
+  if (nrow(fixed.hyppar.dt)==0) {stop("solID not included in fixed_hyppar_dt")}
+  
+  ## run f.robyn
+  model_output_collect <- f.robyn(set_hyperBoundLocal
+                                  ,optimizer_name = set_hyperOptimAlgo
+                                  ,set_trial = set_trial
+                                  ,set_cores = set_cores
+                                  ,plot_folder = plot_folder
+                                  ,fixed.out = T
+                                  ,fixed.hyppar.dt = fixed.hyppar.dt)
+}
+  

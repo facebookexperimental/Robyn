@@ -174,6 +174,11 @@ model_output_collect <- f.robyn(set_hyperBoundLocal
                                 ,set_cores = set_cores
                                 ,plot_folder = "~/Documents/GitHub/plots") # please set your folder path to save plots. It ends without "/".
 
+## reload old models from csv
+
+# dt_hyppar_fixed <- fread("/Users/gufengzhou/Documents/GitHub/plots/2021-04-07 09.12/pareto_hyperparameters.csv") # load hyperparameter csv. Provide your own path.
+# model_output_collect <- f.robyn.fixed(plot_folder = "~/Documents/GitHub/plots", dt_hyppar_fixed = dt_hyppar_fixed[solID == "2_16_5"]) # solID must be included in the csv
+
 ################################################################
 #### Budget Allocator - Beta
 
@@ -181,7 +186,7 @@ model_output_collect <- f.robyn(set_hyperBoundLocal
 ## Please don't interpret budget allocation result if there's no satisfying MMM result
 
 model_output_collect$allSolutions
-optim_result <- f.budgetAllocator(modID = "3_11_5" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
+optim_result <- f.budgetAllocator(modID = "2_16_5" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
                                   ,scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
                                   #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
                                   #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
