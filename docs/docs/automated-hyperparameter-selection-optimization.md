@@ -3,84 +3,15 @@ id: automated-hyperparameter-selection-optimization
 title: Automated hyperparameter selection and optimization
 ---
 
-MMMs are likely to contain high cardinality of parameters, ie. alphas, thetas
-and gammas for geometric ad stock transformation. In addition, parameters
-dimensionality increases proportionally with the total number of marketing
-channels to be measured. Thus, it is extremely necessary to deal with a high
-dimensionality parameter space where, the greater the number of parameters, the
-greater the model complexity and computational requirements. In order to achieve
-computational efficiency while maintaining overall model accuracy, we utilize a
-set of techniques and algorithms:
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
-- A **sampling method** to search for candidates that accurately represents the
-  multi-dimensional hyperparameter space (LHS Latinhypercube sampling)
+MMMs are likely to **contain high cardinality of parameters**. ie. alphas and gammas for the diminishing returns (Hill) function, as well as, thetas for geometric ad stock transformation.
+In addition, parameters dimensionality increases proportionally with the total number of marketing channels to be measured. Thus, it is extremely necessary to deal with a high dimensionality parameter space where, the greater the number of parameters, **the greater the model complexity, its dimensionality and computational requirements.**
 
-```
-#### Define latin hypercube sampling function
-f.hypSamLHS <- function(set_mediaVarName, iterN, hyperbound.global, adstock)
+In order to achieve computational efficiency while optimizing overall model accuracy, we leverage [**Facebook’s Nevergrad gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/).  Nevergrad allows us to optimize the explore and exploit balance through the **ask** and **tell** commands, in order to perform a multi-objective optimization tha balances out the Normalized Root Mean Square Error (**NRMSE**) and **decomp.RSSD** ratio (Relationship between spend share and channels coefficient decomposition share) providing a set of **Pareto optimal model solutions**
 
-```
+Please find below an example of a common chart for the Pareto model solutions. Each dot in the chart represents an explored model solution, while the first three lines in the lower-left corner represent the best model solutions.
 
-- A **cross-validation scheme** that allows to have multiple dataset folds to
-  train and validate the model. This allows using 100% of the train/validation
-  dataset while reducing the chance of the model overfitting and defining
-  optimal regularization lambda.
+<img alt="pareto chart" src={useBaseUrl('/img/pareto1.png')} />
 
-```
-### fit ridge regression with x-validation
-      cvmod <- cv.glmnet(x_train
-                         ,y_train
-                         ,family = "gaussian"
-                         ,alpha = 0 #0 for ridge regression
-                         ,lambda = lambda_seq
-                         ,lower.limits = lower.limits
-                         ,upper.limits = upper.limits
-                         ,type.measure = "mse"
-      )
-
-```
-
-- An **optimization algorithm** (Random Search) with a score function (R2or
-  MAPE) to minimize or maximize. This allows the model to obtain optimal results
-  that minimize the error for example, within the hyperparameter sampled space
-  and reduce computational effort.
-
-```
-f.mmm.RSoptim <- function(hyperbound.global = hyperbound.global
-                          ,iterN = iterN
-                          ,setCores = setCores
-                          ,epochN = Inf
-                          ,out = F
-                          ,temp.csv.path
-)
-```
-
-- A **boosting loop** that considers previous Random Search optimization results
-  for best hyperparameters bounds and feeds these into new Random Search
-  optimization epochs.
-
-```
- # hyper optimisation loop
-  optim.loop <- T
-  optim.iter <- 1
-  if (!exists("resultRS")) {
-    epoch.iter <- 1
-    optimParRS.collect <- list()
-  } else {
-    epoch.iter <- epoch.iter + 1
-    optimParRS.collect <- list(resultRS[["optimParRS"]])
-  }
-
-  while (optim.loop & optim.iter <= epochN) {
-
-    assign("epoch.iter", epoch.iter, envir = .GlobalEnv)
-    assign("optim.iter", optim.iter, envir = .GlobalEnv)
-    # run RS model with adapted
-
-    sysTimeRS <- system.time({
-      resultRS <- f.mmm(hyperbound.global
-                        ,iterRS = iterN
-                        ,setCores = setCores
-                        ,out = out
-      )})
-```
+The premise of an **evolutionary algorithm** is that of natural selection. In an EA you may have a set of iterations where some combinations of coefficients that will be explored by the model will survive and proliferate, while unfit models will die off and not contribute to the gene pool of further generations, much like in natural selection. In robyn, we recommend a minimum of 500 iterations where each of these will provide feedback to its upcoming generation, and therefore guide the model towards the optimal coefficient values for alphas, gammas and thetas. We also recommend a minimum of 40 trials which are a set of independent initiations of the model that will each of them have the number of iterations you set under ‘set_iter’ object. E.g. 500 iterations on set_iter x 40 trials = 20000 different iterations and possible model solutions.

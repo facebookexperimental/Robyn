@@ -18,94 +18,18 @@ which can help guide the model towards a specific range of incremental values.
 
 <img alt="Calibration chart" src={useBaseUrl('/img/calibration1.png')} />
 
-Figure illustrates the calibration process above for one MMM candidate model.
-Table below illustrates the model selection output including FB lift calibration
-element. Modelers can select the top models with relatively small MAPE metrics
-as the candidates for the final model. In this example, we suggest picking model
-two, as it has the minimum <em>MAPE(cal,fb)</em> and its <em>MAPE(holdout)</em>
-is only 0.4% more than the minimum one.
-
-#### Example Table
-
-Sample output of model selection of a MMM with only two media channels, TV and
-Social <img alt="Calibration table" src={useBaseUrl('/img/calibration2.png')} />
-
-Note that <em>MAPE(cal,fb)</em> will likely vary more widely than
-<em>MAPE(holdout)</em> . Given this, calibration can improve performance without
-substantially sacrificing backtesting performance. This calibration method can
-be applied to other media channels which run experiments, the more channels that
-are calibrated, the more accurate the MMM model. <em>You may find the
-calibration function in the ‘func.R’ script.</em>
+The figure illustrates the calibration process for one MMM candidate model.
+[**Facebook’s Nevergrad gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/) allows us to include the **MAPE(cal,fb)** as a third optimization score besides Normalized Root Mean Square Error (**NRMSE**) and **decomp.RSSD** ratio (Please refer to the automated hyperparameter selection and optimization for further details) providing a set of **Pareto optimal model solutions** that minimize and converge to a set of Pareto optimal model candidates. This calibration method can be applied to other media channels which run experiments, the more channels that are calibrated, the more accurate the MMM model.
 
 ### Calibration in the code
 
-So, how do we apply this in our code?
-
-1. First, we check if media channels to be calibrated actually have a media
-   variable created.
-2. After that, we collect all different media to be calibrated. Consequently, we
-   loop over each lift channel (Where for each of them we iterate over all
-   different studies if more than one, determining the date range of each study)
-3. In addition, we convert data from weeks to days (Please note the \*7 in the
-   formula for mmmDays, this is assuming you will use weekly data as a basis for
-   your model).
-4. Finally, and once both lift study and MMM dates are both in days, we scale
-   the total decomposed model predicted sales into the exact number of days the
-   lift study had to be comparable with previously uploaded liftAbs number under
-   the set_lift variable (remember liftAbs values in set_lift variable have to
-   be absolute and measuring the same metric as the model does ie. total
-   incremental sales vs. model predicted sales)
+You will find a variable called 'activate_calibration' to be defined as T (True) or F (False). Please set it to T (True) if you would like to apply calibration.
+Consequently, you will have to add ground-truth data such as conversion lift data from Facebook, geo tests or Multi-touch attribution. Moreover, you will need to define which channels you want to define certain incremental values for, as well as, the start date, end date and incremental absolute values (liftAbs) from the studies. In the example below there are two facebook studies with dates: from 2018-05-01 until 2018-06-10 and from 2018-07-01 until 2018-07-20. As well as, a TV geo study from 2017-11-27 until 2017-12-03. With a total lift in the absolute value for the response variable (Sales) of $400,000 for the first Facebook study, $300,000 for the TV study and of $200,000 for the last Facebook study.  
 
 ```
-#### Define lift calibration function
-f.calibrateLift <- function(decompCollect, set_lift) {
-
-  check_set_lift <- any(sapply(set_lift$channel, function(x) any(str_detect(x, set_mediaVarName)))==F) #check if any lift channel doesn't have media var
-  if (check_set_lift) {stop("set_lift channels must have media variable")}
-  ## prep lift input
-  getLiftMedia <- unique(set_lift$channel)
-  getDecompVec <- decompCollect$xDecompVec
-
-  ## loop all lift input
-  liftCollect <- list()
-  for (m in 1:length(getLiftMedia)) { # loop per lift channel
-
-    liftWhich <- str_which(set_lift$channel, getLiftMedia[m])
-
-    liftCollect2 <- list()
-    for (lw in 1:length(liftWhich)) { # loop per lift test per channel
-
-      ## get lift period subset
-      liftStart <- set_lift[liftWhich[lw], liftStartDate]
-      liftEnd <- set_lift[liftWhich[lw], liftEndDate]
-      liftPeriodVec <- getDecompVec[DS >= liftStart & DS <= liftEnd, c("DS", getLiftMedia[m]), with = F]
-
-      ## scale decomp
-      mmmDays <- nrow(liftPeriodVec) * 7
-      liftDays <- as.integer(liftEnd- liftStart + 1)
-      y_hatLift <- sum(unlist(getDecompVec[, -1])) # total pred sales
-      x_decompLift <- sum(liftPeriodVec[,2])
-      x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
-
-      ## output
-      liftCollect2[[lw]] <- data.table(liftMedia = getLiftMedia[m] ,
-                                       liftStart = liftStart,
-                                       liftEnd = liftEnd,
-                                       liftAbs = set_lift[liftWhich[lw], liftAbs],
-                                       decompAbsScaled = x_decompLiftScaled)
-    }
-    liftCollect[[m]] <- rbindlist(liftCollect2)
-  }
-```
-
-The last step is to calculate the MAPE. This will be the key metric to define
-the model that is closest to actual incremental sales during periods for the
-lift study. It will therefore allow us to make a decision as per the example on
-the [**table**](#example-table).
-
-```
-  ## get mape_lift
-  liftCollect <- rbindlist(liftCollect)[, mape_lift := abs((decompAbsScaled - liftAbs) / liftAbs) * 100]
-  return(liftCollect)
-}
+activate_calibration <- F # Switch to TRUE to calibrate model.
+# set_lift <- data.table(channel = c("facebook_I",  "tv_S", "facebook_I"),
+#                        liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01")),
+#                        liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20")),
+#                        liftAbs = c(400000, 300000, 200000))
 ```
