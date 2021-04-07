@@ -1,10 +1,10 @@
-# Robyn MMM Open Source Project 2.0
+# Robyn MMM Open Source 2.0 - a Beta Project from Facebook Marketing Science 
 
 2021-03-03
 
 ## Quick start
 
-1. Getting .R scripts
+**1. Getting .R scripts**
   * There are three .R script files:
     - fb_robyn.exec.R # you only need this script to execute, it calls the
       other 2 scripts
@@ -15,12 +15,13 @@
     - generated_holidays.csv # this contains holidays of all countries from the library prophet. Please check if your country is included and if all holidays are included. It's also recommended to add extra events into this table, for example school holidays.
   * All files must be placed in the same folder
 
-2. R version and libraries
+**2. R version and libraries**
   * It's highly recommended to update to R version 4.0.3 to avoid potential errors
   * Please make sure you've installed all library specified in fb_robyn.exec.R first
   * Please also install Anaconda for reticulate. Simple instruction please check fb_robyn.exec.R in the library section
+  * For Windows, if you get openssl error, please see instructions [here](https://stackoverflow.com/questions/54558389/how-to-solve-this-error-while-installing-python-packages-in-rstudio/54566647) and [here](https://dev.to/danilovieira/installing-openssl-on-windows-and-adding-to-path-3mbf) to install and update openssl
 
-3. Test run with sample data
+**3. Test run with sample data**
   * Please follow all instructions in fb_robyn.exec.R
   * After above steps, if you select all and run in fb_robyn.exec.R, the script should execute 20k iterations (500 iterations * 40 trials) and save some plots on your selected folder
   * An example model onepager looks like this:
