@@ -1947,15 +1947,15 @@ f.robyn <- function(set_hyperBoundLocal
 #### Define f.robyn.fixed, the function to load old model hyperparameters from csv
 
 f.robyn.fixed <- function(plot_folder = getwd()
-                          ,fixed.hyppar.dt = NULL) {
+                          ,dt_hyppar_fixed = NULL) {
   
   ## check condition
   if (!dir.exists(plot_folder)) {
     plot_folder <- getwd()
     message("provided plot_folder doesn't exist. Using default plot_folder = getwd(): ", getwd())
   }
-  if (is.null(fixed.hyppar.dt)) {stop("Please provide the table model_output_collect$resultHypParam from previous runs or pareto_hyperparameters.csv with desired model IDs")}
-  if (nrow(fixed.hyppar.dt)==0) {stop("solID not included in fixed_hyppar_dt")}
+  if (is.null(dt_hyppar_fixed)) {stop("Please provide the table model_output_collect$resultHypParam from previous runs or pareto_hyperparameters.csv with desired model IDs")}
+  if (nrow(dt_hyppar_fixed)==0) {stop("solID not included in fixed_hyppar_dt")}
   
   ## run f.robyn
   model_output_collect <- f.robyn(set_hyperBoundLocal
@@ -1964,6 +1964,6 @@ f.robyn.fixed <- function(plot_folder = getwd()
                                   ,set_cores = set_cores
                                   ,plot_folder = plot_folder
                                   ,fixed.out = T
-                                  ,fixed.hyppar.dt = fixed.hyppar.dt)
+                                  ,fixed.hyppar.dt = dt_hyppar_fixed)
 }
   
