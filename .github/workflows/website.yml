@@ -14,6 +14,9 @@ jobs:
   checks:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./website
     steps:
       - uses: actions/checkout@v1
       - uses: actions/setup-node@v1
@@ -32,6 +35,9 @@ jobs:
   gh-release:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./website
     steps:
       - uses: actions/checkout@v1
       - uses: actions/setup-node@v1
