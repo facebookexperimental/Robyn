@@ -49,7 +49,7 @@ const features = [
   },
   {
     title: <>Enables actionable decision making</>,
-    imageUrl: 'img/focus_on_what matters.svg',
+    imageUrl: 'img/focus_on_what_matters.svg',
     description: (
       <>
         <ul>
