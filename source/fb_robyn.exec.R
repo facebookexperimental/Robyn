@@ -85,9 +85,8 @@ set_factorVarName <- c() # please specify which variable above should be factor,
 registerDoSEQ(); detectCores()
 set_cores <- 6 # I am using 6 cores from 8 on my local machine. Use detectCores() to find out cores
 
-## set training size
-f.plotTrainSize(F) # insert TRUE to plot training size guidance. Please balance between higher Bhattacharyya coefficient and sufficient training size
-set_modTrainSize <- 0.74 # 0.74 means taking 74% of data to train and 30% to test the model. Use f.plotTrainSize to get split estimation
+## set rolling window start (only works for whole dataset for now)
+set_trainStartDate <- unlist(dt_input[, lapply(.SD, function(x) as.character(min(x))), .SDcols= set_dateVarName])
 
 ## set model core features
 adstock <- "geometric" # geometric or weibull. weibull is more flexible, yet has one more parameter and thus takes longer
@@ -186,7 +185,7 @@ model_output_collect <- f.robyn(set_hyperBoundLocal
 ## Please don't interpret budget allocation result if there's no satisfying MMM result
 
 model_output_collect$allSolutions
-optim_result <- f.budgetAllocator(modID = "2_16_5" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
+optim_result <- f.budgetAllocator(modID = "3_10_2" # input one of the model IDs in model_output_collect$allSolutions to get optimisation result
                                   ,scenario = "max_historical_response" # c(max_historical_response, max_response_expected_spend)
                                   #,expected_spend = 100000 # specify future spend volume. only applies when scenario = "max_response_expected_spend"
                                   #,expected_spend_days = 90 # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
