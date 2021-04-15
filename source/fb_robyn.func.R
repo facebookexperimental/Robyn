@@ -243,10 +243,15 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   ## check date format
   tryCatch({
     dateCheck <- as.Date(dt_transform$ds)
+    dateCheckStart <- as.Date(set_trainStartDate)
   },
   error= function(cond) {
-    stop("input date variable should have format '2020-01-01'")
+    stop("input date variable and set_trainStartDate should have format '2020-01-01'")
   })
+  
+  if (any(dateCheckStart< min(dt_transform$ds), dateCheckStart> max(dt_transform$ds))) {
+    stop("set_trainStartDate must be between ", min(dt_transform$ds) ," and ",max(dt_transform$ds))
+  }
   
   ## check variables existence
   
@@ -270,12 +275,14 @@ f.inputWrangling <- function(dt_transform = dt_input) {
     stop("set_mediaSpendName and set_mediaVarName have to be the same length and same order")}
   
   
-  trainSize <- round(nrow(dt_transform)* set_modTrainSize)
-  dt_train <- dt_transform[1:trainSize, set_mediaVarName, with =F]
+  #trainSize <- round(nrow(dt_transform)* set_modTrainSize)
+  #dt_train <- dt_transform[1:trainSize, set_mediaVarName, with =F]
+  trainStartWhich <- which.min(abs(difftime(as.Date(dt_transform$ds), as.Date(set_trainStartDate), units = "days")))
+  dt_train <- dt_transform[trainStartWhich:nrow(dt_transform), set_mediaVarName, with =F]
   train_all0 <- colSums(dt_train)==0
   if(any(train_all0)) {
-    stop("These media channels contains only 0 within training period ",dt_transform$ds[1], " to ", dt_transform$ds[trainSize], ": ", paste(names(dt_train)[train_all0], collapse = ", ")
-         , " \nRecommendation: increase set_modTrainSize, remove or combine these channels")
+    stop("These media channels contains only 0 within training period ",dt_transform$ds[trainStartWhich], " to ", tail(dt_transform$ds,1), ": ", paste(names(dt_train)[train_all0], collapse = ", ")
+         , " \nRecommendation: adapt set_trainStartDate, remove or combine these channels")
   }
   
   
@@ -771,7 +778,7 @@ f.calibrateLift <- function(decompCollect, set_lift) {
 
 #####################################
 #### Define refit function
-f.refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, upper.limits) {
+f.refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
   mod <- glmnet(
     x_train
     ,y_train
@@ -799,23 +806,23 @@ f.refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, uppe
   y_trainPred <- predict(mod, s = lambda, newx = x_train)
   rsq_train<- f.rsq(true = y_train, predicted = y_trainPred); rsq_train
   
-  y_testPred <- predict(mod, s = lambda, newx = x_test)
-  rsq_test <- f.rsq(true = y_test, predicted = y_testPred); rsq_test
+  #y_testPred <- predict(mod, s = lambda, newx = x_test)
+  #rsq_test <- f.rsq(true = y_test, predicted = y_testPred); rsq_test
   
-  mape_mod<- mean(abs((y_test - y_testPred)/y_test)* 100); mape_mod
+  #mape_mod<- mean(abs((y_test - y_testPred)/y_test)* 100); mape_mod
   coefs <- as.matrix(coef(mod))
-  y_pred <- c(y_trainPred, y_testPred)
+  #y_pred <- c(y_trainPred, y_testPred)
   
   nrmse_train <- sqrt(mean(sum((y_train - y_trainPred)^2))) / (max(y_train) - min(y_train)) # mean(y_train) sd(y_train)
-  nrmse_test <- sqrt(mean(sum((y_test - y_testPred)^2))) / (max(y_test) - min(y_test)) # mean(y_test) sd(y_test)
+  #nrmse_test <- sqrt(mean(sum((y_test - y_testPred)^2))) / (max(y_test) - min(y_test)) # mean(y_test) sd(y_test)
   
   mod_out <- list(rsq_train = rsq_train
-                  ,rsq_test = rsq_test
+                  #,rsq_test = rsq_test
                   ,nrmse_train = nrmse_train
-                  ,nrmse_test = nrmse_test
-                  ,mape_mod = mape_mod
+                  #,nrmse_test = nrmse_test
+                  #,mape_mod = mape_mod
                   ,coefs = coefs
-                  ,y_pred = y_pred
+                  ,y_pred = y_trainPred
                   ,mod=mod)
   
   return(mod_out)
@@ -880,17 +887,14 @@ f.mmm <- function(...
     fixed.lambda
   }
   
-
-  
-  
-  
-  
   ################################################
   #### Get spend share
   
-  dt_spendShare <- dt_input[, .(rn = set_mediaVarName,
-                                total_spend = sapply(.SD, sum),
-                                mean_spend = sapply(.SD, function(x) mean(x[x>0]))), .SDcols=set_mediaSpendName]
+  trainStartWhich <- which.min(abs(difftime(as.Date(dt_mod$ds), as.Date(set_trainStartDate), units = "days")))
+  dt_inputTrain <- dt_input[trainStartWhich:nrow(dt_input)]
+  dt_spendShare <- dt_inputTrain[, .(rn = set_mediaVarName,
+                                     total_spend = sapply(.SD, sum),
+                                     mean_spend = sapply(.SD, function(x) mean(x[x>0]))), .SDcols=set_mediaSpendName]
   dt_spendShare[, ':='(spend_share = mean_spend / sum(mean_spend))]
   
   ################################################
@@ -900,7 +904,7 @@ f.mmm <- function(...
   dt_mod <- dt_mod
   set_mediaVarName <- set_mediaVarName
   adstock <- adstock
-  set_modTrainSize <- set_modTrainSize
+  #set_modTrainSize <- set_modTrainSize
   activate_calibration <- activate_calibration
   set_baseVarSign <- set_baseVarSign
   set_mediaVarSign <- set_mediaVarSign
@@ -1074,17 +1078,19 @@ f.mmm <- function(...
         #####################################
         #### Split and prepare data for modelling
         
-        trainSize <- round(nrow(dt_modAdstocked)* set_modTrainSize)
-        dt_train <- dt_modAdstocked[1:trainSize]
-        dt_test <- dt_modAdstocked[(trainSize+1):nrow(dt_modAdstocked)]
+        #trainSize <- round(nrow(dt_modAdstocked)* set_modTrainSize)
+        #dt_train <- dt_modAdstocked[1:trainSize]
+        #dt_test <- dt_modAdstocked[(trainSize+1):nrow(dt_modAdstocked)]
+        #trainStartWhich <- which.min(abs(difftime(as.Date(dt_mod$ds), as.Date(set_trainStartDate), units = "days")))
+        dt_train <- dt_modAdstocked[trainStartWhich:nrow(dt_modAdstocked)]
         
         ## contrast matrix because glmnet does not treat categorical variables
         y_train <- dt_train$depVar
         x_train <- model.matrix(depVar ~., dt_train)[, -1]
-        y_test <- dt_test$depVar
-        x_test <- model.matrix(depVar ~., dt_test)[, -1]
-        y <- c(y_train, y_test)
-        x <- rbind(x_train, x_test)
+        #y_test <- dt_test$depVar
+        #x_test <- model.matrix(depVar ~., dt_test)[, -1]
+        #y <- c(y_train, y_test)
+        #x <- rbind(x_train, x_test)
         
         ## create lambda sequence with x and y
         # lambda_seq <- f.lambdaRidge(x=x_train, y=y_train, seq_len = lambda.n, lambda_min_ratio = 0.0001)
@@ -1133,18 +1139,18 @@ f.mmm <- function(...
           
           ## if no lift calibration, refit using best lambda
           if (fixed.out == F) {
-            mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=cvmod$lambda.1se, lower.limits, upper.limits)
+            mod_out <- f.refit(x_train, y_train, lambda=cvmod$lambda.1se, lower.limits, upper.limits)
             lambda <- cvmod$lambda.1se
           } else {
-            mod_out <- f.refit(x_train, y_train, x_test, y_test, lambda=fixed.lambda[i], lower.limits, upper.limits)
+            mod_out <- f.refit(x_train, y_train, lambda=fixed.lambda[i], lower.limits, upper.limits)
             lambda <- fixed.lambda[i]
           }
 
           #hypParamSam["lambdas"] <- cvmod$lambda.1se
           #hypParamSamName <- names(hypParamSam)
           
-          decompCollect <- f.decomp(coefs=mod_out$coefs, dt_modAdstocked, x, y_pred=mod_out$y_pred, i)
-          nrmse <- mod_out$nrmse_test
+          decompCollect <- f.decomp(coefs=mod_out$coefs, dt_train, x_train, y_pred=mod_out$y_pred, i)
+          nrmse <- mod_out$nrmse_train
           mape <- 0
           
           
@@ -1189,7 +1195,7 @@ f.mmm <- function(...
                                                  ,decomp.rssd = decomp.rssd
                                                  ,adstock.ssisd = adstock.ssisd
                                                  ,rsq_train = mod_out$rsq_train
-                                                 ,rsq_test = mod_out$rsq_test
+                                                 #,rsq_test = mod_out$rsq_test
                                                  ,pos = prod(decompCollect$xDecompAgg$pos)
                                                  ,lambda=lambda
                                                  #,Score = -mape
@@ -1202,7 +1208,7 @@ f.mmm <- function(...
                                                                       ,decomp.rssd = decomp.rssd
                                                                       ,adstock.ssisd = adstock.ssisd
                                                                       ,rsq_train = mod_out$rsq_train
-                                                                      ,rsq_test = mod_out$rsq_test
+                                                                      #,rsq_test = mod_out$rsq_test
                                                                       ,lambda=lambda
                                                                       ,iterPar= i
                                                                       ,iterNG = lng)]} else{NULL} ,
@@ -1211,7 +1217,7 @@ f.mmm <- function(...
                                                        ,decomp.rssd = decomp.rssd
                                                        ,adstock.ssisd = adstock.ssisd
                                                        ,rsq_train = mod_out$rsq_train
-                                                       ,rsq_test = mod_out$rsq_test
+                                                       #,rsq_test = mod_out$rsq_test
                                                        ,lambda=lambda
                                                        ,iterPar= i
                                                        ,iterNG = lng)] ,
@@ -1220,7 +1226,7 @@ f.mmm <- function(...
                                                                           ,decomp.rssd = decomp.rssd
                                                                           ,adstock.ssisd = adstock.ssisd
                                                                           ,rsq_train = mod_out$rsq_train
-                                                                          ,rsq_test = mod_out$rsq_test
+                                                                          #,rsq_test = mod_out$rsq_test
                                                                           ,lambda=lambda
                                                                           ,iterPar= i
                                                                           ,iterNG = lng)] } else {NULL},
@@ -1229,7 +1235,7 @@ f.mmm <- function(...
                                                       ,decomp.rssd = decomp.rssd
                                                       ,adstock.ssisd = adstock.ssisd
                                                       ,rsq_train = mod_out$rsq_train
-                                                      ,rsq_test = mod_out$rsq_test
+                                                      #,rsq_test = mod_out$rsq_test
                                                       ,lambda=lambda
                                                       ,iterPar= i
                                                       ,iterNG = lng)],
@@ -1340,7 +1346,8 @@ f.robyn <- function(set_hyperBoundLocal
                     ,set_cores = set_cores
                     ,plot_folder = getwd()
                     ,fixed.out = F
-                    ,fixed.hyppar.dt = NULL) {
+                    ,fixed.hyppar.dt = NULL
+                    ,pareto_fronts = c(1,2,3)) {
   
   t0 <- Sys.time()
   
@@ -1508,7 +1515,7 @@ f.robyn <- function(set_hyperBoundLocal
   
   #paretoFronts <- ifelse(!hyperparameter_fixed, c(1,2,3), 1)
   if (!hyperparameter_fixed & fixed.out ==F) {
-    paretoFronts <- c(1,2,3)
+    paretoFronts <- pareto_fronts
     num_pareto123 <- resultHypParam[robynPareto %in% paretoFronts, .N]
   } else {
     paretoFronts <- 1
@@ -1609,12 +1616,12 @@ f.robyn <- function(set_hyperBoundLocal
         cnt <- cnt+1
         ## plot spend x effect share comparison
         plotMediaShareLoop <- plotMediaShare[solID == uniqueSol[j]]
-        rsq_test_plot <- plotMediaShareLoop[, round(unique(rsq_test),4)]
+        rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train),4)]
         nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse),4)]
         decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd),4)]
         mape_lift_plot <- ifelse(activate_calibration, plotMediaShareLoop[, round(unique(mape),4)], NA)
         
-        plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_test" ), measure.vars = c("spend_share", "effect_share", "roi"))
+        plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_train" ), measure.vars = c("spend_share", "effect_share", "roi"))
         plotMediaShareLoop[, rn:= factor(rn, levels = sort(set_mediaVarName))]
         plotMediaShareLoopBar <- plotMediaShareLoop[variable %in% c("spend_share", "effect_share")]
         plotMediaShareLoopBar[, variable:= ifelse(variable=="spend_share", "avg.spend share", "avg.effect share")]
@@ -1635,7 +1642,7 @@ f.robyn <- function(set_hyperBoundLocal
           theme( legend.title = element_blank(), legend.position = c(0.9, 0.2) ,axis.text.x = element_blank()) +
           scale_fill_brewer(palette = "Paired") +
           labs(title = "Share of Spend VS Share of Effect"
-               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+               ,subtitle = paste0("rsq_train: ", rsq_train_plot, 
                                   ", nrmse = ", nrmse_plot, 
                                   ", decomp.rssd = ", decomp_rssd_plot,
                                   ", mape.lift = ", mape_lift_plot)
@@ -1658,7 +1665,7 @@ f.robyn <- function(set_hyperBoundLocal
                                                          ,y = rowSums(cbind(end,xDecompPerc/2))), fontface = "bold") +
                                  coord_flip() +
                                  labs(title="Response decomposition waterfall by predictor"
-                                      ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+                                      ,subtitle = paste0("rsq_train: ", rsq_train_plot, 
                                                          ", nrmse = ", nrmse_plot, 
                                                          ", decomp.rssd = ", decomp_rssd_plot,
                                                          ", mape.lift = ", mape_lift_plot)
@@ -1754,7 +1761,7 @@ f.robyn <- function(set_hyperBoundLocal
           geom_text(aes(label=paste0(round(avg_decay_rate*100,1), "%")),  position=position_dodge(width=0.5), fontface = "bold") +
           ylim(0,1) +
           labs(title = "Average adstock decay rate"
-               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+               ,subtitle = paste0("rsq_train: ", rsq_train_plot, 
                                   ", nrmse = ", nrmse_plot, 
                                   ", decomp.rssd = ", decomp_rssd_plot,
                                   ", mape.lift = ", mape_lift_plot)
@@ -1836,7 +1843,7 @@ f.robyn <- function(set_hyperBoundLocal
           geom_text(data = dt_scurvePlotMean, aes(x=mean_spend, y=mean_response,  label = round(mean_spend,0)), show.legend = F, hjust = -0.2)+
           theme(legend.position = c(0.9, 0.2)) +
           labs(title="Response curve and mean spend by channel"
-               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+               ,subtitle = paste0("rsq_train: ", rsq_train_plot, 
                                   ", nrmse = ", nrmse_plot, 
                                   ", decomp.rssd = ", decomp_rssd_plot,
                                   ", mape.lift = ", mape_lift_plot)
@@ -1869,7 +1876,7 @@ f.robyn <- function(set_hyperBoundLocal
           geom_line()+
           theme(legend.position = c(0.9, 0.9)) +
           labs(title="Actual vs. predicted response"
-               ,subtitle = paste0("rsq_test: ", rsq_test_plot, 
+               ,subtitle = paste0("rsq_train: ", rsq_train_plot, 
                                   ", nrmse = ", nrmse_plot, 
                                   ", decomp.rssd = ", decomp_rssd_plot,
                                   ", mape.lift = ", mape_lift_plot)

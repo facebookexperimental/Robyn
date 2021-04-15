@@ -47,7 +47,8 @@ f.budgetAllocator <- function(modID = NULL
   
   ## get filter for channels mmm coef reduced to 0
   dt_coef <- dt_bestCoef[, .(rn, coef)]
-  dt_coefSorted <- dt_coef[order(rn)]
+  get_rn_order <- order(dt_bestCoef$rn)
+  dt_coefSorted <- dt_coef[get_rn_order]
   coefSelectorSorted <- dt_coefSorted[, coef>0]
   names(coefSelectorSorted) <- dt_coefSorted$rn
   
@@ -454,7 +455,7 @@ f.budgetAllocator <- function(modID = NULL
     #geom_text(data = dt_optimOut, aes(x=optmSpendUnit, y=optmResponseUnit, color = channels, label = round(optmSpendUnit,0)),  show.legend = F, hjust = -0.2) +
     theme(legend.position = c(0.9, 0.4), legend.title=element_blank()) +
     labs(title="Response curve and mean spend by channel"
-         ,subtitle = paste0("rsq_test: ", plotDT_scurveMeanResponse[,round(mean(rsq_test),4)], 
+         ,subtitle = paste0("rsq_train: ", plotDT_scurveMeanResponse[,round(mean(rsq_train),4)], 
                             ", nrmse = ", plotDT_scurveMeanResponse[, round(mean(nrmse),4)], 
                             ", decomp.rssd = ", plotDT_scurveMeanResponse[, round(mean(decomp.rssd),4)],
                             ", mape.lift = ", plotDT_scurveMeanResponse[, round(mean(mape),4)])
