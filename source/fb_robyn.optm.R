@@ -40,8 +40,9 @@ f.budgetAllocator <- function(modID = NULL
   if (!(modID %in% dt_bestHyperParam$solID)) {stop("provided modID is not within the best results")}
   dt_bestCoef <- model_output_collect$xDecompAgg[solID == modID & rn %in% set_mediaVarName]
   
-  dt_spendShare <- dt_input[, .(rn = set_mediaVarName,
-                                total_spend = sapply(.SD, sum)), .SDcols=set_mediaSpendName]
+  dt_spendShare <- dt_input[dt_input[, rank(.SD), .SDcols = set_dateVarName]]
+  dt_spendShare <- dt_spendShare[, .(rn = set_mediaVarName,
+                                     total_spend = sapply(.SD, sum)), .SDcols=set_mediaSpendName]
   dt_bestCoef[dt_spendShare[, .(rn, total_spend)], ':='(spend = i.total_spend, roi = xDecompAgg / i.total_spend), on = "rn"]
   dt_optim <- copy(dt_mod)
   
@@ -72,15 +73,15 @@ f.budgetAllocator <- function(modID = NULL
   #dt_optimCost <- dt_optimCost[, channelNames, with=F]
   setcolorder(dt_optimCost, channelNames)
   
-  dt_bestCoef <- dt_bestCoef[order(rn)][rn %in% channelNames]
+  dt_bestCoef <- dt_bestCoef[order(rank(rn))][rn %in% channelNames]
   
   costMultiplierVec <- mediaCostFactor[channelNames]
   
   if(any(costSelector)) {
     dt_modNLS <- merge(data.table(channel=channelNames), modNLSCollect, all.x = T, by = "channel")
-    vmaxVec <- dt_modNLS[order(channel)][, Vmax]
+    vmaxVec <- dt_modNLS[order(rank(channel))][, Vmax]
     names(vmaxVec) <- channelNames
-    kmVec <- dt_modNLS[order(channel)][, Km]
+    kmVec <- dt_modNLS[order(rank(channel))][, Km]
     names(kmVec) <- channelNames
   } else {
     vmaxVec <- rep(0, length(channelNames))
@@ -159,7 +160,7 @@ f.budgetAllocator <- function(modID = NULL
           mapply(function(x, costMultiplier, adstockMultiplier, coeff
                           , alpha, gammaTran
                           , chnName, vmax, km, criteria) {
-            # apply Michaelis Menten model to scale spend to reach
+            # apply Michaelis Menten model to scale spend to exposure
             if (criteria) {
               xScaled <- vmax * x / (km + x)
             } else if (chnName %in% names(mm_lm_coefs)) {
@@ -187,7 +188,7 @@ f.budgetAllocator <- function(modID = NULL
           mapply(function(x, costMultiplier, adstockMultiplier, coeff
                           , alpha, gammaTran
                           , chnName, vmax, km, criteria) {
-            # apply Michaelis Menten model to scale spend to reach
+            # apply Michaelis Menten model to scale spend to exposure
             if (criteria) {
               xScaled <- vmax * x / (km + x)
             } else if (chnName %in% names(mm_lm_coefs)) {
@@ -215,7 +216,7 @@ f.budgetAllocator <- function(modID = NULL
                           , alpha, gammaTran
                           , chnName, vmax, km, criteria) {
             
-            # apply Michaelis Menten model to scale spend to reach
+            # apply Michaelis Menten model to scale spend to exposure
             if (criteria) {
               xScaled <- vmax * x / (km + x)
             } else if (chnName %in% names(mm_lm_coefs)) {
@@ -243,7 +244,7 @@ f.budgetAllocator <- function(modID = NULL
   
   ## build contraints function with scenarios
   nPeriod <- nrow(dt_optimCost)
-  xDecompAggMedia <- model_output_collect$xDecompAgg[solID==modID & rn %in% set_mediaVarName][order(rn)]
+  xDecompAggMedia <- model_output_collect$xDecompAgg[solID==modID & rn %in% set_mediaVarName][order(rank(rn))]
   
   if (scenario == "max_historical_response") {
     expected_spend <- sum(xDecompAggMedia$total_spend)
@@ -334,7 +335,7 @@ f.budgetAllocator <- function(modID = NULL
   
   ## collect output 
   
-  dt_bestModel <- dt_bestCoef[, .(rn, spend, xDecompAgg, roi)][order(rn)]
+  dt_bestModel <- dt_bestCoef[, .(rn, mean_spend, xDecompAgg, roi)][order(rank(rn))]
   
   dt_optimOut <- data.table(
     channels = channelNames
@@ -377,7 +378,7 @@ f.budgetAllocator <- function(modID = NULL
   
   # ROI comparison plot
   
-  plotDT_roi <- plotDT_total[, c("channels", "initRoiUnit", "optmRoiUnit")][order(channels)]
+  plotDT_roi <- plotDT_total[, c("channels", "initRoiUnit", "optmRoiUnit")][order(rank(channels))]
   plotDT_roi[, channels:=as.factor(channels)]
   chn_levels <- plotDT_roi[, as.character(channels)]
   plotDT_roi[, channels:=factor(channels, levels = chn_levels)]
@@ -397,7 +398,7 @@ f.budgetAllocator <- function(modID = NULL
                ,y="", x="Channels")
   
   # Response comparison plot
-  plotDT_resp <- plotDT_total[, c("channels", "initResponseUnit", "optmResponseUnit")][order(channels)]
+  plotDT_resp <- plotDT_total[, c("channels", "initResponseUnit", "optmResponseUnit")][order(rank(channels))]
   plotDT_resp[, channels:=as.factor(channels)]
   chn_levels <- plotDT_resp[, as.character(channels)]
   plotDT_resp[, channels:=factor(channels, levels = chn_levels)]
@@ -417,7 +418,7 @@ f.budgetAllocator <- function(modID = NULL
                ,y="", x="Channels")
   
   # budget share comparison plot
-  plotDT_share <- plotDT_total[, c("channels", "initSpendShare", "optmSpendShareUnit")][order(channels)]
+  plotDT_share <- plotDT_total[, c("channels", "initSpendShare", "optmSpendShareUnit")][order(rank(channels))]
   plotDT_share[, channels:=as.factor(channels)]
   chn_levels <- plotDT_share[, as.character(channels)]
   plotDT_share[, channels:=factor(channels, levels = chn_levels)]

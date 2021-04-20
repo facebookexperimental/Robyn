@@ -10,51 +10,51 @@
 ################################################################
 #### Define training size guidance plot using Bhattacharyya coefficient
 
-f.plotTrainSize <- function(plotTrainSize) {
-  
-  if(plotTrainSize) {
-    if(activate_baseline & exists("set_baseVarName")) {
-      bhattaVar <- unique(c(set_depVarName, set_baseVarName, set_mediaVarName, set_mediaSpendName))
-    } else {stop("either set activate_baseline = F or fill set_baseVarName")}
-    bhattaVar <- setdiff(bhattaVar, set_factorVarName)
-    if (!("depVar" %in% names(dt_input))) {
-      dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
-    } else {
-      bhattaVar <- str_replace(bhattaVar, set_depVarName, "depVar")
-      dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
-    }
-    
-    ## define bhattacharyya distance function
-    f.bhattaCoef <- function (mu1, mu2, Sigma1, Sigma2) {
-      Sig <- (Sigma1 + Sigma2)/2
-      ldet.s <- unlist(determinant(Sig, logarithm = TRUE))[1]
-      ldet.s1 <- unlist(determinant(Sigma1, logarithm = TRUE))[1]
-      ldet.s2 <- unlist(determinant(Sigma2, logarithm = TRUE))[1]
-      d1 <- mahalanobis(mu1, mu2, Sig, tol=1e-20)/8
-      d2 <- 0.5 * ldet.s - 0.25 * ldet.s1 - 0.25 * ldet.s2
-      d <- d1 + d2
-      bhatta.coef <- 1/exp(d)
-      return(bhatta.coef)
-    }
-    
-    ## loop all train sizes
-    bcCollect <- c()
-    sizeVec <- seq(from=0.5, to=0.9, by=0.01)
-    
-    for (i in 1:length(sizeVec)) {
-      test1 <- dt_bhatta[1:floor(nrow(dt_bhatta)*sizeVec[i]), ]
-      test2 <- dt_bhatta[(floor(nrow(dt_bhatta)*sizeVec[i])+1):nrow(dt_bhatta), ]
-      bcCollect[i] <- f.bhattaCoef(colMeans(test1),colMeans(test2),cov(test1),cov(test2)) 
-    }
-    
-    dt_bdPlot <- data.table(train_size=sizeVec, bhatta_coef=bcCollect)
-    
-    print(ggplot(dt_bdPlot, aes(x=train_size, y=bhatta_coef)) + 
-            geom_line() +
-            labs(title = "Bhattacharyya coef. of train/test split"
-                 ,subtitle = "Select the training size with larger bhatta_coef"))
-  }
-}
+# f.plotTrainSize <- function(plotTrainSize) {
+#   
+#   if(plotTrainSize) {
+#     if(activate_baseline & exists("set_baseVarName")) {
+#       bhattaVar <- unique(c(set_depVarName, set_baseVarName, set_mediaVarName, set_mediaSpendName))
+#     } else {stop("either set activate_baseline = F or fill set_baseVarName")}
+#     bhattaVar <- setdiff(bhattaVar, set_factorVarName)
+#     if (!("depVar" %in% names(dt_input))) {
+#       dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
+#     } else {
+#       bhattaVar <- str_replace(bhattaVar, set_depVarName, "depVar")
+#       dt_bhatta <- dt_input[, bhattaVar, with=F]  # please input your data
+#     }
+#     
+#     ## define bhattacharyya distance function
+#     f.bhattaCoef <- function (mu1, mu2, Sigma1, Sigma2) {
+#       Sig <- (Sigma1 + Sigma2)/2
+#       ldet.s <- unlist(determinant(Sig, logarithm = TRUE))[1]
+#       ldet.s1 <- unlist(determinant(Sigma1, logarithm = TRUE))[1]
+#       ldet.s2 <- unlist(determinant(Sigma2, logarithm = TRUE))[1]
+#       d1 <- mahalanobis(mu1, mu2, Sig, tol=1e-20)/8
+#       d2 <- 0.5 * ldet.s - 0.25 * ldet.s1 - 0.25 * ldet.s2
+#       d <- d1 + d2
+#       bhatta.coef <- 1/exp(d)
+#       return(bhatta.coef)
+#     }
+#     
+#     ## loop all train sizes
+#     bcCollect <- c()
+#     sizeVec <- seq(from=0.5, to=0.9, by=0.01)
+#     
+#     for (i in 1:length(sizeVec)) {
+#       test1 <- dt_bhatta[1:floor(nrow(dt_bhatta)*sizeVec[i]), ]
+#       test2 <- dt_bhatta[(floor(nrow(dt_bhatta)*sizeVec[i])+1):nrow(dt_bhatta), ]
+#       bcCollect[i] <- f.bhattaCoef(colMeans(test1),colMeans(test2),cov(test1),cov(test2)) 
+#     }
+#     
+#     dt_bdPlot <- data.table(train_size=sizeVec, bhatta_coef=bcCollect)
+#     
+#     print(ggplot(dt_bdPlot, aes(x=train_size, y=bhatta_coef)) + 
+#             geom_line() +
+#             labs(title = "Bhattacharyya coef. of train/test split"
+#                  ,subtitle = "Select the training size with larger bhatta_coef"))
+#   }
+# }
 
 f.plotAdstockCurves <- function(plotAdstockCurves) {
   if (plotAdstockCurves) {
@@ -235,7 +235,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   
   dt_transform <- copy(dt_transform)
   setnames(dt_transform, set_dateVarName, "ds", skip_absent = T)
-  dt_transform[, ':='(ds= as.Date(ds))]
+  dt_transform <- dt_transform[, ':='(ds= as.Date(ds))][order(ds)]
   
   setnames(dt_transform, set_depVarName, "depVar", skip_absent = T) #; set_depVarName <- "depVar"
   #indepName <- c(set_prophet, set_baseVarName, set_mediaVarName)
@@ -281,7 +281,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   dt_train <- dt_transform[trainStartWhich:nrow(dt_transform), set_mediaVarName, with =F]
   train_all0 <- colSums(dt_train)==0
   if(any(train_all0)) {
-    stop("These media channels contains only 0 within training period ",dt_transform$ds[trainStartWhich], " to ", tail(dt_transform$ds,1), ": ", paste(names(dt_train)[train_all0], collapse = ", ")
+    stop("These media channels contains only 0 within training period ",dt_transform$ds[trainStartWhich], " to ", max(dt_transform$ds), ": ", paste(names(dt_train)[train_all0], collapse = ", ")
          , " \nRecommendation: adapt set_trainStartDate, remove or combine these channels")
   }
   
@@ -293,7 +293,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
   mediaVarCount <- length(set_mediaVarName)
   
   ################################################################
-  #### model reach metric from spend
+  #### model exposure metric from spend
   
   mediaCostFactor <- unlist(dt_input[, lapply(.SD, sum), .SDcols = set_mediaSpendName] / dt_input[, lapply(.SD, sum), .SDcols = set_mediaVarName])
   names(mediaCostFactor) <- set_mediaVarName
@@ -307,23 +307,23 @@ f.inputWrangling <- function(dt_transform = dt_input) {
     for (i in 1:mediaVarCount) {
       if (costSelector[i]) {
         dt_spendModInput <- dt_input[, c(set_mediaSpendName[i],set_mediaVarName[i]), with =F]
-        setnames(dt_spendModInput, names(dt_spendModInput), c("spend", "reach"))
-        #dt_spendModInput <- dt_spendModInput[spend !=0 & reach != 0]
+        setnames(dt_spendModInput, names(dt_spendModInput), c("spend", "exposure"))
+        #dt_spendModInput <- dt_spendModInput[spend !=0 & exposure != 0]
         
-        # scale 0 spend and reach to a tiny number
+        # scale 0 spend and exposure to a tiny number
         dt_spendModInput[, spend:=as.numeric(spend)][spend==0, spend:=0.01] # remove spend == 0 to avoid DIV/0 error
-        dt_spendModInput[, reach:=as.numeric(reach)][reach==0, reach:=spend / mediaCostFactor[i]] # adapt reach with avg when spend == 0
+        dt_spendModInput[, exposure:=as.numeric(exposure)][exposure==0, exposure:=spend / mediaCostFactor[i]] # adapt exposure with avg when spend == 0
         
-        # mod_nls <- nls(reach ~ SSmicmen(spend, Vmax, Km)
+        # mod_nls <- nls(exposure ~ SSmicmen(spend, Vmax, Km)
         #                ,data = dt_spendModInput
         #                ,control = nls.control(minFactor=1/2048, warnOnly = T))
         
         # estimate starting values for nls
-        # modLM <- lm(log(reach) ~ spend, dt_spendModInput)
+        # modLM <- lm(log(exposure) ~ spend, dt_spendModInput)
         # nlsStartVal <- list(Vmax = exp(coef(modLM)[1]), Km = coef(modLM)[2])
-        # nlsStartVal <- list(Vmax = dt_spendModInput[, max(reach)/2], Km = dt_spendModInput[, max(reach)])
+        # nlsStartVal <- list(Vmax = dt_spendModInput[, max(exposure)/2], Km = dt_spendModInput[, max(exposure)])
         # run nls model
-        # modNLS <- nlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
+        # modNLS <- nlsLM(exposure ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
         #                data = dt_spendModInput,
         #                start = nlsStartVal
         #                ,control = nls.control(warnOnly = T)
@@ -331,15 +331,15 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         
         modNLS <- tryCatch(
           {
-            nlsStartVal <- list(Vmax = dt_spendModInput[, max(reach)/2], Km = dt_spendModInput[, max(reach)])
-            suppressWarnings(modNLS <- nlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
+            nlsStartVal <- list(Vmax = dt_spendModInput[, max(exposure)/2], Km = dt_spendModInput[, max(exposure)])
+            suppressWarnings(modNLS <- nlsLM(exposure ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
                                       data = dt_spendModInput,
                                       start = nlsStartVal
                                       ,control = nls.control(warnOnly = T)))
           },
           error=function(cond) {
             nlsStartVal <- list(Vmax=1, Km=1)
-            suppressWarnings(modNLS <- nlsLM(reach ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
+            suppressWarnings(modNLS <- nlsLM(exposure ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
                                              data = dt_spendModInput,
                                              start = nlsStartVal
                                              ,control = nls.control(warnOnly = T)))
@@ -356,13 +356,13 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         identical(yhatNLS, yhatNLSQA)
         
         # build lm comparison model
-        modLM <- lm(reach ~ spend-1, data = dt_spendModInput)
+        modLM <- lm(exposure ~ spend-1, data = dt_spendModInput)
         yhatLM <- predict(modLM)
         modLMSum <- summary(modLM)
         
         # compare NLS & LM, takes LM if NLS fits worse
-        rsq_nls <- f.rsq(dt_spendModInput$reach, yhatNLS)
-        rsq_lm <- f.rsq(dt_spendModInput$reach, yhatLM) #reach = v  * spend / (k + spend)
+        rsq_nls <- f.rsq(dt_spendModInput$exposure, yhatNLS)
+        rsq_lm <- f.rsq(dt_spendModInput$exposure, yhatLM) #exposure = v  * spend / (k + spend)
         costSelector[i] <- rsq_nls > rsq_lm
         
         modNLSCollect[[set_mediaVarName[i]]] <- data.table(channel = set_mediaVarName[i],
@@ -380,7 +380,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         dt_plotNLS <- data.table(channel = set_mediaVarName[i],
                                  yhatNLS = if(costSelector[i]) {yhatNLS} else {yhatLM},
                                  yhatLM = yhatLM,
-                                 y = dt_spendModInput$reach,
+                                 y = dt_spendModInput$exposure,
                                  x = dt_spendModInput$spend)
         dt_plotNLS <- melt.data.table(dt_plotNLS, id.vars = c("channel", "y", "x"), variable.name = "models", value.name = "yhat")
         dt_plotNLS[, models:= str_remove(tolower(models), "yhat")]
@@ -395,7 +395,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
                                  "\nnls: aic=", round(AIC(if(costSelector[i]) {modNLS} else {modLM}),0), ", rsq=", round(if(costSelector[i]) {rsq_nls} else {rsq_lm},4),
                                  "\nlm: aic= ", round(AIC(modLM),0), ", rsq=", round(rsq_lm,4)),
                x = "spend",
-               y = "reach"
+               y = "exposure"
           ) +
           theme(legend.position = 'bottom')
         
@@ -891,7 +891,8 @@ f.mmm <- function(...
   #### Get spend share
   
   trainStartWhich <- which.min(abs(difftime(as.Date(dt_mod$ds), as.Date(set_trainStartDate), units = "days")))
-  dt_inputTrain <- dt_input[trainStartWhich:nrow(dt_input)]
+  dt_inputTrain <- dt_input[dt_input[, rank(.SD), .SDcols = set_dateVarName]]
+  dt_inputTrain <- dt_inputTrain[trainStartWhich:nrow(dt_inputTrain)]
   dt_spendShare <- dt_inputTrain[, .(rn = set_mediaVarName,
                                      total_spend = sapply(.SD, sum),
                                      mean_spend = sapply(.SD, function(x) mean(x[x>0]))), .SDcols=set_mediaSpendName]
@@ -1538,19 +1539,19 @@ f.robyn <- function(set_hyperBoundLocal
     }
     
     
-    ## plot spend reach model
+    ## plot spend exposure model
     
     if(any(costSelector)) {
-      pSpendReach <- arrangeGrob(grobs = plotNLSCollect
+      pSpendExposure <- arrangeGrob(grobs = plotNLSCollect
                                  ,ncol= ifelse(length(plotNLSCollect)<=3, length(plotNLSCollect), 3)
-                                 ,top = "Spend-reach fitting with Michaelis-Menten model")
-      #grid.draw(pSpendReach)
-      ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "spend_reach_fitting.png")
-             , plot = pSpendReach
+                                 ,top = "Spend-exposure fitting with Michaelis-Menten model")
+      #grid.draw(pSpendExposure)
+      ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "spend_exposure_fitting.png")
+             , plot = pSpendExposure
              , dpi = 600, width = 12, height = 7)
       
     } else {
-      message("no spend model needed. all media variables used for mmm are spend variables ")
+      message("\nno spend-exposure modelling needed. all media variables used for mmm are spend variables ")
     }
     
     
@@ -1789,7 +1790,7 @@ f.robyn <- function(set_hyperBoundLocal
             Km <- modNLSCollect[channel == chn, Km]
             
             # reverse exposure to spend
-            dt_transformSaturationSpendReverse[, (chn):=.SD * Km / (Vmax - .SD), .SDcols = chn] # reach to spend, reverse Michaelis Menthen: x = y*Km/(Vmax-y)
+            dt_transformSaturationSpendReverse[, (chn):=.SD * Km / (Vmax - .SD), .SDcols = chn] # exposure to spend, reverse Michaelis Menthen: x = y*Km/(Vmax-y)
             
           } else if (chn %in% chnl_non_spend) {
             coef_lm <- modNLSCollect[channel == chn, coef_lm]
@@ -1907,7 +1908,7 @@ f.robyn <- function(set_hyperBoundLocal
         
         mediaVecCollect[[cnt]] <- rbind(dt_transformPlot[, ':='(type="rawMedia", solID=uniqueSol[j])]
                                         ,dt_transformSpend[, ':='(type="rawSpend", solID=uniqueSol[j])]
-                                        ,dt_transformSpendMod[, ':='(type="predictedReach", solID=uniqueSol[j])]
+                                        ,dt_transformSpendMod[, ':='(type="predictedExposure", solID=uniqueSol[j])]
                                         ,dt_transformAdstock[, ':='(type="adstockedMedia", solID=uniqueSol[j])]
                                         ,dt_transformSaturation[, ':='(type="saturatedMedia", solID=uniqueSol[j])]
                                         ,dt_transformSaturationSpendReverse[, ':='(type="saturatedSpendReversed", solID=uniqueSol[j])]
