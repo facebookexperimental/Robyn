@@ -1129,10 +1129,12 @@ f.mmm <- function(...
                            ,lower.limits = lower.limits
                            ,upper.limits = upper.limits
                            ,type.measure = "mse"
+                           #,penalty.factor = c(1,1,1,1,1,1,1,1,1)
                            #,nlambda = 100
                            #,intercept = FALSE
         ) # plot(cvmod) coef(cvmod)
-        
+        #head(predict(cvmod, newx=x_train, s="lambda.1se"))
+        #cbind(coef(cvmod1, s = "lambda.min"), coef(cvmod2, s = "lambda.min"), coef(cvmod3, s = "lambda.min"), coef(cvmod4, s = "lambda.min"))
         
         #####################################
         #### refit ridge regression with selected lambda from x-validation
@@ -1548,7 +1550,7 @@ f.robyn <- function(set_hyperBoundLocal
       #grid.draw(pSpendExposure)
       ggsave(paste0(plot_folder, "/", plot_folder_sub,"/", "spend_exposure_fitting.png")
              , plot = pSpendExposure
-             , dpi = 600, width = 12, height = 7)
+             , dpi = 600, width = 12, height = ceiling(length(plotNLSCollect)/3)*7)
       
     } else {
       message("\nno spend-exposure modelling needed. all media variables used for mmm are spend variables ")
@@ -1860,13 +1862,16 @@ f.robyn <- function(set_hyperBoundLocal
           col_order <- c("ds", "depVar", set_baseVarName, set_mediaVarName)
         }
         setcolorder(dt_transformDecomp, neworder = col_order)
+        
         xDecompVec <- dcast.data.table(xDecompAgg[solID==uniqueSol[j], .(rn, coef, solID)],  solID ~ rn, value.var = "coef")
+        if (!("(Intercept)" %in% names(xDecompVec))) {xDecompVec[, "(Intercept)":= 0]}
         setcolorder(xDecompVec, neworder = c("solID", "(Intercept)",col_order[!(col_order %in% c("ds", "depVar"))]))
+        intercept <- xDecompVec$`(Intercept)`
         
         xDecompVec <- data.table(mapply(function(scurved,coefs) { scurved * coefs}, 
                                         scurved=dt_transformDecomp[, !c("ds", "depVar"), with=F] , 
                                         coefs = xDecompVec[, !c("solID", "(Intercept)")]))
-        xDecompVec[, ':='(depVarHat=rowSums(xDecompVec), solID = uniqueSol[j])]
+        xDecompVec[, ':='(depVarHat=rowSums(xDecompVec) + intercept, solID = uniqueSol[j])]
         xDecompVec <- cbind(dt_transformDecomp[, .(ds, depVar)], xDecompVec)
         
         xDecompVecPlot <- xDecompVec[, .(ds, depVar, depVarHat)]
