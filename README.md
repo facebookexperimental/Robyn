@@ -25,7 +25,7 @@
   * Please follow all instructions in fb_robyn.exec.R
   * After above steps, if you select all and run in fb_robyn.exec.R, the script should execute 20k iterations (500 iterations * 40 trials) and save some plots on your selected folder
   * An example model onepager looks like this:
-![result](https://user-images.githubusercontent.com/14415136/110111544-c81d1f80-7db0-11eb-9a9f-51249514baae.png)
+![result](https://user-images.githubusercontent.com/14415136/116684824-c12a1c00-a9b1-11eb-84d5-b28680796999.png)
 
   * The final function f.budgetAllocator() might throw error "provided ModID is not within the best result". First of all, please read all instructions behind the function. Model IDs are encoded in each onepager .png name and also in the title. Also, execute model_output_collect$allSolutions will output all final model IDs. Please pick one and put it into f.budgetAllocator(). 
   * An example optimised model looks like this:
