@@ -73,13 +73,13 @@ const features = [
     description: <></>,
   },
   {
-    title: <>Privacy by Design</>,
+    title: <>Private by Design</>,
     description: (
       <>
         <ul>
           <li>
             {' '}
-            Privacy safe with no requirement for PII or Individual log level
+            Privacy friendly, with no requirement for PII or Individual log level
             data
           </li>
           <li> Not dependent on Cookies or Pixel data</li>
