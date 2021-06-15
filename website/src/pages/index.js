@@ -160,6 +160,21 @@ function Home() {
             </div>
           </section>
         )}
+      <div className="container padding-top--wb">
+        <div className="row">
+          <div className="col col--6 col--offset-3">
+          <iframe
+            title="Robyn walkthrough video"
+            width="560"
+            height="315"
+            src="https://www.youtube.com/embed/aIiadcfL4uw"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          />
+        </div>
+      </div>
+    </div>
       </main>
     </Layout>
   );
