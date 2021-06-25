@@ -59,8 +59,12 @@ module.exports = {
           title: 'Community',
           items: [
             {
-              label: 'Discord chat',
-              href: 'https://discord.gg/BYhqMedCcN',
+              label: 'Robyn MMM Users Facebook Group',
+              href: 'https://www.facebook.com/groups/954715125296621',
+            },
+            {
+              label: 'Raise an issue on Github',
+              href: 'https://github.com/facebookexperimental/Robyn/issues',
             },
           ],
         },
