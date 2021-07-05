@@ -13,25 +13,25 @@
  */
 
 .heroBanner {
-  padding: 4rem 0;
-  text-align: center;
   position: relative;
   overflow: hidden;
 }
 
-@media screen and (max-width: 966px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.heroTitle {
+  font-size: 3.5rem;
+}
+
+.heroSubtitle {
+  font-size: 2rem;
 }
 
 .buttons {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  column-gap: 1rem;
 }
 
 .features {
+  background-color: var(--ifm-color-emphasis-100);
   display: flex;
   align-items: center;
   padding: 2rem 0;
@@ -41,4 +41,14 @@
 .featureImage {
   height: 200px;
   width: 200px;
+}
+
+.descriptionSection {
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.descriptionSectionText {
+  font-size: 1.175rem;
 }
