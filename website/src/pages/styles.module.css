@@ -27,6 +27,7 @@
 
 .buttons {
   display: flex;
+  column-gap: 1rem;
 }
 
 .features {
@@ -46,4 +47,8 @@
   justify-content: center;
   display: flex;
   flex-direction: column;
+}
+
+.descriptionSectionText {
+  font-size: 1.175rem;
 }

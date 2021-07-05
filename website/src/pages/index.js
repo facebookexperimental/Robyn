@@ -91,7 +91,7 @@ function Feature({ imageUrl, title, description }) {
         </div>
       )}
       <h3>{title}</h3>
-      <p>{description}</p>
+      <p className={styles.descriptionSectionText}>{description}</p>
     </div>
   );
 }
@@ -107,14 +107,21 @@ function Home() {
       <header className={clsx('hero hero--primary', styles.heroBanner)}>
         <div className="container">
           <h1 className={clsx('hero__title', styles.heroTitle)}>{siteConfig.title}</h1>
-          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an automated Marketing Mix Modeling (MMM) code.</p>
+          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an automated Marketing Mix Modeling (MMM) open source code.</p>
           <div className={styles.buttons}>
             <Link
               className={clsx(
-                'button button--outline button--secondary button--lg',
-                styles.getStarted,
+                'button button--secondary button--lg'
               )}
               to={useBaseUrl('docs/')}
+            >
+              Install Robyn
+            </Link>
+            <Link
+              className={clsx(
+                'button button--outline button--secondary button--lg'
+              )}
+              to={useBaseUrl('docs/step-by-step-guide/')}
             >
               Get Started
             </Link>
@@ -126,8 +133,8 @@ function Home() {
           <div className="container">
             <div className="row">
               <div className={clsx('col col--6', styles.descriptionSection)}>
-                <h2>Automated Marketing Mix Modeling</h2>
-                <p>{siteConfig.tagline}</p>
+                <h2>Open Source and Automated Marketing Mix Modeling</h2>
+                <p className={styles.descriptionSectionText}>{siteConfig.tagline}</p>
               </div>
               <div className="col col--6">
                 <iframe
@@ -162,7 +169,7 @@ function Home() {
           <div className="row">
             <div className="col col--6 col--offset-3 text--center">
               <h2>Robyn Code Walkthrough Video</h2>
-              <p>Please watch this walkthrough video to understand better how the code works</p>
+              <p className={styles.descriptionSectionText}>Please watch this walkthrough video to understand better how the code works</p>
               <iframe
                 title="Robyn walkthrough video"
                 width="560"
