@@ -53,8 +53,8 @@ The following plot demonstrates typical Pareto fronts 1-3 on NRMSE and DECOMP.RS
 [Robyn MMM users Facebook Group](https://www.facebook.com/groups/954715125296621)
 
 ## Case studies
-[Case study: Resident](https://www.facebook.com/business/success/resident)
-[Case study: Central Group](https://www.facebook.com/business/success/central-retail-corporation)
+* [Case study: Resident](https://www.facebook.com/business/success/resident)
+* [Case study: Central Group](https://www.facebook.com/business/success/central-retail-corporation)
 
 
 ## FB Contact
