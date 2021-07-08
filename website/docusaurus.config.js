@@ -53,6 +53,14 @@ module.exports = {
               label: 'GitHub',
               href: 'https://github.com/facebookexperimental/Robyn',
             },
+            {
+              label: 'Case study: Resident',
+              href: 'https://www.facebook.com/business/success/resident',
+            },
+            {
+              label: 'Case study: Central Group',
+              href: 'https://www.facebook.com/business/success/central-retail-corporation',
+            },
           ],
         },
         {
