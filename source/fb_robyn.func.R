@@ -1021,7 +1021,10 @@ f.mmm <- function(...
       decomp.rssd.collect <- c()
       best_mape <- Inf
       closeAllConnections()
-      registerDoParallel(set_cores)  #registerDoParallel(cores=set_cores)
+      al <-makeCluster(set_cores) # Create the clusters
+      registerDoParallel(al) # Register the parallel backend 
+      # registerDoParallel(set_cores)  
+      #registerDoParallel(cores=set_cores)
       getDoParWorkers()
       doparCollect <- foreach (
         i = 1:iterPar
@@ -1258,7 +1261,8 @@ f.mmm <- function(...
         return(resultCollect)
       } # end dopar
       ## end parallel
-      
+      stopCluster(al)#
+                                                                    
       nrmse.coolect <- sapply(doparCollect, function(x) x$nrmse)
       decomp.rssd.coolect <- sapply(doparCollect, function(x) x$decomp.rssd)
       mape.lift.coolect <- sapply(doparCollect, function(x) x$mape.lift)
