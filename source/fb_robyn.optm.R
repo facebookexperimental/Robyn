@@ -482,7 +482,7 @@ f.budgetAllocator <- function(modID = NULL
          , dpi = 400, width = 18, height = 14)
   
   fwrite(dt_optimOut, paste0(model_output_collect$folder_path, modID,"_reallocated.csv"))
-  return(list(dt_optimOut=dt_optimOut, nlsMod=nlsMod))
+  return(list(dt_optimOut=dt_optimOut, nlsMod=nlsMod, plotDT_scurve=plotDT_scurve))
 }
 
 
