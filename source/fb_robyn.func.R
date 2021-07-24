@@ -331,7 +331,7 @@ f.inputWrangling <- function(dt_transform = dt_input) {
         
         modNLS <- tryCatch(
           {
-            nlsStartVal <- list(Vmax = dt_spendModInput[, max(exposure)/2], Km = dt_spendModInput[, max(exposure)])
+            nlsStartVal <- list(Vmax = dt_spendModInput[, max(exposure)], Km = dt_spendModInput[, max(exposure)/2])
             suppressWarnings(modNLS <- nlsLM(exposure ~ Vmax * spend/(Km + spend), #Michaelis-Menten model Vmax * spend/(Km + spend)
                                       data = dt_spendModInput,
                                       start = nlsStartVal
