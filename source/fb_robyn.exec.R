@@ -10,7 +10,7 @@
 
 ################################################################
 #### set locale for non English R
-# Sys.setlocale("LC_TIME", "English")
+# Sys.setlocale("LC_TIME", "C")
 
 ################################################################
 #### load libraries
@@ -22,7 +22,6 @@ rm(list=ls()); gc()
 library(data.table) 
 library(stringr) 
 library(lubridate) 
-library(doParallel) 
 library(foreach) 
 library(glmnet) 
 library(car) 
@@ -40,6 +39,8 @@ library(minpack.lm)
 library(rPref)
 library(reticulate)
 library(rstudioapi)
+library(doFuture)
+library(doRNG)
 
 ## please see https://rstudio.github.io/reticulate/index.html for info on installing reticulate
 # conda_create("r-reticulate") # must run this line once
