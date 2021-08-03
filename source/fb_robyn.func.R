@@ -1020,8 +1020,8 @@ f.mmm <- function(...
       nrmse.collect <- c()
       decomp.rssd.collect <- c()
       best_mape <- Inf
-      closeAllConnections()
-      registerDoParallel(set_cores)  #registerDoParallel(cores=set_cores)
+      registerDoFuture()
+      if (.Platform$OS.type == "unix"){plan(multicore=set_cores)} else{plan(sequential)}
       getDoParWorkers()
       doparCollect <- foreach (
         i = 1:iterPar
@@ -1038,7 +1038,7 @@ f.mmm <- function(...
                         ,'data.table'
         )
         #, .options.snow = opts
-      )  %dopar%  {
+      )  %dorng%  {
         
         t1 <- Sys.time()
         
