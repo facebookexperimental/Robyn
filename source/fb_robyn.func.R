@@ -1021,7 +1021,7 @@ f.mmm <- function(...
       decomp.rssd.collect <- c()
       best_mape <- Inf
       registerDoFuture()
-      plan(multicore)
+      if (.Platform$OS.type == "unix"){plan(multicore=set_cores)} else{plan(sequential)}
       getDoParWorkers()
       doparCollect <- foreach (
         i = 1:iterPar
