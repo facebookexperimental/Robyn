@@ -113,7 +113,7 @@ function Home() {
               className={clsx(
                 'button button--secondary button--lg'
               )}
-              to={useBaseUrl('docs/')}
+              to={useBaseUrl('docs/quick-start/')}
             >
               Install Robyn
             </Link>
@@ -121,7 +121,7 @@ function Home() {
               className={clsx(
                 'button button--outline button--secondary button--lg'
               )}
-              to={useBaseUrl('docs/step-by-step-guide/')}
+              to={useBaseUrl('docs/demo-R-script/')}
             >
               Get Started
             </Link>

@@ -19,19 +19,4 @@ besides the lambda penalization term above, we can identify the following formul
 
 <img alt="Ridge Regression Formula" src={useBaseUrl('img/model_specification.png')} />
 
-
-Below the code where we execute this part, remember you will find it under the
-‘func.R’ script:
-
-```
-        #####################################
-        #### fit ridge regression with x-validation
-        cvmod <- cv.glmnet(x_train
-                           ,y_train
-                           ,family = "gaussian"
-                           ,alpha = 0 #0 for ridge regression
-                           ,lower.limits = lower.limits
-                           ,upper.limits = upper.limits
-                           ,type.measure = "mse"
-        )
-```
+---

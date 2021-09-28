@@ -9,7 +9,8 @@
 
 module.exports = {
   someSidebar: {
-    'How-to guide': ['installation', 'quick-start', 'step-by-step-guide'],
+    'How-to guide': ['quick-start', 'demo-R-script'],
+    'Robyn at a glance':['robyn-at-a-glance', 'example-plots'],
     Features: [
       'ridge-regression',
       'variable-transformations',
@@ -17,8 +18,11 @@ module.exports = {
       'automated-hyperparameter-selection-optimization',
       'calibration',
       'outputs-diagnostics',
-      'contributing',
-      'about',
+      'window',
+      'refresh',
+      'organic-media'
     ],
+    'Getting help and contributing':['contributing'],
+    'About Robyn': ['about'],
   },
 };
