@@ -136,6 +136,13 @@ An example of the model one-pager for each Pareto-optimal models. **All data is 
 
 ![Model one-pager](figures/plt7.png?raw=true)
 
+### Budget allocator
+For every selected model result, the `robyn_allocator()` function can be applied to get the optimal budget mix that maximizes the response. It has two scenarios:
+ * **Maximum historical response**: It simulates the scenario "how much lift in response can be achieved with which budget mix given the same average spend level in history?"
+ * **Maximum response for expected spend**: It simulates the scenario "how much lift in response can be achieved given a specific spend level for a given period?"
+Robyn's budget allocator uses the gradient-based nloptr library to solve the nonlinear saturation function (Hill) analytically. For more details please check the [vignette](https://cran.r-project.org/web/packages/nloptr/vignettes/nloptr.pdf) of the nloptr library.
+
+![Budget allocation](figures/plt8.png?raw=true)
 
 ## Q&A
 
