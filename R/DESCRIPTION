@@ -5,7 +5,6 @@ Version: 3.0.0
 Authors@R: c(
     person("Gufeng", "Zhou", , "gufeng@fb.com", c("aut")),
     person("Leonel", "Sentana", , "leonelsentana@fb.com", c("aut")),
-    person("Antonio", "Prada", , "aprada@fb.com", c("aut")),
     person("Igor", "Skokan", , "igorskokan@fb.com", c("aut")),
     person("Bernardo", "Lares", , "bernardolares@fb.com", c("cre")))
 Maintainer: Bernardo Lares <bernardolares@fb.com>

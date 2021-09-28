@@ -16,7 +16,7 @@
   * For Windows, if you get openssl error, please see instructions
   [here](https://stackoverflow.com/questions/54558389/how-to-solve-this-error-while-installing-python-packages-in-rstudio/54566647) and
   [here](https://dev.to/danilovieira/installing-openssl-on-windows-and-adding-to-path-3mbf) to install and update openssl
-  
+
 **2. Getting started**
 
   * Use this [demo.R](https://github.com/facebookexperimental/Robyn/blob/package/inst/demo.R) script as step-by-step guide that is
@@ -172,7 +172,7 @@ An example of the model one-pager for each Pareto-optimal models. **All data is 
 We've conducted a high-level comparison of Nevergrad algorithms aiming to identify the best option for Robyn. At first, we ran 500 iterations and 10 trials for all options. X axis is accumulated seconds and Y axis is combined loss function sqrt(sum(RMSE^2,DECOMP.RSSD^2)). The lower the combined error, the better the model. We can observe that DE (Differential Evolution) and TwoPointsDE are not only achieving the lowest error. They also show the ability to improve continuously, as opposed to OnePlusOne or cGA, for example, that are reaching convergence early and stop evolving. 
 ![All algo comparison](figures/ng_algo_compare_all_500x10-min.png?raw=true)
 
-As deepdive for both differential algorithms, we've ran 2000 iterations for 5 trials as our common recommendation. Y axis is the combined error and X axis the iteration counts. We can observe that both algorithms are reaching the "flat tail" after 1000 iterations, although small improvements are still happening. Both algorithm are having similar level of combined error. Based on this, we selected "TwoPointsDE" as the standard Nevergrad algorihm.
+As deepdive for both differential algorithms, we've ran 2000 iterations for 5 trials as our common recommendation. Y axis is the combined error and X axis the iteration counts. We can observe that both algorithms are reaching the "flat tail" after 1000 iterations, although small improvements are still happening. Both algorithm are having similar level of combined error. Based on this, we selected "TwoPointsDE" as the standard Nevergrad algorithm.
 ![DE algo comparison](figures/ng_algo_compare_de_2000x5-min.png?raw=true)
 
 ## Release log
@@ -197,5 +197,4 @@ FB Robyn MMM R script is MIT licensed, as found in the LICENSE file.
 * gufeng@fb.com, Gufeng Zhou, Marketing Science Partner
 * leonelsentana@fb.com, Leonel Sentana, Marketing Science Partner
 * igorskokan@fb.com, Igor Skokan, Marketing Science Partner
-
-
+* bernardolares@fb.com, Bernardo Lares, Marketing Science Partner
