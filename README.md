@@ -11,7 +11,7 @@
   * Run `remotes::install_github('facebookexperimental/Robyn/R')` to install the package. If you haven't installed the 'remotes' package previously, run `install.packages('remotes')`.
   
   * Robyn requires the Python library [Nevergrad](https://facebookresearch.github.io/nevergrad/). If encountering Python-related 
-  error during installation, please check out the [step-by-step guide](https://github.com/facebookexperimental/Robyn/blob/package/inst/demo.R) to get more info.
+  error during installation, please check out the [step-by-step guide](https://github.com/facebookexperimental/Robyn/tree/main/demo/demo.R) to get more info.
   
   * For Windows, if you get openssl error, please see instructions
   [here](https://stackoverflow.com/questions/54558389/how-to-solve-this-error-while-installing-python-packages-in-rstudio/54566647) and
@@ -19,7 +19,7 @@
 
 **2. Getting started**
 
-  * Use this [demo.R](https://github.com/facebookexperimental/Robyn/blob/package/inst/demo.R) script as step-by-step guide that is
+  * Use this [demo.R](https://github.com/facebookexperimental/Robyn/tree/main/demo/demo.R) script as step-by-step guide that is
   intended to cover most common use-cases. Test the package using simulated dataset provided in the package. 
   
   * Visit our [website](https://facebookexperimental.github.io/Robyn/) to explore more details about Project Robyn.
