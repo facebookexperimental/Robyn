@@ -74,7 +74,7 @@ robyn_run <- function(InputCollect,
 
   hyper_fixed <- all(sapply(InputCollect$hyperparameters, length) == 1)
   if (hyper_fixed & is.null(dt_hyper_fixed)) {
-    stop("hyperparameters can't be all fixed for hyperparameter optimisation. If you want to get old model result, pleaseprovide only 1 model / 1 row from OutputCollect$resultHypParam or pareto_hyperparameters.csv from previous runs")
+    stop("hyperparameters can't be all fixed for hyperparameter optimisation. If you want to get old model result, please provide only 1 model / 1 row from OutputCollect$resultHypParam or pareto_hyperparameters.csv from previous runs")
   }
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
@@ -263,6 +263,7 @@ robyn_run <- function(InputCollect,
   message(paste0("Exporting all charts into directory: ", plot_folder, "/", plot_folder_sub))
 
   message(">>> Plotting summary charts...")
+  local_name <- names(InputCollect$hyperparameters)
   if (!hyper_fixed) {
 
     ## plot prophet
@@ -306,7 +307,6 @@ robyn_run <- function(InputCollect,
     }
 
     ## plot hyperparameter sampling distribution
-    local_name <- names(InputCollect$hyperparameters)
     resultHypParam.melted <- melt.data.table(resultHypParam[, c(local_name, "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
 
     pSamp <- ggplot(data = resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +

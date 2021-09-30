@@ -437,7 +437,7 @@ Response2/Spend2 # ROI for search 81k
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- fread("~/Desktop/2021-07-29 00.56 init/pareto_hyperparameters.csv")
+dt_hyper_fixed <- data.table::fread("~/Desktop/2021-07-29 00.56 init/pareto_hyperparameters.csv")
 select_model <- "1_24_5"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
