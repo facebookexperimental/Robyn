@@ -92,7 +92,8 @@
 #' Recommended to not start in the first date in dataset to gain adstock
 #' effect from previous periods.
 #' @param window_end Character. Set end date of modelling period. Recommended
-#' to have ratio of independent variable: data points of 1:10.
+#' to have columns to rows ratio in the input data to be >=10:1, or in other
+#' words at least 10 observations to 1 independent variable.
 #' @param cores Integer. Default to \code{parallel::detectCores()}
 #' @param iterations Integer. Recommended 2000 for default
 #' \code{nevergrad_algo = "TwoPointsDE"}
