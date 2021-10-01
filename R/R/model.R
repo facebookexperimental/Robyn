@@ -272,7 +272,7 @@ robyn_run <- function(InputCollect,
       # pProphet <- prophet_plot_components(InputCollect$modelRecurrance, InputCollect$forecastRecurrance, render_plot = TRUE)
 
       dt_plotProphet <- InputCollect$dt_mod[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars), with = FALSE]
-      dt_plotProphet <- melt.data.table(dt_plotProphet, id.vars = "ds")
+      dt_plotProphet <- suppressWarnings(melt.data.table(dt_plotProphet, id.vars = "ds"))
       pProphet <- ggplot(dt_plotProphet, aes(x = ds, y = value)) +
         geom_line(color = "steelblue") +
         facet_wrap(~variable, scales = "free", ncol = 1) +
