@@ -394,7 +394,13 @@ check_InputCollect <- function(list) {
 }
 
 check_filedir <- function(plot_folder) {
-  plot_folder <- dirname(plot_folder)
+  file_end <- substr(plot_folder, nchar(plot_folder)-3, nchar(plot_folder))
+  if (file_end == ".RDS") {
+    plot_folder <- dirname(plot_folder)
+    message("Using robyn object location: ", plot_folder)
+  } else {
+    plot_folder <- file.path(dirname(plot_folder), basename(plot_folder))
+  }
   if (!dir.exists(plot_folder)) {
     plot_folder <- getwd()
     message("Provided 'plot_folder' doesn't exist. Using default 'plot_folder = getwd()': ", plot_folder)
