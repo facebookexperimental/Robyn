@@ -1,8 +1,5 @@
-# Project Robyn 3.0 - Continuous & Semi-Automated MMM
+# Project Robyn 3.0 - Continuous & Semi-Automated MMM <img src='R/man/figures/logo.png' align="right" height="139px" />
 ### The Open Source Marketing Mix Model Package from Facebook Marketing Science
-
-2021-09-29
-
 
 ## Quick start (R only)
 
