@@ -36,6 +36,9 @@ options(future.fork.enable = TRUE)
 ## In case nevergrad still can't be imported after installation,
 ## please locate your python file and run this line with your path:
 # use_python("~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
+# Alternatively, force Python path for reticulate with this:
+# Sys.setenv(RETICULATE_PYTHON = "~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
+# Finally, re-install Nevergrad with option 1 or 2 above
 
 
 ################################################################
