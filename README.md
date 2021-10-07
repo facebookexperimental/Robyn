@@ -167,7 +167,7 @@ Robyn's budget allocator uses the gradient-based nloptr library to solve the non
   
   * **Does Robyn return uncertainty metrics like p-value or confidence interval for predictors?**: See [here](https://github.com/facebookexperimental/Robyn/issues/131).
   
-  * **Robyn doesn't return positive effect/coefficient for my media variables. Is it possible to force it?**: See [here](https://github.com/facebookexperimental/Robyn/issues/115).
+  * **Robyn returns either zero  or too high effect & ROI for certain media variables. Is it possible to force it?**: See [here](https://github.com/facebookexperimental/Robyn/issues/163#issuecomment-937543449).
   
   * **Can Robyn account for interative/synergy effect between channels?**: [here](https://github.com/facebookexperimental/Robyn/issues/96).
 
@@ -194,6 +194,7 @@ FB Robyn MMM R script is MIT licensed, as found in the LICENSE file.
 
 - Terms of Use - https://opensource.facebook.com/legal/terms 
 - Privacy Policy - https://opensource.facebook.com/legal/privacy
+- Defensive Publication - https://www.tdcommons.org/dpubs_series/4627/
 
 
 ## Contact
