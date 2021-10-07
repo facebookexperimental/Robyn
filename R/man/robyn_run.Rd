@@ -9,6 +9,7 @@ robyn_run(
   plot_folder = getwd(),
   pareto_fronts = 1,
   plot_pareto = TRUE,
+  calibration_constraint = 0.1,
   refresh = FALSE,
   dt_hyper_fixed = NULL,
   ui = FALSE
@@ -27,6 +28,10 @@ to \code{robyn_object} and saves plot in the same directory as \code{robyn_objec
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
+
+\item{calibration_constraint}{Numeric. Default to 0.1 and allows 0.01-0.1. When
+calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
+selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}}
 

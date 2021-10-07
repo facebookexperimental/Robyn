@@ -21,6 +21,9 @@
 #' \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
 #' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
 #' and saving model one-pagers. Used when testing models.
+#' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
+#' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
+#' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @examples
@@ -37,6 +40,7 @@ robyn_run <- function(InputCollect,
                       plot_folder = getwd(),
                       pareto_fronts = 1,
                       plot_pareto = TRUE,
+                      calibration_constraint = 0.1,
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
                       ui = FALSE) {
@@ -68,6 +72,7 @@ robyn_run <- function(InputCollect,
     message("Rolling window moving forward: ", InputCollect$refresh_steps, " ", InputCollect$intervalType)
   }
 
+  calibration_constraint <- check_calibconstr(calibration_constraint, InputCollect$iterations, InputCollect$trials)
 
   #####################################
   #### Run robyn_mmm on set_trials
@@ -180,7 +185,7 @@ robyn_run <- function(InputCollect,
   xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_vars, .(coef0 = min(coef) == 0), by = "solID"]
 
   if (!hyper_fixed) {
-    mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = 0.10)
+    mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint)
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90)
     resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
@@ -1169,7 +1174,7 @@ robyn_mmm <- function(hyper_collect,
           }
 
           if (is.nan(decomp.rssd)) {
-            message("all media in this iteration have 0 coefficients")
+            # message("all media in this iteration have 0 coefficients")
             decomp.rssd <- Inf
             dt_decompSpendDist[, effect_share := 0]
           }
