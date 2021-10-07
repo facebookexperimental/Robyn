@@ -1,21 +1,11 @@
-# Contributing to FB NextGen MMM R script
+## Project Robyn
 
-# Issue
+## Describe issue
+Describe your issue and provide error message 
 
-A summary of what the issue is about.
+## Provide dummy data & model configuration
+Issues are often related to custom input data that is difficult to debug without. If necessary, please modify your data to mask real values and share a dataset that is able to reproduce the issue. Please also share your model configuration.
 
-# Steps to Reproduce
-
-Please provide instructions that can be used to reproduce your issue. Usually this will include a test case that produces the wrong output.
-
-# Expected Behavior
-
-What you expected to happen. For example the error message you expected to see.
-
-# Actual Results
-
-What actually happened. For example, an error message you did not expect to see.
-
-# Environment
-
+## Environment & Robyn version
 R version (R --version)
+Please make sure you're using the latest Robyn version
