@@ -70,21 +70,23 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
-  inputLen <- length(dt_input[, get(date_var)])
-  inputLenUnique <- length(unique(dt_input[, get(date_var)]))
+  date_var_idate <- as.IDate(dt_input[, get(date_var)])
+  dt_input[, (date_var):= date_var_idate]
+  inputLen <- length(date_var_idate)
+  inputLenUnique <- length(unique(date_var_idate))
   if (inputLen != inputLenUnique) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
-  if (any(is.na(as.Date(as.character(dt_input[, get(date_var)]), "%Y-%m-%d")))) {
+  if (any(is.na(date_var_idate))) {
     stop("Dates in 'date_var' must have format '2020-12-31'")
   }
   if (any(apply(dt_input, 2, function(x) any(is.na(x) | is.infinite(x))))) {
     stop("'dt_input' has NA or Inf. Please clean data before you proceed")
   }
-  dt_input <- dt_input[order(as.Date(dt_input[, get(date_var)]))]
+  dt_input <- dt_input[order(date_var_idate)]
   dayInterval <- as.integer(difftime(
-    as.Date(dt_input[, get(date_var)])[2],
-    as.Date(dt_input[, get(date_var)])[1],
+    date_var_idate[2],
+    date_var_idate[1],
     units = "days"
   ))
   intervalType <- if (dayInterval == 1) {
