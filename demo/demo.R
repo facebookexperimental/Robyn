@@ -30,8 +30,8 @@ options(future.fork.enable = TRUE)
 
 ## Option 2: nevergrad installation via conda
 # conda_create("r-reticulate") # must run this line once
-# conda_install("r-reticulate", "nevergrad", pip=TRUE)
 # use_condaenv("r-reticulate")
+# conda_install("r-reticulate", "nevergrad", pip=TRUE)
 
 ## In case nevergrad still can't be imported after installation,
 ## please locate your python file and run this line with your path:
