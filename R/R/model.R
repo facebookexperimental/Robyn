@@ -24,6 +24,8 @@
 #' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
+#' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
+#' lambda.min and lambda.1se
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @examples
@@ -41,6 +43,7 @@ robyn_run <- function(InputCollect,
                       pareto_fronts = 1,
                       plot_pareto = TRUE,
                       calibration_constraint = 0.1,
+                      lambda_control = 1,
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
                       ui = FALSE) {
@@ -72,7 +75,7 @@ robyn_run <- function(InputCollect,
     message("Rolling window moving forward: ", InputCollect$refresh_steps, " ", InputCollect$intervalType)
   }
 
-  calibration_constraint <- check_calibconstr(calibration_constraint, InputCollect$iterations, InputCollect$trials)
+  calibration_constraint <- check_calibconstr(calibration_constraint, InputCollect$iterations, InputCollect$trials, InputCollect$calibration_input)
 
   #####################################
   #### Run robyn_mmm on set_trials
@@ -100,11 +103,11 @@ robyn_run <- function(InputCollect,
     model_output_collect <- list()
     model_output_collect[[1]] <- robyn_mmm(
       hyper_collect = hyperparameters_fixed,
-      InputCollect = InputCollect
+      InputCollect = InputCollect,
       # ,iterations = iterations
       # ,cores = cores
       # ,optimizer_name = InputCollect$nevergrad_algo
-      , lambda_fixed = dt_hyper_fixed$lambda
+      lambda_fixed = dt_hyper_fixed$lambda
     )
 
     model_output_collect[[1]]$trial <- 1
@@ -146,6 +149,7 @@ robyn_run <- function(InputCollect,
       model_output <- robyn_mmm(
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
+        lambda_control = lambda_control,
         refresh = refresh
       )
 
@@ -800,6 +804,7 @@ robyn_mmm <- function(hyper_collect,
                       InputCollect,
                       iterations = InputCollect$iterations,
                       lambda.n = 100,
+                      lambda_control = 1,
                       lambda_fixed = NULL,
                       refresh = FALSE) {
   if (reticulate::py_module_available("nevergrad")) {
@@ -1121,13 +1126,15 @@ robyn_mmm <- function(hyper_collect,
           ) # plot(cvmod) coef(cvmod)
           # head(predict(cvmod, newx=x_train, s="lambda.1se"))
 
+          lambda_range <- c(cvmod$lambda.min, cvmod$lambda.1se)
+          lambda <- lambda_range[1] + (lambda_range[2]-lambda_range[1]) * lambda_control
+
           #####################################
           #### refit ridge regression with selected lambda from x-validation
 
           ## if no lift calibration, refit using best lambda
           if (hyper_fixed == FALSE) {
-            mod_out <- model_refit(x_train, y_train, lambda = cvmod$lambda.1se, lower.limits, upper.limits)
-            lambda <- cvmod$lambda.1se
+            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits)
           } else {
             mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits)
             lambda <- lambda_fixed[i]

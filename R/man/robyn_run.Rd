@@ -10,6 +10,7 @@ robyn_run(
   pareto_fronts = 1,
   plot_pareto = TRUE,
   calibration_constraint = 0.1,
+  lambda_control = 1,
   refresh = FALSE,
   dt_hyper_fixed = NULL,
   ui = FALSE
@@ -32,6 +33,9 @@ and saving model one-pagers. Used when testing models.}
 \item{calibration_constraint}{Numeric. Default to 0.1 and allows 0.01-0.1. When
 calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 selection. Lower \code{calibration_constraint} increases calibration accuracy.}
+
+\item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
+lambda.min and lambda.1se}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}}
 
