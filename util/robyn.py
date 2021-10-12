@@ -37,7 +37,6 @@ class Robyn(object):
 
     def __init__(self, country, dateVarName, depVarName, mediaVarName, dt_input):
 
-        # R 2.1
         self.dt_input = dt_input
         self.dt_holidays = pd.read_csv('source/holidays.csv')
         self.mod = None
