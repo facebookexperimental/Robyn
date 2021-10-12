@@ -25,8 +25,8 @@ options(future.fork.enable = TRUE)
 
 ## Option 1: nevergrad installation via PIP
 # virtualenv_create("r-reticulate")
-# py_install("nevergrad", pip = TRUE)
 # use_virtualenv("r-reticulate", required = TRUE)
+# py_install("nevergrad", pip = TRUE)
 
 ## Option 2: nevergrad installation via conda
 # conda_create("r-reticulate") # must run this line once
