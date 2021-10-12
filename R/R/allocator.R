@@ -404,7 +404,8 @@ robyn_allocator <- function(robyn_object = NULL,
   # histSpendUnit <- histSpendUnitTotal * histSpendShare
   histSpendUnit <- xDecompAggMedia[rn %in% mediaVarSortedFiltered, mean_spend]
   names(histSpendUnit) <- mediaVarSortedFiltered
-  histSpendShare <- xDecompAggMedia[rn %in% mediaVarSortedFiltered, spend_share]
+  #histSpendShare <- xDecompAggMedia[rn %in% mediaVarSortedFiltered, spend_share]
+  histSpendShare <- histSpendUnit/sum(histSpendUnit)
   names(histSpendShare) <- mediaVarSortedFiltered
 
   # QA: check if objective function correctly implemented
