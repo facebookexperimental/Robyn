@@ -74,13 +74,12 @@ adstock_weibull <- function(x, shape, scale) {
   thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
   thetaVecCum <- cumprod(thetaVec) # plot(thetaVecCum)
 
-  x_decayed <- mapply(function(x, y) {
-    x.vec <- c(rep(0, y - 1), rep(x, x.n - y + 1))
-    thetaVecCumLag <- shift(thetaVecCum, y - 1, fill = 0)
-    x.matrix <- cbind(x.vec, thetaVecCumLag) #  plot(x.vec)
-    x.prod <- apply(x.matrix, 1, prod)
+  x_decayed <- mapply(function(x_val, x_pos) {
+    x.vec <- c(rep(0, x_pos - 1), rep(x_val, x.n - x_pos + 1))
+    thetaVecCumLag <- shift(thetaVecCum, x_pos - 1, fill = 0)
+    x.prod <- x.vec * thetaVecCumLag
     return(x.prod)
-  }, x = x, y = x_bin)
+  }, x_val = x, x_pos = x_bin)
   x_decayed <- rowSums(x_decayed)
 
   return(list(x_decayed = x_decayed, thetaVecCum = thetaVecCum))
