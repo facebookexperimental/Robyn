@@ -1114,14 +1114,78 @@ class Robyn(object):
         #####################################
         # Get hyperparameter sample
 
-        # Tranform media with hyperparameters
+        hypParamSam = hypParamSamNG[i]
+        dt_modAdstocked = dt_mod.drop(['ds'], axis=1)
+        mediaAdstocked = []
+        mediaVecCum = []
+        mediaSaturated = []
+        for v in range(len(all_media)):
+            m = dt_modAdstocked[all_media[v]].tolist()
+            if self.adstock == 'geometric':
+                theta = hypParamSam[all_media[v] + '_thetas']
+                x_list = self.adstockGeometric(x=m, theta=theta)
+            elif self.adstock == 'weibull':
+                shape = hypParamSam[all_media[v] + '_shapes']
+                scale = hypParamSam[all_media[v] + '_scales']
+                x_list = self.adstockWeibull(x=m, shape=shape, scale=scale)
+            else:
+                print('adstock parameter must be geometric or weibull')
+                break
+
+            m_adstocked = x_list[0]
+            mediaAdstocked.append(m_adstocked)
+            mediaVecCum.append(x_list[1])
+
+            m_adstockedRollWind = m_adstocked[self.rollingWindowStartWhich:self.rollingWindowEndWhich+1]
+            alpha = hypParamSam[all_media[v] + '_alphas']
+            gamma = hypParamSam[all_media[v] + '_gammas']
+            mediaSaturated.append(self.saturation_hill(x=m_adstockedRollWind, alpha=alpha, gamma=gamma))
+
+        mediaAdstocked = pd.DataFrame(mediaAdstocked, columns=all_media)
+        dt_modAdstocked[[all_media]] = mediaAdstocked
+        dt_mediaVecCum = pd.DataFrame(mediaVecCum, columns=all_media)
+
+        mediaSaturated = pd.DataFrame(mediaSaturated, columns=all_media)
+        dt_modSaturated = dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich+1]
+        dt_modSaturated[[all_media]] = mediaSaturated
+
 
         #####################################
         # Split and prepare data for modelling
+        dt_train = dt_modSaturated.copy()
 
         # Contrast matrix because glmnet does not treat categorical variables
+        y_train = dt_train[self.dep_var]
+        ro.numpy2ri.activate()
+        R = ro.r
+        x_train = R('model.matrix(dep_var ~ ., dt_train)[, -1]')
 
-        # Define sign control
+        ## define sign control
+        dt_sign = dt_modSaturated.drop(['dep_var'], axis=1)
+        x_sign = self.prophet_signs + self.context_signs + self.paid_media_signs + self.organic_signs
+        #check_factor =
+
+        lower_limit = []
+        upper_limit = []
+
+        for s in range(len(check_factor)):
+            if check_factor[s]:
+                level_n = dt_sign[s].unique()
+                if level_n < 1:
+                    print('factor variables must have more than 1 level')
+                    break
+                if x_sign[s] == 'positive':
+                    lower_vec = [0] * level_n - 1
+                    upper_vec = [float('inf')] * level_n - 1
+                elif x_sign[s] == 'negative':
+                    lower_vec = [float('-inf')] * level_n - 1
+                    upper_vec = [0] * level_n - 1
+                lower_limit.append(lower_vec)
+                upper_limit.append(upper_vec)
+            else:
+                lower_limit.append(0 if x_sign[s] == 'positive' else float('-inf'))
+                upper_limit.append(0 if x_sign[s] == 'negative' else float('inf'))
+
 
         #####################################
         ### Fit ridge regression with x-validation
