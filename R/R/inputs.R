@@ -599,7 +599,7 @@ robyn_engineering <- function(InputCollect, ...) {
 #'
 #' When \code{prophet_vars} in \code{robyn_inputs()} is specified, this
 #' function decomposes trend, season, holiday and weekday from the
-#' dependent varibale.
+#' dependent variable.
 #' @param dt_transform A data.frame with all model features.
 #' @param dt_holidays As in \code{robyn_inputs()}
 #' @param prophet_country As in \code{robyn_inputs()}
