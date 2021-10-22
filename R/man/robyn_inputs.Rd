@@ -102,7 +102,7 @@ order and same length as \code{organic_vars}.}
 variables in organic_vars or context_vars should be forced as a factor}
 
 \item{adstock}{Character. Choose any of \code{c("geometric", "weibull")}.
-Weibull adtock is a two-parametric function and thus more flexible, but
+Weibull adstock is a two-parametric function and thus more flexible, but
 takes longer time than the traditional geometric one-parametric function.
 Time estimation: with geometric adstock, 2000 iterations * 5 trials on 8
 cores, it takes less than 30 minutes. Weibull takes at least twice as

@@ -44,5 +44,5 @@ A list containing all prophet decomposition output.
 \description{
 When \code{prophet_vars} in \code{robyn_inputs()} is specified, this
 function decomposes trend, season, holiday and weekday from the
-dependent varibale.
+dependent variable.
 }

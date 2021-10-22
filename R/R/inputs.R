@@ -81,7 +81,7 @@
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor
 #' @param adstock Character. Choose any of \code{c("geometric", "weibull")}.
-#' Weibull adtock is a two-parametric function and thus more flexible, but
+#' Weibull adstock is a two-parametric function and thus more flexible, but
 #' takes longer time than the traditional geometric one-parametric function.
 #' Time estimation: with geometric adstock, 2000 iterations * 5 trials on 8
 #' cores, it takes less than 30 minutes. Weibull takes at least twice as
@@ -594,7 +594,7 @@ robyn_engineering <- function(InputCollect, ...) {
 #'
 #' When \code{prophet_vars} in \code{robyn_inputs()} is specified, this
 #' function decomposes trend, season, holiday and weekday from the
-#' dependent varibale.
+#' dependent variable.
 #' @param dt_transform A data.frame with all model features.
 #' @param dt_holidays As in \code{robyn_inputs()}
 #' @param prophet_country As in \code{robyn_inputs()}
