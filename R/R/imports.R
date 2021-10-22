@@ -36,7 +36,7 @@
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel
 #' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control
-#' predict pweibull quantile qunif start
+#' predict pweibull dweibull quantile qunif start
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
 #' @importFrom utils askYesNo head setTxtProgressBar txtProgressBar
 "_PACKAGE"

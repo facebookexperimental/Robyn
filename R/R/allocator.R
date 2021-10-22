@@ -240,7 +240,7 @@ robyn_allocator <- function(robyn_object = NULL,
   ## get adstock parameters for each channel
   if (InputCollect$adstock == "geometric") {
     getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_thetas"))])
-  } else if (InputCollect$adstock == "weibull") {
+  } else if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
     getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_shapes|.*_scales"))])
   }
 

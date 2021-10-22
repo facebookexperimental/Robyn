@@ -8,7 +8,7 @@ hyper_names(adstock, all_media)
 }
 \arguments{
 \item{adstock}{A character. Default to \code{InputCollect$adstock}.
-Accepts "geometric" or "weibull"}
+Accepts "geometric", "weibull_cdf" or "weibull_pdf"}
 
 \item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}
@@ -28,7 +28,7 @@ hyperparameters that is inserted into \code{robyn_inputs(hyperparameters = ...)}
    to get correct hyperparameter names. All names in hyperparameters must
    equal names from \code{hyper_names()}, case sensitive.
    \item{Get guidance for setting hyperparameter bounds:
-   For geometric adstock, use theta, alpha & gamma. For weibull adstock,
+   For geometric adstock, use theta, alpha & gamma. For both weibull adstock options,
    use shape, scale, alpha, gamma.}
    \itemize{
    \item{Theta: }{In geometric adstock, theta is decay rate. guideline for usual media genre:

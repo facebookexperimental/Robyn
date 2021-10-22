@@ -101,12 +101,17 @@ order and same length as \code{organic_vars}.}
 \item{factor_vars}{Character vector. Specify which of the provided
 variables in organic_vars or context_vars should be forced as a factor}
 
-\item{adstock}{Character. Choose any of \code{c("geometric", "weibull")}.
-Weibull adstock is a two-parametric function and thus more flexible, but
-takes longer time than the traditional geometric one-parametric function.
-Time estimation: with geometric adstock, 2000 iterations * 5 trials on 8
-cores, it takes less than 30 minutes. Weibull takes at least twice as
-much time.}
+\item{adstock}{Character. Choose any of \code{c("geometric", "weibull_cdf",
+"weibull_pdf")}. Weibull adtock is a two-parametric function and thus more
+flexible, but takes longer time than the traditional geometric one-parametric
+function. CDF, or cumulative density function of the Weibull function allows
+changing decay rate over time in both C and S shape, while the peak value will
+always stay at the first period, meaning no lagged effect. PDF, or the
+probability density function, enables peak value occuring after the first
+period when shape >=1, allowing lagged effect. Run \code{plot_adstock()} to
+see the difference visually. Time estimation: with geometric adstock, 2000
+iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
+options take up to twice as much time.}
 
 \item{hyperparameters}{List containing hyperparameter lower and upper bounds.
 Names of elements in list must be identical to output of \code{hyper_names()}}

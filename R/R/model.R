@@ -145,7 +145,7 @@ robyn_run <- function(InputCollect,
     ))
 
     for (ngt in 1:InputCollect$trials) {
-      message(paste(" Running trial nr.", ngt, "\n"))
+      message(paste(" Running trial nr.", ngt))
       model_output <- robyn_mmm(
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
@@ -158,9 +158,8 @@ robyn_run <- function(InputCollect,
         num_coef0_mod <- model_output$resultCollect$decompSpendDist[decomp.rssd == Inf, uniqueN(paste0(iterNG, "_", iterPar))]
         num_coef0_mod <- ifelse(num_coef0_mod > InputCollect$iterations, InputCollect$iterations, num_coef0_mod)
         message("This trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
-                  \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels on theta (max.reco. c(0, 0.9) ) and gamma (max.reco. c(0.1, 1) ) to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
-      }
-
+                  \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
+        }
       model_output["trial"] <- ngt
       model_output_collect[[ngt]] <- model_output
     }
@@ -498,10 +497,14 @@ robyn_run <- function(InputCollect,
         if (InputCollect$adstock == "geometric") {
           theta <- hypParam[paste0(InputCollect$all_media[med], "_thetas")]
           x_list <- adstock_geometric(x = m, theta = theta)
-        } else if (InputCollect$adstock == "weibull") {
+        } else if (InputCollect$adstock == "weibull_cdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale)
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+        } else if (InputCollect$adstock == "weibull_pdf") {
+          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
+          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
         }
         m_adstocked <- x_list$x_decayed
         dt_transformAdstock[, (med_select) := m_adstocked]
@@ -1035,13 +1038,17 @@ robyn_mmm <- function(hyper_collect,
             if (adstock == "geometric") {
               theta <- hypParamSam[paste0(all_media[v], "_thetas")]
               x_list <- adstock_geometric(x = m, theta = theta)
-            } else if (adstock == "weibull") {
+            } else if (adstock == "weibull_cdf") {
               shape <- hypParamSam[paste0(all_media[v], "_shapes")]
               scale <- hypParamSam[paste0(all_media[v], "_scales")]
-              x_list <- adstock_weibull(x = m, shape = shape, scale = scale)
+              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "cdf")
+            } else if (adstock == "weibull_pdf") {
+              shape <- hypParamSam[paste0(all_media[v], "_shapes")]
+              scale <- hypParamSam[paste0(all_media[v], "_scales")]
+              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "pdf")
             } else {
               break
-              print("adstock parameter must be geometric or weibull")
+              print("adstock parameter must be geometric, weibull_cdf or weibull_pdf")
             }
 
             m_adstocked <- x_list$x_decayed
@@ -1540,10 +1547,14 @@ robyn_response <- function(robyn_object = NULL,
   if (adstock == "geometric") {
     theta <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_thetas"))]
     x_list <- adstock_geometric(x = mediaVar, theta = theta)
-  } else if (adstock == "weibull") {
+  } else if (adstock == "weibull_cdf") {
     shape <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_shapes"))]
     scale <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_scales"))]
-    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale)
+    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+  } else if (adstock == "weibull_pdf") {
+    shape <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_shapes"))]
+    scale <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_scales"))]
+    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
   }
   m_adstocked <- x_list$x_decayed
 

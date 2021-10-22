@@ -80,12 +80,17 @@
 #' order and same length as \code{organic_vars}.
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor
-#' @param adstock Character. Choose any of \code{c("geometric", "weibull")}.
-#' Weibull adstock is a two-parametric function and thus more flexible, but
-#' takes longer time than the traditional geometric one-parametric function.
-#' Time estimation: with geometric adstock, 2000 iterations * 5 trials on 8
-#' cores, it takes less than 30 minutes. Weibull takes at least twice as
-#' much time.
+#' @param adstock Character. Choose any of \code{c("geometric", "weibull_cdf",
+#' "weibull_pdf")}. Weibull adtock is a two-parametric function and thus more
+#' flexible, but takes longer time than the traditional geometric one-parametric
+#' function. CDF, or cumulative density function of the Weibull function allows
+#' changing decay rate over time in both C and S shape, while the peak value will
+#' always stay at the first period, meaning no lagged effect. PDF, or the
+#' probability density function, enables peak value occuring after the first
+#' period when shape >=1, allowing lagged effect. Run \code{plot_adstock()} to
+#' see the difference visually. Time estimation: with geometric adstock, 2000
+#' iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
+#' options take up to twice as much time.
 #' @param hyperparameters List containing hyperparameter lower and upper bounds.
 #' Names of elements in list must be identical to output of \code{hyper_names()}
 #' @param window_start Character. Set start date of modelling period.
@@ -237,7 +242,7 @@ robyn_inputs <- function(dt_input = NULL,
     rollingWindowLength <- windows$rollingWindowLength
 
     ## check adstock
-    check_adstock(adstock)
+    adstock <- check_adstock(adstock)
 
     ## check hyperparameters (if passed)
     check_hyperparameters(hyperparameters, adstock, all_media)
@@ -335,7 +340,7 @@ robyn_inputs <- function(dt_input = NULL,
 #'    to get correct hyperparameter names. All names in hyperparameters must
 #'    equal names from \code{hyper_names()}, case sensitive.
 #'    \item{Get guidance for setting hyperparameter bounds:
-#'    For geometric adstock, use theta, alpha & gamma. For weibull adstock,
+#'    For geometric adstock, use theta, alpha & gamma. For both weibull adstock options,
 #'    use shape, scale, alpha, gamma.}
 #'    \itemize{
 #'    \item{Theta: }{In geometric adstock, theta is decay rate. guideline for usual media genre:
@@ -363,7 +368,7 @@ robyn_inputs <- function(dt_input = NULL,
 #' }
 #'
 #' @param adstock A character. Default to \code{InputCollect$adstock}.
-#' Accepts "geometric" or "weibull"
+#' Accepts "geometric", "weibull_cdf" or "weibull_pdf"
 #' @param all_media A character vector. Default to \code{InputCollect$all_media}.
 #' Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.
 #' @examples
@@ -427,11 +432,11 @@ robyn_inputs <- function(dt_input = NULL,
 #' }
 #' @export
 hyper_names <- function(adstock, all_media) {
-  check_adstock(adstock)
+  adstock <- check_adstock(adstock)
   global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
     local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "thetas|alphas|gammas"]), 1, paste, collapse = "_"))
-  } else if (adstock == "weibull") {
+  } else if (adstock %in% c("weibull_cdf","weibull_pdf")) {
     local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "shapes|scales|alphas|gammas"]), 1, paste, collapse = "_"))
   }
   return(local_name)
