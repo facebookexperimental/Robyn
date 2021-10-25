@@ -8,7 +8,7 @@
   * Run `remotes::install_github('facebookexperimental/Robyn/R')` to install the package. If you haven't installed the 'remotes' package previously, run `install.packages('remotes')`.
   
   * Robyn requires the Python library [Nevergrad](https://facebookresearch.github.io/nevergrad/). If encountering Python-related 
-  error during installation, please check out the [step-by-step guide](https://github.com/facebookexperimental/Robyn/tree/main/demo/demo.R) to get more info.
+  error during installation, please check out the [step-by-step guide](https://github.com/facebookexperimental/Robyn/tree/main/demo/demo.R) as well as this [issue](https://github.com/facebookexperimental/Robyn/issues/189) to get more info.
   
   * For Windows, if you get openssl error, please see instructions
   [here](https://stackoverflow.com/questions/54558389/how-to-solve-this-error-while-installing-python-packages-in-rstudio/54566647) and
