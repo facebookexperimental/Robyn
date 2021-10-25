@@ -9,7 +9,7 @@
 
 module.exports = {
   someSidebar: {
-    'How-to guide': ['quick-start', 'demo-R-script'],
+    'How-to guide': ['quick-start', 'demo-R-script', 'step-by-step-videos'],
     'Robyn at a glance':['robyn-at-a-glance', 'example-plots'],
     Features: [
       'ridge-regression',
