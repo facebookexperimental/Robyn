@@ -175,6 +175,8 @@ robyn_run <- function(InputCollect,
   #####################################
   #### Collect results for plotting
 
+  message(">>> Collecting results...")
+
   ## collect hyperparameter results
   resultHypParam <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
   resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
@@ -218,18 +220,44 @@ robyn_run <- function(InputCollect,
     resultHypParam[, solID := unique(decompSpendDist$solID)]
   }
   decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
-  resp_collect <- c()
-  for (n in seq_along(decompSpendDist$rn)) {
-    resp_collect[n] <- robyn_response(
-      paid_media_var = decompSpendDist$rn[n],
-      select_model = decompSpendDist[n, solID],
-      spend = decompSpendDist[n, mean_spend],
-      dt_hyppar = resultHypParam,
-      dt_coef = xDecompAgg,
+
+  ## get mean_response
+  registerDoFuture()
+  if (.Platform$OS.type == "unix") {
+    plan(multicore(workers = InputCollect$cores))
+  } else {
+    plan(sequential)
+  }
+
+  # if (hyper_fixed == FALSE) {pb <- txtProgressBar(min=1, max = length(decompSpendDist$rn), style = 3)}
+  pareto_fronts_vec <- 1:pareto_fronts
+  decompSpendDistPar <- decompSpendDist[robynPareto %in% pareto_fronts_vec]
+  resultHypParamPar <- resultHypParam[robynPareto %in% pareto_fronts_vec]
+  xDecompAggPar <- xDecompAgg[robynPareto %in% pareto_fronts_vec]
+  resp_collect <- foreach(respN = seq_along(decompSpendDistPar$rn)
+                          , .combine = rbind) %dorng% {
+    get_resp <- robyn_response(
+      paid_media_var = decompSpendDistPar$rn[respN],
+      select_model = decompSpendDistPar[respN, solID],
+      spend = decompSpendDistPar[respN, mean_spend],
+      dt_hyppar = resultHypParamPar,
+      dt_coef = xDecompAggPar,
       InputCollect = InputCollect
     )
+    #if (hyper_fixed == FALSE) setTxtProgressBar(pb, n)
+    dt_resp <- data.table(mean_response = get_resp
+                          ,rn = decompSpendDistPar$rn[respN]
+                          ,solID = decompSpendDist$solID[respN])
+    return(dt_resp)
   }
-  decompSpendDist[, mean_response := resp_collect]
+  #if (hyper_fixed == FALSE) close(pb)
+  registerDoSEQ()
+  getDoParWorkers()
+
+  setkey(decompSpendDist, solID, rn)
+  setkey(resp_collect, solID, rn)
+  decompSpendDist <- merge(decompSpendDist, resp_collect, all.x=TRUE)
+  #decompSpendDist[, mean_response := resp_collect]
   decompSpendDist[, ":="(roi_mean = mean_response / mean_spend,
     roi_total = xDecompAgg / total_spend,
     cpa_mean = if (InputCollect$dep_var_type == "conversion") {
@@ -268,7 +296,7 @@ robyn_run <- function(InputCollect,
     num_pareto123 <- nrow(resultHypParam)
   }
 
-  message(paste0("Exporting all charts into directory: ", plot_folder, "/", plot_folder_sub))
+  message(paste0(">>> Exporting all charts into directory: ", plot_folder, "/", plot_folder_sub, "..."))
 
   message(">>> Plotting summary charts...")
   local_name <- names(InputCollect$hyperparameters)

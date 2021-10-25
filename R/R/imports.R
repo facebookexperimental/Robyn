@@ -58,7 +58,7 @@ dt_vars <- c(
   "season", "sequential", "shape", "solID", "spend", "spend_share", "spend_share_refresh",
   "theta", "theta_halflife", "total_spend", "trend", "trial", "type", "value", "variable",
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
-  "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat"
+  "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat","respN"
 )
 
 if (getRversion() >= "2.15.1") {
