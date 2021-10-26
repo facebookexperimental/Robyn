@@ -28,12 +28,12 @@ Required when \code{robyn_object} is not provided.}
 Defaults to 100.}
 
 \item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
-lambda.min and lambda.1se}
+lambda.min and lambda.1se.}
 
 \item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
 old model results.}
 
-\item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}}
+\item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
 }
