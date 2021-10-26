@@ -1264,8 +1264,8 @@ class Robyn(object):
         # Get calibration mape
 
         if self.activate_calibration:
-
-
+            liftCollect = self.calibrate_mmm(decompCollect= decomp_collect, set_lift=calibration_input, set_mediaVarName=paid_media_vars)
+            mape = liftCollect['mape_lift'].mean()
 
         #####################################
         # Calculate multi-objectives for pareto optimality
