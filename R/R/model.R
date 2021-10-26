@@ -830,6 +830,7 @@ robyn_run <- function(InputCollect,
 #' Defaults to 100.
 #' @param lambda_fixed Boolean. \code{lambda_fixed = TRUE} when inputting
 #' old model results.
+#' @param seed Integer. For reproducible results when running nevergrad.
 #' @export
 robyn_mmm <- function(hyper_collect,
                       InputCollect,
@@ -837,9 +838,14 @@ robyn_mmm <- function(hyper_collect,
                       lambda.n = 100,
                       lambda_control = 1,
                       lambda_fixed = NULL,
-                      refresh = FALSE) {
+                      refresh = FALSE,
+                      seed = 123L) {
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
+    if (is.integer(seed)) {
+      np <- reticulate::import("numpy", delay_load = FALSE)
+      np$random$seed(seed)
+    }
   } else {
     stop("You must have nevergrad python library installed.")
   }

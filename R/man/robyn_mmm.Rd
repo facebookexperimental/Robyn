@@ -11,7 +11,8 @@ robyn_mmm(
   lambda.n = 100,
   lambda_control = 1,
   lambda_fixed = NULL,
-  refresh = FALSE
+  refresh = FALSE,
+  seed = 123L
 )
 }
 \arguments{
@@ -33,6 +34,8 @@ lambda.min and lambda.1se}
 old model results.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}}
+
+\item{seed}{Integer. For reproducible results when running nevergrad.}
 }
 \description{
 The \code{robyn_mmm()} function activates Nevergrad to generate samples of

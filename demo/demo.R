@@ -30,19 +30,25 @@ options(future.fork.enable = TRUE)
 # virtualenv_create("r-reticulate")
 # use_virtualenv("r-reticulate", required = TRUE)
 # py_install("nevergrad", pip = TRUE)
+# py_config() # Check your python version and configurations
+## In case nevergrad still can't be installed,
+# Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate/bin/python")
+# Reset your R session and re-install Nevergrad with option 1
 
 ## Option 2: nevergrad installation via conda
 # conda_create("r-reticulate", "Python 3.9") # Only works with <= Python 3.9 sofar
 # use_condaenv("r-reticulate")
 # conda_install("r-reticulate", "nevergrad", pip=TRUE)
-
+# py_config() # Check your python version and configurations
 ## In case nevergrad still can't be installed,
 ## please locate your python file and run this line with your path:
 # use_python("~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
 # Alternatively, force Python path for reticulate with this:
 # Sys.setenv(RETICULATE_PYTHON = "~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
-# Finally, re-install Nevergrad with option 1 or 2 above
-# Check this issue for more ideas https://github.com/facebookexperimental/Robyn/issues/189
+# Finally, reset your R session and re-install Nevergrad with option 2
+
+# Check this issue for more ideas to debug your reticulate/nevergrad issues:
+# https://github.com/facebookexperimental/Robyn/issues/189
 
 ################################################################
 #### Step 1: load data
@@ -321,7 +327,7 @@ OutputCollect <- robyn_run(
 ## your business reality
 
 OutputCollect$allSolutions # get all model IDs in result
-select_model <- "2_8_1" # select one from above
+select_model <- "1_4_2" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
