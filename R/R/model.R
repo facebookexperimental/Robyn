@@ -25,8 +25,9 @@
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
-#' lambda.min and lambda.1se
-#' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}
+#' lambda.min and lambda.1se.
+#' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
+#' @param seed Integer. For reproducible results when running nevergrad.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @examples
 #' \dontrun{
@@ -46,6 +47,7 @@ robyn_run <- function(InputCollect,
                       lambda_control = 1,
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
+                      seed = 123L,
                       ui = FALSE) {
 
   #####################################
@@ -107,7 +109,8 @@ robyn_run <- function(InputCollect,
       # ,iterations = iterations
       # ,cores = cores
       # ,optimizer_name = InputCollect$nevergrad_algo
-      lambda_fixed = dt_hyper_fixed$lambda
+      lambda_fixed = dt_hyper_fixed$lambda,
+      seed = seed
     )
 
     model_output_collect[[1]]$trial <- 1
@@ -150,7 +153,8 @@ robyn_run <- function(InputCollect,
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
         lambda_control = lambda_control,
-        refresh = refresh
+        refresh = refresh,
+        seed = seed
       )
 
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
@@ -837,9 +841,14 @@ robyn_mmm <- function(hyper_collect,
                       lambda.n = 100,
                       lambda_control = 1,
                       lambda_fixed = NULL,
-                      refresh = FALSE) {
+                      refresh = FALSE,
+                      seed = 123L) {
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
+    if (is.integer(seed)) {
+      np <- reticulate::import("numpy", delay_load = FALSE)
+      np$random$seed(seed)
+    }
   } else {
     stop("You must have nevergrad python library installed.")
   }

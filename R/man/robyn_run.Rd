@@ -13,6 +13,7 @@ robyn_run(
   lambda_control = 1,
   refresh = FALSE,
   dt_hyper_fixed = NULL,
+  seed = 123L,
   ui = FALSE
 )
 }
@@ -35,12 +36,14 @@ calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 
 \item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
-lambda.min and lambda.1se}
+lambda.min and lambda.1se.}
 
-\item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}}
+\item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+
+\item{seed}{Integer. For reproducible results when running nevergrad.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 }
