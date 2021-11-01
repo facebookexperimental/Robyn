@@ -20,6 +20,7 @@ lambda_control = 1
 refresh = FALSE
 dt_hyper_fixed = NULL
 ui = FALSE
+seed = 123
 # go into robyn_run() line by line
 
 ## debug robyn_allocator

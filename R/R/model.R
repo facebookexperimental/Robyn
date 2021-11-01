@@ -182,6 +182,7 @@ robyn_run <- function(InputCollect,
   message(">>> Collecting results...")
 
   ## collect hyperparameter results
+  names(model_output_collect) <- paste0("trial", 1:InputCollect$trials)
   resultHypParam <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
   resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
   xDecompAgg <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
@@ -223,7 +224,7 @@ robyn_run <- function(InputCollect,
     xDecompAgg[, solID := unique(decompSpendDist$solID)]
     resultHypParam[, solID := unique(decompSpendDist$solID)]
   }
-  decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
+  #decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
 
   ## get mean_response
   registerDoFuture()
@@ -403,6 +404,39 @@ robyn_run <- function(InputCollect,
     ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_front.png"),
       plot = pParFront,
       dpi = 600, width = 12, height = 7
+    )
+
+
+    ## plot ridgeline model convergence
+    dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
+                            , .(variables = rn
+                                , roi_total
+                                , iteration = (iterNG-1)*InputCollect$cores+iterPar
+                                , trial)][order(iteration, variables)]
+    bin_limits <- c(1,20)
+    qt_len <- ifelse(InputCollect$iterations <=100, 1
+                     ,ifelse(InputCollect$iterations > 2000, 20, ceiling(InputCollect$iterations/100)))
+    set_qt <- floor(quantile(1:InputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
+    set_bin <- set_qt[-1]
+
+    dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
+    dt_ridges <- dt_ridges[!is.na(iter_bin)]
+    dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
+    dt_ridges[, trial := as.factor(trial)]
+
+    pRidges <- suppressMessages(print(ggplot(data = dt_ridges, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
+                                        scale_fill_distiller(palette = "GnBu") +
+                                        geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
+                                        facet_wrap(~ variables, scales = "free") +
+                                        guides(fill = "none")+
+                                        theme(panel.background = element_blank()) +
+                                        labs(x = "Total ROAS", y = "Iteration Bucket"
+                                             ,title = "ROAS distribution over iteration"
+                                             ,fill = "iter bucket")))
+
+    ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "roas_convergence.png"),
+           plot = pRidges,
+           dpi = 600, width = 12, height = ceiling(InputCollect$mediaVarCount / 3) * 6
     )
   }
 
@@ -1205,7 +1239,7 @@ robyn_mmm <- function(hyper_collect,
           #### calculate multi-objectives for pareto optimality
 
           ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
-          dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_vars, .(rn, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF)]
+          dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_vars, .(rn, xDecompAgg, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF)]
           dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share, spend_share_refresh, mean_spend, total_spend)], on = "rn"]
           dt_decompSpendDist[, ":="(effect_share = xDecompPerc / sum(xDecompPerc),
             effect_share_refresh = xDecompPercRF / sum(xDecompPercRF))]
