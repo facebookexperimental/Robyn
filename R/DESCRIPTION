@@ -19,6 +19,7 @@ Imports:
     foreach,
     future,
     ggplot2,
+    ggridges,
     glmnet,
     lubridate,
     minpack.lm,

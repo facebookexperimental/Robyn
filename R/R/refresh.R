@@ -459,7 +459,7 @@ robyn_refresh <- function(robyn_object,
     pBarRF <- ggplot(data = xDecompAggReportPlot, mapping = aes(x = variable, y = percentage, fill = variable)) +
       geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
       facet_wrap(~refreshStatus, scales = "free") +
-      scale_fill_brewer(palette = "BrBG") +
+      scale_fill_manual(values = robyn_palette()$fill) +
       geom_text(aes(label = paste0(round(percentage * 100, 1), "%")),
         size = 3,
         position = position_dodge(width = 0.9), hjust = -0.25
@@ -473,7 +473,7 @@ robyn_refresh <- function(robyn_object,
         position = position_dodge(width = 0.9),
         data = xDecompAggReportPlot
       ) +
-      scale_color_brewer(palette = "BrBG") +
+      scale_color_manual(values = robyn_palette()$fill) +
       scale_y_continuous(
         sec.axis = sec_axis(~ . * ySecScale), breaks = seq(0, ymax, 0.2),
         limits = c(0, ymax), name = "roi_total"
