@@ -33,3 +33,12 @@ get_rsq <- function(true, predicted, p = NULL, df.int = NULL) {
   }
   return(rsq)
 }
+
+# Robyn colors
+robyn_palette <- function() {
+  list(
+    fill = rep(c("#21130d","#351904","#543005","#8C510A","#BF812D","#DFC27D","#F6E8C3"
+        ,"#F5F5F5","#C7EAE5","#80CDC1","#35978F","#01665E","#043F43", "#04272D"), 2),
+    colour = rep("#000000", 24)
+  )
+}

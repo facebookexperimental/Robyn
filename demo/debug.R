@@ -20,6 +20,8 @@ lambda_control = 1
 refresh = FALSE
 dt_hyper_fixed = NULL
 ui = FALSE
+csv_out = "pareto"
+seed = 123
 # go into robyn_run() line by line
 
 ## debug robyn_allocator
