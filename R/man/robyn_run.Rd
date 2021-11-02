@@ -14,6 +14,7 @@ robyn_run(
   refresh = FALSE,
   dt_hyper_fixed = NULL,
   seed = 123L,
+  csv_out = "pareto",
   ui = FALSE
 )
 }
@@ -44,6 +45,9 @@ lambda.min and lambda.1se.}
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
+
+\item{csv_out}{Character. Accepts "pareto" or "all". Default to "pareto". Set
+to "all" will output all iterations as csv.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 }

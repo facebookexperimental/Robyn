@@ -28,6 +28,8 @@
 #' lambda.min and lambda.1se.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param seed Integer. For reproducible results when running nevergrad.
+#' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
+#' to "all" will output all iterations as csv.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @examples
 #' \dontrun{
@@ -48,6 +50,7 @@ robyn_run <- function(InputCollect,
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
                       seed = 123L,
+                      csv_out = "pareto",
                       ui = FALSE) {
 
   #####################################
@@ -848,8 +851,14 @@ robyn_run <- function(InputCollect,
 
   allSolutions <- xDecompVecCollect[, unique(solID)]
 
-  fwrite(resultHypParam[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_hyperparameters.csv"))
-  fwrite(xDecompAgg[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_aggregated.csv"))
+  if (!csv_out %in% c("pareto", "all")) csv_out <- "pareto"
+  if (csv_out == "pareto") {
+    fwrite(resultHypParam[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_hyperparameters.csv"))
+    fwrite(xDecompAgg[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_aggregated.csv"))
+  } else if (csv_out == "all") {
+    fwrite(resultHypParam, paste0(plot_folder, "/", plot_folder_sub, "/", "all_hyperparameters.csv"))
+    fwrite(xDecompAgg, paste0(plot_folder, "/", plot_folder_sub, "/", "all_aggregated.csv"))
+  }
   fwrite(mediaVecCollect, paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_media_transform_matrix.csv"))
   fwrite(xDecompVecCollect, paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_alldecomp_matrix.csv"))
 
