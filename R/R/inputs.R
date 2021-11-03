@@ -639,7 +639,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     ohe_names <- names(dt_ohe)
     for (addreg in ohe_names) modelRecurrance <- add_regressor(modelRecurrance, addreg)
     dt_ohe <- cbind(dt_regressors[, !factor_vars, with = FALSE], dt_ohe)
-    mod_ohe <- fit.prophet(modelRecurrance, dt_ohe, ...)
+    mod_ohe <- fit.prophet(modelRecurrance, dt_ohe)
     dt_forecastRegressor <- predict(mod_ohe, dt_ohe)
     forecastRecurrance <- dt_forecastRegressor[, str_detect(
       names(dt_forecastRegressor), "_lower$|_upper$",
@@ -652,7 +652,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
       dt_transform[, (aggreg) := scale(get_reg, center = min(get_reg), scale = FALSE)]
     }
   } else {
-    mod <- fit.prophet(modelRecurrance, dt_regressors, ...)
+    mod <- fit.prophet(modelRecurrance, dt_regressors)
     forecastRecurrance <- predict(mod, dt_regressors)
   }
 
