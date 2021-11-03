@@ -185,7 +185,12 @@ robyn_run <- function(InputCollect,
   message(">>> Collecting results...")
 
   ## collect hyperparameter results
-  names(model_output_collect) <- paste0("trial", 1:InputCollect$trials)
+  if (hyper_fixed) {
+    names(model_output_collect) <- "trial1"
+  } else {
+    names(model_output_collect) <- paste0("trial", 1:InputCollect$trials)
+  }
+
   resultHypParam <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
   resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
   xDecompAgg <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
@@ -1063,14 +1068,14 @@ robyn_mmm <- function(hyper_collect,
   # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
   # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
   sysTimeDopar <- system.time({
-    for (lng in 1:iterNG) {
+    for (lng in 1:iterNG) { # lng = 1
       nevergrad_hp <- list()
       nevergrad_hp_val <- list()
       hypParamSamList <- list()
       hypParamSamNG <- c()
 
       if (hyper_fixed == FALSE) {
-        for (co in 1:iterPar) {
+        for (co in 1:iterPar) { # co = 1
 
           ## get hyperparameter sample with ask
           nevergrad_hp[[co]] <- optimizer$ask()
@@ -1119,7 +1124,7 @@ robyn_mmm <- function(hyper_collect,
 
       getDoParWorkers()
       doparCollect <- suppressPackageStartupMessages(
-        foreach(i = 1:iterPar) %dorng% {
+        foreach(i = 1:iterPar) %dorng% { # i = 1
           t1 <- Sys.time()
 
           #####################################
