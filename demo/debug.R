@@ -8,6 +8,7 @@ lambda.n = 100
 lambda_control = 1
 lambda_fixed = NULL
 refresh = FALSE
+seed = 123L
 # go into robyn_mmm() line by line
 
 ## debug robyn_run
@@ -23,6 +24,16 @@ ui = FALSE
 csv_out = "pareto"
 seed = 123
 # go into robyn_run() line by line
+
+## debug robyn_refresh
+# robyn_object
+dt_input = dt_input
+dt_holidays = dt_holidays
+refresh_steps = 14
+refresh_mode = "auto" # "auto", "manual"
+refresh_iters = 100
+refresh_trials = 2
+plot_pareto = TRUE
 
 ## debug robyn_allocator
 # prep input para

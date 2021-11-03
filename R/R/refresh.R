@@ -300,7 +300,7 @@ robyn_refresh <- function(robyn_object,
     OutputCollectRF$selectID <- selectID
     message(
       "Selected model ID: ", selectID, " for refresh model nr.",
-      refreshCounter, " based on the smallest combined error of NRMSE & DECOMP.RSSD"
+      refreshCounter, " based on the smallest combined error of NRMSE & DECOMP.RSSD\n"
     )
 
     OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]
@@ -334,7 +334,7 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
@@ -342,21 +342,23 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
     } else {
-      resultHypParamReport <- rbind(listReportPrev$resultHypParamReport, OutputCollectRF$resultHypParam[
-        bestModRF == TRUE
-      ][, refreshStatus := refreshCounter])
-      xDecompAggReport <- rbind(listReportPrev$xDecompAggReport, OutputCollectRF$xDecompAgg[
-        bestModRF == TRUE
-      ][, refreshStatus := refreshCounter])
+      resultHypParamReport <- rbind(
+        listReportPrev$resultHypParamReport,
+        OutputCollectRF$resultHypParam[bestModRF == TRUE][
+          , refreshStatus := refreshCounter])
+      xDecompAggReport <- rbind(
+        listReportPrev$xDecompAggReport,
+        OutputCollectRF$xDecompAgg[bestModRF == TRUE][
+          , refreshStatus := refreshCounter])
       mediaVecReport <- rbind(
         listReportPrev$mediaVecReport,
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
@@ -364,7 +366,7 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
     }
 
