@@ -87,7 +87,7 @@ InputCollect <- robyn_inputs(
   ,prophet_signs = c("default","default", "default") # c("default", "positive", and "negative").
   # Recommend as default.Must be same length as prophet_vars
   ,prophet_country = "DE"# only one country allowed once. Including national holidays
-  # for 59 countries, whose list can be found on our githut guide
+  # for 59 countries, whose list can be found on our github guide
 
   ,context_vars = c("competitor_sales_B", "events") # typically competitors, price &
   # promotion, temperature, unemployment rate etc
