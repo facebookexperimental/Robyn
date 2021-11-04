@@ -1268,7 +1268,7 @@ robyn_mmm <- function(hyper_collect,
           #### get calibration mape
 
           if (!is.null(calibration_input)) {
-            liftCollect <- calibrate_mmm(decompCollect = decompCollect, calibration_input = calibration_input, paid_media_vars = paid_media_vars)
+            liftCollect <- calibrate_mmm(decompCollect = decompCollect, calibration_input = calibration_input, paid_media_vars = paid_media_vars, dayInterval = InputCollect$dayInterval)
             mape <- liftCollect[, mean(mape_lift)]
           }
 
@@ -1762,7 +1762,7 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
 } ## decomp end
 
 
-calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars) {
+calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars, dayInterval) {
 
   # check if any lift channel doesn't have media var
   check_set_lift <- any(sapply(calibration_input$channel, function(x) {
@@ -1792,7 +1792,7 @@ calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars) {
       liftPeriodVecDependent <- getDecompVec[ds >= liftStart & ds <= liftEnd, c("ds", "y"), with = FALSE]
 
       ## scale decomp
-      mmmDays <- nrow(liftPeriodVec) * 7
+      mmmDays <- nrow(liftPeriodVec) * dayInterval
       liftDays <- as.integer(liftEnd - liftStart + 1)
       y_hatLift <- sum(unlist(getDecompVec[, -1])) # total pred sales
       x_decompLift <- sum(liftPeriodVec[, 2])
