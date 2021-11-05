@@ -70,6 +70,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
+  dt_input <- as.data.table(dt_input)
   date_var_idate <- as.IDate(dt_input[, get(date_var)])
   dt_input[, (date_var):= date_var_idate]
   inputLen <- length(date_var_idate)

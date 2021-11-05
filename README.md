@@ -118,6 +118,12 @@ Similar to above, a more obvious trend of the multi-objective minimization proce
 
 ![Pareto-front for refresh model](figures/plt2.png?raw=true)
 
+### ROAS convergence over iterations
+
+The ROAS convergence plot shows how the ROAS for paid media evolves over time and iterations. We know that Nevergrad optimises all objective functions as the iteration grows, and the pareto fronts lie in the later iterations. This behaviour can also be observed from the ROAS point of view. For some channels, it's clear that the higher iterations are producing more "peaky" ROAS distribution, indicating higher confidence for certain channel results. Although, we still believe that the peak doesn't mean the "truth". Experimental calibration remains the single source of truth.
+
+![ROAS convergence](figures/roas_convergence.png?raw=true)
+
 ### Reporting model refresh time-series fit
 All initial and refresh builds are included sequentially. For the refresh builds, only the added new periods will be appended. The assembled R-squared is adjusted and describes the fit of the assembled actual & fitted lines below. Refresh builds can have different window lengths (parameter `refresh_step` in the  `robyn_refresh()` function).
 
