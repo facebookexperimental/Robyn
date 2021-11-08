@@ -261,7 +261,7 @@ robyn_run <- function(InputCollect,
       #if (hyper_fixed == FALSE) setTxtProgressBar(pb, n)
       dt_resp <- data.table(mean_response = get_resp
                             ,rn = decompSpendDistPar$rn[respN]
-                            ,solID = decompSpendDist$solID[respN])
+                            ,solID = decompSpendDistPar$solID[respN])
       return(dt_resp)
     }
   #if (hyper_fixed == FALSE) close(pb)
@@ -275,12 +275,8 @@ robyn_run <- function(InputCollect,
   decompSpendDist[, ":="(
     roi_mean = mean_response / mean_spend,
     roi_total = xDecompAgg / total_spend,
-    cpa_mean = if (InputCollect$dep_var_type == "conversion") {
-      mean_spend / mean_response
-    } else {NA},
-    cpa_total = if (InputCollect$dep_var_type == "conversion") {
-      total_spend / xDecompAgg
-    } else {NA}
+    cpa_mean = mean_spend / mean_response,
+    cpa_total = total_spend / xDecompAgg
   )]
   # decompSpendDist[, roi := xDecompMeanNon0/mean_spend]
 

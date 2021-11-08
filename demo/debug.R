@@ -52,3 +52,28 @@ channel_constr_up = rep(2, 5)
 maxeval = 100000
 constr_mode = "eq"
 ui = FALSE
+
+## debug adstock_weibull
+x = 1:120
+shape = 1
+scale = 0.5
+windlen = NULL
+type = "cdf"
+
+
+## debug allocator
+#InputCollect = InputCollect
+#OutputCollect = OutputCollect
+#select_model = select_model
+scenario = "max_historical_response"
+channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
+channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
+robyn_object = NULL
+select_build = NULL
+optim_algo = "SLSQP_AUGLAG"
+scenario = "max_historical_response"
+expected_spend = NULL
+expected_spend_days = NULL
+maxeval = 100000
+constr_mode = "eq"
+ui = FALSE
