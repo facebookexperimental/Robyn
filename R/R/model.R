@@ -240,11 +240,10 @@ robyn_run <- function(InputCollect,
   #decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
 
   ## get mean_response
-  registerDoFuture()
   if (.Platform$OS.type == "unix") {
-    plan(multicore, workers = InputCollect$cores)
+    registerDoParallel(InputCollect$cores)
   } else {
-    plan(sequential)
+    registerDoSEQ()
   }
 
   # if (hyper_fixed == FALSE) {pb <- txtProgressBar(min=1, max = length(decompSpendDist$rn), style = 3)}
@@ -270,6 +269,7 @@ robyn_run <- function(InputCollect,
       return(dt_resp)
     }
   #if (hyper_fixed == FALSE) close(pb)
+  stopImplicitCluster()
   registerDoSEQ()
   getDoParWorkers()
 
@@ -1090,6 +1090,14 @@ robyn_mmm <- function(hyper_collect,
   }
   # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
   # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
+
+  # create cluster before big for-loop to minimize overhead for parallel backend registering
+  if (.Platform$OS.type == "unix") {
+    registerDoParallel(InputCollect$cores)
+  } else {
+    registerDoSEQ()
+  }
+
   sysTimeDopar <- system.time({
     for (lng in 1:iterNG) { # lng = 1
       nevergrad_hp <- list()
@@ -1134,17 +1142,7 @@ robyn_mmm <- function(hyper_collect,
       nrmse.collect <- c()
       decomp.rssd.collect <- c()
       best_mape <- Inf
-      # registerDoParallel(cores)  #registerDoParallel(cores=InputCollect$cores)
 
-      registerDoFuture()
-      if (.Platform$OS.type == "unix") {
-        plan(multicore, workers = cores)
-      } else {
-        plan(sequential)
-      }
-
-      # nbrOfWorkers()
-      getDoParWorkers()
       doparCollect <- suppressPackageStartupMessages(
         foreach(i = 1:iterPar) %dorng% { # i = 1
           t1 <- Sys.time()
@@ -1420,12 +1418,9 @@ robyn_mmm <- function(hyper_collect,
         }
       ) # end foreach parallel
 
-      # stopImplicitCluster()
-
       nrmse.collect <- sapply(doparCollect, function(x) x$nrmse)
       decomp.rssd.collect <- sapply(doparCollect, function(x) x$decomp.rssd)
       mape.lift.collect <- sapply(doparCollect, function(x) x$mape.lift)
-
 
       #####################################
       #### Nevergrad tells objectives
@@ -1449,6 +1444,9 @@ robyn_mmm <- function(hyper_collect,
   }) # end system.time
 
   message("\n Finished in ", round(sysTimeDopar[3] / 60, 2), " mins")
+
+  # stop cluster to avoid memory leaks
+  stopImplicitCluster()
 
   if (hyper_fixed == FALSE) close(pb)
   registerDoSEQ()
