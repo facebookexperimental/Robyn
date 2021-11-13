@@ -19,11 +19,9 @@
 #' @author Antonio Prada (aprada@@fb.com)
 #' @author Igor Skokan (igorskokan@@fb.com)
 #' @import data.table
-#' @importFrom doFuture registerDoFuture
 #' @importFrom doRNG %dorng%
-#' @importFrom doParallel registerDoParallel
+#' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
-#' @importFrom future multicore plan sequential availableCores
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
@@ -56,7 +54,7 @@ dt_vars <- c(
   "optmResponseUnitTotalLift", "optmSpendUnit", "optmSpendUnitTotalDelta", "param",
   "perc", "percentage", "pos", "predicted", "refreshStatus", "response", "rn", "robynPareto",
   "roi", "roi_mean", "roi_total", "rsq_lm", "rsq_nls", "rsq_train", "s0", "scale_shape_halflife",
-  "season", "sequential", "shape", "solID", "spend", "spend_share", "spend_share_refresh",
+  "season", "shape", "solID", "spend", "spend_share", "spend_share_refresh",
   "theta", "theta_halflife", "total_spend", "trend", "trial", "type", "value", "variable",
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
   "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat",
