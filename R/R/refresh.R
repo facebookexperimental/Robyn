@@ -33,6 +33,8 @@ robyn_save <- function(robyn_object,
                        select_model,
                        InputCollect,
                        OutputCollect) {
+  check_robyn_object(robyn_object)
+
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
     stop(paste0("'select_model' must be one of these values: ", paste(
       OutputCollect$resultHypParam$solID,
@@ -78,6 +80,7 @@ robyn_save <- function(robyn_object,
 #' spend level. It returns aggregated result with all previous builds for
 #' reporting purpose and produces reporting plots.
 #'
+#' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
 #' @param dt_input A data.frame. Should include all previous data and newly added
 #' data for the refresh.
@@ -142,6 +145,7 @@ robyn_save <- function(robyn_object,
 #' }
 #' @export
 robyn_refresh <- function(robyn_object,
+                          plot_folder_sub = NULL,
                           dt_input = dt_input,
                           dt_holidays = dt_holidays,
                           refresh_steps = 4,
@@ -153,6 +157,8 @@ robyn_refresh <- function(robyn_object,
   while (refreshControl) {
 
     ## load inital model
+    if (!exists("robyn_object")) stop("Must speficy robyn_object")
+    check_robyn_object(robyn_object)
     if (!file.exists(robyn_object)) {
       stop("File does not exist or is somewhere else. Check: ", robyn_object)
     } else {
@@ -210,8 +216,9 @@ robyn_refresh <- function(robyn_object,
 
     ## load new data
     dt_input <- as.data.table(dt_input)
+    date_input <- check_datevar(dt_input, InputCollectRF$date_var)
+    dt_input <- date_input$dt_input # sort date by ascending
     dt_holidays <- as.data.table(dt_holidays)
-    setorderv(dt_input, InputCollectRF$date_var, order = 1L)
     InputCollectRF$dt_input <- dt_input
     InputCollectRF$dt_holidays <- dt_holidays
 
@@ -290,6 +297,7 @@ robyn_refresh <- function(robyn_object,
     OutputCollectRF <- robyn_run(
       InputCollect = InputCollectRF,
       plot_folder = objectPath,
+      plot_folder_sub = plot_folder_sub,
       pareto_fronts = 1,
       refresh = TRUE,
       plot_pareto = plot_pareto
@@ -332,7 +340,7 @@ robyn_refresh <- function(robyn_object,
         listOutputPrev$mediaVecCollect[
           bestModRF == TRUE & ds >= (refreshStart - InputCollectRF$dayInterval * refresh_steps) &
             ds <= (refreshEnd - InputCollectRF$dayInterval * refresh_steps)
-        ],
+        ][, ds := as.IDate(ds)],
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
@@ -340,7 +348,7 @@ robyn_refresh <- function(robyn_object,
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
-        listOutputPrev$xDecompVecCollect[bestModRF == TRUE],
+        listOutputPrev$xDecompVecCollect[bestModRF == TRUE][, ds := as.IDate(ds)],
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd

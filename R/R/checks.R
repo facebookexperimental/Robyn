@@ -71,6 +71,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
   dt_input <- as.data.table(dt_input)
+  dt_input <- dt_input[order(get(date_var))]
   date_var_idate <- as.IDate(dt_input[, get(date_var)])
   dt_input[, (date_var):= date_var_idate]
   inputLen <- length(date_var_idate)
@@ -104,7 +105,8 @@ check_datevar <- function(dt_input, date_var = "auto") {
   invisible(return(list(
     date_var = date_var,
     dayInterval = dayInterval,
-    intervalType = intervalType
+    intervalType = intervalType,
+    dt_input = dt_input
   )))
 }
 
@@ -397,6 +399,12 @@ check_InputCollect <- function(list) {
     stop("Check your 'dt_input' object")
   }
 }
+
+check_robyn_object <- function(robyn_object) {
+  file_end <- substr(robyn_object, nchar(robyn_object)-5, nchar(robyn_object))
+  if (file_end == ".RData") {stop("robyn_object must has format .RDS, not .RData")}
+}
+
 
 check_filedir <- function(plot_folder) {
   file_end <- substr(plot_folder, nchar(plot_folder)-3, nchar(plot_folder))

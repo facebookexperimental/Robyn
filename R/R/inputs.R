@@ -195,10 +195,10 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
+    dt_input <- date_input$dt_input # sort date by ascending
     date_var <- date_input$date_var # when date_var = "auto"
     dayInterval <- date_input$dayInterval
     intervalType <- date_input$intervalType
-    setorderv(dt_input, date_var)
 
     ## check dependent var
     check_depvar(dt_input, dep_var, dep_var_type)
@@ -310,8 +310,10 @@ robyn_inputs <- function(dt_input = NULL,
     )
     ## update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
-    if (!(is.null(InputCollect$hyperparameters) & is.null(hyperparameters))) {
-      ### conditional output 2.2
+    if (is.null(InputCollect$hyperparameters) & is.null(hyperparameters)) {
+      stop("must provide hyperparameters in robyn_inputs()")
+    } else {
+      ### conditional output 2.1
       ## 'hyperparameters' provided --> run robyn_engineering()
       ## update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters

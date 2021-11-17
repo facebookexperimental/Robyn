@@ -14,6 +14,9 @@
 #' @inheritParams robyn_allocator
 #' @param plot_folder Character. Path for saving plots. Default
 #' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
+#' @param plot_folder_sub Character. Customize sub path to save plots. The total
+#' path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+#' For example, plot_folder_sub = "sub_dir".
 #' @param dt_hyper_fixed data.frame. Only provide when loading old model results.
 #' It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.
 #' @param pareto_fronts Integer. Number of Pareto fronts for the output.
@@ -43,6 +46,7 @@
 #' @export
 robyn_run <- function(InputCollect,
                       plot_folder = getwd(),
+                      plot_folder_sub = NULL,
                       pareto_fronts = 1,
                       plot_pareto = TRUE,
                       calibration_constraint = 0.1,
@@ -63,6 +67,7 @@ robyn_run <- function(InputCollect,
   t0 <- Sys.time()
 
   # check path
+  check_robyn_object(plot_folder)
   plot_folder <- check_filedir(plot_folder)
 
   dt_mod <- copy(InputCollect$dt_mod)
@@ -237,7 +242,7 @@ robyn_run <- function(InputCollect,
   ## get mean_response
   registerDoFuture()
   if (.Platform$OS.type == "unix") {
-    plan(multicore(workers = InputCollect$cores))
+    plan(multicore, workers = InputCollect$cores)
   } else {
     plan(sequential)
   }
@@ -289,11 +294,11 @@ robyn_run <- function(InputCollect,
   #### Plot overview
 
   ## set folder to save plat
-  if (!exists("plot_folder_sub")) {
+  if (is.null(plot_folder_sub)) {
     folder_var <- ifelse(!refresh, "init", paste0("rf", InputCollect$refreshCounter))
     plot_folder_sub <- paste0(format(Sys.time(), "%Y-%m-%d %H.%M"), " ", folder_var)
-    plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
   }
+  plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
 
   # pareto_fronts_vec <- ifelse(!hyper_fixed, c(1,2,3), 1)
   if (!hyper_fixed) {
@@ -450,6 +455,12 @@ robyn_run <- function(InputCollect,
   if (plot_pareto) {
     message(paste(">>> Plotting", num_pareto123, "Pareto optimum models..."))
     pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+  }
+
+  all_fronts <- unique(xDecompAgg$robynPareto)
+  all_fronts <- sort(all_fronts[!is.na(all_fronts)])
+  if (!all(pareto_fronts_vec %in% all_fronts)) {
+    pareto_fronts_vec <- all_fronts
   }
 
   cnt <- 0
@@ -1111,13 +1122,12 @@ robyn_mmm <- function(hyper_collect,
 
       registerDoFuture()
       if (.Platform$OS.type == "unix") {
-        plan(multicore(workers = InputCollect$cores))
+        plan(multicore, workers = cores)
       } else {
         plan(sequential)
       }
 
       # nbrOfWorkers()
-
       getDoParWorkers()
       doparCollect <- suppressPackageStartupMessages(
         foreach(i = 1:iterPar) %dorng% { # i = 1

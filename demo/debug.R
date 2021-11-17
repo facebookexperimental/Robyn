@@ -14,6 +14,7 @@ seed = 123L
 ## debug robyn_run
 # prep input para
 plot_folder = robyn_object
+plot_folder_sub = NULL
 pareto_fronts = 1
 plot_pareto = TRUE
 calibration_constraint = 0.1
@@ -27,8 +28,9 @@ seed = 123
 
 ## debug robyn_refresh
 # robyn_object
+plot_folder_sub = NULL
 dt_input = dt_input
-dt_holidays = dt_holidays
+dt_holidays = dt_prophet_holidays
 refresh_steps = 14
 refresh_mode = "auto" # "auto", "manual"
 refresh_iters = 100

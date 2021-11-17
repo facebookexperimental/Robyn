@@ -7,6 +7,7 @@
 robyn_run(
   InputCollect,
   plot_folder = getwd(),
+  plot_folder_sub = NULL,
   pareto_fronts = 1,
   plot_pareto = TRUE,
   calibration_constraint = 0.1,
@@ -24,6 +25,9 @@ Required when \code{robyn_object} is not provided.}
 
 \item{plot_folder}{Character. Path for saving plots. Default
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
+
+\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
+path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.}
 
 \item{pareto_fronts}{Integer. Number of Pareto fronts for the output.
 \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
