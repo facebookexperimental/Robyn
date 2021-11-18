@@ -826,7 +826,7 @@ robyn_run <- function(InputCollect,
       }
 
       ## prepare output
-      if (!is.null(InputCollect$organic_vars)) {
+      if (!is.null(InputCollect$organic_vars) && length(InputCollect$organic_vars) > 0) {
         dt_transformSpend[, (InputCollect$organic_vars) := NA]
         dt_transformSpendMod[, (InputCollect$organic_vars) := NA]
         dt_transformSaturationSpendReverse[, (InputCollect$organic_vars) := NA]
