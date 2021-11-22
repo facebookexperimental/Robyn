@@ -565,7 +565,7 @@ robyn_engineering <- function(InputCollect, ...) {
   ################################################################
   #### Obtain prophet trend, seasonality and change-points
 
-  if (!is.null(InputCollect$prophet_vars)) {
+  if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -636,7 +636,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     ...
   )
 
-  if (!is.null(factor_vars)) {
+  if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- as.data.table(model.matrix(y ~ ., dt_regressors[, c("y", factor_vars), with = FALSE]))[, -1]
     ohe_names <- names(dt_ohe)
     for (addreg in ohe_names) modelRecurrance <- add_regressor(modelRecurrance, addreg)
