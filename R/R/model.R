@@ -317,7 +317,9 @@ robyn_run <- function(InputCollect,
 
     ## plot prophet
 
-    if (!is.null(InputCollect$prophet_vars)) {
+    if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0
+      || !is.null(InputCollect$factor_vars) && length(InputCollect$factor_vars) > 0)
+    {
       # pProphet <- prophet_plot_components(InputCollect$modelRecurrance, InputCollect$forecastRecurrance, render_plot = TRUE)
 
       dt_plotProphet <- InputCollect$dt_mod[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars), with = FALSE]
@@ -756,7 +758,7 @@ robyn_run <- function(InputCollect,
 
       ## plot fitted vs actual
 
-      if (!is.null(InputCollect$prophet_vars)) {
+      if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
         dt_transformDecomp <- cbind(dt_modRollWind[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$context_vars), with = FALSE], dt_transformSaturation[, InputCollect$all_media, with = FALSE])
       } else {
         dt_transformDecomp <- cbind(dt_modRollWind[, c("ds", "dep_var", InputCollect$context_vars), with = FALSE], dt_transformSaturation[, InputCollect$all_media, with = FALSE])
