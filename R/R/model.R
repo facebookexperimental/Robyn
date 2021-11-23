@@ -455,9 +455,10 @@ robyn_run <- function(InputCollect,
   #### Plot each pareto solution
 
   if (plot_pareto) {
-    message(paste(">>> Plotting", num_pareto123, "Pareto optimum models..."))
-    pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+    message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
   }
+
+  registerDoParallel(InputCollect$cores)
 
   all_fronts <- unique(xDecompAgg$robynPareto)
   all_fronts <- sort(all_fronts[!is.na(all_fronts)])
@@ -466,6 +467,8 @@ robyn_run <- function(InputCollect,
   }
 
   cnt <- 0
+  pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+
   mediaVecCollect <- list()
   xDecompVecCollect <- list()
   meanResponseCollect <- list()
@@ -474,11 +477,10 @@ robyn_run <- function(InputCollect,
     plotWaterfall <- xDecompAgg[robynPareto == pf]
     uniqueSol <- plotMediaShare[, unique(solID)]
 
-    for (j in 1:length(uniqueSol)) {
-      cnt <- cnt + 1
+    parallelResult <- foreach(sid = uniqueSol) %dorng% {
 
       ## plot spend x effect share comparison
-      plotMediaShareLoop <- plotMediaShare[solID == uniqueSol[j]]
+      plotMediaShareLoop <- plotMediaShare[solID == sid]
       rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train), 4)]
       nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse), 4)]
       decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd), 4)]
@@ -517,7 +519,7 @@ robyn_run <- function(InputCollect,
         )
 
       ## plot waterfall
-      plotWaterfallLoop <- plotWaterfall[solID == uniqueSol[j]][order(xDecompPerc)]
+      plotWaterfallLoop <- plotWaterfall[solID == sid][order(xDecompPerc)]
       plotWaterfallLoop[, end := cumsum(xDecompPerc)]
       plotWaterfallLoop[, end := 1 - end]
       plotWaterfallLoop[, ":="(start = shift(end, fill = 1, type = "lag"),
@@ -549,7 +551,7 @@ robyn_run <- function(InputCollect,
 
       ## plot adstock rate
 
-      resultHypParamLoop <- resultHypParam[solID == uniqueSol[j]]
+      resultHypParamLoop <- resultHypParam[solID == sid]
       hypParam <- unlist(resultHypParamLoop[, local_name, with = FALSE])
 
       if (InputCollect$adstock == "geometric") {
@@ -738,7 +740,7 @@ robyn_run <- function(InputCollect,
         dt_scurvePlotMean[channel == get_med, mean_response := get_response * coef]
         dt_scurvePlotMean[channel == get_med, next_unit_response := get_response_marginal * coef - mean_response]
       }
-      dt_scurvePlotMean[, solID := uniqueSol[j]]
+      dt_scurvePlotMean[, solID := sid]
 
       p4 <- ggplot(data = dt_scurvePlot[channel %in% InputCollect$paid_media_vars], aes(x = spend, y = response, color = channel)) +
         geom_line() +
@@ -766,7 +768,7 @@ robyn_run <- function(InputCollect,
       col_order <- c("ds", "dep_var", InputCollect$all_ind_vars)
       setcolorder(dt_transformDecomp, neworder = col_order)
 
-      xDecompVec <- dcast.data.table(xDecompAgg[solID == uniqueSol[j], .(rn, coef, solID)], solID ~ rn, value.var = "coef")
+      xDecompVec <- dcast.data.table(xDecompAgg[solID == sid, .(rn, coef, solID)], solID ~ rn, value.var = "coef")
       if (!("(Intercept)" %in% names(xDecompVec))) {
         xDecompVec[, "(Intercept)" := 0]
       }
@@ -780,7 +782,7 @@ robyn_run <- function(InputCollect,
       coefs = xDecompVec[, !c("solID", "(Intercept)")]
       ))
       xDecompVec[, intercept := intercept]
-      xDecompVec[, ":="(depVarHat = rowSums(xDecompVec), solID = uniqueSol[j])]
+      xDecompVec[, ":="(depVarHat = rowSums(xDecompVec), solID = sid)]
       xDecompVec <- cbind(dt_transformDecomp[, .(ds, dep_var)], xDecompVec)
 
       xDecompVecPlot <- xDecompVec[, .(ds, dep_var, depVarHat)]
@@ -810,7 +812,7 @@ robyn_run <- function(InputCollect,
 
       ## save and aggregate one-pager plots
 
-      onepagerTitle <- paste0("Model one-pager, on pareto front ", pf, ", ID: ", uniqueSol[j])
+      onepagerTitle <- paste0("Model one-pager, on pareto front ", pf, ", ID: ", sid)
 
       pg <- wrap_plots(p2, p5, p1, p4, p3, p6, ncol = 2) +
         plot_annotation(title = onepagerTitle, theme = theme(plot.title = element_text(hjust = 0.5)))
@@ -819,12 +821,10 @@ robyn_run <- function(InputCollect,
       # grid.draw(pg)
       if (plot_pareto) {
         ggsave(
-          filename = paste0(plot_folder, "/", plot_folder_sub, "/", uniqueSol[j], ".png"),
+          filename = paste0(plot_folder, "/", plot_folder_sub, "/", sid, ".png"),
           plot = pg,
           dpi = 600, width = 18, height = 18
         )
-
-        setTxtProgressBar(pbplot, cnt)
       }
 
       ## prepare output
@@ -834,21 +834,35 @@ robyn_run <- function(InputCollect,
         dt_transformSaturationSpendReverse[, (InputCollect$organic_vars) := NA]
       }
 
-
-      mediaVecCollect[[cnt]] <- rbind(
-        dt_transformPlot[, ":="(type = "rawMedia", solID = uniqueSol[j])],
-        dt_transformSpend[, ":="(type = "rawSpend", solID = uniqueSol[j])],
-        dt_transformSpendMod[, ":="(type = "predictedExposure", solID = uniqueSol[j])],
-        dt_transformAdstock[, ":="(type = "adstockedMedia", solID = uniqueSol[j])],
-        dt_transformSaturation[, ":="(type = "saturatedMedia", solID = uniqueSol[j])],
-        dt_transformSaturationSpendReverse[, ":="(type = "saturatedSpendReversed", solID = uniqueSol[j])],
-        dt_transformSaturationDecomp[, ":="(type = "decompMedia", solID = uniqueSol[j])]
-      )
-
-      xDecompVecCollect[[cnt]] <- xDecompVec
-      meanResponseCollect[[cnt]] <- dt_scurvePlotMean
+      return(list(
+        mediaVecCollect = rbind(
+          dt_transformPlot[, ":="(type = "rawMedia", solID = sid)],
+          dt_transformSpend[, ":="(type = "rawSpend", solID = sid)],
+          dt_transformSpendMod[, ":="(type = "predictedExposure", solID = sid)],
+          dt_transformAdstock[, ":="(type = "adstockedMedia", solID = sid)],
+          dt_transformSaturation[, ":="(type = "saturatedMedia", solID = sid)],
+          dt_transformSaturationSpendReverse[, ":="(type = "saturatedSpendReversed", solID = sid)],
+          dt_transformSaturationDecomp[, ":="(type = "decompMedia", solID = sid)]
+        ),
+        xDecompVecCollect = xDecompVec,
+        meanResponseCollect = dt_scurvePlotMean
+      ))
     } # end solution loop
+
+    cnt <- cnt + length(uniqueSol)
+    setTxtProgressBar(pbplot, cnt)
+
+    # append parallel run results
+    mediaVecCollect <- append(mediaVecCollect, lapply(parallelResult, function (x) x$mediaVecCollect))
+    xDecompVecCollect <- append(xDecompVecCollect, lapply(parallelResult, function (x) x$xDecompVecCollect))
+    meanResponseCollect <- append(meanResponseCollect, lapply(parallelResult, function (x) x$meanResponseCollect))
   } # end pareto front loop
+
+  close(pbplot)
+
+  # stop cluster to avoid memory leaks
+  stopImplicitCluster()
+
   mediaVecCollect <- rbindlist(mediaVecCollect)
   xDecompVecCollect <- rbindlist(xDecompVecCollect)
   meanResponseCollect <- rbindlist(meanResponseCollect)
