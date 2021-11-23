@@ -1136,19 +1136,21 @@ class Robyn(object):
 
                     # scale sample to given bounds
                     for hypNameLoop in hyper_bound_list_updated_name:
-                        index =
-                        channelBound =
+                        index = [i for i in range(len(hypNameLoop)) if hypNameLoop[i] == hyper_bound_list_updated_name[i]]
+                        channelBound = hyper_bound_list_updated[hypNameLoop]
                         hyppar_for_qunif = nevergrad_hp_val[co][index]
-                        hyppar_scaled = qunif()
+                        hyppar_scaled = stats.uniform.ppf(hyppar_for_qunif, min(channelBound), max(channelBound)-min(channelBound))
                         hypParamSamNG[hypNameLoop] = hyppar_scaled
-                    hypParamSamList[co] = transpose()
-                hypParamSamNG = rbindlist
+                    hypParamSamList[co] = pd.DataFrame(hypParamSamNG).T
+                hypParamSamNG = pd.DataFrame(hypParamSamList, columns=hyper_bound_list_updated_name)
 
             # Add fixed hyperparameters
             if hyper_count_fixed != 0:
-                pass
+                hypParamSamNG = pd.concat([hypParamSamNG, dt_hyperFixed], axis=1)
+                hypParamSamNG = hypParamSamNG[hypParamSamName]
+
             else:
-                pass
+                hypParamSamNG = pd.DataFrame(hyper_bound_list, columns=hypParamSamNG)
 
         # Parallel start
 
@@ -1341,6 +1343,8 @@ class Robyn(object):
 
         #####################################
         # Final result collect
+        resultCollect = []
+
 
     def fit(self,
             optimizer_name=None,
