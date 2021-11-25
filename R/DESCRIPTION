@@ -14,10 +14,8 @@ Depends:
 Imports:
     data.table,
     doParallel,
-    doFuture,
     doRNG,
     foreach,
-    future,
     ggplot2,
     ggridges,
     glmnet,
