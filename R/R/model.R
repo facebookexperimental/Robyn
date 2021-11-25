@@ -139,13 +139,24 @@ robyn_run <- function(InputCollect,
 
     t0 <- Sys.time()
 
+    # enable parallelisation of main modelling loop for MacOS and Linux only
+    parallel_processing <- .Platform$OS.type == "unix"
+    if (parallel_processing) {
+      message(paste(
+        "Using", InputCollect$adstock, "adstocking with",
+        length(InputCollect$hyperparameters),
+        "hyperparameters & 10-fold ridge x-validation on",
+        InputCollect$cores, "cores"
+      ))
+    } else {
+      message(paste(
+        "Using", InputCollect$adstock, "adstocking with",
+        length(InputCollect$hyperparameters),
+        "hyperparameters & 10-fold ridge x-validation on 1 core (Windows fallback)"
+      ))
+    }
+    
     # ng_collect <- list()
-    message(paste(
-      "Using", InputCollect$adstock, "adstocking with",
-      length(InputCollect$hyperparameters),
-      "hyperparameters & 10-fold ridge x-validation on",
-      InputCollect$cores, "cores"
-    ))
     model_output_collect <- list()
 
     message(paste(
@@ -240,7 +251,7 @@ robyn_run <- function(InputCollect,
   #decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
 
   ## get mean_response
-  if (.Platform$OS.type == "unix") {
+  if (parallel_processing) {
     registerDoParallel(InputCollect$cores)
   } else {
     registerDoSEQ()
@@ -454,11 +465,23 @@ robyn_run <- function(InputCollect,
   #####################################
   #### Plot each pareto solution
 
+  # ggplot doesn't work with process forking on MacOS
+  # however it works fine on Linux and Windows
+  parallel_plotting <- Sys.info()["sysname"] != "Darwin"
+  
   if (plot_pareto) {
-    message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
+    if (parallel_plotting) {
+      message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
+    } else {
+      message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
+    }
   }
-
-  registerDoParallel(InputCollect$cores)
+  
+  if (parallel_plotting) {
+    registerDoParallel(InputCollect$cores)
+  } else {
+    registerDoSEQ()
+  }
 
   all_fronts <- unique(xDecompAgg$robynPareto)
   all_fronts <- sort(all_fronts[!is.na(all_fronts)])
@@ -860,8 +883,10 @@ robyn_run <- function(InputCollect,
 
   close(pbplot)
 
-  # stop cluster to avoid memory leaks
-  stopImplicitCluster()
+  if (parallel_plotting) {
+    # stop cluster to avoid memory leaks
+    stopImplicitCluster()
+  }
 
   mediaVecCollect <- rbindlist(mediaVecCollect)
   xDecompVecCollect <- rbindlist(xDecompVecCollect)
@@ -1091,8 +1116,11 @@ robyn_mmm <- function(hyper_collect,
   # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
   # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
 
+  # enable parallelisation of main modelling loop for MacOS and Linux only
+  parallel_processing <- .Platform$OS.type == "unix"
+  
   # create cluster before big for-loop to minimize overhead for parallel backend registering
-  if (.Platform$OS.type == "unix") {
+  if (parallel_processing) {
     registerDoParallel(InputCollect$cores)
   } else {
     registerDoSEQ()
