@@ -21,7 +21,8 @@ robyn_refresh(
 that contains all previous modeling information.}
 
 \item{plot_folder_sub}{Character. Customize sub path to save plots. The total
-path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.}
+path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+For example, plot_folder_sub = "sub_dir".}
 
 \item{dt_input}{A data.frame. Should include all previous data and newly added
 data for the refresh.}

@@ -155,7 +155,7 @@ robyn_run <- function(InputCollect,
         "hyperparameters & 10-fold ridge x-validation on 1 core (Windows fallback)"
       ))
     }
-    
+
     # ng_collect <- list()
     model_output_collect <- list()
 
@@ -468,7 +468,7 @@ robyn_run <- function(InputCollect,
   # ggplot doesn't work with process forking on MacOS
   # however it works fine on Linux and Windows
   parallel_plotting <- Sys.info()["sysname"] != "Darwin"
-  
+
   if (plot_pareto) {
     if (parallel_plotting) {
       message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
@@ -476,7 +476,7 @@ robyn_run <- function(InputCollect,
       message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
     }
   }
-  
+
   if (parallel_plotting) {
     registerDoParallel(InputCollect$cores)
   } else {
@@ -857,6 +857,11 @@ robyn_run <- function(InputCollect,
         dt_transformSaturationSpendReverse[, (InputCollect$organic_vars) := NA]
       }
 
+      if (!parallel_plotting) {
+        cnt <- cnt + 1
+        setTxtProgressBar(pbplot, cnt)
+      }
+
       return(list(
         mediaVecCollect = rbind(
           dt_transformPlot[, ":="(type = "rawMedia", solID = sid)],
@@ -872,8 +877,10 @@ robyn_run <- function(InputCollect,
       ))
     } # end solution loop
 
-    cnt <- cnt + length(uniqueSol)
-    setTxtProgressBar(pbplot, cnt)
+    if (parallel_plotting) {
+      cnt <- cnt + length(uniqueSol)
+      setTxtProgressBar(pbplot, cnt)
+    }
 
     # append parallel run results
     mediaVecCollect <- append(mediaVecCollect, lapply(parallelResult, function (x) x$mediaVecCollect))
@@ -1118,7 +1125,7 @@ robyn_mmm <- function(hyper_collect,
 
   # enable parallelisation of main modelling loop for MacOS and Linux only
   parallel_processing <- .Platform$OS.type == "unix"
-  
+
   # create cluster before big for-loop to minimize overhead for parallel backend registering
   if (parallel_processing) {
     registerDoParallel(InputCollect$cores)

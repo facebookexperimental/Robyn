@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.4.7    ######################
+####################         Facebook MMM Open Source - Robyn 3.4.8    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -129,7 +129,7 @@ InputCollect <- robyn_inputs(
 
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 5 # number of allowed iterations per trial. 5 is recommended without calibration,
+  ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials

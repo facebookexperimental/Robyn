@@ -54,7 +54,7 @@ dt_vars <- c(
   "optmResponseUnitTotalLift", "optmSpendUnit", "optmSpendUnitTotalDelta", "param",
   "perc", "percentage", "pos", "predicted", "refreshStatus", "response", "rn", "robynPareto",
   "roi", "roi_mean", "roi_total", "rsq_lm", "rsq_nls", "rsq_train", "s0", "scale_shape_halflife",
-  "season", "shape", "solID", "spend", "spend_share", "spend_share_refresh",
+  "season", "shape", "solID", "spend", "spend_share", "spend_share_refresh", "sid",
   "theta", "theta_halflife", "total_spend", "trend", "trial", "type", "value", "variable",
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
   "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat",
