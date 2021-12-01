@@ -219,12 +219,11 @@ robyn_run <- function(InputCollect,
   xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_vars, .(coef0 = min(coef) == 0), by = "solID"]
 
   if (!hyper_fixed) {
-    mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint)
-    nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90)
-    decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90)
+    mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint, na.rm = TRUE)
+    nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90, na.rm = TRUE)
+    decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90, na.rm = TRUE)
     resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
     resultHypParam[, mape.qt10 := mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90]
-
 
     resultHypParamPareto <- resultHypParam[mape.qt10 == TRUE]
     px <- rPref::low(resultHypParamPareto$nrmse) * rPref::low(resultHypParamPareto$decomp.rssd)
