@@ -514,7 +514,8 @@ robyn_run <- function(InputCollect,
       # plotMediaShareLoopBar[, variable:= ifelse(variable=="spend_share", "total spend share", "total effect share")]
       plotMediaShareLoopLine <- plotMediaShareLoop[variable == ifelse(InputCollect$dep_var_type == "conversion", "cpa_total", "roi_total")]
       # plotMediaShareLoopLine[, variable:= "roi_total"]
-      ySecScale <- max(plotMediaShareLoopLine$value) / max(plotMediaShareLoopBar$value) * 1.1
+      line_rm_inf <- !is.infinite(plotMediaShareLoopLine$value)
+      ySecScale <- max(plotMediaShareLoopLine$value[line_rm_inf]) / max(plotMediaShareLoopBar$value) * 1.1
 
       p1 <- ggplot(plotMediaShareLoopBar, aes(x = rn, y = value, fill = variable)) +
         geom_bar(stat = "identity", width = 0.5, position = "dodge") +
