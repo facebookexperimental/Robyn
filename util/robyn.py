@@ -1031,6 +1031,7 @@ class Robyn(object):
     @njit(parallel=True)
     def mmm(self,
             df,
+            hyper_collect,
             lambda_n=100,
             lambda_control=1,
             lambda_fixed=None,
@@ -1040,20 +1041,30 @@ class Robyn(object):
         ################################################
         # Collect hyperparameters
 
-        # Expand media spend names to to have the hyperparameter names needed based on adstock type
-        names_hyper_parameter_sample_names = \
-            self.get_hypernames(names_media_variables=self.names_media_spend, adstock_type=adstock_type)
-        # names_hyper_parameter_sample_names = \
-        #     get_hypernames(names_media_variables=names_media_spend, adstock_type=adstock_type)
+        hypParamSamName = self.get_hypernames(adstock=self.adstock, all_media=self.all_media)
+        hyper_fixed = False
 
-        if not fixed_out:
-            # input_collect = # todo not sure what this is.  Finish it.
-            # todo collects results for parameters?
-            input_collect = self.hyperBoundLocal
-            # input_collect = None
+        hyper_bound_list = {hypParamSamName[i]: hyper_collect[hypParamSamName[i]] for i in range(len(hypParamSamName))}
+        hyper_bound_list_updated = dict()
+        hyper_bound_list_fixed = dict()
+        for (key, value) in hyper_bound_list:
+            if len(value) == 2:
+                hyper_bound_list_updated[key] = value
+            elif len(value) == 1:
+                hyper_bound_list_fixed[key] = value
+        hyper_count = len(hyper_bound_list_updated)
+        hyper_count_fixed = len(hyper_bound_list_fixed)
+        if hyper_count == 0:
+            hyper_fixed = True
+            if lambda_fixed is None:
+                raise ValueError('when hyperparameters are fixed, lambda_fixed must be provided from the selected lambda'
+                                 ' in old model')
 
-        ################################################
-        # Get spend share
+        if self.cores > 1:
+            dt_hyperFixed = pd.DataFrame([np.repeat(hyper_bound_list_fixed[i], self.cores)
+                                          for i in range(len(hyper_bound_list_fixed))])
+        else:
+            dt_hyperFixed = pd.Dataframe([hyper_bound_list_fixed])
 
         ################################################
         ### Setup environment
@@ -1089,6 +1100,10 @@ class Robyn(object):
         calibration_input = self.calibration_input
         nevergrad_algo = self.nevergrad_algo
         cores = self.cores
+
+        ################################################
+        #### Get spend share
+        dt_inputTrain = self.dt_input[rollingWindowStartWhich:rollingWindowEndWhich]
 
 
         ################################################
