@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -70,6 +70,8 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
+  dt_input <- as.data.table(dt_input)
+  dt_input <- dt_input[order(get(date_var))]
   date_var_idate <- as.IDate(dt_input[, get(date_var)])
   dt_input[, (date_var):= date_var_idate]
   inputLen <- length(date_var_idate)
@@ -103,7 +105,8 @@ check_datevar <- function(dt_input, date_var = "auto") {
   invisible(return(list(
     date_var = date_var,
     dayInterval = dayInterval,
-    intervalType = intervalType
+    intervalType = intervalType,
+    dt_input = dt_input
   )))
 }
 
@@ -327,9 +330,11 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 }
 
 check_adstock <- function(adstock) {
-  if (!adstock %in% c("geometric", "weibull")) {
-    stop("'adstock' must be 'geometric' or 'weibull'")
+  if (adstock == "weibull") adstock <- "weibull_cdf"
+  if (!adstock %in% c("geometric", "weibull_cdf", "weibull_pdf")) {
+    stop("'adstock' must be 'geometric', 'weibull_cdf' or 'weibull_pdf'")
   }
+  return(adstock)
 }
 
 check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL, all_media = NULL) {
@@ -394,6 +399,12 @@ check_InputCollect <- function(list) {
     stop("Check your 'dt_input' object")
   }
 }
+
+check_robyn_object <- function(robyn_object) {
+  file_end <- substr(robyn_object, nchar(robyn_object)-5, nchar(robyn_object))
+  if (file_end == ".RData") {stop("robyn_object must has format .RDS, not .RData")}
+}
+
 
 check_filedir <- function(plot_folder) {
   file_end <- substr(plot_folder, nchar(plot_folder)-3, nchar(plot_folder))

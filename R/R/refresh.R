@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -33,6 +33,8 @@ robyn_save <- function(robyn_object,
                        select_model,
                        InputCollect,
                        OutputCollect) {
+  check_robyn_object(robyn_object)
+
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
     stop(paste0("'select_model' must be one of these values: ", paste(
       OutputCollect$resultHypParam$solID,
@@ -78,6 +80,7 @@ robyn_save <- function(robyn_object,
 #' spend level. It returns aggregated result with all previous builds for
 #' reporting purpose and produces reporting plots.
 #'
+#' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
 #' @param dt_input A data.frame. Should include all previous data and newly added
 #' data for the refresh.
@@ -142,6 +145,7 @@ robyn_save <- function(robyn_object,
 #' }
 #' @export
 robyn_refresh <- function(robyn_object,
+                          plot_folder_sub = NULL,
                           dt_input = dt_input,
                           dt_holidays = dt_holidays,
                           refresh_steps = 4,
@@ -153,6 +157,8 @@ robyn_refresh <- function(robyn_object,
   while (refreshControl) {
 
     ## load inital model
+    if (!exists("robyn_object")) stop("Must speficy robyn_object")
+    check_robyn_object(robyn_object)
     if (!file.exists(robyn_object)) {
       stop("File does not exist or is somewhere else. Check: ", robyn_object)
     } else {
@@ -209,7 +215,10 @@ robyn_refresh <- function(robyn_object,
 
 
     ## load new data
-    setorderv(dt_input, InputCollectRF$date_var, order = 1L)
+    dt_input <- as.data.table(dt_input)
+    date_input <- check_datevar(dt_input, InputCollectRF$date_var)
+    dt_input <- date_input$dt_input # sort date by ascending
+    dt_holidays <- as.data.table(dt_holidays)
     InputCollectRF$dt_input <- dt_input
     InputCollectRF$dt_holidays <- dt_holidays
 
@@ -288,6 +297,7 @@ robyn_refresh <- function(robyn_object,
     OutputCollectRF <- robyn_run(
       InputCollect = InputCollectRF,
       plot_folder = objectPath,
+      plot_folder_sub = plot_folder_sub,
       pareto_fronts = 1,
       refresh = TRUE,
       plot_pareto = plot_pareto
@@ -300,7 +310,7 @@ robyn_refresh <- function(robyn_object,
     OutputCollectRF$selectID <- selectID
     message(
       "Selected model ID: ", selectID, " for refresh model nr.",
-      refreshCounter, " based on the smallest combined error of NRMSE & DECOMP.RSSD"
+      refreshCounter, " based on the smallest combined error of NRMSE & DECOMP.RSSD\n"
     )
 
     OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]
@@ -330,33 +340,35 @@ robyn_refresh <- function(robyn_object,
         listOutputPrev$mediaVecCollect[
           bestModRF == TRUE & ds >= (refreshStart - InputCollectRF$dayInterval * refresh_steps) &
             ds <= (refreshEnd - InputCollectRF$dayInterval * refresh_steps)
-        ],
+        ][, ds := as.IDate(ds)],
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
-        listOutputPrev$xDecompVecCollect[bestModRF == TRUE],
+        listOutputPrev$xDecompVecCollect[bestModRF == TRUE][, ds := as.IDate(ds)],
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
     } else {
-      resultHypParamReport <- rbind(listReportPrev$resultHypParamReport, OutputCollectRF$resultHypParam[
-        bestModRF == TRUE
-      ][, refreshStatus := refreshCounter])
-      xDecompAggReport <- rbind(listReportPrev$xDecompAggReport, OutputCollectRF$xDecompAgg[
-        bestModRF == TRUE
-      ][, refreshStatus := refreshCounter])
+      resultHypParamReport <- rbind(
+        listReportPrev$resultHypParamReport,
+        OutputCollectRF$resultHypParam[bestModRF == TRUE][
+          , refreshStatus := refreshCounter])
+      xDecompAggReport <- rbind(
+        listReportPrev$xDecompAggReport,
+        OutputCollectRF$xDecompAgg[bestModRF == TRUE][
+          , refreshStatus := refreshCounter])
       mediaVecReport <- rbind(
         listReportPrev$mediaVecReport,
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
@@ -364,7 +376,7 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, refreshStatus := refreshCounter]
+        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
     }
 
@@ -459,7 +471,7 @@ robyn_refresh <- function(robyn_object,
     pBarRF <- ggplot(data = xDecompAggReportPlot, mapping = aes(x = variable, y = percentage, fill = variable)) +
       geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
       facet_wrap(~refreshStatus, scales = "free") +
-      scale_fill_brewer(palette = "BrBG") +
+      scale_fill_manual(values = robyn_palette()$fill) +
       geom_text(aes(label = paste0(round(percentage * 100, 1), "%")),
         size = 3,
         position = position_dodge(width = 0.9), hjust = -0.25
@@ -473,7 +485,7 @@ robyn_refresh <- function(robyn_object,
         position = position_dodge(width = 0.9),
         data = xDecompAggReportPlot
       ) +
-      scale_color_brewer(palette = "BrBG") +
+      scale_color_manual(values = robyn_palette()$fill) +
       scale_y_continuous(
         sec.axis = sec_axis(~ . * ySecScale), breaks = seq(0, ymax, 0.2),
         limits = c(0, ymax), name = "roi_total"

@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -80,12 +80,17 @@
 #' order and same length as \code{organic_vars}.
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor
-#' @param adstock Character. Choose any of \code{c("geometric", "weibull")}.
-#' Weibull adtock is a two-parametric function and thus more flexible, but
-#' takes longer time than the traditional geometric one-parametric function.
-#' Time estimation: with geometric adstock, 2000 iterations * 5 trials on 8
-#' cores, it takes less than 30 minutes. Weibull takes at least twice as
-#' much time.
+#' @param adstock Character. Choose any of \code{c("geometric", "weibull_cdf",
+#' "weibull_pdf")}. Weibull adtock is a two-parametric function and thus more
+#' flexible, but takes longer time than the traditional geometric one-parametric
+#' function. CDF, or cumulative density function of the Weibull function allows
+#' changing decay rate over time in both C and S shape, while the peak value will
+#' always stay at the first period, meaning no lagged effect. PDF, or the
+#' probability density function, enables peak value occuring after the first
+#' period when shape >=1, allowing lagged effect. Run \code{plot_adstock()} to
+#' see the difference visually. Time estimation: with geometric adstock, 2000
+#' iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
+#' options take up to twice as much time.
 #' @param hyperparameters List containing hyperparameter lower and upper bounds.
 #' Names of elements in list must be identical to output of \code{hyper_names()}
 #' @param window_start Character. Set start date of modelling period.
@@ -190,10 +195,10 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
+    dt_input <- date_input$dt_input # sort date by ascending
     date_var <- date_input$date_var # when date_var = "auto"
     dayInterval <- date_input$dayInterval
     intervalType <- date_input$intervalType
-    setorderv(dt_input, date_var)
 
     ## check dependent var
     check_depvar(dt_input, dep_var, dep_var_type)
@@ -237,7 +242,7 @@ robyn_inputs <- function(dt_input = NULL,
     rollingWindowLength <- windows$rollingWindowLength
 
     ## check adstock
-    check_adstock(adstock)
+    adstock <- check_adstock(adstock)
 
     ## check hyperparameters (if passed)
     check_hyperparameters(hyperparameters, adstock, all_media)
@@ -305,8 +310,10 @@ robyn_inputs <- function(dt_input = NULL,
     )
     ## update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
-    if (!(is.null(InputCollect$hyperparameters) & is.null(hyperparameters))) {
-      ### conditional output 2.2
+    if (is.null(InputCollect$hyperparameters) & is.null(hyperparameters)) {
+      stop("must provide hyperparameters in robyn_inputs()")
+    } else {
+      ### conditional output 2.1
       ## 'hyperparameters' provided --> run robyn_engineering()
       ## update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
@@ -335,7 +342,7 @@ robyn_inputs <- function(dt_input = NULL,
 #'    to get correct hyperparameter names. All names in hyperparameters must
 #'    equal names from \code{hyper_names()}, case sensitive.
 #'    \item{Get guidance for setting hyperparameter bounds:
-#'    For geometric adstock, use theta, alpha & gamma. For weibull adstock,
+#'    For geometric adstock, use theta, alpha & gamma. For both weibull adstock options,
 #'    use shape, scale, alpha, gamma.}
 #'    \itemize{
 #'    \item{Theta: }{In geometric adstock, theta is decay rate. guideline for usual media genre:
@@ -363,7 +370,7 @@ robyn_inputs <- function(dt_input = NULL,
 #' }
 #'
 #' @param adstock A character. Default to \code{InputCollect$adstock}.
-#' Accepts "geometric" or "weibull"
+#' Accepts "geometric", "weibull_cdf" or "weibull_pdf"
 #' @param all_media A character vector. Default to \code{InputCollect$all_media}.
 #' Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.
 #' @examples
@@ -427,11 +434,11 @@ robyn_inputs <- function(dt_input = NULL,
 #' }
 #' @export
 hyper_names <- function(adstock, all_media) {
-  check_adstock(adstock)
+  adstock <- check_adstock(adstock)
   global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
     local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "thetas|alphas|gammas"]), 1, paste, collapse = "_"))
-  } else if (adstock == "weibull") {
+  } else if (adstock %in% c("weibull_cdf","weibull_pdf")) {
     local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "shapes|scales|alphas|gammas"]), 1, paste, collapse = "_"))
   }
   return(local_name)
@@ -558,7 +565,7 @@ robyn_engineering <- function(InputCollect, ...) {
   ################################################################
   #### Obtain prophet trend, seasonality and change-points
 
-  if (!is.null(InputCollect$prophet_vars)) {
+  if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -594,7 +601,7 @@ robyn_engineering <- function(InputCollect, ...) {
 #'
 #' When \code{prophet_vars} in \code{robyn_inputs()} is specified, this
 #' function decomposes trend, season, holiday and weekday from the
-#' dependent varibale.
+#' dependent variable.
 #' @param dt_transform A data.frame with all model features.
 #' @param dt_holidays As in \code{robyn_inputs()}
 #' @param prophet_country As in \code{robyn_inputs()}
@@ -611,8 +618,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
                            factor_vars, context_vars, paid_media_vars, intervalType,
                            ...) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
-  recurrance <- subset(dt_transform, select = c("ds", "dep_var"))
-  colnames(recurrance)[2] <- "y"
+  recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
+  colnames(recurrence)[2] <- "y"
 
   holidays <- set_holidays(dt_transform, dt_holidays, intervalType)
   use_trend <- any(str_detect("trend", prophet_vars))
@@ -620,8 +627,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_weekday <- any(str_detect("weekday", prophet_vars))
   use_holiday <- any(str_detect("holiday", prophet_vars))
 
-  dt_regressors <- cbind(recurrance, subset(dt_transform, select = c(context_vars, paid_media_vars)))
-  modelRecurrance <- prophet(
+  dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_vars)))
+  modelRecurrence <- prophet(
     holidays = if (use_holiday) holidays[country == prophet_country] else NULL,
     yearly.seasonality = use_season,
     weekly.seasonality = use_weekday,
@@ -629,39 +636,39 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     ...
   )
 
-  if (!is.null(factor_vars)) {
+  if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- as.data.table(model.matrix(y ~ ., dt_regressors[, c("y", factor_vars), with = FALSE]))[, -1]
     ohe_names <- names(dt_ohe)
-    for (addreg in ohe_names) modelRecurrance <- add_regressor(modelRecurrance, addreg)
+    for (addreg in ohe_names) modelRecurrence <- add_regressor(modelRecurrence, addreg)
     dt_ohe <- cbind(dt_regressors[, !factor_vars, with = FALSE], dt_ohe)
-    mod_ohe <- fit.prophet(modelRecurrance, dt_ohe, ...)
+    mod_ohe <- fit.prophet(modelRecurrence, dt_ohe)
     dt_forecastRegressor <- predict(mod_ohe, dt_ohe)
-    forecastRecurrance <- dt_forecastRegressor[, str_detect(
+    forecastRecurrence <- dt_forecastRegressor[, str_detect(
       names(dt_forecastRegressor), "_lower$|_upper$",
       negate = TRUE
     ), with = FALSE]
     for (aggreg in factor_vars) {
-      oheRegNames <- na.omit(str_extract(names(forecastRecurrance), paste0("^", aggreg, ".*")))
-      forecastRecurrance[, (aggreg) := rowSums(.SD), .SDcols = oheRegNames]
-      get_reg <- forecastRecurrance[, get(aggreg)]
+      oheRegNames <- na.omit(str_extract(names(forecastRecurrence), paste0("^", aggreg, ".*")))
+      forecastRecurrence[, (aggreg) := rowSums(.SD), .SDcols = oheRegNames]
+      get_reg <- forecastRecurrence[, get(aggreg)]
       dt_transform[, (aggreg) := scale(get_reg, center = min(get_reg), scale = FALSE)]
     }
   } else {
-    mod <- fit.prophet(modelRecurrance, dt_regressors, ...)
-    forecastRecurrance <- predict(mod, dt_regressors)
+    mod <- fit.prophet(modelRecurrence, dt_regressors)
+    forecastRecurrence <- predict(mod, dt_regressors)
   }
 
   if (use_trend) {
-    dt_transform$trend <- forecastRecurrance$trend[1:nrow(recurrance)]
+    dt_transform$trend <- forecastRecurrence$trend[1:nrow(recurrence)]
   }
   if (use_season) {
-    dt_transform$season <- forecastRecurrance$yearly[1:nrow(recurrance)]
+    dt_transform$season <- forecastRecurrence$yearly[1:nrow(recurrence)]
   }
   if (use_weekday) {
-    dt_transform$weekday <- forecastRecurrance$weekly[1:nrow(recurrance)]
+    dt_transform$weekday <- forecastRecurrence$weekly[1:nrow(recurrence)]
   }
   if (use_holiday) {
-    dt_transform$holiday <- forecastRecurrance$holidays[1:nrow(recurrance)]
+    dt_transform$holiday <- forecastRecurrence$holidays[1:nrow(recurrence)]
   }
 
   return(dt_transform)

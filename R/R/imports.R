@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -19,12 +19,11 @@
 #' @author Antonio Prada (aprada@@fb.com)
 #' @author Igor Skokan (igorskokan@@fb.com)
 #' @import data.table
-#' @importFrom doFuture registerDoFuture
 #' @importFrom doRNG %dorng%
-#' @importFrom doParallel registerDoParallel
+#' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
-#' @importFrom future multicore plan sequential availableCores
 #' @import ggplot2
+#' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
@@ -36,7 +35,7 @@
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel
 #' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control
-#' predict pweibull quantile qunif start
+#' predict pweibull dweibull quantile qunif start
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
 #' @importFrom utils askYesNo head setTxtProgressBar txtProgressBar
 "_PACKAGE"
@@ -55,10 +54,11 @@ dt_vars <- c(
   "optmResponseUnitTotalLift", "optmSpendUnit", "optmSpendUnitTotalDelta", "param",
   "perc", "percentage", "pos", "predicted", "refreshStatus", "response", "rn", "robynPareto",
   "roi", "roi_mean", "roi_total", "rsq_lm", "rsq_nls", "rsq_train", "s0", "scale_shape_halflife",
-  "season", "sequential", "shape", "solID", "spend", "spend_share", "spend_share_refresh",
+  "season", "shape", "solID", "spend", "spend_share", "spend_share_refresh", "sid",
   "theta", "theta_halflife", "total_spend", "trend", "trial", "type", "value", "variable",
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
-  "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat"
+  "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat",
+  "respN","iteration","variables","iter_bin", "thetas", "cut_time"
 )
 
 if (getRversion() >= "2.15.1") {

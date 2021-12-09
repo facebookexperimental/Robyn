@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.0.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.4.8    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -12,6 +12,7 @@
 #### Step 0: setup environment
 
 ## Install and load libraries
+# install.packages("remotes") # Install remotes first if not already happend
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
 set.seed(123)
 
@@ -20,26 +21,34 @@ Sys.setenv(R_FUTURE_FORK_ENABLE="true")
 options(future.fork.enable = TRUE)
 
 ## Must install the python library Nevergrad once
-## please see here for more info about installing Python packages via reticulate
+## ATTENTION: The latest Python 3.10 version will cause Nevergrad installation error
+## See here for more info about installing Python packages via reticulate
 ## https://rstudio.github.io/reticulate/articles/python_packages.html
 
+## Load library(reticulate)
 ## Option 1: nevergrad installation via PIP
 # virtualenv_create("r-reticulate")
 # use_virtualenv("r-reticulate", required = TRUE)
 # py_install("nevergrad", pip = TRUE)
+# py_config() # Check your python version and configurations
+## In case nevergrad still can't be installed,
+# Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate/bin/python")
+# Reset your R session and re-install Nevergrad with option 1
 
 ## Option 2: nevergrad installation via conda
-# conda_create("r-reticulate") # must run this line once
+# conda_create("r-reticulate", "Python 3.9") # Only works with <= Python 3.9 sofar
 # use_condaenv("r-reticulate")
 # conda_install("r-reticulate", "nevergrad", pip=TRUE)
-
-## In case nevergrad still can't be imported after installation,
+# py_config() # Check your python version and configurations
+## In case nevergrad still can't be installed,
 ## please locate your python file and run this line with your path:
 # use_python("~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
 # Alternatively, force Python path for reticulate with this:
 # Sys.setenv(RETICULATE_PYTHON = "~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
-# Finally, re-install Nevergrad with option 1 or 2 above
+# Finally, reset your R session and re-install Nevergrad with option 2
 
+# Check this issue for more ideas to debug your reticulate/nevergrad issues:
+# https://github.com/facebookexperimental/Robyn/issues/189
 
 ################################################################
 #### Step 1: load data
@@ -78,7 +87,7 @@ InputCollect <- robyn_inputs(
   ,prophet_signs = c("default","default", "default") # c("default", "positive", and "negative").
   # Recommend as default.Must be same length as prophet_vars
   ,prophet_country = "DE"# only one country allowed once. Including national holidays
-  # for 59 countries, whose list can be found on our githut guide
+  # for 59 countries, whose list can be found on our github guide
 
   ,context_vars = c("competitor_sales_B", "events") # typically competitors, price &
   # promotion, temperature, unemployment rate etc
@@ -111,25 +120,32 @@ InputCollect <- robyn_inputs(
   ,window_end = "2018-08-22"
 
   ## set model core features
-  ,adstock = "geometric" # geometric or weibull. weibull is more flexible, yet has one more
-  # parameter and thus takes longer
-  ,iterations = 2000  # number of allowed iterations per trial. 2000 is recommended
+  ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
+  # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
+  # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
+  ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
+  # variables, 2000 is recommended for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf.
+  # The larger the dataset, the more iterations required to reach convergence.
 
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 5 # number of allowed iterations per trial. 5 is recommended without calibration,
+  ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials
-  # and 6 cores, it takes less than 1 hour. Weibull takes at least twice as much time.
+  # and 6 cores, it takes less than 1 hour. Both Weibull adstocks take up to twice as much time.
 )
 
 
 #### 2a-2: Second, define and add hyperparameters
 
-## Guide to setup hyperparameters
+## Guide to setup & understand hyperparameters
 
-## 1. get correct hyperparameter names:
+## 1. IMPORTANT: check helper plots to see hyperparameter's effect in transformation
+plot_adstock(plot = FALSE)
+plot_saturation(plot = FALSE)
+
+## 2. Get correct hyperparameter names:
 # All variables in paid_media_vars or organic_vars require hyperprameter and will be
 # transformed by adstock & saturation.
 # Difference between paid_media_vars and organic_vars is that paid_media_vars has spend that
@@ -137,75 +153,87 @@ InputCollect <- robyn_inputs(
 # Run hyper_names() to get correct hyperparameter names. all names in hyperparameters must
 # equal names from hyper_names(), case sensitive.
 
-## 2. get guidance for setting hyperparameter bounds:
-# For geometric adstock, use theta, alpha & gamma. For weibull adstock,
-# use shape, scale, alpha, gamma.
-# Theta: In geometric adstock, theta is decay rate. guideline for usual media genre:
-# TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
-# Shape: In weibull adstock, shape controls the decay shape. Recommended c(0.0001, 2).
-# The larger, the more S-shape. The smaller, the more L-shape. Channel-type specific
-# values still to be investigated
-# Scale: In weibull adstock, scale controls the decay inflexion point. Very conservative
-# recommended bounce c(0, 0.1), becausee scale can increase adstocking half-life greaetly.
-# Channel-type specific values still to be investigated
-# Alpha: In s-curve transformation with hill function, alpha controls the shape between
-# exponential and s-shape. Recommended c(0.5, 3). The larger the alpha, the more S-shape.
-# The smaller, the more C-shape
-# Gamma: In s-curve transformation with hill function, gamma controls the inflexion point.
-# Recommended bounce c(0.3, 1). The larger the gamma, the later the inflection point
-# in the response curve
+## 3. Hyperparameter interpretation & recommendation:
 
-# helper plots: set plot to TRUE for transformation examples
-plot_adstock(FALSE) # adstock transformation example plot,
-# helping you understand geometric/theta and weibull/shape/scale transformation
-plot_saturation(FALSE) # s-curve transformation example plot,
-# helping you understand hill/alpha/gamma transformatio
+## Geometric adstock: Theta is the only parameter and means fixed decay rate. Assuming TV
+# spend on day 1 is 100€ and theta = 0.7, then day 2 has 100*0.7=70€ worth of effect
+# carried-over from day 1, day 3 has 70*0.7=49€ from day 2 etc. Rule-of-thumb for common
+# media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
 
+## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters
+# , shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
+# decay rate. The shape parameter controls the shape of the decay curve. Recommended
+# bound is c(0.0001, 2). The larger the shape, the more S-shape. The smaller, the more
+# L-shape. Scale controls the inflexion point of the decay curve. We recommend very
+# conservative bounce of c(0, 0.1), because scale increases the adstock half-life greatly.
 
-## 3. set each hyperparameter bounds. They either contains two values e.g. c(0, 0.5),
+## Weibull PDF adstock: The Probability Density Function of the Weibull also has two
+# parameters, shape & scale, and also has flexible decay rate as Weibull CDF. The
+# difference is that Weibull PDF offers lagged effect. When shape > 2, the curve peaks
+# after x = 0 and has NULL slope at x = 0, enabling lagged effect and sharper increase and
+# decrease of adstock, while the scale parameter indicates the limit of the relative
+# position of the peak at x axis; when 1 < shape < 2, the curve peaks after x = 0 and has
+# infinite positive slope at x = 0, enabling lagged effect and slower increase and decrease
+# of adstock, while scale has the same effect as above; when shape = 1, the curve peaks at
+# x = 0 and reduces to exponential decay, while scale controls the inflexion point; when
+# 0 < shape < 1, the curve peaks at x = 0 and has increasing decay, while scale controls
+# the inflexion point. When all possible shapes are relevant, we recommend c(0.0001, 10)
+# as bounds for shape; when only strong lagged effect is of interest, we recommend
+# c(2.0001, 10) as bound for shape. In all cases, we recommend conservative bound of
+# c(0, 0.1) for scale. Due to the great flexibility of Weibull PDF, meaning more freedom
+# in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
+# to converge.
+
+## Hill function as saturation: Hill function is a two-parametric function in Robyn with
+# alpha and gamma. Alpha controls the shape of the curve between exponential and s-shape.
+# Recommended bound is c(0.5, 3). The larger the alpha, the more S-shape. The smaller, the
+# more C-shape. Gamma controls the inflexion point. Recommended bounce is c(0.3, 1). The
+# larger the gamma, the later the inflection point in the response curve.
+
+## 4. Set each hyperparameter bounds. They either contains two values e.g. c(0, 0.5),
 # or only one value (in which case you've "fixed" that hyperparameter)
 
 # Run ?hyper_names to check parameter definition
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
+# Example hyperparameters for Geometric adstock
 hyperparameters <- list(
-  facebook_I_alphas = c(0.5, 3) # example bounds for alpha
-  ,facebook_I_gammas = c(0.3, 1) # example bounds for gamma
-  ,facebook_I_thetas = c(0, 0.3) # example bounds for theta
-  #,facebook_I_shapes = c(0.0001, 2) # example bounds for shape
-  #,facebook_I_scales = c(0, 0.1) # example bounds for scale
+  facebook_I_alphas = c(0.5, 3)
+  ,facebook_I_gammas = c(0.3, 1)
+  ,facebook_I_thetas = c(0, 0.3)
 
   ,print_S_alphas = c(0.5, 3)
   ,print_S_gammas = c(0.3, 1)
   ,print_S_thetas = c(0.1, 0.4)
-  #,print_S_shapes = c(0.0001, 2)
-  #,print_S_scales = c(0, 0.1)
 
   ,tv_S_alphas = c(0.5, 3)
   ,tv_S_gammas = c(0.3, 1)
   ,tv_S_thetas = c(0.3, 0.8)
-  #,tv_S_shapes = c(0.0001, 2)
-  #,tv_S_scales= c(0, 0.1)
 
   ,search_clicks_P_alphas = c(0.5, 3)
   ,search_clicks_P_gammas = c(0.3, 1)
   ,search_clicks_P_thetas = c(0, 0.3)
-  #,search_clicks_P_shapes = c(0.0001, 2)
-  #,search_clicks_P_scales = c(0, 0.1)
 
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
   ,ooh_S_thetas = c(0.1, 0.4)
-  #,ooh_S_shapes = c(0.0001, 2)
-  #,ooh_S_scales = c(0, 0.1)
 
   ,newsletter_alphas = c(0.5, 3)
   ,newsletter_gammas = c(0.3, 1)
   ,newsletter_thetas = c(0.1, 0.4)
-  #,newsletter_shapes = c(0.0001, 2)
-  #,newsletter_scales = c(0, 0.1)
 )
 
+# Example hyperparameters for Weibull CDF adstock
+# facebook_I_alphas = c(0.5, 3)
+# facebook_I_gammas = c(0.3, 1)
+# facebook_I_shapes = c(0.0001, 2)
+# facebook_I_scales = c(0, 0.1)
+
+# Example hyperparameters for Weibull PDF adstock
+# facebook_I_alphas = c(0.5, 3
+# facebook_I_gammas = c(0.3, 1)
+# facebook_I_shapes = c(0.0001, 10)
+# facebook_I_scales = c(0, 0.1)
 
 #### 2a-3: Third, add hyperparameters into robyn_inputs()
 
@@ -281,6 +309,8 @@ OutputCollect <- robyn_run(
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
   , pareto_fronts = 3
   , plot_pareto = TRUE
+  # , calibration_constraint = 0.1 # run ?robyn_run to see description
+  # , lambda_control = 1 # run ?robyn_run to see description
   )
 
 ## Besides one-pager plots: there are 4 csv output saved in the folder for further usage
@@ -297,7 +327,7 @@ OutputCollect <- robyn_run(
 ## your business reality
 
 OutputCollect$allSolutions # get all model IDs in result
-select_model <- "2_8_1" # select one from above
+select_model <- "1_4_2" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input

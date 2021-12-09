@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -14,6 +14,9 @@
 #' @inheritParams robyn_allocator
 #' @param plot_folder Character. Path for saving plots. Default
 #' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
+#' @param plot_folder_sub Character. Customize sub path to save plots. The total
+#' path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+#' For example, plot_folder_sub = "sub_dir".
 #' @param dt_hyper_fixed data.frame. Only provide when loading old model results.
 #' It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.
 #' @param pareto_fronts Integer. Number of Pareto fronts for the output.
@@ -25,8 +28,11 @@
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
-#' lambda.min and lambda.1se
-#' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}
+#' lambda.min and lambda.1se.
+#' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
+#' @param seed Integer. For reproducible results when running nevergrad.
+#' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
+#' to "all" will output all iterations as csv.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @examples
 #' \dontrun{
@@ -40,12 +46,15 @@
 #' @export
 robyn_run <- function(InputCollect,
                       plot_folder = getwd(),
+                      plot_folder_sub = NULL,
                       pareto_fronts = 1,
                       plot_pareto = TRUE,
                       calibration_constraint = 0.1,
                       lambda_control = 1,
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
+                      seed = 123L,
+                      csv_out = "pareto",
                       ui = FALSE) {
 
   #####################################
@@ -58,6 +67,7 @@ robyn_run <- function(InputCollect,
   t0 <- Sys.time()
 
   # check path
+  check_robyn_object(plot_folder)
   plot_folder <- check_filedir(plot_folder)
 
   dt_mod <- copy(InputCollect$dt_mod)
@@ -107,7 +117,8 @@ robyn_run <- function(InputCollect,
       # ,iterations = iterations
       # ,cores = cores
       # ,optimizer_name = InputCollect$nevergrad_algo
-      lambda_fixed = dt_hyper_fixed$lambda
+      lambda_fixed = dt_hyper_fixed$lambda,
+      seed = seed
     )
 
     model_output_collect[[1]]$trial <- 1
@@ -128,13 +139,24 @@ robyn_run <- function(InputCollect,
 
     t0 <- Sys.time()
 
+    # enable parallelisation of main modelling loop for MacOS and Linux only
+    parallel_processing <- .Platform$OS.type == "unix"
+    if (parallel_processing) {
+      message(paste(
+        "Using", InputCollect$adstock, "adstocking with",
+        length(InputCollect$hyperparameters),
+        "hyperparameters & 10-fold ridge x-validation on",
+        InputCollect$cores, "cores"
+      ))
+    } else {
+      message(paste(
+        "Using", InputCollect$adstock, "adstocking with",
+        length(InputCollect$hyperparameters),
+        "hyperparameters & 10-fold ridge x-validation on 1 core (Windows fallback)"
+      ))
+    }
+
     # ng_collect <- list()
-    message(paste(
-      "Using", InputCollect$adstock, "adstocking with",
-      length(InputCollect$hyperparameters),
-      "hyperparameters & 10-fold ridge x-validation on",
-      InputCollect$cores, "cores"
-    ))
     model_output_collect <- list()
 
     message(paste(
@@ -145,12 +167,13 @@ robyn_run <- function(InputCollect,
     ))
 
     for (ngt in 1:InputCollect$trials) {
-      message(paste(" Running trial nr.", ngt, "\n"))
+      message(paste(" Running trial nr.", ngt))
       model_output <- robyn_mmm(
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
         lambda_control = lambda_control,
-        refresh = refresh
+        refresh = refresh,
+        seed = seed
       )
 
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
@@ -158,9 +181,8 @@ robyn_run <- function(InputCollect,
         num_coef0_mod <- model_output$resultCollect$decompSpendDist[decomp.rssd == Inf, uniqueN(paste0(iterNG, "_", iterPar))]
         num_coef0_mod <- ifelse(num_coef0_mod > InputCollect$iterations, InputCollect$iterations, num_coef0_mod)
         message("This trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
-                  \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels on theta (max.reco. c(0, 0.9) ) and gamma (max.reco. c(0.1, 1) ) to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
+                  \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
       }
-
       model_output["trial"] <- ngt
       model_output_collect[[ngt]] <- model_output
     }
@@ -176,7 +198,15 @@ robyn_run <- function(InputCollect,
   #####################################
   #### Collect results for plotting
 
+  message(">>> Collecting results...")
+
   ## collect hyperparameter results
+  if (hyper_fixed) {
+    names(model_output_collect) <- "trial1"
+  } else {
+    names(model_output_collect) <- paste0("trial", 1:InputCollect$trials)
+  }
+
   resultHypParam <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
   resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
   xDecompAgg <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
@@ -189,12 +219,11 @@ robyn_run <- function(InputCollect,
   xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_vars, .(coef0 = min(coef) == 0), by = "solID"]
 
   if (!hyper_fixed) {
-    mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint)
-    nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90)
-    decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90)
+    mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint, na.rm = TRUE)
+    nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90, na.rm = TRUE)
+    decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90, na.rm = TRUE)
     resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
     resultHypParam[, mape.qt10 := mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90]
-
 
     resultHypParamPareto <- resultHypParam[mape.qt10 == TRUE]
     px <- rPref::low(resultHypParamPareto$nrmse) * rPref::low(resultHypParamPareto$decomp.rssd)
@@ -218,31 +247,52 @@ robyn_run <- function(InputCollect,
     xDecompAgg[, solID := unique(decompSpendDist$solID)]
     resultHypParam[, solID := unique(decompSpendDist$solID)]
   }
-  decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
-  resp_collect <- c()
-  for (n in seq_along(decompSpendDist$rn)) {
-    resp_collect[n] <- robyn_response(
-      paid_media_var = decompSpendDist$rn[n],
-      select_model = decompSpendDist[n, solID],
-      spend = decompSpendDist[n, mean_spend],
-      dt_hyppar = resultHypParam,
-      dt_coef = xDecompAgg,
-      InputCollect = InputCollect
-    )
+  #decompSpendDist <- decompSpendDist[xDecompAgg[rn %in% InputCollect$paid_media_vars, .(rn, xDecompAgg, solID)], on = c("rn", "solID")]
+
+  ## get mean_response
+  if (parallel_processing) {
+    registerDoParallel(InputCollect$cores)
+  } else {
+    registerDoSEQ()
   }
-  decompSpendDist[, mean_response := resp_collect]
-  decompSpendDist[, ":="(roi_mean = mean_response / mean_spend,
+
+  # if (hyper_fixed == FALSE) {pb <- txtProgressBar(min=1, max = length(decompSpendDist$rn), style = 3)}
+  pareto_fronts_vec <- 1:pareto_fronts
+  decompSpendDistPar <- decompSpendDist[robynPareto %in% pareto_fronts_vec]
+  resultHypParamPar <- resultHypParam[robynPareto %in% pareto_fronts_vec]
+  xDecompAggPar <- xDecompAgg[robynPareto %in% pareto_fronts_vec]
+  resp_collect <- foreach(
+    respN = seq_along(decompSpendDistPar$rn)
+    , .combine = rbind) %dorng% {
+      get_resp <- robyn_response(
+        paid_media_var = decompSpendDistPar$rn[respN],
+        select_model = decompSpendDistPar[respN, solID],
+        spend = decompSpendDistPar[respN, mean_spend],
+        dt_hyppar = resultHypParamPar,
+        dt_coef = xDecompAggPar,
+        InputCollect = InputCollect
+      )
+      #if (hyper_fixed == FALSE) setTxtProgressBar(pb, n)
+      dt_resp <- data.table(mean_response = get_resp
+                            ,rn = decompSpendDistPar$rn[respN]
+                            ,solID = decompSpendDistPar$solID[respN])
+      return(dt_resp)
+    }
+  #if (hyper_fixed == FALSE) close(pb)
+  stopImplicitCluster()
+  registerDoSEQ()
+  getDoParWorkers()
+
+  setkey(decompSpendDist, solID, rn)
+  setkey(resp_collect, solID, rn)
+  decompSpendDist <- merge(decompSpendDist, resp_collect, all.x=TRUE)
+  #decompSpendDist[, mean_response := resp_collect]
+  decompSpendDist[, ":="(
+    roi_mean = mean_response / mean_spend,
     roi_total = xDecompAgg / total_spend,
-    cpa_mean = if (InputCollect$dep_var_type == "conversion") {
-      mean_spend / mean_response
-    } else {
-      NA
-    },
-    cpa_total = if (InputCollect$dep_var_type == "conversion") {
-      total_spend / xDecompAgg
-    } else {
-      NA
-    })]
+    cpa_mean = mean_spend / mean_response,
+    cpa_total = total_spend / xDecompAgg
+  )]
   # decompSpendDist[, roi := xDecompMeanNon0/mean_spend]
 
   setkey(xDecompAgg, solID, rn)
@@ -254,11 +304,11 @@ robyn_run <- function(InputCollect,
   #### Plot overview
 
   ## set folder to save plat
-  if (!exists("plot_folder_sub")) {
+  if (is.null(plot_folder_sub)) {
     folder_var <- ifelse(!refresh, "init", paste0("rf", InputCollect$refreshCounter))
     plot_folder_sub <- paste0(format(Sys.time(), "%Y-%m-%d %H.%M"), " ", folder_var)
-    plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
   }
+  plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
 
   # pareto_fronts_vec <- ifelse(!hyper_fixed, c(1,2,3), 1)
   if (!hyper_fixed) {
@@ -269,7 +319,7 @@ robyn_run <- function(InputCollect,
     num_pareto123 <- nrow(resultHypParam)
   }
 
-  message(paste0("Exporting all charts into directory: ", plot_folder, "/", plot_folder_sub))
+  message(paste0(">>> Exporting all charts into directory: ", plot_folder, "/", plot_folder_sub, "..."))
 
   message(">>> Plotting summary charts...")
   local_name <- names(InputCollect$hyperparameters)
@@ -277,8 +327,10 @@ robyn_run <- function(InputCollect,
 
     ## plot prophet
 
-    if (!is.null(InputCollect$prophet_vars)) {
-      # pProphet <- prophet_plot_components(InputCollect$modelRecurrance, InputCollect$forecastRecurrance, render_plot = TRUE)
+    if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0
+      || !is.null(InputCollect$factor_vars) && length(InputCollect$factor_vars) > 0)
+    {
+      # pProphet <- prophet_plot_components(InputCollect$modelRecurrence, InputCollect$forecastRecurrence, render_plot = TRUE)
 
       dt_plotProphet <- InputCollect$dt_mod[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars), with = FALSE]
       dt_plotProphet <- suppressWarnings(melt.data.table(dt_plotProphet, id.vars = "ds"))
@@ -290,8 +342,8 @@ robyn_run <- function(InputCollect,
         ylab(NULL)
       # print(pProphet)
       ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "prophet_decomp.png"),
-        plot = pProphet,
-        dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
+             plot = pProphet,
+             dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
       )
     }
 
@@ -308,8 +360,8 @@ robyn_run <- function(InputCollect,
           theme = theme(plot.title = element_text(hjust = 0.5))
         )
       ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "spend_exposure_fitting.png"),
-        plot = pSpendExposure,
-        dpi = 600, width = 12, height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
+             plot = pSpendExposure,
+             dpi = 600, width = 12, height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
       )
     } else {
       message("No spend-exposure modelling needed. all media variables used for mmm are spend variables ")
@@ -330,8 +382,8 @@ robyn_run <- function(InputCollect,
       )
     # print(pSamp)
     ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "hypersampling.png"),
-      plot = pSamp,
-      dpi = 600, width = 12, height = 7
+           plot = pSamp,
+           dpi = 600, width = 12, height = 7
     )
 
 
@@ -370,21 +422,75 @@ robyn_run <- function(InputCollect,
 
     # print(pParFront)
     ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_front.png"),
-      plot = pParFront,
-      dpi = 600, width = 12, height = 7
+           plot = pParFront,
+           dpi = 600, width = 12, height = 7
     )
+
+
+    ## plot ridgeline model convergence
+    dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
+                            , .(variables = rn
+                                , roi_total
+                                , iteration = (iterNG-1)*InputCollect$cores+iterPar
+                                , trial)][order(iteration, variables)]
+    bin_limits <- c(1,20)
+    qt_len <- ifelse(InputCollect$iterations <=100, 1
+                     ,ifelse(InputCollect$iterations > 2000, 20, ceiling(InputCollect$iterations/100)))
+    set_qt <- floor(quantile(1:InputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
+    set_bin <- set_qt[-1]
+
+    dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
+    dt_ridges <- dt_ridges[!is.na(iter_bin)]
+    dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
+    dt_ridges[, trial := as.factor(trial)]
+
+    pRidges <- ggplot(data = dt_ridges, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
+      scale_fill_distiller(palette = "GnBu") +
+      geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
+      facet_wrap(~ variables, scales = "free") +
+      guides(fill = "none")+
+      theme(panel.background = element_blank()) +
+      labs(x = "Total ROAS", y = "Iteration Bucket"
+           ,title = "ROAS distribution over iteration"
+           ,fill = "iter bucket")
+
+    suppressMessages(ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "roas_convergence.png"),
+                            plot = pRidges,
+                            dpi = 600, width = 12, height = ceiling(InputCollect$mediaVarCount / 3) * 6
+    ))
   }
 
 
   #####################################
   #### Plot each pareto solution
 
+  # ggplot doesn't work with process forking on MacOS
+  # however it works fine on Linux and Windows
+  parallel_plotting <- Sys.info()["sysname"] != "Darwin"
+
   if (plot_pareto) {
-    message(paste(">>> Plotting", num_pareto123, "Pareto optimum models..."))
-    pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+    if (parallel_plotting) {
+      message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
+    } else {
+      message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
+    }
+  }
+
+  if (parallel_plotting) {
+    registerDoParallel(InputCollect$cores)
+  } else {
+    registerDoSEQ()
+  }
+
+  all_fronts <- unique(xDecompAgg$robynPareto)
+  all_fronts <- sort(all_fronts[!is.na(all_fronts)])
+  if (!all(pareto_fronts_vec %in% all_fronts)) {
+    pareto_fronts_vec <- all_fronts
   }
 
   cnt <- 0
+  pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+
   mediaVecCollect <- list()
   xDecompVecCollect <- list()
   meanResponseCollect <- list()
@@ -393,11 +499,10 @@ robyn_run <- function(InputCollect,
     plotWaterfall <- xDecompAgg[robynPareto == pf]
     uniqueSol <- plotMediaShare[, unique(solID)]
 
-    for (j in 1:length(uniqueSol)) {
-      cnt <- cnt + 1
+    parallelResult <- foreach(sid = uniqueSol) %dorng% {
 
       ## plot spend x effect share comparison
-      plotMediaShareLoop <- plotMediaShare[solID == uniqueSol[j]]
+      plotMediaShareLoop <- plotMediaShare[solID == sid]
       rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train), 4)]
       nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse), 4)]
       decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd), 4)]
@@ -409,7 +514,8 @@ robyn_run <- function(InputCollect,
       # plotMediaShareLoopBar[, variable:= ifelse(variable=="spend_share", "total spend share", "total effect share")]
       plotMediaShareLoopLine <- plotMediaShareLoop[variable == ifelse(InputCollect$dep_var_type == "conversion", "cpa_total", "roi_total")]
       # plotMediaShareLoopLine[, variable:= "roi_total"]
-      ySecScale <- max(plotMediaShareLoopLine$value) / max(plotMediaShareLoopBar$value) * 1.1
+      line_rm_inf <- !is.infinite(plotMediaShareLoopLine$value)
+      ySecScale <- max(plotMediaShareLoopLine$value[line_rm_inf]) / max(plotMediaShareLoopBar$value) * 1.1
 
       p1 <- ggplot(plotMediaShareLoopBar, aes(x = rn, y = value, fill = variable)) +
         geom_bar(stat = "identity", width = 0.5, position = "dodge") +
@@ -436,40 +542,109 @@ robyn_run <- function(InputCollect,
         )
 
       ## plot waterfall
-      plotWaterfallLoop <- plotWaterfall[solID == uniqueSol[j]][order(xDecompPerc)]
+      plotWaterfallLoop <- plotWaterfall[solID == sid][order(xDecompPerc)]
       plotWaterfallLoop[, end := cumsum(xDecompPerc)]
       plotWaterfallLoop[, end := 1 - end]
       plotWaterfallLoop[, ":="(start = shift(end, fill = 1, type = "lag"),
-        id = 1:nrow(plotWaterfallLoop),
-        rn = as.factor(rn),
-        sign = as.factor(ifelse(xDecompPerc >= 0, "pos", "neg")))]
+                               id = 1:nrow(plotWaterfallLoop),
+                               rn = as.factor(rn),
+                               sign = as.factor(ifelse(xDecompPerc >= 0, "pos", "neg")))]
 
-      p2 <- suppressWarnings(ggplot(plotWaterfallLoop, aes(x = id, fill = sign)) +
-        geom_rect(aes(x = rn, xmin = id - 0.45, xmax = id + 0.45, ymin = end, ymax = start), stat = "identity") +
-        scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
-        theme(axis.text.x = element_text(angle = 65, vjust = 0.6), legend.position = c(0.1, 0.1)) +
-        geom_text(mapping = aes(
-          label = paste0(format_unit(xDecompAgg), "\n", round(xDecompPerc * 100, 2), "%"),
-          y = rowSums(cbind(end, xDecompPerc / 2))
-        ), fontface = "bold") +
-        coord_flip() +
-        labs(
-          title = "Response decomposition waterfall by predictor",
-          subtitle = paste0(
-            "rsq_train: ", rsq_train_plot,
-            ", nrmse = ", nrmse_plot,
-            ", decomp.rssd = ", decomp_rssd_plot,
-            ", mape.lift = ", mape_lift_plot
-          ),
-          x = "",
-          y = ""
-        ))
+      p2 <- suppressWarnings(
+        ggplot(plotWaterfallLoop, aes(x = id, fill = sign)) +
+          geom_rect(aes(x = rn, xmin = id - 0.45, xmax = id + 0.45, ymin = end, ymax = start), stat = "identity") +
+          scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
+          theme(axis.text.x = element_text(angle = 65, vjust = 0.6), legend.position = c(0.1, 0.1)) +
+          geom_text(mapping = aes(
+            label = paste0(format_unit(xDecompAgg), "\n", round(xDecompPerc * 100, 2), "%"),
+            y = rowSums(cbind(end, xDecompPerc / 2))
+          ), fontface = "bold") +
+          coord_flip() +
+          labs(
+            title = "Response decomposition waterfall by predictor",
+            subtitle = paste0(
+              "rsq_train: ", rsq_train_plot,
+              ", nrmse = ", nrmse_plot,
+              ", decomp.rssd = ", decomp_rssd_plot,
+              ", mape.lift = ", mape_lift_plot
+            ),
+            x = "",
+            y = ""
+          ))
 
       ## plot adstock rate
 
-      resultHypParamLoop <- resultHypParam[solID == uniqueSol[j]]
-
+      resultHypParamLoop <- resultHypParam[solID == sid]
       hypParam <- unlist(resultHypParamLoop[, local_name, with = FALSE])
+
+      if (InputCollect$adstock == "geometric") {
+
+        hypParam_thetas <- hypParam[paste0(InputCollect$all_media, "_thetas")]
+        dt_geometric <- data.table(channels = InputCollect$all_media, thetas = hypParam_thetas)
+
+        p3 <- ggplot(dt_geometric, aes(x = channels, y = thetas, fill = "coral")) +
+          geom_bar(stat = "identity", width = 0.5) +
+          theme(legend.position = "none") +
+          coord_flip() +
+          geom_text(aes(label = paste0(round(thetas * 100, 1), "%")), position = position_dodge(width = 0.5), fontface = "bold") +
+          ylim(0, 1) +
+          labs(
+            title = "Geometric adstock - fixed decay rate over time",
+            subtitle = paste0(
+              "rsq_train: ", rsq_train_plot,
+              ", nrmse = ", nrmse_plot,
+              ", decomp.rssd = ", decomp_rssd_plot,
+              ", mape.lift = ", mape_lift_plot
+            ),
+            y = "", x = ""
+          )
+      } else if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
+
+        shapeVec <- hypParam[paste0(InputCollect$all_media, "_shapes")]
+        scaleVec <- hypParam[paste0(InputCollect$all_media, "_scales")]
+        wb_type <- substr(InputCollect$adstock, 9, 11)
+        weibullCollect <- list()
+        n <- 1
+        for (v1 in seq_along(InputCollect$all_media)) {
+
+          dt_weibull <- data.table(
+            x = 1:InputCollect$rollingWindowLength,
+            decay_accumulated = adstock_weibull(1:InputCollect$rollingWindowLength
+                                                , shape = shapeVec[v1]
+                                                , scale = scaleVec[v1]
+                                                , type = wb_type)$thetaVecCum,
+            type = wb_type,
+            channel = InputCollect$all_media[v1]
+          )
+          dt_weibull[, halflife := which.min(abs(decay_accumulated - 0.5))]
+          max_non0 <- max(which(dt_weibull$decay_accumulated>0.001))
+          dt_weibull[, cut_time := floor(max_non0 + max_non0/3)]
+          weibullCollect[[n]] <- dt_weibull
+          n <- n+1
+        }
+        weibullCollect <- rbindlist(weibullCollect)
+        weibullCollect <- weibullCollect[x <= max(weibullCollect$cut_time)]
+
+        p3 <- ggplot(weibullCollect, aes(x = x, y = decay_accumulated)) +
+          geom_line(aes(color = channel)) +
+          facet_wrap(~channel) +
+          geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
+          geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
+          theme(legend.position = "none") +
+          labs(title = paste0("Weibull adstock ",toupper(wb_type)," - flexible decay rate over time"),
+               subtitle = paste0(
+                 "rsq_train: ", rsq_train_plot,
+                 ", nrmse = ", nrmse_plot,
+                 ", decomp.rssd = ", decomp_rssd_plot,
+                 ", mape.lift = ", mape_lift_plot
+               ),
+               x = "time unit",
+               y = "")
+      }
+
+
+      ## plot response curve
+
       dt_transformPlot <- dt_mod[, c("ds", InputCollect$all_media), with = FALSE] # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, .(ds)], InputCollect$dt_input[, c(InputCollect$paid_media_spends), with = FALSE]) # spends of indep vars
       setnames(dt_transformSpend, names(dt_transformSpend), c("ds", InputCollect$paid_media_vars))
@@ -493,15 +668,18 @@ robyn_run <- function(InputCollect,
         med_select <- InputCollect$all_media[med]
         m <- dt_transformPlot[, get(med_select)]
 
-
         ## adstocking
         if (InputCollect$adstock == "geometric") {
           theta <- hypParam[paste0(InputCollect$all_media[med], "_thetas")]
           x_list <- adstock_geometric(x = m, theta = theta)
-        } else if (InputCollect$adstock == "weibull") {
+        } else if (InputCollect$adstock == "weibull_cdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale)
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+        } else if (InputCollect$adstock == "weibull_pdf") {
+          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
+          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
         }
         m_adstocked <- x_list$x_decayed
         dt_transformAdstock[, (med_select) := m_adstocked]
@@ -511,52 +689,7 @@ robyn_run <- function(InputCollect,
         alpha <- hypParam[paste0(InputCollect$all_media[med], "_alphas")]
         gamma <- hypParam[paste0(InputCollect$all_media[med], "_gammas")]
         dt_transformSaturation[, (med_select) := saturation_hill(x = m_adstockedRollWind, alpha = alpha, gamma = gamma)]
-
-        m_decayRate[[med]] <- data.table(x_list$thetaVecCum)
-        setnames(m_decayRate[[med]], "V1", paste0(InputCollect$all_media[med], "_decayRate"))
       }
-
-      m_decayRate <- data.table(cbind(sapply(m_decayRate, function(x) sapply(x, function(y) y))))
-      setnames(m_decayRate, names(m_decayRate), InputCollect$all_media)
-      m_decayRateSum <- m_decayRate[, lapply(.SD, sum), .SDcols = InputCollect$all_media]
-
-      decayRate.melt <- suppressWarnings(melt.data.table(m_decayRateSum))
-
-      # decayRate.melt[, channel:=str_extract(decayRate.melt$variable, paste0(InputCollect$paid_media_vars, collapse = "|"))]
-      # decayRate.melt[, variable:=str_replace(decayRate.melt$variable, paste0(paste0(InputCollect$paid_media_vars,"_"), collapse = "|"), "")]
-
-      ## get geometric reference
-      decayVec <- seq(0, 0.9, by = 0.001)
-      decayInfSum <- c()
-      for (i in 1:length(decayVec)) {
-        decayInfSum[i] <- 1 / (1 - decayVec[i]) - 1
-      }
-
-      decayOut <- c()
-      for (i in 1:nrow(decayRate.melt)) {
-        decayOut[i] <- decayVec[which.min(abs(decayRate.melt$value[i] - decayInfSum))]
-      }
-      decayRate.melt[, avg_decay_rate := decayOut]
-      decayRate.melt[, variable := factor(variable, levels = sort(InputCollect$all_media))]
-
-      p3 <- ggplot(decayRate.melt, aes(x = variable, y = avg_decay_rate, fill = "coral")) +
-        geom_bar(stat = "identity", width = 0.5) +
-        theme(legend.position = "none") +
-        coord_flip() +
-        geom_text(aes(label = paste0(round(avg_decay_rate * 100, 1), "%")), position = position_dodge(width = 0.5), fontface = "bold") +
-        ylim(0, 1) +
-        labs(
-          title = "Average adstock decay rate",
-          subtitle = paste0(
-            "rsq_train: ", rsq_train_plot,
-            ", nrmse = ", nrmse_plot,
-            ", decomp.rssd = ", decomp_rssd_plot,
-            ", mape.lift = ", mape_lift_plot
-          ),
-          y = "", x = ""
-        )
-
-      ## plot response curve
 
       dt_transformSaturationDecomp <- copy(dt_transformSaturation)
       for (i in 1:InputCollect$mediaVarCount) {
@@ -630,7 +763,7 @@ robyn_run <- function(InputCollect,
         dt_scurvePlotMean[channel == get_med, mean_response := get_response * coef]
         dt_scurvePlotMean[channel == get_med, next_unit_response := get_response_marginal * coef - mean_response]
       }
-      dt_scurvePlotMean[, solID := uniqueSol[j]]
+      dt_scurvePlotMean[, solID := sid]
 
       p4 <- ggplot(data = dt_scurvePlot[channel %in% InputCollect$paid_media_vars], aes(x = spend, y = response, color = channel)) +
         geom_line() +
@@ -650,7 +783,7 @@ robyn_run <- function(InputCollect,
 
       ## plot fitted vs actual
 
-      if (!is.null(InputCollect$prophet_vars)) {
+      if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
         dt_transformDecomp <- cbind(dt_modRollWind[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$context_vars), with = FALSE], dt_transformSaturation[, InputCollect$all_media, with = FALSE])
       } else {
         dt_transformDecomp <- cbind(dt_modRollWind[, c("ds", "dep_var", InputCollect$context_vars), with = FALSE], dt_transformSaturation[, InputCollect$all_media, with = FALSE])
@@ -658,7 +791,7 @@ robyn_run <- function(InputCollect,
       col_order <- c("ds", "dep_var", InputCollect$all_ind_vars)
       setcolorder(dt_transformDecomp, neworder = col_order)
 
-      xDecompVec <- dcast.data.table(xDecompAgg[solID == uniqueSol[j], .(rn, coef, solID)], solID ~ rn, value.var = "coef")
+      xDecompVec <- dcast.data.table(xDecompAgg[solID == sid, .(rn, coef, solID)], solID ~ rn, value.var = "coef")
       if (!("(Intercept)" %in% names(xDecompVec))) {
         xDecompVec[, "(Intercept)" := 0]
       }
@@ -672,7 +805,7 @@ robyn_run <- function(InputCollect,
       coefs = xDecompVec[, !c("solID", "(Intercept)")]
       ))
       xDecompVec[, intercept := intercept]
-      xDecompVec[, ":="(depVarHat = rowSums(xDecompVec), solID = uniqueSol[j])]
+      xDecompVec[, ":="(depVarHat = rowSums(xDecompVec), solID = sid)]
       xDecompVec <- cbind(dt_transformDecomp[, .(ds, dep_var)], xDecompVec)
 
       xDecompVecPlot <- xDecompVec[, .(ds, dep_var, depVarHat)]
@@ -702,7 +835,7 @@ robyn_run <- function(InputCollect,
 
       ## save and aggregate one-pager plots
 
-      onepagerTitle <- paste0("Model one-pager, on pareto front ", pf, ", ID: ", uniqueSol[j])
+      onepagerTitle <- paste0("Model one-pager, on pareto front ", pf, ", ID: ", sid)
 
       pg <- wrap_plots(p2, p5, p1, p4, p3, p6, ncol = 2) +
         plot_annotation(title = onepagerTitle, theme = theme(plot.title = element_text(hjust = 0.5)))
@@ -711,36 +844,57 @@ robyn_run <- function(InputCollect,
       # grid.draw(pg)
       if (plot_pareto) {
         ggsave(
-          filename = paste0(plot_folder, "/", plot_folder_sub, "/", uniqueSol[j], ".png"),
+          filename = paste0(plot_folder, "/", plot_folder_sub, "/", sid, ".png"),
           plot = pg,
           dpi = 600, width = 18, height = 18
         )
-
-        setTxtProgressBar(pbplot, cnt)
       }
 
       ## prepare output
-      if (!is.null(InputCollect$organic_vars)) {
+      if (!is.null(InputCollect$organic_vars) && length(InputCollect$organic_vars) > 0) {
         dt_transformSpend[, (InputCollect$organic_vars) := NA]
         dt_transformSpendMod[, (InputCollect$organic_vars) := NA]
         dt_transformSaturationSpendReverse[, (InputCollect$organic_vars) := NA]
       }
 
+      if (!parallel_plotting) {
+        cnt <- cnt + 1
+        setTxtProgressBar(pbplot, cnt)
+      }
 
-      mediaVecCollect[[cnt]] <- rbind(
-        dt_transformPlot[, ":="(type = "rawMedia", solID = uniqueSol[j])],
-        dt_transformSpend[, ":="(type = "rawSpend", solID = uniqueSol[j])],
-        dt_transformSpendMod[, ":="(type = "predictedExposure", solID = uniqueSol[j])],
-        dt_transformAdstock[, ":="(type = "adstockedMedia", solID = uniqueSol[j])],
-        dt_transformSaturation[, ":="(type = "saturatedMedia", solID = uniqueSol[j])],
-        dt_transformSaturationSpendReverse[, ":="(type = "saturatedSpendReversed", solID = uniqueSol[j])],
-        dt_transformSaturationDecomp[, ":="(type = "decompMedia", solID = uniqueSol[j])]
-      )
-
-      xDecompVecCollect[[cnt]] <- xDecompVec
-      meanResponseCollect[[cnt]] <- dt_scurvePlotMean
+      return(list(
+        mediaVecCollect = rbind(
+          dt_transformPlot[, ":="(type = "rawMedia", solID = sid)],
+          dt_transformSpend[, ":="(type = "rawSpend", solID = sid)],
+          dt_transformSpendMod[, ":="(type = "predictedExposure", solID = sid)],
+          dt_transformAdstock[, ":="(type = "adstockedMedia", solID = sid)],
+          dt_transformSaturation[, ":="(type = "saturatedMedia", solID = sid)],
+          dt_transformSaturationSpendReverse[, ":="(type = "saturatedSpendReversed", solID = sid)],
+          dt_transformSaturationDecomp[, ":="(type = "decompMedia", solID = sid)]
+        ),
+        xDecompVecCollect = xDecompVec,
+        meanResponseCollect = dt_scurvePlotMean
+      ))
     } # end solution loop
+
+    if (parallel_plotting) {
+      cnt <- cnt + length(uniqueSol)
+      setTxtProgressBar(pbplot, cnt)
+    }
+
+    # append parallel run results
+    mediaVecCollect <- append(mediaVecCollect, lapply(parallelResult, function (x) x$mediaVecCollect))
+    xDecompVecCollect <- append(xDecompVecCollect, lapply(parallelResult, function (x) x$xDecompVecCollect))
+    meanResponseCollect <- append(meanResponseCollect, lapply(parallelResult, function (x) x$meanResponseCollect))
   } # end pareto front loop
+
+  close(pbplot)
+
+  if (parallel_plotting) {
+    # stop cluster to avoid memory leaks
+    stopImplicitCluster()
+  }
+
   mediaVecCollect <- rbindlist(mediaVecCollect)
   xDecompVecCollect <- rbindlist(xDecompVecCollect)
   meanResponseCollect <- rbindlist(meanResponseCollect)
@@ -757,8 +911,14 @@ robyn_run <- function(InputCollect,
 
   allSolutions <- xDecompVecCollect[, unique(solID)]
 
-  fwrite(resultHypParam[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_hyperparameters.csv"))
-  fwrite(xDecompAgg[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_aggregated.csv"))
+  if (!csv_out %in% c("pareto", "all")) csv_out <- "pareto"
+  if (csv_out == "pareto") {
+    fwrite(resultHypParam[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_hyperparameters.csv"))
+    fwrite(xDecompAgg[solID %in% allSolutions], paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_aggregated.csv"))
+  } else if (csv_out == "all") {
+    fwrite(resultHypParam, paste0(plot_folder, "/", plot_folder_sub, "/", "all_hyperparameters.csv"))
+    fwrite(xDecompAgg, paste0(plot_folder, "/", plot_folder_sub, "/", "all_aggregated.csv"))
+  }
   fwrite(mediaVecCollect, paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_media_transform_matrix.csv"))
   fwrite(xDecompVecCollect, paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_alldecomp_matrix.csv"))
 
@@ -806,9 +966,14 @@ robyn_mmm <- function(hyper_collect,
                       lambda.n = 100,
                       lambda_control = 1,
                       lambda_fixed = NULL,
-                      refresh = FALSE) {
+                      refresh = FALSE,
+                      seed = 123L) {
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
+    if (is.integer(seed)) {
+      np <- reticulate::import("numpy", delay_load = FALSE)
+      np$random$seed(seed)
+    }
   } else {
     stop("You must have nevergrad python library installed.")
   }
@@ -900,9 +1065,9 @@ robyn_mmm <- function(hyper_collect,
   dt_spendShare[, ":="(spend_share = total_spend / sum(total_spend))]
 
   refreshAddedStartWhich <- which(dt_modRollWind$ds == refreshAddedStart)
-  dt_spendShareRF <- dt_inputTrain[refreshAddedStartWhich:rollingWindowLength,
-    .(
-      rn = paid_media_vars,
+  dt_spendShareRF <- dt_inputTrain[
+    refreshAddedStartWhich:rollingWindowLength,
+    .(rn = paid_media_vars,
       total_spend = sapply(.SD, sum),
       mean_spend = sapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0])))
     ),
@@ -910,8 +1075,8 @@ robyn_mmm <- function(hyper_collect,
   ]
   dt_spendShareRF[, ":="(spend_share = total_spend / sum(total_spend))]
   dt_spendShare[, ":="(total_spend_refresh = dt_spendShareRF$total_spend,
-    mean_spend_refresh = dt_spendShareRF$mean_spend,
-    spend_share_refresh = dt_spendShareRF$spend_share)]
+                       mean_spend_refresh = dt_spendShareRF$mean_spend,
+                       spend_share_refresh = dt_spendShareRF$spend_share)]
 
 
   ################################################
@@ -957,15 +1122,26 @@ robyn_mmm <- function(hyper_collect,
   }
   # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
   # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
+
+  # enable parallelisation of main modelling loop for MacOS and Linux only
+  parallel_processing <- .Platform$OS.type == "unix"
+
+  # create cluster before big for-loop to minimize overhead for parallel backend registering
+  if (parallel_processing) {
+    registerDoParallel(InputCollect$cores)
+  } else {
+    registerDoSEQ()
+  }
+
   sysTimeDopar <- system.time({
-    for (lng in 1:iterNG) {
+    for (lng in 1:iterNG) { # lng = 1
       nevergrad_hp <- list()
       nevergrad_hp_val <- list()
       hypParamSamList <- list()
       hypParamSamNG <- c()
 
       if (hyper_fixed == FALSE) {
-        for (co in 1:iterPar) {
+        for (co in 1:iterPar) { # co = 1
 
           ## get hyperparameter sample with ask
           nevergrad_hp[[co]] <- optimizer$ask()
@@ -1001,20 +1177,9 @@ robyn_mmm <- function(hyper_collect,
       nrmse.collect <- c()
       decomp.rssd.collect <- c()
       best_mape <- Inf
-      # registerDoParallel(cores)  #registerDoParallel(cores=InputCollect$cores)
 
-      registerDoFuture()
-      if (.Platform$OS.type == "unix") {
-        plan(multicore(workers = InputCollect$cores))
-      } else {
-        plan(sequential)
-      }
-
-      # nbrOfWorkers()
-
-      getDoParWorkers()
       doparCollect <- suppressPackageStartupMessages(
-        foreach(i = 1:iterPar) %dorng% {
+        foreach(i = 1:iterPar) %dorng% { # i = 1
           t1 <- Sys.time()
 
           #####################################
@@ -1035,13 +1200,17 @@ robyn_mmm <- function(hyper_collect,
             if (adstock == "geometric") {
               theta <- hypParamSam[paste0(all_media[v], "_thetas")]
               x_list <- adstock_geometric(x = m, theta = theta)
-            } else if (adstock == "weibull") {
+            } else if (adstock == "weibull_cdf") {
               shape <- hypParamSam[paste0(all_media[v], "_shapes")]
               scale <- hypParamSam[paste0(all_media[v], "_scales")]
-              x_list <- adstock_weibull(x = m, shape = shape, scale = scale)
+              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "cdf")
+            } else if (adstock == "weibull_pdf") {
+              shape <- hypParamSam[paste0(all_media[v], "_shapes")]
+              scale <- hypParamSam[paste0(all_media[v], "_scales")]
+              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "pdf")
             } else {
               break
-              print("adstock parameter must be geometric or weibull")
+              print("adstock parameter must be geometric, weibull_cdf or weibull_pdf")
             }
 
             m_adstocked <- x_list$x_decayed
@@ -1111,7 +1280,8 @@ robyn_mmm <- function(hyper_collect,
 
           #####################################
           #### fit ridge regression with x-validation
-          cvmod <- cv.glmnet(x_train,
+          cvmod <- cv.glmnet(
+            x_train,
             y_train,
             family = "gaussian",
             alpha = 0 # 0 for ridge regression
@@ -1153,7 +1323,7 @@ robyn_mmm <- function(hyper_collect,
           #### get calibration mape
 
           if (!is.null(calibration_input)) {
-            liftCollect <- calibrate_mmm(decompCollect = decompCollect, calibration_input = calibration_input, paid_media_vars = paid_media_vars)
+            liftCollect <- calibrate_mmm(decompCollect = decompCollect, calibration_input = calibration_input, paid_media_vars = paid_media_vars, dayInterval = InputCollect$dayInterval)
             mape <- liftCollect[, mean(mape_lift)]
           }
 
@@ -1161,14 +1331,14 @@ robyn_mmm <- function(hyper_collect,
           #### calculate multi-objectives for pareto optimality
 
           ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
-          dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_vars, .(rn, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF)]
+          dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_vars, .(rn, xDecompAgg, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF)]
           dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(rn, spend_share, spend_share_refresh, mean_spend, total_spend)], on = "rn"]
           dt_decompSpendDist[, ":="(effect_share = xDecompPerc / sum(xDecompPerc),
-            effect_share_refresh = xDecompPercRF / sum(xDecompPercRF))]
+                                    effect_share_refresh = xDecompPercRF / sum(xDecompPercRF))]
           decompCollect$xDecompAgg[dt_decompSpendDist[, .(rn, spend_share_refresh, effect_share_refresh)],
-            ":="(spend_share_refresh = i.spend_share_refresh,
-              effect_share_refresh = i.effect_share_refresh),
-            on = "rn"
+                                   ":="(spend_share_refresh = i.spend_share_refresh,
+                                        effect_share_refresh = i.effect_share_refresh),
+                                   on = "rn"
           ]
 
           if (!refresh) {
@@ -1198,7 +1368,8 @@ robyn_mmm <- function(hyper_collect,
           resultHypParam <- data.table()[, (hypParamSamName) := lapply(hypParamSam[1:length(hypParamSamName)], function(x) x)]
 
           resultCollect <- list(
-            resultHypParam = resultHypParam[, ":="(mape = mape,
+            resultHypParam = resultHypParam[, ":="(
+              mape = mape,
               nrmse = nrmse,
               decomp.rssd = decomp.rssd
               # ,adstock.ssisd = adstock.ssisd
@@ -1213,7 +1384,8 @@ robyn_mmm <- function(hyper_collect,
               iterNG = lng,
               df.int = df.int)],
             xDecompVec = if (hyper_fixed == TRUE) {
-              decompCollect$xDecompVec[, ":="(intercept = decompCollect$xDecompAgg[rn == "(Intercept)", xDecompAgg],
+              decompCollect$xDecompVec[, ":="(
+                intercept = decompCollect$xDecompAgg[rn == "(Intercept)", xDecompAgg],
                 mape = mape,
                 nrmse = nrmse,
                 decomp.rssd = decomp.rssd
@@ -1227,7 +1399,8 @@ robyn_mmm <- function(hyper_collect,
             } else {
               NULL
             },
-            xDecompAgg = decompCollect$xDecompAgg[, ":="(mape = mape,
+            xDecompAgg = decompCollect$xDecompAgg[, ":="(
+              mape = mape,
               nrmse = nrmse,
               decomp.rssd = decomp.rssd
               # ,adstock.ssisd = adstock.ssisd
@@ -1238,7 +1411,8 @@ robyn_mmm <- function(hyper_collect,
               iterNG = lng,
               df.int = df.int)],
             liftCalibration = if (!is.null(calibration_input)) {
-              liftCollect[, ":="(mape = mape,
+              liftCollect[, ":="(
+                mape = mape,
                 nrmse = nrmse,
                 decomp.rssd = decomp.rssd
                 # ,adstock.ssisd = adstock.ssisd
@@ -1250,7 +1424,8 @@ robyn_mmm <- function(hyper_collect,
             } else {
               NULL
             },
-            decompSpendDist = dt_decompSpendDist[, ":="(mape = mape,
+            decompSpendDist = dt_decompSpendDist[, ":="(
+              mape = mape,
               nrmse = nrmse,
               decomp.rssd = decomp.rssd
               # ,adstock.ssisd = adstock.ssisd
@@ -1278,12 +1453,9 @@ robyn_mmm <- function(hyper_collect,
         }
       ) # end foreach parallel
 
-      # stopImplicitCluster()
-
       nrmse.collect <- sapply(doparCollect, function(x) x$nrmse)
       decomp.rssd.collect <- sapply(doparCollect, function(x) x$decomp.rssd)
       mape.lift.collect <- sapply(doparCollect, function(x) x$mape.lift)
-
 
       #####################################
       #### Nevergrad tells objectives
@@ -1307,6 +1479,9 @@ robyn_mmm <- function(hyper_collect,
   }) # end system.time
 
   message("\n Finished in ", round(sysTimeDopar[3] / 60, 2), " mins")
+
+  # stop cluster to avoid memory leaks
+  stopImplicitCluster()
 
   if (hyper_fixed == FALSE) close(pb)
   registerDoSEQ()
@@ -1540,10 +1715,14 @@ robyn_response <- function(robyn_object = NULL,
   if (adstock == "geometric") {
     theta <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_thetas"))]
     x_list <- adstock_geometric(x = mediaVar, theta = theta)
-  } else if (adstock == "weibull") {
+  } else if (adstock == "weibull_cdf") {
     shape <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_shapes"))]
     scale <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_scales"))]
-    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale)
+    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+  } else if (adstock == "weibull_pdf") {
+    shape <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_shapes"))]
+    scale <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_scales"))]
+    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
   }
   m_adstocked <- x_list$x_decayed
 
@@ -1638,7 +1817,7 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
 } ## decomp end
 
 
-calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars) {
+calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars, dayInterval) {
 
   # check if any lift channel doesn't have media var
   check_set_lift <- any(sapply(calibration_input$channel, function(x) {
@@ -1668,7 +1847,7 @@ calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars) {
       liftPeriodVecDependent <- getDecompVec[ds >= liftStart & ds <= liftEnd, c("ds", "y"), with = FALSE]
 
       ## scale decomp
-      mmmDays <- nrow(liftPeriodVec) * 7
+      mmmDays <- nrow(liftPeriodVec) * dayInterval
       liftDays <- as.integer(liftEnd - liftStart + 1)
       y_hatLift <- sum(unlist(getDecompVec[, -1])) # total pred sales
       x_decompLift <- sum(liftPeriodVec[, 2])
