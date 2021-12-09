@@ -6,29 +6,29 @@
 ########################################################################################################################
 # IMPORTS
 
-import numpy as np
-import pandas as pd
-import rpy2.robjects as ro
-from rpy2.robjects import numpy2ri
+import math
+import os
+import time
 from collections import defaultdict
 from datetime import timedelta, datetime
-import math
-import time
+
+import nevergrad as ng
+import numpy as np
+import pandas as pd
+# from pypref import prefclasses as p  #todo causes errors https://bachiraoun.github.io/pypref/
+import pypref as p  # todo temporary - 2021.12.09
+import rpy2.robjects as ro
+from numba import njit, prange
 from prophet import Prophet
+from rpy2.robjects import numpy2ri
 from scipy import stats
 from scipy.optimize import curve_fit
 from sklearn import preprocessing
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-# from pypref import prefclasses as p  #todo causes errors https://bachiraoun.github.io/pypref/
-import pypref as p  # todo temporary - 2021.12.09
-import nevergrad as ng
-from numba import njit, prange
-
 
 # todo review old packages and remove if necessary - 2021.12.09
 # import matplotlib.pyplot as plt
-# import os
 # import weibull as weibull
 
 
@@ -36,41 +36,55 @@ from numba import njit, prange
 # MAIN
 
 class Robyn(object):
-    # todo argument names should be lowercase - 2021.12.09
-    def __init__(self, country, dateVarName, depVarName, mediaVarName, dt_input):
+    def __init__(self, df_input: pd.DataFrame):
 
-        self.dt_input = dt_input
-        self.dt_holidays = pd.read_csv('source/holidays.csv')
+        self.df_input = df_input
+        self.df_holidays = pd.read_csv('util/Python/data/prophet/holidays.csv')
         self.mod = None
-        self.dt_modRollWind = None
+        self.df_modRollWind = None
         self.xDecompAggPrev = None
-        self.date_var = None
+        self.date_var = None  # String.  Name of data column e.g. 'DATE'.  Date format must be "2020-01-01"
         self.dayInterval = None
         self.intervalType = None
-        self.dep_var = None
-        self.dep_var_type = None
-        self.prophet_vars = None
-        self.prophet_signs = None
-        self.prophet_country = None
-        self.context_vars = None
-        self.context_signs = None
-        self.paid_media_vars = None
-        self.paid_media_signs = None
-        self.paid_media_spends = None
-        self.organic_vars = None
-        self.organic_signs = None
-        self.factor_vars = None
-        self.cores = 1
-        self.window_start = None
-        self.window_end = None
+        self.dep_var = None  # There should be only one dependent variable.  Name of dependent variable column e.g.
+        # 'revenue'
+        self.dep_var_type = str  # "revenue" or "conversion"
+        self.prophet_vars = []  # List of strings "trend","season", "weekday", "holiday" are provided and case-
+        # sensitive.  Recommended to at least keep Trend & Holidays
+        self.prophet_signs = []  # List of strings "default", "positive", and "negative". Recommend as default. Must
+        # be same length as prophet_vars
+        self.prophet_country = None  # 2 letter string in caps representing the country.  E.g. 'DE'  Only one country
+        # allowed once. Including national holidays for 59 countries, whose list can be found on our github guide
+        self.context_vars = []  # List of strings for the columns names of the context variables typically
+        # competitors, price & promotion, temperature, unemployment rate, etc.
+        self.context_signs = None  # "default", " positive", and "negative", control the signs of coefficients for
+        # baseline variables
+        self.paid_media_vars = None  # List of strings containing the columns names.  We recommend to use media exposure
+        # metrics like impressions, GRP etc for the model. If not applicable, use spend instead
+        self.paid_media_signs = []  # "default", "positive", and "negative". must have same length as paid_media_vars.
+        # Controls the signs of coefficients for media variables
+        self.paid_media_spends = []  # List of strings of column names.  Spends must have same order and same length as
+        # paid_media_vars
+        self.organic_vars = []  # string of columns names.
+        self.organic_signs = []  # "default", " positive", and "negative".  Must have same length as organic_vars
+        self.factor_vars = []  # specify which variables in context_vars and organic_vars are factorial
+        self.cores = os.cpu_count() - 2  # todo could use multiprocessing.cpu_count() since that is likely what we will
+        # be using in
+        self.window_start = None  # e.g. '2016-11-23'
+        self.window_end = None  # e.g. '2018-08-22'
         self.rollingWindowStartWhich = None
         self.rollingWindowEndWhich = None
         self.rollingWindowLength = None
         self.refreshAddedStart = None
-        self.adstock = None
-        self.iterations = 2000
-        self.nevergrad_algo = "TwoPointsDE"
-        self.trials = 5
+        self.adstock = None # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible due to the
+        # changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf allows also
+        # lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
+        self.iterations = 2000 # number of allowed iterations per trial. For the simulated dataset with 11 independent
+        # variables, 2000 is recommended for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf. The
+        # larger the dataset, the more iterations required to reach convergence.
+        self.nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free optimisation
+        # library https://facebookresearch.github.io/nevergrad/index.html
+        self.trials = 5 # int, number of allowed trials. 5 is recommended without calibration, 10 with calibration.
         self.hyperparameters = None
         self.calibration_input = None
         self.mediaVarCount = None
@@ -78,7 +92,7 @@ class Robyn(object):
         self.local_name = None
         self.all_media = None
 
-        self.check_conditions(dt_input)
+        self.check_conditions(df_input)
 
     def check_conditions(self, dt_transform):
         """
@@ -574,7 +588,7 @@ class Robyn(object):
 
         # todo - move parameters to INIT - 2021.12.09
         self.dt_mod = dt_transform
-        self.dt_modRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
+        self.df_modRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
         self.dt_inputRollWind = dt_inputRollWind
         self.modNLSCollect = modNLSCollect
         self.plotNLSCollect = plotNLSCollect
@@ -1101,7 +1115,7 @@ class Robyn(object):
         rollingWindowStartWhich = self.rollingWindowStartWhich
         rollingWindowEndWhich = self.rollingWindowEndWhich
         refreshAddedStart = self.refreshAddedStart
-        dt_modRollWind = self.dt_modRollWind
+        dt_modRollWind = self.df_modRollWind
         refresh_steps = self.refresh_steps
         rollingWindowLength = self.rollingWindowLength
 
