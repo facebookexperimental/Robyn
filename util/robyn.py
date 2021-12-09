@@ -15,8 +15,6 @@ from datetime import timedelta, datetime
 import nevergrad as ng
 import numpy as np
 import pandas as pd
-# from pypref import prefclasses as p  #todo causes errors https://bachiraoun.github.io/pypref/
-import pypref as p  # todo temporary - 2021.12.09
 import rpy2.robjects as ro
 from numba import njit, prange
 from prophet import Prophet
@@ -26,6 +24,10 @@ from scipy.optimize import curve_fit
 from sklearn import preprocessing
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+
+
+from util.pypref_robyn import pypref as p
+
 
 # todo review old packages and remove if necessary - 2021.12.09
 # import matplotlib.pyplot as plt
