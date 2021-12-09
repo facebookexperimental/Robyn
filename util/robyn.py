@@ -31,6 +31,7 @@ from numba import njit, prange
 
 
 
+
 ########################################################################################################################
 # MAIN
 
@@ -1335,17 +1336,146 @@ class Robyn(object):
         #####################################
         # Calculate multi-objectives for pareto optimality
 
-        # Decomp objective: sum of squared distance between decomp share and spend share to be minimised
+            # Decomp objective: sum of squared distance between decomp share and spend share to be minimised
+            xDecompAgg = decompCollect["xDecompAgg"]
+            dt_decompSpendDist = xDecompAgg.loc[
+                xDecompAgg.rn.isin(self.paid_media_vars), ["rn", "xDecompPerc", "xDecompMeanNon0Perc",
+                                                           "xDecompMeanNon0", "xDecompPercRF", "xDecompMeanNon0PercRF",
+                                                           "xDecompMeanNon0RF"]]
+            dt_decompSpendDist = pd.merge(dt_decompSpendDist,
+                                          dt_spendShare.loc[:, ["rn", "spend_share", "mean_spend", "total_spend"]],
+                                          how="left", on="rn")
+            dt_decompSpendDist["effect_share"] = dt_decompSpendDist["xDecompPerc"] / dt_decompSpendDist[
+                "xDecompPerc"].sum()
+            dt_decompSpendDist["effect_share_refresh"] = dt_decompSpendDist["xDecompPercRF"] / dt_decompSpendDist[
+                "xDecompPercRF"].sum()
+            xDecompAgg = pd.merge(xDecompAgg,
+                                  dt_decompSpendDist.loc[:, ["rn", "spend_share_refresh", "effect_share_refresh"]],
+                                  how="left", on="rn")
+            xDecompAgg["spend_share_refresh"] = xDecompAgg[
+                "i.spend_share_refresh"]  # not sure these variable are created with the same names in python (ie: with "i." in front)
+            xDecompAgg["effect_share_refresh"] = xDecompAgg[
+                "i.effect_share_refresh"]  # not sure these variable are created with the same names in python
 
-        # Adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
+            if not refresh:
+                rssd = dt_decompSpendDist["effect_share"] - dt_decompSpendDist["spend_share"]
+                decomp_rssd = math.sqrt(rssd.pow(2).sum())
+            else:
+                xDecogmpAgg['decomp_perc'] = xDecogmpAgg["xDecompPerc"]
+                self.xDecompAggPrev['decomp_perc_prev'] = self.xDecompAggPrev['xDecompPerc']
+                dt_decompRF = pd.merge(xDecompAgg["rn", "decomp_perc"],
+                                       self.xDecompAggPrev.loc[:, ["rn", "decomp_perc_prev"]], how="left", on="rn")
+                rssd_nonmedia = dt_decompRF.loc[~dt_decompRF['rn'].isin(self.paid_media_vars), "decomp_perc"] - \
+                                dt_decompRF.loc[~dt_decompRF['rn'].isin(self.paid_media_vars), "decomp_perc_prev"]
+                decomp_rssd_nonmedia = math.sqrt(rssd_nonmedia.pow(2).mean())
+                rssd_media = dt_decompSpendDist.loc['effect_share_refresh'] - dt_decompSpendDist.loc[
+                    'spend_share_refresh']
+                decomp_rssd_media = math.sqrt(rssd_media.pow(2).mean())
+                decomp_rssd = decomp_rssd_media + decomp_rssd_nonmedia / (
+                            1 - self.refresh_steps / self.rollingWindowLength))
 
-        # Calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
+                if math.isnan(decomp_rssd):  # using math library
+                    print("all media in this iteration have 0 coefficients")
+                decomp_rssd = math.inf  # using math library
+                dt_decompSpendDist["effect_share"] = 0
 
-        #####################################
-        # Collect output
+                # Adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
+                # dt_decaySum = dt_mediaVecCum.loc[:, set_mediaVarName].sum()
+                # adstock_ssisd = dt_decaySum.pow(2).sum()
+
+                # Calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
+
+                #####################################
+                # Collect output
+                resultHypParam = pd.DataFrame()  # !! can't understand how to translate this : resultHypParam <- data.table()[, (hypParamSamName):= lapply(hypParamSam[1:length(hypParamSamName)], function(x) x)]
+                resultHypParam['mape'] = mape
+                resultHypParam['nrmse'] = nrmse
+                resultHypParam['decomp_rssd'] = decomp_rssd
+                # resultHypParam['adstock_ssid'] = adstock_ssisd
+                resultHypParam['rsq_train'] = mod_out['rsq_train']
+                # resultHypParam['rsq_test'] = mod_out['rsq_test']
+                resultHypParam['pos'] = np.prod(decompCollect['xDecompAgg']['pos'])  # using numpy library
+                resultHypParam['lambda'] = lambda_
+                resultHypParam['Elapsed'] = int((datetime.datetime.now() - t1).total_seconds())
+                resultHypParam['ElapsedAccum'] = int((datetime.datetime.now() - t0).total_seconds())
+                resultHypParam['iterPar'] = i
+                resultHypParam['iterNG'] = lng
+                resultHypParam['df_int'] = df_int
+
+                if hyper_fixed == True:
+                    xDecompVec = decompCollect['xDecompVec']
+                xDecompVec['intercept'] = xDecompAgg.loc[
+                    rn == "(intercept)", 'xDecompAgg']  # !! not sure about the argument 'xDecompAgg'
+                xDecompVec['mape'] = mape
+                xDecompVec['nrmse'] = nrmse
+                xDecompVec['decomp_rssd'] = decomp_rssd
+                # xDecompVec['adstock_ssid'] = adstock_ssisd
+                xDecompVec['rsq_train'] = mod_out['rsq_train']
+                # xDecompVec['rsq_test'] = mod_out['rsq_test']
+                xDecompVec['lambda'] = lambda_
+                xDecompVec['iterPar'] = i
+                xDecompVec['iterNG'] = lng
+                xDecompVec['df_int'] = df_int
+                else:
+                xDecompVec = None
+
+                xDecompAgg = decompCollect['xDecompAgg']
+                xDecompAgg['mape'] = mape
+                xDecompAgg['nrmse'] = nrmse
+                xDecompAgg['decomp_rssd'] = decomp_rssd
+                # xDecompAgg['adstock_ssid'] = adstock_ssisd
+                xDecompAgg['rsq_train'] = mod_out['rsq_train']
+                # xDecompAgg['rsq_test'] = mod_out['rsq_test']
+                xDecompAgg['lambda'] = lambda_
+                xDecompAgg['iterPar'] = i
+                xDecompAgg['iterNG'] = lng
+                xDecompAgg['df_int'] = df_int
+
+                if activate_calibration:
+                    liftCalibration = liftCollect.copy()
+                liftCalibration['mape'] = mape
+                liftCalibration['nrmse'] = nrmse
+                liftCalibration['decomp_rssd'] = decomp_rssd
+                # liftCalibration['adstock_ssid'] = adstock_ssisd
+                liftCalibration['rsq_train'] = mod_out['rsq_train']
+                # liftCalibration['rsq_test'] = mod_out['rsq_test']
+                liftCalibration['lambda'] = lambda_
+                liftCalibration['iterPar'] = i
+                liftCalibration['iterNG'] = lng
+                else:
+                liftCalibration = None
+
+                decompSpendDist = dt_decompSpendDist.copy()
+                decompSpendDist['mape'] = mape
+                decompSpendDist['nrmse'] = nrmse
+                decompSpendDist['decomp_rssd'] = decomp_rssd
+                # decompSpendDist['adstock_ssid'] = adstock_ssisd
+                decompSpendDist['rsq_train'] = mod_out['rsq_train']
+                # decompSpendDist['rsq_test'] = mod_out['rsq_test']
+                decompSpendDist['lambda'] = lambda_
+                decompSpendDist['iterPar'] = i
+                decompSpendDist['iterNG'] = lng
+                decompSpendDist['df_int'] = df_int
+
+                resultCollect = {'resultHypParam': resultHypParam, 'xDecompVec': xDecompVec, 'xDecompAgg': xDecompAgg,
+                'liftCalibration': liftCalibration, 'decompSpendDist': decompSpendDist, 'mape_lift': mape, 'nrmse': nrmse, 'decomp_rssd': decomp_rssd,
+                'iterPar': i, 'iterNG': lng, 'df_int': df_int}
+
+                bst_mape = min(best_mape, mape)
+                if cnt == iterTotal:  # !! probably should use self.cnt and self.iterTotal
+                    print("===")
+                print([
+                          "Optimizer_name: " + optimizer_name + ";  Total_iterations: " + cnt + ";   best_mape: " + best_mape])
+
+        return resultCollect
 
         # End dopar
         # End parallel
+
+        nrmse_collect = doparCollect.map(lambda x: x['nrmse'])
+        decomp_rssd_collect = doparCollect.map(lambda x: x['decomp_rssd'])
+        mape_lift_collect = doparCollect.map(lambda x: x['map_lift'])
+
 
         #####################################
         # Nevergrad tells objectives
