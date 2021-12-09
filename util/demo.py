@@ -8,7 +8,7 @@
 import pandas as pd
 
 # FOR TESTING
-from util.Python import debug as d, robyn as r
+from util import debug as d, robyn as r
 import importlib as il
 il.reload(r)
 il.reload(d)
