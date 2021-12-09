@@ -12,22 +12,23 @@ import rpy2.robjects as ro
 from rpy2.robjects import numpy2ri
 from collections import defaultdict
 from datetime import timedelta, datetime
-import matplotlib.pyplot as plt
 import math
-import os
 import time
 from prophet import Prophet
-# import weibull as weibull
 from scipy import stats
 from scipy.optimize import curve_fit
 from sklearn import preprocessing
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-from pypref import prefclasses as p
+# from pypref import prefclasses as p  #todo causes errors https://bachiraoun.github.io/pypref/
+import pypref as p  # todo temporary - 2021.12.09
 import nevergrad as ng
 from numba import njit, prange
 
-
+# todo review old packages and remove if necessary - 2021.12.09
+# import matplotlib.pyplot as plt
+# import os
+# import weibull as weibull
 
 
 
@@ -565,7 +566,9 @@ class Robyn(object):
         self.dt_inputRollWind = dt_inputRollWind
         self.modNLSCollect = modNLSCollect
         self.plotNLSCollect = plotNLSCollect
-        self.yhatNLSCollect = yhatNLSCollect
+        # todo - unresolved referenance yhatNLSCollect
+        # self.yhatNLSCollect = yhatNLSCollect
+        self.yhatNLSCollect = None
         self.costSelector = costSelector
         self.mediaCostFactor = mediaCostFactor
 
@@ -1151,14 +1154,15 @@ class Robyn(object):
                     nevergrad_hp_val[co] = nevergrad_hp[co].value
 
                     # scale sample to given bounds
-                    for hypNameLoop in hyper_bound_list_updated_name:
-                        index = [i for i in range(len(hypNameLoop)) if hypNameLoop[i] == hyper_bound_list_updated_name[i]]
-                        channelBound = hyper_bound_list_updated[hypNameLoop]
-                        hyppar_for_qunif = nevergrad_hp_val[co][index]
-                        hyppar_scaled = stats.uniform.ppf(hyppar_for_qunif, min(channelBound), max(channelBound)-min(channelBound))
-                        hypParamSamNG[hypNameLoop] = hyppar_scaled
-                    hypParamSamList[co] = pd.DataFrame(hypParamSamNG).T
-                hypParamSamNG = pd.DataFrame(hypParamSamList, columns=hyper_bound_list_updated_name)
+                    # todo hyper_bound_list_updated_name is an unresolved reference, blocked out below - 2021.12.09
+                #     for hypNameLoop in hyper_bound_list_updated_name:
+                #         index = [i for i in range(len(hypNameLoop)) if hypNameLoop[i] == hyper_bound_list_updated_name[i]]
+                #         channelBound = hyper_bound_list_updated[hypNameLoop]
+                #         hyppar_for_qunif = nevergrad_hp_val[co][index]
+                #         hyppar_scaled = stats.uniform.ppf(hyppar_for_qunif, min(channelBound), max(channelBound)-min(channelBound))
+                #         hypParamSamNG[hypNameLoop] = hyppar_scaled
+                #     hypParamSamList[co] = pd.DataFrame(hypParamSamNG).T
+                # hypParamSamNG = pd.DataFrame(hypParamSamList, columns=hyper_bound_list_updated_name)
 
             # Add fixed hyperparameters
             if hyper_count_fixed != 0:
@@ -1234,23 +1238,24 @@ class Robyn(object):
             lower_limit = []
             upper_limit = []
 
-            for s in range(len(check_factor)):
-                if check_factor[s]:
-                    level_n = dt_sign[s].unique()
-                    if level_n < 1:
-                        print('factor variables must have more than 1 level')
-                        break
-                    if x_sign[s] == 'positive':
-                        lower_vec = [0] * level_n - 1
-                        upper_vec = [float('inf')] * level_n - 1
-                    elif x_sign[s] == 'negative':
-                        lower_vec = [float('-inf')] * level_n - 1
-                        upper_vec = [0] * level_n - 1
-                    lower_limit.append(lower_vec)
-                    upper_limit.append(upper_vec)
-                else:
-                    lower_limit.append(0 if x_sign[s] == 'positive' else float('-inf'))
-                    upper_limit.append(0 if x_sign[s] == 'negative' else float('inf'))
+            # todo check_factor is an unresoved reference, commented out - 2021.12.09
+            # for s in range(len(check_factor)):
+            #     if check_factor[s]:
+            #         level_n = dt_sign[s].unique()
+            #         if level_n < 1:
+            #             print('factor variables must have more than 1 level')
+            #             break
+            #         if x_sign[s] == 'positive':
+            #             lower_vec = [0] * level_n - 1
+            #             upper_vec = [float('inf')] * level_n - 1
+            #         elif x_sign[s] == 'negative':
+            #             lower_vec = [float('-inf')] * level_n - 1
+            #             upper_vec = [0] * level_n - 1
+            #         lower_limit.append(lower_vec)
+            #         upper_limit.append(upper_vec)
+            #     else:
+            #         lower_limit.append(0 if x_sign[s] == 'positive' else float('-inf'))
+            #         upper_limit.append(0 if x_sign[s] == 'negative' else float('inf'))
 
 
         #####################################
@@ -1286,12 +1291,13 @@ class Robyn(object):
                             family="gaussian",
                             alpha=0,
                             #lambda_=lambda_,
-                            lower_limits=lower_limits,
-                            upper_limits=upper_limits,
+                            # todo unresolved references lower_limits, upper_limits- 2021.12.09
+                            # lower_limits=lower_limits,
+                            # upper_limits=upper_limits,
                             type_measure="mse"
                             )
 
-        #TODO remove this section after de-bugging
+        # todo remove this section after de-bugging
         '''
         x = np.arange(1, 25).reshape(12, 2)
         y = ro.FloatVector(np.array([0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0]))
@@ -1311,99 +1317,124 @@ class Robyn(object):
         #####################################
         ### Refit ridge regression with selected lambda from x-validation
 
-
         # If no lift calibration, refit using best lambda
-        if fixed_out:
-            mod_out = self.refit(x_train, y_train, lambda_=cvmod[10], lower_limits, upper_limits)
-            lambda_ = cvmod[10]
-        else:
-            mod_out = self.refit(x_train, y_train, lambda_=cvmod[0][i], lower_limits, upper_limits)
-            lambda_ = cvmod[0][i]
+        # todo Unresolved references fixed_out, lower_limits, upper_limits - 2021.12.09
+        # if fixed_out:
+        #     mod_out = self.refit(x_train, y_train, lambda_=cvmod[10], lower_limits, upper_limits)
+        #     lambda_ = cvmod[10]
+        # else:
+        #     mod_out = self.refit(x_train, y_train, lambda_=cvmod[0][i], lower_limits, upper_limits)
+        #     lambda_ = cvmod[0][i]
 
-        decomp_collect = self.model_decomp(coefs=mod_out['coefs'], dt_modSaturated = dt_modSaturated, x = x_train, y_pred = mod_out['y_pred'], i=i, dt_mod_rollwind = dt_modRollWind, refresh_added_start= refreshAddedStart)
+        # todo unresolved references mod_out - 2021.12.09
+        # decomp_collect = self.model_decomp(coefs=mod_out['coefs'], dt_modSaturated = dt_modSaturated, x = x_train,
+        # y_pred = mod_out['y_pred'], i=i, dt_mod_rollwind = dt_modRollWind, refresh_added_start= refreshAddedStart)
+        decomp_collect = None
 
-        nrmse = mod_out['nrmse_train']
+        # nrmse = mod_out['nrmse_train']
         mape = 0
-        df_int = mod_out['df_int']
+        # df_int = mod_out['df_int']
 
         #####################################
         # Get calibration mape
 
+        # todo unresolved references decomp_collect - 2021.12.09
         if self.activate_calibration:
-            liftCollect = self.calibrate_mmm(decompCollect= decomp_collect, set_lift=calibration_input, set_mediaVarName=paid_media_vars)
+            # liftCollect = self.calibrate_mmm(decompCollect= decomp_collect, set_lift=calibration_input,
+            # set_mediaVarName=paid_media_vars)
+            liftCollect = None
             mape = liftCollect['mape_lift'].mean()
 
         #####################################
         # Calculate multi-objectives for pareto optimality
 
-            # Decomp objective: sum of squared distance between decomp share and spend share to be minimised
-            xDecompAgg = decompCollect["xDecompAgg"]
-            dt_decompSpendDist = xDecompAgg.loc[
-                xDecompAgg.rn.isin(self.paid_media_vars), ["rn", "xDecompPerc", "xDecompMeanNon0Perc",
-                                                           "xDecompMeanNon0", "xDecompPercRF", "xDecompMeanNon0PercRF",
-                                                           "xDecompMeanNon0RF"]]
-            dt_decompSpendDist = pd.merge(dt_decompSpendDist,
-                                          dt_spendShare.loc[:, ["rn", "spend_share", "mean_spend", "total_spend"]],
-                                          how="left", on="rn")
-            dt_decompSpendDist["effect_share"] = dt_decompSpendDist["xDecompPerc"] / dt_decompSpendDist[
-                "xDecompPerc"].sum()
-            dt_decompSpendDist["effect_share_refresh"] = dt_decompSpendDist["xDecompPercRF"] / dt_decompSpendDist[
-                "xDecompPercRF"].sum()
-            xDecompAgg = pd.merge(xDecompAgg,
-                                  dt_decompSpendDist.loc[:, ["rn", "spend_share_refresh", "effect_share_refresh"]],
-                                  how="left", on="rn")
-            xDecompAgg["spend_share_refresh"] = xDecompAgg[
-                "i.spend_share_refresh"]  # not sure these variable are created with the same names in python (ie: with "i." in front)
-            xDecompAgg["effect_share_refresh"] = xDecompAgg[
-                "i.effect_share_refresh"]  # not sure these variable are created with the same names in python
+        # Decomp objective: sum of squared distance between decomp share and spend share to be minimised
+        # xDecompAgg = decompCollect["xDecompAgg"]
+        xDecompAgg = decomp_collect["xDecompAgg"]
+        dt_decompSpendDist = xDecompAgg.loc[
+            xDecompAgg.rn.isin(self.paid_media_vars), ["rn", "xDecompPerc", "xDecompMeanNon0Perc",
+                                                       "xDecompMeanNon0", "xDecompPercRF", "xDecompMeanNon0PercRF",
+                                                       "xDecompMeanNon0RF"]]
+        dt_decompSpendDist = pd.merge(dt_decompSpendDist,
+                                      # todo unresolved references dt_spendShare - 2021.12.09
+                                      # dt_spendShare.loc[:, ["rn", "spend_share", "mean_spend", "total_spend"]],
+                                      None,
+                                      how="left", on="rn")
+        dt_decompSpendDist["effect_share"] = dt_decompSpendDist["xDecompPerc"] / dt_decompSpendDist[
+            "xDecompPerc"].sum()
+        dt_decompSpendDist["effect_share_refresh"] = dt_decompSpendDist["xDecompPercRF"] / dt_decompSpendDist[
+            "xDecompPercRF"].sum()
+        xDecompAgg = pd.merge(xDecompAgg,
+                              dt_decompSpendDist.loc[:, ["rn", "spend_share_refresh", "effect_share_refresh"]],
+                              how="left", on="rn")
+        xDecompAgg["spend_share_refresh"] = xDecompAgg[
+            "i.spend_share_refresh"]  # not sure these variable are created with the same names in python
+        # (ie: with "i." in front)
+        xDecompAgg["effect_share_refresh"] = xDecompAgg[
+            "i.effect_share_refresh"]  # not sure these variable are created with the same names in python
 
-            if not refresh:
-                rssd = dt_decompSpendDist["effect_share"] - dt_decompSpendDist["spend_share"]
-                decomp_rssd = math.sqrt(rssd.pow(2).sum())
-            else:
-                xDecogmpAgg['decomp_perc'] = xDecogmpAgg["xDecompPerc"]
-                self.xDecompAggPrev['decomp_perc_prev'] = self.xDecompAggPrev['xDecompPerc']
-                dt_decompRF = pd.merge(xDecompAgg["rn", "decomp_perc"],
-                                       self.xDecompAggPrev.loc[:, ["rn", "decomp_perc_prev"]], how="left", on="rn")
-                rssd_nonmedia = dt_decompRF.loc[~dt_decompRF['rn'].isin(self.paid_media_vars), "decomp_perc"] - \
-                                dt_decompRF.loc[~dt_decompRF['rn'].isin(self.paid_media_vars), "decomp_perc_prev"]
-                decomp_rssd_nonmedia = math.sqrt(rssd_nonmedia.pow(2).mean())
-                rssd_media = dt_decompSpendDist.loc['effect_share_refresh'] - dt_decompSpendDist.loc[
-                    'spend_share_refresh']
-                decomp_rssd_media = math.sqrt(rssd_media.pow(2).mean())
-                decomp_rssd = decomp_rssd_media + decomp_rssd_nonmedia / (
-                            1 - self.refresh_steps / self.rollingWindowLength))
+        if not refresh:
+            rssd = dt_decompSpendDist["effect_share"] - dt_decompSpendDist["spend_share"]
+            decomp_rssd = math.sqrt(rssd.pow(2).sum())
+        else:
+            # dt_spendShare
+            # todo unresolved references xDecogmpAgg - 2021.12.09
+            # xDecogmpAgg['decomp_perc'] = xDecogmpAgg["xDecompPerc"]
+            self.xDecompAggPrev['decomp_perc_prev'] = self.xDecompAggPrev['xDecompPerc']
+            dt_decompRF = pd.merge(xDecompAgg["rn", "decomp_perc"],
+                                   self.xDecompAggPrev.loc[:, ["rn", "decomp_perc_prev"]], how="left", on="rn")
+            rssd_nonmedia = dt_decompRF.loc[~dt_decompRF['rn'].isin(self.paid_media_vars), "decomp_perc"] - \
+                            dt_decompRF.loc[~dt_decompRF['rn'].isin(self.paid_media_vars), "decomp_perc_prev"]
+            decomp_rssd_nonmedia = math.sqrt(rssd_nonmedia.pow(2).mean())
+            rssd_media = dt_decompSpendDist.loc['effect_share_refresh'] - dt_decompSpendDist.loc[
+                'spend_share_refresh']
+            decomp_rssd_media = math.sqrt(rssd_media.pow(2).mean())
+            # todo unresolved references decomp_rssd_media, decomp_rssd_nonmedia - 2021.12.09
+            # decomp_rssd = decomp_rssd_media + decomp_rssd_nonmedia / (
+            #             1 - self.refresh_steps / self.rollingWindowLength))
+            decomp_rssd = None
 
-                if math.isnan(decomp_rssd):  # using math library
-                    print("all media in this iteration have 0 coefficients")
-                decomp_rssd = math.inf  # using math library
-                dt_decompSpendDist["effect_share"] = 0
+            if math.isnan(decomp_rssd):  # using math library
+                print("all media in this iteration have 0 coefficients")
+            decomp_rssd = math.inf  # using math library
+            dt_decompSpendDist["effect_share"] = 0
 
-                # Adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
-                # dt_decaySum = dt_mediaVecCum.loc[:, set_mediaVarName].sum()
-                # adstock_ssisd = dt_decaySum.pow(2).sum()
+            # Adstock objective: sum of squared infinite sum of decay to be minimised? maybe not necessary
+            # dt_decaySum = dt_mediaVecCum.loc[:, set_mediaVarName].sum()
+            # adstock_ssisd = dt_decaySum.pow(2).sum()
 
-                # Calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
+            # Calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
 
-                #####################################
-                # Collect output
-                resultHypParam = pd.DataFrame()  # !! can't understand how to translate this : resultHypParam <- data.table()[, (hypParamSamName):= lapply(hypParamSam[1:length(hypParamSamName)], function(x) x)]
-                resultHypParam['mape'] = mape
-                resultHypParam['nrmse'] = nrmse
-                resultHypParam['decomp_rssd'] = decomp_rssd
-                # resultHypParam['adstock_ssid'] = adstock_ssisd
-                resultHypParam['rsq_train'] = mod_out['rsq_train']
-                # resultHypParam['rsq_test'] = mod_out['rsq_test']
-                resultHypParam['pos'] = np.prod(decompCollect['xDecompAgg']['pos'])  # using numpy library
-                resultHypParam['lambda'] = lambda_
-                resultHypParam['Elapsed'] = int((datetime.datetime.now() - t1).total_seconds())
-                resultHypParam['ElapsedAccum'] = int((datetime.datetime.now() - t0).total_seconds())
-                resultHypParam['iterPar'] = i
-                resultHypParam['iterNG'] = lng
-                resultHypParam['df_int'] = df_int
+            #####################################
+            # Collect output
+            # todo unresolved references - update manual variables later - 2021.12.09
+            nrmse = None
+            mod_out = None
+            decompCollect = None
+            lambda_ = None
+            df_int = pd.DataFrame()
+            activate_calibration = True
+            optimizer_name = None
+            rn = None
 
-                if hyper_fixed == True:
-                    xDecompVec = decompCollect['xDecompVec']
+
+            resultHypParam = pd.DataFrame()  # !! can't understand how to translate this : resultHypParam <- data.table()[, (hypParamSamName):= lapply(hypParamSam[1:length(hypParamSamName)], function(x) x)]
+            resultHypParam['mape'] = mape
+            resultHypParam['nrmse'] = nrmse
+            resultHypParam['decomp_rssd'] = decomp_rssd
+            # resultHypParam['adstock_ssid'] = adstock_ssisd
+            resultHypParam['rsq_train'] = mod_out['rsq_train']
+            # resultHypParam['rsq_test'] = mod_out['rsq_test']
+            resultHypParam['pos'] = np.prod(decompCollect['xDecompAgg']['pos'])  # using numpy library
+            resultHypParam['lambda'] = lambda_
+            resultHypParam['Elapsed'] = int((datetime.datetime.now() - t1).total_seconds())
+            resultHypParam['ElapsedAccum'] = int((datetime.datetime.now() - t0).total_seconds())
+            resultHypParam['iterPar'] = i
+            resultHypParam['iterNG'] = lng
+            resultHypParam['df_int'] = df_int
+
+            if hyper_fixed == True:
+                xDecompVec = decompCollect['xDecompVec']
                 xDecompVec['intercept'] = xDecompAgg.loc[
                     rn == "(intercept)", 'xDecompAgg']  # !! not sure about the argument 'xDecompAgg'
                 xDecompVec['mape'] = mape
@@ -1416,7 +1447,7 @@ class Robyn(object):
                 xDecompVec['iterPar'] = i
                 xDecompVec['iterNG'] = lng
                 xDecompVec['df_int'] = df_int
-                else:
+            else:
                 xDecompVec = None
 
                 xDecompAgg = decompCollect['xDecompAgg']
@@ -1431,8 +1462,8 @@ class Robyn(object):
                 xDecompAgg['iterNG'] = lng
                 xDecompAgg['df_int'] = df_int
 
-                if activate_calibration:
-                    liftCalibration = liftCollect.copy()
+            if activate_calibration:
+                liftCalibration = liftCollect.copy()
                 liftCalibration['mape'] = mape
                 liftCalibration['nrmse'] = nrmse
                 liftCalibration['decomp_rssd'] = decomp_rssd
@@ -1442,7 +1473,7 @@ class Robyn(object):
                 liftCalibration['lambda'] = lambda_
                 liftCalibration['iterPar'] = i
                 liftCalibration['iterNG'] = lng
-                else:
+            else:
                 liftCalibration = None
 
                 decompSpendDist = dt_decompSpendDist.copy()
@@ -1457,15 +1488,16 @@ class Robyn(object):
                 decompSpendDist['iterNG'] = lng
                 decompSpendDist['df_int'] = df_int
 
-                resultCollect = {'resultHypParam': resultHypParam, 'xDecompVec': xDecompVec, 'xDecompAgg': xDecompAgg,
-                'liftCalibration': liftCalibration, 'decompSpendDist': decompSpendDist, 'mape_lift': mape, 'nrmse': nrmse, 'decomp_rssd': decomp_rssd,
-                'iterPar': i, 'iterNG': lng, 'df_int': df_int}
+            resultCollect = {'resultHypParam': resultHypParam, 'xDecompVec': xDecompVec, 'xDecompAgg': xDecompAgg,
+                             'liftCalibration': liftCalibration, 'decompSpendDist': decompSpendDist, 'mape_lift': mape,
+                             'nrmse': nrmse, 'decomp_rssd': decomp_rssd, 'iterPar': i, 'iterNG': lng, 'df_int': df_int}
 
-                bst_mape = min(best_mape, mape)
-                if cnt == iterTotal:  # !! probably should use self.cnt and self.iterTotal
-                    print("===")
-                print([
-                          "Optimizer_name: " + optimizer_name + ";  Total_iterations: " + cnt + ";   best_mape: " + best_mape])
+            bst_mape = min(best_mape, mape)
+            if cnt == iterTotal:  # !! probably should use self.cnt and self.iterTotal
+                print("===")
+            print([
+                      "Optimizer_name: " + optimizer_name + ";  Total_iterations: " + cnt + ";   best_mape: " +
+                      best_mape])
 
         return resultCollect
 
@@ -1490,7 +1522,6 @@ class Robyn(object):
         # Final result collect
         resultCollect = []
 
-
     def fit(self,
             optimizer_name=None,
             set_trial=None,
@@ -1509,14 +1540,14 @@ class Robyn(object):
         if fixed_hyppar_dt is None:
             fixed_hyppar_dt = self.fixed_hyppar_dt
 
-        #plot_folder = os.getcwd()
-        #pareto_fronts = np.array[1, 2, 3]
+        # plot_folder = os.getcwd()
+        # pareto_fronts = np.array[1, 2, 3]
 
-        ### start system time
+        # start system time
 
         t0 = time.time()
 
-        ### check if plotting directory exists
+        # check if plotting directory exists
 
         # if (!dir.exists(plot_folder)) {
         # plot_folder < - getwd()
@@ -1612,7 +1643,8 @@ class Robyn(object):
                 # todo type of nglist?
                 px = p.low(ng_collect['nrmse']) * p.low(ng_collect['decomp.rssd'])
                 ng_collect = p.pref.psel(ng_collect, px, top=len(ng_collect)).sort_values(by=['trials','nrmse'])
-                ng_out =
+                # todo ng_out not defined
+                # ng_out =
             ng_out = ng_out.append(ng_out)
             ng_out.rename(columns={'.level', 'manual_pareto'})
 
