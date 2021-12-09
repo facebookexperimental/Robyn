@@ -330,7 +330,7 @@ robyn_run <- function(InputCollect,
     if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0
       || !is.null(InputCollect$factor_vars) && length(InputCollect$factor_vars) > 0)
     {
-      # pProphet <- prophet_plot_components(InputCollect$modelRecurrance, InputCollect$forecastRecurrance, render_plot = TRUE)
+      # pProphet <- prophet_plot_components(InputCollect$modelRecurrence, InputCollect$forecastRecurrence, render_plot = TRUE)
 
       dt_plotProphet <- InputCollect$dt_mod[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars), with = FALSE]
       dt_plotProphet <- suppressWarnings(melt.data.table(dt_plotProphet, id.vars = "ds"))
