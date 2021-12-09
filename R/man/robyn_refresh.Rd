@@ -6,6 +6,7 @@
 \usage{
 robyn_refresh(
   robyn_object,
+  plot_folder_sub = NULL,
   dt_input = dt_input,
   dt_holidays = dt_holidays,
   refresh_steps = 4,
@@ -18,6 +19,10 @@ robyn_refresh(
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
+
+\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
+path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+For example, plot_folder_sub = "sub_dir".}
 
 \item{dt_input}{A data.frame. Should include all previous data and newly added
 data for the refresh.}

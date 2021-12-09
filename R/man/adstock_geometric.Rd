@@ -9,7 +9,11 @@ adstock_geometric(x, theta)
 \arguments{
 \item{x}{A numeric vector.}
 
-\item{theta}{A numeric value. Indicates the decay rate of the geometric function.}
+\item{theta}{A numeric value. Theta is the only parameter and means fixed decay
+rate. Assuming TV spend on day 1 is 100€ and theta = 0.7, then day 2 has
+100 x 0.7 = 70€ worth of effect carried-over from day 1, day 3 has 70 x 0.7 = 49€
+from day 2 etc. Rule-of-thumb for common media genre: TV c(0.3, 0.8), OOH/Print/
+Radio c(0.1, 0.4), digital c(0, 0.3).}
 }
 \description{
 The geometric adstock function is the classic one-parametric adstock function.

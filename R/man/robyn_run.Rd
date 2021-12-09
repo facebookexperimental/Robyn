@@ -7,12 +7,15 @@
 robyn_run(
   InputCollect,
   plot_folder = getwd(),
+  plot_folder_sub = NULL,
   pareto_fronts = 1,
   plot_pareto = TRUE,
   calibration_constraint = 0.1,
   lambda_control = 1,
   refresh = FALSE,
   dt_hyper_fixed = NULL,
+  seed = 123L,
+  csv_out = "pareto",
   ui = FALSE
 )
 }
@@ -22,6 +25,10 @@ Required when \code{robyn_object} is not provided.}
 
 \item{plot_folder}{Character. Path for saving plots. Default
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
+
+\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
+path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+For example, plot_folder_sub = "sub_dir".}
 
 \item{pareto_fronts}{Integer. Number of Pareto fronts for the output.
 \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
@@ -35,12 +42,17 @@ calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 
 \item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
-lambda.min and lambda.1se}
+lambda.min and lambda.1se.}
 
-\item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}}
+\item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+
+\item{seed}{Integer. For reproducible results when running nevergrad.}
+
+\item{csv_out}{Character. Accepts "pareto" or "all". Default to "pareto". Set
+to "all" will output all iterations as csv.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 }
