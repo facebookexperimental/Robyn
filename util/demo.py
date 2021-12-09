@@ -6,17 +6,19 @@
 ########################################################################################################################
 # IMPORTS
 import pandas as pd
-from python.robyn_v02 import robyn as r
+from util import robyn as r
 
 # FOR TESTING
+from util import debug as d
 import importlib as il
 il.reload(r)
+il.reload(d)
 
 ########################################################################################################################
 # EXAMPLES - HOW TO USE THE CLASS
 
 # Initialize a Robyn object
-robyn = r.Robyn(country="DE", dateVarName='Date', depVarName='revenue', mediaVarName=[])
+robyn = r.Robyn()
 
 # See a parameter
 robyn.test_y_train
@@ -42,26 +44,35 @@ robyn.mod
 ########################################################################################################################
 # SCRIPT - DEMO OF HOW A USER WOULD USE THE PACKAGE
 
+####################################################
+# Step 0:  Setup environment
+
+####################################################
 # Step 1: INITIALIZE OBJECT
 # status: working version
 robyn = r.Robyn(country="DE", dateVarName='Date', depVarName='revenue'
                 , mediaVarName=["tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"])
 
+####################################################
 # Step 2: IMPORT DATA SET FOR PREDICTIONS
 df = pd.read_csv('source/de_simulated_data.csv')
 
+####################################################
 # Step 3: USER SET HYPERPARAMETER BOUNDS
 # status: #TODO needs to be implemented
 robyn.set_param_bounds()
 
+####################################################
 # Step 4: PREPARE DATA FOR MODELING
 # Status: working version
 df_mod = robyn.input_wrangling(df)
 
+####################################################
 # Step 5: FIT MODEL
 # status #TODO in progress mmm() and fit(), the fit() function is the robyn() function in the R version
 robyn.fit(df=df_mod)
 
+####################################################
 # Step 6: BUDGET ALLOCATOR
 # status: #TODO needs to be implemented
 robyn.allocate_budget(modID="3_10_2",
