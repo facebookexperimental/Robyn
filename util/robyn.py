@@ -25,20 +25,18 @@ import pypref as p  # todo temporary - 2021.12.09
 import nevergrad as ng
 from numba import njit, prange
 
+
 # todo review old packages and remove if necessary - 2021.12.09
 # import matplotlib.pyplot as plt
 # import os
 # import weibull as weibull
 
 
-
-
 ########################################################################################################################
 # MAIN
 
-
 class Robyn(object):
-
+    # todo argument names should be lowercase - 2021.12.09
     def __init__(self, country, dateVarName, depVarName, mediaVarName, dt_input):
 
         self.dt_input = dt_input
@@ -88,7 +86,7 @@ class Robyn(object):
         :param dt_transform:
         :return:
         """
-        ## check date input
+        # check date input
         inputLen = dt_transform['date_var'].shape[0]
         inputLenUnique = dt_transform['date_var'].unique()
         try:
@@ -96,12 +94,13 @@ class Robyn(object):
         except ValueError:
             print('input date variable should have format "yyyy-mm-dd"')
         if not self.date_var or self.date_var not in dt_transform.columns or len(self.date_var) > 1:
-            raise ValueError ('Must provide correct only 1 date variable name for date_var')
+            raise ValueError('Must provide correct only 1 date variable name for date_var')
         elif inputLen != inputLenUnique:
             raise ValueError('Date variable has duplicated dates. Please clean data first')
         elif dt_transform.isna().any(axis=None) or np.isinf(dt_transform).any():
             raise ValueError('dt_input has NA or Inf. Please clean data first')
 
+        # todo variable function should be lowercase - 2021.12.09
         dayInterval = dt_transform['ds'].nlargest(2)
         dayInterval = (dayInterval.iloc[0] - dayInterval.iloc[1]).days
         if dayInterval == 1:
@@ -115,7 +114,7 @@ class Robyn(object):
         self.dayInterval = dayInterval
         self.intervalType = intervalType
 
-        ## check dependent var
+        # check dependent var
         if not self.dep_var or self.dep_var not in dt_transform.columns or len(self.dep_var) > 1:
             raise ValueError('Must provide only 1 correct dependent variable name for dep_var')
         elif not pd.api.types.is_numeric_dtype(dt_transform[self.dep_var]):
@@ -123,7 +122,7 @@ class Robyn(object):
         elif self.dep_var_type not in ['conversion', 'revenue'] or len(self.dep_var_type) != 1:
             raise ValueError('dep_var_type must be conversion or revenue')
 
-        ## check prophet
+        # check prophet
         if not self.prophet_vars:
             self.prophet_signs = None
             self.prophet_country = None
@@ -137,9 +136,10 @@ class Robyn(object):
             print('prophet_signs is not provided. "default" is used')
         elif not set(self.prophet_signs).issubset({"positive", "negative", "default"}) or \
                 len(self.prophet_signs) != self.prophet_vars:
-            raise ValueError('prophet_signs must have same length as prophet_vars. allowed values are "positive", "negative", "default"')
+            raise ValueError(
+                'prophet_signs must have same length as prophet_vars. allowed values are "positive", "negative", "default"')
 
-        ## check baseline variables
+        # check baseline variables
         if not self.context_vars:
             self.context_signs = None
         elif not set(self.context_vars).issubset(dt_transform.columns):
@@ -147,11 +147,12 @@ class Robyn(object):
         elif not self.context_signs:
             self.context_signs = ['default'] * len(self.context_vars)
             print('context_signs is not provided. "default" is used')
-        elif len(self.context_signs) != len(self.context_vars) or set(self.context_signs).issubset({"positive", "negative", "default"}):
+        elif len(self.context_signs) != len(self.context_vars) or set(self.context_signs).issubset(
+                {"positive", "negative", "default"}):
             raise ValueError("context_signs must have same length as context_vars. allowed values are 'positive', "
                              "'negative', 'default'")
 
-        ## check paid media variables
+        # check paid media variables
         mediaVarCount = len(self.paid_media_vars)
         spendVarCount = len(self.paid_media_spends)
         if not self.paid_media_vars or not self.paid_media_spends:
@@ -161,7 +162,8 @@ class Robyn(object):
         elif not self.paid_media_signs:
             self.paid_media_signs = ['positive'] * mediaVarCount
             print("paid_media_signs is not provided. 'positive' is used")
-        elif len(self.paid_media_signs) != mediaVarCount or set(self.paid_media_signs).issubset({"positive", "negative", "default"}):
+        elif len(self.paid_media_signs) != mediaVarCount or set(self.paid_media_signs).issubset(
+                {"positive", "negative", "default"}):
             raise ValueError("paid_media_signs must have same length as context_vars. allowed values are 'positive', "
                              "'negative', 'default'")
         elif not set(self.paid_media_spends).issubset(dt_transform.columns):
@@ -172,36 +174,36 @@ class Robyn(object):
             raise ValueError('contains negative values. Media must be >=0')
         self.exposureVarName = list(set(self.paid_media_vars) - set(self.paid_media_spends))
 
-
-        ## check organic media variables
+        # check organic media variables
         if not set(self.organic_vars).issubset(dt_transform.columns):
             raise ValueError('Provided organic_vars is not included in input data')
         elif self.organic_vars and not self.organic_signs:
             self.organic_signs = ['positive'] * len(self.organic_vars)
             print("organic_signs is not provided. 'positive' is used")
-        elif len(self.organic_signs) != len(self.organic_vars) or set(self.organic_signs).issubset({"positive", "negative", "default"}):
+        elif len(self.organic_signs) != len(self.organic_vars) or set(self.organic_signs).issubset(
+                {"positive", "negative", "default"}):
             raise ValueError("organic_signs must have same length as context_vars. allowed values are 'positive', "
                              "'negative', 'default'")
 
-        ## check factor_vars
+        # check factor_vars
         if not self.factor_vars:
             if not set(self.factor_vars).issubset(self.context_vars + self.organic_vars):
                 raise ValueError('factor_vars must be from context_vars or organic_vars')
 
-        ## check all vars
+        # check all vars
         all_media = self.paid_media_vars + self.organic_vars
         self.all_media = all_media
         all_ind_vars = self.paid_media_vars + self.organic_vars + self.prophet_vars + self.context_vars
         if len(all_ind_vars) < len(set(all_ind_vars)):
             raise ValueError('Input variables must have unique names')
 
-        ## check data dimension
+        # check data dimension
         num_obs = dt_transform.shape[0]
         if num_obs < len(all_ind_vars) * 10:
             raise ValueError('There are' + str(len(all_ind_vars)) + 'independent variables &' + str(num_obs) +
                              'data points. We recommend row:column ratio >= 10:1')
 
-        ## check window_start & window_end
+        # check window_start & window_end
         try:
             self.window_start = min(pd.to_datetime(dt_transform[self.date_var], format='%Y-%m-%d', errors='raise'))
         except ValueError:
@@ -211,12 +213,14 @@ class Robyn(object):
             self.window_start = min(dt_transform[self.date_var])
         elif self.window_start < min(dt_transform[self.date_var]):
             self.window_start = min(dt_transform[self.date_var])
-            raise ValueError('window_start is smaller than the earliest date in input data. It\'s set to the earliest date')
+            raise ValueError('window_start is smaller than the earliest date in input data. '
+                             'It\'s set to the earliest date')
         elif self.window_start > max(dt_transform[self.date_var]):
             self.window_start = min(dt_transform[self.date_var])
             raise ValueError('window_start can\'t be larger than the the latest date in input data')
 
-        self.rollingWindowStartWhich = abs(pd.to_datetime(dt_transform[self.date_var] - pd.to_datetime(self.window_start))).idxmin()
+        self.rollingWindowStartWhich = abs(pd.to_datetime(dt_transform[self.date_var] -
+                                                          pd.to_datetime(self.window_start))).idxmin()
         if self.window_start not in dt_transform[self.date_var]:
             self.window_start = dt_transform[self.date_var][self.rollingWindowStartWhich]
             print('window_start is adapted to the closest date contained in input data')
@@ -245,48 +249,50 @@ class Robyn(object):
 
         self.rollingWindowLength = self.rollingWindowEndWhich - self.rollingWindowStartWhich + 1
 
-        dt_init = dt_transform.iloc[self.rollingWindowStartWhich:self.rollingWindowEndWhich+1,].loc[:, all_media]
+        dt_init = dt_transform.iloc[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1, ].loc[:, all_media]
         if not (dt_init != 0).any(axis=0).all(axis=0):
             raise ValueError('Some media channels contain only 0 within training period')
 
-        ## check adstock
+        # check adstock
         if self.adstock not in ['geometric', 'weibull']:
             raise ValueError('adstock must be "geometric" or "weibull"')
 
-        ## get all hypernames
+        # get all hypernames
 
         global_name = ["thetas", "shapes", "scales", "alphas", "gammas", "lambdas"]
         if self.adstock == 'geometric':
-            local_name = sorted(list([i+"_"+str(j) for i in ['thetas','alphas','gamma'] for j in global_name]))
+            local_name = sorted(list([i + "_" + str(j) for i in ['thetas', 'alphas', 'gamma'] for j in global_name]))
         elif self.adstock == 'weibull':
-            local_name = sorted(list([i+"_"+str(j) for i in ['shapes','scales','alphas','gamma'] for j in global_name]))
+            local_name = sorted(
+                list([i + "_" + str(j) for i in ['shapes', 'scales', 'alphas', 'gamma'] for j in global_name]))
 
-        ## check hyperparameter names in hyperparameters
+        # check hyperparameter names in hyperparameters
 
-        ## output condition check
+        # output condition check
         # when hyperparameters is not provided
         if not self.hyperparameters:
             raise ValueError("\nhyperparameters is not provided yet. run Robyn(...hyperparameter = ...) to add it\n")
         # when hyperparameters is provided wrongly
         elif set(self.exposureVarName) != set(self.local_name):
-            raise ValueError('hyperparameters must be a list and contain vectors or values' )
+            raise ValueError('hyperparameters must be a list and contain vectors or values')
         else:
             # check calibration
             if self.calibration_input:
                 if (min(self.calibration_input['liftStartDate']) < min(dt_transform[self.date_var])
-                    or max(self.calibration_input['liftStartDate']) > max(dt_transform[self.date_var])):
+                        or max(self.calibration_input['liftStartDate']) > max(dt_transform[self.date_var])):
                     raise ValueError('we recommend you to only use experimental results conducted within your MMM input'
-                                     'data date range')
+                                     ' data date range')
 
                 elif self.iterations < 2000 or self.trials < 10:
-                    raise ValueError('you are calibrating MMM. we recommend to run at least 2000 iterations per trial and '
-                                 'at least 10 trials at the beginning')
+                    raise ValueError('you are calibrating MMM. we recommend to run at least 2000 iterations per trial '
+                                     'and at least 10 trials at the beginning')
                 elif self.iterations < 2000 or self.trials < 5:
-                    raise ValueError('we recommend to run at least 2000 iterations per trial and at least 5 trials at the beginning')
+                    raise ValueError('we recommend to run at least 2000 iterations per trial and at least 5 trials at '
+                                     'the beginning')
 
-                #when all provided once correctly
+                # when all provided once correctly
                 print('\nAll input in robyn_inputs() correct. Ready to run robyn_run(...)')
-                #dt_new = self.robyn_engineering(dt_transform)
+                # dt_new = self.robyn_engineering(dt_transform)
 
             elif not self.hyperparameters:
                 raise ValueError("hyperparameters is not provided yet")
@@ -308,7 +314,8 @@ class Robyn(object):
         #     if self.lift.shape[0] == 0:
         #         raise ValueError('please provide lift result or set activate_calibration = FALSE')
         #     if (min(self.lift['liftStartDate']) < min(dt_transform['ds'])
-        #             or (max(self.lift['liftEndDate']) > max(dt_transform['ds']) + timedelta(days=self.dayInterval - 1))):
+        #             or (max(self.lift['liftEndDate']) > max(dt_transform['ds']) +
+        #             timedelta(days=self.dayInterval - 1))):
         #         raise ValueError(
         #             'we recommend you to only use lift results conducted within your MMM input data date range')
         #
@@ -334,22 +341,22 @@ class Robyn(object):
 
     def robyn_engineering(self, dt):
         """
-
+            # todo - why do we have these remnant parameters?  Do we need them?  2021.12.09
             :param dt:
-            :param dt_holiday:
-            :param d:
-            :param set_lift:
-            :param set_hyperBoundLocal:
+            # :param dt_holiday:
+            # :param d:
+            # :param set_lift:
+            # :param set_hyperBoundLocal:
             :return: (DataFrame, dict)
             """
 
-
-        dt_inputRollWind = dt[self.rollingWindowStartWhich:self.rollingWindowEndWhich+1]
+        dt_inputRollWind = dt[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
         dt_transform = dt.copy().reset_index()
         dt_transform = dt_transform.rename({self.date_var: 'ds'}, axis=1)
         dt_transform['ds'] = pd.to_datetime(dt_transform['ds'], format='%Y-%m-%d')
         dt_transform = dt_transform.rename({self.dep_var: 'depVar'}, axis=1)
-        dt_transformRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich+1]
+        # todo - variable not used dt_transformRollWind and should be lowercase - 2021.12.09
+        dt_transformRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
 
         self.df_holidays['ds'] = pd.to_datetime(self.df_holidays['ds'], format='%Y-%m-%d')
         # # check date format
@@ -399,10 +406,11 @@ class Robyn(object):
         # mediaVarCount = len(self.mediaVarName)
 
         ################################################################
-        #### model reach metric from spend
+        # model reach metric from spend
         mediaCostFactor = pd.DataFrame(dt_inputRollWind[self.paid_media_spends].sum(axis=0),
                                        columns=['total_spend']).reset_index()
-        var_total = pd.DataFrame(dt_inputRollWind[self.paid_media_vars].sum(axis=0), columns=['total_var']).reset_index()
+        var_total = pd.DataFrame(dt_inputRollWind[self.paid_media_vars].sum(axis=0),
+                                 columns=['total_var']).reset_index()
         mediaCostFactor['mediaCostFactor'] = mediaCostFactor['total_spend'] / var_total['total_var']
         mediaCostFactor = mediaCostFactor.drop(columns=['total_spend'])
         costSelector = pd.Series(self.paid_media_spends) != pd.Series(self.paid_media_vars)
@@ -427,11 +435,12 @@ class Robyn(object):
                     # y = michaelis_menten(dt_spendModInput[d['set_mediaSpendName'][i]], vmax, km)
                     try:
                         popt, pcov = curve_fit(self.michaelis_menten, dt_spendModInput[self.paid_media_spends[i]],
-                                           dt_spendModInput['reach'])
+                                               dt_spendModInput['reach'])
 
                         yhatNLS = self.michaelis_menten(dt_spendModInput[self.paid_media_spends[i]], *popt)
                     except ValueError:
-                        print('michaelis menten fitting for' + str(self.paid_media_vars[i]) + ' out of range. using lm instead')
+                        print('michaelis menten fitting for' + str(
+                            self.paid_media_vars[i]) + ' out of range. using lm instead')
                         popt = None
                         pcov = None
                         yhatNLS = None
@@ -448,7 +457,7 @@ class Robyn(object):
                     costSelector[i] = rsq_nls > rsq_lm
 
                     modNLSCollect[self.paid_media_spends[i]] = {'vmax': popt[0], 'km': popt[1], 'rsq_lm': rsq_lm,
-                                                             'rsq_nls': rsq_nls, 'coef_lm': lm.coef_}
+                                                                'rsq_nls': rsq_nls, 'coef_lm': lm.coef_}
 
                     yhat_dt = pd.DataFrame(dt_spendModInput['reach']).rename(columns={'reach': 'y'})
                     yhat_dt['channel'] = self.paid_media_vars[i]
@@ -470,7 +479,7 @@ class Robyn(object):
         self.getSpendSum = getSpendSum
 
         ################################################################
-        #### clean & aggregate data
+        # clean & aggregate data
         # all_name = [['ds'], ['depVar'], self.prophet_vars, self.context_vars, self.paid_media_vars]
         # all_name = set([item for sublist in all_name for item in sublist])
         # # all_mod_name = [['ds'], ['depVar'], d['set_prophet'], d['set_baseVarName'], d['set_mediaVarName']]
@@ -478,7 +487,7 @@ class Robyn(object):
         # if len(all_name) != len(set(all_name)):
         #     raise ValueError('Input variables must have unique names')
 
-        ## transform all factor variables
+        # transform all factor variables
         if self.factor_vars:
             if len(self.factor_vars) > 0:
                 dt_transform[self.factor_vars].apply(lambda x: x.astype('category'))
@@ -486,7 +495,7 @@ class Robyn(object):
                 self.factor_vars = None
 
         ################################################################
-        #### Obtain prophet trend, seasonality and changepoints
+        # Obtain prophet trend, seasonality and changepoints
 
         if self.prophet_vars:
             if len(self.prophet_vars) != len(self.prophet_signs):
@@ -514,7 +523,8 @@ class Robyn(object):
                 else:
                     raise ValueError('week start has to be Monday or Sunday')
                 self.df_holidays['weekday'] = self.df_holidays['ds'].apply(lambda x: x.weekday())
-                self.df_holidays['dsWeekStart'] = self.df_holidays.apply(lambda x: x['ds'] - timedelta(days=x['weekday']), axis=1)
+                self.df_holidays['dsWeekStart'] = self.df_holidays.apply(
+                    lambda x: x['ds'] - timedelta(days=x['weekday']), axis=1)
                 self.df_holidays['ds'] = self.df_holidays['dsWeekStart']
                 self.df_holidays = self.df_holidays.drop(['dsWeekStart', 'weekday'], axis=1)
                 holidays = self.df_holidays.groupby(['ds', 'country', 'year'])['holiday'].apply(
@@ -524,7 +534,8 @@ class Robyn(object):
                 monthStartInput = dt_transform['ds'][0].strftime("%d")
                 if monthStartInput != '01':
                     raise ValueError("monthly data should have first day of month as datestampe, e.g.'2020-01-01'")
-                self.df_holidays['month'] = self.df_holidays['ds'] + pd.offsets.MonthEnd(0) - pd.offsets.MonthBegin(normalize=True)
+                self.df_holidays['month'] = self.df_holidays['ds'] + pd.offsets.MonthEnd(0) - pd.offsets.MonthBegin(
+                    normalize=True)
                 self.df_holidays['ds'] = self.df_holidays['month']
                 self.df_holidays.drop(['month'], axis=1)
                 holidays = self.df_holidays.groupby(['ds', 'country', 'year'])['holiday'].apply(
@@ -557,12 +568,13 @@ class Robyn(object):
                 dt_transform['trend'] = fc_holiday
 
         ################################################################
-        #### Finalize input
+        # Finalize input
         # dt_transform < - dt_transform[, c("ds", "dep_var", all_ind_vars),
-        #with = FALSE]
+        # with = FALSE]
 
+        # todo - move parameters to INIT - 2021.12.09
         self.dt_mod = dt_transform
-        self.dt_modRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich+1]
+        self.dt_modRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
         self.dt_inputRollWind = dt_inputRollWind
         self.modNLSCollect = modNLSCollect
         self.plotNLSCollect = plotNLSCollect
@@ -573,8 +585,6 @@ class Robyn(object):
         self.mediaCostFactor = mediaCostFactor
 
         return None
-
-
 
     def set_param_bounds(self):
         """
@@ -619,11 +629,10 @@ class Robyn(object):
             x_decayed[i] = x[i] + theta * x_decayed[i - 1]
 
         thetaVecCum = theta
-        for t in range(1,len(x)):
-            thetaVecCum[t] = thetaVecCum[t-1] * theta
+        for t in range(1, len(x)):
+            thetaVecCum[t] = thetaVecCum[t - 1] * theta
 
         return x_decayed, thetaVecCum
-
 
     @staticmethod
     def helperWeibull(x, y, vec_cum, n):
@@ -709,10 +718,10 @@ class Robyn(object):
         else:
             print("alternative must be geometric or weibull")
 
-        ## step 2: normalize decayed independent variable # deprecated
+        # step 2: normalize decayed independent variable # deprecated
         # x_normalized = x_decayed
 
-        ## step 3: s-curve transformation
+        # step 3: s-curve transformation
         gammaTrans = round(np.quantile(np.linspace(min(x_decayed), max(x_decayed), 100), gamma), 4)
         x_scurve = x_decayed ** alpha / (x_decayed ** alpha + gammaTrans ** alpha)
         # x_scurve.plot()
@@ -755,7 +764,7 @@ class Robyn(object):
         return x_out
 
     @staticmethod
-    def get_rsq(val_actual, val_predicted, p = None, df_int = None ):
+    def get_rsq(val_actual, val_predicted, p=None, df_int=None):
         # Changed "true" to val_actual because Python could misinterpret True
         """
         :param val_actual: actual value
@@ -772,7 +781,7 @@ class Robyn(object):
         if (p is not None) & (df_int is not None):
             n = len(val_actual)
             rdf = n - p - 1
-            rsq = 1- (1 - rsq) * ((n - df_int) / rdf)
+            rsq = 1 - (1 - rsq) * ((n - df_int) / rdf)
 
         return rsq
 
@@ -784,6 +793,8 @@ class Robyn(object):
             ----------
             x: matrix
             y: vector
+            seq_len:
+            lambda_min_ratio:
             Returns
             -------
             lambda sequence
@@ -799,7 +810,7 @@ class Robyn(object):
         sxy = sxy.T
         # return sxy
         lambda_max = max(abs(sxy.sum(axis=0)) / (
-                0.001 * x.shape[0]))  # 0.001 is the default smalles alpha value of glmnet for ridge (alpha = 0)
+                0.001 * x.shape[0]))  # 0.001 is the default smalls alpha value of glmnet for ridge (alpha = 0)
         lambda_max_log = math.log(lambda_max)
 
         log_step = (math.log(lambda_max) - math.log(lambda_max * lambda_min_ratio)) / (seq_len - 1)
@@ -818,20 +829,20 @@ class Robyn(object):
         :return: Collection of decomposition output
         """
 
-        ## input for decomp
+        # input for decomp
         y = dt_mod_saturated["depVar"]
         indepVar = dt_mod_saturated.loc[:, dt_mod_saturated.columns != 'depVar']
         intercept = coefs.iloc[0]
         indepVarName = indepVar.columns.tolist()
         indepVarCat = indepVar.select_dtypes(['category']).columns.tolist()
 
-        ## decomp x
+        # decomp x
         xDecomp = x * coefs.iloc[1:]
         xDecomp.insert(loc=0, column='intercept', value=[intercept] * len(x))
         xDecompOut = pd.concat([pd.DataFrame({'ds': dt_mod_rollwind["ds"], 'y': y, 'y_pred': y_pred}),
                                 xDecomp], axis=1)
 
-        ## QA decomp
+        # QA decomp
         y_hat = xDecomp.sum(axis=1)
         errorTerm = y_hat - y_pred
         if np.prod(round(y_pred) == round(y_hat)) == 0:
@@ -841,7 +852,7 @@ class Robyn(object):
                 str(np.mean(errorTerm / y) * 100) + "% ###"
             )
 
-        ## output decomp
+        # output decomp
         y_hat_scaled = abs(xDecomp).sum(axis=1)
         xDecompOutPerc_scaled = abs(xDecomp).div(y_hat_scaled, axis=0)
         xDecompOut_scaled = xDecompOutPerc_scaled.multiply(y_hat, axis=0)
@@ -855,10 +866,12 @@ class Robyn(object):
         refreshAddedEnd = xDecompOut["ds"].iloc[-1]
         refreshAddedEndWhich = xDecompOut["ds"][xDecompOut["ds"] == refreshAddedEnd].index[0]
 
-        xDecompOutAggRF = xDecompOut[refreshAddedStartWhich:refreshAddedEndWhich][['intercept'] + indepVarName].sum(axis=0)
+        xDecompOutAggRF = xDecompOut[refreshAddedStartWhich:refreshAddedEndWhich][['intercept'] + indepVarName].sum(
+            axis=0)
         y_hatRF = y_hat[refreshAddedStartWhich:refreshAddedEndWhich]
         xDecompOutAggPercRF = xDecompOutAggRF / sum(y_hatRF)
-        xDecompOutAggMeanNon0RF = xDecompOut[refreshAddedStartWhich:refreshAddedEndWhich][['intercept'] + indepVarName].mean(axis=0).clip(lower=0)
+        xDecompOutAggMeanNon0RF = xDecompOut[refreshAddedStartWhich:refreshAddedEndWhich][
+            ['intercept'] + indepVarName].mean(axis=0).clip(lower=0)
         xDecompOutAggMeanNon0PercRF = xDecompOutAggMeanNon0RF / sum(xDecompOutAggMeanNon0RF)
 
         coefsOut = coefs.reset_index(inplace=False)
@@ -896,48 +909,50 @@ class Robyn(object):
 
     def calibrate_mmm(self, decompCollect, set_lift, set_mediaVarName):
 
-         lift_channels = list(set_lift.channel)
-         check_set_lift = all(item in set_mediaVarName for item in lift_channels)
-         if check_set_lift:
-             getLiftMedia = list(set(lift_channels))
-             getDecompVec = decompCollect['xDecompVec']
-         else:
-             exit("set_lift channels must have media variable")
+        lift_channels = list(set_lift.channel)
+        check_set_lift = all(item in set_mediaVarName for item in lift_channels)
+        if check_set_lift:
+            getLiftMedia = list(set(lift_channels))
+            getDecompVec = decompCollect['xDecompVec']
+        else:
+            exit("set_lift channels must have media variable")
+        # loop all lift input
+        liftCollect = pd.DataFrame(columns=['liftMedia', 'liftStart', 'liftEnd',
+                                            'liftAbs', 'decompAbsScaled', 'dependent'])
+        for m in getLiftMedia:  # loop per lift channel
+            liftWhich = list(set_lift.loc[set_lift.channel.isin([m])].index)
+            liftCollect2 = pd.DataFrame(columns=['liftMedia', 'liftStart', 'liftEnd',
+                                                 'liftAbs', 'decompAbsScaled', 'dependent'])
+            for lw in liftWhich:  # loop per lift test per channel
+                # get lift period subset
+                liftStart = set_lift['liftStartDate'].iloc[lw]
+                liftEnd = set_lift['liftEndDate'].iloc[lw]
+                liftAbs = set_lift['liftAbs'].iloc[lw]
+                liftPeriodVec = getDecompVec[['ds', m]][(getDecompVec.ds >= liftStart) & (getDecompVec.ds <= liftEnd)]
+                liftPeriodVecDependent = getDecompVec[['ds', 'y']][
+                    (getDecompVec.ds >= liftStart) & (getDecompVec.ds <= liftEnd)]
 
-         # loop all lift input
-         liftCollect = pd.DataFrame(columns = ['liftMedia', 'liftStart', 'liftEnd' ,
-                                               'liftAbs', 'decompAbsScaled', 'dependent'])
-         for m in getLiftMedia: # loop per lift channel
-             liftWhich = list(set_lift.loc[set_lift.channel.isin([m])].index)
-             liftCollect2 = pd.DataFrame(columns = ['liftMedia', 'liftStart', 'liftEnd' ,
-                                                    'liftAbs', 'decompAbsScaled', 'dependent'])
-             for lw in liftWhich: # loop per lift test per channel
-                 # get lift period subset
-                 liftStart = set_lift['liftStartDate'].iloc[lw]
-                 liftEnd = set_lift['liftEndDate'].iloc[lw]
-                 liftAbs = set_lift['liftAbs'].iloc[lw]
-                 liftPeriodVec = getDecompVec[['ds', m]][(getDecompVec.ds >= liftStart) & (getDecompVec.ds <= liftEnd)]
-                 liftPeriodVecDependent = getDecompVec[['ds', 'y']][(getDecompVec.ds >= liftStart) & (getDecompVec.ds <= liftEnd)]
+                # scale decomp
+                mmmDays = len(liftPeriodVec) * 7
+                liftDays = abs((liftEnd - liftStart).days) + 1
+                y_hatLift = getDecompVec['y_hat'].sum()  # total predicted sales
+                x_decompLift = liftPeriodVec.iloc[:1].sum()
+                x_decompLiftScaled = x_decompLift / mmmDays * liftDays
+                y_scaledLift = liftPeriodVecDependent['y'].sum() / mmmDays * liftDays
 
-                 # scale decomp
-                 mmmDays = len(liftPeriodVec)*7
-                 liftDays = abs((liftEnd - liftStart).days) + 1
-                 y_hatLift = getDecompVec['y_hat'].sum() # total predicted sales
-                 x_decompLift = liftPeriodVec.iloc[:1].sum()
-                 x_decompLiftScaled = x_decompLift / mmmDays * liftDays
-                 y_scaledLift = liftPeriodVecDependent['y'].sum() / mmmDays * liftDays
+                # output
+                list_to_append = [[getLiftMedia[m], liftStart, liftEnd, liftAbs, x_decompLiftScaled, y_scaledLift]]
+                liftCollect2 = liftCollect2.append(pd.DataFrame(list_to_append,
+                                                                columns=['liftMedia', 'liftStart', 'liftEnd',
+                                                                         'liftAbs', 'decompAbsScaled', 'dependent'],
+                                                                ignore_index=True)
+                                                   )
+            liftCollect = liftCollect.append(liftCollect2, ignore_index=True)
+        # get mape_lift
+        liftCollect['mape_lift'] = abs(
+            (liftCollect['decompAbsScaled'] - liftCollect['liftAbs']) / liftCollect['liftAbs'])
 
-                 # output
-                 list_to_append = [[getLiftMedia[m], liftStart, liftEnd, liftAbs, x_decompLiftScaled, y_scaledLift]]
-                 liftCollect2 = liftCollect2.append(pd.DataFrame(list_to_append,
-                                                                 columns = ['liftMedia', 'liftStart', 'liftEnd' ,
-                                                                            'liftAbs', 'decompAbsScaled', 'dependent'],
-                                                                 ignore_index = True))
-             liftCollect = liftCollect.append(liftCollect2, ignore_index = True)
-         #get mape_lift
-         liftCollect['mape_lift'] = abs((liftCollect['decompAbsScaled'] - liftCollect['liftAbs']) / liftCollect['liftAbs'])
-
-         return liftCollect
+        return liftCollect
 
     def refit(self, x_train, y_train, lambda_: int, lower_limits: list, upper_limits: list):
 
@@ -1061,8 +1076,9 @@ class Robyn(object):
         if hyper_count == 0:
             hyper_fixed = True
             if lambda_fixed is None:
-                raise ValueError('when hyperparameters are fixed, lambda_fixed must be provided from the selected lambda'
-                                 ' in old model')
+                raise ValueError(
+                    'when hyperparameters are fixed, lambda_fixed must be provided from the selected lambda'
+                    ' in old model')
 
         if self.cores > 1:
             dt_hyperFixed = pd.DataFrame([np.repeat(hyper_bound_list_fixed[i], self.cores)
@@ -1071,14 +1087,14 @@ class Robyn(object):
             dt_hyperFixed = pd.Dataframe([hyper_bound_list_fixed])
 
         ################################################
-        ### Setup environment
+        # Setup environment
 
         try:
             self.dt_mod
         except NameError:
             print("robyn_engineering() first to get the dt_mod")
 
-        ## get environment for parallel backend
+        # get environment for parallel backend
         dt_input = self.dt_input
         dt_mod = self.dt_mod.copy()
         xDecompAggPrev = self.xDecompAggPrev
@@ -1100,15 +1116,14 @@ class Robyn(object):
         prophet_signs = self.prophet_signs
         organic_signs = self.organic_signs
         all_media = self.all_media
-        #factor_vars = self.factor_vars
+        # factor_vars = self.factor_vars
         calibration_input = self.calibration_input
         nevergrad_algo = self.nevergrad_algo
         cores = self.cores
 
         ################################################
-        #### Get spend share
+        # Get spend share
         dt_inputTrain = self.dt_input[rollingWindowStartWhich:rollingWindowEndWhich]
-
 
         ################################################
         # Start Nevergrad loop
@@ -1123,17 +1138,18 @@ class Robyn(object):
             iterTotal = 1
             iterPar = 1
 
-        iterNG = math.ceil(self.iterations/self.cores) if hyper_fixed is False else 1
+        iterNG = math.ceil(self.iterations / self.cores) if hyper_fixed is False else 1
 
         # Start Nevergrad optimiser
         if len(hyper_bound_list_updated) != 0:
             my_tuple = tuple(hyper_count)
-            instrumentation = ng.p.Array(shape=my_tuple, lower=0.0,upper=1.0)
-            optimizer = ng.optimizers.registry[self.nevergrad_algo](instrumentation, budget=iterTotal, num_workers=self.cores)
+            instrumentation = ng.p.Array(shape=my_tuple, lower=0.0, upper=1.0)
+            optimizer = ng.optimizers.registry[self.nevergrad_algo](instrumentation, budget=iterTotal,
+                                                                    num_workers=self.cores)
             if not self.calibration_input:
-                optimizer.tell(ng.p.MultiobjectiveReference(),(1.0, 1.0))
+                optimizer.tell(ng.p.MultiobjectiveReference(), (1.0, 1.0))
             else:
-                optimizer.tell(ng.p.MultiobjectiveReference(),(1.0, 1.0, 1.0))
+                optimizer.tell(ng.p.MultiobjectiveReference(), (1.0, 1.0, 1.0))
 
         # Start loop
         resultCollectNG = []
@@ -1156,10 +1172,12 @@ class Robyn(object):
                     # scale sample to given bounds
                     # todo hyper_bound_list_updated_name is an unresolved reference, blocked out below - 2021.12.09
                 #     for hypNameLoop in hyper_bound_list_updated_name:
-                #         index = [i for i in range(len(hypNameLoop)) if hypNameLoop[i] == hyper_bound_list_updated_name[i]]
+                #         index = [i for i in range(len(hypNameLoop)) if hypNameLoop[i] ==
+                #         hyper_bound_list_updated_name[i]]
                 #         channelBound = hyper_bound_list_updated[hypNameLoop]
                 #         hyppar_for_qunif = nevergrad_hp_val[co][index]
-                #         hyppar_scaled = stats.uniform.ppf(hyppar_for_qunif, min(channelBound), max(channelBound)-min(channelBound))
+                #         hyppar_scaled = stats.uniform.ppf(hyppar_for_qunif, min(channelBound),
+                #         max(channelBound)-min(channelBound))
                 #         hypParamSamNG[hypNameLoop] = hyppar_scaled
                 #     hypParamSamList[co] = pd.DataFrame(hypParamSamNG).T
                 # hypParamSamNG = pd.DataFrame(hypParamSamList, columns=hyper_bound_list_updated_name)
@@ -1206,7 +1224,7 @@ class Robyn(object):
                 mediaAdstocked.append(m_adstocked)
                 mediaVecCum.append(x_list[1])
 
-                m_adstockedRollWind = m_adstocked[self.rollingWindowStartWhich:self.rollingWindowEndWhich+1]
+                m_adstockedRollWind = m_adstocked[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
                 alpha = hypParamSam[all_media[v] + '_alphas']
                 gamma = hypParamSam[all_media[v] + '_gammas']
                 mediaSaturated.append(self.saturation_hill(x=m_adstockedRollWind, alpha=alpha, gamma=gamma))
@@ -1216,9 +1234,8 @@ class Robyn(object):
             dt_mediaVecCum = pd.DataFrame(mediaVecCum, columns=all_media)
 
             mediaSaturated = pd.DataFrame(mediaSaturated, columns=all_media)
-            dt_modSaturated = dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich+1]
+            dt_modSaturated = dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich + 1]
             dt_modSaturated[[all_media]] = mediaSaturated
-
 
             #####################################
             # Split and prepare data for modelling
@@ -1230,10 +1247,10 @@ class Robyn(object):
             R = ro.r
             x_train = R('model.matrix(dep_var ~ ., dt_train)[, -1]')
 
-            ## define sign control
+            # define sign control
             dt_sign = dt_modSaturated.drop(['dep_var'], axis=1)
             x_sign = self.prophet_signs + self.context_signs + self.paid_media_signs + self.organic_signs
-            #check_factor =
+            # check_factor =
 
             lower_limit = []
             upper_limit = []
@@ -1257,9 +1274,8 @@ class Robyn(object):
             #         lower_limit.append(0 if x_sign[s] == 'positive' else float('-inf'))
             #         upper_limit.append(0 if x_sign[s] == 'negative' else float('inf'))
 
-
         #####################################
-        ### Fit ridge regression with x-validation
+        # Fit ridge regression with x-validation
 
         # TODO discussion on utlizing python glmnet instead of calling r function
         # https://glmnet-python.readthedocs.io/en/latest/glmnet_vignette.html
@@ -1290,7 +1306,7 @@ class Robyn(object):
                             y=ro.FloatVector(y_train),
                             family="gaussian",
                             alpha=0,
-                            #lambda_=lambda_,
+                            # lambda_=lambda_,
                             # todo unresolved references lower_limits, upper_limits- 2021.12.09
                             # lower_limits=lower_limits,
                             # upper_limits=upper_limits,
@@ -1313,9 +1329,8 @@ class Robyn(object):
         mod[10]
         '''
 
-
         #####################################
-        ### Refit ridge regression with selected lambda from x-validation
+        # Refit ridge regression with selected lambda from x-validation
 
         # If no lift calibration, refit using best lambda
         # todo Unresolved references fixed_out, lower_limits, upper_limits - 2021.12.09
@@ -1417,8 +1432,10 @@ class Robyn(object):
             optimizer_name = None
             rn = None
 
-
-            resultHypParam = pd.DataFrame()  # !! can't understand how to translate this : resultHypParam <- data.table()[, (hypParamSamName):= lapply(hypParamSam[1:length(hypParamSamName)], function(x) x)]
+            resultHypParam = pd.DataFrame()
+            # todo - update this - 2021.12.09
+            # !! can't understand how to translate this : resultHypParam <-
+            # data.table()[, (hypParamSamName):= lapply(hypParamSam[1:length(hypParamSamName)], function(x) x)]
             resultHypParam['mape'] = mape
             resultHypParam['nrmse'] = nrmse
             resultHypParam['decomp_rssd'] = decomp_rssd
@@ -1433,7 +1450,7 @@ class Robyn(object):
             resultHypParam['iterNG'] = lng
             resultHypParam['df_int'] = df_int
 
-            if hyper_fixed == True:
+            if hyper_fixed:
                 xDecompVec = decompCollect['xDecompVec']
                 xDecompVec['intercept'] = xDecompAgg.loc[
                     rn == "(intercept)", 'xDecompAgg']  # !! not sure about the argument 'xDecompAgg'
@@ -1496,8 +1513,8 @@ class Robyn(object):
             if cnt == iterTotal:  # !! probably should use self.cnt and self.iterTotal
                 print("===")
             print([
-                      "Optimizer_name: " + optimizer_name + ";  Total_iterations: " + cnt + ";   best_mape: " +
-                      best_mape])
+                "Optimizer_name: " + optimizer_name + ";  Total_iterations: " + cnt + ";   best_mape: " +
+                best_mape])
 
         return resultCollect
 
@@ -1507,7 +1524,6 @@ class Robyn(object):
         nrmse_collect = doparCollect.map(lambda x: x['nrmse'])
         decomp_rssd_collect = doparCollect.map(lambda x: x['decomp_rssd'])
         mape_lift_collect = doparCollect.map(lambda x: x['map_lift'])
-
 
         #####################################
         # Nevergrad tells objectives
@@ -1528,7 +1544,7 @@ class Robyn(object):
             set_cores=None,
             fixed_out=False,
             fixed_hyppar_dt=None,
-            pareto_fronts=[1,2,3]
+            pareto_fronts=[1, 2, 3]
             ):
 
         if optimizer_name is None:
@@ -1554,14 +1570,14 @@ class Robyn(object):
         # message("provided plot_folder doesn't exist. Using default plot_folder = getwd(): ", getwd())
         # }
 
-        ### run mmm function on set_trials
-        ## todo set_hyperBoundLocal type?? assume dict
+        # run mmm function on set_trials
+        # todo set_hyperBoundLocal type?? assume dict
         hyperparameter_fixed = all(value == 0 for value in self.hyperBounds.values())
         hypParamSamName = self.get_hypernames()
 
         if fixed_out:
 
-            ### run mmm function if using old model result tables
+            # run mmm function if using old model result tables
 
             if fixed_hyppar_dt is None:
                 raise ValueError(
@@ -1575,12 +1591,14 @@ class Robyn(object):
             model_output_collect = {}
             model_output_collect['resultHypParam'] = self.mmm(fixed_hyppar_dt['hypParamSamName'], set_iter=self.iter,
                                                               set_cores=set_cores, optimizer_name=optimizer_name,
-                                                              fixed_out=True, fixed_lambda=list(fixed_hyppar_dt['lambda']))
+                                                              fixed_out=True,
+                                                              fixed_lambda=list(fixed_hyppar_dt['lambda']))
             model_output_collect['resultHypParam'] = model_output_collect['resultHypParam']['trials'] = 1
             model_output_collect['resultHypParam']['resultCollect']['resultHypParam'] = \
                 model_output_collect['resultHypParam']['resultCollect']['resultHypParam'].sort_values(by='iterPar')
             dt_IDmatch = pd.DataFrame({'solID': fixed_hyppar_dt['solID'],
-                                       'iterPar': model_output_collect['resultHypParam']['resultCollect']['resultHypParam']['iterPar']})
+                                       'iterPar': model_output_collect['resultHypParam']['resultCollect']
+                                       ['resultHypParam']['iterPar']})
 
             model_output_collect['resultHypParam']['resultCollect']['resultHypParam'] = \
                 pd.merge(model_output_collect['resultHypParam']['resultCollect']['resultHypParam'], dt_IDmatch,
@@ -1599,11 +1617,11 @@ class Robyn(object):
             print(model_output_collect['resultHypParam']['resultCollect']['xDecompAgg'])
 
         elif hyperparameter_fixed:
-        ## Run f.mmm on set_trials if hyperparameters are all fixed
+            # Run f.mmm on set_trials if hyperparameters are all fixed
 
             model_output_collect = {}
-            model_output_collect['resultHypParam'] = self.mmm(self.hyperBounds, set_iter = 1, set_cores = 1,
-                                                 optimizer_name = optimizer_name)
+            model_output_collect['resultHypParam'] = self.mmm(self.hyperBounds, set_iter=1, set_cores=1,
+                                                              optimizer_name=optimizer_name)
 
             model_output_collect['resultHypParam'] = model_output_collect['resultHypParam']['trials'] = 1
             print("\n######################\nHyperparameters are all fixed\n######################\n")
@@ -1616,12 +1634,12 @@ class Robyn(object):
             for optmz in ng_algos:
                 ng_collect = {}
                 model_output_collect = {}
-                for ngt in range(set_trial-1):
+                for ngt in range(set_trial - 1):
                     if not self.activate_calibration:
-                        print("\nRunning trial nr.", ngt,"out of",set_trial,"...\n")
+                        print("\nRunning trial nr.", ngt, "out of", set_trial, "...\n")
                     else:
-                        print("\nRunning trial nr.", ngt,"out of",set_trial,"with calibration...\n")
-                    ## todo here we are assume model_output to be nested dict
+                        print("\nRunning trial nr.", ngt, "out of", set_trial, "with calibration...\n")
+                    # todo here we are assume model_output to be nested dict
                     model_output = self.mmm(self.hyperBounds, set_iter=self.iter, set_cores=self.cores,
                                             optimizer_name=optmz)
                     check_coef0 = any(model_output['resultCollect']['decompSpendDist']['decomp.rssd'] == math.inf)
@@ -1629,11 +1647,17 @@ class Robyn(object):
                         num_coef0_mod = model_output
                         if num_coef0_mod > self.iter:
                             num_coef0_mod = self.iter
-                        print("\nThis trial contains ", num_coef0_mod," iterations with all 0 media coefficient. Please "
-                                                                      "reconsider your media variable choice if the pareto choices are unreasonable."
-                                                                      "\nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels "
-                                                                      "on theta (max.reco. c(0, 0.9) ) and gamma (max.reco. c(0.1, 1) ) to give Robyn more freedom\n2. split "
-                                                                      "media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
+                        print("\nThis trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. "
+                                                                       "Please reconsider your media variable choice "
+                                                                       "if the pareto choices are unreasonable."
+                                                                       "\nRecommendations are: \n1. increase "
+                                                                       "hyperparameter ranges for 0-coef channels on "
+                                                                       "theta (max.reco. c(0, 0.9) ) and gamma "
+                                                                       "(max.reco. c(0.1, 1) ) to give Robyn more "
+                                                                       "freedom\n2. split media into sub-channels, "
+                                                                       "and/or aggregate similar channels, and/or "
+                                                                       "introduce other media\n3. increase trials to "
+                                                                       "get more samples\n")
                     model_output['trials'] = ngt
                     ng_collect[str(ngt)] = model_output['resultCollect']['paretoFront']
                     ng_collect[str(ngt)]['iters'] = self.iter
@@ -1642,17 +1666,16 @@ class Robyn(object):
 
                 # todo type of nglist?
                 px = p.low(ng_collect['nrmse']) * p.low(ng_collect['decomp.rssd'])
-                ng_collect = p.pref.psel(ng_collect, px, top=len(ng_collect)).sort_values(by=['trials','nrmse'])
+                ng_collect = p.pref.psel(ng_collect, px, top=len(ng_collect)).sort_values(by=['trials', 'nrmse'])
                 # todo ng_out not defined
                 # ng_out =
             ng_out = ng_out.append(ng_out)
             ng_out.rename(columns={'.level', 'manual_pareto'})
 
-        #### Collect results for plotting
+        # Collect results for plotting
 
         return model_output_collect
 
 
-
 def budget_allocator(self, model_id):  # This is the last step_model allocation
-        pass
+    pass
