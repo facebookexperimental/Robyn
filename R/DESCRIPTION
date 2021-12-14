@@ -19,6 +19,7 @@ Imports:
     ggplot2,
     ggridges,
     glmnet,
+    lares,
     lubridate,
     minpack.lm,
     nloptr,

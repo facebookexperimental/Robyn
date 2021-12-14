@@ -25,6 +25,7 @@
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
+#' @importFrom lares clusterKmeans formatNum freqs `%>%`
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
