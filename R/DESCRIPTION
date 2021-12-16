@@ -15,6 +15,7 @@ Imports:
     data.table,
     doParallel,
     doRNG,
+    dplyr,
     foreach,
     ggplot2,
     ggridges,
@@ -27,7 +28,8 @@ Imports:
     prophet,
     reticulate,
     rPref,
-    stringr
+    stringr,
+    tidyr
 Suggests:
     shiny
 Config/reticulate:

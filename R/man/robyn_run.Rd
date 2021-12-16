@@ -10,13 +10,15 @@ robyn_run(
   plot_folder_sub = NULL,
   pareto_fronts = 1,
   plot_pareto = TRUE,
+  clusters = TRUE,
   calibration_constraint = 0.1,
   lambda_control = 1,
   refresh = FALSE,
   dt_hyper_fixed = NULL,
   seed = 123L,
   csv_out = "pareto",
-  ui = FALSE
+  ui = FALSE,
+  ...
 )
 }
 \arguments{
@@ -37,6 +39,8 @@ For example, plot_folder_sub = "sub_dir".}
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
 
+\item{clusters}{Boolean. Apply \code{robyn_clusters()} to output models?}
+
 \item{calibration_constraint}{Numeric. Default to 0.1 and allows 0.01-0.1. When
 calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 selection. Lower \code{calibration_constraint} increases calibration accuracy.}
@@ -55,6 +59,8 @@ It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 to "all" will output all iterations as csv.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
+
+\item{...}{Additional parameters passed to \code{robyn_clusters()}.}
 }
 \description{
 The \code{robyn_run()} function consumes output from \code{robyn_input()},

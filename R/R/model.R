@@ -24,6 +24,7 @@
 #' \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
 #' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
 #' and saving model one-pagers. Used when testing models.
+#' @param clusters Boolean. Apply \code{robyn_clusters()} to output models?
 #' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
@@ -34,6 +35,7 @@
 #' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
 #' to "all" will output all iterations as csv.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
+#' @param ... Additional parameters passed to \code{robyn_clusters()}.
 #' @examples
 #' \dontrun{
 #' OutputCollect <- robyn_run(
@@ -49,13 +51,15 @@ robyn_run <- function(InputCollect,
                       plot_folder_sub = NULL,
                       pareto_fronts = 1,
                       plot_pareto = TRUE,
+                      clusters = TRUE,
                       calibration_constraint = 0.1,
                       lambda_control = 1,
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
                       seed = 123L,
                       csv_out = "pareto",
-                      ui = FALSE) {
+                      ui = FALSE,
+                      ...) {
 
   #####################################
   #### Set local environment
@@ -938,7 +942,15 @@ robyn_run <- function(InputCollect,
     totalTime = totalTime,
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
   )
+
+  if (clusters) {
+    rois <- .prepare_roi(xDecompAgg, all_media = InputCollect$all_media)
+    attr(output, "ROIs") <- invisible(rois)
+    output[["clusters"]] <- robyn_clusters(output, ...)
+  }
+
   return(output)
+
 }
 
 

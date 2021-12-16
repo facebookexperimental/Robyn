@@ -309,6 +309,7 @@ OutputCollect <- robyn_run(
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
   , pareto_fronts = 3
   , plot_pareto = TRUE
+  , clusters = TRUE # To help reduce and select best model
   # , calibration_constraint = 0.1 # run ?robyn_run to see description
   # , lambda_control = 1 # run ?robyn_run to see description
   )
@@ -323,8 +324,15 @@ OutputCollect <- robyn_run(
 ################################################################
 #### Step 4: Select and save the initial model
 
-## Compare all model onepagers in the plot folder and select one that mostly represents
+## Compare all model one-pagers in the plot folder and select one that mostly represents
 ## your business reality
+
+## Select winning model based on minimum combined error by ROI cluster using robyn_clusters()
+## You can check OutputCollect$clusters information or manually run it with custom parameters
+# cls <- robyn_clusters(input = OutputCollect,
+#                       all_media = InputCollect$all_media,
+#                       k = 5, limit = 1,
+#                       weights = c(1, 1, 1.5))
 
 OutputCollect$allSolutions # get all model IDs in result
 select_model <- "1_4_2" # select one from above
