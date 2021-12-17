@@ -77,7 +77,7 @@ We're very proud to see that there're already 100+ known users of Project Robyn 
   * **Organic media**: In Robyn 3.0, user can specify `organic_vars` to model Marketing activities that have no spend. Typically, this 
   includes newsletter, push notification, social media posts etc. Technically speaking, organic variables are expected to have similar 
   carried-over (adstock) and saturating behavior as paid media variables. The respective transformation techniques (Geometric or Weibull 
-  transformation for adstock; Hill transformaiton for saturation) as treatment for these behaviours are now also applied for organic 
+  transformation for adstock; Hill transformation for saturation) as treatment for these behaviours are now also applied for organic 
   variables.
   
   * **Experimental calibration**: We believe integrating experimental results into MMM is the best choice for model selection. As the general aphorism in statistics "all models are wrong but some are useful", there's no reliable way to select final MMM results, even after Robyn has accounted for the business fit with the DECOMP.RSSD as objective function. Experiments (RCT, randomised controlled trials) are causal by nature and thus are seen as ground-truth. Common experimental tools include people-based technique like Facebook [Conversion Lift](https://www.facebook.com/business/m/one-sheeters/conversion-lift) and geo-based technique like Facebook [GeoLift](https://github.com/ArturoEsquerra/GeoLift/), among others. Technically speaking, Robyn drives model results closer to experimental results by using MAPE.LIFT as the third objective function besides NRMSE & DECOMP.RSSD when calibrating and minimizing the error between predicted and experimental results.
@@ -86,9 +86,9 @@ We're very proud to see that there're already 100+ known users of Project Robyn 
   
   * **S-shape saturation**: Robyn uses the two-parametric Hill function that is able to transform between C- and S-shape to enable more customisation and flexibility in saturation transformation. 
   
-  * **Budget allocator**: Based on selected model result, or to be precise the saturation curve of each paid media variable, the `robyn_allocator()` function returns the optimal mix of spend that maximizes the total response. Technically speaking, Robyn uses by defaultt a combination of Augmented Lagrangian (AUGLAG) as global optimization algorithm and Sequential Least Square Quadratic Programming (SLSQP) as local optimization algorithm to solve the nonlinear objective function analytically.
+  * **Budget allocator**: Based on selected model result, or to be precise the saturation curve of each paid media variable, the `robyn_allocator()` function returns the optimal mix of spend that maximizes the total response. Technically speaking, Robyn uses by default a combination of Augmented Lagrangian (AUGLAG) as global optimization algorithm and Sequential Least Square Quadratic Programming (SLSQP) as local optimization algorithm to solve the nonlinear objective function analytically.
   
-  * **Automated output**: When using `robyn_run()` function to build the initial model, Robyn outputs an one-pager that contains 6 charts  for every Pareto-optimum model and saves 4 csv-files (pareto_hyperparameters.csv, pareto_aggregated.csv, pareto_media_transform_matrix.csv, pareto_alldecomp_matrix.csv) that contains all results. The 6 charts are: the effect decomposition waterfall chart, the actual vs. predicted fit line chart, the media spend vs. effect bar chart, the media saturation line chart, the adstock decay rate bar chart and the predicted vs. residual line chart. When using `robyn_refresh()` function to build refresh models, Robyn outputs 2 extra charts (aggregated actual vs. predicted line chart and aggregated decomposition bar chart) and saves 4 extra csv-files separately (report_hyperparameters.csv, report_aggregated.csv, report_media_transform_matrix.csv, report_alldecomp_matrix.csv). 
+  * **Automated output**: When using `robyn_run()` function to build the initial model, Robyn outputs a one-pager that contains 6 charts  for every Pareto-optimum model and saves 4 csv-files (pareto_hyperparameters.csv, pareto_aggregated.csv, pareto_media_transform_matrix.csv, pareto_alldecomp_matrix.csv) that contains all results. The 6 charts are: the effect decomposition waterfall chart, the actual vs. predicted fit line chart, the media spend vs. effect bar chart, the media saturation line chart, the adstock decay rate bar chart and the predicted vs. residual line chart. When using `robyn_refresh()` function to build refresh models, Robyn outputs 2 extra charts (aggregated actual vs. predicted line chart and aggregated decomposition bar chart) and saves 4 extra csv-files separately (report_hyperparameters.csv, report_aggregated.csv, report_media_transform_matrix.csv, report_alldecomp_matrix.csv). 
 
 ## Example plots
 
@@ -130,7 +130,7 @@ All initial and refresh builds are included sequentially. For the refresh builds
 ![Refresh time-series fit](figures/plt3.png?raw=true)
 
 ### Reporting model refresh decompsition & ROAS
-Decomposition of all predictors per build. The baseline varibale is the sum of all prophet variables (trend, season, weekday, holiday) and the intercept. It's often more intuitive to look at baseline varibale due to the possible intercept drop in the Ridge regression and the effect shift between these baseline variables. **All data is simulated and don't have real-life implication.**
+Decomposition of all predictors per build. The baseline variable is the sum of all prophet variables (trend, season, weekday, holiday) and the intercept. It's often more intuitive to look at baseline variable due to the possible intercept drop in the Ridge regression and the effect shift between these baseline variables. **All data is simulated and don't have real-life implication.**
 
 ![Refresh decompsition & ROAS](figures/plt4.png?raw=true)
 
