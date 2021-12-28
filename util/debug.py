@@ -4,12 +4,11 @@
 import pandas as pd
 import os
 
-# todo What do you think about renaming these as df_.. vs dt_ (for dataframe instead of data table)
-dt_prophet_holidays = pd.read_csv('util/Python/data/prophet_holidays.csv')
-dt_simulated_weekly = pd.read_csv('util/Python/data/simulated_weekly.csv')
+df_prophet_holidays = pd.read_csv('util/data/prophet_holidays.csv')
+df_simulated_weekly = pd.read_csv('util/data/simulated_weekly.csv')
 
-dt_input = dt_simulated_weekly
-dt_holidays = dt_prophet_holidays
+df_input = df_simulated_weekly
+df_holidays = df_prophet_holidays
 
 mod = None
 dt_modRollWind = None
@@ -110,9 +109,9 @@ seed = 123
 # debug robyn_refresh
 # robyn_object
 plot_folder_sub = None
-dt_input = dt_simulated_weekly
+df_input = df_simulated_weekly
 # dt_holidays = dt_prophet_holidays
-dt_holidays = dt_prophet_holidays
+df_holidays = df_prophet_holidays
 refresh_steps = 14
 refresh_mode = "auto"  # "auto", "manual"
 refresh_iters = 100
@@ -163,4 +162,88 @@ expected_spend_days = None
 maxeval = 100000
 constr_mode = "eq"
 ui = False
+
+
+class Vars(object):
+    def __init__(self):
+        self.adstock = adstock
+        self.all_media = all_media
+        self.calibration_constraint = calibration_constraint
+        self.calibration_input = calibration_input
+        self.channel_constr_low = channel_constr_low
+        self.channel_constr_up = channel_constr_up
+        self.constr_mode = constr_mode
+        self.context_signs = context_signs
+        self.context_vars = context_vars
+        self.cores = cores
+        self.csv_out = csv_out
+        self.date_var = date_var
+        self.dayInterval = dayInterval
+        self.dep_var = dep_var
+        self.dep_var_type = dep_var_type
+        self.df_holidays = df_holidays
+        self.df_input = df_input
+        self.df_prophet_holidays = df_prophet_holidays
+        self.df_simulated_weekly = df_simulated_weekly
+        self.dt_hyper_fixed = dt_hyper_fixed
+        self.dt_modRollWind = dt_modRollWind
+        self.dt_transform = dt_transform
+        self.expected_spend = expected_spend
+        self.expected_spend_days = expected_spend_days
+        self.exposureVarName = exposureVarName
+        self.factor_vars = factor_vars
+        self.hyper_collect = hyper_collect
+        self.hyperparameters = hyperparameters
+        self.InputCollect = InputCollect
+        self.intervalType = intervalType
+        self.iterations = iterations
+        self.lambda_control = lambda_control
+        self.lambda_fixed = lambda_fixed
+        self.lambda_n = lambda_n
+        self.local_name = local_name
+        self.maxeval = maxeval
+        self.mediaVarCount = mediaVarCount
+        self.mod = mod
+        self.nevergrad_algo = nevergrad_algo
+        self.optim_algo = optim_algo
+        self.organic_signs = organic_signs
+        self.organic_vars = organic_vars
+        self.OutputCollect = OutputCollect
+        self.paid_media_signs = paid_media_signs
+        self.paid_media_spends = paid_media_spends
+        self.paid_media_vars = paid_media_vars
+        self.pareto_fronts = pareto_fronts
+        self.plot_folder = plot_folder
+        self.plot_folder_sub = plot_folder_sub
+        self.plot_pareto = plot_pareto
+        self.prophet_country = prophet_country
+        self.prophet_signs = prophet_signs
+        self.prophet_vars = prophet_vars
+        self.refresh = refresh
+        self.refresh_iters = refresh_iters
+        self.refresh_mode = refresh_mode
+        self.refresh_steps = refresh_steps
+        self.refresh_trials = refresh_trials
+        self.refreshAddedStart = refreshAddedStart
+        self.robyn_object = robyn_object
+        self.rollingWindowEndWhich = rollingWindowEndWhich
+        self.rollingWindowLength = rollingWindowLength
+        self.rollingWindowStartWhich = rollingWindowStartWhich
+        self.scale = scale
+        self.scenario = scenario
+        self.seed = seed
+        self.select_build = select_build
+        self.select_model = select_model
+        self.shape = shape
+        self.trials = trials
+        self.type_ = type_
+        self.ui = ui
+        self.windlen = windlen
+        self.window_end = window_end
+        self.window_start = window_start
+        self.x = x
+        self.xDecompAggPrev = xDecompAggPrev
+
+
+
 
