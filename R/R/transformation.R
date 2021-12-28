@@ -102,18 +102,22 @@ adstock_weibull <- function(x, shape, scale, windlen=NULL, type) {
   if (is.null(windlen)) {windlen <- x.n}
   scaleTrans <- round(quantile(1:windlen, scale), 0)
 
-  if (type == "cdf") {
-    thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
-    thetaVecCum <- cumprod(thetaVec) # plot(thetaVecCum)
-  } else if (type == "pdf") {
-    normalize <- function(x) {
-      if (diff(range(x))==0) {
-        return(c(1, rep(0, length(x)-1)))
-      } else {
-        return((x - min(x)) / (max(x) - min(x)))
+  if (shape==0) {
+    thetaVecCum <- thetaVec <- rep(0, x.n)
+  } else {
+    if (type == "cdf") {
+      thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
+      thetaVecCum <- cumprod(thetaVec) # plot(thetaVecCum)
+    } else if (type == "pdf") {
+      normalize <- function(x) {
+        if (diff(range(x))==0) {
+          return(c(1, rep(0, length(x)-1)))
+        } else {
+          return((x - min(x)) / (max(x) - min(x)))
+        }
       }
+      thetaVecCum <- normalize(dweibull(x_bin, shape = shape, scale = scaleTrans)) # plot(thetaVecCum)
     }
-    thetaVecCum <- normalize(dweibull(x_bin, shape = shape, scale = scaleTrans)) # plot(thetaVecCum)
   }
 
   x_decayed <- mapply(function(x_val, x_pos) {
