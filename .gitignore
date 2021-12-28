@@ -3,4 +3,4 @@
 .Rhistory
 node_modules/
 .*
-.idea
+.idea*
