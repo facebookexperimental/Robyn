@@ -14,10 +14,10 @@ mod = None
 dt_modRollWind = None
 dt_transform = None
 xDecompAggPrev = None
-date_var = 'DATE'  # date format must be "2020-01-01"
-dayInterval = None
-intervalType = None
-dep_var = 'revenue'  # there should be only one dependent variable
+date_var_name = 'DATE'  # date format must be "2020-01-01"
+day_interval = None
+interval_type = None
+dep_var_name = 'revenue'  # there should be only one dependent variable
 dep_var_type = 'revenue'  # "revenue" or "conversion"
 prophet_vars = ['trend', 'season', 'holiday']  # "trend","season", "weekday", "holiday" are provided and case-sensitive.
 # Recommended to at least keep Trend & Holidays
@@ -25,19 +25,19 @@ prophet_signs = ['default', 'default', 'default']  # "default", "positive", and 
 # Must be same length as prophet_vars
 prophet_country = 'DE'  # only one country allowed once. Including national holidays for 59 countries, whose list can be
 # found on our github guide
-context_vars = ['competitor_sales_B', 'events']  # typically competitors, price & promotion, temperature, unemployment
+context_var_names = ['competitor_sales_B', 'events']  # typically competitors, price & promotion, temperature, unemployment
 # rate etc
-context_signs = ['default', 'default']  # "default", " positive", and "negative", control the signs of coefficients for
+context_var_signs = ['default', 'default']  # "default", " positive", and "negative", control the signs of coefficients for
 # baseline variables
-paid_media_vars = ['tv_S', 'ooh_S', 'print_S', 'facebook_I', 'search_clicks_P']  # we recommend to use media exposure
+paid_media_var_names = ['tv_S', 'ooh_S', 'print_S', 'facebook_I', 'search_clicks_P']  # we recommend to use media exposure
 # metrics like impressions, GRP etc for the model. If not applicable, use spend instead
-paid_media_signs = ['positive', 'positive', 'positive', 'positive', 'positive']  # "default", "positive", and
+paid_media_var_signs = ['positive', 'positive', 'positive', 'positive', 'positive']  # "default", "positive", and
 # "negative". must have same length as paid_media_vars. Controls the signs of coefficients for media variables
 paid_media_spends = ['tv_S', 'ooh_S', 'print_S'	, 'facebook_S', 'search_S']  # spends must have same order and same
 # length as paid_media_vars
-organic_vars = ['newsletter']
-organic_signs = ['positive']  # must have same length as organic_vars
-factor_vars = ['events']  # specify which variables in context_vars and organic_vars are factorial
+organic_var_names = ['newsletter']
+organic_var_signs = ['positive']  # must have same length as organic_vars
+factor_var_names = ['events']  # specify which variables in context_vars and organic_vars are factorial
 
 cores = os.cpu_count() - 2  # todo could use multiprocessing.cpu_count() since that is likely what we will be using in
 # the future.
@@ -55,7 +55,7 @@ refreshAddedStart = None
 adstock = 'geometric'  # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible due to the
 # changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf allows also lagging
 # effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-iterations = 4  # setting to 4 to not take too much runtime
+iterations = 2  # setting to 2 to not take too much runtime
 # number of allowed iterations per trial. For the simulated dataset with 11 independent variables, 2000 is recommended
 # for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf. The larger the dataset, the more iterations
 # required to reach convergence.
@@ -79,7 +79,7 @@ all_media = None
 # hyper_collect = InputCollect$hyperparameters
 hyper_collect = None
 # iterations = InputCollect$iterations
-iterations = None
+# iterations = None  # defined above
 lambda_n = 100
 lambda_control = 1
 lambda_fixed = None
@@ -97,26 +97,26 @@ plot_folder_sub = None
 pareto_fronts = 1
 plot_pareto = True
 calibration_constraint = 0.1
-lambda_control = 1
-refresh = False
+# lambda_control = 1  # defined above
+# refresh = False  # defined above
 dt_hyper_fixed = None
 ui = False
 csv_out = "pareto"
-seed = 123
+# seed = 123  # defined above
 # go into robyn_run() line by line
 
 #################
 # debug robyn_refresh
 # robyn_object
-plot_folder_sub = None
-df_input = df_simulated_weekly
+# plot_folder_sub = None  # defined above
+# df_input = df_simulated_weekly # defined above
 # dt_holidays = dt_prophet_holidays
-df_holidays = df_prophet_holidays
+# df_holidays = df_prophet_holidays  # defined above
 refresh_steps = 14
 refresh_mode = "auto"  # "auto", "manual"
 refresh_iters = 100
 refresh_trials = 2
-plot_pareto = True
+# plot_pareto = True  # defined above
 
 #################
 # debug robyn_allocator
@@ -134,7 +134,7 @@ channel_constr_low = [0.5, 5]
 channel_constr_up = [2, 5]
 maxeval = 100000
 constr_mode = "eq"
-ui = False
+# ui = False  # defined above
 
 #################
 # debug adstock_weibull
@@ -150,18 +150,18 @@ type_ = "cdf"  # todo find actual name of variable - 2021.12.09
 InputCollect = InputCollect
 OutputCollect = OutputCollect
 select_model = select_model
-scenario = "max_historical_response"
-channel_constr_low = [0.7, 0.7, 0.7, 0.7, 0.7]
-channel_constr_up = [1.2, 1.5, 1.5, 1.5, 1.5]
+# scenario = "max_historical_response"  # defined above
+# channel_constr_low = [0.7, 0.7, 0.7, 0.7, 0.7]  # defined above
+# channel_constr_up = [1.2, 1.5, 1.5, 1.5, 1.5]  # defined above
 robyn_object = None
-select_build = None
-optim_algo = "SLSQP_AUGLAG"
-scenario = "max_historical_response"
-expected_spend = None
-expected_spend_days = None
-maxeval = 100000
-constr_mode = "eq"
-ui = False
+# select_build = None  # defined above
+# optim_algo = "SLSQP_AUGLAG"  # defined above
+# scenario = "max_historical_response"  # defined above
+# expected_spend = None  # defined above
+# expected_spend_days = None  # defined above
+# maxeval = 100000  # defined above
+# constr_mode = "eq"  # defined above
+# ui = False  # defined above
 
 
 class Vars(object):
@@ -173,13 +173,13 @@ class Vars(object):
         self.channel_constr_low = channel_constr_low
         self.channel_constr_up = channel_constr_up
         self.constr_mode = constr_mode
-        self.context_signs = context_signs
-        self.context_vars = context_vars
+        self.context_signs = context_var_signs
+        self.context_vars = context_var_names
         self.cores = cores
         self.csv_out = csv_out
-        self.date_var = date_var
-        self.dayInterval = dayInterval
-        self.dep_var = dep_var
+        self.date_var_name = date_var_name
+        self.day_interval = day_interval
+        self.dep_var_name = dep_var_name
         self.dep_var_type = dep_var_type
         self.df_holidays = df_holidays
         self.df_input = df_input
@@ -191,11 +191,11 @@ class Vars(object):
         self.expected_spend = expected_spend
         self.expected_spend_days = expected_spend_days
         self.exposureVarName = exposureVarName
-        self.factor_vars = factor_vars
+        self.factor_var_names = factor_var_names
         self.hyper_collect = hyper_collect
         self.hyperparameters = hyperparameters
         self.InputCollect = InputCollect
-        self.intervalType = intervalType
+        self.interval_type = interval_type
         self.iterations = iterations
         self.lambda_control = lambda_control
         self.lambda_fixed = lambda_fixed
@@ -206,12 +206,12 @@ class Vars(object):
         self.mod = mod
         self.nevergrad_algo = nevergrad_algo
         self.optim_algo = optim_algo
-        self.organic_signs = organic_signs
-        self.organic_vars = organic_vars
+        self.organic_var_signs = organic_var_signs
+        self.organic_var_names = organic_var_names
         self.OutputCollect = OutputCollect
-        self.paid_media_signs = paid_media_signs
+        self.paid_media_var_signs = paid_media_var_signs
         self.paid_media_spends = paid_media_spends
-        self.paid_media_vars = paid_media_vars
+        self.paid_media_var_names = paid_media_var_names
         self.pareto_fronts = pareto_fronts
         self.plot_folder = plot_folder
         self.plot_folder_sub = plot_folder_sub

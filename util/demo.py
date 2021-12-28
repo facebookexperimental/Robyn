@@ -20,9 +20,11 @@ il.reload(d)
 # Initialize debug file to get variables
 vars_ = d.Vars()
 vars_.df_simulated_weekly  # see variable
+df = vars_.df_simulated_weekly
+
 
 # Initialize a Robyn object
-robyn = r.Robyn(df_input=vars_.df_simulated_weekly)
+robyn = r.Robyn(df_input=vars_.df_simulated_weekly, date_var_name='DATE')
 
 # See a parameter
 robyn.test_y_train

@@ -37,56 +37,195 @@ from util.pypref_robyn import pypref as p
 # MAIN
 
 class Robyn(object):
-    def __init__(self, df_input):
+    """ Robyn MMM
 
+    Parameters
+    ----------
+    :param df_input:
+        Pandas dataframe
+        Contains the data you would like to use to build the MMM
+    :param dep_var_name:
+        String.
+        Name of the dependent variable column e.g. revenue, conversions.  This helps Robyn reference the proper column
+    :param dep_var_type:
+        String.
+        Should be either "revenue" or "conversions"
+    :param date_var_name:
+        String
+        The name of date column e.g. 'DATE'.  Date format must be YYYY-MM-DD eg: "2020-01-01".
+    :param adstock:
+        String.
+        Specifies type of adstock to use.  Options include: geometric, weibull_cdf or weibull_pdf.
+        Both weibull adstocks are more flexible due to the changing decay rate over time, as opposed to the fixed decay
+        rate for geometric. weibull_pdf allows also lagging effect.
+        Yet weibull adstocks are two-parametric and thus take longer to run.
+    :param iterations:
+        Integer.
+        The number of allowed iterations per trial. For the simulated dataset with 11 independent variables,
+        2000 is recommended for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf. The larger the
+        dataset, the more iterations required to reach convergence.
+    :param nevergrad_algo:
+        String
+        Specify the recommended algorithm for Nevergrad.  Read more on the gradient-free optimisation library here:
+        https://facebookresearch.github.io/nevergrad/index.html
+    :param trials:
+        Integer
+        The number of allowed trials. 5 is recommended without calibration, 10 with calibration
+    :param context_var_names:
+        List of strings
+        Columns names of the context variables typically competitors, price & promotion, temperature, unemployment
+        rate, etc.
+    :param context_var_signs:
+        List of strings
+        Controls the signs of coefficients for baseline variables
+        Possible values are: "default", " positive", and "negative"
+    :param paid_media_var_names:
+        List of strings containing the columns names.
+        Recommend using media exposure metrics such as impressions, GRP etc for the model. If not applicable, use spend
+        instead
+    :param paid_media_var_signs:
+        List of strings
+        Contains the signs of coefficients for media variables and must have same length as paid_media_vars.
+        Options include: "default", "positive", and "negative".
+    :param paid_media_spends:
+        # todo understand what ths is and how it differs from paid_media_var_names
+        List of strings
+        Contains the column names.  Spends must have same order and same length as paid_media_vars
+    :param organic_var_names:
+        List of stings
+        Represent the column names for organic variables
+    :param organic_var_signs:
+        List of strings
+        Contains the signs of coefficients for organic variables and must have same length as paid_media_vars.
+        Options include: "default", "positive", and "negative".
+    :param factor_var_names:
+        List of strings
+        Specifoes which variables in context_vars and organic_vars are factorial
+    :param prophet_vars:
+        List of strings
+        "trend","season", "weekday", "holiday" are provided and are case-sensitive.  Recommended to at least keep Trend
+        and Holidays
+    :param prophet_signs:
+        List of strings
+    :param prophet_country:
+        String (2 character)
+        Two-letter string in capital letters representing the country.  E.g. 'DE'
+        Only one country allowed.
+        Including national holidays for 59 countries; list can be found in our GitHub guide.
+    :param window_start:
+        String.
+        Date format "YYYY-MM-DD e.g. '2016-11-23'
+    :param window_end:
+        String.
+        Date format "YYYY-MM-DD e.g. '2016-11-23'
+    :param rolling_window_start_which:
+    :param rolling_window_end_which:
+    :param rolling_window_length:
+    :param refresh_added_start:
+    :param cores:
+        Integer
+        The number of cores to be used during multiprocessing.  Is set by default to 2 fewer than the number
+        automatically detected.
+    """
+    def __init__(self,
+                 df_input: pd.DataFrame,
+                 dep_var_name='revenue',
+                 dep_var_type='revenue',
+                 date_var_name='date',
+                 adstock='geometric',
+                 iterations=2,
+                 nevergrad_algo="TwoPointsDE",
+                 trials=2,
+                 context_var_names=None,
+                 context_var_signs=None,
+                 paid_media_var_names=None,
+                 paid_media_var_signs=None,
+                 paid_media_spends=None,
+                 organic_var_names=None,
+                 organic_var_signs=None,
+                 factor_var_names=None,
+                 prophet_vars=None,
+                 prophet_signs=None,
+                 prophet_country=None,
+                 window_start=None,
+                 window_end=None,
+                 rolling_window_start_which=None,
+                 rolling_window_end_which=None,
+                 rolling_window_length=None,
+                 refresh_added_start=None,
+                 cores=os.cpu_count() - 2
+                 ):
+
+        # Set variables from init
         self.df_input = df_input
-        self.df_holidays = pd.read_csv('data/prophet_holidays.csv')
+        self.dep_var_name = dep_var_name
+        self.dep_var_type = dep_var_type
+        self.date_var_name = date_var_name
+        self.adstock = adstock
+        self.iterations = iterations
+        self.nevergrad_algo = nevergrad_algo
+        self.trials = trials
+        self.prophet_vars = prophet_vars
+        self.prophet_signs = prophet_signs
+        self.prophet_country = prophet_country
+        self.context_vars = context_var_names
+        self.context_signs = context_var_signs
+        self.paid_media_vars = paid_media_var_names
+        self.paid_media_signs = paid_media_var_signs
+        self.paid_media_spends = paid_media_spends
+        self.organic_vars = organic_var_names
+        self.organic_signs = organic_var_signs
+        self.factor_vars = factor_var_names
+        self.window_start = window_start
+        self.window_end = window_end
+        self.rollingWindowStartWhich = rolling_window_start_which
+        self.rollingWindowEndWhich = rolling_window_end_which
+        self.rollingWindowLength = rolling_window_length
+        self.refreshAddedStart = refresh_added_start
+        self.cores = cores
+
+        print(f'self.df_input: {self.df_input}')
+        print(f'self.dep_var_name: {self.dep_var_name}')
+        print(f'self.dep_var_type: {self.dep_var_type}')
+        print(f'self.date_var_name: {self.date_var_name}')
+        print(f'self.adstock: {self.adstock}')
+        print(f'self.iterations: {self.iterations}')
+        print(f'self.nevergrad_algo: {self.nevergrad_algo}')
+        print(f'self.trials: {self.trials}')
+        print(f'self.prophet_vars: {self.prophet_vars}')
+        print(f'self.prophet_signs: {self.prophet_signs}')
+        print(f'self.prophet_country: {self.prophet_country}')
+        print(f'self.context_vars: {self.context_vars}')
+        print(f'self.context_signs: {self.context_signs}')
+        print(f'self.paid_media_vars: {self.paid_media_vars}')
+        print(f'self.paid_media_signs: {self.paid_media_signs}')
+        print(f'self.paid_media_spends: {self.paid_media_spends}')
+        print(f'self.organic_vars: {self.organic_vars}')
+        print(f'self.organic_signs: {self.organic_signs}')
+        print(f'self.factor_vars: {self.factor_vars}')
+        print(f'self.window_start: {self.window_start}')
+        print(f'self.window_end: {self.window_end}')
+        print(f'self.rollingWindowStartWhich: {self.rollingWindowStartWhich}')
+        print(f'self.rollingWindowEndWhich: {self.rollingWindowEndWhich}')
+        print(f'self.rollingWindowLength: {self.rollingWindowLength}')
+        print(f'self.refreshAddedStart: {self.refreshAddedStart}')
+        print(f'self.cores: {self.cores}')
+
+        # Set defaults
+        self.df_holidays = pd.read_csv('util/data/prophet_holidays.csv')
+
+        # Set in methods
+        # todo Organize these variables as process is built out
+        """
+        :param day_interval:
+            Integer
+            Number of days detected between last two dates in data set.  Set in check_conditions
+        """
+        self.day_interval = None  # Get's automatically set in check_conditions
+        self.interval_type = None  # Get's automatically set in check_conditions
         self.mod = None
         self.df_modRollWind = None
         self.xDecompAggPrev = None
-        self.date_var = 'dt'  # String.  Defaults to dt.  Name of data column e.g. 'DATE'.
-        # Date format must be YYYY-MM-DD eg: "2020-01-01".
-        self.dayInterval = None
-        self.intervalType = None
-        self.dep_var = None  # There should be only one dependent variable.  Name of dependent variable column e.g.
-        # 'revenue'
-        self.dep_var_type = str  # "revenue" or "conversion"
-        self.prophet_vars = []  # List of strings "trend","season", "weekday", "holiday" are provided and case-
-        # sensitive.  Recommended to at least keep Trend & Holidays
-        self.prophet_signs = []  # List of strings "default", "positive", and "negative". Recommend as default. Must
-        # be same length as prophet_vars
-        self.prophet_country = None  # 2 letter string in caps representing the country.  E.g. 'DE'  Only one country
-        # allowed once. Including national holidays for 59 countries, whose list can be found on our github guide
-        self.context_vars = []  # List of strings for the columns names of the context variables typically
-        # competitors, price & promotion, temperature, unemployment rate, etc.
-        self.context_signs = None  # "default", " positive", and "negative", control the signs of coefficients for
-        # baseline variables
-        self.paid_media_vars = None  # List of strings containing the columns names.  We recommend to use media exposure
-        # metrics like impressions, GRP etc for the model. If not applicable, use spend instead
-        self.paid_media_signs = []  # "default", "positive", and "negative". must have same length as paid_media_vars.
-        # Controls the signs of coefficients for media variables
-        self.paid_media_spends = []  # List of strings of column names.  Spends must have same order and same length as
-        # paid_media_vars
-        self.organic_vars = []  # string of columns names.
-        self.organic_signs = []  # "default", " positive", and "negative".  Must have same length as organic_vars
-        self.factor_vars = []  # specify which variables in context_vars and organic_vars are factorial
-        self.cores = os.cpu_count() - 2  # todo could use multiprocessing.cpu_count() since that is likely what we will
-        # be using in
-        self.window_start = None  # e.g. '2016-11-23'
-        self.window_end = None  # e.g. '2018-08-22'
-        self.rollingWindowStartWhich = None
-        self.rollingWindowEndWhich = None
-        self.rollingWindowLength = None
-        self.refreshAddedStart = None
-        self.adstock = None # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible due to the
-        # changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf allows also
-        # lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-        self.iterations = 2000 # number of allowed iterations per trial. For the simulated dataset with 11 independent
-        # variables, 2000 is recommended for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf. The
-        # larger the dataset, the more iterations required to reach convergence.
-        self.nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free optimisation
-        # library https://facebookresearch.github.io/nevergrad/index.html
-        self.trials = 5 # int, number of allowed trials. 5 is recommended without calibration, 10 with calibration.
         self.hyperparameters = None
         self.calibration_input = None
         self.mediaVarCount = None
@@ -94,73 +233,106 @@ class Robyn(object):
         self.local_name = None
         self.all_media = None
 
+        # Check that data frame and function are properly calibrated
         self.check_conditions(df_input)
 
-    def check_conditions(self, df_transform):
+    def check_conditions(self, df):
         """
 
-        :param df_transform:
+        :param df:  input data frame
         :return:
         """
 
-        # check date input
-        inputLen = df_transform['date_var'].shape[0]
-        inputLenUnique = df_transform['date_var'].unique()
+        # Get variables (used for trouble-shooting)
+        dep_var_name = self.dep_var_name
+        dep_var_type = self.dep_var_type
+        date_var_name = self.date_var_name
+        prophet_vars = self.prophet_vars
+        prophet_country = self.prophet_country
+
+        # Check date input
+        input_len = df[date_var_name].shape[0]
+        input_len_unique = len(df[date_var_name].unique())
+
+        # ERROR CHECKING - DATE
+        # Check that a variable has been set for date_var_name.  Shouldn't matter since a default is now assigned
+        if not date_var_name:
+            raise ValueError('Please check that you have assigned a variable name under "date_var_name"')
+        # Check that column exists
+        if date_var_name not in list(df):
+            raise ValueError(f'Date column "{date_var_name}" was not found in your columns.  Please check that it '
+                             f'does exist.  \n\tHere is a list of column in your data frame: {list(df)}')
+        # Check that data is formatted properly
         try:
-            pd.to_datetime(df_transform['ds'], format='%Y-%m-%d', errors='raise')
+            # Format at the same time, just in case the columns is saved as object
+            df[date_var_name] = pd.to_datetime(df[date_var_name], format='%Y-%m-%d', errors='raise')
         except ValueError:
-            print('input date variable should have format "yyyy-mm-dd"')
-        if not self.date_var or self.date_var not in df_transform.columns or len(self.date_var) > 1:
-            raise ValueError('Must provide correct only 1 date variable name for date_var')
-        elif inputLen != inputLenUnique:
+            print('Input date variable should have format "YYYY-MM-DD"')
+
+        # ERROR CHECKING - VALUES
+        if input_len != input_len_unique:
             raise ValueError('Date variable has duplicated dates. Please clean data first')
-        elif df_transform.isna().any(axis=None) or np.isinf(df_transform).any():
-            raise ValueError('dt_input has NA or Inf. Please clean data first')
+        if df.isna().any(axis=None):
+            raise ValueError('Dataframe has null values. Please clean data first')
+        if sum(df.isin([np.inf, -np.inf]).any()) > 0:
+            raise ValueError('Dataframe has value/s with INF. Please clean data first')
 
-        # todo variable function should be lowercase - 2021.12.09
-        dayInterval = df_transform['ds'].nlargest(2)
-        dayInterval = (dayInterval.iloc[0] - dayInterval.iloc[1]).days
-        if dayInterval == 1:
-            intervalType = 'day'
-        elif dayInterval == 7:
-            intervalType = 'week'
-        elif 28 <= dayInterval <= 31:
-            intervalType = 'month'
+        # Check what date interval the data is on
+        dates_two_largest = df[date_var_name].nlargest(2)
+        day_interval = (dates_two_largest.iloc[0] - dates_two_largest.iloc[1]).days
+        if day_interval == 1:
+            interval_type = 'day'
+        elif day_interval == 7:
+            interval_type = 'week'
+        elif 28 <= day_interval <= 31:
+            interval_type = 'month'
         else:
-            raise ValueError('input data has to be daily, weekly or monthly')
-        self.dayInterval = dayInterval
-        self.intervalType = intervalType
+            raise ValueError('Input data should be daily, weekly or monthly')
+        self.day_interval = day_interval
+        self.interval_type = interval_type
 
-        # check dependent var
-        if not self.dep_var or self.dep_var not in df_transform.columns or len(self.dep_var) > 1:
-            raise ValueError('Must provide only 1 correct dependent variable name for dep_var')
-        elif not pd.api.types.is_numeric_dtype(df_transform[self.dep_var]):
-            raise ValueError('dep_var must be numeric or integer')
-        elif self.dep_var_type not in ['conversion', 'revenue'] or len(self.dep_var_type) != 1:
-            raise ValueError('dep_var_type must be conversion or revenue')
+        # Check dependent var
+        if not dep_var_name:
+            raise ValueError('Need to define dep_var_name')
+        elif dep_var_name not in df.columns:
+            raise ValueError('"dep_var_name" not found in columns')
+        elif (type(dep_var_name) == list) and (len(dep_var_name) > 1):
+            raise ValueError(f'Should provide only one dep_var_name.  Provided: "{dep_var_name}"')
+        elif not pd.api.types.is_numeric_dtype(df[dep_var_name]):
+            raise ValueError('dep_var_name must be numeric or integer')
+        elif dep_var_type not in ['conversion', 'revenue'] or len(dep_var_type) != 1:
+            raise ValueError('dep_var_type must be set to conversion or revenue')
 
-        # check prophet
-        if not self.prophet_vars:
+        # Check prophet
+        # Prophet vars
+        if not prophet_vars:
             self.prophet_signs = None
             self.prophet_country = None
-        elif self.prophet_vars and not set(self.prophet_vars).issubset({'trend', 'season', 'weekday', 'holiday'}):
-            raise ValueError('allowed values for prophet_vars are "trend", "season", "weekday" and "holiday"')
-        elif not self.prophet_country or len(self.prophet_country) > 1:
+        elif not set(prophet_vars).issubset({'trend', 'season', 'weekday', 'holiday'}):
+            raise ValueError('Allowed values for prophet_vars are "trend", "season", "weekday" and "holiday"')
+        # Prophet country
+        elif not prophet_country:
+            raise ValueError('No country entered for prophet.  Update variable prophet_country')
+        elif type(prophet_country) is list and len(prophet_country) > 1:
             raise ValueError('1 country code must be provided in prophet_country. If your country is not available, '
-                             'please add it to the holidays.csv first')
+                             'please add it to the holidays.csv first.'
+                             f'\n\tThe value you entered for the country is: "{prophet_country}')
+        # Prophet signs
+        # If not set, create a list of variables based on the number of prophet_vars
         elif not self.prophet_signs:
             self.prophet_signs = ['default'] * len(self.prophet_vars)
             print('prophet_signs is not provided. "default" is used')
-        elif not set(self.prophet_signs).issubset({"positive", "negative", "default"}) or \
-                len(self.prophet_signs) != self.prophet_vars:
-            raise ValueError(
-                'prophet_signs must have same length as prophet_vars. allowed values are "positive", "negative", '
-                '"default"')
+        elif not set(self.prophet_signs).issubset({"positive", "negative", "default"}):
+            raise ValueError('Invalid list of prophet signs.  Allowed values are "positive", "negative", "default"'
+                             f'\nYou supplied: "{self.prophet_signs}"')
+        elif len(self.prophet_signs) != self.prophet_vars:
+            raise ValueError('"prophet_signs" must have same length as "prophet_vars"')
 
-        # check baseline variables
+        # todo pick up here on checking data
+        # Check baseline variables: context (vars and signs)
         if not self.context_vars:
             self.context_signs = None
-        elif not set(self.context_vars).issubset(df_transform.columns):
+        elif not set(self.context_vars).issubset(df.columns):
             raise ValueError('Provided context_vars is not included in input data')
         elif not self.context_signs:
             self.context_signs = ['default'] * len(self.context_vars)
@@ -170,12 +342,12 @@ class Robyn(object):
             raise ValueError("context_signs must have same length as context_vars. allowed values are 'positive', "
                              "'negative', 'default'")
 
-        # check paid media variables
+        # Check paid media variables
         mediaVarCount = len(self.paid_media_vars)
         spendVarCount = len(self.paid_media_spends)
         if not self.paid_media_vars or not self.paid_media_spends:
             raise ValueError('Must provide paid_media_vars and paid_media_spends')
-        elif not set(self.paid_media_vars).issubset(df_transform.columns):
+        elif not set(self.paid_media_vars).issubset(df.columns):
             raise ValueError('Provided paid_media_vars is not included in input data')
         elif not self.paid_media_signs:
             self.paid_media_signs = ['positive'] * mediaVarCount
@@ -184,16 +356,16 @@ class Robyn(object):
                 {"positive", "negative", "default"}):
             raise ValueError("paid_media_signs must have same length as context_vars. allowed values are 'positive', "
                              "'negative', 'default'")
-        elif not set(self.paid_media_spends).issubset(df_transform.columns):
+        elif not set(self.paid_media_spends).issubset(df.columns):
             raise ValueError('Provided paid_media_spends is not included in input data')
         elif spendVarCount != mediaVarCount:
             raise ValueError('paid_media_spends must have same length as paid_media_vars.')
-        elif (df_transform[self.paid_media_vars + self.paid_media_spends].values < 0).any():
+        elif (df[self.paid_media_vars + self.paid_media_spends].values < 0).any():
             raise ValueError('contains negative values. Media must be >=0')
         self.exposureVarName = list(set(self.paid_media_vars) - set(self.paid_media_spends))
 
-        # check organic media variables
-        if not set(self.organic_vars).issubset(df_transform.columns):
+        # Check organic media variables
+        if not set(self.organic_vars).issubset(df.columns):
             raise ValueError('Provided organic_vars is not included in input data')
         elif self.organic_vars and not self.organic_signs:
             self.organic_signs = ['positive'] * len(self.organic_vars)
@@ -203,71 +375,71 @@ class Robyn(object):
             raise ValueError("organic_signs must have same length as context_vars. allowed values are 'positive', "
                              "'negative', 'default'")
 
-        # check factor_vars
+        # Check factor_vars
         if not self.factor_vars:
             if not set(self.factor_vars).issubset(self.context_vars + self.organic_vars):
                 raise ValueError('factor_vars must be from context_vars or organic_vars')
 
-        # check all vars
+        # Check all vars
         all_media = self.paid_media_vars + self.organic_vars
         self.all_media = all_media
         all_ind_vars = self.paid_media_vars + self.organic_vars + self.prophet_vars + self.context_vars
         if len(all_ind_vars) < len(set(all_ind_vars)):
             raise ValueError('Input variables must have unique names')
 
-        # check data dimension
-        num_obs = df_transform.shape[0]
+        # Check data dimension
+        num_obs = df.shape[0]
         if num_obs < len(all_ind_vars) * 10:
             raise ValueError('There are' + str(len(all_ind_vars)) + 'independent variables &' + str(num_obs) +
                              'data points. We recommend row:column ratio >= 10:1')
 
-        # check window_start & window_end
+        # Check window_start & window_end
         try:
-            self.window_start = min(pd.to_datetime(df_transform[self.date_var], format='%Y-%m-%d', errors='raise'))
+            self.window_start = min(pd.to_datetime(df[self.date_var_name], format='%Y-%m-%d', errors='raise'))
         except ValueError:
             print('input date variable should have format "yyyy-mm-dd"')
 
         if not self.window_start:
-            self.window_start = min(df_transform[self.date_var])
-        elif self.window_start < min(df_transform[self.date_var]):
-            self.window_start = min(df_transform[self.date_var])
+            self.window_start = min(df[self.date_var_name])
+        elif self.window_start < min(df[self.date_var_name]):
+            self.window_start = min(df[self.date_var_name])
             raise ValueError('window_start is smaller than the earliest date in input data. '
                              'It\'s set to the earliest date')
-        elif self.window_start > max(df_transform[self.date_var]):
-            self.window_start = min(df_transform[self.date_var])
+        elif self.window_start > max(df[self.date_var_name]):
+            self.window_start = min(df[self.date_var_name])
             raise ValueError('window_start can\'t be larger than the the latest date in input data')
 
-        self.rollingWindowStartWhich = abs(pd.to_datetime(df_transform[self.date_var] -
+        self.rollingWindowStartWhich = abs(pd.to_datetime(df[self.date_var_name] -
                                                           pd.to_datetime(self.window_start))).idxmin()
-        if self.window_start not in df_transform[self.date_var]:
-            self.window_start = df_transform[self.date_var][self.rollingWindowStartWhich]
+        if self.window_start not in df[self.date_var_name]:
+            self.window_start = df[self.date_var_name][self.rollingWindowStartWhich]
             print('window_start is adapted to the closest date contained in input data')
 
         self.refreshAddedStart = self.window_start
 
         try:
-            self.window_end = max(pd.to_datetime(df_transform[self.date_var], format='%Y-%m-%d', errors='raise'))
+            self.window_end = max(pd.to_datetime(df[self.date_var_name], format='%Y-%m-%d', errors='raise'))
         except ValueError:
             print('input date variable should have format "yyyy-mm-dd"')
 
         if not self.window_end:
-            self.window_end = max(df_transform[self.date_var])
-        elif self.window_end > max(df_transform[self.date_var]):
-            self.window_end = max(df_transform[self.date_var])
+            self.window_end = max(df[self.date_var_name])
+        elif self.window_end > max(df[self.date_var_name]):
+            self.window_end = max(df[self.date_var_name])
             raise ValueError('window_end is larger than the latest date in input data. It\'s set to the latest date')
         elif self.window_end < self.window_start:
-            self.window_end = max(df_transform[self.date_var])
+            self.window_end = max(df[self.date_var_name])
             raise ValueError('window_end must be >= window_start. It\'s set to latest date in input data')
 
         self.rollingWindowEndWhich = abs(
-            pd.to_datetime(df_transform[self.date_var] - pd.to_datetime(self.window_end))).idxmin()
-        if self.window_end not in df_transform[self.date_var]:
-            self.window_end = df_transform[self.date_var][self.rollingWindowEndWhich]
+            pd.to_datetime(df[self.date_var_name] - pd.to_datetime(self.window_end))).idxmin()
+        if self.window_end not in df[self.date_var_name]:
+            self.window_end = df[self.date_var_name][self.rollingWindowEndWhich]
             print('window_end is adapted to the closest date contained in input data')
 
         self.rollingWindowLength = self.rollingWindowEndWhich - self.rollingWindowStartWhich + 1
 
-        dt_init = df_transform.iloc[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1, ].loc[:, all_media]
+        dt_init = df.iloc[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1, ].loc[:, all_media]
         if not (dt_init != 0).any(axis=0).all(axis=0):
             raise ValueError('Some media channels contain only 0 within training period')
 
@@ -296,8 +468,8 @@ class Robyn(object):
         else:
             # check calibration
             if self.calibration_input:
-                if (min(self.calibration_input['liftStartDate']) < min(df_transform[self.date_var])
-                        or max(self.calibration_input['liftStartDate']) > max(df_transform[self.date_var])):
+                if (min(self.calibration_input['liftStartDate']) < min(df[self.date_var_name])
+                        or max(self.calibration_input['liftStartDate']) > max(df[self.date_var_name])):
                     raise ValueError('we recommend you to only use experimental results conducted within your MMM input'
                                      ' data date range')
 
@@ -333,7 +505,7 @@ class Robyn(object):
         #         raise ValueError('please provide lift result or set activate_calibration = FALSE')
         #     if (min(self.lift['liftStartDate']) < min(dt_transform['ds'])
         #             or (max(self.lift['liftEndDate']) > max(dt_transform['ds']) +
-        #             timedelta(days=self.dayInterval - 1))):
+        #             timedelta(days=self.day_interval - 1))):
         #         raise ValueError(
         #             'we recommend you to only use lift results conducted within your MMM input data date range')
         #
@@ -370,9 +542,9 @@ class Robyn(object):
 
         dt_inputRollWind = dt[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
         dt_transform = dt.copy().reset_index()
-        dt_transform = dt_transform.rename({self.date_var: 'ds'}, axis=1)
+        dt_transform = dt_transform.rename({self.date_var_name: 'ds'}, axis=1)
         dt_transform['ds'] = pd.to_datetime(dt_transform['ds'], format='%Y-%m-%d')
-        dt_transform = dt_transform.rename({self.dep_var: 'depVar'}, axis=1)
+        dt_transform = dt_transform.rename({self.dep_var_name: 'depVar'}, axis=1)
         # todo - variable not used dt_transformRollWind and should be lowercase - 2021.12.09
         dt_transformRollWind = dt_transform[self.rollingWindowStartWhich:self.rollingWindowEndWhich + 1]
 
@@ -530,9 +702,9 @@ class Robyn(object):
             use_weekday = True if 'weekday' in self.prophet_vars else False
             use_holiday = True if 'holiday' in self.prophet_vars else False
 
-            if self.intervalType == 'day':
+            if self.interval_type == 'day':
                 holidays = self.df_holidays
-            elif self.intervalType == 'week':
+            elif self.interval_type == 'week':
                 weekStartInput = dt_transform['ds'][0].weekday()
                 if weekStartInput == 0:
                     weekStartMonday = True
@@ -548,7 +720,7 @@ class Robyn(object):
                 holidays = self.df_holidays.groupby(['ds', 'country', 'year'])['holiday'].apply(
                     lambda x: '#'.join(x)).reset_index()
 
-            elif self.intervalType == 'month':
+            elif self.interval_type == 'month':
                 monthStartInput = dt_transform['ds'][0].strftime("%d")
                 if monthStartInput != '01':
                     raise ValueError("monthly data should have first day of month as datestampe, e.g.'2020-01-01'")
@@ -1260,7 +1432,7 @@ class Robyn(object):
             dt_train = dt_modSaturated.copy()
 
             # Contrast matrix because glmnet does not treat categorical variables
-            y_train = dt_train[self.dep_var]
+            y_train = dt_train[self.dep_var_name]
             ro.numpy2ri.activate()
             R = ro.r
             x_train = R('model.matrix(dep_var ~ ., dt_train)[, -1]')
