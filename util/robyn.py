@@ -1706,8 +1706,6 @@ class Robyn(object):
                 "Optimizer_name: " + optimizer_name + ";  Total_iterations: " + cnt + ";   best_mape: " +
                 best_mape])
 
-        return resultCollect
-
         # End dopar
         # End parallel
 
@@ -1726,7 +1724,22 @@ class Robyn(object):
 
         #####################################
         # Final result collect
-        resultCollect = []
+        resultCollect = dict()
+        resultCollect['resultHypParam'] = 0
+        resultCollect['xDecompVec'] = 0
+        resultCollect['xDecompAgg'] = 0
+        resultCollect['liftCalibration'] = 0
+        resultCollect['decompSpendDist'] = 0
+        resultCollect['iter'] = len(resultCollect['mape'])
+        resultCollect['elapsed_min'] = sysTimeDopar[3]/60
+        # TODO: need to figure out how to capture time elapsed
+        resultCollect['resultHypParam']['ElapsedAccum'] =  resultCollect['resultHypParam']['ElapsedAccum'] - min( resultCollect['resultHypParam']['ElapsedAccum']) \
+                                              +  resultCollect[resultCollect['resultHypParam']['ElapsedAccum'] ==  resultCollect['resultHypParam']['ElapsedAccum'].min()]['Elapsed']
+
+        resultCollect = resultCollect
+        hyperBoundNG = hyper_bound_list_updated
+        hyperBoundFixed = hyper_bound_list_fixed
+        return resultCollect, hyperBoundNG, hyperBoundFixed
 
     def fit(self,
             optimizer_name=None,
