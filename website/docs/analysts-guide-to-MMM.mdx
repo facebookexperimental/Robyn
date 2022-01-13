@@ -38,7 +38,7 @@ When running an MMM study, there are multiple steps involved. See below for the 
 | Define business questions and scope | As with any research or analysis, it’s important to define the objective and key business questions that you want to be answered by the study. This will help shape how the MMM will be designed and executed, which in turn will help you get the best value out of an MMM. More details about this are in the [Collecting Measurement Business Questions section](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM/#collecting-your-measurement-business-questions) section. | 1-2 weeks |
 | Data collection | Data collection is one of the most important but time consuming steps in an MMM study. Time-series data for sales (or another KPI), media, non-media marketing (e.g. promotions) and macroeconomic factors will need to be collected, cleaned and processed for MMM use. Collecting accurate and quality data is critical - if inaccurate or poor quality data inputs are used in an MMM, it will produce inaccurate and poor quality data outputs. More details about this step are in the [Data Collection](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM/#data-collection) section. | 4-6 weeks |
 | Data review | In addition to data collection, data review is one of the most important steps in an MMM study. This involves thoroughly checking all the cleaned and processed data sets for its accuracy, just before modeling begins. Data review may also uncover data gaps or errors, which may require more data collection. As mentioned above, the repercussions of inaccurate or poor quality data inputs means inaccurate and poor quality data outputs. More details about this step are in the [Data Review](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-review) section.  | 1-2 weeks |
-| modeling | Once happy with the accuracy of all data inputs, the next step is to run the models. Expect modeling to be an iterative process - that is, consistently re-running and fine-tuning the models. The time and effort of this step will significantly vary based on the scope and complexity. More details about this step are in the [modeling Phase](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM/#feature-engineering) section. | 4-8 weeks (dependent on MMM scope) |
+| Modeling | Once happy with the accuracy of all data inputs, the next step is to run the models. Expect modeling to be an iterative process - that is, consistently re-running and fine-tuning the models. The time and effort of this step will significantly vary based on the scope and complexity. More details about this step are in the [Modeling Phase](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM/#modeling-phase) section. | 4-8 weeks (dependent on MMM scope) |
 | Analysis and recommendations | Once happy with the model, the next step is to analyse the data outputs and results and make actionable recommendations based on the original business questions in scope. There are a wide range of different outputs and metrics that come out of an MMM - more details about this step are in the [Applications of the Model](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#applications-of-the-model-) section. | 2-4 weeks |
 
 
@@ -52,35 +52,38 @@ There are three widely accepted methods to implement a MMM. At Meta, we support 
 
 1. <u>Working with a 3rd party MMM vendor</u>:
 There are 3rd party vendors that specialise in MMMs, who usually drive the entire engagement including discovery, data collection, modeling and insights/recommendations. Most offer software that an MMM can be loaded into for forward looking simulation/optimization and forecasting capabilities.
-    - Pros: Offers an end to end service, requires the least amount of your time and effort (when compared to other options), can compare your MMM results with benchmarks (depending on the vendor);
-    - Cons: Vendor will charge a fee, usually the most expensive option when compared to other options.
 
 
- - <em>How can Meta help?</em>
+  - Pros: Offers an end to end service, requires the least amount of your time and effort (when compared to other options), can compare your MMM results with benchmarks (depending on the vendor);
+  - Cons: Vendor will charge a fee, usually the most expensive option when compared to other options.
+
+
+ **<em>How can Meta help?</em>**
 
   Meta has preferred 3rd party MMM partners who are part of the Meta MMM Preferred Partner Program, where they have a fully vetted MMM methodology as verified by our Marketing Science MMM partnership team. You can find the full list of badged partners on our [Measurement Partner website](https://www.facebook.com/business/m/measurement/partners).
 
 2. <u>Using semi-automated MMM tools or software as a service (Saas) platforms</u>:
 This new technology allows MMMs to be built in a point and click environment with less specialized MMM statistical knowledge required. MMM SaaS solutions offer automated modeling techniques that can be run on an ongoing basis and typically contain optimization planning and simulation modules for forward facing scenario planning.
-    - Pros: Suitable for those with less specialised MMM or analytical expertise, cheaper alternative to working with an MMM vendor;
-    - Cons: Less consultation than working with an MMM vendor.
+
+  - Pros: Suitable for those with less specialised MMM or analytical expertise, cheaper alternative to working with an MMM vendor;
+  - Cons: Less consultation than working with an MMM vendor.
 
 
- - <em>How can Meta help?</em>
+ **<em>How can Meta help?</em>**
 
   Similar to 3rd party specialist MMM vendors, we also have preferred partners that offer MMM SaaS solutions - the full list of partners can be found on our [Measurement Partner website](https://www.facebook.com/business/m/measurement/partners).
 
 3. <u>Build an in-house MMM solution</u>:
 For businesses who want to fully run and manage everything internally, there is the option of building an in-house MMM solution.
-    - Pros: Aside from headcount and time, no ongoing costs to run MMM;
-    - Cons: Requires in-house analytical / data science capabilities, takes the most internal time and resource investment out of all options.
+
+  - Pros: Aside from headcount and time, no ongoing costs to run MMM;
+  - Cons: Requires in-house analytical / data science capabilities, takes the most internal time and resource investment out of all options.
 
 
- - <em>How can Meta help?</em>
+ **<em>How can Meta help?</em>**
 
   The Meta Marketing Science team has built Project Robyn, an open-source R code that uses machine learning techniques for in-house and DIY modelers that clients can use to build in-house models. The code, along with detailed documentation and step-by-step guides, is available on GitHub and on this website.
 
-Collecting your measurement business questions
 
 
 ### Collecting your measurement business questions
@@ -102,7 +105,7 @@ Some common questions that are best answered by MMM include:
 
 For those questions and hypotheses that are best answered by MMM, this will influence and determine the input variables and model structure. For example - if an advertiser wants to answer question #3 above, then granular data at the executional or creative level will need to be collected and used as an input in the model (more on this later). Hence this is a very important upfront step to ensure that you will get the most value out of your MMM.
 
-## Pre-modeling Phase
+## Pre-Modeling Phase
 ### Data Collection
 
 Once you’ve collected all your business questions and understand which ones will be specifically answered by MMM, it’s time to get started on data collection.
@@ -189,6 +192,7 @@ Even if super granular data (e.g. at the creative level) might not be collected 
 
 
 <u>How to get started?</u>
+
 Based on all the considerations above, a great place to start is to begin mapping out all the different variables that we want to include in the MMM. Specifying this up front can help from a project management perspective, by clearly outlining the data required and who is responsible for collecting each data set.
 
 To help with this:
@@ -387,7 +391,7 @@ You can also access the helper plot to see how the Hill function transforms as t
 <img alt="hill curves" src={useBaseUrl('/img/hillfunctionshapes.png')} />
 
 
-### modeling Techniques ​
+### Modeling Techniques ​
 Once you finish setting the parameters in feature engineering, it is now time to run your first model. Fortunately once parameters have been set, Robyn’s modeling process is automated and the results will be automatically generated according to the model specification you have made. Therefore, less intervention is required in this part, however it is important to understand what is happening behind the scenes and how to interpret the results.
 
 <u>Ridge Regression</u>
@@ -454,7 +458,7 @@ However, in the situation that you would like to quickly check how the code runs
 
 
 <u>Model Calibration</u>
-As mentioned above, we strongly recommend using experimental and causal results that are considered to be the ground truth to calibrate MMM. People-based - e.g. [Meta Conversion Lift](https://www.facebook.com/business/m/one-sheeters/conversion-lift), or geo-based incrementality studies - e.g. [Meta GeoLift](https://github.com/facebookincubator/GeoLift) are two methodologies that can be used to establish the true incrementality of your advertising. By applying the results from these experiments, it is highly likely that this will improve the accuracy of your models.
+As mentioned above, we strongly recommend using experimental and causal results that are considered to be the ground truth to calibrate MMM. People-based (e.g. Meta Conversion Lift: https://www.facebook.com/business/m/one-sheeters/conversion-lift), or geo-based incrementality studies (e.g. Meta GeoLift: https://github.com/facebookincubator/GeoLift) are two methodologies that can be used to establish the true incrementality of your advertising. By applying the results from these experiments, it is highly likely that this will improve the accuracy of your models.
 
 As discussed in the **Model Selection** part, calibration can increase your confidence when selecting the final model, especially when there is no strong prior knowledge of media effectiveness and performance. It is recommended to run incrementality studies on an ongoing and regular basis in order to have results that can permanently calibrate the MMM. In general, we want to compare the results of an incrementality study with the MMM outputs for a marketing channel. Conceptually, this method is like a Bayesian method, where experiment results are used as a prior to calibrate the coefficients of media variables.
 
@@ -489,14 +493,15 @@ Note that refreshing models might not always be the best approach, where there a
 - <em>Mostly new data</em>: If the initial model has 100 weeks and there is 80 weeks worth of new data to be added as a refresh, it might be better to rebuild the model;
 - <em>Addition of new variables</em>: If new variables need to be added, then the model design will need to be changed and hence it is better to rebuild the model.
 
-### Applications of the model ​
+### Applications of the Model ​
 
 You may have heard this quote by John Wanamaker where he laments: “Half the money I spend on advertising is wasted; the trouble is I don’t know which half.”
 One of the benefits of MMM and Robyn is that it can measure the effectiveness of all your advertising and also provide actionable insights to improve the effectiveness of various marketing activities. To achieve this, you must be able to correctly interpret the outputs of the model.
 Please note that the following outputs and charts are based on simulated data and are for illustrative purposes only.
 
 <u>Interpret Marketing Mix Model Outputs</u>
-To enable actionable decision making, Robyn produces a range of outputs and charts like the below:
+
+To enable actionable decision making, Robyn produces a range of outputs and charts like the below
 
 
 <em>Model fit</em>: In order to have an accurate model, the fit of the modelled data has to be accurately relative to the actual data provided. As mentioned in the Model Design section, overspecifying the model will erode its predictive powers, however not having enough variables and underspecifying can lead to improper reads into certain channels.
