@@ -611,7 +611,7 @@ robyn_engineering <- function(InputCollect, ...) {
 #' @param context_vars As in \code{robyn_inputs()}
 #' @param paid_media_vars As in \code{robyn_inputs()}
 #' @param intervalType As included in \code{InputCollect}
-#' @param ... Additional prophet parameters
+#' @param ... Additional prophet parameters to personalize default behavior.
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
@@ -620,19 +620,26 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
   recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
   colnames(recurrence)[2] <- "y"
+  custom_params <- list(...)
 
   holidays <- set_holidays(dt_transform, dt_holidays, intervalType)
   use_trend <- any(str_detect("trend", prophet_vars))
-  use_season <- any(str_detect("season", prophet_vars))
-  use_weekday <- any(str_detect("weekday", prophet_vars))
+  use_season <- any(c(str_detect("season", prophet_vars), "yearly.seasonality" %in% names(custom_params)))
+  use_weekday <- any(c(str_detect("weekday", prophet_vars), "weekly.seasonality" %in% names(custom_params)))
   use_holiday <- any(str_detect("holiday", prophet_vars))
 
   dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_vars)))
   modelRecurrence <- prophet(
     holidays = if (use_holiday) holidays[country == prophet_country] else NULL,
-    yearly.seasonality = use_season,
-    weekly.seasonality = use_weekday,
-    daily.seasonality = FALSE,
+    yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
+                                custom_params[["yearly.seasonality"]],
+                                use_season),
+    weekly.seasonality = ifelse("weekly.seasonality" %in% names(custom_params),
+                                custom_params[["weekly.seasonality"]],
+                                use_weekday),
+    daily.seasonality = ifelse("daily.seasonality" %in% names(custom_params),
+                               custom_params[["daily.seasonality"]],
+                               FALSE),
     ...
   )
 

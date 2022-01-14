@@ -36,7 +36,7 @@ prophet_decomp(
 
 \item{intervalType}{As included in \code{InputCollect}}
 
-\item{...}{Additional prophet parameters}
+\item{...}{Additional prophet parameters to personalize default behavior.}
 }
 \value{
 A list containing all prophet decomposition output.
