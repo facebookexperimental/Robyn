@@ -351,6 +351,34 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL, all_me
         paste(local_name, collapse = ", ")
       )
     }
+    check_hyper_limits(hyperparameters, "thetas")
+    check_hyper_limits(hyperparameters, "alphas")
+    check_hyper_limits(hyperparameters, "gammas")
+    check_hyper_limits(hyperparameters, "shapes")
+    check_hyper_limits(hyperparameters, "scales")
+  }
+}
+
+check_hyper_limits <- function(hyperparameters, hyper) {
+  hyper_which <- which(endsWith(names(hyperparameters), hyper))
+  if (length(hyper_which) == 0) return(invisible(NULL))
+  limits <- hyper_limits()[[hyper]]
+  for (i in hyper_which) {
+    values <- hyperparameters[[i]]
+    # Lower limit
+    ineq <- paste(values[1], limits[1], sep = "", collapse = "")
+    lower_pass <- eval(parse(text = ineq))
+    if (!lower_pass)
+      stop(sprintf("%s's hyperparameter must have lower bound %s", names(hyperparameters)[i], limits[1]))
+    # Upper limit
+    ineq <- paste(values[2], limits[2], sep = "", collapse = "")
+    upper_pass <- eval(parse(text = ineq))
+    if (!upper_pass)
+      stop(sprintf("%s's hyperparameter must have upper bound %s", names(hyperparameters)[i], limits[2]))
+    # Order of limits
+    order_pass <- !isFALSE(values[1] <= values[2])
+    if (!order_pass)
+      stop(sprintf("%s's hyperparameter must have lower bound first and upper bound second", names(hyperparameters)[i]))
   }
 }
 

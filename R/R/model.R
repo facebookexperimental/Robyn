@@ -881,10 +881,8 @@ robyn_run <- function(InputCollect,
       ))
     } # end solution loop
 
-    if (parallel_plotting) {
-      cnt <- cnt + length(uniqueSol)
-      setTxtProgressBar(pbplot, cnt)
-    }
+    cnt <- cnt + length(uniqueSol)
+    setTxtProgressBar(pbplot, cnt)
 
     # append parallel run results
     mediaVecCollect <- append(mediaVecCollect, lapply(parallelResult, function (x) x$mediaVecCollect))
@@ -1209,6 +1207,7 @@ robyn_mmm <- function(hyper_collect,
 
             ## adstocking
 
+            adstock <- check_adstock(adstock)
             if (adstock == "geometric") {
               theta <- hypParamSam[paste0(all_media[v], "_thetas")]
               x_list <- adstock_geometric(x = m, theta = theta)
