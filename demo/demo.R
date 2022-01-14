@@ -124,7 +124,7 @@ InputCollect <- robyn_inputs(
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
   ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
-  # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
+  # variables, 2000 is recommended for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
@@ -146,7 +146,7 @@ plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
-# All variables in paid_media_vars or organic_vars require hyperparameter and will be
+# All variables in paid_media_vars or organic_vars require hyperprameter and will be
 # transformed by adstock & saturation.
 # Difference between paid_media_vars and organic_vars is that paid_media_vars has spend that
 # needs to be specified in paid_media_spends specifically.
@@ -194,6 +194,7 @@ plot_saturation(plot = FALSE)
 # or only one value (in which case you've "fixed" that hyperparameter)
 
 # Run ?hyper_names to check parameter definition
+# Run hyper_limits() to check valid upper and lower bounds by range
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
 # Example hyperparameters for Geometric adstock
@@ -309,6 +310,7 @@ OutputCollect <- robyn_run(
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
   , pareto_fronts = 3
   , plot_pareto = TRUE
+  , clusters = TRUE # To help reduce and select best model
   # , calibration_constraint = 0.1 # run ?robyn_run to see description
   # , lambda_control = 1 # run ?robyn_run to see description
   )
@@ -323,8 +325,15 @@ OutputCollect <- robyn_run(
 ################################################################
 #### Step 4: Select and save the initial model
 
-## Compare all model onepagers in the plot folder and select one that mostly represents
+## Compare all model one-pagers in the plot folder and select one that mostly represents
 ## your business reality
+
+## Select winning model based on minimum combined error by ROI cluster using robyn_clusters()
+## You can check OutputCollect$clusters information or manually run it with custom parameters
+# cls <- robyn_clusters(input = OutputCollect,
+#                       all_media = InputCollect$all_media,
+#                       k = 5, limit = 1,
+#                       weights = c(1, 1, 1.5))
 
 OutputCollect$allSolutions # get all model IDs in result
 select_model <- "1_4_2" # select one from above

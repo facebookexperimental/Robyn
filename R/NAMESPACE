@@ -2,6 +2,7 @@
 
 export(adstock_geometric)
 export(adstock_weibull)
+export(hyper_limits)
 export(hyper_names)
 export(mic_men)
 export(plot_adstock)

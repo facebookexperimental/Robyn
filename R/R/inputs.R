@@ -444,6 +444,24 @@ hyper_names <- function(adstock, all_media) {
   return(local_name)
 }
 
+
+####################################################################
+#' Check hyperparameter limits
+#'
+#' Reference data.frame that shows the upper and lower bounds valid
+#' for each hyperparameter.
+#'
+#' @export
+hyper_limits <- function() {
+  data.frame(
+    thetas = c(">=0", "<1"),
+    alphas = c(">0", "<Inf"),
+    gammas = c(">0", "<=1"),
+    shapes = c(">0", "<Inf"),
+    scales = c(">=0", "<=1")
+  )
+}
+
 ####################################################################
 #' Apply prophet decomposition and spend exposure transformation
 #'
