@@ -194,6 +194,7 @@ plot_saturation(plot = FALSE)
 # or only one value (in which case you've "fixed" that hyperparameter)
 
 # Run ?hyper_names to check parameter definition
+# Run hyper_limits() to check valid upper and lower bounds by range
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
 # Example hyperparameters for Geometric adstock
@@ -323,7 +324,7 @@ OutputCollect <- robyn_run(
 ################################################################
 #### Step 4: Select and save the initial model
 
-## Compare all model onepagers in the plot folder and select one that mostly represents
+## Compare all model one-pagers in the plot folder and select one that mostly represents
 ## your business reality
 
 OutputCollect$allSolutions # get all model IDs in result
