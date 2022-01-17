@@ -834,6 +834,7 @@ class Robyn(object):
             :return: numpy
             """
 
+        #TODO: the new R version added a type condition for cdf or pdf
         x_vec = np.array([0] * (y - 1) + [x] * (n - y + 1))
         vec_lag = np.roll(vec_cum, y - 1)
         vec_lag[: y - 1] = 0
@@ -1314,6 +1315,7 @@ class Robyn(object):
         ################################################
         # Get spend share
         dt_inputTrain = self.dt_input[rollingWindowStartWhich:rollingWindowEndWhich]
+        #todo: get spend share
 
         ################################################
         # Start Nevergrad loop
