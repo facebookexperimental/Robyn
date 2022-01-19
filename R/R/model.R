@@ -29,6 +29,8 @@
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
 #' lambda.min and lambda.1se.
+#' @param intercept_sign Character. Choose one of "non_negative" (default) or
+#' "unconstrained". This option enables negative intercept on \code{glmnet}.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
@@ -51,6 +53,7 @@ robyn_run <- function(InputCollect,
                       plot_pareto = TRUE,
                       calibration_constraint = 0.1,
                       lambda_control = 1,
+                      intercept_sign = "non_negative",
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
                       seed = 123L,
@@ -118,6 +121,7 @@ robyn_run <- function(InputCollect,
       # ,cores = cores
       # ,optimizer_name = InputCollect$nevergrad_algo
       lambda_fixed = dt_hyper_fixed$lambda,
+      intercept_sign = intercept_sign,
       seed = seed
     )
 
@@ -172,6 +176,7 @@ robyn_run <- function(InputCollect,
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
         lambda_control = lambda_control,
+        intercept_sign = intercept_sign,
         refresh = refresh,
         seed = seed
       )
@@ -933,6 +938,7 @@ robyn_run <- function(InputCollect,
     UI = invisible(UI),
     model_output_collect = model_output_collect,
     allSolutions = allSolutions,
+    intercept_sign = intercept_sign,
     totalTime = totalTime,
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
   )
@@ -964,6 +970,7 @@ robyn_mmm <- function(hyper_collect,
                       lambda.n = 100,
                       lambda_control = 1,
                       lambda_fixed = NULL,
+                      intercept_sign = "non_negative",
                       refresh = FALSE,
                       seed = 123L) {
   if (reticulate::py_module_available("nevergrad")) {
@@ -1303,9 +1310,9 @@ robyn_mmm <- function(hyper_collect,
 
           ## if no lift calibration, refit using best lambda
           if (hyper_fixed == FALSE) {
-            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits)
+            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits, intercept_sign)
           } else {
-            mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits)
+            mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits, intercept_sign)
             lambda <- lambda_fixed[i]
           }
 
@@ -1872,7 +1879,7 @@ calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars, day
 }
 
 
-model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
+model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
   mod <- glmnet(
     x_train,
     y_train,
@@ -1886,6 +1893,9 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
 
   ## drop intercept if negative
   if (coef(mod)[1] < 0) {
+    if (is.null(intercept_sign)) intercept_sign <- "non_negative"
+    opts <- c("non_negative", "unconstrained")
+    if (!intercept_sign %in% opts) stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
     mod <- glmnet(
       x_train,
       y_train,
@@ -1894,7 +1904,7 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
       , lambda = lambda,
       lower.limits = lower.limits,
       upper.limits = upper.limits,
-      intercept = FALSE
+      intercept = intercept_sign != "non_negative"
     ) # coef(mod)
   } # ; plot(mod); print(mod)
 

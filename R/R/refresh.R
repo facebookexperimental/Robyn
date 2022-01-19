@@ -298,6 +298,7 @@ robyn_refresh <- function(robyn_object,
       InputCollect = InputCollectRF,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
+      intercept_sign = robyn_object[["intercept_sign"]],
       pareto_fronts = 1,
       refresh = TRUE,
       plot_pareto = plot_pareto
