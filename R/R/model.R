@@ -140,7 +140,7 @@ robyn_run <- function(InputCollect,
     t0 <- Sys.time()
 
     # enable parallelisation of main modelling loop for MacOS and Linux only
-    parallel_processing <- .Platform$OS.type == "unix"
+    parallel_processing <- "unix" %in% .Platform$OS.type
     if (parallel_processing) {
       message(paste(
         "Using", InputCollect$adstock, "adstocking with",
@@ -1122,7 +1122,7 @@ robyn_mmm <- function(hyper_collect,
   # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
 
   # enable parallelisation of main modelling loop for MacOS and Linux only
-  parallel_processing <- .Platform$OS.type == "unix"
+  parallel_processing <- "unix" %in% .Platform$OS.type
 
   # create cluster before big for-loop to minimize overhead for parallel backend registering
   if (parallel_processing) {
