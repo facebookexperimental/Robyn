@@ -11,6 +11,7 @@ robyn_mmm(
   lambda.n = 100,
   lambda_control = 1,
   lambda_fixed = NULL,
+  intercept_sign = "non_negative",
   refresh = FALSE,
   seed = 123L
 )
@@ -32,6 +33,11 @@ lambda.min and lambda.1se.}
 
 \item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
 old model results.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
