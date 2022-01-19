@@ -35,7 +35,9 @@ lambda.min and lambda.1se.}
 old model results.}
 
 \item{intercept_sign}{Character. Choose one of "non_negative" (default) or
-"unconstrained". This option enables negative intercept on \code{glmnet}.}
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 

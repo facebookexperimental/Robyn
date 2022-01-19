@@ -30,7 +30,9 @@
 #' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
 #' lambda.min and lambda.1se.
 #' @param intercept_sign Character. Choose one of "non_negative" (default) or
-#' "unconstrained". This option enables negative intercept on \code{glmnet}.
+#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
+#' and refit the model. Consider changing intercept_sign to "unconstrained" when
+#' there are \code{context_vars} with large positive values.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
@@ -1891,11 +1893,13 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
     upper.limits = upper.limits
   ) # coef(mod)
 
-  ## drop intercept if negative
-  if (coef(mod)[1] < 0) {
-    if (is.null(intercept_sign)) intercept_sign <- "non_negative"
-    opts <- c("non_negative", "unconstrained")
-    if (!intercept_sign %in% opts) stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
+  df.int <- 1
+
+  ## drop intercept if negative and intercept_sign == "non_negative"
+  opts <- c("non_negative", "unconstrained")
+  if (!intercept_sign %in% opts)
+    stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
+  if (intercept_sign == "non_negative" & coef(mod)[1] < 0) {
     mod <- glmnet(
       x_train,
       y_train,
@@ -1904,11 +1908,10 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
       , lambda = lambda,
       lower.limits = lower.limits,
       upper.limits = upper.limits,
-      intercept = intercept_sign != "non_negative"
+      intercept = FALSE
     ) # coef(mod)
+    df.int <- 0
   } # ; plot(mod); print(mod)
-
-  df.int <- ifelse(coef(mod)[1] < 0, 0, 1)
 
   y_trainPred <- predict(mod, s = lambda, newx = x_train)
   rsq_train <- get_rsq(true = y_train, predicted = y_trainPred, p = ncol(x_train), df.int = df.int)
