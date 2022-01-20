@@ -452,13 +452,13 @@ check_filedir <- function(plot_folder) {
 check_calibconstr <- function(calibration_constraint, iterations, trials, calibration_input) {
   if (!is.null(calibration_input)) {
     total_iters <- iterations * trials
-    if (calibration_constraint <0.01 | calibration_constraint > 0.1) {
+    if (calibration_constraint < 0.01 | calibration_constraint > 0.1) {
       calibration_constraint <- 0.1
       message("calibration_constraint must be >=0.01 and <=0.1. Using default value 0.1")
     } else if (total_iters * calibration_constraint < 500) {
       warning("Calibration constraint set to be top ", calibration_constraint*100, "% calibrated models.",
               " Only ", round(total_iters*calibration_constraint,0), " models left for pareto-optimal selection")
     }
-  }
+  } else calibration_constraint <- 0.1
   return(calibration_constraint)
 }

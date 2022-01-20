@@ -940,6 +940,7 @@ robyn_run <- function(InputCollect,
     UI = invisible(UI),
     model_output_collect = model_output_collect,
     allSolutions = allSolutions,
+    calibration_constraint = calibration_constraint,
     intercept_sign = intercept_sign,
     totalTime = totalTime,
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
