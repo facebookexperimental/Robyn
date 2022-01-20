@@ -226,6 +226,7 @@ robyn_run <- function(InputCollect,
   xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_vars, .(coef0 = min(coef) == 0), by = "solID"]
 
   if (!hyper_fixed) {
+    if (is.null(calibration_constraint)) calibration_constraint <- 0.1
     mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint, na.rm = TRUE)
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90, na.rm = TRUE)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90, na.rm = TRUE)
@@ -940,6 +941,7 @@ robyn_run <- function(InputCollect,
     UI = invisible(UI),
     model_output_collect = model_output_collect,
     allSolutions = allSolutions,
+    calibration_constraint = calibration_constraint,
     intercept_sign = intercept_sign,
     totalTime = totalTime,
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")

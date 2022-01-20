@@ -102,10 +102,11 @@ robyn_save <- function(robyn_object,
 #' More reliable recommendation still needs to be investigated.
 #' @param plot_pareto A logical value. Set to \code{FALSE} to deactivate plotting
 #' and saving model onepagers. Used when testing models.
+#' @param ... Additional parameters passed to \code{robyn_engineering()} to
+#' overwrite original custom parameters passed into initial model.
 #' @return A list. The Robyn object.
 #' @examples
 #' \dontrun{
-#'
 #' ## NOTE: must run \code{robyn_save()} to select and save an initial model first,
 #' ## before refreshing below. The \code{robyn_refresh()} function is suitable for
 #' ## updating within "reasonable periods".
@@ -152,7 +153,8 @@ robyn_refresh <- function(robyn_object,
                           refresh_mode = "manual", # "auto", "manual"
                           refresh_iters = 1000,
                           refresh_trials = 3,
-                          plot_pareto = TRUE) {
+                          plot_pareto = TRUE,
+                          ...) {
   refreshControl <- TRUE
   while (refreshControl) {
 
@@ -210,9 +212,8 @@ robyn_refresh <- function(robyn_object,
     InputCollectRF$refreshCounter <- refreshCounter
     InputCollectRF$refresh_steps <- refresh_steps
     if (refresh_steps >= InputCollectRF$rollingWindowLength) {
-      stop("Refresh input data is completely new. Please rebuild model using robyn_run")
+      stop("Refresh input data is completely new. Please rebuild model using robyn_run().")
     }
-
 
     ## load new data
     dt_input <- as.data.table(dt_input)
@@ -290,7 +291,8 @@ robyn_refresh <- function(robyn_object,
     #### update refresh model parameters
 
     ## feature engineering for refreshed data
-    InputCollectRF <- robyn_engineering(InputCollect = InputCollectRF)
+    # Note that if custom prophet parameters were passed initially, will be used again unless changed in ...
+    InputCollectRF <- robyn_engineering(InputCollect = InputCollectRF, ...)
 
     ## refresh model with adjusted decomp.rssd
 
@@ -298,6 +300,7 @@ robyn_refresh <- function(robyn_object,
       InputCollect = InputCollectRF,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
+      calibration_constraint = listOutputPrev[["calibration_constraint"]],
       intercept_sign = listOutputPrev[["intercept_sign"]],
       pareto_fronts = 1,
       refresh = TRUE,
@@ -385,7 +388,6 @@ robyn_refresh <- function(robyn_object,
     fwrite(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
     fwrite(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
     fwrite(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
-
 
     #### reporting plots
     ## actual vs fitted

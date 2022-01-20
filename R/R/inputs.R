@@ -289,7 +289,8 @@ robyn_inputs <- function(dt_input = NULL,
       nevergrad_algo = nevergrad_algo,
       trials = trials,
       hyperparameters = hyperparameters,
-      calibration_input = calibration_input
+      calibration_input = calibration_input,
+      custom_params = list(...)
     )
 
     ### Use case 1: running robyn_inputs() for the first time
@@ -584,6 +585,7 @@ robyn_engineering <- function(InputCollect, ...) {
   #### Obtain prophet trend, seasonality and change-points
 
   if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
+    args <- list(...)
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -594,6 +596,7 @@ robyn_engineering <- function(InputCollect, ...) {
       context_vars = InputCollect$context_vars,
       paid_media_vars = paid_media_vars,
       intervalType = InputCollect$intervalType,
+      custom_params = if (length(args) == 0) InputCollect[["custom_params"]] else args,
       ...
     )
   }
@@ -629,16 +632,16 @@ robyn_engineering <- function(InputCollect, ...) {
 #' @param context_vars As in \code{robyn_inputs()}
 #' @param paid_media_vars As in \code{robyn_inputs()}
 #' @param intervalType As included in \code{InputCollect}
-#' @param ... Additional prophet parameters to personalize default behavior.
+#' @param custom_params List. Custom parameters passed to \code{prophet()}
+#' @param ... Additional parameters
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
-                           factor_vars, context_vars, paid_media_vars, intervalType,
-                           ...) {
+                           factor_vars, context_vars, paid_media_vars,
+                           intervalType, custom_params, ...) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
   recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
   colnames(recurrence)[2] <- "y"
-  custom_params <- list(...)
 
   holidays <- set_holidays(dt_transform, dt_holidays, intervalType)
   use_trend <- any(str_detect("trend", prophet_vars))
