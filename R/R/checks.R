@@ -459,6 +459,6 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
       warning("Calibration constraint set to be top ", calibration_constraint*100, "% calibrated models.",
               " Only ", round(total_iters*calibration_constraint,0), " models left for pareto-optimal selection")
     }
-  } else calibration_constraint <- 0.1
+  }
   return(calibration_constraint)
 }
