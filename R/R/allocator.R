@@ -675,7 +675,7 @@ robyn_allocator <- function(robyn_object = NULL,
   ggsave(
     filename = paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"),
     plot = g,
-    dpi = 400, width = 18, height = 14
+    dpi = 400, width = 18, height = 14, limitsize = FALSE
   )
 
   fwrite(dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))

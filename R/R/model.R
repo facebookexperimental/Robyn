@@ -351,7 +351,8 @@ robyn_run <- function(InputCollect,
       # print(pProphet)
       ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "prophet_decomp.png"),
              plot = pProphet,
-             dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
+             dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable)),
+             limitsize = FALSE
       )
     }
 
@@ -369,7 +370,8 @@ robyn_run <- function(InputCollect,
         )
       ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "spend_exposure_fitting.png"),
              plot = pSpendExposure,
-             dpi = 600, width = 12, height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
+             dpi = 600, width = 12, height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7,
+             limitsize = FALSE
       )
     } else {
       message("No spend-exposure modelling needed. all media variables used for mmm are spend variables ")
@@ -391,7 +393,7 @@ robyn_run <- function(InputCollect,
     # print(pSamp)
     ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "hypersampling.png"),
            plot = pSamp,
-           dpi = 600, width = 12, height = 7
+           dpi = 600, width = 12, height = 7, limitsize = FALSE
     )
 
 
@@ -431,7 +433,7 @@ robyn_run <- function(InputCollect,
     # print(pParFront)
     ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "pareto_front.png"),
            plot = pParFront,
-           dpi = 600, width = 12, height = 7
+           dpi = 600, width = 12, height = 7, limitsize = FALSE
     )
 
 
@@ -464,7 +466,8 @@ robyn_run <- function(InputCollect,
 
     suppressMessages(ggsave(paste0(plot_folder, "/", plot_folder_sub, "/", "roas_convergence.png"),
                             plot = pRidges,
-                            dpi = 600, width = 12, height = ceiling(InputCollect$mediaVarCount / 3) * 6
+                            dpi = 600, width = 12, height = ceiling(InputCollect$mediaVarCount / 3) * 6,
+                            limitsize = FALSE
     ))
   }
 
@@ -854,7 +857,7 @@ robyn_run <- function(InputCollect,
         ggsave(
           filename = paste0(plot_folder, "/", plot_folder_sub, "/", sid, ".png"),
           plot = pg,
-          dpi = 600, width = 18, height = 18
+          dpi = 600, width = 18, height = 18, limitsize = FALSE
         )
       }
 

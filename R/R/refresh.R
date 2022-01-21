@@ -449,7 +449,7 @@ robyn_refresh <- function(robyn_object,
     ggsave(
       filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
       plot = pFitRF,
-      dpi = 900, width = 12, height = 8
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
 
     ## stacked bar plot
@@ -506,7 +506,7 @@ robyn_refresh <- function(robyn_object,
     ggsave(
       filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
       plot = pBarRF,
-      dpi = 900, width = 12, height = 8
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
 
     #### save result objects
