@@ -7,7 +7,7 @@
 robyn_clusters(
   input,
   all_media = NULL,
-  k = 6,
+  k = "auto",
   limit = 1,
   weights = rep(1, 3),
   dim_red = "PCA",
@@ -22,7 +22,8 @@ Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars
 
 \item{k}{Integer. Number of clusters}
 
-\item{limit}{Integer. Top N results per cluster.}
+\item{limit}{Integer. Top N results per cluster. If kept in "auto", will select k
+as the cluster in which the WGSS variance was less than 5%.}
 
 \item{weights}{Vector, size 3. How much should each error weight?
 Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled

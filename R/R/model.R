@@ -907,9 +907,6 @@ robyn_run <- function(InputCollect,
   setkey(meanResponseCollect, solID, rn)
   xDecompAgg <- merge(xDecompAgg, meanResponseCollect[, .(rn, solID, mean_response, next_unit_response)], all.x = TRUE)
 
-  totalTime <- round(difftime(Sys.time(), t0, units = "mins"), 2)
-  message(paste("\nTotal time:", totalTime, "mins"))
-
   #####################################
   #### Collect results for output
 
@@ -939,15 +936,17 @@ robyn_run <- function(InputCollect,
     UI = invisible(UI),
     model_output_collect = model_output_collect,
     allSolutions = allSolutions,
-    totalTime = totalTime,
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
   )
 
+  class(output) <- c("robyn_run", class(output))
+
   if (clusters) {
-    rois <- .prepare_roi(xDecompAgg, all_media = InputCollect$all_media)
-    attr(output, "ROIs") <- invisible(rois)
     output[["clusters"]] <- robyn_clusters(output, ...)
   }
+
+  output[["totalTime"]] <- round(difftime(Sys.time(), t0, units = "mins"), 2)
+  message(paste("\nTotal time:", output[["totalTime"]], "mins"))
 
   return(output)
 

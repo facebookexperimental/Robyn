@@ -13,7 +13,8 @@
 #' @inheritParams lares::clusterKmeans
 #' @inheritParams hyper_names
 #' @param input \code{robyn_run()}'s output or \code{pareto_aggregated.csv} results.
-#' @param limit Integer. Top N results per cluster.
+#' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
+#' as the cluster in which the WGSS variance was less than 5%.
 #' @param weights Vector, size 3. How much should each error weight?
 #' Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled
 #' to origin (ei/x). Each value will be normalized so they all sum 1.
@@ -28,12 +29,20 @@
 #' }
 #' @export
 robyn_clusters <- function(input, all_media = NULL,
-                           k = 6, limit = 1,
+                           k = "auto", limit = 1,
                            weights = rep(1, 3),
                            dim_red = "PCA",
                            ...) {
-  df <- attr(input, "ROIs")
-  if (is.null(df)) {
+
+  if ("robyn_run" %in% class(input)) {
+    if (is.null(all_media)) {
+      aux <- colnames(input$mediaVecCollect)
+      all_media <- aux[-c(1, which(aux == "type"):length(aux))]
+    }
+    # Pareto and ROI data
+    rois <- input$xDecompAgg
+    df <- .prepare_roi(rois, all_media = all_media)
+  } else {
     if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) & is.data.frame(input)) {
       df <- .prepare_roi(input, all_media)
     } else {
@@ -43,15 +52,25 @@ robyn_clusters <- function(input, all_media = NULL,
         "in order to use robyn_clusters()"
       ))
     }
-  } else {
-   if (is.null(all_media)) {
-     aux <- colnames(input$mediaVecCollect)
-     all_media <- aux[-c(1, which(aux == "type"):length(aux))]
-   }
+  }
+
+  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "pareto")
+
+  # Auto K selected by less than 5% WGSS variance (convergence)
+  min_clusters <- 3
+  if ("auto" %in% k) {
+    cls <- clusterKmeans(df, k = NULL, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+    min_var <- 0.05
+    k <- cls$nclusters %>%
+      mutate(pareto = .data$wss/.data$wss[1],
+             dif = lag(.data$pareto) - .data$pareto) %>%
+      filter(.data$dif > min_var) %>% pull(.data$n) %>% max(.)
+    if (k < min_clusters) k <- min_clusters
+    message(sprintf("Auto selected k = %s based on minimum WGSS variance of %s%%", k, min_var*100))
   }
 
   # Build clusters
-  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "pareto")
+  stopifnot(k %in% min_clusters:30)
   cls <- clusterKmeans(df, k, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
 
   # Select top models by minimum (weighted) distance to zero
@@ -60,22 +79,23 @@ robyn_clusters <- function(input, all_media = NULL,
     .crit_proc(limit)
 
   output <- list(
+    # Data and parameters
+    data = cls$df,
+    n_clusters = k,
+    errors_weights = weights,
     # Within Groups Sum of Squares Plot
-    clusters_wgss = cls$nclusters_plot,
+    wgss = cls$nclusters_plot,
     # Grouped correlations per cluster
-    clusters_corrs = cls$correlations,
+    corrs = cls$correlations,
     # Mean ROI per cluster
     clusters_means = cls$means,
     # Dim reduction clusters
     clusters_PCA = cls[["PCA"]],
     clusters_tSNE = cls[["tSNE"]],
     # Top Clusters
-    clusters_models = top_sols,
-    clusters_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
-    clusters_models_rois = .plot_topsols_rois(top_sols, all_media, limit),
-    # Parameters
-    n_clusters = k,
-    errors_weights = weights
+    models = top_sols,
+    plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
+    plot_models_rois = .plot_topsols_rois(top_sols, all_media, limit)
   )
   return(output)
 }
