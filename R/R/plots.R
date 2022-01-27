@@ -147,8 +147,8 @@ robyn_pareto_plots <- function(InputCollect, output, pareto_results, pareto_fron
   resultHypParam <- copy(output$resultHypParam)
   xDecompAgg <- copy(output$xDecompAgg)
   if (!is.null(selected)) {
-    resultHypParam <- resultHypParam[resultHypParam$solID %in% selected,]
-    xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% selected,]
+    resultHypParam <- resultHypParam[solID %in% selected]
+    xDecompAgg <- xDecompAgg[solID %in% selected]
     message("  Exporting only cluster results one-pagers (", nrow(resultHypParam), "...")
   }
 

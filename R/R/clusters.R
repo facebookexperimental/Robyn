@@ -58,9 +58,10 @@ robyn_clusters <- function(input, all_media = NULL,
 
   # Auto K selected by less than 5% WSS variance (convergence)
   min_clusters <- 3
+  limit_clusters <- min(nrow(df) - 1, 30)
   if ("auto" %in% k) {
     cls <- tryCatch({
-      clusterKmeans(df, k = NULL, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+      clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
     }, error = function(err) {
       message(paste("Couldn't automatically create clusters:", err))
       return(NULL)
@@ -77,7 +78,7 @@ robyn_clusters <- function(input, all_media = NULL,
 
   # Build clusters
   stopifnot(k %in% min_clusters:30)
-  cls <- clusterKmeans(df, k, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
 
   # Select top models by minimum (weighted) distance to zero
   top_sols <- .clusters_df(cls$df, weights) %>%
@@ -114,7 +115,7 @@ robyn_clusters <- function(input, all_media = NULL,
   rois <- removenacols(rois, all = FALSE)
   rois <- select(rois, any_of(c("solID", all_media)))
   errors <- distinct(x, .data$solID, .data$nrmse, .data$decomp.rssd, .data$mape)
-  rois <- left_join(rois, errors, "solID")
+  rois <- left_join(rois, errors, "solID") %>% ungroup()
   return(rois)
 }
 
