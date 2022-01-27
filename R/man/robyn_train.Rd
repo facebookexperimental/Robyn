@@ -6,18 +6,15 @@
 \usage{
 robyn_train(
   InputCollect,
-  dt_hyper_fixed = NULL,
   lambda_control = 1,
   refresh = FALSE,
-  seed = 123
+  seed = 123,
+  dt_hyper_fixed = NULL
 )
 }
 \arguments{
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
-
-\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
-It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
 lambda.min and lambda.1se.}
@@ -25,6 +22,9 @@ lambda.min and lambda.1se.}
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
+
+\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
+It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 }
 \description{
 The \code{robyn_train()} function consumes output from \code{robyn_input()}

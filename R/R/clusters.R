@@ -18,6 +18,7 @@
 #' @param weights Vector, size 3. How much should each error weight?
 #' Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled
 #' to origin. Each value will be normalized so they all sum 1.
+#' @param export Export plots into local files?
 #' @param ... Additional parameters passed to \code{lares::clusterKmeans()}.
 #' @author Bernardo Lares (bernardolares@@fb.com)
 #' @examples
@@ -32,13 +33,15 @@ robyn_clusters <- function(input, all_media = NULL,
                            k = "auto", limit = 1,
                            weights = rep(1, 3),
                            dim_red = "PCA",
+                           export = FALSE,
                            ...) {
 
   if ("robyn_run" %in% class(input)) {
     if (is.null(all_media)) {
       aux <- colnames(input$mediaVecCollect)
       all_media <- aux[-c(1, which(aux == "type"):length(aux))]
-    }
+      path <- input$plot_folder
+    } else path <- paste0(getwd(), "/")
     # Pareto and ROI data
     rois <- input$xDecompAgg
     df <- .prepare_roi(rois, all_media = all_media)
@@ -87,13 +90,13 @@ robyn_clusters <- function(input, all_media = NULL,
 
   output <- list(
     # Data and parameters
-    data = cls$df,
+    data = mutate(cls$df, top_sol = .data$solID %in% top_sols$solID),
     n_clusters = k,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
     wss = cls$nclusters_plot,
     # Grouped correlations per cluster
-    corrs = cls$correlations,
+    corrs = cls$correlations + labs(title = "ROI Top Correlations by Cluster", subtitle = NULL),
     # Mean ROI per cluster
     clusters_means = cls$means,
     # Dim reduction clusters
@@ -104,7 +107,17 @@ robyn_clusters <- function(input, all_media = NULL,
     plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
     plot_models_rois = .plot_topsols_rois(top_sols, all_media, limit)
   )
+
+  if (export) {
+    fwrite(output$data, file = paste0(path, "pareto_clusters.csv"))
+    ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
+    ggsave(paste0(path, "pareto_clusters_corr.png"), plot = output$corrs, dpi = 500, width = 7, height = 5)
+    db <- wrap_plots(output$plot_models_rois, output$plot_models_errors)
+    ggsave(paste0(path, "pareto_clusters_detail.png"), plot = db, dpi = 600, width = 9, height = 9)
+  }
+
   return(output)
+
 }
 
 
@@ -183,7 +196,7 @@ robyn_clusters <- function(input, all_media = NULL,
     geom_col() +
     coord_flip() +
     labs(
-      title = paste("ROIs on Top", limit, "Performing Models by Cluster"),
+      title = paste("ROIs on Top", limit, "Performing Models"),
       x = NULL, y = "ROI per Media"
     ) +
     theme_lares()

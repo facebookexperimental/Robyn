@@ -83,14 +83,14 @@ robyn_run <- function(InputCollect,
   #### Run robyn_mmm on set_trials
 
   hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed)
-  model_output_collect <- robyn_train(InputCollect, dt_hyper_fixed, lambda_control, refresh, seed)
+  model_output_collect <- robyn_train(InputCollect, lambda_control, refresh, seed, dt_hyper_fixed)
 
   #####################################
   #### Run robyn_pareto on model_output_collect
 
   message(">>> Running pareto calculations...")
-  pareto_results <- robyn_pareto(InputCollect, model_output_collect, pareto_fronts,
-                                 calibration_constraint, hyper_fixed)
+  pareto_results <- robyn_pareto(InputCollect, model_output_collect, pareto_fronts, calibration_constraint, hyper_fixed)
+  allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
   #####################################
   #### Gather the results into output object
@@ -102,12 +102,12 @@ robyn_run <- function(InputCollect,
   }
   plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
 
-  # Temporal and auxiliary objects
-  allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
+  # Temporal (?) and auxiliary objects
   temp_all <- list(resultHypParam = pareto_results$resultHypParam,
                    xDecompAgg = pareto_results$xDecompAgg)
 
-  OutputCollect <- output <- list(
+  # Final results object
+  OutputCollect <- list(
     resultHypParam = pareto_results$resultHypParam[solID %in% allSolutions],
     xDecompAgg = pareto_results$xDecompAgg[solID %in% allSolutions],
     mediaVecCollect = pareto_results$mediaVecCollect,
@@ -115,60 +115,74 @@ robyn_run <- function(InputCollect,
     UI = NULL,
     model_output_collect = model_output_collect,
     allSolutions = allSolutions,
+    pareto_fronts = pareto_fronts,
+    hyper_fixed = hyper_fixed,
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
   )
-  class(output) <- c("robyn_run", class(output))
+  class(OutputCollect) <- c("robyn_run", class(OutputCollect))
 
   #####################################
-  #### Collect and export results using output
+  #### Collect and export results using OutputCollect
 
-  message(">>> Collecting results:\n    For exported files, using directory: ", output$plot_folder)
+  tryCatch({
 
-  if (csv_out %in% c("all", "pareto")) {
-    message("> Exporting results as CSVs into directory...")
-    robyn_csv(output, temp_all, csv_out)
-  }
+    message(">>> Collecting results:\n    For exported files, using directory: ", OutputCollect$plot_folder)
 
-  message("> Exporting plots into directory...")
-  all_plots <- robyn_plots(InputCollect, output, pareto_fronts, temp_all, hyper_fixed, export = TRUE)
-  # For internal use -> UI Code
-  if (ui) UI <- list(pParFront = all_plots[["pParFront"]]) else UI <- NULL
-  output[["UI"]] <- invisible(UI)
+    export <- TRUE
 
-  if (clusters) {
-    message(">>> Calculating clusters for model selection...")
-    output[["clusters"]] <- robyn_clusters(output, ...)
-  }
+    if (csv_out %in% c("all", "pareto")) {
+      message("> Exporting results as CSVs into directory...")
+      robyn_csv(OutputCollect, csv_out, temp_all, export = export)
+    }
 
-  if (plot_pareto) {
-    message("> Exporting pareto one-pagers into directory...")
-    pareto_onepagers <- robyn_pareto_plots(
-      InputCollect, output, pareto_results,
-      selected = output[["clusters"]]$models$solID,
-      pareto_fronts, export = TRUE, hyper_fixed)
-  }
+    message("> Exporting general plots into directory...")
+    all_plots <- robyn_plots(InputCollect, OutputCollect, temp_all, export = export)
+    # For internal use -> UI Code
+    if (ui) UI <- list(pParFront = all_plots[["pParFront"]]) else UI <- NULL
+    OutputCollect[["UI"]] <- invisible(UI)
 
-  # Report total timing
-  output[["totalTime"]] <- round(difftime(Sys.time(), t0, units = "mins"), 2)
-  message(paste("\nTotal time:", output[["totalTime"]], "mins"))
+    if (clusters) {
+      message(">>> Calculating clusters for model selection...")
+      OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, export = export, ...)
+    }
 
-  return(output)
+    if (plot_pareto) {
+      message("> Exporting pareto one-pagers into directory...")
+      pareto_onepagers <- robyn_pareto_plots(
+        InputCollect, OutputCollect,
+        pareto_results = pareto_results,
+        selected = OutputCollect[["clusters"]]$models$solID,
+        export = export)
+    }
+
+    # Report total timing
+    OutputCollect[["totalTime"]] <- round(difftime(Sys.time(), t0, units = "mins"), 2)
+    message(paste("\nTotal time:", OutputCollect[["totalTime"]], "mins"))
+
+    return(OutputCollect)
+
+  }, error = function(err) {
+    message(paste("Failed exporting results, but returned model results:\n", err))
+    return(OutputCollect)
+  })
 
 }
 
-robyn_csv <- function(output, temp_all, csv_out = NULL) {
-  check_class(output, "robyn_run")
-  if ("pareto" %in% csv_out) {
-    fwrite(output$resultHypParam, paste0(output$plot_folder, "pareto_hyperparameters.csv"))
-    fwrite(output$xDecompAgg, paste0(output$plot_folder, "pareto_aggregated.csv"))
-  }
-  if ("all" %in% csv_out) {
-    fwrite(temp_all$resultHypParam, paste0(output$plot_folder, "all_hyperparameters.csv"))
-    fwrite(temp_all$xDecompAgg, paste0(output$plot_folder, "all_aggregated.csv"))
-  }
-  if (!is.null(csv_out)) {
-    fwrite(output$mediaVecCollect, paste0(output$plot_folder, "pareto_media_transform_matrix.csv"))
-    fwrite(output$xDecompVecCollect, paste0(output$plot_folder, "pareto_alldecomp_matrix.csv"))
+robyn_csv <- function(output, csv_out = NULL, temp_all = NULL, export = TRUE) {
+  if (export) {
+    check_class(output, "robyn_run")
+    if ("pareto" %in% csv_out) {
+      fwrite(output$resultHypParam, paste0(output$plot_folder, "pareto_hyperparameters.csv"))
+      fwrite(output$xDecompAgg, paste0(output$plot_folder, "pareto_aggregated.csv"))
+    }
+    if ("all" %in% csv_out) {
+      fwrite(temp_all$resultHypParam, paste0(output$plot_folder, "all_hyperparameters.csv"))
+      fwrite(temp_all$xDecompAgg, paste0(output$plot_folder, "all_aggregated.csv"))
+    }
+    if (!is.null(csv_out)) {
+      fwrite(output$mediaVecCollect, paste0(output$plot_folder, "pareto_media_transform_matrix.csv"))
+      fwrite(output$xDecompVecCollect, paste0(output$plot_folder, "pareto_alldecomp_matrix.csv"))
+    }
   }
 }
 
@@ -189,7 +203,7 @@ robyn_csv <- function(output, temp_all, csv_out = NULL) {
 #' )
 #' }
 #' @export
-robyn_train <- function(InputCollect, dt_hyper_fixed = NULL, lambda_control = 1, refresh = FALSE, seed = 123) {
+robyn_train <- function(InputCollect, lambda_control = 1, refresh = FALSE, seed = 123, dt_hyper_fixed = NULL) {
 
   hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed)
 

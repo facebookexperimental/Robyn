@@ -3,8 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_plots <- function(InputCollect, output, pareto_fronts = 3, temp_all = list(), hyper_fixed = FALSE, export = TRUE) {
+robyn_plots <- function(InputCollect, OutputCollect, temp_all = list(), export = TRUE) {
 
+  pareto_fronts <- OutputCollect$pareto_fronts
+  hyper_fixed <- OutputCollect$hyper_fixed
   all_plots <- list()
 
   if (!hyper_fixed) {
@@ -20,10 +22,9 @@ robyn_plots <- function(InputCollect, output, pareto_fronts = 3, temp_all = list
         geom_line(color = "steelblue") +
         facet_wrap(~variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition") +
-        xlab(NULL) +
-        ylab(NULL)
+        xlab(NULL) + ylab(NULL)
       if (export) ggsave(
-        paste0(output$plot_folder, "prophet_decomp.png"),
+        paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
         plot = pProphet,
         dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
       )
@@ -40,7 +41,7 @@ robyn_plots <- function(InputCollect, output, pareto_fronts = 3, temp_all = list
           theme = theme(plot.title = element_text(hjust = 0.5))
         )
       if (export) ggsave(
-        paste0(output$plot_folder, "spend_exposure_fitting.png"),
+        paste0(OutputCollect$plot_folder, "spend_exposure_fitting.png"),
         plot = pSpendExposure, dpi = 600, width = 12,
         height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
       )
@@ -49,107 +50,114 @@ robyn_plots <- function(InputCollect, output, pareto_fronts = 3, temp_all = list
     }
 
     ## Hyperparameter sampling distribution
-    resultHypParam <- copy(temp_all$resultHypParam)
-    resultHypParam.melted <- melt.data.table(resultHypParam[, c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
-    all_plots[["pSamp"]] <- pSamp <- ggplot(
-      resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
-      geom_violin(alpha = .5, size = 0) +
-      geom_point(size = 0.2) +
-      theme(legend.position = "none") +
-      labs(
-        title = "Hyperparameter optimisation sampling",
-        subtitle = paste0("Sample distribution", ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
-        x = "Hyperparameter space",
-        y = ""
+    if (length(temp_all) > 0) {
+      resultHypParam <- copy(temp_all$resultHypParam)
+      resultHypParam.melted <- melt.data.table(resultHypParam[, c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
+      all_plots[["pSamp"]] <- pSamp <- ggplot(
+        resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
+        geom_violin(alpha = .5, size = 0) +
+        geom_point(size = 0.2) +
+        theme(legend.position = "none") +
+        labs(
+          title = "Hyperparameter optimisation sampling",
+          subtitle = paste0("Sample distribution", ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
+          x = "Hyperparameter space",
+          y = ""
+        )
+      if (export) ggsave(
+        paste0(OutputCollect$plot_folder, "hypersampling.png"),
+        plot = pSamp, dpi = 600, width = 12, height = 7
       )
-    if (export) ggsave(
-      paste0(output$plot_folder, "hypersampling.png"),
-      plot = pSamp, dpi = 600, width = 12, height = 7
-    )
+    }
 
     ## Pareto front
-    pareto_fronts_vec <- 1:pareto_fronts
-    resultHypParam <- copy(temp_all$resultHypParam)
-    if (!is.null(InputCollect$calibration_input)) {
-      resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
-    }
-    pParFront <- ggplot(resultHypParam, aes(x = nrmse, y = decomp.rssd, color = iterations)) +
-      geom_point(size = 0.5) +
-      geom_line(data = resultHypParam[robynPareto == 1], aes(x = nrmse, y = decomp.rssd), colour = "coral4") +
-      scale_colour_gradient(low = "navyblue", high = "skyblue") +
-      labs(
-        title = ifelse(is.null(InputCollect$calibration_input), "Multi-objective evolutionary performance", "Multi-objective evolutionary performance with top 10% calibration"),
-        subtitle = paste0("2D Pareto front 1-3 with ", InputCollect$nevergrad_algo, ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
-        x = "NRMSE",
-        y = "DECOMP.RSSD"
-      )
-    if (length(pareto_fronts_vec) > 1) {
-      for (pfs in 2:max(pareto_fronts_vec)) {
-        if (pfs == 2) {
-          pf_color <- "coral3"
-        } else if (pfs == 3) {
-          pf_color <- "coral2"
-        } else {
-          pf_color <- "coral"
-        }
-        pParFront <- pParFront + geom_line(
-          data = resultHypParam[robynPareto == pfs],
-          aes(x = nrmse, y = decomp.rssd), colour = pf_color)
+    if (length(temp_all) > 0) {
+      pareto_fronts_vec <- 1:pareto_fronts
+      resultHypParam <- copy(temp_all$resultHypParam)
+      if (!is.null(InputCollect$calibration_input)) {
+        resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
       }
+      pParFront <- ggplot(resultHypParam, aes(x = nrmse, y = decomp.rssd, color = iterations)) +
+        geom_point(size = 0.5) +
+        geom_line(data = resultHypParam[robynPareto == 1], aes(x = nrmse, y = decomp.rssd), colour = "coral4") +
+        scale_colour_gradient(low = "navyblue", high = "skyblue") +
+        labs(
+          title = ifelse(is.null(InputCollect$calibration_input), "Multi-objective evolutionary performance", "Multi-objective evolutionary performance with top 10% calibration"),
+          subtitle = paste0("2D Pareto front 1-3 with ", InputCollect$nevergrad_algo, ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
+          x = "NRMSE",
+          y = "DECOMP.RSSD"
+        )
+      if (length(pareto_fronts_vec) > 1) {
+        for (pfs in 2:max(pareto_fronts_vec)) {
+          if (pfs == 2) {
+            pf_color <- "coral3"
+          } else if (pfs == 3) {
+            pf_color <- "coral2"
+          } else {
+            pf_color <- "coral"
+          }
+          pParFront <- pParFront + geom_line(
+            data = resultHypParam[robynPareto == pfs],
+            aes(x = nrmse, y = decomp.rssd), colour = pf_color)
+        }
+      }
+      all_plots[["pParFront"]] <- pParFront
+      if (export) ggsave(
+        paste0(OutputCollect$plot_folder, "pareto_front.png"),
+        plot = pParFront,
+        dpi = 600, width = 12, height = 7
+      )
     }
-    all_plots[["pParFront"]] <- pParFront
-    if (export) ggsave(
-      paste0(output$plot_folder, "pareto_front.png"),
-      plot = pParFront,
-      dpi = 600, width = 12, height = 7
-    )
 
     ## Ridgeline model convergence
-    xDecompAgg <- copy(temp_all$xDecompAgg)
-    dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
-                            , .(variables = rn
-                                , roi_total
-                                , iteration = (iterNG-1)*InputCollect$cores+iterPar
-                                , trial)][order(iteration, variables)]
-    bin_limits <- c(1,20)
-    qt_len <- ifelse(InputCollect$iterations <=100, 1,
-                     ifelse(InputCollect$iterations > 2000, 20, ceiling(InputCollect$iterations/100)))
-    set_qt <- floor(quantile(1:InputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
-    set_bin <- set_qt[-1]
-    dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
-    dt_ridges <- dt_ridges[!is.na(iter_bin)]
-    dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
-    dt_ridges[, trial := as.factor(trial)]
-    all_plots[["pRidges"]] <- pRidges <- ggplot(
-      dt_ridges, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
-      scale_fill_distiller(palette = "GnBu") +
-      geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
-      facet_wrap(~ variables, scales = "free") +
-      guides(fill = "none")+
-      theme(panel.background = element_blank()) +
-      labs(x = "Total ROAS", y = "Iteration Bucket"
-           ,title = "ROAS distribution over iteration"
-           ,fill = "iter bucket")
-    if (export) suppressMessages(ggsave(
-      paste0(output$plot_folder, "roas_convergence.png"),
-      plot = pRidges, dpi = 600, width = 12,
-      height = ceiling(InputCollect$mediaVarCount / 3) * 6
-    ))
+    if (length(temp_all) > 0) {
+      xDecompAgg <- copy(temp_all$xDecompAgg)
+      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
+                              , .(variables = rn
+                                  , roi_total
+                                  , iteration = (iterNG-1)*InputCollect$cores+iterPar
+                                  , trial)][order(iteration, variables)]
+      bin_limits <- c(1,20)
+      qt_len <- ifelse(InputCollect$iterations <=100, 1,
+                       ifelse(InputCollect$iterations > 2000, 20, ceiling(InputCollect$iterations/100)))
+      set_qt <- floor(quantile(1:InputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
+      set_bin <- set_qt[-1]
+      dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
+      dt_ridges <- dt_ridges[!is.na(iter_bin)]
+      dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
+      dt_ridges[, trial := as.factor(trial)]
+      all_plots[["pRidges"]] <- pRidges <- ggplot(
+        dt_ridges, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
+        scale_fill_distiller(palette = "GnBu") +
+        geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
+        facet_wrap(~ variables, scales = "free") +
+        guides(fill = "none")+
+        theme(panel.background = element_blank()) +
+        labs(x = "Total ROAS", y = "Iteration Bucket"
+             ,title = "ROAS distribution over iteration"
+             ,fill = "iter bucket")
+      if (export) suppressMessages(ggsave(
+        paste0(OutputCollect$plot_folder, "roas_convergence.png"),
+        plot = pRidges, dpi = 600, width = 12,
+        height = ceiling(InputCollect$mediaVarCount / 3) * 6
+      ))
+    }
   } # End of !hyper_fixed
 
   return(invisible(all_plots))
 
 }
 
-robyn_pareto_plots <- function(InputCollect, output, pareto_results, pareto_fronts,
-                               selected = NULL, export = TRUE, hyper_fixed = FALSE) {
+robyn_pareto_plots <- function(InputCollect, OutputCollect, pareto_results, selected = NULL, export = TRUE) {
 
-  resultHypParam <- copy(output$resultHypParam)
-  xDecompAgg <- copy(output$xDecompAgg)
+  pareto_fronts <- OutputCollect$pareto_fronts
+  hyper_fixed <- OutputCollect$hyper_fixed
+  resultHypParam <- copy(OutputCollect$resultHypParam)
+  xDecompAgg <- copy(OutputCollect$xDecompAgg)
   if (!is.null(selected)) {
     resultHypParam <- resultHypParam[solID %in% selected]
     xDecompAgg <- xDecompAgg[solID %in% selected]
-    message("  Exporting only cluster results one-pagers (", nrow(resultHypParam), "...")
+    message("> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
   # Prepare for parallel plotting
@@ -340,7 +348,7 @@ robyn_pareto_plots <- function(InputCollect, output, pareto_results, pareto_fron
 
       if (export) {
         ggsave(
-          filename = paste0(output$plot_folder, "/", sid, ".png"),
+          filename = paste0(OutputCollect$plot_folder, "/", sid, ".png"),
           plot = pg,
           dpi = 600, width = 18, height = 18
         )

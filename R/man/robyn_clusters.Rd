@@ -11,6 +11,7 @@ robyn_clusters(
   limit = 1,
   weights = rep(1, 3),
   dim_red = "PCA",
+  export = FALSE,
   ...
 )
 }
@@ -31,6 +32,8 @@ to origin. Each value will be normalized so they all sum 1.}
 
 \item{dim_red}{Character. Select dimensionality reduction technique.
 Pass any of: \code{c("PCA", "tSNE", "all", "none")}.}
+
+\item{export}{Export plots into local files?}
 
 \item{...}{Additional parameters passed to \code{lares::clusterKmeans()}.}
 }
