@@ -56,7 +56,7 @@ It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 \item{seed}{Integer. For reproducible results when running nevergrad.}
 
 \item{csv_out}{Character. Accepts "pareto" or "all". Default to "pareto". Set
-to "all" will output all iterations as csv.}
+to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 

@@ -17,7 +17,7 @@
 #' as the cluster in which the WGSS variance was less than 5%.
 #' @param weights Vector, size 3. How much should each error weight?
 #' Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled
-#' to origin (ei/x). Each value will be normalized so they all sum 1.
+#' to origin. Each value will be normalized so they all sum 1.
 #' @param ... Additional parameters passed to \code{lares::clusterKmeans()}.
 #' @author Bernardo Lares (bernardolares@@fb.com)
 #' @examples
@@ -59,14 +59,20 @@ robyn_clusters <- function(input, all_media = NULL,
   # Auto K selected by less than 5% WGSS variance (convergence)
   min_clusters <- 3
   if ("auto" %in% k) {
-    cls <- clusterKmeans(df, k = NULL, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+    cls <- tryCatch({
+      clusterKmeans(df, k = NULL, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+    }, error = function(err) {
+      message(paste("Couldn't automatically create clusters:", err))
+      return(NULL)
+    })
+    if (is.null(cls)) return(NULL)
     min_var <- 0.05
     k <- cls$nclusters %>%
       mutate(pareto = .data$wss/.data$wss[1],
              dif = lag(.data$pareto) - .data$pareto) %>%
       filter(.data$dif > min_var) %>% pull(.data$n) %>% max(.)
     if (k < min_clusters) k <- min_clusters
-    message(sprintf("Auto selected k = %s based on minimum WGSS variance of %s%%", k, min_var*100))
+    message(sprintf("Auto selected k = %s (clusters) based on minimum WGSS variance of %s%%", k, min_var*100))
   }
 
   # Build clusters

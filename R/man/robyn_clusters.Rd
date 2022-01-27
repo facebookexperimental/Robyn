@@ -27,7 +27,7 @@ as the cluster in which the WGSS variance was less than 5%.}
 
 \item{weights}{Vector, size 3. How much should each error weight?
 Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled
-to origin (ei/x). Each value will be normalized so they all sum 1.}
+to origin. Each value will be normalized so they all sum 1.}
 
 \item{dim_red}{Character. Select dimensionality reduction technique.
 Pass any of: \code{c("PCA", "tSNE", "all", "none")}.}

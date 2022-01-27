@@ -21,8 +21,8 @@
 #' @import data.table
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
-#' @importFrom dplyr any_of arrange as_tibble contains desc distinct everything filter
-#' group_by left_join mutate row_number select slice
+#' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
+#' group_by lag left_join mutate pull row_number select slice
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
@@ -41,7 +41,7 @@
 #' predict pweibull dweibull quantile qunif start
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
 #' @importFrom tidyr pivot_longer pivot_wider
-#' @importFrom utils askYesNo head setTxtProgressBar txtProgressBar
+#' @importFrom utils askYesNo flush.console head setTxtProgressBar txtProgressBar
 "_PACKAGE"
 
 # data.table column names used

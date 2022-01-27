@@ -480,8 +480,6 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   }
 
-  # print(nlsMod)
-
   ## collect output
 
   dt_bestModel <- dt_bestCoef[, .(rn, mean_spend, xDecompAgg, roi_total, roi_mean)][order(rank(rn))]
@@ -511,7 +509,6 @@ robyn_allocator <- function(robyn_object = NULL,
   )
 
   dt_optimOut[, optmResponseUnitTotalLift := (optmResponseUnitTotal / initResponseUnitTotal) - 1]
-  # print(dt_optimOut)
 
   ## plot allocator results
 

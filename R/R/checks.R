@@ -434,3 +434,50 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
   }
   return(calibration_constraint)
 }
+
+check_hyper_fixed <- function(InputCollect, dt_hyper_fixed) {
+  hyper_fixed <- all(length(InputCollect$hyperparameters) == 1)
+  if (hyper_fixed & is.null(dt_hyper_fixed)) {
+    stop(paste("hyperparameters can't be all fixed for hyperparameter optimisation.",
+               "If you want to get old model result, please provide only 1 model / 1 row from",
+               "OutputCollect$resultHypParam or pareto_hyperparameters.csv from previous runs"))
+  }
+  if (!is.null(dt_hyper_fixed)) {
+    ## Run robyn_mmm if using old model result tables
+    dt_hyper_fixed <- as.data.table(dt_hyper_fixed)
+    if (nrow(dt_hyper_fixed) != 1) {
+      stop(paste("Provide only 1 model / 1 row from OutputCollect$resultHypParam or",
+                 "pareto_hyperparameters.csv from previous runs"))
+    }
+    hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+    if (!all(c(hypParamSamName, "lambda") %in% names(dt_hyper_fixed))) {
+      stop(paste("dt_hyper_fixed is provided with wrong input.",
+                 "Please provide the table OutputCollect$resultHypParam from previous runs or",
+                 "pareto_hyperparameters.csv with desired model ID"))
+    }
+  }
+  return(hyper_fixed)
+}
+
+# Enable parallelisation of main modelling loop for MacOS and Linux only
+check_parallel <- function() "unix" %in% .Platform$OS.type
+# ggplot doesn't work with process forking on MacOS; however it works fine on Linux and Windows
+check_parallel_plot <- function() !"Darwin" %in% Sys.info()["sysname"]
+
+check_parallel_msg <- function(InputCollect) {
+  if (check_parallel()) {
+    message(paste(
+      "Using", InputCollect$adstock, "adstocking with",
+      length(InputCollect$hyperparameters),
+      "hyperparameters & 10-fold ridge x-validation on", InputCollect$cores, "cores"
+    ))
+  } else {
+    message(paste(
+      "Using", InputCollect$adstock, "adstocking with",
+      length(InputCollect$hyperparameters),
+      "hyperparameters & 10-fold ridge x-validation on 1 core (Windows fallback)"
+    ))
+  }
+}
+
+check_class <- function(object, x) stopifnot(x %in% class(object))

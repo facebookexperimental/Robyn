@@ -442,7 +442,6 @@ robyn_refresh <- function(robyn_object,
         ),
         x = "date", y = "response"
       )
-    # print(pFitRF)
     ggsave(
       filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
       plot = pFitRF,
@@ -499,7 +498,6 @@ robyn_refresh <- function(robyn_object,
           paste(InputCollectRF$prophet_vars, collapse = ", ")
         )
       )
-    # print(pBarRF)
     ggsave(
       filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
       plot = pBarRF,
