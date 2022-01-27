@@ -130,7 +130,7 @@ robyn_run <- function(InputCollect,
   }
 
   message("> Exporting plots into directory...")
-  all_plots <- robyn_plots(InputCollect, output, pareto_fronts, hyper_fixed, export = TRUE)
+  all_plots <- robyn_plots(InputCollect, output, pareto_fronts, temp_all, hyper_fixed, export = TRUE)
   # For internal use -> UI Code
   if (ui) UI <- list(pParFront = all_plots[["pParFront"]]) else UI <- NULL
   output[["UI"]] <- invisible(UI)

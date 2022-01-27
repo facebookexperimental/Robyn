@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_plots <- function(InputCollect, output, pareto_fronts = 3, hyper_fixed = FALSE, export = TRUE) {
+robyn_plots <- function(InputCollect, output, pareto_fronts = 3, temp_all = list(), hyper_fixed = FALSE, export = TRUE) {
 
   all_plots <- list()
 
@@ -49,7 +49,7 @@ robyn_plots <- function(InputCollect, output, pareto_fronts = 3, hyper_fixed = F
     }
 
     ## Hyperparameter sampling distribution
-    resultHypParam <- copy(output$resultHypParam)
+    resultHypParam <- copy(temp_all$resultHypParam)
     resultHypParam.melted <- melt.data.table(resultHypParam[, c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
     all_plots[["pSamp"]] <- pSamp <- ggplot(
       resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
@@ -69,7 +69,7 @@ robyn_plots <- function(InputCollect, output, pareto_fronts = 3, hyper_fixed = F
 
     ## Pareto front
     pareto_fronts_vec <- 1:pareto_fronts
-    resultHypParam <- copy(output$resultHypParam)
+    resultHypParam <- copy(temp_all$resultHypParam)
     if (!is.null(InputCollect$calibration_input)) {
       resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
     }
@@ -105,7 +105,7 @@ robyn_plots <- function(InputCollect, output, pareto_fronts = 3, hyper_fixed = F
     )
 
     ## Ridgeline model convergence
-    xDecompAgg <- copy(output$xDecompAgg)
+    xDecompAgg <- copy(temp_all$xDecompAgg)
     dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
                             , .(variables = rn
                                 , roi_total

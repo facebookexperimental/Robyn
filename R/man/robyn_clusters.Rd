@@ -23,7 +23,7 @@ Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars
 \item{k}{Integer. Number of clusters}
 
 \item{limit}{Integer. Top N results per cluster. If kept in "auto", will select k
-as the cluster in which the WGSS variance was less than 5%.}
+as the cluster in which the WSS variance was less than 5\%.}
 
 \item{weights}{Vector, size 3. How much should each error weight?
 Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled

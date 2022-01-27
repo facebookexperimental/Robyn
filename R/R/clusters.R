@@ -14,7 +14,7 @@
 #' @inheritParams hyper_names
 #' @param input \code{robyn_run()}'s output or \code{pareto_aggregated.csv} results.
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
-#' as the cluster in which the WGSS variance was less than 5%.
+#' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
 #' Order: nrmse, decomp.rssd, mape. The highest the value, the closer it will be scaled
 #' to origin. Each value will be normalized so they all sum 1.
@@ -56,7 +56,7 @@ robyn_clusters <- function(input, all_media = NULL,
 
   ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "pareto")
 
-  # Auto K selected by less than 5% WGSS variance (convergence)
+  # Auto K selected by less than 5% WSS variance (convergence)
   min_clusters <- 3
   if ("auto" %in% k) {
     cls <- tryCatch({
@@ -72,7 +72,7 @@ robyn_clusters <- function(input, all_media = NULL,
              dif = lag(.data$pareto) - .data$pareto) %>%
       filter(.data$dif > min_var) %>% pull(.data$n) %>% max(.)
     if (k < min_clusters) k <- min_clusters
-    message(sprintf("Auto selected k = %s (clusters) based on minimum WGSS variance of %s%%", k, min_var*100))
+    message(sprintf("Auto selected k = %s (clusters) based on minimum WSS variance of %s%%", k, min_var*100))
   }
 
   # Build clusters
@@ -90,7 +90,7 @@ robyn_clusters <- function(input, all_media = NULL,
     n_clusters = k,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
-    wgss = cls$nclusters_plot,
+    wss = cls$nclusters_plot,
     # Grouped correlations per cluster
     corrs = cls$correlations,
     # Mean ROI per cluster
