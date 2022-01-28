@@ -294,8 +294,7 @@ robyn_inputs <- function(dt_input = NULL,
       nevergrad_algo = nevergrad_algo,
       trials = trials,
       hyperparameters = hyperparameters,
-      calibration_input = calibration_input,
-      custom_params = list(...)
+      calibration_input = calibration_input
     )
 
     ### Use case 1: running robyn_inputs() for the first time
@@ -328,6 +327,7 @@ robyn_inputs <- function(dt_input = NULL,
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
   }
+  output$custom_params <- list(...)
   return(output)
 }
 
