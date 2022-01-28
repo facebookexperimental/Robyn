@@ -590,7 +590,12 @@ robyn_engineering <- function(InputCollect, ...) {
   #### Obtain prophet trend, seasonality and change-points
 
   if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
-    args <- list(...)
+    custom_params <- list(...)
+    if (length(InputCollect[["custom_params"]]) > 0) {
+      custom_params <- InputCollect[["custom_params"]]
+    }
+    if (length(custom_params) > 0)
+      message(paste("Using custom prophet parameters:", paste(names(custom_params), collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -601,8 +606,7 @@ robyn_engineering <- function(InputCollect, ...) {
       context_vars = InputCollect$context_vars,
       paid_media_vars = paid_media_vars,
       intervalType = InputCollect$intervalType,
-      custom_params = if (length(args) == 0) InputCollect[["custom_params"]] else args,
-      ...
+      custom_params = custom_params
     )
   }
 
@@ -638,12 +642,11 @@ robyn_engineering <- function(InputCollect, ...) {
 #' @param paid_media_vars As in \code{robyn_inputs()}
 #' @param intervalType As included in \code{InputCollect}
 #' @param custom_params List. Custom parameters passed to \code{prophet()}
-#' @param ... Additional parameters
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
                            factor_vars, context_vars, paid_media_vars,
-                           intervalType, custom_params, ...) {
+                           intervalType, custom_params) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
   recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
   colnames(recurrence)[2] <- "y"
@@ -655,7 +658,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_weekday <- any(c(str_detect("weekday", prophet_vars), "weekly.seasonality" %in% names(custom_params)))
 
   dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_vars)))
-  modelRecurrence <- prophet(
+
+  prophet_params <- list(
     holidays = if (use_holiday) holidays[country == prophet_country] else NULL,
     yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
                                 custom_params[["yearly.seasonality"]],
@@ -663,9 +667,10 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     weekly.seasonality = ifelse("weekly.seasonality" %in% names(custom_params),
                                 custom_params[["weekly.seasonality"]],
                                 use_weekday),
-    daily.seasonality = FALSE, # No hourly models allowed
-    ...
+    daily.seasonality = FALSE # No hourly models allowed
   )
+  prophet_params <- append(prophet_params, custom_params)
+  modelRecurrence <- do.call(prophet, as.list(prophet_params))
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- as.data.table(model.matrix(y ~ ., dt_regressors[, c("y", factor_vars), with = FALSE]))[, -1]

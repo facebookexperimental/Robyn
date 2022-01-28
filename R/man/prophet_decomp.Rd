@@ -14,8 +14,7 @@ prophet_decomp(
   context_vars,
   paid_media_vars,
   intervalType,
-  custom_params,
-  ...
+  custom_params
 )
 }
 \arguments{
@@ -38,8 +37,6 @@ prophet_decomp(
 \item{intervalType}{As included in \code{InputCollect}}
 
 \item{custom_params}{List. Custom parameters passed to \code{prophet()}}
-
-\item{...}{Additional parameters}
 }
 \value{
 A list containing all prophet decomposition output.
