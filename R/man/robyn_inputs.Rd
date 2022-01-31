@@ -116,13 +116,17 @@ options take up to twice as much time.}
 \item{hyperparameters}{List containing hyperparameter lower and upper bounds.
 Names of elements in list must be identical to output of \code{hyper_names()}}
 
-\item{window_start}{Character. Set start date of modelling period.
-Recommended to not start in the first date in dataset to gain adstock
-effect from previous periods.}
-
-\item{window_end}{Character. Set end date of modelling period. Recommended
-to have columns to rows ratio in the input data to be >=10:1, or in other
-words at least 10 observations to 1 independent variable.}
+\item{window_start, window_end}{Character. Set start and end dates of modelling
+period. Recommended to not start in the first date in dataset to gain adstock
+effect from previous periods. Also, columns to rows ratio in the input data
+to be >=10:1, or in other words at least 10 observations to 1 independent variable.
+This window will determine the date range of the data period within your dataset
+you will be using to specifically regress the effects of media, organic and
+context variables on your dependent variable. We recommend using a full
+\code{dt_input} dataset with a minimum of 1 year of history, as it will be used
+in full for the model calculation of trend, seasonality and holidays effects.
+Whereas the window period will determine how much of the full data set will be
+used for media, organic and context variables.}
 
 \item{cores}{Integer. Default to \code{parallel::detectCores()}}
 

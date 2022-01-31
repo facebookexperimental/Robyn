@@ -30,6 +30,10 @@
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
 #' lambda.min and lambda.1se.
+#' @param intercept_sign Character. Choose one of "non_negative" (default) or
+#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
+#' and refit the model. Consider changing intercept_sign to "unconstrained" when
+#' there are \code{context_vars} with large positive values.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
@@ -55,6 +59,7 @@ robyn_run <- function(InputCollect,
                       clusters = TRUE,
                       calibration_constraint = 0.1,
                       lambda_control = 1,
+                      intercept_sign = "non_negative",
                       refresh = FALSE,
                       dt_hyper_fixed = NULL,
                       seed = 123L,
@@ -181,6 +186,7 @@ robyn_train <- function(InputCollect, lambda_control = 1, refresh = FALSE, seed 
       hyper_collect = hyperparameters_fixed,
       InputCollect = InputCollect,
       lambda_fixed = dt_hyper_fixed$lambda,
+      intercept_sign = intercept_sign,
       seed = seed
     )
 
@@ -216,6 +222,7 @@ robyn_train <- function(InputCollect, lambda_control = 1, refresh = FALSE, seed 
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
         lambda_control = lambda_control,
+        intercept_sign = intercept_sign,
         refresh = refresh,
         seed = seed
       )
@@ -279,6 +286,7 @@ robyn_mmm <- function(hyper_collect,
                       lambda.n = 100,
                       lambda_control = 1,
                       lambda_fixed = NULL,
+                      intercept_sign = "non_negative",
                       refresh = FALSE,
                       seed = 123L) {
   if (reticulate::py_module_available("nevergrad")) {
@@ -436,7 +444,6 @@ robyn_mmm <- function(hyper_collect,
   # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
   # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
 
-  # enable parallelisation of main modelling loop for MacOS and Linux only
   # create cluster before big for-loop to minimize overhead for parallel backend registering
   if (check_parallel()) {
     registerDoParallel(InputCollect$cores)
@@ -508,6 +515,7 @@ robyn_mmm <- function(hyper_collect,
 
             ## adstocking
 
+            adstock <- check_adstock(adstock)
             if (adstock == "geometric") {
               theta <- hypParamSam[paste0(all_media[v], "_thetas")]
               x_list <- adstock_geometric(x = m, theta = theta)
@@ -615,9 +623,9 @@ robyn_mmm <- function(hyper_collect,
 
           ## if no lift calibration, refit using best lambda
           if (hyper_fixed == FALSE) {
-            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits)
+            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits, intercept_sign)
           } else {
-            mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits)
+            mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits, intercept_sign)
             lambda <- lambda_fixed[i]
           }
 
@@ -1180,7 +1188,7 @@ calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars, day
 }
 
 
-model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
+model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
   mod <- glmnet(
     x_train,
     y_train,
@@ -1192,8 +1200,13 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
     upper.limits = upper.limits
   ) # coef(mod)
 
-  ## drop intercept if negative
-  if (coef(mod)[1] < 0) {
+  df.int <- 1
+
+  ## drop intercept if negative and intercept_sign == "non_negative"
+  opts <- c("non_negative", "unconstrained")
+  if (!intercept_sign %in% opts)
+    stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
+  if (intercept_sign == "non_negative" & coef(mod)[1] < 0) {
     mod <- glmnet(
       x_train,
       y_train,
@@ -1204,9 +1217,8 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits) {
       upper.limits = upper.limits,
       intercept = FALSE
     ) # coef(mod)
+    df.int <- 0
   } # ; plot(mod); print(mod)
-
-  df.int <- ifelse(coef(mod)[1] < 0, 0, 1)
 
   y_trainPred <- predict(mod, s = lambda, newx = x_train)
   rsq_train <- get_rsq(true = y_train, predicted = y_trainPred, p = ncol(x_train), df.int = df.int)

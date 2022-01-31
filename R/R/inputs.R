@@ -93,12 +93,17 @@
 #' options take up to twice as much time.
 #' @param hyperparameters List containing hyperparameter lower and upper bounds.
 #' Names of elements in list must be identical to output of \code{hyper_names()}
-#' @param window_start Character. Set start date of modelling period.
-#' Recommended to not start in the first date in dataset to gain adstock
-#' effect from previous periods.
-#' @param window_end Character. Set end date of modelling period. Recommended
-#' to have columns to rows ratio in the input data to be >=10:1, or in other
-#' words at least 10 observations to 1 independent variable.
+#' @param window_start,window_end Character. Set start and end dates of modelling
+#' period. Recommended to not start in the first date in dataset to gain adstock
+#' effect from previous periods. Also, columns to rows ratio in the input data
+#' to be >=10:1, or in other words at least 10 observations to 1 independent variable.
+#' This window will determine the date range of the data period within your dataset
+#' you will be using to specifically regress the effects of media, organic and
+#' context variables on your dependent variable. We recommend using a full
+#' \code{dt_input} dataset with a minimum of 1 year of history, as it will be used
+#' in full for the model calculation of trend, seasonality and holidays effects.
+#' Whereas the window period will determine how much of the full data set will be
+#' used for media, organic and context variables.
 #' @param cores Integer. Default to \code{parallel::detectCores()}
 #' @param iterations Integer. Recommended 2000 for default
 #' \code{nevergrad_algo = "TwoPointsDE"}
@@ -322,6 +327,7 @@ robyn_inputs <- function(dt_input = NULL,
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
   }
+  output$custom_params <- list(...)
   return(output)
 }
 
@@ -444,6 +450,24 @@ hyper_names <- function(adstock, all_media) {
   return(local_name)
 }
 
+
+####################################################################
+#' Check hyperparameter limits
+#'
+#' Reference data.frame that shows the upper and lower bounds valid
+#' for each hyperparameter.
+#'
+#' @export
+hyper_limits <- function() {
+  data.frame(
+    thetas = c(">=0", "<1"),
+    alphas = c(">0", "<Inf"),
+    gammas = c(">0", "<=1"),
+    shapes = c(">0", "<Inf"),
+    scales = c(">=0", "<=1")
+  )
+}
+
 ####################################################################
 #' Apply prophet decomposition and spend exposure transformation
 #'
@@ -514,8 +538,8 @@ robyn_engineering <- function(InputCollect, ...) {
           x = results$data$spend
         )
         dt_plotNLS <- melt.data.table(dt_plotNLS,
-          id.vars = c("channel", "y", "x"),
-          variable.name = "models", value.name = "yhat"
+                                      id.vars = c("channel", "y", "x"),
+                                      variable.name = "models", value.name = "yhat"
         )
         dt_plotNLS[, models := str_remove(tolower(models), "yhat")]
         # create plot
@@ -566,6 +590,12 @@ robyn_engineering <- function(InputCollect, ...) {
   #### Obtain prophet trend, seasonality and change-points
 
   if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
+    custom_params <- list(...)
+    if (length(InputCollect[["custom_params"]]) > 0) {
+      custom_params <- InputCollect[["custom_params"]]
+    }
+    if (length(custom_params) > 0)
+      message(paste("Using custom prophet parameters:", paste(names(custom_params), collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -576,7 +606,7 @@ robyn_engineering <- function(InputCollect, ...) {
       context_vars = InputCollect$context_vars,
       paid_media_vars = paid_media_vars,
       intervalType = InputCollect$intervalType,
-      ...
+      custom_params = custom_params
     )
   }
 
@@ -611,30 +641,36 @@ robyn_engineering <- function(InputCollect, ...) {
 #' @param context_vars As in \code{robyn_inputs()}
 #' @param paid_media_vars As in \code{robyn_inputs()}
 #' @param intervalType As included in \code{InputCollect}
-#' @param ... Additional prophet parameters
+#' @param custom_params List. Custom parameters passed to \code{prophet()}
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
-                           factor_vars, context_vars, paid_media_vars, intervalType,
-                           ...) {
+                           factor_vars, context_vars, paid_media_vars,
+                           intervalType, custom_params) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
   recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
   colnames(recurrence)[2] <- "y"
 
   holidays <- set_holidays(dt_transform, dt_holidays, intervalType)
   use_trend <- any(str_detect("trend", prophet_vars))
-  use_season <- any(str_detect("season", prophet_vars))
-  use_weekday <- any(str_detect("weekday", prophet_vars))
   use_holiday <- any(str_detect("holiday", prophet_vars))
+  use_season <- any(c(str_detect("season", prophet_vars), "yearly.seasonality" %in% names(custom_params)))
+  use_weekday <- any(c(str_detect("weekday", prophet_vars), "weekly.seasonality" %in% names(custom_params)))
 
   dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_vars)))
-  modelRecurrence <- prophet(
+
+  prophet_params <- list(
     holidays = if (use_holiday) holidays[country == prophet_country] else NULL,
-    yearly.seasonality = use_season,
-    weekly.seasonality = use_weekday,
-    daily.seasonality = FALSE,
-    ...
+    yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
+                                custom_params[["yearly.seasonality"]],
+                                use_season),
+    weekly.seasonality = ifelse("weekly.seasonality" %in% names(custom_params),
+                                custom_params[["weekly.seasonality"]],
+                                use_weekday),
+    daily.seasonality = FALSE # No hourly models allowed
   )
+  prophet_params <- append(prophet_params, custom_params)
+  modelRecurrence <- do.call(prophet, as.list(prophet_params))
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- as.data.table(model.matrix(y ~ ., dt_regressors[, c("y", factor_vars), with = FALSE]))[, -1]
@@ -712,9 +748,9 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
       )
 
       modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
-        data = dt_spendModInput,
-        start = nlsStartVal,
-        control = nls.control(warnOnly = TRUE)
+                      data = dt_spendModInput,
+                      start = nlsStartVal,
+                      control = nls.control(warnOnly = TRUE)
       )
       yhatNLS <- predict(modNLS)
       modNLSSum <- summary(modNLS)

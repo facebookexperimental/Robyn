@@ -124,7 +124,7 @@ InputCollect <- robyn_inputs(
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
   ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
-  # variables, 2000 is recommended for Geometric adsttock, 4000 for weibull_cdf and 6000 for weibull_pdf.
+  # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
@@ -146,7 +146,7 @@ plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
-# All variables in paid_media_vars or organic_vars require hyperprameter and will be
+# All variables in paid_media_vars or organic_vars require hyperparameter and will be
 # transformed by adstock & saturation.
 # Difference between paid_media_vars and organic_vars is that paid_media_vars has spend that
 # needs to be specified in paid_media_spends specifically.
@@ -194,6 +194,7 @@ plot_saturation(plot = FALSE)
 # or only one value (in which case you've "fixed" that hyperparameter)
 
 # Run ?hyper_names to check parameter definition
+# Run hyper_limits() to check valid upper and lower bounds by range
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
 # Example hyperparameters for Geometric adstock
