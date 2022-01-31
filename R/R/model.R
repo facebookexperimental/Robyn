@@ -90,7 +90,7 @@ robyn_run <- function(InputCollect,
   #### Run robyn_mmm on set_trials
 
   hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed)
-  model_output_collect <- robyn_train(InputCollect, lambda_control, refresh, seed, dt_hyper_fixed)
+  model_output_collect <- robyn_train(InputCollect, lambda_control, intercept_sign, refresh, seed, dt_hyper_fixed)
 
   #####################################
   #### Run robyn_pareto on model_output_collect
@@ -123,6 +123,8 @@ robyn_run <- function(InputCollect,
     model_output_collect = model_output_collect,
     allSolutions = allSolutions,
     allPareto = allPareto,
+    calibration_constraint = calibration_constraint,
+    intercept_sign = intercept_sign,
     UI = NULL,
     pareto_fronts = pareto_fronts,
     hyper_fixed = hyper_fixed,
@@ -169,7 +171,8 @@ robyn_run <- function(InputCollect,
 #' )
 #' }
 #' @export
-robyn_train <- function(InputCollect, lambda_control = 1, refresh = FALSE, seed = 123, dt_hyper_fixed = NULL) {
+robyn_train <- function(InputCollect, lambda_control = 1, intercept_sign = "non_negative",
+                        refresh = FALSE, seed = 123, dt_hyper_fixed = NULL) {
 
   hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed)
 

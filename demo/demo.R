@@ -309,13 +309,20 @@ OutputCollect <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
   , pareto_fronts = 3
-  , plot_pareto = TRUE
-  , clusters = TRUE # To help reduce and select best model
   # , calibration_constraint = 0.1 # run ?robyn_run to see description
   # , lambda_control = 1 # run ?robyn_run to see description
+  , export = FALSE # More control on export process using robyn_outputs()
   )
 
-## Besides one-pager plots: there are 4 csv output saved in the folder for further usage
+# Export results and plots into local files
+OutputCollect <- robyn_outputs(
+  InputCollect, OutputCollect
+  , csv_out = "pareto" # "pareto" or "all"
+  , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
+  , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers. Used when testing models.
+  )
+
+## Besides one-pager and clusters plots: there are 4 csv output saved in the folder for further usage
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model
 # pareto_aggregated.csv, aggregated decomposition per independent variable of all Pareto output
 # pareto_media_transform_matrix.csv, all media transformation vectors
@@ -330,7 +337,7 @@ OutputCollect <- robyn_run(
 
 ## Select winning model based on minimum combined error by ROI cluster using robyn_clusters()
 ## You can check OutputCollect$clusters information or manually run it with custom parameters
-# cls <- robyn_clusters(input = OutputCollect,
+# cls <- robyn_clusters(OutputCollect,
 #                       all_media = InputCollect$all_media,
 #                       k = 5, limit = 1,
 #                       weights = c(1, 1, 1.5))

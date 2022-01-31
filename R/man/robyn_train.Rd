@@ -7,6 +7,7 @@
 robyn_train(
   InputCollect,
   lambda_control = 1,
+  intercept_sign = "non_negative",
   refresh = FALSE,
   seed = 123,
   dt_hyper_fixed = NULL
@@ -18,6 +19,11 @@ Required when \code{robyn_object} is not provided.}
 
 \item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
 lambda.min and lambda.1se.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
