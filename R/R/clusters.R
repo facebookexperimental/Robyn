@@ -12,6 +12,7 @@
 #'
 #' @inheritParams lares::clusterKmeans
 #' @inheritParams hyper_names
+#' @inheritParams robyn_outputs
 #' @param input \code{robyn_run()}'s output or \code{pareto_aggregated.csv} results.
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
@@ -29,11 +30,9 @@
 #'                       weights = c(1, 1, 1.5))
 #' }
 #' @export
-robyn_clusters <- function(input, all_media = NULL,
-                           k = "auto", limit = 1,
-                           weights = rep(1, 3),
-                           dim_red = "PCA",
-                           export = FALSE,
+robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
+                           weights = rep(1, 3), dim_red = "PCA",
+                           quiet = FALSE, export = FALSE,
                            ...) {
 
   if ("robyn_run" %in% class(input)) {
@@ -76,7 +75,9 @@ robyn_clusters <- function(input, all_media = NULL,
              dif = lag(.data$pareto) - .data$pareto) %>%
       filter(.data$dif > min_var) %>% pull(.data$n) %>% max(.)
     if (k < min_clusters) k <- min_clusters
-    message(sprintf("Auto selected k = %s (clusters) based on minimum WSS variance of %s%%", k, min_var*100))
+    if (!quiet) message(sprintf(
+      "Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
+      k, min_var*100))
   }
 
   # Build clusters
@@ -113,7 +114,7 @@ robyn_clusters <- function(input, all_media = NULL,
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
     ggsave(paste0(path, "pareto_clusters_corr.png"), plot = output$corrs, dpi = 500, width = 7, height = 5)
     db <- wrap_plots(output$plot_models_rois, output$plot_models_errors)
-    ggsave(paste0(path, "pareto_clusters_detail.png"), plot = db, dpi = 600, width = 9, height = 9)
+    ggsave(paste0(path, "pareto_clusters_detail.png"), plot = db, dpi = 600, width = 12, height = 9)
   }
 
   return(output)

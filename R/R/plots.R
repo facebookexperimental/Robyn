@@ -3,10 +3,17 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_plots <- function(InputCollect, OutputCollect, temp_all = list(), export = TRUE) {
+
+####################################################################
+#' Generate and Export Robyn Plots
+#'
+#' @inheritParams robyn_outputs
+#' @export
+robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
   pareto_fronts <- OutputCollect$pareto_fronts
   hyper_fixed <- OutputCollect$hyper_fixed
+  temp_all <- OutputCollect$allPareto
   all_plots <- list()
 
   if (!hyper_fixed) {
@@ -148,7 +155,13 @@ robyn_plots <- function(InputCollect, OutputCollect, temp_all = list(), export =
 
 }
 
-robyn_pareto_plots <- function(InputCollect, OutputCollect, pareto_results, selected = NULL, export = TRUE) {
+
+####################################################################
+#' Generate and Export Robyn One-Pager Plots
+#'
+#' @inheritParams robyn_outputs
+#' @export
+robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet = FALSE, export = TRUE) {
 
   pareto_fronts <- OutputCollect$pareto_fronts
   hyper_fixed <- OutputCollect$hyper_fixed
@@ -157,7 +170,7 @@ robyn_pareto_plots <- function(InputCollect, OutputCollect, pareto_results, sele
   if (!is.null(selected)) {
     resultHypParam <- resultHypParam[solID %in% selected]
     xDecompAgg <- xDecompAgg[solID %in% selected]
-    message("> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
+    if (!quiet) message(">> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
   # Prepare for parallel plotting
@@ -174,13 +187,13 @@ robyn_pareto_plots <- function(InputCollect, OutputCollect, pareto_results, sele
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    message(paste("Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
+    if (!quiet) message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
   } else {
-    message(paste("Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
+    if (!quiet) message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
   }
 
-  pbplot <- txtProgressBar(max = num_pareto123, style = 3)
-  temp <- pareto_results$plotDataCollect
+  if (!quiet) pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+  temp <- OutputCollect$allPareto$plotDataCollect
   all_plots <- list()
   cnt <- 0
 
@@ -353,12 +366,12 @@ robyn_pareto_plots <- function(InputCollect, OutputCollect, pareto_results, sele
           dpi = 600, width = 18, height = 18
         )
       }
-      if (check_parallel_plot()) {
+      if (check_parallel_plot() & !quiet) {
         cnt <- cnt + length(uniqueSol)
         setTxtProgressBar(pbplot, cnt)
       }
     }
-    close(pbplot)
+    if (!quiet) close(pbplot)
   }
   # Stop cluster to avoid memory leaks
   if (check_parallel_plot()) stopImplicitCluster()

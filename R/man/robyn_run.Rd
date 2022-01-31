@@ -18,6 +18,7 @@ robyn_run(
   seed = 123L,
   csv_out = "pareto",
   ui = FALSE,
+  export = TRUE,
   ...
 )
 }
@@ -59,6 +60,8 @@ It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
+
+\item{export}{Boolean. Export results into local files.}
 
 \item{...}{Additional parameters passed to \code{robyn_clusters()}.}
 }
