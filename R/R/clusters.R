@@ -68,7 +68,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
       message(paste("Couldn't automatically create clusters:", err))
       return(NULL)
     })
-    if (is.null(cls)) return(NULL)
+    #if (is.null(cls)) return(NULL)
     min_var <- 0.05
     k <- cls$nclusters %>%
       mutate(pareto = .data$wss/.data$wss[1],
@@ -76,7 +76,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
       filter(.data$dif > min_var) %>% pull(.data$n) %>% max(.)
     if (k < min_clusters) k <- min_clusters
     if (!quiet) message(sprintf(
-      "Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
+      ">> Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
       k, min_var*100))
   }
 

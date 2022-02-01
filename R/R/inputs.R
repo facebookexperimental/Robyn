@@ -600,8 +600,15 @@ robyn_engineering <- function(InputCollect, ...) {
     if (length(InputCollect[["custom_params"]]) > 0) {
       custom_params <- InputCollect[["custom_params"]]
     }
-    if (length(custom_params) > 0)
-      message(paste("Using custom prophet parameters:", paste(names(custom_params), collapse = ", ")))
+    robyn_args <- setdiff(
+      unique(c(names(as.list(args(robyn_run))),
+               names(as.list(args(robyn_outputs))),
+               names(as.list(args(robyn_inputs))),
+               names(as.list(args(robyn_refresh))))),
+      c("", "..."))
+    prophet_custom_args <- setdiff(names(custom_params), robyn_args)
+    if (length(prophet_custom_args)>0)
+      message(paste("Using custom prophet parameters:", paste(names(prophet_custom_args), collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,

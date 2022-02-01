@@ -300,20 +300,23 @@ robyn_refresh <- function(robyn_object,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
-      intercept_sign = InputCollectRF[["intercept_sign"]],
       pareto_fronts = 1,
       refresh = TRUE,
-      plot_pareto = plot_pareto
+      plot_pareto = plot_pareto,
+      ...
     )
 
     ## select winner model for current refresh
     # selectID <- OutputCollectRF$resultHypParam[which.min(decomp.rssd), solID] # min decomp.rssd selection
-    OutputCollectRF$resultHypParam[, error_dis := sqrt(nrmse^2 + decomp.rssd^2)] # min error distance selection
+    # norm_nrmse <- .min_max_norm(OutputCollectRF$resultHypParam$nrmse)
+    # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
+    OutputCollectRF$resultHypParam[, error_dis := sqrt(.min_max_norm(nrmse)^2 +
+                                                         .min_max_norm(decomp.rssd)^2)] # min error distance selection
     selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
     OutputCollectRF$selectID <- selectID
     message(
       "Selected model ID: ", selectID, " for refresh model nr.",
-      refreshCounter, " based on the smallest combined error of NRMSE & DECOMP.RSSD\n"
+      refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
     )
 
     OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]

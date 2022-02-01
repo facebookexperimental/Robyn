@@ -175,29 +175,29 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
     if ("clusters" %in% selected) selected <- OutputCollect$clusters$models$solID
     resultHypParam <- resultHypParam[solID %in% selected]
     xDecompAgg <- xDecompAgg[solID %in% selected]
-    if (!quiet) message("> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
+    if (!quiet) message(">> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
   # Prepare for parallel plotting
   if (check_parallel_plot()) registerDoParallel(InputCollect$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
-    num_pareto123 <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
+    count_mod_out <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
   } else {
     pareto_fronts_vec <- 1
-    num_pareto123 <- nrow(resultHypParam)
+    count_mod_out <- nrow(resultHypParam)
   }
   all_fronts <- unique(xDecompAgg$robynPareto)
   all_fronts <- sort(all_fronts[!is.na(all_fronts)])
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    if (!quiet) message(paste(">> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
+    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", InputCollect$cores, "cores..."))
   } else {
-    if (!quiet) message(paste(">> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
+    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }
 
-  if (!quiet & num_pareto123 > 0) pbplot <- txtProgressBar(min = 0, max = num_pareto123, style = 3)
+  if (!quiet & count_mod_out > 0) pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
   temp <- OutputCollect$allPareto$plotDataCollect
   all_plots <- list()
   cnt <- 0
@@ -371,13 +371,17 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
           dpi = 600, width = 18, height = 18
         )
       }
-      if (check_parallel_plot() & !quiet & num_pareto123 > 0) {
-        cnt <- cnt + length(uniqueSol)
+      if (check_parallel_plot() & !quiet & count_mod_out > 0) {
+        cnt <- cnt + 1
         setTxtProgressBar(pbplot, cnt)
       }
     }
-    if (!quiet) close(pbplot)
+    if (!quiet & count_mod_out > 0) {
+      cnt <- cnt + length(uniqueSol)
+      setTxtProgressBar(pbplot, cnt)
+    }
   }
+  if (!quiet & count_mod_out > 0) close(pbplot)
   # Stop cluster to avoid memory leaks
   if (check_parallel_plot()) stopImplicitCluster()
   return(invisible(all_plots))

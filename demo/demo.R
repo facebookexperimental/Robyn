@@ -305,22 +305,22 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 ################################################################
 #### Step 3: Build initial model
 
-# Run ?robyn_run to check parameter definition
+# Run all trials and iterations
+# Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
-  # , lambda_control = 1 # run ?robyn_run to see description
-  , outputs = FALSE # Export process using robyn_outputs()
+  # , lambda_control = 1 # range from 0-1 & default at 1. Details see ?robyn_run
+  , outputs = FALSE # outputs = FALSE disables direct model output
 )
-# beepr::beep()
 
-# Export results and plots into local files
+# Output results and plots & export into local files
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
-  , pareto_fronts = 3
-  # , calibration_constraint = 0.1 # run ?robyn_outputs to see description
+  , pareto_fronts = 1 # decrease pareto_fronts to get less output models
+  # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1. Details see ?robyn_outputs
   , csv_out = "pareto" # "pareto" or "all"
   , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
-  , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers. Used when testing models.
+  , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
 )
 
@@ -345,7 +345,7 @@ OutputCollect <- robyn_outputs(
 #                       weights = c(1, 1, 1.5))
 
 OutputCollect$allSolutions # get all model IDs in result
-select_model <- "1_4_2" # select one from above
+select_model <- "2_13_4" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -430,6 +430,7 @@ Robyn <- robyn_refresh(
   , refresh_iters = 1000 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
   , refresh_trials = 3
+  , clusters = TRUE
 )
 
 ## Besides plots: there're 4 csv output saved in the folder for further usage
