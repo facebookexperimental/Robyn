@@ -233,16 +233,14 @@ robyn_mmm <- function(hyper_collect,
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
   hyper_fixed <- FALSE
 
-  # hyper_collect <- unlist(list(...), recursive = FALSE) # hyper_collect <- InputCollect$hyperparameters; hyper_collect <- hyperparameters_fixed
-
-  # sort hyperparameter list by name
+  # Sort hyperparameter list by name (order matters)
   hyper_bound_list <- list()
   for (i in 1:length(hypParamSamName)) {
     hyper_bound_list[i] <- hyper_collect[hypParamSamName[i]]
     names(hyper_bound_list)[i] <- hypParamSamName[i]
   }
 
-  # get hyperparameters for Nevergrad
+  # Get hyperparameters for Nevergrad
   hyper_which <- which(sapply(hyper_bound_list, length) == 2)
   hyper_bound_list_updated <- hyper_bound_list[hyper_which]
   hyper_bound_list_updated_name <- names(hyper_bound_list_updated)
@@ -250,17 +248,15 @@ robyn_mmm <- function(hyper_collect,
   if (hyper_count == 0) {
     hyper_fixed <- TRUE
     if (is.null(lambda_fixed)) {
-      stop("when hyperparameters are fixed, lambda_fixed must be provided from the selected lambda in old model")
+      stop("When hyperparameters are fixed, lambda_fixed must be provided from the selected lambda in old model")
     }
   }
 
-  # get fixed hyperparameters
+  # Get fixed hyperparameters
   hyper_fixed_which <- which(sapply(hyper_bound_list, length) == 1)
   hyper_bound_list_fixed <- hyper_bound_list[hyper_fixed_which]
   hyper_bound_list_fixed_name <- names(hyper_bound_list_fixed)
   hyper_count_fixed <- length(hyper_bound_list_fixed)
-
-  # hyper_bound_list_fixed <- list(print_S_alphas = 1 , print_S_gammas = 0.5)
   if (InputCollect$cores > 1) {
     dt_hyperFixed <- data.table(sapply(hyper_bound_list_fixed, function(x) rep(x, InputCollect$cores)))
   } else {
@@ -271,12 +267,9 @@ robyn_mmm <- function(hyper_collect,
   ################################################
   #### Setup environment
 
-  if (is.null(InputCollect$dt_mod)) {
-    stop("Run InputCollect$dt_mod <- robyn_engineering() first to get the dt_mod")
-  }
+  if (is.null(InputCollect$dt_mod)) stop("Run InputCollect$dt_mod <- robyn_engineering() first to get the dt_mod")
 
-  ## get environment for parallel backend
-  InputCollect <- InputCollect
+  ## Get environment for parallel backend
   dt_mod <- copy(InputCollect$dt_mod)
   xDecompAggPrev <- InputCollect$xDecompAggPrev
   rollingWindowStartWhich <- InputCollect$rollingWindowStartWhich
@@ -285,7 +278,6 @@ robyn_mmm <- function(hyper_collect,
   dt_modRollWind <- copy(InputCollect$dt_modRollWind)
   refresh_steps <- InputCollect$refresh_steps
   rollingWindowLength <- InputCollect$rollingWindowLength
-
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   organic_vars <- InputCollect$organic_vars
@@ -297,7 +289,6 @@ robyn_mmm <- function(hyper_collect,
   prophet_signs <- InputCollect$prophet_signs
   organic_signs <- InputCollect$organic_signs
   all_media <- InputCollect$all_media
-  # factor_vars <- InputCollect$factor_vars
   calibration_input <- InputCollect$calibration_input
   optimizer_name <- InputCollect$nevergrad_algo
   cores <- InputCollect$cores
@@ -313,6 +304,7 @@ robyn_mmm <- function(hyper_collect,
   ), .SDcols = paid_media_spends]
   dt_spendShare[, ":="(spend_share = total_spend / sum(total_spend))]
 
+  # When not refreshing, dt_spendShareRF = dt_spendShare
   refreshAddedStartWhich <- which(dt_modRollWind$ds == refreshAddedStart)
   dt_spendShareRF <- dt_inputTrain[
     refreshAddedStartWhich:rollingWindowLength,
@@ -330,11 +322,9 @@ robyn_mmm <- function(hyper_collect,
 
   ################################################
   #### Start Nevergrad loop
-
   t0 <- Sys.time()
 
-  ## set iterations
-
+  ## Set iterations
   if (hyper_fixed == FALSE) {
     iterTotal <- iterations
     iterPar <- cores
@@ -343,36 +333,27 @@ robyn_mmm <- function(hyper_collect,
     iterPar <- 1
   }
 
+  # Sometimes the progress bar may not get to 100%
   iterNG <- ifelse(hyper_fixed == FALSE, ceiling(iterations / cores), 1)
 
-  # cat("\nRunning", iterTotal,"iterations with evolutionary algorithm on",adstock, "adstocking,", length(hyper_bound_list_updated),"hyperparameters,",lambda.n,"-fold ridge x-validation using", cores,"cores...\n")
-
-  ## start Nevergrad optimiser
-
-  if (length(hyper_bound_list_updated) != 0) {
+  ## Start Nevergrad optimizer
+  if (length(hyper_bound_list_updated) > 0) {
     my_tuple <- tuple(hyper_count)
-    instrumentation <- ng$p$Array(shape = my_tuple, lower = 0., upper = 1.)
-    # instrumentation$set_bounds(0., 1.)
+    instrumentation <- ng$p$Array(shape = my_tuple, lower = 0, upper = 1)
     optimizer <- ng$optimizers$registry[optimizer_name](instrumentation, budget = iterTotal, num_workers = cores)
+    # Set multi-objective dimensions
     if (is.null(calibration_input)) {
-      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1.0, 1.0))
+      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1))
     } else {
-      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1.0, 1.0, 1.0))
+      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1, 1))
     }
-    # Creating a hyperparameter vector to be used in the next learning.
   }
 
-  ## start loop
-
+  ## Prepare loop
   resultCollectNG <- list()
   cnt <- 0
-  if (hyper_fixed == FALSE & !quiet) {
-    pb <- txtProgressBar(max = iterTotal, style = 3)
-  }
-  # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
-  # opts <- list(progress = function(n) setTxtProgressBar(pb, n))
-
-  # create cluster before big for-loop to minimize overhead for parallel backend registering
+  if (hyper_fixed == FALSE & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
+  # Create cluster before big for-loop to minimize overhead for parallel back-end registering
   if (check_parallel()) {
     registerDoParallel(InputCollect$cores)
   } else {
@@ -387,14 +368,13 @@ robyn_mmm <- function(hyper_collect,
       hypParamSamNG <- c()
 
       if (hyper_fixed == FALSE) {
+        # Setting initial seeds
         for (co in 1:iterPar) { # co = 1
-
-          ## get hyperparameter sample with ask
+          ## Get hyperparameter sample with ask (random)
           nevergrad_hp[[co]] <- optimizer$ask()
           nevergrad_hp_val[[co]] <- nevergrad_hp[[co]]$value
-
-          ## scale sample to given bounds
-          for (hypNameLoop in hyper_bound_list_updated_name) { # hypNameLoop <- local_name.all[1]
+          ## Scale sample to given bounds using uniform distribution
+          for (hypNameLoop in hyper_bound_list_updated_name) {
             index <- which(hypNameLoop == hyper_bound_list_updated_name)
             channelBound <- unlist(hyper_bound_list_updated[hypNameLoop])
             hyppar_for_qunif <- nevergrad_hp_val[[co]][index]
@@ -403,12 +383,9 @@ robyn_mmm <- function(hyper_collect,
           }
           hypParamSamList[[co]] <- transpose(data.table(hypParamSamNG))
         }
-
         hypParamSamNG <- rbindlist(hypParamSamList)
         hypParamSamNG <- setnames(hypParamSamNG, names(hypParamSamNG), hyper_bound_list_updated_name)
-
         ## add fixed hyperparameters
-
         if (hyper_count_fixed != 0) {
           hypParamSamNG <- cbind(hypParamSamNG, dt_hyperFixed)
           hypParamSamNG <- setcolorder(hypParamSamNG, hypParamSamName)
@@ -428,23 +405,19 @@ robyn_mmm <- function(hyper_collect,
         # for (i in 1:iterPar) {
         foreach(i = 1:iterPar) %dorng% { # i = 1
           t1 <- Sys.time()
-
-          #####################################
           #### Get hyperparameter sample
-
           hypParamSam <- unlist(hypParamSamNG[i])
-
           #### Tranform media with hyperparameters
           dt_modAdstocked <- dt_mod[, .SD, .SDcols = setdiff(names(dt_mod), "ds")]
           mediaAdstocked <- list()
           mediaVecCum <- list()
           mediaSaturated <- list()
+
           for (v in 1:length(all_media)) {
-            m <- dt_modAdstocked[, get(all_media[v])]
-
-            ## adstocking
-
+            ################################################
+            ## 1. Adstocking (whole data)
             adstock <- check_adstock(adstock)
+            m <- dt_modAdstocked[, get(all_media[v])]
             if (adstock == "geometric") {
               theta <- hypParamSam[paste0(all_media[v], "_thetas")]
               x_list <- adstock_geometric(x = m, theta = theta)
@@ -456,21 +429,26 @@ robyn_mmm <- function(hyper_collect,
               shape <- hypParamSam[paste0(all_media[v], "_shapes")]
               scale <- hypParamSam[paste0(all_media[v], "_scales")]
               x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "pdf")
-            } else {
-              break
-              print("adstock parameter must be geometric, weibull_cdf or weibull_pdf")
             }
-
             m_adstocked <- x_list$x_decayed
             mediaAdstocked[[v]] <- m_adstocked
             mediaVecCum[[v]] <- x_list$thetaVecCum
 
-            ## saturation
-            m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
+            # data.frame(id = rep(1:length(m), 2)) %>%
+            #   mutate(value = c(m, m_adstocked),
+            #          type = c(rep("raw", length(m)), rep("adstocked", length(m)))) %>%
+            #   filter(id < 100) %>%
+            #   ggplot(aes(x = id, y = value, colour = type)) +
+            #   geom_line()
 
+            ################################################
+            ## 2. Saturation (only window data)
+            m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
             alpha <- hypParamSam[paste0(all_media[v], "_alphas")]
             gamma <- hypParamSam[paste0(all_media[v], "_gammas")]
             mediaSaturated[[v]] <- saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma)
+
+            # plot(m_adstockedRollWind, mediaSaturated[[1]])
           }
 
           names(mediaAdstocked) <- all_media
@@ -486,22 +464,16 @@ robyn_mmm <- function(hyper_collect,
 
           dt_train <- copy(dt_modSaturated)
 
-          ## contrast matrix because glmnet does not treat categorical variables
+          ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
           y_train <- dt_train$dep_var
           x_train <- model.matrix(dep_var ~ ., dt_train)[, -1]
 
-          ## create lambda sequence with x and y
-          # lambda_seq <- ridge_lambda(x=x_train, y=y_train, seq_len = lambda.n, lambda_min_ratio = 0.0001)
-
-          ## define sign control
+          ## Define and set sign control
           dt_sign <- dt_modSaturated[, !"dep_var"] # names(dt_sign)
           x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
           names(x_sign) <- c(prophet_vars, context_vars, paid_media_vars, organic_vars)
           check_factor <- sapply(dt_sign, is.factor)
-
-          lower.limits <- c()
-          upper.limits <- c()
-
+          lower.limits <- upper.limits <- c()
           for (s in 1:length(check_factor)) {
             if (check_factor[s] == TRUE) {
               level.n <- length(levels(unlist(dt_sign[, s, with = FALSE])))
@@ -527,7 +499,7 @@ robyn_mmm <- function(hyper_collect,
           }
 
           #####################################
-          #### fit ridge regression with x-validation
+          #### Fit ridge regression with x-validation to get best lambdas
           cvmod <- cv.glmnet(
             x_train,
             y_train,
@@ -548,18 +520,15 @@ robyn_mmm <- function(hyper_collect,
           lambda <- lambda_range[1] + (lambda_range[2]-lambda_range[1]) * lambda_control
 
           #####################################
-          #### refit ridge regression with selected lambda from x-validation
+          #### Refit ridge regression with selected lambda from x-validation
 
-          ## if no lift calibration, refit using best lambda
+          ## If no lift calibration, refit using best lambda
           if (hyper_fixed == FALSE) {
             mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits, InputCollect$intercept_sign)
           } else {
             mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits, InputCollect$intercept_sign)
             lambda <- lambda_fixed[i]
           }
-
-          # hypParamSam["lambdas"] <- cvmod$lambda.1se
-          # hypParamSamName <- names(hypParamSam)
 
           decompCollect <- model_decomp(coefs = mod_out$coefs, dt_modSaturated = dt_modSaturated, x = x_train, y_pred = mod_out$y_pred, i = i, dt_modRollWind = dt_modRollWind, refreshAddedStart = refreshAddedStart)
           nrmse <- mod_out$nrmse_train
