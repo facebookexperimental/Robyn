@@ -7,14 +7,13 @@
 robyn_csv(OutputCollect, csv_out = NULL, export = TRUE)
 }
 \arguments{
-\item{OutputCollect}{\code{robyn_run()} outcomes.}
+\item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output}
 
 \item{csv_out}{Character. Accepts "pareto" or "all". Default to "pareto". Set
 to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.}
 
-\item{export}{Boolean. Export results into local files.}
+\item{export}{Boolean. Export outcomes into local files?}
 }
 \description{
-Pack \code{robyn_pareto()}, \code{robyn_plots()}, \code{robyn_csv()},
-and \code{robyn_cluster()} outcomes for \code{robyn_run()} results.
+Output results into local files: CSV files
 }

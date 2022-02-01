@@ -8,9 +8,11 @@
 #' Generate and Export Robyn Plots
 #'
 #' @inheritParams robyn_outputs
+#' @inheritParams robyn_csv
 #' @export
 robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
+  check_class("robyn_outputs", OutputCollect)
   pareto_fronts <- OutputCollect$pareto_fronts
   hyper_fixed <- OutputCollect$hyper_fixed
   temp_all <- OutputCollect$allPareto
@@ -160,17 +162,20 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 #' Generate and Export Robyn One-Pager Plots
 #'
 #' @inheritParams robyn_outputs
+#' @inheritParams robyn_csv
 #' @export
 robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet = FALSE, export = TRUE) {
 
+  check_class("robyn_outputs", OutputCollect)
   pareto_fronts <- OutputCollect$pareto_fronts
   hyper_fixed <- OutputCollect$hyper_fixed
   resultHypParam <- copy(OutputCollect$resultHypParam)
   xDecompAgg <- copy(OutputCollect$xDecompAgg)
   if (!is.null(selected)) {
+    if ("clusters" %in% selected) selected <- OutputCollect$clusters$models$solID
     resultHypParam <- resultHypParam[solID %in% selected]
     xDecompAgg <- xDecompAgg[solID %in% selected]
-    if (!quiet) message(">> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
+    if (!quiet) message("> Exporting only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
   # Prepare for parallel plotting
@@ -187,12 +192,12 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    if (!quiet) message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
+    if (!quiet) message(paste(">> Plotting", num_pareto123, "Pareto optimum models on", InputCollect$cores, "cores..."))
   } else {
-    if (!quiet) message(paste(">>> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
+    if (!quiet) message(paste(">> Plotting", num_pareto123, "Pareto optimum models on 1 core (MacOS fallback)..."))
   }
 
-  if (!quiet) pbplot <- txtProgressBar(max = num_pareto123, style = 3)
+  if (!quiet & num_pareto123 > 0) pbplot <- txtProgressBar(min = 0, max = num_pareto123, style = 3)
   temp <- OutputCollect$allPareto$plotDataCollect
   all_plots <- list()
   cnt <- 0
@@ -366,7 +371,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
           dpi = 600, width = 18, height = 18
         )
       }
-      if (check_parallel_plot() & !quiet) {
+      if (check_parallel_plot() & !quiet & num_pareto123 > 0) {
         cnt <- cnt + length(uniqueSol)
         setTxtProgressBar(pbplot, cnt)
       }

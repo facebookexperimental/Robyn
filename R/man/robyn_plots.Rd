@@ -9,9 +9,9 @@ robyn_plots(InputCollect, OutputCollect, export = TRUE)
 \arguments{
 \item{InputCollect}{\code{robyn_run()} outcomes.}
 
-\item{OutputCollect}{\code{robyn_run()} outcomes.}
+\item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output}
 
-\item{export}{Boolean. Export results into local files.}
+\item{export}{Boolean. Export outcomes into local files?}
 }
 \description{
 Generate and Export Robyn Plots

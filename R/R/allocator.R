@@ -12,6 +12,7 @@
 #' variable spends that maximizes the total media response.
 #'
 #' @inheritParams robyn_run
+#' @inheritParams robyn_outputs
 #' @param robyn_object Character. Path of the \code{Robyn.RDS} object
 #' that contains all previous modeling information.
 #' @param select_build Integer. Default to the latest model build. \code{select_buil = 0}

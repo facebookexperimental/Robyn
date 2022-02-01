@@ -3,13 +3,15 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_pareto <- function(InputCollect, model_output_collect, pareto_fronts, calibration_constraint, hyper_fixed) {
+robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint) {
 
-  resultHypParam <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
+  hyper_fixed <- attr(OutputModels, "hyper_fixed")
+  resultHypParam <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
   resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
-  xDecompAgg <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
+  xDecompAgg <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
   xDecompAgg[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
 
+  # Assign unique IDs using: trial + iterNG + iterPar
   resultHypParam[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
   xDecompAgg[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
   xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_vars, .(coef0 = min(coef) == 0), by = "solID"]
@@ -35,7 +37,7 @@ robyn_pareto <- function(InputCollect, model_output_collect, pareto_fronts, cali
 
   xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
 
-  decompSpendDist <- rbindlist(lapply(model_output_collect, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
+  decompSpendDist <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
   decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
   if (hyper_fixed == FALSE) {
     decompSpendDist[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]

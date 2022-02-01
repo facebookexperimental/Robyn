@@ -49,8 +49,8 @@ still needs to be investigated.}
 \item{refresh_trials}{An integer. Trials per refresh. Defaults to 5 trials.
 More reliable recommendation still needs to be investigated.}
 
-\item{plot_pareto}{A logical value. Set to \code{FALSE} to deactivate plotting
-and saving model onepagers. Used when testing models.}
+\item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
+and saving model one-pagers. Used when testing models.}
 
 \item{...}{Additional parameters passed to \code{robyn_engineering()} to
 overwrite original custom parameters passed into initial model.}

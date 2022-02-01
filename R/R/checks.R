@@ -514,4 +514,6 @@ check_parallel_msg <- function(InputCollect) {
   }
 }
 
-check_class <- function(object, x) stopifnot(x %in% class(object))
+check_class <- function(x, object) {
+ if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
+}

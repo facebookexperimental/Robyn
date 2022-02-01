@@ -30,6 +30,7 @@ robyn_inputs(
   trials = 5,
   nevergrad_algo = "TwoPointsDE",
   calibration_input = NULL,
+  intercept_sign = "non_negative",
   InputCollect = NULL,
   ...
 )
@@ -143,6 +144,11 @@ used for media, organic and context variables.}
 
 \item{calibration_input}{A data.table. Optional provide experimental results.
 Check "Guide for calibration source" section.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
 
 \item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when
 \code{hyperparameters} are not yet set.}

@@ -115,6 +115,10 @@
 #' "cGA", "RandomSearch")}
 #' @param calibration_input A data.table. Optional provide experimental results.
 #' Check "Guide for calibration source" section.
+#' @param intercept_sign Character. Choose one of "non_negative" (default) or
+#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
+#' and refit the model. Consider changing intercept_sign to "unconstrained" when
+#' there are \code{context_vars} with large positive values.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
 #' @param ... Additional parameters passed to \code{prophet} functions.
@@ -180,6 +184,7 @@ robyn_inputs <- function(dt_input = NULL,
                          trials = 5,
                          nevergrad_algo = "TwoPointsDE",
                          calibration_input = NULL,
+                         intercept_sign = "non_negative",
                          InputCollect = NULL,
                          ...) {
 
@@ -294,7 +299,8 @@ robyn_inputs <- function(dt_input = NULL,
       nevergrad_algo = nevergrad_algo,
       trials = trials,
       hyperparameters = hyperparameters,
-      calibration_input = calibration_input
+      calibration_input = calibration_input,
+      intercept_sign = intercept_sign
     )
 
     ### Use case 1: running robyn_inputs() for the first time

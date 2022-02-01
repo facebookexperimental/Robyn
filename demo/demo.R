@@ -127,6 +127,7 @@ InputCollect <- robyn_inputs(
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
+  ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
   ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
@@ -305,22 +306,23 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 #### Step 3: Build initial model
 
 # Run ?robyn_run to check parameter definition
-OutputCollect <- robyn_run(
+OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
-  , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
-  , pareto_fronts = 3
-  # , calibration_constraint = 0.1 # run ?robyn_run to see description
   # , lambda_control = 1 # run ?robyn_run to see description
-  , export = FALSE # More control on export process using robyn_outputs()
-  )
+  , outputs = FALSE # Export process using robyn_outputs()
+)
+# beepr::beep()
 
 # Export results and plots into local files
 OutputCollect <- robyn_outputs(
-  InputCollect, OutputCollect
+  InputCollect, OutputModels
+  , pareto_fronts = 3
+  # , calibration_constraint = 0.1 # run ?robyn_outputs to see description
   , csv_out = "pareto" # "pareto" or "all"
   , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
   , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers. Used when testing models.
-  )
+  , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
+)
 
 ## Besides one-pager and clusters plots: there are 4 csv output saved in the folder for further usage
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model

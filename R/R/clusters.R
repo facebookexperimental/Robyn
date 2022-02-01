@@ -13,7 +13,7 @@
 #' @inheritParams lares::clusterKmeans
 #' @inheritParams hyper_names
 #' @inheritParams robyn_outputs
-#' @param input \code{robyn_run()}'s output or \code{pareto_aggregated.csv} results.
+#' @param input \code{robyn_export()}'s output or \code{pareto_aggregated.csv} results.
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
@@ -35,7 +35,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
                            quiet = FALSE, export = FALSE,
                            ...) {
 
-  if ("robyn_run" %in% class(input)) {
+  if ("robyn_outputs" %in% class(input)) {
     if (is.null(all_media)) {
       aux <- colnames(input$mediaVecCollect)
       all_media <- aux[-c(1, which(aux == "type"):length(aux))]
@@ -49,7 +49,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
       df <- .prepare_roi(input, all_media)
     } else {
       stop(paste(
-        "You must run robyn_run(..., clusters = TRUE) or",
+        "You must run robyn_export(..., clusters = TRUE) or",
         "pass a valid data.frame (sames as pareto_aggregated.csv output)",
         "in order to use robyn_clusters()"
       ))

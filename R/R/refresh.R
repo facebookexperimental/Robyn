@@ -82,6 +82,7 @@ robyn_save <- function(robyn_object,
 #'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
+#' @inheritParams robyn_outputs
 #' @param dt_input A data.frame. Should include all previous data and newly added
 #' data for the refresh.
 #' @param dt_holidays A data.frame. Raw input holiday data. Load standard
@@ -100,8 +101,6 @@ robyn_save <- function(robyn_object,
 #' still needs to be investigated.
 #' @param refresh_trials An integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
-#' @param plot_pareto A logical value. Set to \code{FALSE} to deactivate plotting
-#' and saving model onepagers. Used when testing models.
 #' @param ... Additional parameters passed to \code{robyn_engineering()} to
 #' overwrite original custom parameters passed into initial model.
 #' @return A list. The Robyn object.
@@ -301,7 +300,7 @@ robyn_refresh <- function(robyn_object,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
-      intercept_sign = listOutputPrev[["intercept_sign"]],
+      intercept_sign = InputCollectRF[["intercept_sign"]],
       pareto_fronts = 1,
       refresh = TRUE,
       plot_pareto = plot_pareto

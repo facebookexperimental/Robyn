@@ -15,14 +15,15 @@ robyn_onepagers(
 \arguments{
 \item{InputCollect}{\code{robyn_run()} outcomes.}
 
-\item{OutputCollect}{\code{robyn_run()} outcomes.}
+\item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output}
 
 \item{selected}{Character vector. Which models (by \code{solID}) do you
-wish to plot and export? Default will take top \code{robyn_clusters()} results.}
+wish to plot the one-pagers and export? Default will take top
+\code{robyn_clusters()} results.}
 
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{export}{Boolean. Export results into local files.}
+\item{export}{Boolean. Export outcomes into local files?}
 }
 \description{
 Generate and Export Robyn One-Pager Plots

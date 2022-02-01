@@ -17,7 +17,7 @@ robyn_clusters(
 )
 }
 \arguments{
-\item{input}{\code{robyn_run()}'s output or \code{pareto_aggregated.csv} results.}
+\item{input}{\code{robyn_export()}'s output or \code{pareto_aggregated.csv} results.}
 
 \item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}

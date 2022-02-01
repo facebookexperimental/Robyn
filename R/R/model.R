@@ -12,35 +12,15 @@
 #' runs the \code{robyn_mmm()} functions and plots and collects the result.
 #'
 #' @inheritParams robyn_allocator
-#' @param plot_folder Character. Path for saving plots. Default
-#' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
-#' @param plot_folder_sub Character. Customize sub path to save plots. The total
-#' path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
-#' For example, plot_folder_sub = "sub_dir".
+#' @inheritParams robyn_outputs
 #' @param dt_hyper_fixed data.frame. Only provide when loading old model results.
 #' It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.
-#' @param pareto_fronts Integer. Number of Pareto fronts for the output.
-#' \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
-#' \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
-#' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
-#' and saving model one-pagers. Used when testing models.
-#' @param clusters Boolean. Apply \code{robyn_clusters()} to output models?
-#' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
-#' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
-#' selection. Lower \code{calibration_constraint} increases calibration accuracy.
+#' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param lambda_control Numeric. From 0-1. Tunes ridge lambda between
 #' lambda.min and lambda.1se.
-#' @param intercept_sign Character. Choose one of "non_negative" (default) or
-#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
-#' and refit the model. Consider changing intercept_sign to "unconstrained" when
-#' there are \code{context_vars} with large positive values.
-#' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param seed Integer. For reproducible results when running nevergrad.
-#' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
-#' to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.
-#' @param ui Boolean. Save additional outputs for UI usage. List outcome.
-#' @param export Boolean. Export results into local files.
-#' @param ... Additional parameters passed to \code{robyn_clusters()}.
+#' @param outputs Boolean. Process results with \code{robyn_outputs()}?
+#' @param ... Additional parameters passed to \code{robyn_outputs()}.
 #' @examples
 #' \dontrun{
 #' OutputCollect <- robyn_run(
@@ -52,20 +32,12 @@
 #' }
 #' @export
 robyn_run <- function(InputCollect,
-                      plot_folder = getwd(),
-                      plot_folder_sub = NULL,
-                      pareto_fronts = 1,
-                      plot_pareto = TRUE,
-                      clusters = TRUE,
-                      calibration_constraint = 0.1,
-                      lambda_control = 1,
-                      intercept_sign = "non_negative",
-                      refresh = FALSE,
                       dt_hyper_fixed = NULL,
+                      lambda_control = 1,
+                      refresh = FALSE,
                       seed = 123L,
-                      csv_out = "pareto",
-                      ui = FALSE,
-                      export = TRUE,
+                      outputs = TRUE,
+                      quiet = FALSE,
                       ...) {
 
   t0 <- Sys.time()
@@ -77,80 +49,29 @@ robyn_run <- function(InputCollect,
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
   }
 
-  init_msgs_run(InputCollect, refresh)
-
-  # Run some checks
-  check_robyn_object(plot_folder)
-  plot_folder <- check_filedir(plot_folder)
-  calibration_constraint <- check_calibconstr(
-    calibration_constraint, InputCollect$iterations,
-    InputCollect$trials, InputCollect$calibration_input)
+  init_msgs_run(InputCollect, refresh, quiet)
 
   #####################################
   #### Run robyn_mmm on set_trials
 
   hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed)
-  model_output_collect <- robyn_train(InputCollect, lambda_control, intercept_sign, refresh, seed, dt_hyper_fixed)
+  OutputModels <- robyn_train(InputCollect, dt_hyper_fixed, lambda_control, refresh, seed, quiet)
+  attr(OutputModels, "hyper_fixed") <- hyper_fixed
+  attr(OutputModels, "refresh") <- refresh
 
-  #####################################
-  #### Run robyn_pareto on model_output_collect
-
-  message(">>> Running pareto calculations...")
-  pareto_results <- robyn_pareto(InputCollect, model_output_collect, pareto_fronts, calibration_constraint, hyper_fixed)
-  allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
-
-  #####################################
-  #### Gather the results into output object
-
-  # Set folder to save outputs
-  if (is.null(plot_folder_sub)) {
-    folder_var <- ifelse(!refresh, "init", paste0("rf", InputCollect$refreshCounter))
-    plot_folder_sub <- paste0(format(Sys.time(), "%Y-%m-%d %H.%M"), " ", folder_var)
-  }
-  plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
-
-  # Auxiliary list with all results (wasn't previously exported but needed for robyn_outputs())
-  allPareto <- list(resultHypParam = pareto_results$resultHypParam,
-                    xDecompAgg = pareto_results$xDecompAgg,
-                    plotDataCollect = pareto_results$plotDataCollect)
-
-  # Final results object
-  OutputCollect <- list(
-    resultHypParam = pareto_results$resultHypParam[solID %in% allSolutions],
-    xDecompAgg = pareto_results$xDecompAgg[solID %in% allSolutions],
-    mediaVecCollect = pareto_results$mediaVecCollect,
-    xDecompVecCollect = pareto_results$xDecompVecCollect,
-    model_output_collect = model_output_collect,
-    allSolutions = allSolutions,
-    allPareto = allPareto,
-    calibration_constraint = calibration_constraint,
-    intercept_sign = intercept_sign,
-    UI = NULL,
-    pareto_fronts = pareto_fronts,
-    hyper_fixed = hyper_fixed,
-    plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
-  )
-  class(OutputCollect) <- c("robyn_run", class(OutputCollect))
-
-  #####################################
-  #### Collect and export results
-
-  if (export) {
-    tryCatch({
-      OutputCollect <- robyn_outputs(
-        InputCollect, OutputCollect,
-        csv_out = csv_out, clusters = clusters,
-        plot_pareto = plot_pareto, ui = ui, ...)
-    }, error = function(err) {
-      message(paste("+ Failed exporting results, but returned model results anyways:\n", err))
-    })
+  if (!outputs) {
+    output <- OutputModels
+  } else {
+    output <- robyn_outputs(InputCollect, OutputModels, ...)
   }
 
   # Report total timing
-  OutputCollect[["totalTime"]] <- round(difftime(Sys.time(), t0, units = "mins"), 2)
-  message(paste("\nTotal time:", OutputCollect[["totalTime"]], "mins"))
+  attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
+  if (!quiet) message(paste("Total run time:", attr(output, "runTime"), "mins"))
 
-  return(invisible(OutputCollect))
+  class(OutputModels) <- c("robyn_models", class(OutputModels))
+
+  return(invisible(output))
 
 }
 
@@ -171,8 +92,9 @@ robyn_run <- function(InputCollect,
 #' )
 #' }
 #' @export
-robyn_train <- function(InputCollect, lambda_control = 1, intercept_sign = "non_negative",
-                        refresh = FALSE, seed = 123, dt_hyper_fixed = NULL) {
+robyn_train <- function(InputCollect, dt_hyper_fixed = NULL,
+                        lambda_control = 1, refresh = FALSE,
+                        seed = 123, quiet = FALSE) {
 
   hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed)
 
@@ -184,25 +106,25 @@ robyn_train <- function(InputCollect, lambda_control = 1, intercept_sign = "non_
     hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
     hyperparameters_fixed <- lapply(dt_hyper_fixed[, hypParamSamName, with = FALSE], unlist)
 
-    model_output_collect <- list()
-    model_output_collect[[1]] <- robyn_mmm(
+    OutputModels <- list()
+    OutputModels[[1]] <- robyn_mmm(
       hyper_collect = hyperparameters_fixed,
       InputCollect = InputCollect,
       lambda_fixed = dt_hyper_fixed$lambda,
-      intercept_sign = intercept_sign,
-      seed = seed
+      seed = seed,
+      quiet = quiet
     )
 
-    model_output_collect[[1]]$trial <- 1
-    model_output_collect[[1]]$resultCollect$resultHypParam <- model_output_collect[[1]]$resultCollect$resultHypParam[order(iterPar)]
+    OutputModels[[1]]$trial <- 1
+    OutputModels[[1]]$resultCollect$resultHypParam <- OutputModels[[1]]$resultCollect$resultHypParam[order(iterPar)]
     dt_IDs <- data.table(
       solID = dt_hyper_fixed$solID,
-      iterPar = model_output_collect[[1]]$resultCollect$resultHypParam$iterPar
+      iterPar = OutputModels[[1]]$resultCollect$resultHypParam$iterPar
     )
-    model_output_collect[[1]]$resultCollect$resultHypParam[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    model_output_collect[[1]]$resultCollect$xDecompAgg[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    model_output_collect[[1]]$resultCollect$xDecompVec[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    model_output_collect[[1]]$resultCollect$decompSpendDist[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
+    OutputModels[[1]]$resultCollect$resultHypParam[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
+    OutputModels[[1]]$resultCollect$xDecompAgg[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
+    OutputModels[[1]]$resultCollect$xDecompVec[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
+    OutputModels[[1]]$resultCollect$decompSpendDist[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
 
   } else {
 
@@ -210,58 +132,60 @@ robyn_train <- function(InputCollect, lambda_control = 1, intercept_sign = "non_
 
     check_parallel_msg(InputCollect)
 
-    message(paste(
+    if (!quiet) message(paste(
       ">>> Start running", InputCollect$trials, "trials with",
       InputCollect$iterations, "iterations per trial each",
       ifelse(is.null(InputCollect$calibration_input), "with", "with calibration and"),
       InputCollect$nevergrad_algo, "nevergrad algorithm..."
     ))
 
-    model_output_collect <- list()
+    OutputModels <- list()
 
     for (ngt in 1:InputCollect$trials) {
-      message(paste0("  Running trial #", ngt))
+      if (!quiet) message(paste0("  Running trial #", ngt, " of ", InputCollect$trials))
       model_output <- robyn_mmm(
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
         lambda_control = lambda_control,
-        intercept_sign = intercept_sign,
         refresh = refresh,
-        seed = seed
+        seed = seed,
+        quiet = quiet
       )
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
       if (check_coef0) {
         num_coef0_mod <- model_output$resultCollect$decompSpendDist[decomp.rssd == Inf, uniqueN(paste0(iterNG, "_", iterPar))]
         num_coef0_mod <- ifelse(num_coef0_mod > InputCollect$iterations, InputCollect$iterations, num_coef0_mod)
-        message("This trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
+        if (!quiet) message("This trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
                   \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
       }
       model_output["trial"] <- ngt
-      model_output_collect[[ngt]] <- model_output
+      OutputModels[[ngt]] <- model_output
     }
   }
-  names(model_output_collect) <- if (hyper_fixed) "trial1" else paste0("trial", 1:InputCollect$trials)
-  return(model_output_collect)
+  names(OutputModels) <- if (hyper_fixed) "trial1" else paste0("trial", 1:InputCollect$trials)
+  return(OutputModels)
 }
 
-init_msgs_run <- function(InputCollect, refresh) {
-  message(sprintf(
-    "Input data has %s %ss in total: %s to %s",
-    nrow(InputCollect$dt_mod),
-    InputCollect$intervalType,
-    min(InputCollect$dt_mod$ds),
-    max(InputCollect$dt_mod$ds)
-  ))
-  message(sprintf(
-    "%s model is built on rolling window of %s %s: %s to %s",
-    ifelse(!refresh, "Initial", "Refresh"),
-    InputCollect$rollingWindowLength,
-    InputCollect$intervalType,
-    InputCollect$window_start,
-    InputCollect$window_end
-  ))
-  if (refresh) {
-    message("Rolling window moving forward: ", InputCollect$refresh_steps, " ", InputCollect$intervalType)
+init_msgs_run <- function(InputCollect, refresh, quiet = FALSE) {
+  if (!quiet) {
+    message(sprintf(
+      "Input data has %s %ss in total: %s to %s",
+      nrow(InputCollect$dt_mod),
+      InputCollect$intervalType,
+      min(InputCollect$dt_mod$ds),
+      max(InputCollect$dt_mod$ds)
+    ))
+    message(sprintf(
+      "%s model is built on rolling window of %s %s: %s to %s",
+      ifelse(!refresh, "Initial", "Refresh"),
+      InputCollect$rollingWindowLength,
+      InputCollect$intervalType,
+      InputCollect$window_start,
+      InputCollect$window_end
+    ))
+    if (refresh) {
+      message("Rolling window moving forward: ", InputCollect$refresh_steps, " ", InputCollect$intervalType)
+    }
   }
 }
 
@@ -289,9 +213,10 @@ robyn_mmm <- function(hyper_collect,
                       lambda.n = 100,
                       lambda_control = 1,
                       lambda_fixed = NULL,
-                      intercept_sign = "non_negative",
                       refresh = FALSE,
-                      seed = 123L) {
+                      seed = 123L,
+                      quiet = FALSE) {
+
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
     if (is.integer(seed)) {
@@ -441,7 +366,7 @@ robyn_mmm <- function(hyper_collect,
 
   resultCollectNG <- list()
   cnt <- 0
-  if (hyper_fixed == FALSE) {
+  if (hyper_fixed == FALSE & !quiet) {
     pb <- txtProgressBar(max = iterTotal, style = 3)
   }
   # assign("InputCollect", InputCollect, envir = .GlobalEnv) # adding this to enable InputCollect reading during parallel
@@ -500,6 +425,7 @@ robyn_mmm <- function(hyper_collect,
       best_mape <- Inf
 
       doparCollect <- suppressPackageStartupMessages(
+        # for (i in 1:iterPar) {
         foreach(i = 1:iterPar) %dorng% { # i = 1
           t1 <- Sys.time()
 
@@ -626,9 +552,9 @@ robyn_mmm <- function(hyper_collect,
 
           ## if no lift calibration, refit using best lambda
           if (hyper_fixed == FALSE) {
-            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits, intercept_sign)
+            mod_out <- model_refit(x_train, y_train, lambda = lambda, lower.limits, upper.limits, InputCollect$intercept_sign)
           } else {
-            mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits, intercept_sign)
+            mod_out <- model_refit(x_train, y_train, lambda = lambda_fixed[i], lower.limits, upper.limits, InputCollect$intercept_sign)
             lambda <- lambda_fixed[i]
           }
 
@@ -795,8 +721,10 @@ robyn_mmm <- function(hyper_collect,
       }
 
       resultCollectNG[[lng]] <- doparCollect
-      cnt <- cnt + iterPar
-      if (hyper_fixed == FALSE) setTxtProgressBar(pb, cnt)
+      if (!quiet) {
+        cnt <- cnt + iterPar
+        if (hyper_fixed == FALSE) setTxtProgressBar(pb, cnt)
+      }
     } ## end NG loop
   }) # end system.time
 
