@@ -127,6 +127,7 @@ InputCollect <- robyn_inputs(
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
+  ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
   ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
@@ -304,17 +305,26 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 ################################################################
 #### Step 3: Build initial model
 
-# Run ?robyn_run to check parameter definition
-OutputCollect <- robyn_run(
+# Run all trials and iterations
+# Use ?robyn_run to check parameter definition
+OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
-  , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
-  , pareto_fronts = 3
-  , plot_pareto = TRUE
-  # , calibration_constraint = 0.1 # run ?robyn_run to see description
-  # , lambda_control = 1 # run ?robyn_run to see description
-  )
+  # , lambda_control = 1 # range from 0-1 & default at 1. Details see ?robyn_run
+  , outputs = FALSE # outputs = FALSE disables direct model output
+)
 
-## Besides one-pager plots: there are 4 csv output saved in the folder for further usage
+# Output results and plots & export into local files
+OutputCollect <- robyn_outputs(
+  InputCollect, OutputModels
+  , pareto_fronts = 1 # decrease pareto_fronts to get less output models
+  # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1. Details see ?robyn_outputs
+  , csv_out = "pareto" # "pareto" or "all"
+  , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
+  , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers
+  , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
+)
+
+## Besides one-pager and clusters plots: there are 4 csv output saved in the folder for further usage
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model
 # pareto_aggregated.csv, aggregated decomposition per independent variable of all Pareto output
 # pareto_media_transform_matrix.csv, all media transformation vectors
@@ -327,8 +337,16 @@ OutputCollect <- robyn_run(
 ## Compare all model one-pagers in the plot folder and select one that mostly represents
 ## your business reality
 
+## Select winning model based on minimum combined error by ROI cluster using robyn_clusters()
+## You can check OutputCollect$clusters information or manually run it with custom parameters
+# cls <- robyn_clusters(OutputCollect,
+#                       all_media = InputCollect$all_media,
+#                       k = 5, limit = 1,
+#                       weights = c(1, 1, 1.5))
+
 OutputCollect$allSolutions # get all model IDs in result
-select_model <- "1_4_2" # select one from above
+# OutputCollect$clusters$models # or from reduced results using obyn_clusters()
+select_model <- "2_13_4" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -413,6 +431,7 @@ Robyn <- robyn_refresh(
   , refresh_iters = 1000 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
   , refresh_trials = 3
+  , clusters = TRUE
 )
 
 ## Besides plots: there're 4 csv output saved in the folder for further usage

@@ -67,10 +67,10 @@
 #' the signs of coefficients for paid_media_vars. Must have same
 #' order and same length as \code{paid_media_vars}.
 #' @param paid_media_spends Character vector. When using exposure level
-#' metrics (impressions, clicks, GRP etc) in paid_media_vars, provide
+#' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
 #' corresponding spends for ROAS calculation. For spend metrics in
-#' paid_media_vars, use the same name. media_spend_vars must have same
-#' order and same length as \code{paid_media_vars}.
+#' \code{paid_media_vars}, use the same name. \code{media_spend_vars} must
+#' have same order and same length as \code{paid_media_vars}.
 #' @param organic_vars Character vector. Typically newsletter sendings,
 #' push-notifications, social media posts etc. Compared to paid_media_vars
 #' organic_vars are often  marketing activities without clear spends
@@ -86,7 +86,7 @@
 #' function. CDF, or cumulative density function of the Weibull function allows
 #' changing decay rate over time in both C and S shape, while the peak value will
 #' always stay at the first period, meaning no lagged effect. PDF, or the
-#' probability density function, enables peak value occuring after the first
+#' probability density function, enables peak value occurring after the first
 #' period when shape >=1, allowing lagged effect. Run \code{plot_adstock()} to
 #' see the difference visually. Time estimation: with geometric adstock, 2000
 #' iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
@@ -115,6 +115,10 @@
 #' "cGA", "RandomSearch")}
 #' @param calibration_input A data.table. Optional provide experimental results.
 #' Check "Guide for calibration source" section.
+#' @param intercept_sign Character. Choose one of "non_negative" (default) or
+#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
+#' and refit the model. Consider changing intercept_sign to "unconstrained" when
+#' there are \code{context_vars} with large positive values.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
 #' @param ... Additional parameters passed to \code{prophet} functions.
@@ -180,6 +184,7 @@ robyn_inputs <- function(dt_input = NULL,
                          trials = 5,
                          nevergrad_algo = "TwoPointsDE",
                          calibration_input = NULL,
+                         intercept_sign = "non_negative",
                          InputCollect = NULL,
                          ...) {
 
@@ -294,7 +299,8 @@ robyn_inputs <- function(dt_input = NULL,
       nevergrad_algo = nevergrad_algo,
       trials = trials,
       hyperparameters = hyperparameters,
-      calibration_input = calibration_input
+      calibration_input = calibration_input,
+      intercept_sign = intercept_sign
     )
 
     ### Use case 1: running robyn_inputs() for the first time
@@ -594,8 +600,15 @@ robyn_engineering <- function(InputCollect, ...) {
     if (length(InputCollect[["custom_params"]]) > 0) {
       custom_params <- InputCollect[["custom_params"]]
     }
-    if (length(custom_params) > 0)
-      message(paste("Using custom prophet parameters:", paste(names(custom_params), collapse = ", ")))
+    robyn_args <- setdiff(
+      unique(c(names(as.list(args(robyn_run))),
+               names(as.list(args(robyn_outputs))),
+               names(as.list(args(robyn_inputs))),
+               names(as.list(args(robyn_refresh))))),
+      c("", "..."))
+    prophet_custom_args <- setdiff(names(custom_params), robyn_args)
+    if (length(prophet_custom_args)>0)
+      message(paste("Using custom prophet parameters:", paste(names(prophet_custom_args), collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,

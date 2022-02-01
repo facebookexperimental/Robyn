@@ -12,6 +12,7 @@
 #' variable spends that maximizes the total media response.
 #'
 #' @inheritParams robyn_run
+#' @inheritParams robyn_outputs
 #' @param robyn_object Character. Path of the \code{Robyn.RDS} object
 #' that contains all previous modeling information.
 #' @param select_build Integer. Default to the latest model build. \code{select_buil = 0}
@@ -480,8 +481,6 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   }
 
-  # print(nlsMod)
-
   ## collect output
 
   dt_bestModel <- dt_bestCoef[, .(rn, mean_spend, xDecompAgg, roi_total, roi_mean)][order(rank(rn))]
@@ -511,7 +510,6 @@ robyn_allocator <- function(robyn_object = NULL,
   )
 
   dt_optimOut[, optmResponseUnitTotalLift := (optmResponseUnitTotal / initResponseUnitTotal) - 1]
-  # print(dt_optimOut)
 
   ## plot allocator results
 

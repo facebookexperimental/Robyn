@@ -30,6 +30,7 @@ robyn_inputs(
   trials = 5,
   nevergrad_algo = "TwoPointsDE",
   calibration_input = NULL,
+  intercept_sign = "non_negative",
   InputCollect = NULL,
   ...
 )
@@ -84,10 +85,10 @@ the signs of coefficients for paid_media_vars. Must have same
 order and same length as \code{paid_media_vars}.}
 
 \item{paid_media_spends}{Character vector. When using exposure level
-metrics (impressions, clicks, GRP etc) in paid_media_vars, provide
+metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
 corresponding spends for ROAS calculation. For spend metrics in
-paid_media_vars, use the same name. media_spend_vars must have same
-order and same length as \code{paid_media_vars}.}
+\code{paid_media_vars}, use the same name. \code{media_spend_vars} must
+have same order and same length as \code{paid_media_vars}.}
 
 \item{organic_vars}{Character vector. Typically newsletter sendings,
 push-notifications, social media posts etc. Compared to paid_media_vars
@@ -107,7 +108,7 @@ flexible, but takes longer time than the traditional geometric one-parametric
 function. CDF, or cumulative density function of the Weibull function allows
 changing decay rate over time in both C and S shape, while the peak value will
 always stay at the first period, meaning no lagged effect. PDF, or the
-probability density function, enables peak value occuring after the first
+probability density function, enables peak value occurring after the first
 period when shape >=1, allowing lagged effect. Run \code{plot_adstock()} to
 see the difference visually. Time estimation: with geometric adstock, 2000
 iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
@@ -143,6 +144,11 @@ used for media, organic and context variables.}
 
 \item{calibration_input}{A data.table. Optional provide experimental results.
 Check "Guide for calibration source" section.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
 
 \item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when
 \code{hyperparameters} are not yet set.}

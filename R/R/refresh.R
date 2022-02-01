@@ -82,6 +82,7 @@ robyn_save <- function(robyn_object,
 #'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
+#' @inheritParams robyn_outputs
 #' @param dt_input A data.frame. Should include all previous data and newly added
 #' data for the refresh.
 #' @param dt_holidays A data.frame. Raw input holiday data. Load standard
@@ -100,8 +101,6 @@ robyn_save <- function(robyn_object,
 #' still needs to be investigated.
 #' @param refresh_trials An integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
-#' @param plot_pareto A logical value. Set to \code{FALSE} to deactivate plotting
-#' and saving model onepagers. Used when testing models.
 #' @param ... Additional parameters passed to \code{robyn_engineering()} to
 #' overwrite original custom parameters passed into initial model.
 #' @return A list. The Robyn object.
@@ -301,20 +300,23 @@ robyn_refresh <- function(robyn_object,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
-      intercept_sign = listOutputPrev[["intercept_sign"]],
       pareto_fronts = 1,
       refresh = TRUE,
-      plot_pareto = plot_pareto
+      plot_pareto = plot_pareto,
+      ...
     )
 
     ## select winner model for current refresh
     # selectID <- OutputCollectRF$resultHypParam[which.min(decomp.rssd), solID] # min decomp.rssd selection
-    OutputCollectRF$resultHypParam[, error_dis := sqrt(nrmse^2 + decomp.rssd^2)] # min error distance selection
+    # norm_nrmse <- .min_max_norm(OutputCollectRF$resultHypParam$nrmse)
+    # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
+    OutputCollectRF$resultHypParam[, error_dis := sqrt(.min_max_norm(nrmse)^2 +
+                                                         .min_max_norm(decomp.rssd)^2)] # min error distance selection
     selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
     OutputCollectRF$selectID <- selectID
     message(
       "Selected model ID: ", selectID, " for refresh model nr.",
-      refreshCounter, " based on the smallest combined error of NRMSE & DECOMP.RSSD\n"
+      refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
     )
 
     OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]
@@ -445,7 +447,6 @@ robyn_refresh <- function(robyn_object,
         ),
         x = "date", y = "response"
       )
-    # print(pFitRF)
     ggsave(
       filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
       plot = pFitRF,
@@ -502,7 +503,6 @@ robyn_refresh <- function(robyn_object,
           paste(InputCollectRF$prophet_vars, collapse = ", ")
         )
       )
-    # print(pBarRF)
     ggsave(
       filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
       plot = pBarRF,

@@ -21,10 +21,13 @@
 #' @import data.table
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
+#' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
+#' group_by lag left_join mutate pull row_number select slice ungroup
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
+#' @importFrom lares check_opts clusterKmeans formatNum freqs removenacols theme_lares `%>%`
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
@@ -37,7 +40,8 @@
 #' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control
 #' predict pweibull dweibull quantile qunif start
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
-#' @importFrom utils askYesNo head setTxtProgressBar txtProgressBar
+#' @importFrom tidyr pivot_longer pivot_wider
+#' @importFrom utils askYesNo flush.console head setTxtProgressBar txtProgressBar
 "_PACKAGE"
 
 # data.table column names used

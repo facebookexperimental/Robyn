@@ -12,18 +12,14 @@ seed = 123L
 # go into robyn_mmm() line by line
 
 ## debug robyn_run
-# prep input para
-plot_folder = robyn_object
-plot_folder_sub = NULL
-pareto_fronts = 1
-plot_pareto = TRUE
+# prep input param
+
 calibration_constraint = 0.1
 lambda_control = 1
 refresh = FALSE
 dt_hyper_fixed = NULL
-ui = FALSE
-csv_out = "pareto"
 seed = 123
+outputs = FALSE
 # go into robyn_run() line by line
 
 ## debug robyn_refresh
@@ -79,3 +75,32 @@ expected_spend_days = NULL
 maxeval = 100000
 constr_mode = "eq"
 ui = FALSE
+
+
+## debug robyn_outputs
+args(robyn_outputs)
+#InputCollect
+#OutputModels
+pareto_fronts = 1
+calibration_constraint = 0.1
+plot_folder = robyn_object
+plot_folder_sub = NULL
+plot_pareto = TRUE
+csv_out = "pareto"
+clusters = TRUE
+selected = "clusters"
+ui = FALSE
+export = TRUE
+quiet = FALSE
+
+
+## debug robyn_clusters
+args(robyn_clusters)
+input = OutputCollect
+all_media = NULL
+k = "auto"
+limit = 1
+weights = rep(1, 3)
+dim_red = "PCA"
+quiet = FALSE
+export = FALSE
