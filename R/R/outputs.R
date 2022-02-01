@@ -10,7 +10,6 @@
 #' outcomes for \code{robyn_run()} results. When \code{UI=TRUE}, enriched
 #' \code{OutputModels} results with additional plots and objects.
 #'
-#' @inheritParams robyn_run
 #' @param InputCollect,OutputModels \code{robyn_run()} outcomes.
 #' @param pareto_fronts Integer. Number of Pareto fronts for the output.
 #' \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
@@ -44,7 +43,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           plot_pareto = TRUE,
                           csv_out = "pareto",
                           clusters = TRUE, selected = "clusters",
-                          ui = FALSE, export = TRUE, quiet = FALSE, ...) {
+                          ui = FALSE, export = TRUE,
+                          quiet = FALSE, ...) {
 
   check_robyn_object(plot_folder)
   plot_folder <- check_filedir(plot_folder)

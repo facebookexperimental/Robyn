@@ -142,7 +142,7 @@ robyn_train <- function(InputCollect, dt_hyper_fixed = NULL,
     OutputModels <- list()
 
     for (ngt in 1:InputCollect$trials) {
-      if (!quiet) message(paste0("  Running trial #", ngt, " of ", InputCollect$trials))
+      if (!quiet) message(paste("  Running trial", ngt, "of", InputCollect$trials))
       model_output <- robyn_mmm(
         hyper_collect = InputCollect$hyperparameters,
         InputCollect = InputCollect,
