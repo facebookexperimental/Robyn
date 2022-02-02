@@ -790,7 +790,7 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   modLM <- lm(exposure ~ spend - 1, data = dt_spendModInput)
   yhatLM <- predict(modLM)
   modLMSum <- summary(modLM)
-  rsq_lm <- get_rsq(true = dt_spendModInput$exposure, predicted = yhatLM)
+  rsq_lm <- modLMSum$adj.r.squared
   if (is.na(rsq_lm)) {
     stop("Please check if ", paid_media_vars, " contains only 0s")
   }
