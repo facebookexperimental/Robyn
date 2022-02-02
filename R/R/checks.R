@@ -337,25 +337,46 @@ check_adstock <- function(adstock) {
   return(adstock)
 }
 
-check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL, all_media = NULL) {
+check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
+                                  paid_media_spends = NULL, organic_vars = NULL,
+                                  exposure_vars = NULL) {
   if (is.null(hyperparameters)) {
     message(paste(
       "'hyperparameters' are not provided yet. To include them, run",
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
-    local_name <- hyper_names(adstock, all_media)
-    if (!identical(sort(names(hyperparameters)), local_name)) {
-      stop(
-        "'hyperparameters' must be a list and contain vectors or values named as followed: ",
-        paste(local_name, collapse = ", ")
-      )
+    hyperparameters_ordered <- hyperparameters[order(names(hyperparameters))]
+    get_hyp_names <- names(hyperparameters_ordered)
+    ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
+    ref_hyp_name_expo <- hyper_names(adstock, all_media = exposure_vars)
+    ref_hyp_name_org <- hyper_names(adstock, all_media = organic_vars)
+    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org))
+    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org)
+    if (!all(get_hyp_names %in% all_ref_names)) {
+      wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
+      stop("'hyperparameters' contains following wrong names: ",
+           paste(wrong_hyp_names, collapse = ", "))
     }
-    check_hyper_limits(hyperparameters, "thetas")
-    check_hyper_limits(hyperparameters, "alphas")
-    check_hyper_limits(hyperparameters, "gammas")
-    check_hyper_limits(hyperparameters, "shapes")
-    check_hyper_limits(hyperparameters, "scales")
+    if (length(get_hyp_names) != length(c(ref_hyp_name_spend, ref_hyp_name_org))) {
+      stop("there're missing or too many hyperparameters. run
+      hyper_names(adstock, all_media) to get all hyperparameters names")
+    }
+    # old workflow: replace exposure with spend hyperparameters
+    if (any(get_hyp_names %in% ref_hyp_name_expo)) {
+      get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
+      get_hyp_names[get_expo_pos] <- ref_all_media[get_expo_pos]
+    }
+    if (!identical(get_hyp_names, ref_all_media)) {
+      stop("'hyperparameters' must be: ", paste(ref_all_media, collapse = ", "))
+    }
+
+    check_hyper_limits(hyperparameters_ordered, "thetas")
+    check_hyper_limits(hyperparameters_ordered, "alphas")
+    check_hyper_limits(hyperparameters_ordered, "gammas")
+    check_hyper_limits(hyperparameters_ordered, "shapes")
+    check_hyper_limits(hyperparameters_ordered, "scales")
+    return(hyperparameters_ordered)
   }
 }
 

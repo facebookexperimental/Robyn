@@ -234,7 +234,7 @@ robyn_inputs <- function(dt_input = NULL,
     check_factorvars(factor_vars, context_vars, organic_vars)
 
     ## check all vars
-    all_media <- c(paid_media_vars, organic_vars)
+    all_media <- c(paid_media_spends, organic_vars)
     all_ind_vars <- c(prophet_vars, context_vars, all_media)
     check_allvars(all_ind_vars)
 
@@ -255,7 +255,9 @@ robyn_inputs <- function(dt_input = NULL,
     adstock <- check_adstock(adstock)
 
     ## check hyperparameters (if passed)
-    check_hyperparameters(hyperparameters, adstock, all_media)
+    hyperparameters <- check_hyperparameters(hyperparameters, adstock,
+                                             paid_media_spends, organic_vars,
+                                             exposure_vars = exposureVarName)
 
     ## check calibration and iters/trials
     calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval)
@@ -328,7 +330,13 @@ robyn_inputs <- function(dt_input = NULL,
       ## 'hyperparameters' provided --> run robyn_engineering()
       ## update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
-      check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
+      exposureVarName <- setdiff(InputCollect$paid_media_vars, InputCollect$paid_media_spends)
+      InputCollect$hyperparameters <- check_hyperparameters(
+        hyperparameters = InputCollect$hyperparameters,
+        adstock = InputCollect$adstock,
+        paid_media_spends = InputCollect$paid_media_spends,
+        organic_vars = InputCollect$organic_vars,
+        exposure_vars = exposureVarName)
       check_iteration(InputCollect$calibration_input, InputCollect$iterations, InputCollect$trials)
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
