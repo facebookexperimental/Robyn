@@ -54,8 +54,6 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         plot = pSpendExposure, dpi = 600, width = 12,
         height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
       )
-    } else {
-      message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
     }
 
     ## Hyperparameter sampling distribution
@@ -121,7 +119,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Ridgeline model convergence
     if (length(temp_all) > 0) {
       xDecompAgg <- copy(temp_all$xDecompAgg)
-      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
+      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_spends
                               , .(variables = rn
                                   , roi_total
                                   , iteration = (iterNG-1)*InputCollect$cores+iterPar
@@ -204,7 +202,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
 
   for (pf in pareto_fronts_vec) {
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_vars]
+    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
     uniqueSol <- plotMediaShare[, unique(solID)]
 
     # parallelResult <- for (sid in uniqueSol) {
@@ -317,7 +315,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
       ## 4. Response curve
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
-      p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_vars,],
+      p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends,],
                    aes(x = .data$spend, y = .data$response, color = .data$channel)) +
         geom_line() +
         geom_point(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, color = .data$channel)) +

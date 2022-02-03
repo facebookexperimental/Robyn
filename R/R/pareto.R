@@ -204,7 +204,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         coef <- plotWaterfallLoop[rn == InputCollect$all_media[i], coef]
         dt_transformSaturationDecomp[, (InputCollect$all_media[i]) := .SD * coef, .SDcols = InputCollect$all_media[i]]
       }
-      dt_transformSaturationSpendReverse <- dt_transformSaturationDecomp[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+      dt_transformSaturationSpendReverse <- dt_transformAdstock[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
 
       ## Reverse MM fitting
       # dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
