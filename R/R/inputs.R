@@ -224,7 +224,7 @@ robyn_inputs <- function(dt_input = NULL,
     paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
     paid_media_signs <- paidmedia$paid_media_signs
     mediaVarCount <- paidmedia$mediaVarCount
-    exposureVarName <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
+    exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
     ## check organic media variables (and maybe transform organic_signs)
     organic <- check_organicvars(dt_input, organic_vars, organic_signs)
@@ -257,10 +257,11 @@ robyn_inputs <- function(dt_input = NULL,
     ## check hyperparameters (if passed)
     hyperparameters <- check_hyperparameters(hyperparameters, adstock,
                                              paid_media_spends, organic_vars,
-                                             exposure_vars = exposureVarName)
+                                             exposure_vars = exposure_vars)
 
     ## check calibration and iters/trials
-    calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval)
+    calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval,
+                                           paid_media_vars, paid_media_spends)
 
     ## collect input
     InputCollect <- output <- list(
@@ -283,7 +284,7 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
       mediaVarCount = mediaVarCount,
-      exposureVarName = exposureVarName,
+      exposure_vars = exposure_vars,
       organic_vars = organic_vars,
       organic_signs = organic_signs,
       all_media = all_media,
@@ -319,7 +320,9 @@ robyn_inputs <- function(dt_input = NULL,
       InputCollect$dt_input,
       InputCollect$date_var,
       calibration_input,
-      InputCollect$dayInterval
+      InputCollect$dayInterval,
+      InputCollect$paid_media_vars,
+      InputCollect$paid_media_spends
     )
     ## update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
@@ -330,13 +333,13 @@ robyn_inputs <- function(dt_input = NULL,
       ## 'hyperparameters' provided --> run robyn_engineering()
       ## update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
-      exposureVarName <- setdiff(InputCollect$paid_media_vars, InputCollect$paid_media_spends)
+      exposure_vars <- setdiff(InputCollect$paid_media_vars, InputCollect$paid_media_spends)
       InputCollect$hyperparameters <- check_hyperparameters(
         hyperparameters = InputCollect$hyperparameters,
         adstock = InputCollect$adstock,
         paid_media_spends = InputCollect$paid_media_spends,
         organic_vars = InputCollect$organic_vars,
-        exposure_vars = exposureVarName)
+        exposure_vars = exposure_vars)
       check_iteration(InputCollect$calibration_input, InputCollect$iterations, InputCollect$trials)
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }

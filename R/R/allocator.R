@@ -148,7 +148,7 @@ robyn_allocator <- function(robyn_object = NULL,
   paid_media_spends <- InputCollect$paid_media_spends
   mediaVarSorted <- paid_media_vars[media_order]
   mediaSpendSorted <- paid_media_spends[media_order]
-  exposureVarName <- InputCollect$exposureVarName
+  exposure_vars <- InputCollect$exposure_vars
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
   adstock <- InputCollect$adstock

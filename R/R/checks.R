@@ -366,6 +366,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     if (any(get_hyp_names %in% ref_hyp_name_expo)) {
       get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
       get_hyp_names[get_expo_pos] <- ref_all_media[get_expo_pos]
+      names(hyperparameters_ordered) <- get_hyp_names
     }
     if (!identical(get_hyp_names, ref_all_media)) {
       stop("'hyperparameters' must be: ", paste(ref_all_media, collapse = ", "))
@@ -403,7 +404,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
   }
 }
 
-check_calibration <- function(dt_input, date_var, calibration_input, dayInterval) {
+check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, paid_media_vars, paid_media_spends) {
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
     if (!all(names(calibration_input) %in% c("channel", "liftStartDate", "liftEndDate", "liftAbs"))) {
@@ -412,6 +413,15 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     if ((min(calibration_input$liftStartDate) < min(dt_input[, get(date_var)])) |
       (max(calibration_input$liftEndDate) > (max(dt_input[, get(date_var)]) + dayInterval - 1))) {
       stop("We recommend you to only use lift results conducted within your MMM input data date range")
+    }
+    if (!all(calibration_input$channel %in% paid_media_spends)) {
+      get_pos_input <- which(!calibration_input$channel %in% paid_media_spends)
+      get_pos_exposure <- sapply(calibration_input$channel[get_pos_input], function(x) which(paid_media_vars == x))
+      get_spend_name <- paid_media_spends[get_pos_exposure]
+      calibration_input$channel[get_pos_input] <- get_spend_name
+    }
+    if (!all(calibration_input$channel %in% paid_media_spends)) {
+      stop("calibration_input$channel must be one of the following: ", paste(paid_media_spends, collapse = ", "))
     }
   }
   return(calibration_input)
