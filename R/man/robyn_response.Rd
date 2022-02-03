@@ -7,7 +7,7 @@
 robyn_response(
   robyn_object = NULL,
   select_build = NULL,
-  paid_media_var = NULL,
+  paid_media_spend = NULL,
   select_model = NULL,
   spend = NULL,
   dt_hyppar = NULL,
@@ -22,8 +22,8 @@ that contains all previous modeling information.}
 \item{select_build}{Integer. Default to the latest model build. \code{select_buil = 0}
 selects the initial model. \code{select_buil = 1} selects the first refresh model.}
 
-\item{paid_media_var}{A character. Selected paid media variable for the response.
-Must be within \code{InputCollect$paid_media_vars}}
+\item{paid_media_spend}{A character. Selected paid media variable for the response.
+Must be within \code{InputCollect$paid_media_spends}}
 
 \item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
 is provided, \code{select_model} defaults to the already selected \code{SolID}. When
@@ -59,7 +59,7 @@ result from a selected model build (initial model, refresh model etc.).
 spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object,
-  paid_media_var = "search_clicks_P",
+  paid_media_spend = "search_S",
   spend = spend1
 )
 
@@ -70,7 +70,7 @@ Response1 / spend1 # ROI for search 80k
 spend2 <- spend1 + 1000
 Response2 <- robyn_response(
   robyn_object = robyn_object,
-  paid_media_var = "search_clicks_P",
+  paid_media_spend = "search_S",
   spend = spend2
 )
 
@@ -89,7 +89,7 @@ Response2 - Response1
 robyn_response(
   robyn_object = robyn_object,
   select_build = 3,
-  paid_media_var = "search_clicks_P",
+  paid_media_spend = "search_S",
   spend = 80000
 )
 
@@ -97,7 +97,7 @@ robyn_response(
 ## in the current model output in the global environment
 
 robyn_response(,
-  paid_media_var = "search_clicks_P",
+  paid_media_spend = "search_S",
   select_model = "3_10_3",
   spend = 80000,
   dt_hyppar = OutputCollect$resultHypParam,

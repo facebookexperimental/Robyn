@@ -88,8 +88,6 @@ spend = decompSpendDistPar[4, mean_spend]
 dt_hyppar = resultHypParamPar
 dt_coef = xDecompAggPar
 
-#InputCollect
-
 
 ## debug robyn_refresh
 # robyn_object
@@ -103,13 +101,12 @@ refresh_trials = 2
 plot_pareto = TRUE
 
 ## debug robyn_allocator
-# prep input para
-
-#robyn_object
-select_build = 1
-InputCollect = NULL
-OutputCollect = NULL
-select_model = NULL
+args(robyn_allocator)
+# InputCollect = NULL
+# OutputCollect = NULL
+# select_model = NULL
+robyn_object = NULL
+select_build = NULL
 optim_algo = "SLSQP_AUGLAG"
 scenario = "max_historical_response"
 expected_spend = NULL

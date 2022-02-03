@@ -346,7 +346,7 @@ OutputCollect <- robyn_outputs(
 
 OutputCollect$allSolutions # get all model IDs in result
 # OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "2_13_4" # select one from above
+select_model <- "1_11_3" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -399,13 +399,13 @@ AllocatorCollect <- robyn_allocator(
 AllocatorCollect$dt_optimOut
 
 ## QA optimal response
-# select_media <- "search_clicks_P"
+# select_media <- "search_S"
 # optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
 # optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
 #                                                            , optmResponseUnit]
 # optimal_response <- robyn_response(robyn_object = robyn_object
 #                                    , select_build = 0
-#                                    , paid_media_var = select_media
+#                                    , paid_media_spend = select_media
 #                                    , spend = optimal_spend)
 # round(optimal_response_allocator) == round(optimal_response)
 # optimal_response_allocator; optimal_response
@@ -469,7 +469,7 @@ Spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1 # 2 means the second refresh model. 0 means the initial model
-  , paid_media_var = "search_clicks_P"
+  , paid_media_spend = "search_S"
   , spend = Spend1)
 Response1/Spend1 # ROI for search 80k
 
@@ -478,7 +478,7 @@ Spend2 <- Spend1+1000
 Response2 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
-  , paid_media_var = "search_clicks_P"
+  , paid_media_spend = "search_S"
   , spend = Spend2)
 Response2/Spend2 # ROI for search 81k
 
