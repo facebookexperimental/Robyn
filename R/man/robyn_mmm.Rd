@@ -8,8 +8,6 @@ robyn_mmm(
   hyper_collect,
   InputCollect,
   iterations = InputCollect$iterations,
-  lambda.n = 100,
-  lambda_control = 1,
   lambda_fixed = NULL,
   refresh = FALSE,
   seed = 123L,
@@ -24,12 +22,6 @@ robyn_mmm(
 Required when \code{robyn_object} is not provided.}
 
 \item{iterations}{Integer. Number of iterations to run.}
-
-\item{lambda.n}{Integer. Number of lambda cross-validation in \code{glmnet}.
-Defaults to 100.}
-
-\item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
-lambda.min and lambda.1se.}
 
 \item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
 old model results.}

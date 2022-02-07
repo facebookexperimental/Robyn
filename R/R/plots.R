@@ -61,7 +61,12 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
       resultHypParam <- copy(temp_all$resultHypParam)
-      resultHypParam.melted <- melt.data.table(resultHypParam[, c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
+      # Add (scaled) lambda as hyperparameter
+      resultHypParam <- resultHypParam %>%
+        mutate(lambda = .min_max_norm(.data$lambda, 0, 3)) %>%
+        rename("lambda_scaled" = "lambda")
+      resultHypParam.melted <- melt.data.table(resultHypParam[
+        ,c(names(InputCollect$hyperparameters), "lambda_scaled", "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
       all_plots[["pSamp"]] <- pSamp <- ggplot(
         resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
         geom_violin(alpha = .5, size = 0) +
@@ -71,7 +76,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           title = "Hyperparameter optimisation sampling",
           subtitle = paste0("Sample distribution", ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
           x = "Hyperparameter space",
-          y = ""
+          y = NULL
         )
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "hypersampling.png"),

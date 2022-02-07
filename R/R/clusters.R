@@ -133,7 +133,11 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   return(rois)
 }
 
-.min_max_norm <- function(x) (x - min(x)) / (max(x) - min(x))
+.min_max_norm <- function(x, min = 0, max = 1) {
+  a <- min(x, na.rm = TRUE)
+  b <- max(x, na.rm = TRUE)
+  (max - min) * (x - a) / (b - a) + min
+}
 
 .clusters_df <- function(df, balance = rep(1, 3)) {
   stopifnot(length(balance) == 3)

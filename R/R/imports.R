@@ -22,7 +22,7 @@
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
-#' group_by lag left_join mutate pull row_number select slice ungroup
+#' group_by lag left_join mutate pull rename row_number select slice ungroup
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
