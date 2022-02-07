@@ -334,11 +334,11 @@ robyn_mmm <- function(hyper_collect,
     my_tuple <- tuple(hyper_count)
     instrumentation <- ng$p$Array(shape = my_tuple, lower = 0, upper = 1)
     optimizer <- ng$optimizers$registry[optimizer_name](instrumentation, budget = iterTotal, num_workers = cores)
-    # Set multi-objective dimensions: 2-3 errors + lambda
+    # Set multi-objective dimensions for objective functions (errors)
     if (is.null(calibration_input)) {
-      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1, 1))
+      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1))
     } else {
-      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1, 1, 1))
+      optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1, 1))
     }
   }
 
