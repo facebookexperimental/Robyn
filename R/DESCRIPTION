@@ -10,7 +10,7 @@ Authors@R: c(
 Maintainer: Gufeng Zhou <gufeng@fb.com>, Bernardo Lares <bernardolares@fb.com>
 Description: Automated Marketing Mix Modeling (MMM) package that aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation.
 Depends:
-    R (>= 3.5)
+    R (>= 4.0)
 Imports:
     data.table,
     doParallel,
