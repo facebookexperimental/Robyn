@@ -372,7 +372,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
       stop(sprintf("%s's hyperparameter must have lower bound %s", names(hyperparameters)[i], limits[1]))
     # Upper limit
     ineq <- paste(values[2], limits[2], sep = "", collapse = "")
-    upper_pass <- eval(parse(text = ineq))
+    upper_pass <- eval(parse(text = ineq)) | length(values) == 1
     if (!upper_pass)
       stop(sprintf("%s's hyperparameter must have upper bound %s", names(hyperparameters)[i], limits[2]))
     # Order of limits

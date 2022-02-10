@@ -115,12 +115,12 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
       if (clusters) {
         if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-        OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...)
+        try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...))
       }
 
       if (plot_pareto) {
         if (!quiet) message(">>> Exporting pareto one-pagers into directory...")
-        selected <- if (!clusters) NULL else selected
+        selected <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else selected
         pareto_onepagers <- robyn_onepagers(
           InputCollect, OutputCollect,
           selected = selected,
