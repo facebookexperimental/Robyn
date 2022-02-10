@@ -161,7 +161,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
                         weibullCollect = weibullCollect,
                         wb_type = toupper(wb_type))
 
-      ## 4. Response curve
+      ## 4. Spend response curve
       dt_transformPlot <- dt_mod[, c("ds", InputCollect$all_media), with = FALSE] # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, .(ds)], InputCollect$dt_input[, c(InputCollect$paid_media_spends), with = FALSE]) # spends of indep vars
       dt_transformSpendMod <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
@@ -210,7 +210,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       # dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
       # for (i in 1:InputCollect$mediaVarCount) {
       #   chn <- InputCollect$paid_media_vars[i]
-      #   if (chn %in% InputCollect$paid_media_vars[InputCollect$costSelector]) {
+      #   if (chn %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
       #     # Get Michaelis Menten nls fitting param
       #     get_chn <- dt_transformSaturationSpendReverse[, chn, with = FALSE]
       #     Vmax <- InputCollect$modNLSCollect[channel == chn, Vmax]
@@ -237,7 +237,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         get_med <- InputCollect$paid_media_spends[med]
         get_spend <- dt_scurvePlotMean[channel == get_med, mean_spend]
         get_spend_mm <- get_spend
-        # if (get_med %in% InputCollect$paid_media_vars[InputCollect$costSelector]) {
+        # if (get_med %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
         #   Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
         #   Km <- InputCollect$modNLSCollect[channel == get_med, Km]
         #   # Vmax * get_spend/(Km + get_spend)
@@ -261,8 +261,36 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         dt_scurvePlotMean[channel == get_med, next_unit_response := get_response_marginal * coef - mean_response]
       }
       dt_scurvePlotMean[, solID := sid]
+
+      # Exposure response curve
+      if (!identical(InputCollect$paid_media_vars, InputCollect$exposure_vars)) {
+        exposure_which <- which(InputCollect$paid_media_vars %in% InputCollect$exposure_vars)
+        spends_to_fit <- InputCollect$paid_media_spends[exposure_which]
+        nls_lm_selector <- InputCollect$exposure_selector[exposure_which]
+        dt_expoCurvePlot <- dt_scurvePlot[channel %in% spends_to_fit]
+        dt_expoCurvePlot[, exposure_pred := 0]
+        for (s in seq_along(spends_to_fit)) {
+          get_med <- InputCollect$exposure_vars[s]
+          if (nls_lm_selector[s]) {
+            Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
+            Km <- InputCollect$modNLSCollect[channel == get_med, Km]
+            # Vmax * get_spend/(Km + get_spend)
+            dt_expoCurvePlot[channel == spends_to_fit[s]
+                             , ':='(exposure_pred = mic_men(x = spend, Vmax = Vmax, Km = Km)
+                                    ,channel = get_med)]
+            dt_expoCurvePlot
+          } else {
+            coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
+            dt_expoCurvePlot[channel == spends_to_fit[s]
+                             , ':='(exposure_pred = spend * coef_lm
+                                    , channel = get_med)]
+          }
+        }
+      }
       plot4data <- list(dt_scurvePlot = dt_scurvePlot,
-                        dt_scurvePlotMean = dt_scurvePlotMean)
+                        dt_scurvePlotMean = dt_scurvePlotMean,
+                        dt_expoCurvePlot = dt_expoCurvePlot)
+
 
       ## 5. Fitted vs actual
       if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {

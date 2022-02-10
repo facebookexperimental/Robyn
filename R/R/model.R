@@ -574,10 +574,10 @@ robyn_mmm <- function(hyper_collect,
             decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share - spend_share)^2))]
           } else {
             dt_decompRF <- decompCollect$xDecompAgg[, .(rn, decomp_perc = xDecompPerc)][xDecompAggPrev[, .(rn, decomp_perc_prev = xDecompPerc)], on = "rn"]
-            decomp.rssd.nonpaid <- dt_decompRF[!(rn %in% paid_media_spends), sqrt(mean((decomp_perc - decomp_perc_prev)^2))]
-            decomp.rssd.paid <- dt_decompSpendDist[, sqrt(mean((effect_share_refresh - spend_share_refresh)^2))]
+            decomp.rssd.nonmedia <- dt_decompRF[!(rn %in% paid_media_spends), sqrt(mean((decomp_perc - decomp_perc_prev)^2))]
+            decomp.rssd.media <- dt_decompSpendDist[, sqrt(mean((effect_share_refresh - spend_share_refresh)^2))]
             # when refreshing with few new data, baseline is expected to be more stable, thus baseline error gets more weight
-            decomp.rssd <- decomp.rssd.paid + decomp.rssd.nonpaid / (refresh_steps / rollingWindowLength)
+            decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia / (1 - refresh_steps / rollingWindowLength)
           }
 
           if (is.nan(decomp.rssd)) {
@@ -777,6 +777,7 @@ robyn_mmm <- function(hyper_collect,
 #' @param dt_coef A data.table. When \code{robyn_object} is not provided, use
 #' \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 #' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
+#' @param plot_response Logical. Set to TRUE to plot each channel's response curve
 #' @examples
 #' \dontrun{
 #' ## Get marginal response (mResponse) and marginal ROI (mROI) for
@@ -841,7 +842,9 @@ robyn_response <- function(robyn_object = NULL,
                            spend = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
-                           InputCollect = NULL) {
+                           InputCollect = NULL,
+                           OutputCollect = NULL,
+                           plot_response = FALSE) {
 
   ## get input
   if (!is.null(robyn_object)) {
@@ -873,15 +876,15 @@ robyn_response <- function(robyn_object = NULL,
     dt_hyppar <- OutputCollect$resultHypParam
     dt_coef <- OutputCollect$xDecompAgg
     select_model <- OutputCollect$selectID
-  } else if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect))) {
+  } else if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
     stop(paste(
       "When 'robyn_object' is not provided, then 'dt_hyppar = OutputCollect$resultHypParam',",
-      "'dt_coef = OutputCollect$xDecompAgg' and 'InputCollect' must be provided"
+      "'dt_coef = OutputCollect$xDecompAgg', 'InputCollect' & 'OutputCollect' must be provided"
     ))
   }
 
   dt_input <- InputCollect$dt_input
-  #paid_media_vars <- InputCollect$paid_media_vars
+  paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
@@ -909,7 +912,9 @@ robyn_response <- function(robyn_object = NULL,
   }
 
   ## transform spend to exposure if necessary
-  if (paid_media_spend %in% InputCollect$exposure_vars) {
+  exposure_which <- paid_media_vars[paid_media_spends == paid_media_spend]
+  if (exposure_which %in% InputCollect$exposure_vars) {
+
 
     # use non-0 mean spend as marginal level if spend not provided
     if (is.null(spend)) {

@@ -220,7 +220,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   #costMultiplierVec <- InputCollect$mediaCostFactor[mediaVarSortedFiltered]
 
-  if (any(InputCollect$costSelector)) {
+  if (any(InputCollect$exposure_selector)) {
     dt_modNLS <- merge(data.table(channel = mediaVarSortedFiltered), spendExpoMod, all.x = TRUE, by = "channel")
     vmaxVec <- dt_modNLS[order(rank(channel))][, Vmax]
     names(vmaxVec) <- mediaVarSortedFiltered
@@ -231,9 +231,9 @@ robyn_allocator <- function(robyn_object = NULL,
     kmVec <- rep(0, length(mediaVarSortedFiltered))
   }
 
-  # costSelectorSorted <- InputCollect$costSelector[media_order]
-  # costSelectorSorted <- costSelectorSorted[coefSelectorSorted]
-  # costSelectorSortedFiltered <- costSelectorSorted[mediaVarSortedFiltered]
+  # exposure_selectorSorted <- InputCollect$exposure_selector[media_order]
+  # exposure_selectorSorted <- exposure_selectorSorted[coefSelectorSorted]
+  # exposure_selectorSortedFiltered <- exposure_selectorSorted[mediaVarSortedFiltered]
 
   channelConstrLowSorted <- channel_constr_low[media_order][coefSelectorSorted]
   channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
@@ -267,14 +267,14 @@ robyn_allocator <- function(robyn_object = NULL,
   coefsFiltered <- coefs[mediaSpendSortedFiltered]
 
   ## build evaluation funciton
-  if (any(InputCollect$costSelector)) {
+  if (any(InputCollect$exposure_selector)) {
     mm_lm_coefs <- spendExpoMod$coef_lm
     names(mm_lm_coefs) <- spendExpoMod$channel
   } else {
     mm_lm_coefs <- c()
   }
 
-  # sl=4;coeff = coefsFiltered[sl]; alpha = alphas[sl]; gammaTran = gammaTrans[sl]; chnName = mediaVarSortedFiltered[sl]; vmax = vmaxVec[sl]; km = kmVec[sl]; criteria = costSelectorSortedFiltered[sl]
+  # sl=4;coeff = coefsFiltered[sl]; alpha = alphas[sl]; gammaTran = gammaTrans[sl]; chnName = mediaVarSortedFiltered[sl]; vmax = vmaxVec[sl]; km = kmVec[sl]; criteria = exposure_selectorSortedFiltered[sl]
   # coeff* saturation_hill(x=chnAdstocked[, get(chnName)], alpha = alpha, gamma = gammas[sl], x_marginal = mic_men(x=256198.38, Vmax=vmax, Km=km))
   # coeff* saturation_hill(x=chnAdstocked[, get(chnName)], alpha = alpha, gamma = gammas[sl], x_marginal =257771.9)
 
@@ -307,7 +307,7 @@ robyn_allocator <- function(robyn_object = NULL,
           x = X, coeff = coefsFiltered, alpha = alphas, gammaTran = gammaTrans,
           # chnName = mediaVarSortedFiltered,
           #, costMultiplier = costMultiplierVec, adstockMultiplier=adstockMultiplierVec
-          #, vmax = vmaxVec, km = kmVec, criteria = costSelectorSortedFiltered,
+          #, vmax = vmaxVec, km = kmVec, criteria = exposure_selectorSortedFiltered,
           SIMPLIFY = TRUE
           )
         ),
@@ -335,7 +335,7 @@ robyn_allocator <- function(robyn_object = NULL,
           x = X, coeff = coefsFiltered, alpha = alphas, gammaTran = gammaTrans,
           # chnName = mediaVarSortedFiltered,
           # , costMultiplier = costMultiplierVec, adstockMultiplier=adstockMultiplierVec
-          # , vmax = vmaxVec, km = kmVec, criteria = costSelectorSortedFiltered,
+          # , vmax = vmaxVec, km = kmVec, criteria = exposure_selectorSortedFiltered,
           SIMPLIFY = TRUE
           )
         ), # https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
@@ -363,7 +363,7 @@ robyn_allocator <- function(robyn_object = NULL,
         x = X , coeff = coefsFiltered, alpha = alphas, gammaTran = gammaTrans,
         # chnName = mediaVarSortedFiltered,
         # , costMultiplier = costMultiplierVec, adstockMultiplier=adstockMultiplierVec
-        # , vmax = vmaxVec, km = kmVec, criteria = costSelectorSortedFiltered,
+        # , vmax = vmaxVec, km = kmVec, criteria = exposure_selectorSortedFiltered,
         SIMPLIFY = TRUE
         )
       )
@@ -655,14 +655,15 @@ robyn_allocator <- function(robyn_object = NULL,
     title = grobTitle, theme = theme(plot.title = element_text(hjust = 0.5))
   )
 
+  pf <- OutputCollect$resultHypPara[solID == select_model, unique(robynPareto)]
   message("Exporting charts into file: ", paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"))
   ggsave(
-    filename = paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"),
+    filename = paste0(OutputCollect$plot_folder, "pf", pf, "_", select_model, "_reallocated.png"),
     plot = g,
     dpi = 400, width = 18, height = 14, limitsize = FALSE
   )
 
-  fwrite(dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
+  fwrite(dt_optimOut, paste0(OutputCollect$plot_folder, "pf", pf, "_", select_model, "_reallocated.csv"))
 
   if (ui) {
     ui <- list(p12 = p12, p13 = p13, p14 = p14)

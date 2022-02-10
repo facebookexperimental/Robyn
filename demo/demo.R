@@ -428,9 +428,9 @@ Robyn <- robyn_refresh(
   , dt_holidays = dt_prophet_holidays
   , refresh_steps = 13
   , refresh_mode = "auto"
-  , refresh_iters = 1000 # Iteration for refresh. 600 is rough estimation. We'll still
+  , refresh_iters = 100 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
-  , refresh_trials = 3
+  , refresh_trials = 1
   , clusters = TRUE
 )
 

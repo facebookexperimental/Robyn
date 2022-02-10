@@ -40,7 +40,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     }
 
     ## Spend exposure model
-    if (any(InputCollect$costSelector)) {
+    if (any(InputCollect$exposure_selector)) {
       all_plots[["pSpendExposure"]] <- pSpendExposure <- wrap_plots(
         InputCollect$plotNLSCollect,
         ncol = ifelse(length(InputCollect$plotNLSCollect) <= 3, length(InputCollect$plotNLSCollect), 3)
@@ -323,7 +323,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
                   show.legend = FALSE, hjust = -0.2) +
         theme(legend.position = c(0.9, 0.2)) +
         labs(
-          title = "Response curve and mean spend by channel",
+          title = "Spend response curve and mean spend by channel",
           subtitle = paste0(
             "rsq_train: ", rsq_train_plot,
             ", nrmse = ", nrmse_plot,
@@ -332,6 +332,35 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
           ),
           x = "Spend", y = "Response"
         )
+      # p4.1 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends,],
+      #                aes(x = .data$spend, y = .data$response)) +
+      #   geom_line() +
+      #   facet_wrap(~channel, scale = "free") +
+      #   geom_point(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, color = .data$channel)) +
+      #   geom_text(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, label = round(.data$mean_spend, 0)),
+      #             show.legend = FALSE, hjust = -0.2) +
+      #   theme(legend.position = "none") +
+      #   labs(
+      #     title = "Spend response curve and mean spend by channel",
+      #     subtitle = paste0(
+      #       "rsq_train: ", rsq_train_plot,
+      #       ", nrmse = ", nrmse_plot,
+      #       ", decomp.rssd = ", decomp_rssd_plot,
+      #       ifelse(!is.na(mape_lift_plot), paste0(", mape.lift = ", mape_lift_plot), "")
+      #     ),
+      #     x = "Spend", y = "Response"
+      #   )
+      # dt_expoCurvePlot <- temp[[sid]]$plot4data$dt_expoCurvePlot
+      # dt_rsq <- InputCollect$modNLSCollect[, .(channel, rsq = ifelse(rsq_nls>=rsq_lm, rsq_nls, rsq_lm))]
+      # dt_expoCurvePlot <- dt_expoCurvePlot[dt_rsq, on = "channel"]
+      # dt_expoCurvePlot[, facet_title:= paste0(channel, ", expo_fit_rsq: ", round(rsq, 2))]
+      # p4.2 <- ggplot(dt_expoCurvePlot, aes(x = exposure_pred, y = response)) +
+      #   geom_line() +
+      #   facet_wrap(~facet_title, scale = "free") +
+      #   labs(
+      #     title = "Exposure response curve",
+      #     x = "Exposure", y = "Response"
+      #   )
 
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted
@@ -364,7 +393,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
 
       if (export) {
         ggsave(
-          filename = paste0(OutputCollect$plot_folder, "/", sid, ".png"),
+          filename = paste0(OutputCollect$plot_folder, "/", "pf", pf, "_", sid, ".png"),
           plot = pg,
           dpi = 600, width = 18, height = 18
         )

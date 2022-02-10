@@ -529,27 +529,27 @@ robyn_engineering <- function(InputCollect, ...) {
   mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
     colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
 
-  costSelector <- paid_media_spends != paid_media_vars
-  names(costSelector) <- paid_media_vars
+  exposure_selector <- paid_media_spends != paid_media_vars
+  names(exposure_selector) <- paid_media_vars
 
-  if (any(costSelector)) {
+  if (any(exposure_selector)) {
     modNLSCollect <- list()
     yhatCollect <- list()
     plotNLSCollect <- list()
 
     for (i in 1:InputCollect$mediaVarCount) {
-      if (costSelector[i]) {
+      if (exposure_selector[i]) {
 
         # run models (NLS and/or LM)
         dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
         results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
         # compare NLS & LM, takes LM if NLS fits worse
         mod <- results$res
-        costSelector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
+        exposure_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
         # data to create plot
         dt_plotNLS <- data.table(
           channel = paid_media_vars[i],
-          yhatNLS = if (costSelector[i]) results$yhatNLS else results$yhatLM,
+          yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
           yhatLM = results$yhatLM,
           y = results$data$exposure,
           x = results$data$spend
@@ -568,8 +568,8 @@ robyn_engineering <- function(InputCollect, ...) {
           labs(
             caption = paste0(
               "y=", paid_media_vars[i], ", x=", paid_media_spends[i],
-              "\nnls: aic=", round(AIC(if (costSelector[i]) results$modNLS else results$modLM), 0),
-              ", rsq=", round(if (costSelector[i]) mod$rsq_nls else mod$rsq_lm, 4),
+              "\nnls: aic=", round(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 0),
+              ", rsq=", round(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 4),
               "\nlm: aic= ", round(AIC(results$modLM), 0), ", rsq=", round(mod$rsq_lm, 4)
             ),
             title = "Models fit comparison",
@@ -644,7 +644,7 @@ robyn_engineering <- function(InputCollect, ...) {
   InputCollect[["modNLSCollect"]] <- modNLSCollect
   InputCollect[["plotNLSCollect"]] <- plotNLSCollect
   InputCollect[["yhatNLSCollect"]] <- yhatNLSCollect
-  InputCollect[["costSelector"]] <- costSelector
+  InputCollect[["exposure_selector"]] <- exposure_selector
   InputCollect[["mediaCostFactor"]] <- mediaCostFactor
   return(InputCollect)
 }
