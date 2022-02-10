@@ -498,19 +498,16 @@ check_parallel <- function() "unix" %in% .Platform$OS.type
 # ggplot doesn't work with process forking on MacOS; however it works fine on Linux and Windows
 check_parallel_plot <- function() !"Darwin" %in% Sys.info()["sysname"]
 
-check_parallel_msg <- function(InputCollect) {
+check_init_msg <- function(InputCollect) {
+  opt <- sum(lapply(InputCollect$hyperparameters, length) == 2)
+  fix <- sum(lapply(InputCollect$hyperparameters, length) == 1)
+  det <- sprintf("(%s to iterate + %s fixed)", opt, fix)
+  base <- paste("Using", InputCollect$adstock, "adstocking with",
+                length(InputCollect$hyperparameters), "hyperparameters", det)
   if (check_parallel()) {
-    message(paste(
-      "Using", InputCollect$adstock, "adstocking with",
-      length(InputCollect$hyperparameters),
-      "hyperparameters on", InputCollect$cores, "cores"
-    ))
+    message(paste(base, "on", InputCollect$cores, "cores"))
   } else {
-    message(paste(
-      "Using", InputCollect$adstock, "adstocking with",
-      length(InputCollect$hyperparameters),
-      "hyperparameters on 1 core (Windows fallback)"
-    ))
+    message(paste(base, "on 1 core (Windows fallback)"))
   }
 }
 
