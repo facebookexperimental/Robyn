@@ -115,7 +115,6 @@ robyn_train <- function(InputCollect, dt_hyper_fixed = NULL, use_penalty_factor 
       hyper_collect = hyperparameters_fixed,
       InputCollect = InputCollect,
       lambda_fixed = dt_hyper_fixed$lambda,
-      use_penalty_factor = use_penalty_factor,
       seed = seed,
       quiet = quiet
     )
@@ -126,12 +125,10 @@ robyn_train <- function(InputCollect, dt_hyper_fixed = NULL, use_penalty_factor 
       solID = dt_hyper_fixed$solID,
       iterPar = OutputModels[[1]]$resultCollect$resultHypParam$iterPar
     )
-
     OutputModels[[1]]$resultCollect$resultHypParam[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
     OutputModels[[1]]$resultCollect$xDecompAgg[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
+    OutputModels[[1]]$resultCollect$xDecompVec[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
     OutputModels[[1]]$resultCollect$decompSpendDist[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    if (!is.null(OutputModels[[1]]$resultCollect$xDecompVec))
-      OutputModels[[1]]$resultCollect$xDecompVec[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
 
   } else {
 
@@ -1159,14 +1156,16 @@ hyper_collector <- function(InputCollect, hyper_collect, use_penalty_factor = TR
   }
 
   # Add unfixed lambda hyperparameters manually
-  if (is.null(hyper_bound_list$lambda)) hyper_bound_list$lambda <- c(0, 1)
+  if (length(hyper_bound_list$lambda) != 1)
+    hyper_bound_list$lambda <- c(0, 1)
 
   # Add unfixed penalty.factor hyperparameters manually
   penalty_names <- paste0("penalty_", names(InputCollect$dt_mod[, -c("ds", "dep_var")]))
-  if (use_penalty_factor & is.null(hyper_bound_list[[penalty_names[1]]])) {
-    penalty_factor <- lapply(penalty_names, function(x) c(0, 1))
-    names(penalty_factor) <- paste0("penalty_", penalty_names)
-    hyper_bound_list <- c(hyper_bound_list, penalty_factor)
+  if (use_penalty_factor) {
+    for (penalty in penalty_names) {
+      if (length(hyper_bound_list[[penalty]]) != 1)
+        hyper_bound_list[[penalty]] <- c(0, 1)
+    }
   }
 
   # Get hyperparameters for Nevergrad

@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint) {
+robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint = 0.1) {
 
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   resultHypParam <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
