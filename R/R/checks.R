@@ -470,7 +470,7 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
 }
 
 check_hyper_fixed <- function(InputCollect, dt_hyper_fixed) {
-  hyper_fixed <- all(length(InputCollect$hyperparameters) == 1)
+  hyper_fixed <- all(unlist(lapply(InputCollect$hyperparameters, length)) == 1)
   if (hyper_fixed & is.null(dt_hyper_fixed)) {
     stop(paste("hyperparameters can't be all fixed for hyperparameter optimisation.",
                "If you want to get old model result, please provide only 1 model / 1 row from",
@@ -503,13 +503,13 @@ check_parallel_msg <- function(InputCollect) {
     message(paste(
       "Using", InputCollect$adstock, "adstocking with",
       length(InputCollect$hyperparameters),
-      "hyperparameters & 10-fold ridge x-validation on", InputCollect$cores, "cores"
+      "hyperparameters on", InputCollect$cores, "cores"
     ))
   } else {
     message(paste(
       "Using", InputCollect$adstock, "adstocking with",
       length(InputCollect$hyperparameters),
-      "hyperparameters & 10-fold ridge x-validation on 1 core (Windows fallback)"
+      "hyperparameters on 1 core (Windows fallback)"
     ))
   }
 }
