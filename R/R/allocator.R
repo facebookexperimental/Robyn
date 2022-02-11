@@ -107,31 +107,12 @@ robyn_allocator <- function(robyn_object = NULL,
   #####################################
   #### Set local environment
 
-  ## Collect input
+  ## Collect inputs
   if (!is.null(robyn_object)) {
-    if (!file.exists(robyn_object)) {
-      stop("File does not exist or is somewhere else. Check: ", robyn_object)
-    } else {
-      Robyn <- readRDS(robyn_object)
-      objectPath <- dirname(robyn_object)
-      objectName <- sub("'\\..*$", "", basename(robyn_object))
-    }
-    select_build_all <- 0:(length(Robyn) - 1)
-    if (is.null(select_build)) {
-      select_build <- max(select_build_all)
-      message(
-        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build
-        )),
-        " for the response function. select_build = 0 selects initial model, 1 the first refresh etc"
-      )
-    }
-    if (!(select_build %in% select_build_all) | length(select_build) != 1) {
-      stop("Input 'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
-    }
-    listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
-    InputCollect <- Robyn[[listName]][["InputCollect"]]
-    OutputCollect <- Robyn[[listName]][["OutputCollect"]]
-    select_model <- OutputCollect$selectID
+    imported <- robyn_import(robyn_object, select_build, quiet)
+    InputCollect <- imported$InputCollect
+    OutputCollect <- imported$OutputCollect
+    select_model <- imported$select_model
   } else if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
     stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
   }
@@ -158,6 +139,7 @@ robyn_allocator <- function(robyn_object = NULL,
   check_allocator(OutputCollect, select_model, paid_media_vars, scenario,
                   channel_constr_low, channel_constr_up,
                   expected_spend, expected_spend_days, constr_mode)
+
   names(channel_constr_low) <- paid_media_vars
   names(channel_constr_up) <- paid_media_vars
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
@@ -206,26 +188,12 @@ robyn_allocator <- function(robyn_object = NULL,
   channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
 
   ## Get adstock parameters for each channel
-  if (InputCollect$adstock == "geometric") {
-    getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_thetas"))])
-  } else if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_shapes|.*_scales"))])
-  }
+  getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)
 
   ## Get hill parameters for each channel
-  hillHypParVec <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))])
-  alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
-  gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
-  chnAdstocked <- OutputCollect$mediaVecCollect[
-    type == "adstockedMedia" & solID == select_model, mediaVarSortedFiltered,
-    with = FALSE][startRW:endRW]
-  gammaTrans <- mapply(function(gamma, x) {
-    round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
-  }, gamma = gammas, x = chnAdstocked)
-  names(gammaTrans) <- names(gammas)
-  coefs <- dt_coef[, coef]
-  names(coefs) <- dt_coef[, rn]
-  coefsFiltered <- coefs[mediaVarSortedFiltered]
+  hills <- get_hill_params(OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model)
+  gammaTrans <- hills$gammaTrans
+  coefsFiltered <- hills$coefsFiltered
 
   ## Build evaluation function
   if (any(InputCollect$costSelector)) {
@@ -275,7 +243,7 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpend <- histSpend$total_spend
   names(histSpend) <- sort(InputCollect$paid_media_vars)
   histSpendTotal <- sum(histSpend)
-  histSpendUnitTotal <- sum(xDecompAggMedia$mean_spend) # histSpendTotal/ nPeriod
+  histSpendUnitTotal <- sum(xDecompAggMedia$mean_spend)
   histSpendUnit <- xDecompAggMedia[rn %in% mediaVarSortedFiltered, mean_spend]
   names(histSpendUnit) <- mediaVarSortedFiltered
   histSpendShare <- histSpendUnit/histSpendUnitTotal
@@ -305,13 +273,6 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   }
 
-  opts <- list(
-    "algorithm" = "NLOPT_LD_AUGLAG",
-    "xtol_rel" = 1.0e-10,
-    "maxeval" = maxeval,
-    "local_opts" = local_opts
-  )
-
   ## Run optim
   nlsMod <- nloptr::nloptr(
     x0 = x0,
@@ -319,7 +280,12 @@ robyn_allocator <- function(robyn_object = NULL,
     eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
     eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
     lb = lb, ub = ub,
-    opts = opts)
+    opts = list(
+      "algorithm" = "NLOPT_LD_AUGLAG",
+      "xtol_rel" = 1.0e-10,
+      "maxeval" = maxeval,
+      "local_opts" = local_opts
+    ))
 
   ## Collect output
   dt_bestModel <- dt_bestCoef[, .(rn, mean_spend, xDecompAgg, roi_total, roi_mean)][order(rank(rn))]
@@ -360,6 +326,32 @@ robyn_allocator <- function(robyn_object = NULL,
     nlsMod = nlsMod,
     ui = if (ui) plots else NULL))
 
+}
+
+robyn_import <- function(robyn_object, select_build, quiet) {
+  if (!file.exists(robyn_object)) {
+    stop("File does not exist or is somewhere else. Check: ", robyn_object)
+  } else {
+    Robyn <- readRDS(robyn_object)
+    objectPath <- dirname(robyn_object)
+    objectName <- sub("'\\..*$", "", basename(robyn_object))
+  }
+  select_build_all <- 0:(length(Robyn) - 1)
+  if (is.null(select_build)) {
+    select_build <- max(select_build_all)
+    if (!quiet) message(
+      "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build
+      )), " for the response function"
+    )
+  }
+  if (!(select_build %in% select_build_all) | length(select_build) != 1) {
+    stop("Input 'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
+  }
+  listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
+  InputCollect <- Robyn[[listName]][["InputCollect"]]
+  OutputCollect <- Robyn[[listName]][["OutputCollect"]]
+  select_model <- OutputCollect$selectID
+  return(list(InputCollect = InputCollect, OutputCollect = OutputCollect, select_model = select_model))
 }
 
 eval_f <- function(X) {
@@ -483,5 +475,34 @@ eval_g_ineq <- function(X) {
   return(list(
     "constraints" = constr,
     "jacobian" = grad
+  ))
+}
+
+get_adstock_params <- function(InputCollect, dt_hyppar) {
+  if (InputCollect$adstock == "geometric") {
+    getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_thetas"))])
+  } else if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
+    getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_shapes|.*_scales"))])
+  }
+  return(getAdstockHypPar)
+}
+
+get_hill_params <- function(OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model) {
+  hillHypParVec <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))])
+  alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
+  gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
+  chnAdstocked <- OutputCollect$mediaVecCollect[
+    type == "adstockedMedia" & solID == select_model, mediaVarSortedFiltered,
+    with = FALSE][startRW:endRW]
+  gammaTrans <- mapply(function(gamma, x) {
+    round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
+  }, gamma = gammas, x = chnAdstocked)
+  names(gammaTrans) <- names(gammas)
+  coefs <- dt_coef[, coef]
+  names(coefs) <- dt_coef[, rn]
+  coefsFiltered <- coefs[mediaVarSortedFiltered]
+  return(list(
+    gammaTrans = gammaTrans,
+    coefsFiltered = coefsFiltered
   ))
 }

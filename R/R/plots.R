@@ -475,7 +475,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_point(data = dt_optimOutScurve, aes(
       x = .data$spend, y = .data$response, color = .data$channels, shape = .data$type), size = 2) +
     geom_text(data = dt_optimOutScurve, aes(
-      x = .data$spend, y = .data$response, color = .data$channels, label = round(.data$spend, 0)),
+      x = .data$spend, y = .data$response, color = .data$channels,
+      label = formatNum(.data$spend, 2, abbr = TRUE)),
       show.legend = FALSE, hjust = -0.2) +
     theme(legend.position = c(0.9, 0.4), legend.title = element_blank()) +
     labs(
@@ -487,7 +488,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         ", mape.lift = ", plotDT_scurveMeanResponse[, round(mean(mape), 4)]
       ),
       x = "Spend", y = "Response"
-    )
+    ) + lares::scale_x_abbr() + lares::scale_y_abbr()
 
   # Gather all plots
   grobTitle <- paste0("Budget allocator optimum result for model ID ", select_model)

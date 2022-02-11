@@ -520,7 +520,8 @@ check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenar
                             expected_spend, expected_spend_days, constr_mode) {
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
   if (!(select_model %in% dt_hyppar$solID)) {
-    stop("Provided 'select_model' is not within the best results")
+    stop("Provided 'select_model' is not within the best results. Try any of: ",
+         paste(dt_hyppar$solID, collapse = ", "))
   }
   if (any(channel_constr_low < 0.01)) {
     stop("Inputs 'channel_constr_low' must be >= 0.01")
