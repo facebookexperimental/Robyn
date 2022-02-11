@@ -19,8 +19,8 @@ robyn_response(
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
 
-\item{select_build}{Integer. Default to the latest model build. \code{select_buil = 0}
-selects the initial model. \code{select_buil = 1} selects the first refresh model.}
+\item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
+selects the initial model. \code{select_build = 1} selects the first refresh model.}
 
 \item{paid_media_var}{A character. Selected paid media variable for the response.
 Must be within \code{InputCollect$paid_media_vars}}

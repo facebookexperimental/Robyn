@@ -5,32 +5,39 @@
 \title{The core MMM function}
 \usage{
 robyn_mmm(
-  hyper_collect,
   InputCollect,
+  hyper_collect,
   iterations = InputCollect$iterations,
-  lambda_fixed = NULL,
+  use_penalty_factor = FALSE,
+  dt_hyper_fixed = NULL,
   refresh = FALSE,
   seed = 123L,
   quiet = FALSE
 )
 }
 \arguments{
-\item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
-\code{InputCollect$hyperparameters}.}
-
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 
+\item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
+\code{InputCollect$hyperparameters}.}
+
 \item{iterations}{Integer. Number of iterations to run.}
 
-\item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
-old model results.}
+\item{use_penalty_factor}{Boolean. Add a penalty factor hyperparameters to
+glmnet's penalty.factor to be optimized by nevergrad?}
+
+\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
+It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
 
 \item{quiet}{Boolean. Keep messages off?}
+
+\item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
+old model results.}
 }
 \description{
 The \code{robyn_mmm()} function activates Nevergrad to generate samples of

@@ -6,7 +6,9 @@
 \usage{
 robyn_train(
   InputCollect,
+  hyper_collect,
   dt_hyper_fixed = NULL,
+  use_penalty_factor = TRUE,
   refresh = FALSE,
   seed = 123,
   quiet = FALSE
@@ -16,8 +18,14 @@ robyn_train(
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 
+\item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
+\code{InputCollect$hyperparameters}.}
+
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+
+\item{use_penalty_factor}{Boolean. Add a penalty factor hyperparameters to
+glmnet's penalty.factor to be optimized by nevergrad?}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 

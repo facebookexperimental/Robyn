@@ -15,8 +15,8 @@
 #' @inheritParams robyn_outputs
 #' @param robyn_object Character. Path of the \code{Robyn.RDS} object
 #' that contains all previous modeling information.
-#' @param select_build Integer. Default to the latest model build. \code{select_buil = 0}
-#' selects the initial model. \code{select_buil = 1} selects the first refresh model.
+#' @param select_build Integer. Default to the latest model build. \code{select_build = 0}
+#' selects the initial model. \code{select_build = 1} selects the first refresh model.
 #' @param InputCollect List. Contains all input parameters for the model.
 #' Required when \code{robyn_object} is not provided.
 #' @param OutputCollect List. Containing all model result.

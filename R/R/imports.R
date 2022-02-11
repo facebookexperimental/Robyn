@@ -16,8 +16,9 @@
 #' @docType package
 #' @author Gufeng Zhou (gufeng@@fb.com)
 #' @author Leonel Sentana (leonelsentana@@fb.com)
-#' @author Antonio Prada (aprada@@fb.com)
 #' @author Igor Skokan (igorskokan@@fb.com)
+#' @author Bernardo Lares (bernardolares@@fb.com)
+#' @author Antonio Prada (aprada@@fb.com)
 #' @import data.table
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster

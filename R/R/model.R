@@ -39,7 +39,6 @@ robyn_run <- function(InputCollect,
                       outputs = TRUE,
                       quiet = FALSE,
                       ...) {
-
   t0 <- Sys.time()
 
   #####################################
@@ -55,23 +54,26 @@ robyn_run <- function(InputCollect,
   #### Prepare hyper-parameters
 
   # hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, use_penalty_factor)
-  hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters
-                          , use_penalty_factor = use_penalty_factor, dt_hyper_fixed = dt_hyper_fixed)
+  hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters,
+    use_penalty_factor = use_penalty_factor, dt_hyper_fixed = dt_hyper_fixed
+  )
   hyper_fixed <- hyps$all_fixed
   InputCollect$hyper_updated <- hyps$hyper_list_all
 
   #####################################
   #### Run robyn_mmm on set_trials
 
-  OutputModels <- robyn_train(InputCollect, hyper_collect = hyps
-                              , dt_hyper_fixed, use_penalty_factor, refresh, seed, quiet)
+  OutputModels <- robyn_train(InputCollect,
+    hyper_collect = hyps,
+    dt_hyper_fixed, use_penalty_factor, refresh, seed, quiet
+  )
   attr(OutputModels, "hyper_fixed") <- hyper_fixed
   attr(OutputModels, "refresh") <- refresh
 
   if (!outputs) {
     output <- OutputModels
   } else {
-    output <- robyn_outputs(InputCollect, OutputModels, clusters = !hyper_fixed)#, ...)
+    output <- robyn_outputs(InputCollect, OutputModels, clusters = !hyper_fixed) # , ...)
   }
 
   # Report total timing
@@ -81,7 +83,6 @@ robyn_run <- function(InputCollect,
   class(OutputModels) <- c("robyn_models", class(OutputModels))
 
   return(invisible(output))
-
 }
 
 
@@ -105,7 +106,6 @@ robyn_run <- function(InputCollect,
 #' @export
 robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, use_penalty_factor = TRUE,
                         refresh = FALSE, seed = 123, quiet = FALSE) {
-
   hyper_fixed <- hyper_collect$all_fixed
 
   if (hyper_fixed) {
@@ -113,10 +113,10 @@ robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, use_
     ## Run robyn_mmm if using old model result tables
     OutputModels <- list()
     OutputModels[[1]] <- robyn_mmm(
-      hyper_collect = hyper_collect,
       InputCollect = InputCollect,
+      hyper_collect = hyper_collect,
       dt_hyper_fixed = dt_hyper_fixed,
-      #lambda_fixed = dt_hyper_fixed$lambda,
+      # lambda_fixed = dt_hyper_fixed$lambda,
       seed = seed,
       quiet = quiet
     )
@@ -131,27 +131,28 @@ robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, use_
     OutputModels[[1]]$resultCollect$xDecompAgg[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
     OutputModels[[1]]$resultCollect$xDecompVec[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
     OutputModels[[1]]$resultCollect$decompSpendDist[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-
   } else {
 
     ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
 
     check_init_msg(InputCollect)
 
-    if (!quiet) message(paste(
-      ">>> Start running", InputCollect$trials, "trials with",
-      InputCollect$iterations, "iterations per trial each",
-      ifelse(is.null(InputCollect$calibration_input), "with", "with calibration and"),
-      InputCollect$nevergrad_algo, "nevergrad algorithm..."
-    ))
+    if (!quiet) {
+      message(paste(
+        ">>> Start running", InputCollect$trials, "trials with",
+        InputCollect$iterations, "iterations per trial each",
+        ifelse(is.null(InputCollect$calibration_input), "with", "with calibration and"),
+        InputCollect$nevergrad_algo, "nevergrad algorithm..."
+      ))
+    }
 
     OutputModels <- list()
 
     for (ngt in 1:InputCollect$trials) { # ngt = 1
       if (!quiet) message(paste("  Running trial", ngt, "of", InputCollect$trials))
       model_output <- robyn_mmm(
-        hyper_collect = hyper_collect,
         InputCollect = InputCollect,
+        hyper_collect = hyper_collect,
         use_penalty_factor = use_penalty_factor,
         refresh = refresh,
         seed = seed,
@@ -189,16 +190,15 @@ robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, use_
 #' @param lambda_fixed Boolean. \code{lambda_fixed = TRUE} when inputting
 #' old model results.
 #' @export
-robyn_mmm <- function(hyper_collect,
-                      InputCollect,
+robyn_mmm <- function(InputCollect,
+                      hyper_collect,
                       iterations = InputCollect$iterations,
                       use_penalty_factor = FALSE,
                       dt_hyper_fixed = NULL,
-                      #lambda_fixed = NULL,
+                      # lambda_fixed = NULL,
                       refresh = FALSE,
                       seed = 123L,
                       quiet = FALSE) {
-
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
     if (is.integer(seed)) {
@@ -275,7 +275,8 @@ robyn_mmm <- function(hyper_collect,
   refreshAddedStartWhich <- which(dt_modRollWind$ds == refreshAddedStart)
   dt_spendShareRF <- dt_inputTrain[
     refreshAddedStartWhich:rollingWindowLength,
-    .(rn = paid_media_vars,
+    .(
+      rn = paid_media_vars,
       total_spend = sapply(.SD, sum),
       mean_spend = sapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0])))
     ),
@@ -283,8 +284,8 @@ robyn_mmm <- function(hyper_collect,
   ]
   dt_spendShareRF[, ":="(spend_share = total_spend / sum(total_spend))]
   dt_spendShare[, ":="(total_spend_refresh = dt_spendShareRF$total_spend,
-                       mean_spend_refresh = dt_spendShareRF$mean_spend,
-                       spend_share_refresh = dt_spendShareRF$spend_share)]
+    mean_spend_refresh = dt_spendShareRF$mean_spend,
+    spend_share_refresh = dt_spendShareRF$spend_share)]
 
 
   ################################################
@@ -360,8 +361,8 @@ robyn_mmm <- function(hyper_collect,
         }
       } else {
         hypParamSamNG <- setcolorder(dt_hyper_fixed_mod, hypParamSamName)
-        #hypParamSamNG <- dt_hyper_fixed_mod
-        #setnames(hypParamSamNG, names(hypParamSamNG), hypParamSamName)
+        # hypParamSamNG <- dt_hyper_fixed_mod
+        # setnames(hypParamSamNG, names(hypParamSamNG), hypParamSamName)
       }
 
       ## Parallel start
@@ -512,7 +513,8 @@ robyn_mmm <- function(hyper_collect,
             coefs = mod_out$coefs, dt_modSaturated = dt_modSaturated,
             x = x_train, y_pred = mod_out$y_pred, i = i,
             dt_modRollWind = dt_modRollWind,
-            refreshAddedStart = refreshAddedStart)
+            refreshAddedStart = refreshAddedStart
+          )
           nrmse <- mod_out$nrmse_train
           mape <- 0
           df.int <- mod_out$df.int
@@ -523,7 +525,8 @@ robyn_mmm <- function(hyper_collect,
           if (!is.null(calibration_input)) {
             liftCollect <- calibrate_mmm(
               decompCollect = decompCollect, calibration_input = calibration_input,
-              paid_media_vars = paid_media_vars, dayInterval = InputCollect$dayInterval)
+              paid_media_vars = paid_media_vars, dayInterval = InputCollect$dayInterval
+            )
             mape <- liftCollect[, mean(mape_lift)]
           }
 
@@ -532,15 +535,17 @@ robyn_mmm <- function(hyper_collect,
 
           ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
           dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_vars, .(
-            rn, xDecompAgg, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF)]
+            rn, xDecompAgg, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF
+          )]
           dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(
-            rn, spend_share, spend_share_refresh, mean_spend, total_spend)], on = "rn"]
+            rn, spend_share, spend_share_refresh, mean_spend, total_spend
+          )], on = "rn"]
           dt_decompSpendDist[, ":="(effect_share = xDecompPerc / sum(xDecompPerc),
-                                    effect_share_refresh = xDecompPercRF / sum(xDecompPercRF))]
+            effect_share_refresh = xDecompPercRF / sum(xDecompPercRF))]
           decompCollect$xDecompAgg[dt_decompSpendDist[, .(rn, spend_share_refresh, effect_share_refresh)],
-                                   ":="(spend_share_refresh = i.spend_share_refresh,
-                                        effect_share_refresh = i.effect_share_refresh),
-                                   on = "rn"
+            ":="(spend_share_refresh = i.spend_share_refresh,
+              effect_share_refresh = i.effect_share_refresh),
+            on = "rn"
           ]
 
           if (!refresh) {
@@ -725,7 +730,7 @@ robyn_mmm <- function(hyper_collect,
   resultCollect$elapsed.min <- sysTimeDopar[3] / 60
   # Adjust accumulated time
   resultCollect$resultHypParam[, ElapsedAccum := ElapsedAccum - min(ElapsedAccum) +
-                                 resultCollect$resultHypParam[which.min(ElapsedAccum), Elapsed]]
+    resultCollect$resultHypParam[which.min(ElapsedAccum), Elapsed]]
 
   return(list(
     resultCollect = resultCollect,
@@ -819,7 +824,6 @@ robyn_response <- function(robyn_object = NULL,
 
   ## get input
   if (!is.null(robyn_object)) {
-
     if (!file.exists(robyn_object)) {
       stop("File does not exist or is somewhere else. Check: ", robyn_object)
     } else {
@@ -1090,8 +1094,9 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
 
   ## drop intercept if negative and intercept_sign == "non_negative"
   opts <- c("non_negative", "unconstrained")
-  if (!intercept_sign %in% opts)
+  if (!intercept_sign %in% opts) {
     stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
+  }
   if (intercept_sign == "non_negative" & coef(mod)[1] < 0) {
     mod <- glmnet(
       x_train,
@@ -1179,15 +1184,17 @@ hyper_collector <- function(InputCollect, hyper_in, use_penalty_factor, dt_hyper
     }
 
     # Add unfixed lambda hyperparameters manually
-    if (length(hyper_bound_list[["lambda"]]) != 1)
+    if (length(hyper_bound_list[["lambda"]]) != 1) {
       hyper_bound_list$lambda <- c(0, 1)
+    }
 
     # Add unfixed penalty.factor hyperparameters manually
     penalty_names <- paste0("penalty_", for_penalty)
     if (use_penalty_factor) {
       for (penalty in penalty_names) {
-        if (length(hyper_bound_list[[penalty]]) != 1)
+        if (length(hyper_bound_list[[penalty]]) != 1) {
           hyper_bound_list[[penalty]] <- c(0, 1)
+        }
       }
     }
 
@@ -1197,7 +1204,7 @@ hyper_collector <- function(InputCollect, hyper_in, use_penalty_factor, dt_hyper
     # Get fixed hyperparameters
     hyper_bound_list_fixed <- hyper_bound_list[which(sapply(hyper_bound_list, length) == 1)]
 
-    hyper_list_bind = c(hyper_bound_list_updated, hyper_bound_list_fixed)
+    hyper_list_bind <- c(hyper_bound_list_updated, hyper_bound_list_fixed)
     hyper_list_all <- list()
     for (i in 1:length(hypParamSamName)) {
       hyper_list_all[[i]] <- hyper_list_bind[[hypParamSamName[i]]]
@@ -1205,9 +1212,7 @@ hyper_collector <- function(InputCollect, hyper_in, use_penalty_factor, dt_hyper
     }
 
     dt_hyper_fixed_mod <- data.table(sapply(hyper_bound_list_fixed, function(x) rep(x, InputCollect$cores)))
-
   } else {
-
     hyper_bound_list_fixed <- list()
     for (i in 1:length(hypParamSamName)) {
       hyper_bound_list_fixed[[i]] <- dt_hyper_fixed[[hypParamSamName[i]]]
