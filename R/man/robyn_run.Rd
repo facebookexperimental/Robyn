@@ -43,9 +43,9 @@ runs the \code{robyn_mmm()} functions and plots and collects the result.
 \dontrun{
 OutputCollect <- robyn_run(
   InputCollect = InputCollect,
-  plot_folder = robyn_object,
   pareto_fronts = 3,
-  plot_pareto = TRUE
+  plot_pareto = TRUE,
+  plot_folder = robyn_object
 )
 }
 }

@@ -187,8 +187,6 @@ robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, use_
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
 #' @param iterations Integer. Number of iterations to run.
-#' @param lambda_fixed Boolean. \code{lambda_fixed = TRUE} when inputting
-#' old model results.
 #' @export
 robyn_mmm <- function(InputCollect,
                       hyper_collect,
@@ -258,6 +256,7 @@ robyn_mmm <- function(InputCollect,
     optimizer_name <- InputCollect$nevergrad_algo
     cores <- InputCollect$cores
     use_penalty_factor <- use_penalty_factor
+    i <- NULL # For parallel iterations (globalVar)
   }
 
   ################################################

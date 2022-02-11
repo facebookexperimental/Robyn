@@ -18,6 +18,8 @@ robyn_allocator(
   channel_constr_up = 2,
   maxeval = 1e+05,
   constr_mode = "eq",
+  export = TRUE,
+  quiet = FALSE,
   ui = FALSE
 )
 }
@@ -70,6 +72,10 @@ Defaults to 100000.}
 
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
+
+\item{export}{Boolean. Export outcomes into local files?}
+
+\item{quiet}{Boolean. Keep messages off?}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 }

@@ -39,7 +39,7 @@
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel
 #' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control
-#' predict pweibull dweibull quantile qunif start
+#' predict pweibull dweibull quantile qunif start setNames
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
 #' @importFrom tidyr pivot_longer pivot_wider
 #' @importFrom utils askYesNo flush.console head setTxtProgressBar txtProgressBar

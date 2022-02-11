@@ -35,9 +35,6 @@ It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 \item{seed}{Integer. For reproducible results when running nevergrad.}
 
 \item{quiet}{Boolean. Keep messages off?}
-
-\item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
-old model results.}
 }
 \description{
 The \code{robyn_mmm()} function activates Nevergrad to generate samples of

@@ -515,7 +515,9 @@ check_class <- function(x, object) {
 }
 
 
-check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenario, channel_constr_low, channel_constr_up) {
+check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenario,
+                            channel_constr_low, channel_constr_up,
+                            expected_spend, expected_spend_days, constr_mode) {
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
   if (!(select_model %in% dt_hyppar$solID)) {
     stop("Provided 'select_model' is not within the best results")
@@ -541,5 +543,14 @@ check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenar
         "value or have same length as 'InputCollect$paid_media_vars'"
       ))
     }
+  }
+  if ("max_response_expected_spend" %in% scenario) {
+    if (any(is.null(expected_spend), is.null(expected_spend_days))) {
+      stop("When scenario = 'max_response_expected_spend', expected_spend and expected_spend_days must be provided")
+    }
+  }
+  opts <- c("eq", "ineq")
+  if (!(constr_mode %in% opts)) {
+    stop("Input 'constr_mode' must be one of: ", paste(opts, collapse = ", "))
   }
 }

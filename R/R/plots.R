@@ -392,3 +392,118 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   return(invisible(all_plots))
 
 }
+
+allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, export = TRUE, quiet = FALSE) {
+
+  # 1. Response comparison plot
+  plotDT_resp <- dt_optimOut[, c("channels", "initResponseUnit", "optmResponseUnit")][order(rank(channels))]
+  plotDT_resp[, channels := as.factor(channels)]
+  chn_levels <- plotDT_resp[, as.character(channels)]
+  plotDT_resp[, channels := factor(channels, levels = chn_levels)]
+  setnames(plotDT_resp, names(plotDT_resp), new = c("channel", "initial response / time unit", "optimised response / time unit"))
+  plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
+  p12 <- ggplot(plotDT_resp, aes(x = .data$channel, y = .data$response, fill = .data$variable)) +
+    geom_bar(stat = "identity", width = 0.5, position = "dodge") +
+    coord_flip() +
+    scale_fill_brewer(palette = "Paired") +
+    geom_text(aes(label = round(.data$response, 0), hjust = 1, size = 2.0),
+              position = position_dodge(width = 0.5), fontface = "bold", show.legend = FALSE
+    ) +
+    theme(
+      legend.title = element_blank(), legend.position = c(0.8, 0.2),
+      axis.text.x = element_blank(), legend.background = element_rect(
+        colour = "grey", fill = "transparent"
+      )
+    ) +
+    labs(
+      title = "Initial vs. optimised mean response",
+      subtitle = paste0(
+        "Total spend increases ", dt_optimOut[
+          , round(mean(optmSpendUnitTotalDelta) * 100, 1)
+        ], "%",
+        "\nTotal response increases ", dt_optimOut[
+          , round(mean(optmResponseUnitTotalLift) * 100, 1)
+        ], "% with optimised spend allocation"
+      ),
+      y = NULL, x = "Channels"
+    )
+
+  # 2. Budget share comparison plot
+  plotDT_share <- dt_optimOut[, c("channels", "initSpendShare", "optmSpendShareUnit")][order(rank(channels))]
+  plotDT_share[, channels := as.factor(channels)]
+  chn_levels <- plotDT_share[, as.character(channels)]
+  plotDT_share[, channels := factor(channels, levels = chn_levels)]
+  setnames(plotDT_share, names(plotDT_share), new = c("channel", "initial avg.spend share", "optimised avg.spend share"))
+  plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
+  p13 <- ggplot(plotDT_share, aes(x = .data$channel, y = .data$spend_share, fill = .data$variable)) +
+    geom_bar(stat = "identity", width = 0.5, position = "dodge") +
+    coord_flip() +
+    scale_fill_brewer(palette = "Paired") +
+    geom_text(aes(label = paste0(round(.data$spend_share * 100, 2), "%"), hjust = 1, size = 2.0),
+              position = position_dodge(width = 0.5), fontface = "bold", show.legend = FALSE
+    ) +
+    theme(
+      legend.title = element_blank(), legend.position = c(0.8, 0.2),
+      axis.text.x = element_blank(), legend.background = element_rect(
+        colour = "grey", fill = "transparent"
+      )
+    ) +
+    labs(
+      title = "Initial vs. optimised budget allocation",
+      subtitle = paste0(
+        "Total spend increases ", dt_optimOut[, round(mean(optmSpendUnitTotalDelta) * 100, 1)], "%",
+        "\nTotal response increases ", dt_optimOut[, round(mean(optmResponseUnitTotalLift) * 100, 1)], "% with optimised spend allocation"
+      ),
+      y = NULL, x = "Channels"
+    )
+
+  ## 3. Response curve
+  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "saturatedSpendReversed"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_vars, value.name = "spend", variable.name = "channel")
+  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "decompMedia"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_vars, value.name = "response", variable.name = "channel")
+  plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
+  plotDT_scurve <- plotDT_scurve[spend >= 0] # remove outlier introduced by MM nls fitting
+  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_vars]
+  dt_optimOutScurve <- rbind(dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type := "initial"],
+                             dt_optimOut[, .(channels, optmSpendUnit, optmResponseUnit)][, type := "optimised"], use.names = FALSE)
+  setnames(dt_optimOutScurve, c("channels", "spend", "response", "type"))
+  p14 <- ggplot(data = plotDT_scurve, aes(x = .data$spend, y = .data$response, color = .data$channel)) +
+    geom_line() +
+    geom_point(data = dt_optimOutScurve, aes(
+      x = .data$spend, y = .data$response, color = .data$channels, shape = .data$type), size = 2) +
+    geom_text(data = dt_optimOutScurve, aes(
+      x = .data$spend, y = .data$response, color = .data$channels, label = round(.data$spend, 0)),
+      show.legend = FALSE, hjust = -0.2) +
+    theme(legend.position = c(0.9, 0.4), legend.title = element_blank()) +
+    labs(
+      title = "Response curve and mean spend by channel",
+      subtitle = paste0(
+        "rsq_train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
+        ", nrmse = ", plotDT_scurveMeanResponse[, round(mean(nrmse), 4)],
+        ", decomp.rssd = ", plotDT_scurveMeanResponse[, round(mean(decomp.rssd), 4)],
+        ", mape.lift = ", plotDT_scurveMeanResponse[, round(mean(mape), 4)]
+      ),
+      x = "Spend", y = "Response"
+    )
+
+  # Gather all plots
+  grobTitle <- paste0("Budget allocator optimum result for model ID ", select_model)
+  plots <- (p13 + p12) / p14 + plot_annotation(
+    title = grobTitle, theme = theme(plot.title = element_text(hjust = 0.5))
+  )
+
+  if (export) {
+    if (!quiet) message("Exporting charts into file: ", paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"))
+    ggsave(
+      filename = paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"),
+      plot = plots,
+      dpi = 400, width = 18, height = 14, limitsize = FALSE
+    )
+  }
+
+  return(list(p12 = p12, p13 = p13, p14 = p14))
+
+}
