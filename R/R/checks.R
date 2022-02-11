@@ -469,14 +469,9 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
   return(calibration_constraint)
 }
 
-check_hyper_fixed <- function(InputCollect, dt_hyper_fixed) {
-  hyper_fixed <- all(unlist(lapply(InputCollect$hyperparameters, length)) == 1)
-  if (hyper_fixed & is.null(dt_hyper_fixed)) {
-    stop(paste("hyperparameters can't be all fixed for hyperparameter optimisation.",
-               "If you want to get old model result, please provide only 1 model / 1 row from",
-               "OutputCollect$resultHypParam or pareto_hyperparameters.csv from previous runs"))
-  }
-  if (!is.null(dt_hyper_fixed)) {
+check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, use_penalty_factor) {
+  hyper_fixed <- !is.null(dt_hyper_fixed)
+  if (hyper_fixed) {
     ## Run robyn_mmm if using old model result tables
     dt_hyper_fixed <- as.data.table(dt_hyper_fixed)
     if (nrow(dt_hyper_fixed) != 1) {
@@ -484,7 +479,11 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed) {
                  "pareto_hyperparameters.csv from previous runs"))
     }
     hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
-    if (!all(c(hypParamSamName, "lambda") %in% names(dt_hyper_fixed))) {
+    hypParamSamName <- c(hypParamSamName, "lambda")
+    for_penalty <- names(InputCollect$dt_mod[, -c("ds", "dep_var")])
+    if (use_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
+
+    if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
       stop(paste("dt_hyper_fixed is provided with wrong input.",
                  "Please provide the table OutputCollect$resultHypParam from previous runs or",
                  "pareto_hyperparameters.csv with desired model ID"))
@@ -499,11 +498,11 @@ check_parallel <- function() "unix" %in% .Platform$OS.type
 check_parallel_plot <- function() !"Darwin" %in% Sys.info()["sysname"]
 
 check_init_msg <- function(InputCollect) {
-  opt <- sum(lapply(InputCollect$hyperparameters, length) == 2)
-  fix <- sum(lapply(InputCollect$hyperparameters, length) == 1)
+  opt <- sum(lapply(InputCollect$hyper_updated, length) == 2)
+  fix <- sum(lapply(InputCollect$hyper_updated, length) == 1)
   det <- sprintf("(%s to iterate + %s fixed)", opt, fix)
   base <- paste("Using", InputCollect$adstock, "adstocking with",
-                length(InputCollect$hyperparameters), "hyperparameters", det)
+                length(InputCollect$hyper_updated), "hyperparameters", det)
   if (check_parallel()) {
     message(paste(base, "on", InputCollect$cores, "cores"))
   } else {

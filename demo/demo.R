@@ -123,14 +123,14 @@ InputCollect <- robyn_inputs(
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-  ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
+  ,iterations = 1000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
   ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
+  ,trials = 1 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials
@@ -218,7 +218,7 @@ hyperparameters <- list(
 
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
-  ,ooh_S_thetas = c(0.1, 0.4)
+  ,ooh_S_thetas = c(0.4)
 
   ,newsletter_alphas = c(0.5, 3)
   ,newsletter_gammas = c(0.3, 1)
@@ -309,7 +309,7 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 # Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
-  use_penalty_factor = TRUE, # add hyper-parameters for glmnet's penalty.factor
+  use_penalty_factor = FALSE, # add hyper-parameters for glmnet's penalty.factor
   outputs = FALSE # outputs = FALSE disables direct model output
 )
 
@@ -346,7 +346,7 @@ OutputCollect <- robyn_outputs(
 
 OutputCollect$allSolutions # get all model IDs in result
 # OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "2_13_4" # select one from above
+select_model <- "1_102_2" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -490,8 +490,8 @@ Response2/Spend2 # ROI for search 81k
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2021-07-29 00.56 init/pareto_hyperparameters.csv")
-select_model <- "1_24_5"
+dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-11 13.39 init/pareto_hyperparameters.csv")
+select_model <- "1_102_2"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(

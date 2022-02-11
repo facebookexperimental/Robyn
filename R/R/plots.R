@@ -55,7 +55,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
       )
     } else {
-      message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
+     # message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
     }
 
     ## Hyperparameter sampling distribution
@@ -203,7 +203,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   all_plots <- list()
   cnt <- 0
 
-  for (pf in pareto_fronts_vec) {
+  for (pf in pareto_fronts_vec) { # pf = 1
 
     plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_vars]
     uniqueSol <- plotMediaShare[, unique(solID)]

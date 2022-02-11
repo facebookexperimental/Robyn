@@ -321,6 +321,7 @@ robyn_inputs <- function(dt_input = NULL,
     )
     ## update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
+    if (!is.null(hyperparameters)) InputCollect$hyperparameters <- hyperparameters
     if (is.null(InputCollect$hyperparameters) & is.null(hyperparameters)) {
       stop("must provide hyperparameters in robyn_inputs()")
     } else {

@@ -20,6 +20,8 @@ refresh = FALSE
 dt_hyper_fixed = NULL
 seed = 123
 outputs = FALSE
+use_penalty_factor = FALSE
+quiet = FALSE
 # go into robyn_run() line by line
 
 ## debug robyn_refresh
