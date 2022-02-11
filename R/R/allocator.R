@@ -105,7 +105,7 @@ robyn_allocator <- function(robyn_object = NULL,
   #####################################
   #### Set local environment
 
-  ## collect input
+  ## Collect input
   if (!is.null(robyn_object)) {
     if (!file.exists(robyn_object)) {
       stop("File does not exist or is somewhere else. Check: ", robyn_object)
@@ -114,86 +114,53 @@ robyn_allocator <- function(robyn_object = NULL,
       objectPath <- dirname(robyn_object)
       objectName <- sub("'\\..*$", "", basename(robyn_object))
     }
-
     select_build_all <- 0:(length(Robyn) - 1)
     if (is.null(select_build)) {
       select_build <- max(select_build_all)
       message(
-        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0(
-          "refresh model nr.", select_build
+        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build
         )),
         " for the response function. select_build = 0 selects initial model, 1 the first refresh etc"
       )
     }
-
     if (!(select_build %in% select_build_all) | length(select_build) != 1) {
-      stop("select_build must be one value of ", paste(select_build_all, collapse = ", "))
+      stop("Input 'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
     }
-
     listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
     InputCollect <- Robyn[[listName]][["InputCollect"]]
     OutputCollect <- Robyn[[listName]][["OutputCollect"]]
     select_model <- OutputCollect$selectID
   } else if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
-    stop("when robyn_object is not provided, then InputCollect, OutputCollect, select_model must be provided")
+    stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
   }
 
   message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
-  ## get data & params
-  dt_input <- InputCollect$dt_input
-  dt_mod <- InputCollect$dt_mod
-  paid_media_vars <- InputCollect$paid_media_vars
-  media_order <- order(paid_media_vars)
-  paid_media_spends <- InputCollect$paid_media_spends
-  mediaVarSorted <- paid_media_vars[media_order]
-  mediaSpendSorted <- paid_media_spends[media_order]
-  exposureVarName <- InputCollect$exposureVarName
-  startRW <- InputCollect$rollingWindowStartWhich
-  endRW <- InputCollect$rollingWindowEndWhich
-  adstock <- InputCollect$adstock
-  spendExpoMod <- InputCollect$modNLSCollect
-
-  dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
-  if (!(select_model %in% dt_hyppar$solID)) {
-    stop("provided select_model is not within the best results")
+  ## Set local data & params values
+  if (TRUE) {
+    dt_input <- InputCollect$dt_input
+    dt_mod <- InputCollect$dt_mod
+    paid_media_vars <- InputCollect$paid_media_vars
+    media_order <- order(paid_media_vars)
+    paid_media_spends <- InputCollect$paid_media_spends
+    mediaVarSorted <- paid_media_vars[media_order]
+    mediaSpendSorted <- paid_media_spends[media_order]
+    exposureVarName <- InputCollect$exposureVarName
+    startRW <- InputCollect$rollingWindowStartWhich
+    endRW <- InputCollect$rollingWindowEndWhich
+    adstock <- InputCollect$adstock
+    spendExpoMod <- InputCollect$modNLSCollect
   }
 
-  dt_bestCoef <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_vars]
-
-  ## check input parameters
-
-  if (any(channel_constr_low < 0.01)) {
-    stop("'channel_constr_low' must be >= 0.01")
-  }
-  if (any(channel_constr_up < channel_constr_low)) {
-    stop("'channel_constr_up' must be >= 'channel_constr_low'")
-  }
-  if (any(channel_constr_up > 5)) {
-    message("'channel_constr_up' >5 might cause unrealistic allocation")
-  }
-  if (!(scenario %in% c("max_historical_response", "max_response_expected_spend"))) {
-    stop("scenario must be 'max_historical_response', 'max_response_expected_spend'")
-  }
-
-  if (length(channel_constr_up) != 1) {
-    if (length(channel_constr_low) != length(InputCollect$paid_media_vars) |
-      length(channel_constr_up) != length(InputCollect$paid_media_vars)) {
-      stop(paste(
-        "'channel_constr_low' & 'channel_constr_up' have to contain either only 1",
-        "value or have same length as 'InputCollect$paid_media_vars'"
-      ))
-    }
-  }
-
+  ## Check inputs and parameters
+  check_allocator(OutputCollect, select_model, paid_media_vars, scenario, channel_constr_low, channel_constr_up)
   names(channel_constr_low) <- paid_media_vars
   names(channel_constr_up) <- paid_media_vars
-
-  ## filter and sort
-
+  dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
+  dt_bestCoef <- OutputCollect$xDecompAgg[solID == select_model & rn %in% paid_media_vars]
   dt_mediaSpend <- dt_input[startRW:endRW, mediaSpendSorted, with = FALSE]
 
-  ## sort table and get filter for channels mmm coef reduced to 0
+  ## Sort table and get filter for channels mmm coef reduced to 0
   dt_coef <- dt_bestCoef[, .(rn, coef)]
   get_rn_order <- order(dt_bestCoef$rn)
   dt_coefSorted <- dt_coef[get_rn_order]
@@ -201,7 +168,7 @@ robyn_allocator <- function(robyn_object = NULL,
   coefSelectorSorted <- dt_coefSorted[, coef > 0]
   names(coefSelectorSorted) <- dt_coefSorted$rn
 
-  ## filter and sort all variables by name that is essential for the apply function later
+  ## Filter and sort all variables by name that is essential for the apply function later
   mediaVarSortedFiltered <- mediaVarSorted[coefSelectorSorted]
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   if (!all(coefSelectorSorted)) {
@@ -238,7 +205,7 @@ robyn_allocator <- function(robyn_object = NULL,
   channelConstrLowSorted <- channel_constr_low[media_order][coefSelectorSorted]
   channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
 
-  ## get adstock parameters for each channel
+  ## Get adstock parameters for each channel
   if (InputCollect$adstock == "geometric") {
     getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_thetas"))])
   } else if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {

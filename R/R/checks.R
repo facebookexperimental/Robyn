@@ -513,3 +513,33 @@ check_init_msg <- function(InputCollect) {
 check_class <- function(x, object) {
  if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }
+
+
+check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenario, channel_constr_low, channel_constr_up) {
+  dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
+  if (!(select_model %in% dt_hyppar$solID)) {
+    stop("Provided 'select_model' is not within the best results")
+  }
+  if (any(channel_constr_low < 0.01)) {
+    stop("Inputs 'channel_constr_low' must be >= 0.01")
+  }
+  if (any(channel_constr_up < channel_constr_low)) {
+    stop("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
+  }
+  if (any(channel_constr_up > 5)) {
+    warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
+  }
+  opts <- c("max_historical_response", "max_response_expected_spend")
+  if (!(scenario %in% opts)) {
+    stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
+  }
+  if (length(channel_constr_up) != 1) {
+    if (length(channel_constr_low) != length(paid_media_vars) |
+        length(channel_constr_up) != length(paid_media_vars)) {
+      stop(paste(
+        "Inputs 'channel_constr_low' & 'channel_constr_up' have to contain either only 1",
+        "value or have same length as 'InputCollect$paid_media_vars'"
+      ))
+    }
+  }
+}

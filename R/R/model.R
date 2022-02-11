@@ -25,9 +25,9 @@
 #' \dontrun{
 #' OutputCollect <- robyn_run(
 #'   InputCollect = InputCollect,
-#'   plot_folder = robyn_object,
 #'   pareto_fronts = 3,
-#'   plot_pareto = TRUE
+#'   plot_pareto = TRUE,
+#'   plot_folder = robyn_object
 #' )
 #' }
 #' @export
@@ -73,7 +73,7 @@ robyn_run <- function(InputCollect,
   if (!outputs) {
     output <- OutputModels
   } else {
-    output <- robyn_outputs(InputCollect, OutputModels, clusters = !hyper_fixed) # , ...)
+    output <- robyn_outputs(InputCollect, OutputModels, clusters = !hyper_fixed, ...)
   }
 
   # Report total timing
