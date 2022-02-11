@@ -318,12 +318,16 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
       ## 4. Response curve
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
+      if (!"channel" %in% colnames(dt_scurvePlotMean)) dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
       p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_vars,],
                    aes(x = .data$spend, y = .data$response, color = .data$channel)) +
         geom_line() +
-        geom_point(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, color = .data$channel)) +
-        geom_text(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, label = round(.data$mean_spend, 0)),
-                  show.legend = FALSE, hjust = -0.2) +
+        geom_point(data = dt_scurvePlotMean, aes(
+          x = .data$mean_spend, y = .data$mean_response, color = .data$channel)) +
+        geom_text(data = dt_scurvePlotMean, aes(
+          x = .data$mean_spend, y = .data$mean_response, color = .data$channel,
+          label = formatNum(.data$mean_spend, 2, abbr = TRUE)),
+          show.legend = FALSE, hjust = -0.2) +
         theme(legend.position = c(0.9, 0.2)) +
         labs(
           title = "Response curve and mean spend by channel",
@@ -334,7 +338,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
             ifelse(!is.na(mape_lift_plot), paste0(", mape.lift = ", mape_lift_plot), "")
           ),
           x = "Spend", y = "Response"
-        )
+        ) + lares::scale_x_abbr() + lares::scale_y_abbr()
 
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted
