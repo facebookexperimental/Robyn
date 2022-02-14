@@ -40,7 +40,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     }
 
     ## Spend exposure model
-    if (any(InputCollect$costSelector)) {
+    if (any(InputCollect$exposure_selector)) {
       all_plots[["pSpendExposure"]] <- pSpendExposure <- wrap_plots(
         InputCollect$plotNLSCollect,
         ncol = ifelse(length(InputCollect$plotNLSCollect) <= 3, length(InputCollect$plotNLSCollect), 3)

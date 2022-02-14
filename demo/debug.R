@@ -37,9 +37,12 @@ dt_hyper_fixed = NULL
 seed = 123
 outputs = FALSE
 quiet = FALSE
+addhyp_penalty_factor = FALSE
 
 ## debug robyn_train
 args(robyn_train)
+hyper_collect = hyps
+addhyp_penalty_factor = FALSE
 dt_hyper_fixed = NULL
 lambda_control = 1
 refresh = FALSE
@@ -50,11 +53,11 @@ quiet = FALSE
 ## debug robyn_mmm
 args(robyn_mmm)
 #InputCollect
-hyper_collect = InputCollect$hyperparameters
+hyper_collect = hyps
+addhyp_penalty_factor = FALSE
 iterations = InputCollect$iterations
 lambda.n = 100
 lambda_control = 1
-lambda_fixed = NULL
 refresh = FALSE
 seed = 123L
 quiet = FALSE

@@ -469,7 +469,7 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
   return(calibration_constraint)
 }
 
-check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, use_penalty_factor) {
+check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, addhyp_penalty_factor) {
   hyper_fixed <- !is.null(dt_hyper_fixed)
   if (hyper_fixed) {
     ## Run robyn_mmm if using old model result tables
@@ -481,7 +481,7 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, use_penalty_factor) 
     hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
     hypParamSamName <- c(hypParamSamName, "lambda")
     for_penalty <- names(InputCollect$dt_mod[, -c("ds", "dep_var")])
-    if (use_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
+    if (addhyp_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
     if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
       stop(paste("dt_hyper_fixed is provided with wrong input.",

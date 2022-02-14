@@ -208,7 +208,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
       for (i in 1:InputCollect$mediaVarCount) {
         chn <- InputCollect$paid_media_vars[i]
-        if (chn %in% InputCollect$paid_media_vars[InputCollect$costSelector]) {
+        if (chn %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
           # Get Michaelis Menten nls fitting param
           get_chn <- dt_transformSaturationSpendReverse[, chn, with = FALSE]
           Vmax <- InputCollect$modNLSCollect[channel == chn, Vmax]
@@ -233,7 +233,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       for (med in 1:InputCollect$mediaVarCount) {
         get_med <- InputCollect$paid_media_vars[med]
         get_spend <- dt_scurvePlotMean[channel == get_med, mean_spend]
-        if (get_med %in% InputCollect$paid_media_vars[InputCollect$costSelector]) {
+        if (get_med %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
           Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
           Km <- InputCollect$modNLSCollect[channel == get_med, Km]
           # Vmax * get_spend/(Km + get_spend)

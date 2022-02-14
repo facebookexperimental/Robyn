@@ -170,7 +170,7 @@ robyn_allocator <- function(robyn_object = NULL,
   dt_bestCoef <- dt_bestCoef[rn %in% mediaVarSortedFiltered]
   costMultiplierVec <- InputCollect$mediaCostFactor[mediaVarSortedFiltered]
 
-  if (any(InputCollect$costSelector)) {
+  if (any(InputCollect$exposure_selector)) {
     dt_modNLS <- merge(data.table(channel = mediaVarSortedFiltered), spendExpoMod, all.x = TRUE, by = "channel")
     vmaxVec <- dt_modNLS[order(rank(channel))][, Vmax]
     names(vmaxVec) <- mediaVarSortedFiltered
@@ -181,9 +181,9 @@ robyn_allocator <- function(robyn_object = NULL,
     kmVec <- rep(0, length(mediaVarSortedFiltered))
   }
 
-  costSelectorSorted <- InputCollect$costSelector[media_order]
-  costSelectorSorted <- costSelectorSorted[coefSelectorSorted]
-  costSelectorSortedFiltered <- costSelectorSorted[mediaVarSortedFiltered]
+  exposure_selectorSorted <- InputCollect$exposure_selector[media_order]
+  exposure_selectorSorted <- exposure_selectorSorted[coefSelectorSorted]
+  exposure_selectorSortedFiltered <- exposure_selectorSorted[mediaVarSortedFiltered]
   channelConstrLowSorted <- channel_constr_low[media_order][coefSelectorSorted]
   channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
 
@@ -196,7 +196,7 @@ robyn_allocator <- function(robyn_object = NULL,
   gammaTrans <- hills$gammaTrans
   coefsFiltered <- hills$coefsFiltered
 
-  ## Build evaluation function
+  ## build evaluation funciton
   if (!is.null(spendExpoMod)) {
     mm_lm_coefs <- spendExpoMod$coef_lm
     names(mm_lm_coefs) <- spendExpoMod$channel
@@ -223,7 +223,7 @@ robyn_allocator <- function(robyn_object = NULL,
     alphas = alphas,
     gammaTrans = gammaTrans,
     mediaVarSortedFiltered = mediaVarSortedFiltered,
-    costSelectorSortedFiltered = costSelectorSortedFiltered,
+    exposure_selectorSortedFiltered = exposure_selectorSortedFiltered,
     vmaxVec = vmaxVec,
     kmVec = kmVec,
     expSpendUnitTotal = expSpendUnitTotal)
@@ -364,7 +364,7 @@ eval_f <- function(X) {
   alphas <- eval_list[["alphas"]]
   gammaTrans <- eval_list[["gammaTrans"]]
   mediaVarSortedFiltered <- eval_list[["mediaVarSortedFiltered"]]
-  costSelectorSortedFiltered <- eval_list[["costSelectorSortedFiltered"]]
+  exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
   vmaxVec <- eval_list[["vmaxVec"]]
   kmVec <- eval_list[["kmVec"]]
 
@@ -394,7 +394,7 @@ eval_f <- function(X) {
     chnName = mediaVarSortedFiltered,
     vmax = vmaxVec,
     km = kmVec,
-    criteria = costSelectorSortedFiltered,
+    criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
 
@@ -423,7 +423,7 @@ eval_f <- function(X) {
     chnName = mediaVarSortedFiltered,
     vmax = vmaxVec,
     km = kmVec,
-    criteria = costSelectorSortedFiltered,
+    criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
 
@@ -451,7 +451,7 @@ eval_f <- function(X) {
     chnName = mediaVarSortedFiltered,
     vmax = vmaxVec,
     km = kmVec,
-    criteria = costSelectorSortedFiltered,
+    criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   )
 
