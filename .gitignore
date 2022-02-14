@@ -2,5 +2,3 @@
 .Rproj.user
 .Rhistory
 node_modules/
-.*
-.idea*

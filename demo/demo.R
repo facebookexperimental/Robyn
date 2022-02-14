@@ -130,7 +130,7 @@ InputCollect <- robyn_inputs(
   ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 1 # number of allowed trials. 5 is recommended without calibration,
+  ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials
