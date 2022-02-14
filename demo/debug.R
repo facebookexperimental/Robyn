@@ -1,7 +1,55 @@
 devtools::load_all()
 
+# debug robyn_input
+args(robyn_inputs)
+dt_input = dt_simulated_weekly
+dt_holidays = dt_prophet_holidays
+date_var = "DATE"
+dep_var = "revenue"
+dep_var_type = "revenue"
+prophet_vars = c("trend", "season", "holiday")
+prophet_signs = c("default","default", "default")
+prophet_country = "DE"
+context_vars = c("competitor_sales_B", "events")
+context_signs = c("default", "default")
+paid_media_vars = c("tv_S", "ooh_S", 	"print_S", "facebook_I", "search_clicks_P")
+paid_media_signs = c("positive", "positive", "positive", "positive", "positive")
+paid_media_spends = c("tv_S", "ooh_S",	"print_S", "facebook_S", "search_S")
+organic_vars = c("newsletter")
+organic_signs = c("positive")
+factor_vars = c("events")
+cores = 8
+window_start = "2016-11-23"
+window_end = "2018-08-22"
+adstock = "geometric"
+intercept_sign = "non_negative"
+nevergrad_algo = "TwoPointsDE"
+iterations = 100
+trials = 2
+calibration_input = NULL
+
+## debug robyn_run
+args(robyn_run)
+calibration_constraint = 0.1
+lambda_control = 1
+refresh = FALSE
+dt_hyper_fixed = NULL
+seed = 123
+outputs = FALSE
+quiet = FALSE
+
+## debug robyn_train
+args(robyn_train)
+dt_hyper_fixed = NULL
+lambda_control = 1
+refresh = FALSE
+seed = 123
+quiet = FALSE
+
+
 ## debug robyn_mmm
-# prep input param
+args(robyn_mmm)
+#InputCollect
 hyper_collect = InputCollect$hyperparameters
 iterations = InputCollect$iterations
 lambda.n = 100
@@ -9,20 +57,37 @@ lambda_control = 1
 lambda_fixed = NULL
 refresh = FALSE
 seed = 123L
-# go into robyn_mmm() line by line
-
-## debug robyn_run
-# prep input param
-
-calibration_constraint = 0.1
-lambda_control = 1
-refresh = FALSE
-dt_hyper_fixed = NULL
-seed = 123
-outputs = FALSE
-use_penalty_factor = FALSE
 quiet = FALSE
-# go into robyn_run() line by line
+
+## debug robyn_outputs
+args(robyn_outputs)
+#InputCollect
+#OutputModels
+pareto_fronts = 1
+calibration_constraint = 0.1
+plot_folder = robyn_object
+plot_folder_sub = NULL
+plot_pareto = TRUE
+csv_out = "pareto"
+clusters = TRUE
+selected = "clusters"
+ui = FALSE
+export = TRUE
+quiet = FALSE
+
+## debug robyn_pareto
+args(robyn_pareto)
+
+## debug robyn_response
+args(robyn_response)
+robyn_object = NULL
+select_build = NULL
+paid_media_spend = decompSpendDistPar$rn[4]
+select_model = decompSpendDistPar[4, solID]
+spend = decompSpendDistPar[4, mean_spend]
+dt_hyppar = resultHypParamPar
+dt_coef = xDecompAggPar
+
 
 ## debug robyn_refresh
 # robyn_object
@@ -36,13 +101,12 @@ refresh_trials = 2
 plot_pareto = TRUE
 
 ## debug robyn_allocator
-# prep input para
-
-#robyn_object
-select_build = 1
-InputCollect = NULL
-OutputCollect = NULL
-select_model = NULL
+args(robyn_allocator)
+# InputCollect = NULL
+# OutputCollect = NULL
+# select_model = NULL
+robyn_object = NULL
+select_build = NULL
 optim_algo = "SLSQP_AUGLAG"
 scenario = "max_historical_response"
 expected_spend = NULL
@@ -79,22 +143,6 @@ constr_mode = "eq"
 ui = FALSE
 
 
-## debug robyn_outputs
-args(robyn_outputs)
-#InputCollect
-#OutputModels
-pareto_fronts = 1
-calibration_constraint = 0.1
-plot_folder = robyn_object
-plot_folder_sub = NULL
-plot_pareto = TRUE
-csv_out = "pareto"
-clusters = TRUE
-selected = "clusters"
-ui = FALSE
-export = TRUE
-quiet = FALSE
-
 
 ## debug robyn_clusters
 args(robyn_clusters)
@@ -106,3 +154,4 @@ weights = rep(1, 3)
 dim_red = "PCA"
 quiet = FALSE
 export = FALSE
+

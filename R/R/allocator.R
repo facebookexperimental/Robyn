@@ -192,11 +192,12 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Get hill parameters for each channel
   hills <- get_hill_params(OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model)
+  alphas <- hills$alphas
   gammaTrans <- hills$gammaTrans
   coefsFiltered <- hills$coefsFiltered
 
   ## Build evaluation function
-  if (any(InputCollect$costSelector)) {
+  if (!is.null(spendExpoMod)) {
     mm_lm_coefs <- spendExpoMod$coef_lm
     names(mm_lm_coefs) <- spendExpoMod$channel
   } else {
@@ -502,6 +503,7 @@ get_hill_params <- function(OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFil
   names(coefs) <- dt_coef[, rn]
   coefsFiltered <- coefs[mediaVarSortedFiltered]
   return(list(
+    alphas = alphas,
     gammaTrans = gammaTrans,
     coefsFiltered = coefsFiltered
   ))

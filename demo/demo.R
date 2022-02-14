@@ -346,7 +346,7 @@ OutputCollect <- robyn_outputs(
 
 OutputCollect$allSolutions # get all model IDs in result
 # OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "1_102_2" # select one from above
+select_model <- "1_160_6" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
