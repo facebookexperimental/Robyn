@@ -267,7 +267,7 @@ robyn_allocator <- function(robyn_object = NULL,
   coefsFiltered <- coefs[mediaVarSortedFiltered]
 
   ## build evaluation funciton
-  if (any(InputCollect$costSelector)) {
+  if (!is.null(spendExpoMod)) {
     mm_lm_coefs <- spendExpoMod$coef_lm
     names(mm_lm_coefs) <- spendExpoMod$channel
   } else {
