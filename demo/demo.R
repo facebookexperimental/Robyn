@@ -1,18 +1,18 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-#############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.4.8    ######################
-####################                    Quick guide                   #######################
-#############################################################################################
+####################################################################################
+################         Meta MMM Open Source - Robyn 3.5       ####################
+################                  Quick guide                   ####################
+####################################################################################
 
 ################################################################
 #### Step 0: setup environment
 
 ## Install and load libraries
-# install.packages("remotes") # Install remotes first if not already happend
+# install.packages("remotes") # Install remotes first if you haven't already
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
 set.seed(123)
 
@@ -21,12 +21,14 @@ Sys.setenv(R_FUTURE_FORK_ENABLE="true")
 options(future.fork.enable = TRUE)
 
 ## Must install the python library Nevergrad once
-## ATTENTION: The latest Python 3.10 version will cause Nevergrad installation error
+## ATTENTION: The latest Python 3.10 version may cause Nevergrad installation error
 ## See here for more info about installing Python packages via reticulate
 ## https://rstudio.github.io/reticulate/articles/python_packages.html
 
-## Load library(reticulate)
-## Option 1: nevergrad installation via PIP
+# install.packages("reticulate") # Install reticulate first if you haven't already
+# library("reticulate") # Load the library
+
+## Option 1: nevergrad installation via PIP (no additional installs)
 # virtualenv_create("r-reticulate")
 # use_virtualenv("r-reticulate", required = TRUE)
 # py_install("nevergrad", pip = TRUE)
@@ -35,7 +37,7 @@ options(future.fork.enable = TRUE)
 # Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate/bin/python")
 # Reset your R session and re-install Nevergrad with option 1
 
-## Option 2: nevergrad installation via conda
+## Option 2: nevergrad installation via conda (must have conda installed)
 # conda_create("r-reticulate", "Python 3.9") # Only works with <= Python 3.9 sofar
 # use_condaenv("r-reticulate")
 # conda_install("r-reticulate", "nevergrad", pip=TRUE)
@@ -86,7 +88,7 @@ InputCollect <- robyn_inputs(
   # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
   ,prophet_signs = c("default","default", "default") # c("default", "positive", and "negative").
   # Recommend as default.Must be same length as prophet_vars
-  ,prophet_country = "DE"# only one country allowed once. Including national holidays
+  ,prophet_country = "DE" # only one country allowed once. Including national holidays
   # for 59 countries, whose list can be found on our github guide
 
   ,context_vars = c("competitor_sales_B", "events") # typically competitors, price &
@@ -345,7 +347,7 @@ OutputCollect <- robyn_outputs(
 #                       weights = c(1, 1, 1.5))
 
 OutputCollect$allSolutions # get all model IDs in result
-# OutputCollect$clusters$models # or from reduced results using obyn_clusters()
+# OutputCollect$clusters$models # or from reduced results when using robyn_clusters()
 select_model <- "2_13_4" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
