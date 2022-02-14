@@ -8,7 +8,7 @@ robyn_mmm(
   InputCollect,
   hyper_collect,
   iterations = InputCollect$iterations,
-  use_penalty_factor = FALSE,
+  add_penalty_factor = FALSE,
   dt_hyper_fixed = NULL,
   refresh = FALSE,
   seed = 123L,
@@ -24,7 +24,7 @@ Required when \code{robyn_object} is not provided.}
 
 \item{iterations}{Integer. Number of iterations to run.}
 
-\item{use_penalty_factor}{Boolean. Add a penalty factor hyperparameters to
+\item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
 glmnet's penalty.factor to be optimized by nevergrad?}
 
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.

@@ -8,7 +8,7 @@ robyn_train(
   InputCollect,
   hyper_collect,
   dt_hyper_fixed = NULL,
-  use_penalty_factor = TRUE,
+  add_penalty_factor = FALSE,
   refresh = FALSE,
   seed = 123,
   quiet = FALSE
@@ -24,7 +24,7 @@ Required when \code{robyn_object} is not provided.}
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
-\item{use_penalty_factor}{Boolean. Add a penalty factor hyperparameters to
+\item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
 glmnet's penalty.factor to be optimized by nevergrad?}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
