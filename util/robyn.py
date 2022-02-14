@@ -61,3 +61,16 @@ names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
 if len(names_to_install) > 0:
     utils.install_packages(StrVector(names_to_install))
 
+
+
+
+###############
+# dict_params = {
+#     'dt_input': dt_simulated_weekly  # pandas data frame with dates
+# }
+#
+# print(f'Hey, I just want you to see this list; {l_rand}')
+#
+#
+# obj_made = Robyn(dt_obj=,
+#                  )
