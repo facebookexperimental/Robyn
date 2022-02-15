@@ -67,11 +67,9 @@ robyn_run <- function(InputCollect,
     hyper_collect = hyps,
     dt_hyper_fixed, add_penalty_factor, refresh, seed, quiet
   )
+
   attr(OutputModels, "hyper_fixed") <- hyper_fixed
   attr(OutputModels, "refresh") <- refresh
-
-  # Check convergence
-  check_conv_error(OutputModels, n_cuts = 10, max_sd = 0.025)
 
   if (!outputs) {
     output <- OutputModels
@@ -80,7 +78,12 @@ robyn_run <- function(InputCollect,
   } else {
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE)
   }
-  output$hyper_updated <- hyps$hyper_list_all
+
+  # Check convergence
+  output[["convergence"]] <- check_conv_error(OutputModels, n_cuts = 10, max_sd = 0.025)
+
+  # Save hyper-parameters list
+  output[["hyper_updated"]] <- hyps$hyper_list_all
 
   # Report total timing
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)

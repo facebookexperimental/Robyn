@@ -6,9 +6,11 @@
 robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint = 0.1) {
 
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
-  resultHypParam <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
+  OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
+  rbindlist(lapply(OutModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
+  resultHypParam <- rbindlist(lapply(OutModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
   resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
-  xDecompAgg <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
+  xDecompAgg <- rbindlist(lapply(OutModels, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
   xDecompAgg[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
 
   # Assign unique IDs using: trial + iterNG + iterPar
@@ -37,7 +39,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
 
-  decompSpendDist <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
+  decompSpendDist <- rbindlist(lapply(OutModels, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
   decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
   if (hyper_fixed == FALSE) {
     decompSpendDist[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]

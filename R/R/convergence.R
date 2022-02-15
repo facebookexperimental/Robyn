@@ -6,9 +6,10 @@
 check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
 
   # Gather all trials
-  for (i in seq_along(OutputModels)) {
+  OutModels <- OutputModels[grepl("trial", names(OutputModels))]
+  for (i in seq_along(OutModels)) {
     if (i == 1) df <- data.frame()
-    temp <- OutputModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)
+    temp <- OutModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)
     df <- rbind(df, temp)
   }
 
@@ -23,7 +24,7 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     ungroup() %>%
     mutate(cuts = cut(
       .data$iter, breaks = seq(0, max(.data$iter), length.out = n_cuts + 1),
-      # labels = round(seq(1, max(iter), length.out = n_cuts)),
+      labels = round(seq(max(.data$iter)/n_cuts, max(.data$iter), length.out = n_cuts)),
       include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6))
 
   # Calculate sd on each cut to alert user
@@ -32,7 +33,8 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     summarise(median = median(.data$value),
               std = sd(.data$value),
               .groups = "drop") %>%
-    mutate(alert = .data$std > max_sd)
+    mutate(med_var_P = abs(round(100 * (.data$median - lag(.data$median))/.data$median, 2)),
+           alert = .data$std > max_sd)
   last_std <- errors %>% group_by(.data$error_type) %>% slice(n_cuts)
   warnings <- NULL
   for (i in seq_along(last_std$error_type)) {
@@ -80,7 +82,7 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
 
   return(invisible(list(
     plot = plot,
-    errors = errors
+    errors = select(errors, -.data$alert)
   )))
 
 }

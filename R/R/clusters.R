@@ -121,11 +121,11 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
 }
 
-
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
 .prepare_roi <- function(x, all_media) {
   check_opts(all_media, unique(x$rn))
-  rois <- pivot_wider(x, id_cols = "solID", names_from = "rn", values_from = "roi_total")
+  rois <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
+    tidyr::spread(key = .data$rn, value = .data$roi_total)
   rois <- removenacols(rois, all = FALSE)
   rois <- select(rois, any_of(c("solID", all_media)))
   errors <- distinct(x, .data$solID, .data$nrmse, .data$decomp.rssd, .data$mape)

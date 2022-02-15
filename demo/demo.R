@@ -311,6 +311,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
+# Check errors convergence
+OutputModels$convergence$plot
 
 # Output results and plots & export into local files
 OutputCollect <- robyn_outputs(
@@ -347,7 +349,7 @@ OutputCollect <- robyn_outputs(
 ## You can check OutputCollect$clusters information or manually run it with custom parameters
 # cls <- robyn_clusters(OutputCollect,
 #                       all_media = InputCollect$all_media,
-#                       k = 5, limit = 1,
+#                       k = "auto", limit = 1,
 #                       weights = c(1, 1, 1.5))
 
 OutputCollect$allSolutions # get all model IDs in result
