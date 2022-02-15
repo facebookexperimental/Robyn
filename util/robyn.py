@@ -74,3 +74,199 @@ if len(names_to_install) > 0:
 #
 # obj_made = Robyn(dt_obj=,
 #                  )
+
+
+########################################################################################################################
+# Build input collector
+
+# Hard coding parameters to easily map to demo.R
+# We can refactor to agnostic variables after we get the code running
+# Code has not been tested
+# Hyperparamerters not included, yet
+
+import os
+import pandas as pd
+
+df_prophet_holidays = pd.read_csv(os.path.join(os.getcwd(),'util/data/prophet_holidays.csv'))
+df_simulated_weekly = pd.read_csv(os.path.join(os.getcwd(),'util/data/simulated_weekly.csv'))
+
+df_input = df_simulated_weekly
+df_holidays = df_prophet_holidays
+
+class InputCollect(object):
+    def __init__(self,
+                 df_input = pd.DataFrame,
+                 date_var_name = None,
+                 dep_var_name = None,
+                 dep_var_type = None,
+                 prophet_vars = None,
+                 prophet_signs = None,
+                 prophet_country = None,
+                 context_var_names = None,
+                 context_var_signs = None,
+                 paid_media_var_names = None,
+                 paid_media_var_signs = None,
+                 paid_media_spends = None,
+                 organic_var_names = None,
+                 organic_var_signs = None,
+                 factor_var_names = None,
+                 cores = None,
+                 window_start = None,
+                 window_end = None,
+                 adstock = None,
+                 iterations = None,
+                 intercept_sign = None,
+                 nevergrad_algo = None,
+                 trials = None
+                 ):
+                 self.df_input = df_input,
+                 self.date_var_name = date_var_name,
+                 self.dep_var_name = dep_var_name,
+                 self.dep_var_type = dep_var_type,
+                 self.prophet_vars = prophet_vars,
+                 self.prophet_signs = prophet_signs,
+                 self.prophet_country = prophet_country,
+                 self.context_var_names = context_var_names,
+                 self.context_var_signs = context_var_signs,
+                 self.paid_media_var_names = paid_media_var_names,
+                 self.paid_media_var_signs = paid_media_var_signs,
+                 self.paid_media_spends = paid_media_spends,
+                 self.organic_var_names = organic_var_names,
+                 self.organic_var_signs = organic_var_signs,
+                 self.factor_var_names = factor_var_names,
+                 self.cores = cores,
+                 self.window_start = window_start,
+                 self.window_end = window_end,
+                 self.adstock = adstock,
+                 self.iterations = iterations,
+                 self.intercept_sign = intercept_sign,
+                 self.nevergrad_algo = nevergrad_algo,
+                 self.trials = trials
+
+test = InputCollect(df_input=df_input)
+test = InputCollect(cores=8)
+
+print(test.df_input)
+print(test.cores)
+
+########################################################################################################################
+# Scratch below
+
+-                 self.date_var_name = date_var_name
+                 self.df_input: pd.DataFrame
+                 self.date_var_name ='date' # date format must be "2020-01-01"
+                 self.dep_var_name ='revenue' # there should be only one dependent variable
+                 self.dep_var_type ='revenue' # "revenue" or "conversion"
+                 self.prophet_vars = ('trend', "season", "holiday")
+                 self.prophet_signs = ('default','default', 'default')
+                 self.prophet_country = 'DE' # only one country allowed once. Including national holidays
+                 self.context_var_names= ('competitor_sales_B', 'events') # typically competitors, price &,
+                 self.context_var_signs = ('default', 'default') # c("default", " positive", and "negative"),
+                 self.paid_media_var_names = ('tv_S', 'ooh_S', 'print_S', 'facebook_I', 'search_clicks_P')
+                 self.paid_media_var_signs = ('positive', 'positive','positive', 'positive', 'positive')
+                 self.paid_media_spends= ('tv_S','ooh_S','print_S','facebook_S', 'search_S')
+                 self.organic_var_names = ('newsletter') # must have same length as organic_vars
+                 self.organic_var_signs = ('positive') # specify which variables in context_vars and
+                 self.factor_var_names= ('events') # specify which variables in context_vars and
+                 self.cores = os.cpu_count() - 2 # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
+                 self.window_start = None
+                 self.window_end = None
+                 self.adstock = 'geometric' # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
+                 self.iterations = 2000 # number of allowed iterations per trial. For the simulated dataset with 11 independent
+                 self.intercept_sign = 'non_negative' # intercept_sign input must be any of: non_negative, unconstrained
+                 self.nevergrad_algo = 'TwoPointsDE' # recommended algorithm for Nevergrad, the gradient-free
+                 self.trials = 5,  # number of allowed trials. 5 is recommended without calibration
+
+
+
+
+
+
+
+                 rolling_window_start_which=None,
+                 rolling_window_end_which=None,
+                 rolling_window_length=None,
+                 refresh_added_start=None,
+                 cores=os.cpu_count() - 2
+                 ):
+
+        # Set variables from init
+        self.df_input = df_input
+        self.dep_var_name = dep_var_name
+        self.dep_var_type = dep_var_type
+        self.date_var_name = date_var_name
+        self.adstock = adstock
+        self.iterations = iterations
+        self.nevergrad_algo = nevergrad_algo
+        self.trials = trials
+        self.prophet_vars = prophet_vars
+        self.prophet_signs = prophet_signs
+        self.prophet_country = prophet_country
+        self.context_vars = context_var_names
+        self.context_signs = context_var_signs
+        self.paid_media_vars = paid_media_var_names
+        self.paid_media_signs = paid_media_var_signs
+        self.paid_media_spends = paid_media_spends
+        self.organic_vars = organic_var_names
+        self.organic_signs = organic_var_signs
+        self.factor_vars = factor_var_names
+        self.window_start = window_start
+        self.window_end = window_end
+        self.rollingWindowStartWhich = rolling_window_start_which
+        self.rollingWindowEndWhich = rolling_window_end_which
+        self.rollingWindowLength = rolling_window_length
+        self.refreshAddedStart = refresh_added_start
+        self.cores = cores
+
+        print(f'self.df_input: {self.df_input}')
+        print(f'self.dep_var_name: {self.dep_var_name}')
+        print(f'self.dep_var_type: {self.dep_var_type}')
+        print(f'self.date_var_name: {self.date_var_name}')
+        print(f'self.adstock: {self.adstock}')
+        print(f'self.iterations: {self.iterations}')
+        print(f'self.nevergrad_algo: {self.nevergrad_algo}')
+        print(f'self.trials: {self.trials}')
+        print(f'self.prophet_vars: {self.prophet_vars}')
+        print(f'self.prophet_signs: {self.prophet_signs}')
+        print(f'self.prophet_country: {self.prophet_country}')
+        print(f'self.context_vars: {self.context_vars}')
+        print(f'self.context_signs: {self.context_signs}')
+        print(f'self.paid_media_vars: {self.paid_media_vars}')
+        print(f'self.paid_media_signs: {self.paid_media_signs}')
+        print(f'self.paid_media_spends: {self.paid_media_spends}')
+        print(f'self.organic_vars: {self.organic_vars}')
+        print(f'self.organic_signs: {self.organic_signs}')
+        print(f'self.factor_vars: {self.factor_vars}')
+        print(f'self.window_start: {self.window_start}')
+        print(f'self.window_end: {self.window_end}')
+        print(f'self.rollingWindowStartWhich: {self.rollingWindowStartWhich}')
+        print(f'self.rollingWindowEndWhich: {self.rollingWindowEndWhich}')
+        print(f'self.rollingWindowLength: {self.rollingWindowLength}')
+        print(f'self.refreshAddedStart: {self.refreshAddedStart}')
+        print(f'self.cores: {self.cores}')
+
+        # Set defaults
+        self.df_holidays = pd.read_csv('util/data/prophet_holidays.csv')
+
+        # Set in methods
+        # todo Organize these variables as process is built out
+        """
+        :param day_interval:
+            Integer
+            Number of days detected between last two dates in data set.  Set in check_conditions
+        """
+        self.day_interval = None  # Get's automatically set in check_conditions
+        self.interval_type = None  # Get's automatically set in check_conditions
+        self.mod = None
+        self.df_modRollWind = None
+        self.xDecompAggPrev = None
+        self.hyperparameters = None
+        self.calibration_input = None
+        self.mediaVarCount = None
+        self.exposureVarName = None
+        self.local_name = None
+        self.all_media = None
+
+        # Check that data frame and function are properly calibrated
+        self.check_conditions(df_input)
+)
