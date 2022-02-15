@@ -80,6 +80,7 @@ robyn_run <- function(InputCollect,
   } else {
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE)
   }
+  output$hyper_updated <- hyps$hyper_list_all
 
   # Report total timing
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
@@ -293,6 +294,16 @@ robyn_mmm <- function(InputCollect,
 
 
   ################################################
+  #### Get lambda
+  lambda_min_ratio <- 0.0001
+  lambdas <- lambda_seq(x = dt_mod[, !c("ds", "dep_var"), with = FALSE],
+                        y = dt_mod$dep_var,
+                        seq_len = 100, lambda_min_ratio)
+  lambda_min_ratio
+  lambda_max <- max(lambdas)
+  lambda_min <- lambda_max * lambda_min_ratio
+
+  ################################################
   #### Start Nevergrad loop
   t0 <- Sys.time()
 
@@ -474,11 +485,11 @@ robyn_mmm <- function(InputCollect,
 
           #####################################
           #### Fit ridge regression with nevergrad's lambda
-          lambdas <- lambda_seq(x_train, y_train, seq_len = 100, lambda_min_ratio = 0.0001)
-          lambda_max <- max(lambdas)
+          # lambdas <- lambda_seq(x_train, y_train, seq_len = 100, lambda_min_ratio = 0.0001)
+          # lambda_max <- max(lambdas)
           lambda_hp <- unlist(hypParamSamNG$lambda[i])
           if (hyper_fixed == FALSE) {
-            lambda_scaled <- lambda_max * lambda_hp
+            lambda_scaled <- lambda_min + (lambda_max - lambda_min) * lambda_hp
           } else {
             lambda_scaled <- lambda_hp
           }
@@ -651,6 +662,7 @@ robyn_mmm <- function(InputCollect,
             lambda = lambda_scaled,
             lambda_hp = lambda_hp,
             lambda_max = lambda_max,
+            lambda_min_ratio = lambda_min_ratio,
             iterPar = i,
             iterNG = lng,
             df.int = df.int

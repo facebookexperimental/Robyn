@@ -308,9 +308,8 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 # Run all trials and iterations
 # Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
-  InputCollect = InputCollect, # feed in all model specification
-  add_penalty_factor = FALSE, # add hyper-parameters for glmnet's penalty.factor
-  outputs = T # outputs = FALSE disables direct model output
+  InputCollect = InputCollect # feed in all model specification
+  , outputs = FALSE # outputs = FALSE disables direct model output
 )
 
 # Output results and plots & export into local files
@@ -323,6 +322,13 @@ OutputCollect <- robyn_outputs(
   , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
 )
+
+# Run & output in one go
+# OutputCollect <- robyn_run(
+#   InputCollect = InputCollect
+#   , outputs = TRUE
+#   , plot_folder = robyn_object
+# )
 
 ## Besides one-pager and clusters plots: there are 4 csv output saved in the folder for further usage
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model
@@ -346,7 +352,7 @@ OutputCollect <- robyn_outputs(
 
 OutputCollect$allSolutions # get all model IDs in result
 # OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "1_160_6" # select one from above
+select_model <- "1_119_2" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -426,9 +432,9 @@ Robyn <- robyn_refresh(
   robyn_object = robyn_object
   , dt_input = dt_simulated_weekly
   , dt_holidays = dt_prophet_holidays
-  , refresh_steps = 13
+  , refresh_steps = 4
   , refresh_mode = "auto"
-  , refresh_iters = 500 # Iteration for refresh. 600 is rough estimation. We'll still
+  , refresh_iters = 1000 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
   , refresh_trials = 1
   , clusters = TRUE

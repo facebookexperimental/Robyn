@@ -259,7 +259,7 @@ robyn_refresh <- function(robyn_object,
 
 
     ## refresh hyperparameter bounds
-    initBounds <- Robyn$listInit$InputCollect$hyperparameters
+    initBounds <- Robyn$listInit$OutputCollect$hyper_updated
     initBoundsDis <- sapply(initBounds, function(x) {
       if (length(x)==2) {
         x_out <- x[2] - x[1]
@@ -270,12 +270,18 @@ robyn_refresh <- function(robyn_object,
     })
     newBoundsFreedom <- refresh_steps / InputCollectRF$rollingWindowLength
 
-    hyperparameters <- InputCollectRF$hyperparameters
-    hypNames <- names(hyperparameters)
+    hyper_updated_prev <- listOutputPrev$hyper_updated
+    hypNames <- names(hyper_updated_prev)
     for (h in 1:length(hypNames)) {
-      getHyp <- listOutputPrev$resultHypParam[, get(hypNames[h])]
-      getDis <- initBoundsDis[hypNames[h]]
-      getRange <- initBounds[hypNames[h]][[1]]
+      hn <- hypNames[h]
+      getHyp <- listOutputPrev$resultHypParam[, get(hn)]
+      getDis <- initBoundsDis[hn]
+      if (hn == "lambda") {
+        lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
+        lambda_min <- lambda_max * 0.0001
+        getHyp <- getHyp / (lambda_max - lambda_min)
+      }
+      getRange <- initBounds[hn][[1]]
 
       if (length(getRange)==2) {
         newLowB <- getHyp - getDis * newBoundsFreedom
@@ -287,12 +293,12 @@ robyn_refresh <- function(robyn_object,
           newUpB <- getRange[2]
         }
         newBounds <- unname(c(newLowB, newUpB))
-        hyperparameters[hypNames[h]][[1]] <- newBounds
+        hyper_updated_prev[hn][[1]] <- newBounds
       } else {
-        hyperparameters[hypNames[h]][[1]] <- getRange
+        hyper_updated_prev[hn][[1]] <- getRange
       }
     }
-    InputCollectRF$hyperparameters <- hyperparameters
+    InputCollectRF$hyperparameters <- hyper_updated_prev
 
     ## refresh iterations and trial
     InputCollectRF$iterations <- refresh_iters
