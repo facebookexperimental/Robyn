@@ -89,13 +89,27 @@ if len(names_to_install) > 0:
 
 
 ########################################################################################################################
-# Build input collector
-
+# Build InputCollect R Object
+'''
+20220214
 # Hard coding parameters to easily map to demo.R
 # We can refactor to agnostic variables after we get the code running
 # Code has not been tested
 # Hyperparamerters not included, yet
 
+20220215
+General thoughts:
+# rename robyn variables
+# use robyn variables to intiate robyn collect
+# save that inputcollect and check and
+# Can we save an R object? Then we don't need to convert
+
+TODO:
+1. create python object to import data for models
+2. create robyn robject to manage InputCollect robject via robyn_inputs() (see inputs.R) # robjects.r(InputCollect)???
+3. pass/save python object to an from robyn object
+4. use robyn object to run robyn_run()
+'''
 import os
 import pandas as pd
 
@@ -105,7 +119,7 @@ df_simulated_weekly = pd.read_csv(os.path.join(os.getcwd(),'util/data/simulated_
 df_input = df_simulated_weekly
 df_holidays = df_prophet_holidays
 
-class InputCollect(object):
+class InputCollect(object): # rename for python object
     def __init__(self,
                  df_input = pd.DataFrame,
                  date_var_name = None,
@@ -160,6 +174,8 @@ test = InputCollect(cores=8)
 
 print(test.df_input)
 print(test.cores)
+
+test.df_input
 
 ########################################################################################################################
 # Scratch below
