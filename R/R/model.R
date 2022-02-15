@@ -72,8 +72,10 @@ robyn_run <- function(InputCollect,
 
   if (!outputs) {
     output <- OutputModels
+  } else if (!hyper_fixed) {
+    output <- robyn_outputs(InputCollect, OutputModels, ...)
   } else {
-    output <- robyn_outputs(InputCollect, OutputModels, clusters = !hyper_fixed, ...)
+    output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE)
   }
 
   # Report total timing
