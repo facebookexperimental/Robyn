@@ -70,6 +70,9 @@ robyn_run <- function(InputCollect,
   attr(OutputModels, "hyper_fixed") <- hyper_fixed
   attr(OutputModels, "refresh") <- refresh
 
+  # Check convergence
+  check_conv_error(OutputModels, n_cuts = 10, max_sd = 0.025)
+
   if (!outputs) {
     output <- OutputModels
   } else if (!hyper_fixed) {

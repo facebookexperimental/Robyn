@@ -514,7 +514,6 @@ check_class <- function(x, object) {
  if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }
 
-
 check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenario,
                             channel_constr_low, channel_constr_up,
                             expected_spend, expected_spend_days, constr_mode) {
