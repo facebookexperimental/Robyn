@@ -57,7 +57,6 @@ robyn_run <- function(InputCollect,
   hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters,
     add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed
   )
-  hyper_fixed <- hyps$all_fixed
   InputCollect$hyper_updated <- hyps$hyper_list_all
 
   #####################################
@@ -65,15 +64,16 @@ robyn_run <- function(InputCollect,
 
   OutputModels <- robyn_train(InputCollect,
     hyper_collect = hyps,
-    dt_hyper_fixed, add_penalty_factor, refresh, seed, quiet
+    dt_hyper_fixed, add_penalty_factor,
+    refresh, seed, quiet
   )
 
-  attr(OutputModels, "hyper_fixed") <- hyper_fixed
+  attr(OutputModels, "hyper_fixed") <- hyps$all_fixed
   attr(OutputModels, "refresh") <- refresh
 
   if (!outputs) {
     output <- OutputModels
-  } else if (!hyper_fixed) {
+  } else if (!hyps$all_fixed) {
     output <- robyn_outputs(InputCollect, OutputModels, ...)
   } else {
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE)
@@ -113,8 +113,12 @@ robyn_run <- function(InputCollect,
 #' )
 #' }
 #' @export
-robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, add_penalty_factor = FALSE,
-                        refresh = FALSE, seed = 123, quiet = FALSE) {
+robyn_train <- function(InputCollect, hyper_collect,
+                        dt_hyper_fixed = NULL,
+                        add_penalty_factor = FALSE,
+                        refresh = FALSE, seed = 123,
+                        quiet = FALSE) {
+
   hyper_fixed <- hyper_collect$all_fixed
 
   if (hyper_fixed) {
@@ -125,7 +129,6 @@ robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, add_
       InputCollect = InputCollect,
       hyper_collect = hyper_collect,
       dt_hyper_fixed = dt_hyper_fixed,
-      # lambda_fixed = dt_hyper_fixed$lambda,
       seed = seed,
       quiet = quiet
     )
@@ -164,7 +167,7 @@ robyn_train <- function(InputCollect, hyper_collect, dt_hyper_fixed = NULL, add_
         hyper_collect = hyper_collect,
         add_penalty_factor = add_penalty_factor,
         refresh = refresh,
-        seed = seed,
+        seed = seed + ngt,
         quiet = quiet
       )
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
@@ -206,6 +209,7 @@ robyn_mmm <- function(InputCollect,
                       refresh = FALSE,
                       seed = 123L,
                       quiet = FALSE) {
+
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
     if (is.integer(seed)) {

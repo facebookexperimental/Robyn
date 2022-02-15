@@ -49,7 +49,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
       df <- .prepare_roi(input, all_media)
     } else {
       stop(paste(
-        "You must run robyn_export(..., clusters = TRUE) or",
+        "You must run robyn_outputs(..., clusters = TRUE) or",
         "pass a valid data.frame (sames as pareto_aggregated.csv output)",
         "in order to use robyn_clusters()"
       ))
@@ -193,10 +193,10 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 }
 
 .plot_topsols_rois <- function(df, top_sols, all_media, limit = 1) {
-  real_rois <- df[,-c(which(colnames(df) %in% c("mape","nrmse","decomp.rssd")))]
-  colnames(real_rois)[2:ncol(real_rois)] <- paste0("real_", colnames(real_rois)[-1])
+  real_rois <- as.data.frame(df)[,-c(which(colnames(df) %in% c("mape","nrmse","decomp.rssd")))]
+  colnames(real_rois) <- paste0("real_", colnames(real_rois))
   top_sols %>%
-    left_join(real_rois, "solID") %>%
+    left_join(real_rois, by = c("solID" = "real_solID")) %>%
     mutate(label = sprintf("[%s.%s]\n%s", .data$cluster, .data$rank, .data$solID)) %>%
     tidyr::gather("media", "roi", contains(all_media)) %>%
     filter(grepl("real_", .data$media)) %>%
