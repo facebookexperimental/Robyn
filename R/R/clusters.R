@@ -106,7 +106,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     # Top Clusters
     models = top_sols,
     plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
-    plot_models_rois = .plot_topsols_rois(top_sols, all_media, limit)
+    plot_models_rois = .plot_topsols_rois(df, top_sols, all_media, limit)
   )
 
   if (export) {
@@ -192,16 +192,21 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     theme_lares()
 }
 
-.plot_topsols_rois <- function(top_sols, all_media, limit = 1) {
+.plot_topsols_rois <- function(df, top_sols, all_media, limit = 1) {
+  real_rois <- df[,-c(which(colnames(df) %in% c("mape","nrmse","decomp.rssd")))]
+  colnames(real_rois)[2:ncol(real_rois)] <- paste0("real_", colnames(real_rois)[-1])
   top_sols %>%
+    left_join(real_rois, "solID") %>%
     mutate(label = sprintf("[%s.%s]\n%s", .data$cluster, .data$rank, .data$solID)) %>%
     tidyr::gather("media", "roi", contains(all_media)) %>%
-    ggplot(aes(x = .data$media, y = .data$roi)) +
+    filter(grepl("real_", .data$media)) %>%
+    mutate(media = gsub("real_", "", .data$media)) %>%
+    ggplot(aes(x = reorder(.data$media, .data$roi), y = .data$roi)) +
     facet_grid(.data$label ~ .) +
     geom_col() +
     coord_flip() +
     labs(
-      title = paste("ROIs on Top", limit, "Performing Models"),
+      title = paste("ROIs on Top Performing Models"),
       x = NULL, y = "ROI per Media"
     ) +
     theme_lares()

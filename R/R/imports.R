@@ -23,7 +23,7 @@
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
-#' group_by lag left_join mutate pull rename row_number select slice ungroup
+#' group_by lag left_join mutate pull rename row_number select slice summarise ungroup
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
@@ -38,8 +38,8 @@
 #' @importFrom reticulate tuple use_condaenv import conda_create conda_install py_module_available
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel
-#' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control
-#' predict pweibull dweibull quantile qunif start setNames
+#' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control median sd
+#' predict pweibull dweibull quantile qunif reorder start setNames
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
 #' @importFrom tidyr pivot_longer pivot_wider
 #' @importFrom utils askYesNo flush.console head setTxtProgressBar txtProgressBar

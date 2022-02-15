@@ -191,7 +191,8 @@ robyn_allocator <- function(robyn_object = NULL,
   getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)
 
   ## Get hill parameters for each channel
-  hills <- get_hill_params(OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model)
+  hills <- get_hill_params(
+    InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model)
   alphas <- hills$alphas
   gammaTrans <- hills$gammaTrans
   coefsFiltered <- hills$coefsFiltered
@@ -488,10 +489,12 @@ get_adstock_params <- function(InputCollect, dt_hyppar) {
   return(getAdstockHypPar)
 }
 
-get_hill_params <- function(OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model) {
+get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model) {
   hillHypParVec <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))])
   alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
   gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
+  startRW <- InputCollect$rollingWindowStartWhich
+  endRW <- InputCollect$rollingWindowEndWhich
   chnAdstocked <- OutputCollect$mediaVecCollect[
     type == "adstockedMedia" & solID == select_model, mediaVarSortedFiltered,
     with = FALSE][startRW:endRW]
