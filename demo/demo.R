@@ -309,8 +309,8 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 # Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
-  use_penalty_factor = FALSE, # add hyper-parameters for glmnet's penalty.factor
-  outputs = FALSE # outputs = FALSE disables direct model output
+  add_penalty_factor = FALSE, # add hyper-parameters for glmnet's penalty.factor
+  outputs = T # outputs = FALSE disables direct model output
 )
 
 # Output results and plots & export into local files
@@ -428,9 +428,9 @@ Robyn <- robyn_refresh(
   , dt_holidays = dt_prophet_holidays
   , refresh_steps = 13
   , refresh_mode = "auto"
-  , refresh_iters = 1000 # Iteration for refresh. 600 is rough estimation. We'll still
+  , refresh_iters = 500 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
-  , refresh_trials = 3
+  , refresh_trials = 1
   , clusters = TRUE
 )
 

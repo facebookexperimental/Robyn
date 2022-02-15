@@ -145,7 +145,17 @@ maxeval = 100000
 constr_mode = "eq"
 ui = FALSE
 
-
+## debug robyn_refresh
+args(robyn_refresh)
+#robyn_object
+plot_folder_sub = NULL
+dt_input = dt_simulated_weekly
+dt_holidays = dt_prophet_holidays
+refresh_steps = 4
+refresh_mode = "manual"
+refresh_iters = 1000
+refresh_trials = 1
+plot_pareto = TRUE
 
 ## debug robyn_clusters
 args(robyn_clusters)
