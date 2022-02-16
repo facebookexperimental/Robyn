@@ -240,6 +240,7 @@ hyperparameters <- list(
 #### 2a-3: Third, add hyperparameters into robyn_inputs()
 
 InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hyperparameters)
+print(InputCollect)
 
 #### 2a-4: Fourth (optional), model calibration / add experimental input
 
@@ -311,6 +312,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
+print(OutputModels)
 # Check errors convergence
 OutputModels$convergence$plot
 

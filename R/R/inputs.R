@@ -335,8 +335,38 @@ robyn_inputs <- function(dt_input = NULL,
     }
   }
   output$custom_params <- list(...)
+  class(output) <- c("robyn_inputs", class(output))
   return(output)
 }
+
+#' @rdname robyn_inputs
+#' @aliases robyn_inputs
+#' @param x robyn_inputs object
+#' @export
+print.robyn_inputs <- function(x, ...) {
+  print(lares::glued(
+    "
+Total Observations: {nrow(x$dt_input)}
+Input Variables ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = ', ')}
+Date Range: {range} ({nrow(x$dt_input)})
+Date Window: {windows} ({nrow(x$dt_modRollWind)})
+With Calibration: {!is.null(x$calibration_input)}
+Nevergrad Algo: {x$nevergrad_algo}
+Custom parameters: {custom_params}
+
+Cores: {x$cores} | Trials: {x$trials} | Iterations: {x$iterations}
+
+Adstock: {x$adstock}
+Model Variables ({ncol(x$dt_mod)}): {paste(names(x$dt_mod), collapse = ', ')}
+Hyper-parameters:
+{flatten_hyps(x$hyperparameters)}
+",
+    range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),
+    windows = paste(x$window_start, x$window_end, sep = ":"),
+    custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None"
+  ))
+}
+
 
 
 ####################################################################

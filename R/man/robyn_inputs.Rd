@@ -2,6 +2,7 @@
 % Please edit documentation in R/inputs.R
 \name{robyn_inputs}
 \alias{robyn_inputs}
+\alias{print.robyn_inputs}
 \title{Input data sanity check & transformation}
 \usage{
 robyn_inputs(
@@ -34,6 +35,8 @@ robyn_inputs(
   InputCollect = NULL,
   ...
 )
+
+\method{print}{robyn_inputs}(x, ...)
 }
 \arguments{
 \item{dt_input}{A data.frame. Raw input data. Load simulated
@@ -154,6 +157,8 @@ there are \code{context_vars} with large positive values.}
 \code{hyperparameters} are not yet set.}
 
 \item{...}{Additional parameters passed to \code{prophet} functions.}
+
+\item{x}{robyn_inputs object}
 }
 \value{
 A list containing the all input parameters and modified input data from

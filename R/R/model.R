@@ -123,11 +123,6 @@ print.robyn_models <- function(x, ...) {
   ))
 }
 
-flatten_hyps <- function(x) {
-  temp <- sapply(x, function(x) sprintf("[%s]", paste(x, collapse = ", ")))
-  paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
-}
-
 
 ####################################################################
 #' Train Robyn Models
