@@ -95,7 +95,7 @@ dt_coef = xDecompAggPar
 ## debug robyn_refresh
 # robyn_object
 plot_folder_sub = NULL
-dt_input = dt_input
+dt_input = dt_simulated_weekly
 dt_holidays = dt_prophet_holidays
 refresh_steps = 14
 refresh_mode = "auto" # "auto", "manual"

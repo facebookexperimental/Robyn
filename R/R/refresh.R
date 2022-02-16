@@ -259,7 +259,7 @@ robyn_refresh <- function(robyn_object,
 
 
     ## refresh hyperparameter bounds
-    initBounds <- Robyn$listInit$OutputCollect$hyper_updated
+    initBounds <- Robyn$listInit$OutputCollect$OutputModels$hyper_updated
     initBoundsDis <- sapply(initBounds, function(x) {
       if (length(x)==2) {
         x_out <- x[2] - x[1]
@@ -270,7 +270,7 @@ robyn_refresh <- function(robyn_object,
     })
     newBoundsFreedom <- refresh_steps / InputCollectRF$rollingWindowLength
 
-    hyper_updated_prev <- listOutputPrev$hyper_updated
+    hyper_updated_prev <- listOutputPrev$OutputModels$hyper_updated
     hypNames <- names(hyper_updated_prev)
     for (h in 1:length(hypNames)) {
       hn <- hypNames[h]
