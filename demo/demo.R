@@ -387,6 +387,7 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
+print(AllocatorCollect)
 
 # View allocator result. Last column "optmResponseUnitTotalLift" is the total response lift.
 AllocatorCollect$dt_optimOut
@@ -466,8 +467,7 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend = 2000000 # Total spend to be simulated
   , expected_spend_days = 14 # Duration of expected_spend in days
 )
-
-AllocatorCollect$dt_optimOut
+print(AllocatorCollect)
 
 ################################################################
 #### Step 8: get marginal returns

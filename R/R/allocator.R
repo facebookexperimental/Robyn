@@ -342,12 +342,13 @@ print.robyn_allocator <- function(x, ...) {
   print(glued(
     "
 Model ID: {x$dt_optimOut$solID[1]}
-Total Spend Increase: {spend_increase}
+Total Spend Increase: {spend_increase_p}% ({spend_increase})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 
 Allocation Summary:
   {summary}
 ",
+    spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
       abbr = TRUE),
@@ -368,7 +369,6 @@ Allocation Summary:
     ), collapse = "\n  ")
   ))
 }
-
 
 robyn_import <- function(robyn_object, select_build, quiet) {
   if (!file.exists(robyn_object)) {
