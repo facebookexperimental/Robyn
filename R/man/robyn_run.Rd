@@ -13,6 +13,12 @@ robyn_run(
   seed = 123L,
   outputs = TRUE,
   quiet = FALSE,
+  cores = NULL,
+  iterations = NULL,
+  trials = NULL,
+  adstock = NULL,
+  intercept_sign = "non_negative",
+  nevergrad_algo = "TwoPointsDE",
   ...
 )
 
@@ -35,6 +41,36 @@ glmnet's penalty.factor to be optimized by nevergrad?}
 \item{outputs}{Boolean. Process results with \code{robyn_outputs()}?}
 
 \item{quiet}{Boolean. Keep messages off?}
+
+\item{cores}{Integer. Default to \code{parallel::detectCores()}}
+
+\item{iterations}{Integer. Recommended 2000 for default
+\code{nevergrad_algo = "TwoPointsDE"}}
+
+\item{trials}{Integer. Recommended 5 for default
+\code{nevergrad_algo = "TwoPointsDE"}}
+
+\item{adstock}{Character. Choose any of \code{c("geometric", "weibull_cdf",
+"weibull_pdf")}. Weibull adtock is a two-parametric function and thus more
+flexible, but takes longer time than the traditional geometric one-parametric
+function. CDF, or cumulative density function of the Weibull function allows
+changing decay rate over time in both C and S shape, while the peak value will
+always stay at the first period, meaning no lagged effect. PDF, or the
+probability density function, enables peak value occurring after the first
+period when shape >=1, allowing lagged effect. Run \code{plot_adstock()} to
+see the difference visually. Time estimation: with geometric adstock, 2000
+iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
+options take up to twice as much time.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
+
+\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
+\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+"cGA", "RandomSearch")}}
 
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 

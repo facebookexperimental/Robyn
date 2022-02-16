@@ -13,6 +13,7 @@
 #'
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
+#' @inheritParams robyn_inputs
 #' @param dt_hyper_fixed data.frame. Only provide when loading old model results.
 #' It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.
 #' @param add_penalty_factor Boolean. Add penalty factor hyperparameters to
@@ -38,6 +39,12 @@ robyn_run <- function(InputCollect,
                       seed = 123L,
                       outputs = TRUE,
                       quiet = FALSE,
+                      cores = NULL,
+                      iterations = NULL,
+                      trials = NULL,
+                      adstock = NULL,
+                      intercept_sign = "non_negative",
+                      nevergrad_algo = "TwoPointsDE",
                       ...) {
   t0 <- Sys.time()
 
@@ -46,6 +53,16 @@ robyn_run <- function(InputCollect,
 
   if (!"hyperparameters" %in% names(InputCollect)) {
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
+  }
+
+  if (!is.null(cores)) InputCollect$cores <- cores
+  if (!is.null(iterations)) InputCollect$iterations <- iterations
+  if (!is.null(trials)) InputCollect$trials <- trials
+  if (!is.null(adstock)) InputCollect$adstock <- adstock
+  if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
+  if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
+  if (!is.null(iterations) | !is.null(trials)) {
+    check_iteration(InputCollect$calibration_input, InputCollect$iterations, InputCollect$cores)
   }
 
   init_msgs_run(InputCollect, refresh, quiet)
