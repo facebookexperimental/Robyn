@@ -113,7 +113,7 @@ InputCollect <- robyn_inputs(
   ### set model parameters
 
   ## set cores for parallel computing
-  ,cores = 6 # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
+  ,cores = future::availableCores() # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
 
   ## set rolling window start
   ,window_start = "2016-11-23"
@@ -123,7 +123,7 @@ InputCollect <- robyn_inputs(
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-  ,iterations = 500  # number of allowed iterations per trial. For the simulated dataset with 11 independent
+  ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
@@ -309,13 +309,8 @@ print(InputCollect)
 # Run all trials and iterations
 # Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
-  InputCollect = InputCollect # feed in all model specification
-  , cores = 8
-  #, add_penalty_factor = TRUE
-  , iterations = 1000
-  , trials = 1
-  , adstock = "geometric"
-  , outputs = FALSE # outputs = FALSE disables direct model output
+  InputCollect = InputCollect, # feed in all model specification
+  outputs = FALSE # Export process using robyn_outputs()
 )
 print(OutputModels)
 # Check convergence plots and errors
@@ -361,9 +356,8 @@ print(OutputCollect)
 #                       k = "auto", limit = 1,
 #                       weights = c(1, 1, 1.5))
 
-OutputCollect$allSolutions # get all model IDs in result
-# OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "1_111_2" # select one from above
+print(OutputCollect) # get all model IDs in result
+select_model <- "3_98_16" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -394,9 +388,6 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
-
-# View allocator result. Last column "optmResponseUnitTotalLift" is the total response lift.
-AllocatorCollect$dt_optimOut
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -508,8 +499,8 @@ Response2/Spend2 # ROI for search 81k
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-11 13.39 init/pareto_hyperparameters.csv")
-select_model <- "1_102_2"
+dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-16 15.52 rf1/pareto_hyperparameters.csv")
+select_model <- "1_26_11" # one of dt_hyper_fixed$solID
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(

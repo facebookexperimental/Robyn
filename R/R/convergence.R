@@ -23,25 +23,34 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     mutate(iter = row_number()) %>%
     ungroup() %>%
     mutate(cuts = cut(
-      .data$iter, breaks = seq(0, max(.data$iter), length.out = n_cuts + 1),
-      labels = round(seq(max(.data$iter)/n_cuts, max(.data$iter), length.out = n_cuts)),
-      include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6))
+      .data$iter,
+      breaks = seq(0, max(.data$iter), length.out = n_cuts + 1),
+      labels = round(seq(max(.data$iter) / n_cuts, max(.data$iter), length.out = n_cuts)),
+      include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6
+    ))
 
   # Calculate sd on each cut to alert user
   errors <- dt_objfunc_cvg %>%
     group_by(.data$error_type, .data$cuts) %>%
-    summarise(median = median(.data$value),
-              std = sd(.data$value),
-              .groups = "drop") %>%
-    mutate(med_var_P = abs(round(100 * (.data$median - lag(.data$median))/.data$median, 2)),
-           alert = .data$std > max_sd)
-  last_std <- errors %>% group_by(.data$error_type) %>% slice(n_cuts)
+    summarise(
+      median = median(.data$value),
+      std = sd(.data$value),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      med_var_P = abs(round(100 * (.data$median - lag(.data$median)) / .data$median, 2)),
+      alert = .data$std > max_sd
+    )
+  last_std <- errors %>%
+    group_by(.data$error_type) %>%
+    slice(n_cuts)
   warnings <- NULL
   for (i in seq_along(last_std$error_type)) {
     if (last_std$alert[i]) {
       temp <- sprintf(
         "Error %s hasn't converged yet (quantile-%s: sd %s > %s)",
-        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), max_sd)
+        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), max_sd
+      )
       warning(paste("Test with more iterations:", temp))
       warnings <- c(warnings, temp)
     }
@@ -70,15 +79,18 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     mutate(cuts = factor(.data$cuts, levels = rev(levels(.data$cuts)))) %>%
     ggplot(aes(x = .data$value, y = .data$cuts, fill = -.data$id)) +
     ggridges::geom_density_ridges(
-      scale = 2.5, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
+      scale = 2.5, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7
+    ) +
     facet_grid(. ~ .data$error_type, scales = "free") +
     scale_fill_distiller(palette = "GnBu") +
     guides(fill = "none") +
     theme_lares() +
-    labs(x = "Errors", y = "Iterations [#]",
-         title = "Errors convergence by iterations quantiles",
-         subtitle = paste(max(dt_objfunc_cvg$trial), "trials combined"),
-         caption = if (!is.null(warnings)) paste(warnings, collapse = "\n") else NULL)
+    labs(
+      x = "Errors", y = "Iterations [#]",
+      title = "Errors convergence by iterations quantiles",
+      subtitle = paste(max(dt_objfunc_cvg$trial), "trials combined"),
+      caption = if (!is.null(warnings)) paste(warnings, collapse = "\n") else NULL
+    )
 
   calibrated <- sum(df$mape) > 0
   models <- ggplot(df, aes(x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
@@ -86,18 +98,20 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     scale_colour_gradient(low = "navyblue", high = "skyblue") +
     labs(
       title = ifelse(!calibrated, "Multi-objective evolutionary performance",
-                     "Multi-objective evolutionary performance with calibration"),
-      subtitle = sprintf("%s trials with %s iterations each", max(df$trial), max(dt_objfunc_cvg$cuts)),
+        "Multi-objective evolutionary performance with calibration"
+      ),
+      subtitle = sprintf("%s trials with %s (real) iterations each",
+                         max(df$trial), max(dt_objfunc_cvg$cuts)),
       x = "NRMSE",
       y = "DECOMP.RSSD",
       colour = "Time [s]",
-    ) + theme_lares() +
-    facet_wrap(.data$trial~.)
+    ) +
+    theme_lares()
+  # facet_wrap(.data$trial~.)
 
   return(invisible(list(
     convergence_plot = plot,
     nevergrad_plot = models,
     errors = select(errors, -.data$alert)
   )))
-
 }

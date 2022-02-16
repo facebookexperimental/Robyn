@@ -79,10 +79,9 @@ robyn_run <- function(InputCollect,
   #####################################
   #### Run robyn_mmm on set_trials
 
-  OutputModels <- robyn_train(InputCollect,
-                              hyper_collect = hyps,
-                              dt_hyper_fixed, add_penalty_factor,
-                              refresh, seed, quiet
+  OutputModels <- robyn_train(
+    InputCollect, hyper_collect = hyps,
+    dt_hyper_fixed, add_penalty_factor,refresh, seed, quiet
   )
 
   attr(OutputModels, "hyper_fixed") <- hyps$all_fixed
@@ -93,7 +92,7 @@ robyn_run <- function(InputCollect,
   } else if (!hyps$all_fixed) {
     output <- robyn_outputs(InputCollect, OutputModels, ...)
   } else {
-    output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE)
+    output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
   # Check convergence
@@ -118,7 +117,7 @@ print.robyn_models <- function(x, ...) {
   print(glued(
     "
   Total trials: {sum(grepl('trial', names(x)))}
-  Iterations per trial (real): {nrow(x$trial1$resultCollect$resultHypParam)}
+  Iterations per trial (real): {total_iters}
   Runtime (minutes): {attr(x, 'runTime')}
 
   Updated Hyper-parameters:
@@ -128,14 +127,15 @@ print.robyn_models <- function(x, ...) {
     {convergence}
 
   ",
+    total_iters = if (!x$hyper_fixed) nrow(x$trial1$resultCollect$resultHypParam) else 0,
     iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
-    convergence = x$convergence$errors %>%
+    convergence = if (!x$hyper_fixed) x$convergence$errors %>%
       mutate(label = sprintf(
         "%s: sd = %s | Med. change = %s%%",
         .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2))) %>%
       group_by(.data$error_type) %>%
       mutate(id = row_number()) %>% filter(.data$id == max(.data$id)) %>%
-      pull(.data$label) %>% paste(collapse = "\n  "),
+      pull(.data$label) %>% paste(collapse = "\n  ") else NULL,
     hypers = flatten_hyps(x$hyper_updated)
   ))
 }
