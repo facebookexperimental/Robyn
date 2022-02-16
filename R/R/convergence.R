@@ -80,8 +80,23 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
          subtitle = paste(max(dt_objfunc_cvg$trial), "trials combined"),
          caption = if (!is.null(warnings)) paste(warnings, collapse = "\n") else NULL)
 
+  calibrated <- sum(df$mape) > 0
+  models <- ggplot(df, aes(x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
+    geom_point(size = 0.5) +
+    scale_colour_gradient(low = "navyblue", high = "skyblue") +
+    labs(
+      title = ifelse(!calibrated, "Multi-objective evolutionary performance",
+                     "Multi-objective evolutionary performance with calibration"),
+      subtitle = sprintf("%s trials with %s iterations each", max(df$trial), max(dt_objfunc_cvg$cuts)),
+      x = "NRMSE",
+      y = "DECOMP.RSSD",
+      colour = "Time [s]",
+    ) + theme_lares() +
+    facet_wrap(.data$trial~.)
+
   return(invisible(list(
-    plot = plot,
+    convergence_plot = plot,
+    nevergrad_plot = models,
     errors = select(errors, -.data$alert)
   )))
 

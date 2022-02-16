@@ -359,7 +359,6 @@ Cores: {x$cores} | Trials: {x$trials} | Iterations: {x$iterations}
 Model Variables ({ncol(x$dt_mod)-2}): {paste(setdiff(names(x$dt_mod),c('ds', 'dep_var')), collapse = ', ')}
 Adstock: {x$adstock}
 Hyper-parameters for media transformations:
->>>>>>> Stashed changes
 {flatten_hyps(x$hyperparameters)}
 ",
     range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),

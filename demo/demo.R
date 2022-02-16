@@ -318,8 +318,9 @@ OutputModels <- robyn_run(
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
-# Check errors convergence
-OutputModels$convergence$plot
+# Check convergence plots and errors
+OutputModels$convergence$convergence_plot
+OutputModels$convergence$nevergrad_plot
 
 # Output results and plots & export into local files
 OutputCollect <- robyn_outputs(
