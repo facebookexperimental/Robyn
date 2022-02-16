@@ -169,9 +169,9 @@ robyn_inputs <- function(dt_input = NULL,
                          prophet_country = NULL,
                          context_vars = NULL,
                          context_signs = NULL,
+                         paid_media_spends = NULL,
                          paid_media_vars = NULL,
                          paid_media_signs = NULL,
-                         paid_media_spends = NULL,
                          organic_vars = NULL,
                          organic_signs = NULL,
                          factor_vars = NULL,
@@ -200,7 +200,7 @@ robyn_inputs <- function(dt_input = NULL,
     # check vars names (duplicates and valid)
     check_varnames(dt_input, dt_holidays,
                    dep_var, date_var,
-                   context_vars, paid_media_vars,
+                   context_vars, paid_media_spends,
                    organic_vars)
 
     ## check date input (and set dayInterval and intervalType)
@@ -214,7 +214,7 @@ robyn_inputs <- function(dt_input = NULL,
     check_depvar(dt_input, dep_var, dep_var_type)
 
     ## check prophet
-    check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
+    prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
 
     ## check baseline variables (and maybe transform context_signs)
     context <- check_context(dt_input, context_vars, context_signs)
@@ -234,7 +234,7 @@ robyn_inputs <- function(dt_input = NULL,
     check_factorvars(factor_vars, context_vars, organic_vars)
 
     ## check all vars
-    all_media <- c(paid_media_vars, organic_vars)
+    all_media <- c(paid_media_spends, organic_vars)
     all_ind_vars <- c(prophet_vars, context_vars, all_media)
     check_allvars(all_ind_vars)
 
@@ -255,7 +255,9 @@ robyn_inputs <- function(dt_input = NULL,
     adstock <- check_adstock(adstock)
 
     ## check hyperparameters (if passed)
-    check_hyperparameters(hyperparameters, adstock, all_media)
+    hyperparameters <- check_hyperparameters(hyperparameters, adstock,
+                                             paid_media_spends, organic_vars,
+                                             exposure_vars)
 
     ## check calibration and iters/trials
     calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval)
@@ -347,7 +349,7 @@ print.robyn_inputs <- function(x, ...) {
   print(glued(
     "
 Total Observations: {nrow(x$dt_input)}
-Input Variables ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = ', ')}
+Input Table Columns ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = ', ')}
 Date Range: {range} ({nrow(x$dt_input)})
 Date Window: {windows} ({nrow(x$dt_modRollWind)})
 With Calibration: {!is.null(x$calibration_input)}
@@ -647,7 +649,7 @@ robyn_engineering <- function(InputCollect, ...) {
       prophet_signs = InputCollect$prophet_signs,
       factor_vars = factor_vars,
       context_vars = InputCollect$context_vars,
-      paid_media_vars = paid_media_vars,
+      paid_media_spends = paid_media_spends,
       intervalType = InputCollect$intervalType,
       custom_params = custom_params
     )
@@ -682,13 +684,13 @@ robyn_engineering <- function(InputCollect, ...) {
 #' @param prophet_signs As in \code{robyn_inputs()}
 #' @param factor_vars As in \code{robyn_inputs()}
 #' @param context_vars As in \code{robyn_inputs()}
-#' @param paid_media_vars As in \code{robyn_inputs()}
+#' @param paid_media_spends As in \code{robyn_inputs()}
 #' @param intervalType As included in \code{InputCollect}
 #' @param custom_params List. Custom parameters passed to \code{prophet()}
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
-                           factor_vars, context_vars, paid_media_vars,
+                           factor_vars, context_vars, paid_media_spends,
                            intervalType, custom_params) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
   recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
@@ -700,7 +702,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_season <- any(c(str_detect("season", prophet_vars), "yearly.seasonality" %in% names(custom_params)))
   use_weekday <- any(c(str_detect("weekday", prophet_vars), "weekly.seasonality" %in% names(custom_params)))
 
-  dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_vars)))
+  dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_spends)))
 
   prophet_params <- list(
     holidays = if (use_holiday) holidays[country == prophet_country] else NULL,

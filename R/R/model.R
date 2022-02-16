@@ -42,7 +42,6 @@ robyn_run <- function(InputCollect,
                       cores = NULL,
                       iterations = NULL,
                       trials = NULL,
-                      adstock = NULL,
                       intercept_sign = "non_negative",
                       nevergrad_algo = "TwoPointsDE",
                       ...) {
@@ -58,7 +57,6 @@ robyn_run <- function(InputCollect,
   if (!is.null(cores)) InputCollect$cores <- cores
   if (!is.null(iterations)) InputCollect$iterations <- iterations
   if (!is.null(trials)) InputCollect$trials <- trials
-  if (!is.null(adstock)) InputCollect$adstock <- adstock
   if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
   if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
   if (!is.null(iterations) | !is.null(trials)) {
@@ -197,7 +195,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 
     if (!quiet) {
       message(paste(
-        ">>> Start running", InputCollect$trials, "trials with",
+        ">>> Starting", InputCollect$trials, "trials with",
         InputCollect$iterations, "iterations per trial each",
         ifelse(is.null(InputCollect$calibration_input), "with", "with calibration and"),
         InputCollect$nevergrad_algo, "nevergrad algorithm..."
@@ -323,7 +321,7 @@ robyn_mmm <- function(InputCollect,
 
   dt_inputTrain <- InputCollect$dt_input[rollingWindowStartWhich:rollingWindowEndWhich]
   dt_spendShare <- dt_inputTrain[, .(
-    rn = paid_media_vars,
+    rn = paid_media_spends,
     total_spend = sapply(.SD, sum),
     mean_spend = sapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0])))
   ), .SDcols = paid_media_spends]
@@ -334,7 +332,7 @@ robyn_mmm <- function(InputCollect,
   dt_spendShareRF <- dt_inputTrain[
     refreshAddedStartWhich:rollingWindowLength,
     .(
-      rn = paid_media_vars,
+      rn = paid_media_spends,
       total_spend = sapply(.SD, sum),
       mean_spend = sapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0])))
     ),
@@ -509,7 +507,7 @@ robyn_mmm <- function(InputCollect,
           ## Define and set sign control
           dt_sign <- dt_modSaturated[, !"dep_var"] # names(dt_sign)
           x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
-          names(x_sign) <- c(prophet_vars, context_vars, paid_media_vars, organic_vars)
+          names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
           check_factor <- sapply(dt_sign, is.factor)
           lower.limits <- upper.limits <- c()
           for (s in 1:length(check_factor)) {
@@ -602,7 +600,7 @@ robyn_mmm <- function(InputCollect,
           #### calculate multi-objectives for pareto optimality
 
           ## decomp objective: sum of squared distance between decomp share and spend share to be minimised
-          dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_vars, .(
+          dt_decompSpendDist <- decompCollect$xDecompAgg[rn %in% paid_media_spends, .(
             rn, xDecompAgg, xDecompPerc, xDecompMeanNon0Perc, xDecompMeanNon0, xDecompPercRF, xDecompMeanNon0PercRF, xDecompMeanNon0RF
           )]
           dt_decompSpendDist <- dt_decompSpendDist[dt_spendShare[, .(
@@ -620,7 +618,7 @@ robyn_mmm <- function(InputCollect,
             decomp.rssd <- dt_decompSpendDist[, sqrt(sum((effect_share - spend_share)^2))]
           } else {
             dt_decompRF <- decompCollect$xDecompAgg[, .(rn, decomp_perc = xDecompPerc)][xDecompAggPrev[, .(rn, decomp_perc_prev = xDecompPerc)], on = "rn"]
-            decomp.rssd.nonmedia <- dt_decompRF[!(rn %in% paid_media_vars), sqrt(mean((decomp_perc - decomp_perc_prev)^2))]
+            decomp.rssd.nonmedia <- dt_decompRF[!(rn %in% paid_media_spends), sqrt(mean((decomp_perc - decomp_perc_prev)^2))]
             decomp.rssd.media <- dt_decompSpendDist[, sqrt(mean((effect_share_refresh - spend_share_refresh)^2))]
             decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia / (1 - refresh_steps / rollingWindowLength)
           }

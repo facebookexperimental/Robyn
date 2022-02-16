@@ -84,36 +84,23 @@ InputCollect <- robyn_inputs(
 
   ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday", "holiday"
   # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
-  ,prophet_signs = c("default","default", "default") # c("default", "positive", and "negative").
-  # Recommend as default.Must be same length as prophet_vars
   ,prophet_country = "DE"# only one country allowed once. Including national holidays
   # for 59 countries, whose list can be found on our github guide
-
   ,context_vars = c("competitor_sales_B", "events") # typically competitors, price &
   # promotion, temperature, unemployment rate etc
-  ,context_signs = c("default", "default") # c("default", " positive", and "negative"),
-  # control the signs of coefficients for baseline variables
-
-  ,paid_media_vars = c("tv_S", "ooh_S"	,	"print_S"	,"facebook_I" ,"search_clicks_P")
-  # c("tv_S"	,"ooh_S",	"print_S"	,"facebook_I", "facebook_S","search_clicks_P"	,"search_S")
-  # we recommend to use media exposure metrics like impressions, GRP etc for the model.
-  # If not applicable, use spend instead
-  ,paid_media_signs = c("positive", "positive","positive", "positive", "positive")
-  # c("default", "positive", and "negative"). must have same length as paid_media_vars.
-  # Controls the signs of coefficients for media variables
   ,paid_media_spends = c("tv_S","ooh_S",	"print_S"	,"facebook_S", "search_S")
   # spends must have same order and same length as paid_media_vars
-
+  ,paid_media_vars = c("tv_S", "ooh_S"	,	"print_S"	,"facebook_I" ,"search_clicks_P")
+  # Use media exposure metrics like impressions, GRP etc for the model.
+  # If not applicable, use spend instead
   ,organic_vars = c("newsletter")
-  ,organic_signs = c("positive") # must have same length as organic_vars
-
   ,factor_vars = c("events") # specify which variables in context_vars and
   # organic_vars are factorial
 
   ### set model parameters
 
   ## set cores for parallel computing
-  ,cores = future::availableCores() # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
+  #,cores = 6 # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
 
   ## set rolling window start
   ,window_start = "2016-11-23"
@@ -123,14 +110,14 @@ InputCollect <- robyn_inputs(
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-  ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
+  #,iterations = 500  # number of allowed iterations per trial. For the simulated dataset with 11 independent
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
-  ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
-  ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
+  #,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
+  #,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 2 # number of allowed trials. 5 is recommended without calibration,
+  #,trials = 2 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials
@@ -200,9 +187,9 @@ hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
 # Example hyperparameters for Geometric adstock
 hyperparameters <- list(
-  facebook_I_alphas = c(0.5, 3)
-  ,facebook_I_gammas = c(0.3, 1)
-  ,facebook_I_thetas = c(0, 0.3)
+  facebook_S_alphas = c(0.5, 3)
+  ,facebook_S_gammas = c(0.3, 1)
+  ,facebook_S_thetas = c(0, 0.3)
 
   ,print_S_alphas = c(0.5, 3)
   ,print_S_gammas = c(0.3, 1)
@@ -212,9 +199,9 @@ hyperparameters <- list(
   ,tv_S_gammas = c(0.3, 1)
   ,tv_S_thetas = c(0.3, 0.8)
 
-  ,search_clicks_P_alphas = c(0.5, 3)
-  ,search_clicks_P_gammas = c(0.3, 1)
-  ,search_clicks_P_thetas = c(0, 0.3)
+  ,search_S_alphas = c(0.5, 3)
+  ,search_S_gammas = c(0.3, 1)
+  ,search_S_thetas = c(0, 0.3)
 
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
@@ -226,16 +213,16 @@ hyperparameters <- list(
 )
 
 # Example hyperparameters for Weibull CDF adstock
-# facebook_I_alphas = c(0.5, 3)
-# facebook_I_gammas = c(0.3, 1)
-# facebook_I_shapes = c(0.0001, 2)
-# facebook_I_scales = c(0, 0.1)
+# facebook_S_alphas = c(0.5, 3)
+# facebook_S_gammas = c(0.3, 1)
+# facebook_S_shapes = c(0.0001, 2)
+# facebook_S_scales = c(0, 0.1)
 
 # Example hyperparameters for Weibull PDF adstock
-# facebook_I_alphas = c(0.5, 3
-# facebook_I_gammas = c(0.3, 1)
-# facebook_I_shapes = c(0.0001, 10)
-# facebook_I_scales = c(0, 0.1)
+# facebook_S_alphas = c(0.5, 3
+# facebook_S_gammas = c(0.3, 1)
+# facebook_S_shapes = c(0.0001, 10)
+# facebook_S_scales = c(0, 0.1)
 
 #### 2a-3: Third, add hyperparameters into robyn_inputs()
 
@@ -309,18 +296,21 @@ print(InputCollect)
 # Run all trials and iterations
 # Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
-  InputCollect = InputCollect, # feed in all model specification
-  outputs = FALSE # Export process using robyn_outputs()
+  InputCollect = InputCollect # feed in all model specification
+  , cores = 8
+  #, add_penalty_factor = TRUE
+  , iterations = 200
+  , trials = 3
+  , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
-# Check convergence plots and errors
-OutputModels$convergence$convergence_plot
-OutputModels$convergence$nevergrad_plot
+# Check errors convergence
+OutputModels$convergence$plot
 
 # Output results and plots & export into local files
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
-  , pareto_fronts = 1 # decrease pareto_fronts to get less output models
+  , pareto_fronts = 2 # decrease pareto_fronts to get less output models
   # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1. Details see ?robyn_outputs
   , csv_out = "pareto" # "pareto" or "all"
   , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
@@ -356,8 +346,9 @@ print(OutputCollect)
 #                       k = "auto", limit = 1,
 #                       weights = c(1, 1, 1.5))
 
-print(OutputCollect) # get all model IDs in result
-select_model <- "3_98_16" # select one from above
+OutputCollect$allSolutions # get all model IDs in result
+# OutputCollect$clusters$models # or from reduced results using obyn_clusters()
+select_model <- "1_24_3" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -388,6 +379,9 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
+
+# View allocator result. Last column "optmResponseUnitTotalLift" is the total response lift.
+AllocatorCollect$dt_optimOut
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -499,8 +493,8 @@ Response2/Spend2 # ROI for search 81k
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-16 15.52 rf1/pareto_hyperparameters.csv")
-select_model <- "1_26_11" # one of dt_hyper_fixed$solID
+dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-11 13.39 init/pareto_hyperparameters.csv")
+select_model <- "1_102_2"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(

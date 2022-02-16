@@ -152,7 +152,7 @@ print.robyn_outputs <- function(x, ...) {
 Plot Folder: {x$plot_folder}
 Calibration Constraint: {x$calibration_constraint}
 Hyper-parameters fixed: {x$hyper_fixed}
-Pareto-front ({x$pareto_fronts}) Solutions ({nSols}): {paste(x$allSolutions, collapse = ', ')}
+Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions, collapse = ', ')}
 {clusters_info}
 ",
     nSols = length(x$allSolutions),

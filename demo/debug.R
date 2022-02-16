@@ -38,6 +38,11 @@ seed = 123
 outputs = FALSE
 quiet = FALSE
 add_penalty_factor = FALSE
+cores = NULL
+iterations = NULL
+trials = NULL
+intercept_sign = "non_negative"
+nevergrad_algo = "TwoPointsDE"
 
 ## debug robyn_train
 args(robyn_train)

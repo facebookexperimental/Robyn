@@ -12,7 +12,7 @@ prophet_decomp(
   prophet_signs,
   factor_vars,
   context_vars,
-  paid_media_vars,
+  paid_media_spends,
   intervalType,
   custom_params
 )
@@ -32,7 +32,7 @@ prophet_decomp(
 
 \item{context_vars}{As in \code{robyn_inputs()}}
 
-\item{paid_media_vars}{As in \code{robyn_inputs()}}
+\item{paid_media_spends}{As in \code{robyn_inputs()}}
 
 \item{intervalType}{As included in \code{InputCollect}}
 

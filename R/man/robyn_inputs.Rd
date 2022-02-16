@@ -16,9 +16,9 @@ robyn_inputs(
   prophet_country = NULL,
   context_vars = NULL,
   context_signs = NULL,
+  paid_media_spends = NULL,
   paid_media_vars = NULL,
   paid_media_signs = NULL,
-  paid_media_spends = NULL,
   organic_vars = NULL,
   organic_signs = NULL,
   factor_vars = NULL,
@@ -76,6 +76,12 @@ price & promotion, temperature, unemployment rate, etc.}
 the signs of coefficients for context_vars. Must have same
 order and same length as \code{context_vars}.}
 
+\item{paid_media_spends}{Character vector. When using exposure level
+metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
+corresponding spends for ROAS calculation. For spend metrics in
+\code{paid_media_vars}, use the same name. \code{media_spend_vars} must
+have same order and same length as \code{paid_media_vars}.}
+
 \item{paid_media_vars}{Character vector. Recommended to use exposure
 level metrics (impressions, clicks, GRP etc) other than spend. Also
 recommended to split media channel into sub-channels
@@ -86,12 +92,6 @@ paid_media_vars only accept numerical variable}
 \code{c("default", "positive", "negative")}. Control
 the signs of coefficients for paid_media_vars. Must have same
 order and same length as \code{paid_media_vars}.}
-
-\item{paid_media_spends}{Character vector. When using exposure level
-metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
-corresponding spends for ROAS calculation. For spend metrics in
-\code{paid_media_vars}, use the same name. \code{media_spend_vars} must
-have same order and same length as \code{paid_media_vars}.}
 
 \item{organic_vars}{Character vector. Typically newsletter sendings,
 push-notifications, social media posts etc. Compared to paid_media_vars
