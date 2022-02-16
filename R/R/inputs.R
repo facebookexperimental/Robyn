@@ -307,7 +307,7 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(hyperparameters)) {
       ### conditional output 1.2
       ## running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
-      check_iteration(calibration_input, iterations, trials)
+      if (!is.null(iterations) & !is.null(trials)) check_iteration(calibration_input, iterations, trials)
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
   } else {
@@ -356,9 +356,10 @@ Custom parameters: {custom_params}
 
 Cores: {x$cores} | Trials: {x$trials} | Iterations: {x$iterations}
 
-Model Variables ({ncol(x$dt_mod)}): {paste(names(x$dt_mod), collapse = ', ')}
+Model Variables ({ncol(x$dt_mod)-2}): {paste(setdiff(names(x$dt_mod),c('ds', 'dep_var')), collapse = ', ')}
 Adstock: {x$adstock}
-Hyper-parameters:
+Hyper-parameters for media transformations:
+>>>>>>> Stashed changes
 {flatten_hyps(x$hyperparameters)}
 ",
     range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),

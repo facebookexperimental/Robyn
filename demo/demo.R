@@ -123,14 +123,14 @@ InputCollect <- robyn_inputs(
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-  ,iterations = 1000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
+  ,iterations = 500  # number of allowed iterations per trial. For the simulated dataset with 11 independent
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
   ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 1 # number of allowed trials. 5 is recommended without calibration,
+  ,trials = 2 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials
@@ -310,6 +310,11 @@ print(InputCollect)
 # Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
+  , cores = 8
+  #, add_penalty_factor = TRUE
+  , iterations = 1000
+  , trials = 1
+  , adstock = "geometric"
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
@@ -357,7 +362,7 @@ print(OutputCollect)
 
 OutputCollect$allSolutions # get all model IDs in result
 # OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "1_119_2" # select one from above
+select_model <- "1_111_2" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -439,8 +444,8 @@ Robyn <- robyn_refresh(
   , dt_input = dt_simulated_weekly
   , dt_holidays = dt_prophet_holidays
   , refresh_steps = 4
-  , refresh_mode = "auto"
-  , refresh_iters = 1000 # Iteration for refresh. 600 is rough estimation. We'll still
+  , refresh_mode = "manual"
+  , refresh_iters = 500 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
   , refresh_trials = 1
   , clusters = TRUE
