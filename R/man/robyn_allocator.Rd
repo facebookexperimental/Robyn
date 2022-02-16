@@ -2,6 +2,7 @@
 % Please edit documentation in R/allocator.R
 \name{robyn_allocator}
 \alias{robyn_allocator}
+\alias{print.robyn_allocator}
 \title{Robyn budget allocator}
 \usage{
 robyn_allocator(
@@ -22,6 +23,8 @@ robyn_allocator(
   quiet = FALSE,
   ui = FALSE
 )
+
+\method{print}{robyn_allocator}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
@@ -78,6 +81,10 @@ indicating constraints with equality or inequality.}
 \item{quiet}{Boolean. Keep messages off?}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
+
+\item{x}{robyn_allocator object}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
 A list object containing allocator result.

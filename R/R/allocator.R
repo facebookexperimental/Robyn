@@ -312,7 +312,8 @@ robyn_allocator <- function(robyn_object = NULL,
     optmResponseUnit = -eval_f(nlsMod$solution)[["objective.channel"]],
     optmResponseUnitTotal = sum(-eval_f(nlsMod$solution)[["objective.channel"]]),
     optmRoiUnit = -eval_f(nlsMod$solution)[["objective.channel"]] / nlsMod$solution,
-    optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) - 1
+    optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) - 1,
+    solID = select_model
   )
   dt_optimOut[, optmResponseUnitTotalLift := (optmResponseUnitTotal / initResponseUnitTotal) - 1]
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
@@ -323,12 +324,51 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Export results into CSV
   if (export) fwrite(dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
 
-  return(list(
+  output <- list(
     dt_optimOut = dt_optimOut,
     nlsMod = nlsMod,
-    ui = if (ui) plots else NULL))
+    ui = if (ui) plots else NULL)
+
+  class(output) <- c("robyn_allocator", class(output))
+  return(output)
 
 }
+
+#' @rdname robyn_allocator
+#' @aliases robyn_allocator
+#' @param x robyn_allocator object
+#' @export
+print.robyn_allocator <- function(x, ...) {
+  print(glued(
+    "
+Model ID: {x$dt_optimOut$solID[1]}
+Total Spend Increase: {spend_increase}
+Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
+
+Allocation Summary:
+  {summary}
+",
+    spend_increase = formatNum(
+      sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
+      abbr = TRUE),
+    summary = paste(sprintf(
+      "
+- %s:
+  Spend Share: Initial (avg) = %s%% -> Optimized = %s%%
+  Mean Response (per time unit): %s -> Optimized = %s
+  Response: %s -> Optimized = %s (Delta = %s%%)",
+      x$dt_optimOut$channels,
+      signif(100 * x$dt_optimOut$initSpendShare, 3),
+      signif(100 * x$dt_optimOut$optmSpendShareUnit, 3),
+      formatNum(x$dt_optimOut$initResponseUnit, 0),
+      formatNum(x$dt_optimOut$optmResponseUnit, 0),
+      formatNum(x$dt_optimOut$initSpendUnit, 3, abbr = TRUE),
+      formatNum(x$dt_optimOut$optmSpendUnit, 3, abbr = TRUE),
+      formatNum(100 * x$dt_optimOut$optmSpendUnitDelta, signif = 2)
+    ), collapse = "\n  ")
+  ))
+}
+
 
 robyn_import <- function(robyn_object, select_build, quiet) {
   if (!file.exists(robyn_object)) {

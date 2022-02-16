@@ -326,6 +326,7 @@ OutputCollect <- robyn_outputs(
   , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers
   , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
 )
+print(OutputCollect)
 
 # Run & output in one go
 # OutputCollect <- robyn_run(
@@ -403,6 +404,7 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend = 1000000 # Total spend to be simulated
   , expected_spend_days = 7 # Duration of expected_spend in days
 )
+print(AllocatorCollect)
 
 # View allocator result. Column "optmResponseUnitTotal" is the maximum unit (weekly with
 # simulated dataset) response. "optmSpendShareUnit" is the optimum spend share.

@@ -151,14 +151,14 @@ print.robyn_outputs <- function(x, ...) {
     "
 Plot Folder: {x$plot_folder}
 Calibration Constraint: {x$calibration_constraint}
-Pareto-front ({x$pareto_fronts}) Solutions: {paste(x$allSolutions, collapse = ', ')}
+Hyper-parameters fixed: {x$hyper_fixed}
+Pareto-front ({x$pareto_fronts}) Solutions ({nSols}): {paste(x$allSolutions, collapse = ', ')}
 {clusters_info}
 ",
+    nSols = length(x$allSolutions),
     clusters_info = if ("clusters" %in% names(x))
       glued(
-        "
-\nClusters: k = {x$clusters$n_clusters}
-{paste(sprintf('%s: %s', x$clusters$models$cluster, x$clusters$models$solID), collapse = '\n')}"
+        "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
       ) else NULL
   ))
 }
