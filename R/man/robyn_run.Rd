@@ -2,6 +2,7 @@
 % Please edit documentation in R/model.R
 \name{robyn_run}
 \alias{robyn_run}
+\alias{print.robyn_models}
 \title{The major Robyn modelling function}
 \usage{
 robyn_run(
@@ -14,6 +15,8 @@ robyn_run(
   quiet = FALSE,
   ...
 )
+
+\method{print}{robyn_models}(x, ...)
 }
 \arguments{
 \item{InputCollect}{List. Contains all input parameters for the model.
@@ -34,6 +37,8 @@ glmnet's penalty.factor to be optimized by nevergrad?}
 \item{quiet}{Boolean. Keep messages off?}
 
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
+
+\item{x}{robyn_models object}
 }
 \description{
 The \code{robyn_run()} function consumes output from \code{robyn_input()},

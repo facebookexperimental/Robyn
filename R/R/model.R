@@ -55,7 +55,7 @@ robyn_run <- function(InputCollect,
 
   # hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
   hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters,
-    add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed
+                          add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed
   )
   InputCollect$hyper_updated <- hyps$hyper_list_all
 
@@ -63,9 +63,9 @@ robyn_run <- function(InputCollect,
   #### Run robyn_mmm on set_trials
 
   OutputModels <- robyn_train(InputCollect,
-    hyper_collect = hyps,
-    dt_hyper_fixed, add_penalty_factor,
-    refresh, seed, quiet
+                              hyper_collect = hyps,
+                              dt_hyper_fixed, add_penalty_factor,
+                              refresh, seed, quiet
   )
 
   attr(OutputModels, "hyper_fixed") <- hyps$all_fixed
@@ -89,9 +89,43 @@ robyn_run <- function(InputCollect,
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
   if (!quiet) message(paste("Total run time:", attr(output, "runTime"), "mins"))
 
-  class(OutputModels) <- c("robyn_models", class(OutputModels))
-
+  class(output) <- c("robyn_models", class(output))
   return(invisible(output))
+}
+
+#' @rdname robyn_run
+#' @aliases robyn_run
+#' @param x robyn_models object
+#' @export
+print.robyn_models <- function(x, ...) {
+  print(lares::glued(
+    "
+  Total trials: {sum(grepl('trial', names(x)))}
+  Iterations per trial (real): {nrow(x$trial1$resultCollect$resultHypParam)}
+  Runtime (minutes): {attr(x, 'runTime')}
+
+  Updated Hyper-parameters:
+  {hypers}
+
+  Convergence on last quantile (all trials, iters {iters}):
+    {convergence}
+
+  ",
+    iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
+    convergence = x$convergence$errors %>%
+      mutate(label = sprintf(
+        "%s: sd = %s | Med. change = %s%%",
+        .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2))) %>%
+      group_by(.data$error_type) %>%
+      mutate(id = row_number()) %>% filter(.data$id == max(.data$id)) %>%
+      pull(.data$label) %>% paste(collapse = "\n  "),
+    hypers = flatten_hyps(x$hyper_updated)
+  ))
+}
+
+flatten_hyps <- function(x) {
+  temp <- sapply(x, function(x) sprintf("[%s]", paste(x, collapse = ", ")))
+  paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
 }
 
 
