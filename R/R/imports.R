@@ -28,7 +28,7 @@
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
-#' @importFrom lares check_opts clusterKmeans formatNum freqs removenacols theme_lares `%>%`
+#' @importFrom lares check_opts clusterKmeans formatNum freqs glued removenacols theme_lares `%>%`
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr

@@ -98,7 +98,7 @@ robyn_run <- function(InputCollect,
 #' @param x robyn_models object
 #' @export
 print.robyn_models <- function(x, ...) {
-  print(lares::glued(
+  print(glued(
     "
   Total trials: {sum(grepl('trial', names(x)))}
   Iterations per trial (real): {nrow(x$trial1$resultCollect$resultHypParam)}

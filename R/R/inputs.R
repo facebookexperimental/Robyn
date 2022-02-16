@@ -344,7 +344,7 @@ robyn_inputs <- function(dt_input = NULL,
 #' @param x robyn_inputs object
 #' @export
 print.robyn_inputs <- function(x, ...) {
-  print(lares::glued(
+  print(glued(
     "
 Total Observations: {nrow(x$dt_input)}
 Input Variables ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = ', ')}
@@ -356,8 +356,8 @@ Custom parameters: {custom_params}
 
 Cores: {x$cores} | Trials: {x$trials} | Iterations: {x$iterations}
 
-Adstock: {x$adstock}
 Model Variables ({ncol(x$dt_mod)}): {paste(names(x$dt_mod), collapse = ', ')}
+Adstock: {x$adstock}
 Hyper-parameters:
 {flatten_hyps(x$hyperparameters)}
 ",
@@ -366,7 +366,6 @@ Hyper-parameters:
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None"
   ))
 }
-
 
 
 ####################################################################
