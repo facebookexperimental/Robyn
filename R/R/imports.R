@@ -63,7 +63,7 @@ dt_vars <- c(
   "theta", "theta_halflife", "total_spend", "trend", "trial", "type", "value", "variable",
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
   "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat",
-  "respN","iteration","variables","iter_bin", "thetas", "cut_time", "exposure_vars"
+  "respN","iteration","variables","iter_bin", "thetas", "cut_time", "exposure_vars", "OutputModels"
 )
 
 if (getRversion() >= "2.15.1") {

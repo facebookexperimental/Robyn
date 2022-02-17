@@ -539,7 +539,7 @@ check_class <- function(x, object) {
  if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }
 
-check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenario,
+check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
                             channel_constr_low, channel_constr_up,
                             expected_spend, expected_spend_days, constr_mode) {
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
@@ -561,11 +561,11 @@ check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenar
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
   if (length(channel_constr_up) != 1) {
-    if (length(channel_constr_low) != length(paid_media_vars) |
-        length(channel_constr_up) != length(paid_media_vars)) {
+    if (length(channel_constr_low) != length(paid_media_spends) |
+        length(channel_constr_up) != length(paid_media_spends)) {
       stop(paste(
         "Inputs 'channel_constr_low' & 'channel_constr_up' have to contain either only 1",
-        "value or have same length as 'InputCollect$paid_media_vars'"
+        "value or have same length as 'InputCollect$paid_media_spends'"
       ))
     }
   }
@@ -578,4 +578,14 @@ check_allocator <- function(OutputCollect, select_model, paid_media_vars, scenar
   if (!(constr_mode %in% opts)) {
     stop("Input 'constr_mode' must be one of: ", paste(opts, collapse = ", "))
   }
+}
+
+check_legacy_input <- function(InputCollect, cores, iterations, trials
+                               , intercept_sign, nevergrad_algo) {
+  if (!is.null(cores)) InputCollect$cores <- cores
+  if (!is.null(iterations)) InputCollect$iterations <- iterations
+  if (!is.null(trials)) InputCollect$trials <- trials
+  if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
+  if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
+  return(InputCollect)
 }

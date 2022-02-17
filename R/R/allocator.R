@@ -44,7 +44,7 @@
 #' = 0.7} means minimum spend of the variable is 70% of historical average. Lower bound must
 #' be >=0.01. \code{channel_constr_up = 1.5} means maximum spend of the variable is 150% of
 #' historical average. Upper bound must be >= lower bound. Both must have same length and order
-#' as \code{paid_media_vars}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
+#' as \code{paid_media_spends}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
 #' new level is way higher than historical level.
 #' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
 #' Defaults to 100000.
@@ -128,7 +128,7 @@ robyn_allocator <- function(robyn_object = NULL,
     paid_media_spends <- InputCollect$paid_media_spends
     mediaVarSorted <- paid_media_vars[media_order]
     mediaSpendSorted <- paid_media_spends[media_order]
-    exposureVarName <- InputCollect$exposureVarName
+    exposure_vars <- InputCollect$exposure_vars
     startRW <- InputCollect$rollingWindowStartWhich
     endRW <- InputCollect$rollingWindowEndWhich
     adstock <- InputCollect$adstock
@@ -136,14 +136,14 @@ robyn_allocator <- function(robyn_object = NULL,
   }
 
   ## Check inputs and parameters
-  check_allocator(OutputCollect, select_model, paid_media_vars, scenario,
+  check_allocator(OutputCollect, select_model, paid_media_spends, scenario,
                   channel_constr_low, channel_constr_up,
                   expected_spend, expected_spend_days, constr_mode)
 
-  names(channel_constr_low) <- paid_media_vars
-  names(channel_constr_up) <- paid_media_vars
+  names(channel_constr_low) <- paid_media_spends
+  names(channel_constr_up) <- paid_media_spends
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
-  dt_bestCoef <- OutputCollect$xDecompAgg[solID == select_model & rn %in% paid_media_vars]
+  dt_bestCoef <- OutputCollect$xDecompAgg[solID == select_model & rn %in% paid_media_spends]
   dt_mediaSpend <- dt_input[startRW:endRW, mediaSpendSorted, with = FALSE]
 
   ## Sort table and get filter for channels mmm coef reduced to 0
@@ -155,35 +155,35 @@ robyn_allocator <- function(robyn_object = NULL,
   names(coefSelectorSorted) <- dt_coefSorted$rn
 
   ## Filter and sort all variables by name that is essential for the apply function later
-  mediaVarSortedFiltered <- mediaVarSorted[coefSelectorSorted]
+  #mediaVarSortedFiltered <- mediaVarSorted[coefSelectorSorted]
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   if (!all(coefSelectorSorted)) {
-    chn_coef0 <- setdiff(mediaVarSorted, mediaVarSortedFiltered)
+    chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSortedFiltered)
     message(paste(chn_coef0, collapse = ", "), " are excluded in optimiser because their coeffients are 0")
   }
   dt_hyppar <- dt_hyppar[, .SD, .SDcols = na.omit(
-    str_extract(names(dt_hyppar), paste(paste0(mediaVarSortedFiltered, ".*"), collapse = "|"))
+    str_extract(names(dt_hyppar), paste(paste0(mediaSpendSortedFiltered, ".*"), collapse = "|"))
   )]
   setcolorder(dt_hyppar, sort(names(dt_hyppar)))
-  dt_optim <- dt_mod[, mediaVarSortedFiltered, with = FALSE]
+  dt_optim <- dt_mod[, mediaSpendSortedFiltered, with = FALSE]
   dt_optimCost <- dt_input[startRW:endRW, mediaSpendSortedFiltered, with = FALSE]
-  dt_bestCoef <- dt_bestCoef[rn %in% mediaVarSortedFiltered]
-  costMultiplierVec <- InputCollect$mediaCostFactor[mediaVarSortedFiltered]
+  dt_bestCoef <- dt_bestCoef[rn %in% mediaSpendSortedFiltered]
+  costMultiplierVec <- InputCollect$mediaCostFactor[mediaSpendSortedFiltered]
 
-  if (any(InputCollect$exposure_selector)) {
-    dt_modNLS <- merge(data.table(channel = mediaVarSortedFiltered), spendExpoMod, all.x = TRUE, by = "channel")
-    vmaxVec <- dt_modNLS[order(rank(channel))][, Vmax]
-    names(vmaxVec) <- mediaVarSortedFiltered
-    kmVec <- dt_modNLS[order(rank(channel))][, Km]
-    names(kmVec) <- mediaVarSortedFiltered
-  } else {
-    vmaxVec <- rep(0, length(mediaVarSortedFiltered))
-    kmVec <- rep(0, length(mediaVarSortedFiltered))
-  }
+  # if (any(InputCollect$exposure_selector)) {
+  #   dt_modNLS <- merge(data.table(channel = mediaVarSortedFiltered), spendExpoMod, all.x = TRUE, by = "channel")
+  #   vmaxVec <- dt_modNLS[order(rank(channel))][, Vmax]
+  #   names(vmaxVec) <- mediaVarSortedFiltered
+  #   kmVec <- dt_modNLS[order(rank(channel))][, Km]
+  #   names(kmVec) <- mediaVarSortedFiltered
+  # } else {
+  #   vmaxVec <- rep(0, length(mediaVarSortedFiltered))
+  #   kmVec <- rep(0, length(mediaVarSortedFiltered))
+  # }
 
-  exposure_selectorSorted <- InputCollect$exposure_selector[media_order]
-  exposure_selectorSorted <- exposure_selectorSorted[coefSelectorSorted]
-  exposure_selectorSortedFiltered <- exposure_selectorSorted[mediaVarSortedFiltered]
+  # exposure_selectorSorted <- InputCollect$exposure_selector[media_order]
+  # exposure_selectorSorted <- exposure_selectorSorted[coefSelectorSorted]
+  # exposure_selectorSortedFiltered <- exposure_selectorSorted[mediaVarSortedFiltered]
   channelConstrLowSorted <- channel_constr_low[media_order][coefSelectorSorted]
   channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
 
@@ -192,23 +192,23 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Get hill parameters for each channel
   hills <- get_hill_params(
-    InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model)
+    InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model)
   alphas <- hills$alphas
   gammaTrans <- hills$gammaTrans
   coefsFiltered <- hills$coefsFiltered
 
-  ## build evaluation funciton
-  if (!is.null(spendExpoMod)) {
-    mm_lm_coefs <- spendExpoMod$coef_lm
-    names(mm_lm_coefs) <- spendExpoMod$channel
-  } else {
-    mm_lm_coefs <- c()
-  }
+  # ## build evaluation funciton
+  # if (!is.null(spendExpoMod)) {
+  #   mm_lm_coefs <- spendExpoMod$coef_lm
+  #   names(mm_lm_coefs) <- spendExpoMod$channel
+  # } else {
+  #   mm_lm_coefs <- c()
+  # }
 
   ## Build constraints function with scenarios
   nPeriod <- nrow(dt_optimCost)
   xDecompAggMedia <- OutputCollect$xDecompAgg[
-    solID == select_model & rn %in% InputCollect$paid_media_vars][order(rank(rn))]
+    solID == select_model & rn %in% paid_media_spends][order(rank(rn))]
 
   if ("max_historical_response" %in% scenario) {
     expected_spend <- sum(xDecompAggMedia$total_spend)
@@ -219,14 +219,14 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Gather all values that will be used internally on optim (nloptr)
   eval_list <- list(
-    mm_lm_coefs = mm_lm_coefs,
+    #mm_lm_coefs = mm_lm_coefs,
     coefsFiltered = coefsFiltered,
     alphas = alphas,
     gammaTrans = gammaTrans,
-    mediaVarSortedFiltered = mediaVarSortedFiltered,
-    exposure_selectorSortedFiltered = exposure_selectorSortedFiltered,
-    vmaxVec = vmaxVec,
-    kmVec = kmVec,
+    mediaSpendSortedFiltered = mediaSpendSortedFiltered,
+    # exposure_selectorSortedFiltered = exposure_selectorSortedFiltered,
+    # vmaxVec = vmaxVec,
+    # kmVec = kmVec,
     expSpendUnitTotal = expSpendUnitTotal)
   # So we can implicitly use these values within eval_f()
   # optim_env <- new.env(parent = globalenv())
@@ -243,18 +243,18 @@ robyn_allocator <- function(robyn_object = NULL,
 
   histSpend <- xDecompAggMedia[, .(rn, total_spend)]
   histSpend <- histSpend$total_spend
-  names(histSpend) <- sort(InputCollect$paid_media_vars)
+  names(histSpend) <- sort(InputCollect$paid_media_spends)
   histSpendTotal <- sum(histSpend)
   histSpendUnitTotal <- sum(xDecompAggMedia$mean_spend)
-  histSpendUnit <- xDecompAggMedia[rn %in% mediaVarSortedFiltered, mean_spend]
-  names(histSpendUnit) <- mediaVarSortedFiltered
+  histSpendUnit <- xDecompAggMedia[rn %in% mediaSpendSortedFiltered, mean_spend]
+  names(histSpendUnit) <- mediaSpendSortedFiltered
   histSpendShare <- histSpendUnit/histSpendUnitTotal
-  names(histSpendShare) <- mediaVarSortedFiltered
+  names(histSpendShare) <- mediaSpendSortedFiltered
 
   # QA: check if objective function correctly implemented
   histResponseUnitModel <- setNames(
-    xDecompAggMedia[rn %in% mediaVarSortedFiltered, get("mean_response")],
-    mediaVarSortedFiltered)
+    xDecompAggMedia[rn %in% mediaSpendSortedFiltered, get("mean_response")],
+    mediaSpendSortedFiltered)
   histResponseUnitAllocator <- unlist(-eval_f(histSpendUnit)[["objective.channel"]])
   identical(round(histResponseUnitModel, 3), round(histResponseUnitAllocator, 3))
 
@@ -292,8 +292,8 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Collect output
   dt_bestModel <- dt_bestCoef[, .(rn, mean_spend, xDecompAgg, roi_total, roi_mean)][order(rank(rn))]
   dt_optimOut <- data.table(
-    channels = mediaVarSortedFiltered,
-    histSpend = histSpend[mediaVarSortedFiltered],
+    channels = mediaSpendSortedFiltered,
+    histSpend = histSpend[mediaSpendSortedFiltered],
     histSpendTotal = histSpendTotal,
     initSpendUnitTotal = histSpendUnitTotal,
     initSpendUnit = histSpendUnit,
@@ -400,26 +400,29 @@ eval_f <- function(X) {
 
   # eval_list <- get("eval_list", pos = as.environment(-1))
   eval_list <- getOption("ROBYN_TEMP")
-  mm_lm_coefs <- eval_list[["mm_lm_coefs"]]
+  #mm_lm_coefs <- eval_list[["mm_lm_coefs"]]
   coefsFiltered <- eval_list[["coefsFiltered"]]
   alphas <- eval_list[["alphas"]]
   gammaTrans <- eval_list[["gammaTrans"]]
-  mediaVarSortedFiltered <- eval_list[["mediaVarSortedFiltered"]]
-  exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
-  vmaxVec <- eval_list[["vmaxVec"]]
-  kmVec <- eval_list[["kmVec"]]
+  mediaSpendSortedFiltered <- eval_list[["mediaSpendSortedFiltered"]]
+  #exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
+  #vmaxVec <- eval_list[["vmaxVec"]]
+  #kmVec <- eval_list[["kmVec"]]
 
-  fx_objective <- function(x, coeff, alpha, gammaTran, chnName, vmax, km, criteria) {
+  fx_objective <- function(x, coeff, alpha, gammaTran
+                           #, chnName, vmax, km, criteria
+                           ) {
     # Apply Michaelis Menten model to scale spend to exposure
-    if (criteria) {
-      xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
-    } else if (chnName %in% names(mm_lm_coefs)) {
-      xScaled <- x * mm_lm_coefs[chnName]
-    } else {
-      xScaled <- x
-    }
+    # if (criteria) {
+    #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
+    # } else if (chnName %in% names(mm_lm_coefs)) {
+    #   xScaled <- x * mm_lm_coefs[chnName]
+    # } else {
+    #   xScaled <- x
+    # }
+
     # Adstock scales
-    xAdstocked <- xScaled
+    xAdstocked <- x
     # Hill transformation
     xOut <- coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
     xOut
@@ -432,25 +435,28 @@ eval_f <- function(X) {
     coeff = coefsFiltered,
     alpha = alphas,
     gammaTran = gammaTrans,
-    chnName = mediaVarSortedFiltered,
-    vmax = vmaxVec,
-    km = kmVec,
-    criteria = exposure_selectorSortedFiltered,
+    # chnName = mediaSpendSortedFiltered,
+    # vmax = vmaxVec,
+    # km = kmVec,
+    # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
 
   # https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
-  fx_gradient <- function(x, coeff, alpha, gammaTran, chnName, vmax, km, criteria) {
+  fx_gradient <- function(x, coeff, alpha, gammaTran
+                          #, chnName, vmax, km, criteria
+                          ) {
     # Apply Michaelis Menten model to scale spend to exposure
-    if (criteria) {
-      xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
-    } else if (chnName %in% names(mm_lm_coefs)) {
-      xScaled <- x * mm_lm_coefs[chnName]
-    } else {
-      xScaled <- x
-    }
+    # if (criteria) {
+    #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
+    # } else if (chnName %in% names(mm_lm_coefs)) {
+    #   xScaled <- x * mm_lm_coefs[chnName]
+    # } else {
+    #   xScaled <- x
+    # }
+
     # Adstock scales
-    xAdstocked <- xScaled
+    xAdstocked <- x
     xOut <- -coeff * sum((alpha * (gammaTran**alpha) * (xAdstocked**(alpha - 1))) / (xAdstocked**alpha + gammaTran**alpha)**2)
     return(xOut)
   }
@@ -461,24 +467,27 @@ eval_f <- function(X) {
     coeff = coefsFiltered,
     alpha = alphas,
     gammaTran = gammaTrans,
-    chnName = mediaVarSortedFiltered,
-    vmax = vmaxVec,
-    km = kmVec,
-    criteria = exposure_selectorSortedFiltered,
+    # chnName = mediaSpendSortedFiltered,
+    # vmax = vmaxVec,
+    # km = kmVec,
+    # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
 
-  fx_objective.chanel <- function(x, coeff, alpha, gammaTran, chnName, vmax, km, criteria) {
+  fx_objective.chanel <- function(x, coeff, alpha, gammaTran
+                                  #, chnName, vmax, km, criteria
+                                  ) {
     # Apply Michaelis Menten model to scale spend to exposure
-    if (criteria) {
-      xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
-    } else if (chnName %in% names(mm_lm_coefs)) {
-      xScaled <- x * mm_lm_coefs[chnName]
-    } else {
-      xScaled <- x
-    }
+    # if (criteria) {
+    #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
+    # } else if (chnName %in% names(mm_lm_coefs)) {
+    #   xScaled <- x * mm_lm_coefs[chnName]
+    # } else {
+    #   xScaled <- x
+    # }
+
     # Adstock scales
-    xAdstocked <- xScaled
+    xAdstocked <- x
     xOut <- -coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
     return(xOut)
   }
@@ -489,10 +498,10 @@ eval_f <- function(X) {
     coeff = coefsFiltered,
     alpha = alphas,
     gammaTran = gammaTrans,
-    chnName = mediaVarSortedFiltered,
-    vmax = vmaxVec,
-    km = kmVec,
-    criteria = exposure_selectorSortedFiltered,
+    # chnName = mediaSpendSortedFiltered,
+    # vmax = vmaxVec,
+    # km = kmVec,
+    # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   )
 
@@ -529,14 +538,14 @@ get_adstock_params <- function(InputCollect, dt_hyppar) {
   return(getAdstockHypPar)
 }
 
-get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaVarSortedFiltered, select_model) {
+get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model) {
   hillHypParVec <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))])
   alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
   gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
   chnAdstocked <- OutputCollect$mediaVecCollect[
-    type == "adstockedMedia" & solID == select_model, mediaVarSortedFiltered,
+    type == "adstockedMedia" & solID == select_model, mediaSpendSortedFiltered,
     with = FALSE][startRW:endRW]
   gammaTrans <- mapply(function(gamma, x) {
     round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
@@ -544,7 +553,7 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
   names(gammaTrans) <- names(gammas)
   coefs <- dt_coef[, coef]
   names(coefs) <- dt_coef[, rn]
-  coefsFiltered <- coefs[mediaVarSortedFiltered]
+  coefsFiltered <- coefs[mediaSpendSortedFiltered]
   return(list(
     alphas = alphas,
     gammaTrans = gammaTrans,

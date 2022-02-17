@@ -224,7 +224,7 @@ robyn_inputs <- function(dt_input = NULL,
     paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
     paid_media_signs <- paidmedia$paid_media_signs
     mediaVarCount <- paidmedia$mediaVarCount
-    exposureVarName <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
+    exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
     ## check organic media variables (and maybe transform organic_signs)
     organic <- check_organicvars(dt_input, organic_vars, organic_signs)
@@ -283,7 +283,7 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
       mediaVarCount = mediaVarCount,
-      exposureVarName = exposureVarName,
+      exposure_vars = exposure_vars,
       organic_vars = organic_vars,
       organic_signs = organic_signs,
       all_media = all_media,

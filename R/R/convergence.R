@@ -6,7 +6,8 @@
 check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
 
   # Gather all trials
-  OutModels <- OutputModels[grepl("trial", names(OutputModels))]
+  get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))
+  OutModels <- OutputModels[get_lists]
   for (i in seq_along(OutModels)) {
     if (i == 1) df <- data.frame()
     temp <- OutModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)

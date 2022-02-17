@@ -38,9 +38,9 @@ seed = 123
 outputs = FALSE
 quiet = FALSE
 add_penalty_factor = FALSE
-cores = NULL
-iterations = NULL
-trials = NULL
+cores = 6
+iterations = 500
+trials = 1
 intercept_sign = "non_negative"
 nevergrad_algo = "TwoPointsDE"
 
@@ -90,9 +90,9 @@ args(robyn_pareto)
 args(robyn_response)
 robyn_object = NULL
 select_build = NULL
-paid_media_spend = decompSpendDistPar$rn[4]
+media_metric = decompSpendDistPar$rn[4]
 select_model = decompSpendDistPar[4, solID]
-spend = decompSpendDistPar[4, mean_spend]
+metric_value = decompSpendDistPar[4, mean_spend]
 dt_hyppar = resultHypParamPar
 dt_coef = xDecompAggPar
 

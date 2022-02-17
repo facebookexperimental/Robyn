@@ -75,13 +75,9 @@ robyn_object <- "~/Desktop/MyRobyn.RDS"
 InputCollect <- robyn_inputs(
   dt_input = dt_simulated_weekly
   ,dt_holidays = dt_prophet_holidays
-
-  ### set variables
-
   ,date_var = "DATE" # date format must be "2020-01-01"
   ,dep_var = "revenue" # there should be only one dependent variable
   ,dep_var_type = "revenue" # "revenue" or "conversion"
-
   ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday", "holiday"
   # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
   ,prophet_country = "DE"# only one country allowed once. Including national holidays
@@ -96,32 +92,11 @@ InputCollect <- robyn_inputs(
   ,organic_vars = c("newsletter")
   ,factor_vars = c("events") # specify which variables in context_vars and
   # organic_vars are factorial
-
-  ### set model parameters
-
-  ## set cores for parallel computing
-  #,cores = 6 # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
-
-  ## set rolling window start
   ,window_start = "2016-11-23"
   ,window_end = "2018-08-22"
-
-  ## set model core features
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
-  # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-  #,iterations = 500  # number of allowed iterations per trial. For the simulated dataset with 11 independent
-  # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
-  # The larger the dataset, the more iterations required to reach convergence.
-
-  #,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
-  #,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
-  # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  #,trials = 2 # number of allowed trials. 5 is recommended without calibration,
-  # 10 with calibration.
-
-  # Time estimation: with geometric adstock, 2000 iterations * 5 trials
-  # and 6 cores, it takes less than 1 hour. Both Weibull adstocks take up to twice as much time.
+  # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run
 )
 
 
@@ -270,22 +245,15 @@ print(InputCollect)
 #   ,dep_var = "revenue"
 #   ,dep_var_type = "revenue"
 #   ,prophet_vars = c("trend", "season", "holiday")
-#   ,prophet_signs = c("default","default", "default")
 #   ,prophet_country = "DE"
 #   ,context_vars = c("competitor_sales_B", "events")
-#   ,context_signs = c("default", "default")
 #   ,paid_media_vars = c("tv_S", "ooh_S", 	"print_S", "facebook_I", "search_clicks_P")
-#   ,paid_media_signs = c("positive", "positive", "positive", "positive", "positive")
 #   ,paid_media_spends = c("tv_S", "ooh_S",	"print_S", "facebook_S", "search_S")
 #   ,organic_vars = c("newsletter")
-#   ,organic_signs = c("positive")
 #   ,factor_vars = c("events")
-#   ,cores = 6
 #   ,window_start = "2016-11-23"
 #   ,window_end = "2018-08-22"
 #   ,adstock = "geometric"
-#   ,iterations = 2000
-#   ,trials = 5
 #   ,hyperparameters = hyperparameters # as in 2a-2 above
 #   #,calibration_input = dt_calibration # as in 2a-4 above
 # )
@@ -299,7 +267,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   , cores = 8
   #, add_penalty_factor = TRUE
-  , iterations = 5000
+  , iterations = 100
   , trials = 1
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
@@ -312,7 +280,7 @@ OutputModels$convergence$moo_cloud_plot
 # Calculate Pareto optimality, cluster and export results and plots
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
-  , pareto_fronts = 2 # decrease pareto_fronts to get less output models
+  , pareto_fronts = 1 # decrease pareto_fronts to get less output models
   # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1. Details see ?robyn_outputs
   , csv_out = "pareto" # "pareto" or "all"
   , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
@@ -350,7 +318,7 @@ print(OutputCollect)
 
 OutputCollect$allSolutions # get all model IDs in result
 # OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "1_24_3" # select one from above
+select_model <- "1_12_7" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -411,8 +379,8 @@ AllocatorCollect$dt_optimOut
 #                                                            , optmResponseUnit]
 # optimal_response <- robyn_response(robyn_object = robyn_object
 #                                    , select_build = 0
-#                                    , paid_media_var = select_media
-#                                    , spend = optimal_spend)
+#                                    , media_metric = select_media
+#                                    , metric_value = optimal_spend)
 # round(optimal_response_allocator) == round(optimal_response)
 # optimal_response_allocator; optimal_response
 
@@ -434,7 +402,7 @@ Robyn <- robyn_refresh(
   , dt_holidays = dt_prophet_holidays
   , refresh_steps = 4
   , refresh_mode = "manual"
-  , refresh_iters = 500 # Iteration for refresh. 600 is rough estimation. We'll still
+  , refresh_iters = 100 # Iteration for refresh. 600 is rough estimation. We'll still
   # figuring out what's the ideal number.
   , refresh_trials = 1
   , clusters = TRUE
@@ -453,7 +421,7 @@ Robyn <- robyn_refresh(
 # Run ?robyn_allocator to check parameter definition
 AllocatorCollect <- robyn_allocator(
   robyn_object = robyn_object
-  , select_build = 3 # Use third refresh model
+  , select_build = 1 # Use third refresh model
   , scenario = "max_response_expected_spend"
   , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
@@ -474,8 +442,8 @@ Spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1 # 2 means the second refresh model. 0 means the initial model
-  , paid_media_var = "search_clicks_P"
-  , spend = Spend1)
+  , media_metric = "search_S"
+  , metric_value = Spend1)
 Response1/Spend1 # ROI for search 80k
 
 # Get response for 81k
@@ -483,8 +451,8 @@ Spend2 <- Spend1+1000
 Response2 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
-  , paid_media_var = "search_clicks_P"
-  , spend = Spend2)
+  , media_metric = "search_S"
+  , metric_value = Spend2)
 Response2/Spend2 # ROI for search 81k
 
 # Marginal ROI of next 1000$ from 80k spend level for search
@@ -495,8 +463,8 @@ Response2/Spend2 # ROI for search 81k
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-11 13.39 init/pareto_hyperparameters.csv")
-select_model <- "1_102_2"
+dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-17 18.31 init/pareto_hyperparameters.csv")
+select_model <- "1_12_7"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(
