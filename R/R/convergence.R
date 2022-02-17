@@ -45,6 +45,7 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
   last_std <- errors %>%
     group_by(.data$error_type) %>%
     slice(n_cuts)
+
   conv_msg <- NULL
   for (i in seq_along(last_std$error_type)) {
     if (last_std$alert[i]) {
@@ -98,25 +99,29 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
       caption = paste(conv_msg, collapse = "\n")
     )
 
-  moo_cloud_plot <- ggplot(df, aes(x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
+  moo_cloud_plot <- ggplot(df, aes(
+    x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
     scale_colour_gradient(low = "skyblue", high = "navyblue") +
     labs(
       title = ifelse(!calibrated, "Multi-objective evolutionary performance",
-                     "Multi-objective evolutionary performance with calibration"
+        "Multi-objective evolutionary performance with calibration"
       ),
-      subtitle = sprintf("%s trials with %s iterations each",
-                         max(df$trial), max(dt_objfunc_cvg$cuts)),
+      subtitle = sprintf(
+        "%s trials with %s iterations each",
+        max(df$trial), max(dt_objfunc_cvg$cuts)
+      ),
       x = "NRMSE",
       y = "DECOMP.RSSD",
       colour = "Time [s]",
-      size = "Mape",
+      size = "MAPE",
       alpha = NULL,
       caption = paste(conv_msg, collapse = "\n")
     ) +
     theme_lares()
-  # facet_wrap(.data$trial~.)
-  if(calibrated) {
-    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = mape, alpha = 1-mape), )
+
+  if (calibrated) {
+    moo_cloud_plot <- moo_cloud_plot +
+      geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
   } else {
     moo_cloud_plot <- moo_cloud_plot + geom_point()
   }
