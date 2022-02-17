@@ -94,7 +94,7 @@ robyn_run <- function(InputCollect,
   }
 
   # Check convergence
-  output[["convergence"]] <- check_conv_error(OutputModels, n_cuts = 10, max_sd = 0.025)
+  output[["convergence"]] <- check_conv_error(OutputModels, n_cuts = 10, threshold_sd = 0.025)
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyps$hyper_list_all
@@ -125,9 +125,9 @@ print.robyn_models <- function(x, ...) {
     {convergence}
 
   ",
-    total_iters = if (!x$hyper_fixed) nrow(x$trial1$resultCollect$resultHypParam) else 0,
+    total_iters = if (!attr(x, "hyper_fixed")) nrow(x$trial1$resultCollect$resultHypParam) else 0,
     iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
-    convergence = if (!x$hyper_fixed) x$convergence$errors %>%
+    convergence = if (!attr(x, "hyper_fixed")) x$convergence$errors %>%
       mutate(label = sprintf(
         "%s: sd = %s | Med. change = %s%%",
         .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2))) %>%
@@ -1093,10 +1093,10 @@ calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars, day
 
   # check if any lift channel doesn't have media var
   check_set_lift <- any(sapply(calibration_input$channel, function(x) {
-    any(str_detect(x, paid_media_vars))
+    any(str_detect(x, paid_media_spends))
   }) == FALSE)
   if (check_set_lift) {
-    stop("calibration_input channels must have media variable")
+    stop("calibration_input channels must be from paid_media_spends")
   }
 
   ## prep lift input

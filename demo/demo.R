@@ -244,7 +244,7 @@ print(InputCollect)
 # point-estimate for the 30k$, not the 70k$.
 
 # dt_calibration <- data.frame(
-#   channel = c("facebook_I",  "tv_S", "facebook_I")
+#   channel = c("facebook_S",  "tv_S", "facebook_S")
 #   # channel name must in paid_media_vars
 #   , liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01"))
 #   # liftStartDate must be within input data range
@@ -299,15 +299,17 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   , cores = 8
   #, add_penalty_factor = TRUE
-  , iterations = 200
-  , trials = 3
+  , iterations = 5000
+  , trials = 1
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
-# Check errors convergence
-OutputModels$convergence$plot
+# Check MOO (multi-objective optimisation) convergence
+OutputModels$convergence$moo_distrb_plot
+OutputModels$convergence$moo_cloud_plot
 
-# Output results and plots & export into local files
+
+# Calculate Pareto optimality, cluster and export results and plots
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
   , pareto_fronts = 2 # decrease pareto_fronts to get less output models

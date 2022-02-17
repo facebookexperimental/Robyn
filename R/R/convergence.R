@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
+check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
 
   # Gather all trials
   OutModels <- OutputModels[grepl("trial", names(OutputModels))]
@@ -12,6 +12,7 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     temp <- OutModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)
     df <- rbind(df, temp)
   }
+  calibrated <- sum(df$mape) > 0
 
   # Calculate deciles
   dt_objfunc_cvg <- tidyr::gather(df, "error_type", "value", any_of(c("nrmse", "decomp.rssd", "mape"))) %>%
@@ -39,21 +40,26 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
     ) %>%
     mutate(
       med_var_P = abs(round(100 * (.data$median - lag(.data$median)) / .data$median, 2)),
-      alert = .data$std > max_sd
+      alert = .data$std > threshold_sd
     )
   last_std <- errors %>%
     group_by(.data$error_type) %>%
     slice(n_cuts)
-  warnings <- NULL
+  conv_msg <- NULL
   for (i in seq_along(last_std$error_type)) {
     if (last_std$alert[i]) {
       temp <- sprintf(
-        "Error %s hasn't converged yet (quantile-%s: sd %s > %s)",
-        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), max_sd
+        "Obj.func. %s hasn't converged (qt-%s sd: %s > %s threshold) -> More iterations recommended",
+        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), threshold_sd
       )
-      warning(paste("Test with more iterations:", temp))
-      warnings <- c(warnings, temp)
+    } else {
+      temp <- sprintf(
+        "Obj.func. %s has converged (qt-%s sd: %s <= %s threshold)",
+        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), threshold_sd
+      )
     }
+    message(temp)
+    conv_msg <- c(conv_msg, temp)
   }
 
   # # Moving average
@@ -74,7 +80,7 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
   #   theme_lares(legend = "top") +
   #   labs(colour = "Trial", x = "Iterations", y = NULL)
 
-  plot <- dt_objfunc_cvg %>%
+  moo_distrb_plot <- dt_objfunc_cvg %>%
     mutate(id = as.integer(.data$cuts)) %>%
     mutate(cuts = factor(.data$cuts, levels = rev(levels(.data$cuts)))) %>%
     ggplot(aes(x = .data$value, y = .data$cuts, fill = -.data$id)) +
@@ -89,29 +95,35 @@ check_conv_error <- function(OutputModels, n_cuts = 10, max_sd = 0.025) {
       x = "Errors", y = "Iterations [#]",
       title = "Errors convergence by iterations quantiles",
       subtitle = paste(max(dt_objfunc_cvg$trial), "trials combined"),
-      caption = if (!is.null(warnings)) paste(warnings, collapse = "\n") else NULL
+      caption = paste(conv_msg, collapse = "\n")
     )
 
-  calibrated <- sum(df$mape) > 0
-  models <- ggplot(df, aes(x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
-    geom_point(size = 0.5) +
-    scale_colour_gradient(low = "navyblue", high = "skyblue") +
+  moo_cloud_plot <- ggplot(df, aes(x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
+    scale_colour_gradient(low = "skyblue", high = "navyblue") +
     labs(
       title = ifelse(!calibrated, "Multi-objective evolutionary performance",
-        "Multi-objective evolutionary performance with calibration"
+                     "Multi-objective evolutionary performance with calibration"
       ),
-      subtitle = sprintf("%s trials with %s (real) iterations each",
+      subtitle = sprintf("%s trials with %s iterations each",
                          max(df$trial), max(dt_objfunc_cvg$cuts)),
       x = "NRMSE",
       y = "DECOMP.RSSD",
       colour = "Time [s]",
+      size = "Mape",
+      alpha = NULL,
+      caption = paste(conv_msg, collapse = "\n")
     ) +
     theme_lares()
   # facet_wrap(.data$trial~.)
+  if(calibrated) {
+    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = mape, alpha = 1-mape), )
+  } else {
+    moo_cloud_plot <- moo_cloud_plot + geom_point()
+  }
 
   return(invisible(list(
-    convergence_plot = plot,
-    nevergrad_plot = models,
+    moo_distrb_plot = moo_distrb_plot,
+    moo_cloud_plot = moo_cloud_plot,
     errors = select(errors, -.data$alert)
   )))
 }
