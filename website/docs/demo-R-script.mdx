@@ -613,9 +613,9 @@ The **`robyn_response()`** function returns the response for a given spend level
 robyn_response(
   robyn_object = NULL,
   select_build = NULL,
-  paid_media_var = NULL,
+  media_metric = NULL,
   select_model = NULL,
-  spend = NULL,
+  metric_value = NULL,
   dt_hyppar = NULL,
   dt_coef = NULL,
   InputCollect = NULL
@@ -628,7 +628,7 @@ robyn_response(
 A character. Path of the `Robyn.RData` object that contains all previous modeling information.
 - **`select_build`**
 An integer. Its default is the latest model build. `select_build = 0` selects the initial model. `select_build = 1` selects the first refresh model.
-- **`paid_media_var`**
+- **`media_metric`**
 A character. The selected paid media variable for the response. Must be one of the paid media variables within `InputCollect$paid_media_vars`
 - **`select_model`**
 A character. A model `SolID`. When `robyn_object` is provided, `select_model` defaults to the already selected `SolID`. When `robyn_object` is not provided, `select_model` must be provided with `InputCollect` and `OutputCollect`, and must be one of the solutions in `OutputCollect$allSolutions`.
@@ -652,8 +652,8 @@ Spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1 # 2 means the second refresh model. 0 means the initial model
-  , paid_media_var = "search_clicks_P"
-  , spend = Spend1)
+  , media_metric = "search_S"
+  , metric_value = Spend1)
 Response1/Spend1 # ROI for search 80k
 
 # Get response for 81k
@@ -661,8 +661,8 @@ Spend2 <- Spend1+1000
 Response2 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
-  , paid_media_var = "search_clicks_P"
-  , spend = Spend2)
+  , media_metric = "search_S"
+  , metric_value = Spend2)
 Response2/Spend2 # ROI for search 81k
 
 # Marginal ROI of next 1000$ from 80k spend level for search

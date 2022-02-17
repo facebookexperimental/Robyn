@@ -70,7 +70,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         theme(legend.position = "none") +
         labs(
           title = "Hyperparameter optimisation sampling",
-          subtitle = paste0("Sample distribution", ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
+          subtitle = paste0("Sample distribution", ", iterations = ", OutputModels$iterations, " * ", OutputModels$trials, " trial"),
           x = "Hyperparameter space",
           y = NULL
         )
@@ -87,29 +87,45 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       if (!is.null(InputCollect$calibration_input)) {
         resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
       }
-      pParFront <- ggplot(resultHypParam, aes(x = nrmse, y = decomp.rssd, color = iterations)) +
-        geom_point(size = 0.5) +
-        geom_line(data = resultHypParam[robynPareto == 1], aes(x = nrmse, y = decomp.rssd), colour = "coral4") +
-        scale_colour_gradient(low = "navyblue", high = "skyblue") +
+
+      calibrated <- !is.null(InputCollect$calibration_input)
+      pParFront <- ggplot(resultHypParam, aes(
+        x = .data$nrmse, y = .data$decomp.rssd, colour = .data$iterations)) +
+        scale_colour_gradient(low = "skyblue", high = "navyblue") +
         labs(
-          title = ifelse(is.null(InputCollect$calibration_input), "Multi-objective evolutionary performance", "Multi-objective evolutionary performance with top 10% calibration"),
-          subtitle = paste0("2D Pareto front 1-3 with ", InputCollect$nevergrad_algo, ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
+          title = ifelse(!calibrated, "Multi-objective evolutionary performance",
+                         "Multi-objective evolutionary performance with calibration"
+          ),
+          subtitle = sprintf(
+            "2D Pareto fronts with %s, for %s trial%s with %s iterations each",
+            OutputModels$nevergrad_algo, OutputModels$trials,
+            ifelse(pareto_fronts > 1, "s", ""), OutputModels$iterations
+          ),
           x = "NRMSE",
-          y = "DECOMP.RSSD"
-        )
-      if (length(pareto_fronts_vec) > 1) {
-        for (pfs in 2:max(pareto_fronts_vec)) {
-          if (pfs == 2) {
-            pf_color <- "coral3"
-          } else if (pfs == 3) {
-            pf_color <- "coral2"
-          } else {
-            pf_color <- "coral"
-          }
-          pParFront <- pParFront + geom_line(
-            data = resultHypParam[robynPareto == pfs],
-            aes(x = nrmse, y = decomp.rssd), colour = pf_color)
+          y = "DECOMP.RSSD",
+          colour = "Iterations",
+          size = "MAPE",
+          alpha = NULL
+        ) +
+        theme_lares()
+      # Add MAPE dimension when calibrated
+      if (calibrated) {
+        pParFront <- pParFront + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
+      } else {
+        pParFront <- pParFront + geom_point()
+      }
+      # Add pareto front lines
+      for (pfs in 1:max(pareto_fronts_vec)) {
+        if (pfs == 2) {
+          pf_color <- "coral3"
+        } else if (pfs == 3) {
+          pf_color <- "coral2"
+        } else {
+          pf_color <- "coral"
         }
+        pParFront <- pParFront + geom_line(
+          data = resultHypParam[robynPareto == pfs],
+          aes(x = .data$nrmse, y = .data$decomp.rssd), colour = pf_color)
       }
       all_plots[["pParFront"]] <- pParFront
       if (export) ggsave(
@@ -122,15 +138,15 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Ridgeline model convergence
     if (length(temp_all) > 0) {
       xDecompAgg <- copy(temp_all$xDecompAgg)
-      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
+      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_spends
                               , .(variables = rn
                                   , roi_total
-                                  , iteration = (iterNG-1)*InputCollect$cores+iterPar
+                                  , iteration = (iterNG-1)*OutputModels$cores+iterPar
                                   , trial)][order(iteration, variables)]
       bin_limits <- c(1,20)
-      qt_len <- ifelse(InputCollect$iterations <=100, 1,
-                       ifelse(InputCollect$iterations > 2000, 20, ceiling(InputCollect$iterations/100)))
-      set_qt <- floor(quantile(1:InputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
+      qt_len <- ifelse(OutputModels$iterations <=100, 1,
+                       ifelse(OutputModels$iterations > 2000, 20, ceiling(OutputModels$iterations/100)))
+      set_qt <- floor(quantile(1:OutputModels$iterations, seq(0, 1, length.out = qt_len+1)))
       set_bin <- set_qt[-1]
       dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
       dt_ridges <- dt_ridges[!is.na(iter_bin)]
@@ -180,7 +196,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   }
 
   # Prepare for parallel plotting
-  if (check_parallel_plot()) registerDoParallel(InputCollect$cores) else registerDoSEQ()
+  if (check_parallel_plot()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
     count_mod_out <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
@@ -193,7 +209,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", InputCollect$cores, "cores..."))
+    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", OutputModels$cores, "cores..."))
   } else {
     if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }
@@ -205,7 +221,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
 
   for (pf in pareto_fronts_vec) { # pf = 1
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_vars]
+    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
     uniqueSol <- plotMediaShare[, unique(solID)]
 
     # parallelResult <- for (sid in uniqueSol) {
@@ -319,7 +335,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
       if (!"channel" %in% colnames(dt_scurvePlotMean)) dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
-      p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_vars,],
+      p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends,],
                    aes(x = .data$spend, y = .data$response, color = .data$channel)) +
         geom_line() +
         geom_point(data = dt_scurvePlotMean, aes(
@@ -460,13 +476,13 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   ## 3. Response curve
   plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
     solID == select_model & type == "saturatedSpendReversed"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_vars, value.name = "spend", variable.name = "channel")
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
   plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
     solID == select_model & type == "decompMedia"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_vars, value.name = "response", variable.name = "channel")
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
   plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
   plotDT_scurve <- plotDT_scurve[spend >= 0] # remove outlier introduced by MM nls fitting
-  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_vars]
+  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_spends]
   dt_optimOutScurve <- rbind(dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type := "initial"],
                              dt_optimOut[, .(channels, optmSpendUnit, optmResponseUnit)][, type := "optimised"], use.names = FALSE)
   setnames(dt_optimOutScurve, c("channels", "spend", "response", "type"))

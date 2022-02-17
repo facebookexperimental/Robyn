@@ -7,12 +7,14 @@
 robyn_response(
   robyn_object = NULL,
   select_build = NULL,
-  paid_media_var = NULL,
+  media_metric = NULL,
   select_model = NULL,
-  spend = NULL,
+  metric_value = NULL,
   dt_hyppar = NULL,
   dt_coef = NULL,
-  InputCollect = NULL
+  InputCollect = NULL,
+  OutputCollect = NULL,
+  plot = FALSE
 )
 }
 \arguments{
@@ -22,8 +24,8 @@ that contains all previous modeling information.}
 \item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
 selects the initial model. \code{select_build = 1} selects the first refresh model.}
 
-\item{paid_media_var}{A character. Selected paid media variable for the response.
-Must be within \code{InputCollect$paid_media_vars}}
+\item{media_metric}{A character. Selected media variable for the response.
+Must be one value from paid_media_spends, paid_media_vars or organic_vars}
 
 \item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
 is provided, \code{select_model} defaults to the already selected \code{SolID}. When
@@ -31,7 +33,7 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
 
-\item{spend}{Numeric. The desired spend level to return a response for.}
+\item{metric_value}{Numeric. Desired metric value to return a response for.}
 
 \item{dt_hyppar}{A data.table. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
@@ -43,6 +45,11 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
+
+\item{OutputCollect}{List. Containing all model result.
+Required when \code{robyn_object} is not provided.}
+
+\item{plot}{Logical. Set TRUE to plot individual saturation curve.}
 }
 \description{
 The \code{robyn_response()} function returns the response for a given
@@ -59,7 +66,7 @@ result from a selected model build (initial model, refresh model etc.).
 spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object,
-  paid_media_var = "search_clicks_P",
+  media_metric = "search_clicks_P",
   spend = spend1
 )
 
@@ -70,7 +77,7 @@ Response1 / spend1 # ROI for search 80k
 spend2 <- spend1 + 1000
 Response2 <- robyn_response(
   robyn_object = robyn_object,
-  paid_media_var = "search_clicks_P",
+  media_metric = "search_clicks_P",
   spend = spend2
 )
 
@@ -89,7 +96,7 @@ Response2 - Response1
 robyn_response(
   robyn_object = robyn_object,
   select_build = 3,
-  paid_media_var = "search_clicks_P",
+  media_metric = "search_clicks_P",
   spend = 80000
 )
 
@@ -97,7 +104,7 @@ robyn_response(
 ## in the current model output in the global environment
 
 robyn_response(,
-  paid_media_var = "search_clicks_P",
+  media_metric = "search_clicks_P",
   select_model = "3_10_3",
   spend = 80000,
   dt_hyppar = OutputCollect$resultHypParam,

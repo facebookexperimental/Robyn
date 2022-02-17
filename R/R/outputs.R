@@ -52,14 +52,14 @@ robyn_outputs <- function(InputCollect, OutputModels,
   # Check calibration constrains
   calibration_constraint <- check_calibconstr(
     calibration_constraint,
-    InputCollect$iterations,
-    InputCollect$trials,
+    OutputModels$iterations,
+    OutputModels$trials,
     InputCollect$calibration_input)
 
   #####################################
   #### Run robyn_pareto on OutputModels
 
-  totalModels <- InputCollect$iterations * InputCollect$trials
+  totalModels <- OutputModels$iterations * OutputModels$trials
   message(sprintf(">>> Running Pareto calculations for %s models on %s front%s...",
                   totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
   pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint)

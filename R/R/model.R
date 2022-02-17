@@ -54,11 +54,7 @@ robyn_run <- function(InputCollect,
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
   }
 
-  if (!is.null(cores)) InputCollect$cores <- cores
-  if (!is.null(iterations)) InputCollect$iterations <- iterations
-  if (!is.null(trials)) InputCollect$trials <- trials
-  if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
-  if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
+  InputCollect <- check_legacy_input(InputCollect, cores, iterations, trials, intercept_sign, nevergrad_algo)
   if (!is.null(iterations) | !is.null(trials)) {
     check_iteration(InputCollect$calibration_input, InputCollect$iterations, InputCollect$cores)
   }
@@ -70,8 +66,7 @@ robyn_run <- function(InputCollect,
 
   # hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
   hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters,
-                          add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed
-  )
+                          add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed)
   InputCollect$hyper_updated <- hyps$hyper_list_all
 
   #####################################
@@ -84,6 +79,11 @@ robyn_run <- function(InputCollect,
 
   attr(OutputModels, "hyper_fixed") <- hyps$all_fixed
   attr(OutputModels, "refresh") <- refresh
+  OutputModels$cores <- InputCollect$cores
+  OutputModels$iterations <- InputCollect$iterations
+  OutputModels$trials <- InputCollect$trials
+  OutputModels$intercept_sign <- InputCollect$intercept_sign
+  OutputModels$nevergrad_algo <- InputCollect$nevergrad_algo
 
   if (!outputs) {
     output <- OutputModels
@@ -196,8 +196,8 @@ robyn_train <- function(InputCollect, hyper_collect,
     if (!quiet) {
       message(paste(
         ">>> Starting", InputCollect$trials, "trials with",
-        InputCollect$iterations, "iterations per trial each",
-        ifelse(is.null(InputCollect$calibration_input), "with", "with calibration and"),
+        InputCollect$iterations, "iterations per trial",
+        ifelse(is.null(InputCollect$calibration_input), "using", "with calibration using"),
         InputCollect$nevergrad_algo, "nevergrad algorithm..."
       ))
     }
@@ -298,7 +298,7 @@ robyn_mmm <- function(InputCollect,
     dt_modRollWind <- copy(InputCollect$dt_modRollWind)
     refresh_steps <- InputCollect$refresh_steps
     rollingWindowLength <- InputCollect$rollingWindowLength
-    paid_media_vars <- InputCollect$paid_media_vars
+    #paid_media_vars <- InputCollect$paid_media_vars
     paid_media_spends <- InputCollect$paid_media_spends
     organic_vars <- InputCollect$organic_vars
     context_vars <- InputCollect$context_vars
@@ -346,7 +346,7 @@ robyn_mmm <- function(InputCollect,
 
   ################################################
   #### Get lambda
-  lambda_min_ratio <- 0.0001
+  lambda_min_ratio <- 0.0001 # default  value from glmnet
   lambdas <- lambda_seq(x = dt_mod[, !c("ds", "dep_var"), with = FALSE],
                         y = dt_mod$dep_var,
                         seq_len = 100, lambda_min_ratio)
@@ -591,7 +591,7 @@ robyn_mmm <- function(InputCollect,
           if (!is.null(calibration_input)) {
             liftCollect <- calibrate_mmm(
               decompCollect = decompCollect, calibration_input = calibration_input,
-              paid_media_vars = paid_media_vars, dayInterval = InputCollect$dayInterval
+              paid_media_spends = paid_media_spends, dayInterval = InputCollect$dayInterval
             )
             mape <- liftCollect[, mean(mape_lift)]
           }
@@ -814,15 +814,16 @@ robyn_mmm <- function(InputCollect,
 #' result from a selected model build (initial model, refresh model etc.).
 #'
 #' @inheritParams robyn_allocator
-#' @param paid_media_var A character. Selected paid media variable for the response.
-#' Must be within \code{InputCollect$paid_media_vars}
-#' @param spend Numeric. The desired spend level to return a response for.
+#' @param media_metric A character. Selected media variable for the response.
+#' Must be one value from paid_media_spends, paid_media_vars or organic_vars
+#' @param metric_value Numeric. Desired metric value to return a response for.
 #' @param dt_hyppar A data.table. When \code{robyn_object} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
 #' @param dt_coef A data.table. When \code{robyn_object} is not provided, use
 #' \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 #' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
+#' @param plot Logical. Set TRUE to plot individual saturation curve.
 #' @examples
 #' \dontrun{
 #' ## Get marginal response (mResponse) and marginal ROI (mROI) for
@@ -833,7 +834,7 @@ robyn_mmm <- function(InputCollect,
 #' spend1 <- 80000
 #' Response1 <- robyn_response(
 #'   robyn_object = robyn_object,
-#'   paid_media_var = "search_clicks_P",
+#'   media_metric = "search_clicks_P",
 #'   spend = spend1
 #' )
 #'
@@ -844,7 +845,7 @@ robyn_mmm <- function(InputCollect,
 #' spend2 <- spend1 + 1000
 #' Response2 <- robyn_response(
 #'   robyn_object = robyn_object,
-#'   paid_media_var = "search_clicks_P",
+#'   media_metric = "search_clicks_P",
 #'   spend = spend2
 #' )
 #'
@@ -863,7 +864,7 @@ robyn_mmm <- function(InputCollect,
 #' robyn_response(
 #'   robyn_object = robyn_object,
 #'   select_build = 3,
-#'   paid_media_var = "search_clicks_P",
+#'   media_metric = "search_clicks_P",
 #'   spend = 80000
 #' )
 #'
@@ -871,7 +872,7 @@ robyn_mmm <- function(InputCollect,
 #' ## in the current model output in the global environment
 #'
 #' robyn_response(,
-#'   paid_media_var = "search_clicks_P",
+#'   media_metric = "search_clicks_P",
 #'   select_model = "3_10_3",
 #'   spend = 80000,
 #'   dt_hyppar = OutputCollect$resultHypParam,
@@ -882,15 +883,18 @@ robyn_mmm <- function(InputCollect,
 #' @export
 robyn_response <- function(robyn_object = NULL,
                            select_build = NULL,
-                           paid_media_var = NULL,
+                           media_metric = NULL,
                            select_model = NULL,
-                           spend = NULL,
+                           metric_value = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
-                           InputCollect = NULL) {
+                           InputCollect = NULL,
+                           OutputCollect = NULL,
+                           plot = FALSE) {
 
   ## get input
   if (!is.null(robyn_object)) {
+
     if (!file.exists(robyn_object)) {
       stop("File does not exist or is somewhere else. Check: ", robyn_object)
     } else {
@@ -918,95 +922,130 @@ robyn_response <- function(robyn_object = NULL,
     dt_hyppar <- OutputCollect$resultHypParam
     dt_coef <- OutputCollect$xDecompAgg
     select_model <- OutputCollect$selectID
-  } else if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect))) {
+  } else if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
     stop(paste(
       "When 'robyn_object' is not provided, then 'dt_hyppar = OutputCollect$resultHypParam',",
-      "'dt_coef = OutputCollect$xDecompAgg' and 'InputCollect' must be provided"
+      "'dt_coef = OutputCollect$xDecompAgg', 'InputCollect' & 'OutputCollect' must be provided"
     ))
   }
 
+  ## prep environment
   dt_input <- InputCollect$dt_input
-  paid_media_vars <- InputCollect$paid_media_vars
-  paid_media_spends <- InputCollect$paid_media_spends
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
   adstock <- InputCollect$adstock
   allSolutions <- dt_hyppar[, unique(solID)]
   spendExpoMod <- InputCollect$modNLSCollect
-
-  ## check inputs
-  if (is.null(paid_media_var)) {
-    stop(paste0("paid_media_var must be one of these values: ", paste(paid_media_vars, collapse = ", ")))
-  } else if (!(paid_media_var %in% paid_media_vars) | length(paid_media_var) != 1) {
-    stop(paste0("paid_media_var must be one of these values: ", paste(paid_media_vars, collapse = ", ")))
-  }
+  paid_media_vars <- InputCollect$paid_media_vars
+  paid_media_spends <- InputCollect$paid_media_spends
+  exposure_vars <- InputCollect$exposure_vars
+  organic_vars <- InputCollect$organic_vars
 
   if (!(select_model %in% allSolutions)) {
     stop(paste0("select_model must be one of these values: ", paste(allSolutions, collapse = ", ")))
   }
 
-  mediaVar <- dt_input[, get(paid_media_var)]
+  ## get media valu
+  if (media_metric %in% paid_media_spends & length(media_metric)==1) {
+    metric_type <- "spend"
+  } else if (media_metric %in% exposure_vars & length(media_metric)==1){
+    metric_type <- "exposure"
+  } else if (media_metric %in% organic_vars & length(media_metric)==1) {
+    metric_type <- "organic"
+  } else {
+    stop("media_metric must be one value from paid_media_spends, paid_media_vars or organic_vars")
+  }
 
-  if (!is.null(spend)) {
-    if (length(spend) != 1 | spend <= 0 | !is.numeric(spend)) {
-      stop("'spend' must be a positive number")
+  #media_vec <- dt_input[, get(media_metric)]
+
+  if (!is.null(metric_value)) {
+    if (length(metric_value) != 1 | metric_value <= 0 | !is.numeric(metric_value)) {
+      stop("'metric_value' must be a positive number")
     }
   }
 
-  ## transform spend to exposure if necessary
-  if (paid_media_var %in% InputCollect$exposureVarName) {
+  ## transform exposure to spend when necessary
+  if (metric_type == "exposure") {
 
-    # use non-0 mean spend as marginal level if spend not provided
-    if (is.null(spend)) {
-      mediaspend <- dt_input[startRW:endRW, get(paid_media_spends[which(paid_media_vars == paid_media_var)])]
-      spend <- mean(mediaspend[mediaspend > 0])
-      message("'spend' not provided. Using mean of ", paid_media_var, " as marginal level instead")
+    get_spend_name <- paid_media_spends[which(paid_media_vars==media_metric)]
+    expo_vec <- dt_input[, get(media_metric)]
+    # use non-0 mean as marginal level if metric_value not provided
+    if (is.null(metric_value)) {
+      metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
+      message("'metric_value' not provided. Using mean of ", media_metric, " instead")
     }
 
     # fit spend to exposure
-    nls_select <- spendExpoMod[channel == paid_media_var, rsq_nls > rsq_lm]
+    spend_vec <- dt_input[, get(get_spend_name)]
+    nls_select <- spendExpoMod[channel == media_metric, rsq_nls > rsq_lm]
     if (nls_select) {
-      Vmax <- spendExpoMod[channel == paid_media_var, Vmax]
-      Km <- spendExpoMod[channel == paid_media_var, Km]
-      spend <- mic_men(x = spend, Vmax = Vmax, Km = Km, reverse = FALSE)
+      Vmax <- spendExpoMod[channel == media_metric, Vmax]
+      Km <- spendExpoMod[channel == media_metric, Km]
+      media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
+      #metric_value <- mic_men(x = metric_value, Vmax = Vmax, Km = Km, reverse = FALSE)
     } else {
-      coef_lm <- spendExpoMod[channel == paid_media_var, coef_lm]
-      spend <- spend * coef_lm
+      coef_lm <- spendExpoMod[channel == media_metric, coef_lm]
+      media_vec <- spend_vec * coef_lm
+      #metric_value <- metric_value * coef_lm
     }
+    hpm_name <- get_spend_name
   } else {
 
-    # use non-0 mean spend as marginal level if spend not provided
-    if (is.null(spend)) {
-      mediaspend <- dt_input[startRW:endRW, get(paid_media_var)]
-      spend <- mean(mediaspend[mediaspend > 0])
-      message("spend not provided. using mean of ", paid_media_var, " as marginal levl instead")
+    media_vec <- dt_input[, get(media_metric)]
+    # use non-0 meanas marginal level if spend not provided
+    if (is.null(metric_value)) {
+      metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
+      message("metric_value not provided. using mean of ", media_metric, " instead")
     }
+    hpm_name <- media_metric
   }
 
-  ## Adstocking
+
+  ## adstocking
   if (adstock == "geometric") {
-    theta <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_thetas"))]
-    x_list <- adstock_geometric(x = mediaVar, theta = theta)
+    theta <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_thetas"))]
+    x_list <- adstock_geometric(x = media_vec, theta = theta)
   } else if (adstock == "weibull_cdf") {
-    shape <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_shapes"))]
-    scale <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_scales"))]
-    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+    shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
+    scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
+    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
   } else if (adstock == "weibull_pdf") {
-    shape <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_shapes"))]
-    scale <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_scales"))]
-    x_list <- adstock_weibull(x = mediaVar, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
+    shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
+    scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
+    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
   }
   m_adstocked <- x_list$x_decayed
 
-  ## Saturation
+  ## saturation
   m_adstockedRW <- m_adstocked[startRW:endRW]
-  alpha <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_alphas"))]
-  gamma <- dt_hyppar[solID == select_model, get(paste0(paid_media_var, "_gammas"))]
-  Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = spend)
+  alpha <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_alphas"))]
+  gamma <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_gammas"))]
+  Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
+  m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
 
-  ## Decomp
-  coeff <- dt_coef[solID == select_model & rn == paid_media_var, coef]
+  ## decomp
+  coeff <- dt_coef[solID == select_model & rn == hpm_name, coef]
+  response_vec <- m_saturated * coeff
   Response <- Saturated * coeff
+
+  ## plot resposne
+
+  if (plot) {
+    media_type <- ifelse(metric_type=="organic",  "organic", "paid")
+    dt_line <- data.table(metric = m_adstockedRW, response = response_vec,
+                          channel = media_metric)
+    dt_point <- data.table(input = metric_value, output = Response)
+    p_res <- ggplot(dt_line, aes(x= .data$metric, y = .data$response)) +
+      geom_line(color = "steelblue") +
+      geom_point(data= dt_point, aes(x = .data$input, y = .data$output)) +
+      geom_text(data= dt_point,
+                aes(x = .data$input, y = .data$output, label = formatNum(.data$input, 2, abbr = TRUE)),
+                show.legend = FALSE, hjust = -0.2) +
+      labs(title = paste("Saturation curve of", media_type, "media:", media_metric
+                         , ifelse(metric_type == "spend", "spend", "exposure"))) +
+      theme_lares()
+    print(p_res)
+  }
 
   return(as.numeric(Response))
 }
@@ -1089,7 +1128,7 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
 } ## decomp end
 
 
-calibrate_mmm <- function(decompCollect, calibration_input, paid_media_vars, dayInterval) {
+calibrate_mmm <- function(decompCollect, calibration_input, paid_media_spends, dayInterval) {
 
   # check if any lift channel doesn't have media var
   check_set_lift <- any(sapply(calibration_input$channel, function(x) {

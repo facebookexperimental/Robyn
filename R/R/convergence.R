@@ -6,7 +6,8 @@
 check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
 
   # Gather all trials
-  OutModels <- OutputModels[grepl("trial", names(OutputModels))]
+  get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))
+  OutModels <- OutputModels[get_lists]
   for (i in seq_along(OutModels)) {
     if (i == 1) df <- data.frame()
     temp <- OutModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)
@@ -107,8 +108,8 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
         "Multi-objective evolutionary performance with calibration"
       ),
       subtitle = sprintf(
-        "%s trials with %s iterations each",
-        max(df$trial), max(dt_objfunc_cvg$cuts)
+        "%s trial%s with %s iterations each",
+        max(df$trial), ifelse(max(df$trial) > 1, "s", ""), max(dt_objfunc_cvg$cuts)
       ),
       x = "NRMSE",
       y = "DECOMP.RSSD",
@@ -120,8 +121,7 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
     theme_lares()
 
   if (calibrated) {
-    moo_cloud_plot <- moo_cloud_plot +
-      geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
+    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
   } else {
     moo_cloud_plot <- moo_cloud_plot + geom_point()
   }
