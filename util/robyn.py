@@ -6,13 +6,17 @@
 ########################################################################################################################
 # IMPORTS
 
+import os
+# os.environ['R_HOME'] = '/usr/local/bin/R'
+
+
 import rpy2
 
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
+
 # import R's "base" package
 base = importr('base')
-
 # import R's "utils" package
 utils = importr('utils')
 
@@ -20,7 +24,6 @@ utils = importr('utils')
 ########################################################################################################################
 # RESEARCH
 # Remove later - 2022.02.14
-
 
 # Overview documentation
 # https://rpy2.github.io/doc/latest/html/overview.html#
@@ -36,10 +39,20 @@ utils = importr('utils')
 # conda activate r-environment
 # conda install r-essentials r-base
 
+
+# conda install -c conda-forge r-essentials r-base
+# conda install -c conda-forge rpy2
+# r-base-4.1.2
+
+
 # https://anaconda.org/r/r
 # conda install -c r r
 
+# python -m rpy2.situation
+# python -m rpy2.tests
 
+
+# Run .libPaths() in R to find path
 
 
 # Check location
@@ -48,6 +61,10 @@ print(f'ryp2 location: {rpy2.__path__}')
 # See ryp2 version
 print(f'ryp2 version: {rpy2.__version__}')
 
+# Setup details
+import rpy2.situation
+for row in rpy2.situation.iter_info():
+    print(row)
 
 ########################################################################################################################
 # Step 1: Setup Environment
@@ -70,8 +87,19 @@ packnames = ['Robyn']
 from rpy2.robjects.vectors import StrVector
 
 names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
+print(f'Number of packaged to install: {len(names_to_install)}')
 if len(names_to_install) > 0:
     utils.install_packages(StrVector(names_to_install))
+
+# robjects.r("version")
+
+
+# https://thomas-cokelaer.info/blog/2012/01/installing-rpy2-with-different-r-version-already-installed/
+# https://stackoverflow.com/questions/64181911/call-r-package-data-using-python-with-rpy2
+# https://www.marsja.se/r-from-python-rpy2-tutorial/
+
+
+
 
 
 
@@ -113,11 +141,12 @@ TODO:
 import os
 import pandas as pd
 
-df_prophet_holidays = pd.read_csv(os.path.join(os.getcwd(),'util/data/prophet_holidays.csv'))
-df_simulated_weekly = pd.read_csv(os.path.join(os.getcwd(),'util/data/simulated_weekly.csv'))
+df_prophet_holidays = pd.read_csv(os.path.join(os.getcwd(), 'util/data/prophet_holidays.csv'))
+df_simulated_weekly = pd.read_csv(os.path.join(os.getcwd(), 'util/data/simulated_weekly.csv'))
 
 df_input = df_simulated_weekly
 df_holidays = df_prophet_holidays
+
 
 class InputCollect(object): # rename for python object
     def __init__(self,
@@ -169,6 +198,7 @@ class InputCollect(object): # rename for python object
                  self.nevergrad_algo = nevergrad_algo,
                  self.trials = trials
 
+
 test = InputCollect(df_input=df_input)
 test = InputCollect(cores=8)
 
@@ -176,6 +206,8 @@ print(test.df_input)
 print(test.cores)
 
 test.df_input
+
+
 
 ########################################################################################################################
 # Scratch below
