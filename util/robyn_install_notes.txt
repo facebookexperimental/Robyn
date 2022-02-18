@@ -19,32 +19,61 @@ Notes
 Steps
 #################################
 
-T: execute code from terminal
-R: execute code from R
-P: execute code from Python
+---------
+KEY 
+S: shell
+R: R code
+P: Python
+---------
+
 
 1. Create env with python 3.7 and activate
-      T: 'conda create -n env_r41_p37 python=3.7'
-      T: 'conda activate env_r41_p37'
-      T: 'conda env list'  # to review environments
+      S: 'conda create -n env_r41_p37 python=3.7'
+      S: 'conda activate env_r41_p37'
+      S: 'conda env list'  # to review environments
 
-2
-2. : Install R 4.1.2 via conda forge https://www.biostars.org/p/498049/
-3. : Activate conda env
-4. : launch R --vanilla within conda env
-5. > install.packages('remotes')
-7. : conda install -c conda-forge nevergrad
-8. > install.packages('httr')
-9. > install.packages('rvest')
-10. > install.packages('lares')
-11. > install.packages('openssl')
-13. : conda install r r-nloptr
-14. > remotes::install_github("facebookexperimental/Robyn/R") [was afraid to update packages so I chose no update (3)]
-15. : conda install -c conda-forge rpy2
-16. : run python within the conda env
-17. >>> import rpy2.robjects.packages as rpackages
-18. >>> rpackages.isinstalled('Robyn')
-19. Open PyCharm and connect new conda env Python and R interpreters; make sure to select the binaries within the conda env [Connecting R was fine but connect the python interpreter hanged. I think I need to just start a refresh PyCharm project with the new interprets.]
+2. Install R 4.1.2 via conda forge https://www.biostars.org/p/498049/
+      S: 'conda config --add channels conda-forge'
+      S: 'conda config --set channel_priority strict'
+      S: 'conda install -c conda-forge r-base'  # only think we may actually need to do
+      # Why do we not install r-environment r-essentials?
+
+3. Activate conda env
+      Already done above  
+
+4. Within conda env launch R
+      R: 'R --vanilla'
+
+5. Install packages # Why this order?
+      R: 'install.packages('remotes')'
+      S: 'conda install -c conda-forge nevergrad'
+          # Allowed new packages and downgraded packages
+      R: 'install.packages('httr')'
+      R: 'install.packages('rvest')'
+      R: 'install.packages('lares')'
+      R: 'install.packages('openssl')'
+      S: 'conda install r r-nloptr'  # Why conda install here?
+      R: 'remotes::install_github("facebookexperimental/Robyn/R")' 
+          # Was afraid to update packages so I chose no update (3)
+          # Tried all since there was only one package.  
+            # nloptr (1.2.2.3 -> 2.0.0) [CRAN]
+      Decided to add r-essentials
+          S: 'conda install -c conda-forge r-essentials'
+
+      S: conda install -c conda-forge rpy2
+
+6. Use Python to run code
+      P: import rpy2.robjects.packages as rpackages
+      R: rpackages.isinstalled('Robyn')
+
+      Open PyCharm and connect new conda env Python and R interpreters; make sure to select the binaries within the conda env [Connecting R was fine but connect the python interpreter hanged. I think I need to just start a refresh PyCharm project with the new interprets.]
+
+NOTES
+Had to install mini conda when running the R version of R in Pycharm.  Not sure if that matters.  See list at bottom for updates.
+
+
+
+
 
 #################################
 Errors
@@ -82,3 +111,81 @@ https://stackoverflow.com/questions/56372857/when-i-call-packages-from-rpy2-it-g
 https://thomas-cokelaer.info/blog/2012/01/installing-rpy2-with-different-r-version-already-installed/
 https://stackoverflow.com/questions/34705917/how-to-install-r-packages-that-are-not-available-in-r-essentials
 https://stackoverflow.com/questions/12540138/how-can-i-make-my-r-session-vanilla
+
+
+
+
+
+
+
+
+
+#################################
+# Miniconda downloads
+#################################
+
+libblas-3.9.0              |13_osx64_openblas          12 KB  conda-forge
+libcblas-3.9.0             |13_osx64_openblas          12 KB  conda-forge
+libcxx-12.0.1              |       habf9029_1         1.1 MB  conda-forge
+libgfortran-5.0.0          |9_3_0_h6c81a4c_23          19 KB  conda-forge
+libgfortran5-9.3.0         |      h6c81a4c_23         1.7 MB  conda-forge
+liblapack-3.9.0            |13_osx64_openblas          12 KB  conda-forge
+libopenblas-0.3.18         |openmp_h3351f45_0         9.0 MB  conda-forge
+llvm-openmp-13.0.1         |       hda6cdc1_0         305 KB  conda-forge
+numpy-1.22.2               |   py38h9d72dae_0         6.3 MB  conda-forge
+openssl-3.0.0              |       h0d85af4_2         2.5 MB  conda-forge
+python-3.8.12              |h43ca1e7_3_cpython        12.4 MB  conda-forge
+python_abi-3.8             |           2_cp38           4 KB  conda-forge
+setuptools-60.9.3          |   py38h50d1736_0         1.2 MB  conda-forge
+
+ca-certificates    conda-forge/osx-64::ca-certificates-2021.10.8-h033912b_0
+libblas            conda-forge/osx-64::libblas-3.9.0-13_osx64_openblas
+libcblas           conda-forge/osx-64::libcblas-3.9.0-13_osx64_openblas
+libcxx             conda-forge/osx-64::libcxx-12.0.1-habf9029_1
+libffi             conda-forge/osx-64::libffi-3.4.2-h0d85af4_5
+libgfortran        conda-forge/osx-64::libgfortran-5.0.0-9_3_0_h6c81a4c_23
+libgfortran5       conda-forge/osx-64::libgfortran5-9.3.0-h6c81a4c_23
+liblapack          conda-forge/osx-64::liblapack-3.9.0-13_osx64_openblas
+libopenblas        conda-forge/osx-64::libopenblas-0.3.18-openmp_h3351f45_0
+libzlib            conda-forge/osx-64::libzlib-1.2.11-h9173be1_1013
+llvm-openmp        conda-forge/osx-64::llvm-openmp-13.0.1-hda6cdc1_0
+ncurses            conda-forge/osx-64::ncurses-6.3-he49afe7_0
+numpy              conda-forge/osx-64::numpy-1.22.2-py38h9d72dae_0
+openssl            conda-forge/osx-64::openssl-3.0.0-h0d85af4_2
+pip                conda-forge/noarch::pip-22.0.3-pyhd8ed1ab_0
+python             conda-forge/osx-64::python-3.8.12-h43ca1e7_3_cpython
+python_abi         conda-forge/osx-64::python_abi-3.8-2_cp38
+readline           conda-forge/osx-64::readline-8.1-h05e3726_0
+setuptools         conda-forge/osx-64::setuptools-60.9.3-py38h50d1736_0
+sqlite             conda-forge/osx-64::sqlite-3.37.0-h23a322b_0
+tk                 conda-forge/osx-64::tk-8.6.12-h5dbffcc_0
+wheel              conda-forge/noarch::wheel-0.37.1-pyhd8ed1ab_0
+xz                 conda-forge/osx-64::xz-5.2.5-haf1e3a3_1
+zlib               conda-forge/osx-64::zlib-1.2.11-h9173be1_1013
+
+
+Activated conda python: /Users/jeffedwards/Library/r-miniconda/envs/r-reticulate/bin/python
+Collecting nevergrad
+  Downloading nevergrad-0.4.3.post9-py3-none-any.whl (411 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 411.3/411.3 KB 4.3 MB/s eta 0:00:00
+Collecting cma>=2.6.0
+  Downloading cma-3.1.0-py2.py3-none-any.whl (269 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 269.5/269.5 KB 5.7 MB/s eta 0:00:00
+Collecting bayesian-optimization>=1.2.0
+  Using cached bayesian_optimization-1.2.0-py3-none-any.whl
+Requirement already satisfied: numpy>=1.15.0 in /Users/jeffedwards/Library/r-miniconda/envs/r-reticulate/lib/python3.8/site-packages (from nevergrad) (1.22.2)
+Collecting typing-extensions>=3.6.6
+  Downloading typing_extensions-4.1.1-py3-none-any.whl (26 kB)
+Collecting scipy>=0.14.0
+  Downloading scipy-1.8.0-cp38-cp38-macosx_12_0_universal2.macosx_10_9_x86_64.whl (55.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 55.3/55.3 MB 24.9 MB/s eta 0:00:00
+Collecting scikit-learn>=0.18.0
+  Downloading scikit_learn-1.0.2-cp38-cp38-macosx_10_13_x86_64.whl (7.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.9/7.9 MB 41.3 MB/s eta 0:00:00
+Collecting joblib>=0.11
+  Downloading joblib-1.1.0-py2.py3-none-any.whl (306 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 307.0/307.0 KB 10.1 MB/s eta 0:00:00
+Collecting threadpoolctl>=2.0.0
+  Downloading threadpoolctl-3.1.0-py3-none-any.whl (14 kB)
+Installing collected packages: cma, typing-extensions, threadpoolctl, scipy, joblib, scikit-learn, bayesian-optimization, nevergrad
+Successfully installed bayesian-optimization-1.2.0 cma-3.1.0 joblib-1.1.0 nevergrad-0.4.3.post9 scikit-learn-1.0.2 scipy-1.8.0 threadpoolctl-3.1.0 typing-extensions-4.1.1
