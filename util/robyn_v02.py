@@ -12,8 +12,9 @@ import rpy2.situation
 from rpy2 import robjects
 from rpy2.robjects import r, pandas2ri
 from rpy2.robjects import pandas2ri
-from rpy2.robjects.conversion import localconverter
+from rpy2.robjects.conversion import localconverter, py2rpy
 from rpy2.robjects.packages import importr, data
+
 
 ##################
 # R imports
@@ -57,7 +58,7 @@ r.data('dt_simulated_weekly')
 r['dt_simulated_weekly'].head()
 
 # Import data then convert to R data frame
-# df_simulated = pd.read_csv('util/data/simulated_weekly.csv')  # import as pandas data frame
+df_simulated = pd.read_csv('util/data/simulated_weekly.csv')  # import as pandas data frame
 # with localconverter(ro.default_converter + pandas2ri.converter):
 #     dt_simulated_weekly = ro.conversion.py2rpy(df_simulated)
 
@@ -66,6 +67,7 @@ r['dt_simulated_weekly'].head()
 # Tip: any events can be added into this table, school break, events et
 r.data('dt_prophet_holidays')
 r['dt_prophet_holidays'].head()
+df_prophet = pd.read_csv('util/data/prophet_holidays.csv')
 
 # Set robyn_object. It must have extension .RDS. The object name can be different than Robyn:
 # TODO
@@ -81,8 +83,10 @@ r['dt_prophet_holidays'].head()
 # TODO
 
 robyn.robyn_inputs(
+    # dt_input=df_simulated
+    # , dt_holidays=df_prophet
     dt_input=r['dt_simulated_weekly']
-    , dt_holidays=r['dt_prophet_holidays']
+    ,dt_holidays=r['dt_prophet_holidays']
 
     # set variables
     , date_var="DATE"
