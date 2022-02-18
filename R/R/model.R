@@ -21,6 +21,7 @@
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param outputs Boolean. Process results with \code{robyn_outputs()}?
+#' @param lambda_control deprecated in v3.6.0
 #' @param ... Additional parameters passed to \code{robyn_outputs()}.
 #' @examples
 #' \dontrun{
@@ -44,6 +45,7 @@ robyn_run <- function(InputCollect,
                       trials = NULL,
                       intercept_sign = "non_negative",
                       nevergrad_algo = "TwoPointsDE",
+                      lambda_control = NULL,
                       ...) {
   t0 <- Sys.time()
 
@@ -60,6 +62,10 @@ robyn_run <- function(InputCollect,
   }
 
   init_msgs_run(InputCollect, refresh, quiet)
+  if (!is.null(lambda_control)) {
+    message("lambda_control is deprecated in v3.6.0 and now selected automatically
+          by hyperparameter optimisation")
+  }
 
   #####################################
   #### Prepare hyper-parameters
@@ -121,7 +127,7 @@ print.robyn_models <- function(x, ...) {
   Updated Hyper-parameters:
   {hypers}
 
-  Convergence on last quantile (all trials, iters {iters}):
+  Convergence on last quantile (iters {iters}):
     {convergence}
 
   ",

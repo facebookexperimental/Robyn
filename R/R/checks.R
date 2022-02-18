@@ -582,6 +582,13 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
 
 check_legacy_input <- function(InputCollect, cores, iterations, trials
                                , intercept_sign, nevergrad_algo) {
+
+  if (is.null(InputCollect$cores) & is.null(cores)) stop("must provide cores in robyn_run()")
+  if (is.null(InputCollect$iterations) & is.null(iterations)) stop("must provide iterations in robyn_run()")
+  if (is.null(InputCollect$trials) & is.null(trials)) stop("must provide trials in robyn_run()")
+  if (is.null(InputCollect$intercept_sign) & is.null(intercept_sign)) stop("must provide intercept_sign in robyn_run()")
+  if (is.null(InputCollect$nevergrad_algo) & is.null(nevergrad_algo)) stop("must provide nevergrad_algo in robyn_run()")
+
   if (!is.null(cores)) InputCollect$cores <- cores
   if (!is.null(iterations)) InputCollect$iterations <- iterations
   if (!is.null(trials)) InputCollect$trials <- trials
