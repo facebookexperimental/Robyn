@@ -224,8 +224,7 @@ robyn_train <- function(InputCollect, hyper_collect,
   } else {
 
     ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
-
-    check_init_msg(InputCollect)
+    check_init_msg(InputCollect, cores)
 
     if (!quiet) {
       message(paste(
@@ -992,12 +991,12 @@ robyn_response <- function(robyn_object = NULL,
     }
   }
 
-  ## prep environment
+  ## Prep environment
   dt_input <- InputCollect$dt_input
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
   adstock <- InputCollect$adstock
-  allSolutions <- dt_hyppar[, unique(solID)]
+  allSolutions <- unique(dt_hyppar$solID)
   spendExpoMod <- InputCollect$modNLSCollect
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends

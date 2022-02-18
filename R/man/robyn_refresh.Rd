@@ -2,6 +2,7 @@
 % Please edit documentation in R/refresh.R
 \name{robyn_refresh}
 \alias{robyn_refresh}
+\alias{print.robyn_refresh}
 \title{Build refresh model}
 \usage{
 robyn_refresh(
@@ -16,6 +17,8 @@ robyn_refresh(
   plot_pareto = TRUE,
   ...
 )
+
+\method{print}{robyn_refresh}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
@@ -54,6 +57,8 @@ and saving model one-pagers. Used when testing models.}
 
 \item{...}{Additional parameters passed to \code{robyn_engineering()} to
 overwrite original custom parameters passed into initial model.}
+
+\item{x}{robyn_refresh object}
 }
 \value{
 A list. The Robyn object.

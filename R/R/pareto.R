@@ -53,20 +53,19 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
   resultHypParamPar <- resultHypParam[robynPareto %in% pareto_fronts_vec]
   xDecompAggPar <- xDecompAgg[robynPareto %in% pareto_fronts_vec]
   resp_collect <- foreach(
-    respN = seq_along(decompSpendDistPar$rn)
-    , .combine = rbind) %dorng% {
+    respN = seq_along(decompSpendDistPar$rn), .combine = rbind) %dorng% {
       get_resp <- robyn_response(
         media_metric = decompSpendDistPar$rn[respN],
-        select_model = decompSpendDistPar[respN, solID],
-        metric_value = decompSpendDistPar[respN, mean_spend],
+        select_model = decompSpendDistPar$solID[respN],
+        metric_value = decompSpendDistPar$mean_spend[respN],
         dt_hyppar = resultHypParamPar,
         dt_coef = xDecompAggPar,
         InputCollect = InputCollect,
         OutputCollect = OutputModels
         )
-      dt_resp <- data.table(mean_response = get_resp
-                            ,rn = decompSpendDistPar$rn[respN]
-                            ,solID = decompSpendDistPar$solID[respN])
+      dt_resp <- data.table(mean_response = get_resp,
+                            rn = decompSpendDistPar$rn[respN],
+                            solID = decompSpendDistPar$solID[respN])
       return(dt_resp)
     }
   stopImplicitCluster(); registerDoSEQ(); getDoParWorkers()
