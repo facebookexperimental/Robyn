@@ -379,7 +379,8 @@ if (TRUE) {
   optimal_response <- robyn_response(robyn_object = robyn_object
                                      , select_build = 0
                                      , media_metric = select_media
-                                     , metric_value = optimal_spend)
+                                     , metric_value = optimal_spend
+                                     , plot = TRUE)
   print(round(optimal_response_allocator) == round(optimal_response))
   print(optimal_response_allocator);  print(optimal_response)
 }
@@ -437,13 +438,21 @@ print(AllocatorCollect)
 
 # Run ?robyn_response to check parameter definition
 
-# Get response for 80k
+## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
+## The robyn_response() function can now output response for both spends and exposures (imps,
+## GRP, newsletter sendings etc.) as well as plotting individual saturation curves. New
+## argument names "media_metric" and "metric_value" instead of "paid_media_var" and "spend"
+## are now used to accommodate this change.
+## ------------------------------------------------------------------------------------------ ##
+
+# Get response for 80k from result saved in robyn_object
 Spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1 # 2 means the second refresh model. 0 means the initial model
   , media_metric = "search_S"
-  , metric_value = Spend1)
+  , metric_value = Spend1
+  , plot = TRUE)
 Response1/Spend1 # ROI for search 80k
 
 # Get response for 81k
@@ -452,12 +461,32 @@ Response2 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
   , media_metric = "search_S"
-  , metric_value = Spend2)
+  , metric_value = Spend2
+  , plot = TRUE)
 Response2/Spend2 # ROI for search 81k
 
 # Marginal ROI of next 1000$ from 80k spend level for search
 (Response2-Response1)/(Spend2-Spend1)
 
+## Example of getting paid media exposure response curves
+imps <- 1000000
+response_imps <- robyn_response(
+  robyn_object = robyn_object
+  #, select_build = 1
+  , media_metric = "facebook_I"
+  , metric_value = imps
+  , plot = TRUE)
+response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
+
+## Example of getting organic media exposure response curves
+sendings <- 30000
+response_sending <- robyn_response(
+  robyn_object = robyn_object
+  #, select_build = 1
+  , media_metric = "newsletter"
+  , metric_value = sendings
+  , plot = TRUE)
+response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
 
 ################################################################
 #### Optional: get old model results
