@@ -307,7 +307,11 @@ InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hype
 
 # Run all trials and iterations
 # Use ?robyn_run to check parameter definition
-OutputModels <- Ê
+OutputModels <- robyn_run(
+  InputCollect = InputCollect # feed in all model specification
+  # , lambda_control = 1 # range from 0-1 & default at 1. Details see ?robyn_run
+  , outputs = FALSE # outputs = FALSE disables direct model output
+)
 
 # Output results and plots & export into local files
 OutputCollect <- robyn_outputs(

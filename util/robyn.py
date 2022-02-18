@@ -207,12 +207,59 @@ class InputCollect(object): # rename for python object
 
 
 test = InputCollect(df_input=df_input)
-test = InputCollect(cores=8)
+# test = InputCollect(cores=8)
+test.cores = 8
 
 print(test.df_input)
 print(test.cores)
 
 test.df_input
+
+
+
+# conda uninstall rpy2
+# conda install -c conda-forge rpy2
+from rpy2.robjects import Robyn
+
+
+#Import necessary packages
+import rpy2.robjects as robjects
+from rpy2.robjects.packages import importr
+from rpy2.robjects import pandas2ri
+from rpy2.robjects import Robyn
+from rpy2.robjects.packages import Robyn
+
+
+from rpy2.robjects.packages import importr
+utils = importr("utils")
+utils.data
+
+base = importr('base')
+base.scan._prm_translate
+
+
+
+
+import rpy2
+import rpy2.situation
+# Importing the top-level sub-package is also initializing and starting R embedded in the current Python process
+import rpy2.robjects as robjects
+from rpy2.robjects.packages import importr
+
+
+print(rpy2.__version__)
+
+# Setup details
+for row in rpy2.situation.iter_info():
+    print(row)
+
+# import R's "base" package
+base = importr('base')
+
+# import R's "utils" package
+utils = importr('utils')
+
+importr('Robyn')
 
 
 
