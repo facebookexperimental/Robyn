@@ -19,7 +19,16 @@ Notes
 Steps
 #################################
 
-1. : Create env with python 3.7
+T: execute code from terminal
+R: execute code from R
+P: execute code from Python
+
+1. Create env with python 3.7 and activate
+      T: 'conda create -n env_r41_p37 python=3.7'
+      T: 'conda activate env_r41_p37'
+      T: 'conda env list'  # to review environments
+
+2
 2. : Install R 4.1.2 via conda forge https://www.biostars.org/p/498049/
 3. : Activate conda env
 4. : launch R --vanilla within conda env

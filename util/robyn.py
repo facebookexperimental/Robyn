@@ -43,6 +43,14 @@ utils = importr('utils')
 # conda install -c conda-forge r-essentials r-base
 # conda install -c conda-forge rpy2
 # r-base-4.1.2
+# conda install -c conda-forge r r-dplyr
+# conda install -c conda-forge r r-glmnet
+# conda install -c conda-forge r r-lares
+# conda install -c conda-forge r r-minpack.lm
+# conda install -c conda-forge r r-nloptr
+# conda install -c conda-forge r r-prophet
+# conda install -c conda-forge r r-reticulate
+# conda install -c conda-forge r r-rPref
 
 
 # https://anaconda.org/r/r
@@ -97,7 +105,6 @@ if len(names_to_install) > 0:
 # https://thomas-cokelaer.info/blog/2012/01/installing-rpy2-with-different-r-version-already-installed/
 # https://stackoverflow.com/questions/64181911/call-r-package-data-using-python-with-rpy2
 # https://www.marsja.se/r-from-python-rpy2-tutorial/
-
 
 
 

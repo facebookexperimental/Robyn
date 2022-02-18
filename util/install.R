@@ -12,3 +12,6 @@ library(reticulate)
 
 Sys.which("R")
 echo $PATH
+
+
+# old.packages()
