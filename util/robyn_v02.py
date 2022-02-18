@@ -15,6 +15,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter, py2rpy
 from rpy2.robjects.packages import importr, data
 
+pandas2ri.activate()  # Won't work unless activated
 
 ##################
 # R imports
@@ -26,7 +27,6 @@ base = importr('base')
 ##################
 # Import Robyn from R
 robyn = importr('Robyn')
-
 
 
 ########################################################################################################################
@@ -43,7 +43,7 @@ for row in rpy2.situation.iter_info():
 # SETTINGS
 
 # Set seed
-set_seed = r('set.seed')
+set_se = r('set.seed')
 set_seed(123)
 
 # Force multicore when using RStudio
@@ -66,6 +66,7 @@ df_simulated = pd.read_csv('util/data/simulated_weekly.csv')  # import as pandas
 # 59 countries included. If your country is not included, please manually add it.
 # Tip: any events can be added into this table, school break, events et
 r.data('dt_prophet_holidays')
+
 r['dt_prophet_holidays'].head()
 df_prophet = pd.read_csv('util/data/prophet_holidays.csv')
 
@@ -86,7 +87,9 @@ robyn.robyn_inputs(
     # dt_input=df_simulated
     # , dt_holidays=df_prophet
     dt_input=r['dt_simulated_weekly']
-    ,dt_holidays=r['dt_prophet_holidays']
+    , dt_holidays=r['dt_prophet_holidays']
+    # dt_input=r.data('dt_simulated_weekly')
+    # , dt_holidays=r.data('dt_prophet_holidays')
 
     # set variables
     , date_var="DATE"
@@ -115,7 +118,7 @@ robyn.robyn_inputs(
     # control the signs of coefficients for baseline variables
 
     , paid_media_vars=["tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"]
-    # c("tv_S"    ,"ooh_S",   "print_S"   ,"facebook_I", "facebook_S","search_clicks_P"   ,"search_S")
+    # c("tv_S", "ooh_S", "print_S", "facebook_I", "facebook_S","search_clicks_P", "search_S")
     # we recommend to use media exposure metrics like impressions, GRP etc for the model.
     # If not applicable, use spend instead
     , paid_media_signs=["positive", "positive", "positive", "positive", "positive"]
@@ -162,7 +165,6 @@ robyn.robyn_inputs(
     # Time estimation: with geometric adstock, 2000 iterations * 5 trials
     # and 6 cores, it takes less than 1 hour. Both Weibull adstocks take up to twice as much time.
 )
-
 ###
 
 
