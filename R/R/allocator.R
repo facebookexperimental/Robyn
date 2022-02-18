@@ -161,9 +161,8 @@ robyn_allocator <- function(robyn_object = NULL,
     chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSortedFiltered)
     message(paste(chn_coef0, collapse = ", "), " are excluded in optimiser because their coeffients are 0")
   }
-  dt_hyppar <- dt_hyppar[, .SD, .SDcols = na.omit(
-    str_extract(names(dt_hyppar), paste(paste0(mediaSpendSortedFiltered, ".*"), collapse = "|"))
-  )]
+
+  dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
   setcolorder(dt_hyppar, sort(names(dt_hyppar)))
   dt_optim <- dt_mod[, mediaSpendSortedFiltered, with = FALSE]
   dt_optimCost <- dt_input[startRW:endRW, mediaSpendSortedFiltered, with = FALSE]

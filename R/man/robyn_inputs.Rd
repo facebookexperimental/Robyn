@@ -62,7 +62,8 @@ weekly and above cadence.}
 \item{prophet_signs}{Character vector. Choose any of
 \code{c("default", "positive", "negative")}. Control
 the signs of coefficients for prophet variables. Must have same
-order and same length as \code{prophet_vars}.}
+order and same length as \code{prophet_vars}. By default it's
+set to 'defualt'.}
 
 \item{prophet_country}{Character. Only one country allowed once.
 Including national holidays for 59 countries, whose list can
@@ -74,7 +75,8 @@ price & promotion, temperature, unemployment rate, etc.}
 \item{context_signs}{Character vector. Choose any of
 \code{c("default", "positive", "negative")}. Control
 the signs of coefficients for context_vars. Must have same
-order and same length as \code{context_vars}.}
+order and same length as \code{context_vars}. By default it's
+set to 'defualt'.}
 
 \item{paid_media_spends}{Character vector. When using exposure level
 metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
@@ -91,7 +93,8 @@ paid_media_vars only accept numerical variable}
 \item{paid_media_signs}{Character vector. Choose any of
 \code{c("default", "positive", "negative")}. Control
 the signs of coefficients for paid_media_vars. Must have same
-order and same length as \code{paid_media_vars}.}
+order and same length as \code{paid_media_vars}. By default it's
+set to 'positive'.}
 
 \item{organic_vars}{Character vector. Typically newsletter sendings,
 push-notifications, social media posts etc. Compared to paid_media_vars
@@ -100,7 +103,8 @@ organic_vars are often  marketing activities without clear spends}
 \item{organic_signs}{Character vector. Choose any of
 \code{c("default", "positive", "negative")}. Control
 the signs of coefficients for organic_signs. Must have same
-order and same length as \code{organic_vars}.}
+order and same length as \code{organic_vars}. By default it's
+set to 'positive'.}
 
 \item{factor_vars}{Character vector. Specify which of the provided
 variables in organic_vars or context_vars should be forced as a factor}
@@ -204,23 +208,17 @@ InputCollect <- robyn_inputs(
   dep_var = "revenue",
   dep_var_type = "revenue",
   prophet_vars = c("trend", "season", "holiday"),
-  prophet_signs = c("default", "default", "default"),
   prophet_country = "DE",
   context_vars = c("competitor_sales_B", "events"),
-  context_signs = c("default", "default"),
-  paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"),
-  paid_media_signs = c("positive", "positive", "positive", "positive", "positive"),
   paid_media_spends = c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S"),
+  paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"),
   organic_vars = c("newsletter"),
-  organic_signs = c("positive"),
   factor_vars = c("events"),
   window_start = "2016-11-23",
   window_end = "2018-08-22",
   adstock = "geometric",
-  iterations = 2000,
-  trials = 5,
-  hyperparameters = hyperparameters # to be defined separately
-  , calibration_input = dt_calibration # to be defined separately
+  hyperparameters = hyperparameters, # to be defined separately
+  calibration_input = dt_calibration # to be defined separately
 )
 }
 }

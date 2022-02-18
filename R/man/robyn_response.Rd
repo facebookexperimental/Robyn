@@ -59,15 +59,16 @@ result from a selected model build (initial model, refresh model etc.).
 \examples{
 \dontrun{
 ## Get marginal response (mResponse) and marginal ROI (mROI) for
-## the next 1k on 80k for search_clicks_P, when provided the saved
+## the next 1k on 80k for search_S, when provided the saved
 ## robyn_object by the robyn_save() function.
 
 # Get response for 80k
 spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object,
-  media_metric = "search_clicks_P",
-  spend = spend1
+  media_metric = "search_S",
+  metric_value = spend1,
+  plot = TRUE
 )
 
 # Get ROI for 80k
@@ -77,8 +78,9 @@ Response1 / spend1 # ROI for search 80k
 spend2 <- spend1 + 1000
 Response2 <- robyn_response(
   robyn_object = robyn_object,
-  media_metric = "search_clicks_P",
-  spend = spend2
+  media_metric = "search_S",
+  metric_value = spend2,
+  plot = TRUE
 )
 
 # Get ROI for 81k
@@ -90,26 +92,45 @@ Response2 - Response1
 # Get marginal ROI (mROI) for the next 1k on 80k
 (Response2 - Response1) / (spend2 - spend1)
 
+## Example of getting paid media exposure response curves
+imps <- 1000000
+response_imps <- robyn_response(
+  robyn_object = robyn_object,
+  media_metric = "facebook_I",
+  metric_value = imps,
+  plot = TRUE)
+response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
 
-## Get response for 80k for search_clicks_P from the third model refresh
+## Example of getting organic media exposure response curves
+sendings <- 30000
+response_sending <- robyn_response(
+  robyn_object = robyn_object,
+  media_metric = "newsletter",
+  metric_value = sendings,
+  plot = TRUE)
+response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
+
+## Get response for 80k for search_S from the third model refresh
 
 robyn_response(
   robyn_object = robyn_object,
   select_build = 3,
-  media_metric = "search_clicks_P",
-  spend = 80000
+  media_metric = "search_S",
+  metric_value = 80000,
+  plot = TRUE
 )
 
-## Get response for 80k for search_clicks_P from the a certain model SolID
+## Get response for 80k for search_S from the a certain model SolID
 ## in the current model output in the global environment
 
-robyn_response(,
-  media_metric = "search_clicks_P",
+robyn_response(
+  media_metric = "search_S",
+  metric_value = 80000,
   select_model = "3_10_3",
-  spend = 80000,
   dt_hyppar = OutputCollect$resultHypParam,
   dt_coef = OutputCollect$xDecompAgg,
   InputCollect = InputCollect
 )
+
 }
 }

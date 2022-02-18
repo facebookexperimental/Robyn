@@ -129,7 +129,9 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       ## 3. Adstock rate
       dt_geometric <- weibullCollect <- wb_type <- NULL
       resultHypParamLoop <- resultHypParam[solID == sid]
-      hypParam <- unlist(resultHypParamLoop[, names(InputCollect$hyperparameters), with = FALSE])
+      get_hp_names <- !(names(InputCollect$hyperparameters) %like% "penalty_*")
+      get_hp_names <- names(InputCollect$hyperparameters)[get_hp_names]
+      hypParam <- unlist(resultHypParamLoop[, get_hp_names, with = FALSE])
       if (InputCollect$adstock == "geometric") {
         hypParam_thetas <- hypParam[paste0(InputCollect$all_media, "_thetas")]
         dt_geometric <- data.table(channels = InputCollect$all_media, thetas = hypParam_thetas)
