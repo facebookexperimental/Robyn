@@ -370,20 +370,12 @@ print(AllocatorCollect)
 # simulated dataset) response. "optmSpendShareUnit" is the optimum spend share.
 AllocatorCollect$dt_optimOut
 
-## QA optimal response
-if (TRUE) {
-  select_media <- "search_S"
-  optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
-  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
-                                                             , optmResponseUnit]
-  optimal_response <- robyn_response(robyn_object = robyn_object
-                                     , select_build = 0
-                                     , media_metric = select_media
-                                     , metric_value = optimal_spend
-                                     , plot = TRUE)
-  print(round(optimal_response_allocator) == round(optimal_response))
-  print(optimal_response_allocator);  print(optimal_response)
-}
+## QA optimal response (with or without robyn_object)
+optimal_response(AllocatorCollect, "search_S", robyn_object)
+optimal_response(AllocatorCollect, "tv_S",
+                 InputCollect = InputCollect,
+                 OutputCollect = OutputCollect,
+                 select_model = select_model)
 
 
 ################################################################

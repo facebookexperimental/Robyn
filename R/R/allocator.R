@@ -559,3 +559,41 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
     coefsFiltered = coefsFiltered
   ))
 }
+
+####################################################################
+#' Optimal Response Curve and Value
+#'
+#' Using \code{robyn_allocator()} results and a media channel, calculate
+#' optimum response and plot response curve.
+#'
+#' @param AllocatorCollect List. Output of \code{robyn_allocator()}.
+#' @param media Character. Media channel (paid or organic).
+#' @param ... Additional parameters to pass to \code{robyn_response()}.
+#' Pass as parameters your \code{robyn_object} if you have it or
+#' \code{InputCollect}, \code{OutputCollect}, and \code{select_model}.
+#' @return A list with spend and response values, and a plot.
+#' @examples
+#' \dontrun{
+#' # Having AllocatorCollect as robyn_allocator()'s output
+#' optimal_response(AllocatorCollect, "search_S")
+#' }
+#' @export
+#' @rdname robyn_allocator
+optimal_response <- function(AllocatorCollect, media, ...) {
+  check_opts(media, AllocatorCollect$dt_optimOut$channels)
+  optimal_spend <- AllocatorCollect$dt_optimOut[channels == media, optmSpendUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[
+    channels == media, optmResponseUnit]
+  optimal_plot <- robyn_response(
+    select_build = 0,
+    media_metric = media,
+    metric_value = optimal_spend,
+    plot = TRUE,
+    ...) +
+    labs(caption = paste("Model:", AllocatorCollect$dt_optimOut$solID[1]))
+  return(list(
+    spend = optimal_spend,
+    response = optimal_response_allocator,
+    plot = optimal_plot
+  ))
+}

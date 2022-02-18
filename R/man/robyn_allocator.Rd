@@ -3,6 +3,7 @@
 \name{robyn_allocator}
 \alias{robyn_allocator}
 \alias{print.robyn_allocator}
+\alias{optimal_response}
 \title{Robyn budget allocator}
 \usage{
 robyn_allocator(
@@ -25,6 +26,8 @@ robyn_allocator(
 )
 
 \method{print}{robyn_allocator}(x, ...)
+
+optimal_response(AllocatorCollect, media, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
@@ -84,14 +87,25 @@ indicating constraints with equality or inequality.}
 
 \item{x}{robyn_allocator object}
 
-\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
+\item{...}{Additional parameters to pass to \code{robyn_response()}.
+Pass as parameters your \code{robyn_object} if you have it or
+\code{InputCollect}, \code{OutputCollect}, and \code{select_model}.}
+
+\item{AllocatorCollect}{List. Output of \code{robyn_allocator()}.}
+
+\item{media}{Character. Media channel (paid or organic).}
 }
 \value{
 A list object containing allocator result.
+
+A list with spend and response values, and a plot.
 }
 \description{
 The \code{robyn_allocator()} function returns a new split of media
 variable spends that maximizes the total media response.
+
+Using \code{robyn_allocator()} results and a media channel, calculate
+optimum response and plot response curve.
 }
 \examples{
 \dontrun{
@@ -127,5 +141,9 @@ AllocatorCollect <- robyn_allocator(
   expected_spend = 100000,
   expected_spend_days = 90
 )
+}
+\dontrun{
+# Having AllocatorCollect as robyn_allocator()'s output
+optimal_response(AllocatorCollect, "search_S")
 }
 }

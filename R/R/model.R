@@ -982,11 +982,14 @@ robyn_response <- function(robyn_object = NULL,
     dt_hyppar <- OutputCollect$resultHypParam
     dt_coef <- OutputCollect$xDecompAgg
     select_model <- OutputCollect$selectID
-  } else if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
-    stop(paste(
-      "When 'robyn_object' is not provided, then 'dt_hyppar = OutputCollect$resultHypParam',",
-      "'dt_coef = OutputCollect$xDecompAgg', 'InputCollect' & 'OutputCollect' must be provided"
-    ))
+  } else {
+    dt_hyppar <- OutputCollect$resultHypParam
+    dt_coef <- OutputCollect$xDecompAgg
+    if (any(is.null(select_model), is.null(InputCollect), is.null(OutputCollect))) {
+      stop(paste(
+        "When 'robyn_object' is not provided, 'InputCollect', 'OutputCollect', and 'select_model' must be provided"
+      ))
+    }
   }
 
   ## prep environment
@@ -1002,7 +1005,7 @@ robyn_response <- function(robyn_object = NULL,
   organic_vars <- InputCollect$organic_vars
 
   if (!(select_model %in% allSolutions)) {
-    stop(paste0("select_model must be one of these values: ", paste(allSolutions, collapse = ", ")))
+    stop(paste0("'select_model' must be one of these values: ", paste(allSolutions, collapse = ", ")))
   }
 
   ## get media valu
@@ -1088,24 +1091,23 @@ robyn_response <- function(robyn_object = NULL,
   response_vec <- m_saturated * coeff
   Response <- Saturated * coeff
 
-  ## plot resposne
-
+  ## Plot optimal response
   if (plot) {
-    media_type <- ifelse(metric_type=="organic",  "organic", "paid")
-    dt_line <- data.table(metric = m_adstockedRW, response = response_vec,
-                          channel = media_metric)
+    media_type <- ifelse(metric_type == "organic", "organic", "paid")
+    dt_line <- data.table(metric = m_adstockedRW, response = response_vec, channel = media_metric)
     dt_point <- data.table(input = metric_value, output = Response)
-    p_res <- ggplot(dt_line, aes(x= .data$metric, y = .data$response)) +
+    p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
       geom_line(color = "steelblue") +
-      geom_point(data = dt_point, aes(x = .data$input, y = .data$output)) +
-      geom_text(data = dt_point,
-                aes(x = .data$input, y = .data$output, label = formatNum(.data$input, 2, abbr = TRUE)),
-                show.legend = FALSE, hjust = -0.2) +
-      labs(title = paste("Saturation curve of", media_type, "media:", media_metric
-                         , ifelse(metric_type == "spend", "spend metric", "exposure metric")),
+      geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
+      labs(title = paste("Saturation curve of", media_type, "media:", media_metric,
+                         ifelse(metric_type == "spend", "spend metric", "exposure metric")),
+           subtitle = sprintf(
+             "Response of %s @ %s",
+             formatNum(dt_point$output, signif = 4),
+             formatNum(dt_point$input, signif = 4)),
            x = "Metric", y = "Response") +
       theme_lares() + scale_x_abbr() + scale_y_abbr()
-    print(p_res)
+    return(p_res)
   }
 
   return(as.numeric(Response))
