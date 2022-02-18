@@ -47,7 +47,8 @@
 #' @param prophet_signs Character vector. Choose any of
 #' \code{c("default", "positive", "negative")}. Control
 #' the signs of coefficients for prophet variables. Must have same
-#' order and same length as \code{prophet_vars}.
+#' order and same length as \code{prophet_vars}. By default it's
+#' set to 'defualt'.
 #' @param prophet_country Character. Only one country allowed once.
 #' Including national holidays for 59 countries, whose list can
 #' be found loading \code{data("dt_prophet_holidays")}.
@@ -56,7 +57,13 @@
 #' @param context_signs Character vector. Choose any of
 #' \code{c("default", "positive", "negative")}. Control
 #' the signs of coefficients for context_vars. Must have same
-#' order and same length as \code{context_vars}.
+#' order and same length as \code{context_vars}. By default it's
+#' set to 'defualt'.
+#' @param paid_media_spends Character vector. When using exposure level
+#' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
+#' corresponding spends for ROAS calculation. For spend metrics in
+#' \code{paid_media_vars}, use the same name. \code{media_spend_vars} must
+#' have same order and same length as \code{paid_media_vars}.
 #' @param paid_media_vars Character vector. Recommended to use exposure
 #' level metrics (impressions, clicks, GRP etc) other than spend. Also
 #' recommended to split media channel into sub-channels
@@ -65,19 +72,16 @@
 #' @param paid_media_signs Character vector. Choose any of
 #' \code{c("default", "positive", "negative")}. Control
 #' the signs of coefficients for paid_media_vars. Must have same
-#' order and same length as \code{paid_media_vars}.
-#' @param paid_media_spends Character vector. When using exposure level
-#' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
-#' corresponding spends for ROAS calculation. For spend metrics in
-#' \code{paid_media_vars}, use the same name. \code{media_spend_vars} must
-#' have same order and same length as \code{paid_media_vars}.
+#' order and same length as \code{paid_media_vars}. By default it's
+#' set to 'positive'.
 #' @param organic_vars Character vector. Typically newsletter sendings,
 #' push-notifications, social media posts etc. Compared to paid_media_vars
 #' organic_vars are often  marketing activities without clear spends
 #' @param organic_signs Character vector. Choose any of
 #' \code{c("default", "positive", "negative")}. Control
 #' the signs of coefficients for organic_signs. Must have same
-#' order and same length as \code{organic_vars}.
+#' order and same length as \code{organic_vars}. By default it's
+#' set to 'positive'.
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor
 #' @param adstock Character. Choose any of \code{c("geometric", "weibull_cdf",
@@ -136,23 +140,17 @@
 #'   dep_var = "revenue",
 #'   dep_var_type = "revenue",
 #'   prophet_vars = c("trend", "season", "holiday"),
-#'   prophet_signs = c("default", "default", "default"),
 #'   prophet_country = "DE",
 #'   context_vars = c("competitor_sales_B", "events"),
-#'   context_signs = c("default", "default"),
-#'   paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"),
-#'   paid_media_signs = c("positive", "positive", "positive", "positive", "positive"),
 #'   paid_media_spends = c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S"),
+#'   paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"),
 #'   organic_vars = c("newsletter"),
-#'   organic_signs = c("positive"),
 #'   factor_vars = c("events"),
 #'   window_start = "2016-11-23",
 #'   window_end = "2018-08-22",
 #'   adstock = "geometric",
-#'   iterations = 2000,
-#'   trials = 5,
-#'   hyperparameters = hyperparameters # to be defined separately
-#'   , calibration_input = dt_calibration # to be defined separately
+#'   hyperparameters = hyperparameters, # to be defined separately
+#'   calibration_input = dt_calibration # to be defined separately
 #' )
 #' }
 #' @return A list containing the all input parameters and modified input data from
@@ -424,19 +422,18 @@ Hyper-parameters for media transformations:
 #' hyper_names(adstock = "geometric", all_media = InputCollect$all_media)
 #'
 #' hyperparameters <- list(
-#'   facebook_I_alphas = c(0.5, 3) # example bounds for alpha
-#'   , facebook_I_gammas = c(0.3, 1) # example bounds for gamma
-#'   , facebook_I_thetas = c(0, 0.3) # example bounds for theta
-#'
-#'   , print_S_alphas = c(0.5, 3),
+#'   facebook_S_alphas = c(0.5, 3), # example bounds for alpha
+#'   facebook_S_gammas = c(0.3, 1), # example bounds for gamma
+#'   facebook_S_thetas = c(0, 0.3), # example bounds for theta
+#'   print_S_alphas = c(0.5, 3),
 #'   print_S_gammas = c(0.3, 1),
 #'   print_S_thetas = c(0.1, 0.4),
 #'   tv_S_alphas = c(0.5, 3),
 #'   tv_S_gammas = c(0.3, 1),
 #'   tv_S_thetas = c(0.3, 0.8),
-#'   search_clicks_P_alphas = c(0.5, 3),
-#'   search_clicks_P_gammas = c(0.3, 1),
-#'   search_clicks_P_thetas = c(0, 0.3),
+#'   search_S_alphas = c(0.5, 3),
+#'   search_S_gammas = c(0.3, 1),
+#'   search_S_thetas = c(0, 0.3),
 #'   ooh_S_alphas = c(0.5, 3),
 #'   ooh_S_gammas = c(0.3, 1),
 #'   ooh_S_thetas = c(0.1, 0.4),
@@ -449,12 +446,11 @@ Hyper-parameters for media transformations:
 #' hyper_names(adstock = "weibull", all_media = InputCollect$all_media)
 #'
 #' hyperparameters <- list(
-#'   facebook_I_alphas = c(0.5, 3) # example bounds for alpha
-#'   , facebook_I_gammas = c(0.3, 1) # example bounds for gamma
-#'   , facebook_I_shapes = c(0.0001, 2) # example bounds for shape
-#'   , facebook_I_scales = c(0, 0.1) # example bounds for scale
-#'
-#'   , print_S_alphas = c(0.5, 3),
+#'   facebook_S_alphas = c(0.5, 3), # example bounds for alpha
+#'   facebook_S_gammas = c(0.3, 1), # example bounds for gamma
+#'   facebook_S_shapes = c(0.0001, 2), # example bounds for shape
+#'   facebook_S_scales = c(0, 0.1), # example bounds for scale
+#'   print_S_alphas = c(0.5, 3),
 #'   print_S_gammas = c(0.3, 1),
 #'   print_S_shapes = c(0.0001, 2),
 #'   print_S_scales = c(0, 0.1),
@@ -462,10 +458,10 @@ Hyper-parameters for media transformations:
 #'   tv_S_gammas = c(0.3, 1),
 #'   tv_S_shapes = c(0.0001, 2),
 #'   tv_S_scales = c(0, 0.1),
-#'   search_clicks_P_alphas = c(0.5, 3),
-#'   search_clicks_P_gammas = c(0.3, 1),
-#'   search_clicks_P_shapes = c(0.0001, 2),
-#'   search_clicks_P_scales = c(0, 0.1),
+#'   search_S_alphas = c(0.5, 3),
+#'   search_S_gammas = c(0.3, 1),
+#'   search_S_shapes = c(0.0001, 2),
+#'   search_S_scales = c(0, 0.1),
 #'   ooh_S_alphas = c(0.5, 3),
 #'   ooh_S_gammas = c(0.3, 1),
 #'   ooh_S_shapes = c(0.0001, 2),
@@ -499,9 +495,9 @@ hyper_names <- function(adstock, all_media) {
 hyper_limits <- function() {
   data.frame(
     thetas = c(">=0", "<1"),
-    alphas = c(">0", "<Inf"),
+    alphas = c(">0", "<10"),
     gammas = c(">0", "<=1"),
-    shapes = c(">0", "<Inf"),
+    shapes = c(">0", "<20"),
     scales = c(">=0", "<=1")
   )
 }

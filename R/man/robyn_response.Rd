@@ -14,7 +14,7 @@ robyn_response(
   dt_coef = NULL,
   InputCollect = NULL,
   OutputCollect = NULL,
-  plot_response = FALSE
+  plot = FALSE
 )
 }
 \arguments{
@@ -49,7 +49,7 @@ Required when \code{robyn_object} is not provided.}
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
 
-\item{plot_response}{Logical. Set TRUE to plot individual saturation curve.}
+\item{plot}{Logical. Set TRUE to plot individual saturation curve.}
 }
 \description{
 The \code{robyn_response()} function returns the response for a given

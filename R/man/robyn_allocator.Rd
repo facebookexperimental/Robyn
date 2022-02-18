@@ -67,7 +67,7 @@ for each paid media variable when maximizing total media response. \code{channel
 = 0.7} means minimum spend of the variable is 70% of historical average. Lower bound must
 be >=0.01. \code{channel_constr_up = 1.5} means maximum spend of the variable is 150% of
 historical average. Upper bound must be >= lower bound. Both must have same length and order
-as \code{paid_media_vars}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
+as \code{paid_media_spends}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
 new level is way higher than historical level.}
 
 \item{maxeval}{Integer. The maximum iteration of the global optimization algorithm.

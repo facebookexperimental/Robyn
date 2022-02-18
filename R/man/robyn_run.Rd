@@ -18,6 +18,7 @@ robyn_run(
   trials = NULL,
   intercept_sign = "non_negative",
   nevergrad_algo = "TwoPointsDE",
+  lambda_control = NULL,
   ...
 )
 
@@ -58,6 +59,8 @@ there are \code{context_vars} with large positive values.}
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
 "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
 "cGA", "RandomSearch")}}
+
+\item{lambda_control}{deprecated in v3.6.0}
 
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 

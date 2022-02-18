@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.4.8    ######################
+####################         Facebook MMM Open Source - Robyn 3.6.0    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -69,52 +69,57 @@ robyn_object <- "~/Desktop/MyRobyn.RDS"
 ################################################################
 #### Step 2a: For first time user: Model specification in 4 steps
 
-#### 2a-1: First, specify input data & model parameters
+#### 2a-1: First, specify input variables
 
-# Run ?robyn_inputs to check parameter definition
+## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
+## All sign control are now automatically provided: "positive" for media & organic variables
+## and "default" for all others. User can still customise signs if necessary. Documentation
+## is available in ?robyn_inputs
+## ------------------------------------------------------------------------------------------ ##
 InputCollect <- robyn_inputs(
   dt_input = dt_simulated_weekly
   ,dt_holidays = dt_prophet_holidays
   ,date_var = "DATE" # date format must be "2020-01-01"
   ,dep_var = "revenue" # there should be only one dependent variable
   ,dep_var_type = "revenue" # "revenue" or "conversion"
-  ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday", "holiday"
-  # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
-  ,prophet_country = "DE"# only one country allowed once. Including national holidays
-  # for 59 countries, whose list can be found on our github guide
-  ,context_vars = c("competitor_sales_B", "events") # typically competitors, price &
-  # promotion, temperature, unemployment rate etc
-  ,paid_media_spends = c("tv_S","ooh_S",	"print_S"	,"facebook_S", "search_S")
-  # spends must have same order and same length as paid_media_vars
-  ,paid_media_vars = c("tv_S", "ooh_S"	,	"print_S"	,"facebook_I" ,"search_clicks_P")
-  # Use media exposure metrics like impressions, GRP etc for the model.
-  # If not applicable, use spend instead
-  ,organic_vars = c("newsletter")
-  ,factor_vars = c("events") # specify which variables in context_vars and
-  # organic_vars are factorial
+  ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday" & "holiday"
+  ,prophet_country = "DE"# input one country. dt_prophet_holidays includes 59 countries by default
+  ,context_vars = c("competitor_sales_B", "events") # e.g. competitors, discount, unemployment etc
+  ,paid_media_spends = c("tv_S","ooh_S",	"print_S"	,"facebook_S", "search_S") # mandatory input
+  ,paid_media_vars = c("tv_S", "ooh_S"	,	"print_S"	,"facebook_I" ,"search_clicks_P") # mandatory.
+  # paid_media_vars must have same order as paid_media_spends. Use media exposure metrics like
+  # impressions, GRP etc. If not applicable, use spend instead.
+  ,organic_vars = c("newsletter") # marketing activity without media spend
+  ,factor_vars = c("events") # specify which variables in context_vars or organic_vars are factorial
   ,window_start = "2016-11-23"
   ,window_end = "2018-08-22"
-  ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
-  # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
-  # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run
-)
+  ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
 
+  # ?robyn_inputs for more info
+)
 
 #### 2a-2: Second, define and add hyperparameters
 
+## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
+## Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
+## hyperparameter names needs to be base on paid_media_spends names. Run:
+hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+## to see correct hyperparameter names. Check GitHub homepage for background of change.
+## Also calibration_input are required to be spend names.
+## ------------------------------------------------------------------------------------------ ##
+
 ## Guide to setup & understand hyperparameters
 
-## 1. IMPORTANT: check helper plots to see hyperparameter's effect in transformation
+## 1. IMPORTANT: set plot = TRUE to see helper plots of hyperparameter's effect in transformation
 plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
-# All variables in paid_media_vars or organic_vars require hyperparameter and will be
+# All variables in paid_media_spends and organic_vars require hyperparameter and will be
 # transformed by adstock & saturation.
-# Difference between paid_media_vars and organic_vars is that paid_media_vars has spend that
-# needs to be specified in paid_media_spends specifically.
-# Run hyper_names() to get correct hyperparameter names. all names in hyperparameters must
-# equal names from hyper_names(), case sensitive.
+# Run hyper_names() as below to get correct hyperparameter names. all names in
+# hyperparameters must equal names from hyper_names(), case sensitive.
+# Run ?hyper_names to check parameter definition.
 
 ## 3. Hyperparameter interpretation & recommendation:
 
@@ -147,20 +152,17 @@ plot_saturation(plot = FALSE)
 # in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
 # to converge.
 
-## Hill function as saturation: Hill function is a two-parametric function in Robyn with
+## Hill function for saturation: Hill function is a two-parametric function in Robyn with
 # alpha and gamma. Alpha controls the shape of the curve between exponential and s-shape.
 # Recommended bound is c(0.5, 3). The larger the alpha, the more S-shape. The smaller, the
 # more C-shape. Gamma controls the inflexion point. Recommended bounce is c(0.3, 1). The
 # larger the gamma, the later the inflection point in the response curve.
 
-## 4. Set each hyperparameter bounds. They either contains two values e.g. c(0, 0.5),
-# or only one value (in which case you've "fixed" that hyperparameter)
+## 4. Set individual hyperparameter bounds. They either contain two values e.g. c(0, 0.5),
+# or only one value, in which case you'd "fixed" that hyperparameter
 
-# Run ?hyper_names to check parameter definition
-# Run hyper_limits() to check valid upper and lower bounds by range
-hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
-
-# Example hyperparameters for Geometric adstock
+# Run hyper_limits() to check maximum upper and lower bounds by range
+# Example hyperparameters ranges for Geometric adstock
 hyperparameters <- list(
   facebook_S_alphas = c(0.5, 3)
   ,facebook_S_gammas = c(0.3, 1)
@@ -180,20 +182,20 @@ hyperparameters <- list(
 
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
-  ,ooh_S_thetas = c(0.4)
+  ,ooh_S_thetas = c(0.1, 0.4)
 
   ,newsletter_alphas = c(0.5, 3)
   ,newsletter_gammas = c(0.3, 1)
   ,newsletter_thetas = c(0.1, 0.4)
 )
 
-# Example hyperparameters for Weibull CDF adstock
+# Example hyperparameters ranges for Weibull CDF adstock
 # facebook_S_alphas = c(0.5, 3)
 # facebook_S_gammas = c(0.3, 1)
 # facebook_S_shapes = c(0.0001, 2)
 # facebook_S_scales = c(0, 0.1)
 
-# Example hyperparameters for Weibull PDF adstock
+# Example hyperparameters ranges for Weibull PDF adstock
 # facebook_S_alphas = c(0.5, 3
 # facebook_S_gammas = c(0.3, 1)
 # facebook_S_shapes = c(0.0001, 10)
@@ -215,9 +217,12 @@ print(InputCollect)
 # 10k$ spend is tested against a hold-out for channel A, then input the incremental
 # return as point-estimate as the example below.
 # 3. The point-estimate has to always match the spend in the variable. For example, if
-# channel A usually has 100k$ weekly spend and the experimental HO is 70%, input the
-# point-estimate for the 30k$, not the 70k$.
+# channel A usually has 100k$ weekly spend and the experimental holdout is 70%, input
+# the point-estimate for the 30k$, not the 70k$.
 
+## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
+## As noted above, calibration channels need to be paid_media_spends name.
+## ------------------------------------------------------------------------------------------ ##
 # dt_calibration <- data.frame(
 #   channel = c("facebook_S",  "tv_S", "facebook_S")
 #   # channel name must in paid_media_vars
@@ -247,8 +252,8 @@ print(InputCollect)
 #   ,prophet_vars = c("trend", "season", "holiday")
 #   ,prophet_country = "DE"
 #   ,context_vars = c("competitor_sales_B", "events")
-#   ,paid_media_vars = c("tv_S", "ooh_S", 	"print_S", "facebook_I", "search_clicks_P")
 #   ,paid_media_spends = c("tv_S", "ooh_S",	"print_S", "facebook_S", "search_S")
+#   ,paid_media_vars = c("tv_S", "ooh_S", 	"print_S", "facebook_I", "search_clicks_P")
 #   ,organic_vars = c("newsletter")
 #   ,factor_vars = c("events")
 #   ,window_start = "2016-11-23"
@@ -261,42 +266,45 @@ print(InputCollect)
 ################################################################
 #### Step 3: Build initial model
 
-# Run all trials and iterations
-# Use ?robyn_run to check parameter definition
+## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   , cores = 8
   #, add_penalty_factor = TRUE
-  , iterations = 100
+  , iterations = 1000
   , trials = 1
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
-# Check MOO (multi-objective optimisation) convergence
+
+## Check MOO (multi-objective optimisation) convergence
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
 
-
-# Calculate Pareto optimality, cluster and export results and plots
+## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
-  , pareto_fronts = 1 # decrease pareto_fronts to get less output models
-  # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1. Details see ?robyn_outputs
+  , pareto_fronts = 3 # decrease pareto_fronts to get less output models
+  # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1
   , csv_out = "pareto" # "pareto" or "all"
-  , clusters = TRUE # Set to TRUE to help reduce and select best models based on robyn_clusters()
+  , clusters = TRUE # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
   , plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers
-  , plot_folder = robyn_object # plots will be saved in the same folder as robyn_object
+  , plot_folder = robyn_object # path for plots export
 )
 print(OutputCollect)
 
-# Run & output in one go
+## Run & output in one go
 # OutputCollect <- robyn_run(
 #   InputCollect = InputCollect
+#   , cores = 8
+#   , iterations = 3000
+#   , trials = 5
 #   , outputs = TRUE
 #   , plot_folder = robyn_object
 # )
 
-## Besides one-pager and clusters plots: there are 4 csv output saved in the folder for further usage
+## 4 csv outputs are also saved in the folder for further usage. Check schema here:
+## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model
 # pareto_aggregated.csv, aggregated decomposition per independent variable of all Pareto output
 # pareto_media_transform_matrix.csv, all media transformation vectors
@@ -306,31 +314,21 @@ print(OutputCollect)
 ################################################################
 #### Step 4: Select and save the initial model
 
-## Compare all model one-pagers in the plot folder and select one that mostly represents
-## your business reality
+## Compare all model one-pagers and select one that mostly reflects your business reality
 
-## Select winning model based on minimum combined error by ROI cluster using robyn_clusters()
-## You can check OutputCollect$clusters information or manually run it with custom parameters
-# cls <- robyn_clusters(OutputCollect,
-#                       all_media = InputCollect$all_media,
-#                       k = "auto", limit = 1,
-#                       weights = c(1, 1, 1.5))
-
-OutputCollect$allSolutions # get all model IDs in result
-# OutputCollect$clusters$models # or from reduced results using obyn_clusters()
-select_model <- "1_12_7" # select one from above
+print(OutputCollect)
+select_model <- "1_113_6" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
            , OutputCollect = OutputCollect # all model output
 )
 
-
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
 
-## Budget allocator result requires further validation. Please use this result with caution.
-## Don't interpret budget allocation result if selected result doesn't meet business expectation
+## Budget allocation result requires further validation. Please use this recommendation with caution.
+## Don't interpret budget allocation result if selected model above doesn't meet business expectation.
 
 # Check media summary for selected model
 OutputCollect$xDecompAgg[solID == select_model & !is.na(mean_spend)
@@ -373,16 +371,18 @@ print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
 
 ## QA optimal response
-# select_media <- "search_clicks_P"
-# optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
-# optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
-#                                                            , optmResponseUnit]
-# optimal_response <- robyn_response(robyn_object = robyn_object
-#                                    , select_build = 0
-#                                    , media_metric = select_media
-#                                    , metric_value = optimal_spend)
-# round(optimal_response_allocator) == round(optimal_response)
-# optimal_response_allocator; optimal_response
+if (TRUE) {
+  select_media <- "search_S"
+  optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
+                                                             , optmResponseUnit]
+  optimal_response <- robyn_response(robyn_object = robyn_object
+                                     , select_build = 0
+                                     , media_metric = select_media
+                                     , metric_value = optimal_spend)
+  print(round(optimal_response_allocator) == round(optimal_response))
+  print(optimal_response_allocator);  print(optimal_response)
+}
 
 
 ################################################################
