@@ -1,0 +1,75 @@
+#################################
+#################################
+Robyn install process
+#################################
+#################################
+
+#################################
+Notes
+#################################
+
+* All done via terminal
+* Current version of miniconda
+* Command Line Tools should be installed but was note confirmed
+* Install takes a long time as a ton of R packages and their dependancies are loaded and not all worked; had to be install manually (probably took 30 minutes)
+* I recommend restarting terminal after large installs; be patient
+* I am using an M1 Mac; Intel-based considerations may apply
+
+#################################
+Steps
+#################################
+
+1. : Create env with python 3.7
+2. : Install R 4.1.2 via conda forge https://www.biostars.org/p/498049/
+3. : Activate conda env
+4. : launch R --vanilla within conda env
+5. > install.packages('remotes')
+7. : conda install -c conda-forge nevergrad
+8. > install.packages('httr')
+9. > install.packages('rvest')
+10. > install.packages('lares')
+11. > install.packages('openssl')
+13. : conda install r r-nloptr
+14. > remotes::install_github("facebookexperimental/Robyn/R") [was afraid to update packages so I chose no update (3)]
+15. : conda install -c conda-forge rpy2
+16. : run python within the conda env
+17. >>> import rpy2.robjects.packages as rpackages
+18. >>> rpackages.isinstalled('Robyn')
+19. Open PyCharm and connect new conda env Python and R interpreters; make sure to select the binaries within the conda env [Connecting R was fine but connect the python interpreter hanged. I think I need to just start a refresh PyCharm project with the new interprets.]
+
+#################################
+Errors
+#################################
+
+6. > remotes::install_github("facebookexperimental/Robyn/R")
+
+ERROR: dependencies ‘lares’, ‘nloptr’ are not available for package ‘Robyn’
+* removing ‘/Users/stephensheron/opt/anaconda3/envs/robyn_v2/lib/R/library/Robyn’
+Warning messages:
+1: In i.p(...) :
+  installation of package ‘openssl’ had non-zero exit status
+2: In i.p(...) : installation of package ‘httr’ had non-zero exit status
+3: In i.p(...) : installation of package ‘rvest’ had non-zero exit status
+4: In i.p(...) : installation of package ‘lares’ had non-zero exit status
+5: In i.p(...) : installation of package ‘nloptr’ had non-zero exit status
+6: In i.p(...) :
+  installation of package ‘/var/folders/5j/sv16ysks2v76fkz849zy1mlr0000gn/T//Rtmpgp8oRf/file141473a9f21a/Robyn_3.5.0.tar.gz’ had non-zero exit status
+
+12. > install.packages('nloptr')
+
+The downloaded source packages are in
+	‘/private/var/folders/5j/sv16ysks2v76fkz849zy1mlr0000gn/T/RtmpY7wGUC/downloaded_packages’
+Updating HTML index of packages in '.Library'
+Making 'packages.html' ... done
+Warning message:
+In install.packages("nloptr") :
+  installation of package ‘nloptr’ had non-zero exit status
+
+#################################
+Reference links
+#################################
+
+https://stackoverflow.com/questions/56372857/when-i-call-packages-from-rpy2-it-gives-me-an-error/57494219#57494219
+https://thomas-cokelaer.info/blog/2012/01/installing-rpy2-with-different-r-version-already-installed/
+https://stackoverflow.com/questions/34705917/how-to-install-r-packages-that-are-not-available-in-r-essentials
+https://stackoverflow.com/questions/12540138/how-can-i-make-my-r-session-vanilla
