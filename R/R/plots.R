@@ -410,7 +410,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
 
 }
 
-allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, export = TRUE, quiet = FALSE) {
+allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
 
   # 1. Response comparison plot
   plotDT_resp <- dt_optimOut[, c("channels", "initResponseUnit", "optmResponseUnit")][order(rank(channels))]
@@ -514,9 +514,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   )
 
   if (export) {
-    if (!quiet) message("Exporting charts into file: ", paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"))
+    scenario <- ifelse(scenario == "max_historical_response", "hist", "respo")
+    filename <- paste0(OutputCollect$plot_folder, select_model, "_", scenario, "_reallocated.png")
+    if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(
-      filename = paste0(OutputCollect$plot_folder, select_model, "_reallocated.png"),
+      filename = filename,
       plot = plots,
       dpi = 400, width = 18, height = 14, limitsize = FALSE
     )

@@ -318,7 +318,7 @@ robyn_allocator <- function(robyn_object = NULL,
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Plot allocator results
-  plots <- allocation_plots(InputCollect, OutputCollect, dt_optimOut, select_model, export, quiet)
+  plots <- allocation_plots(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export, quiet)
 
   ## Export results into CSV
   if (export) fwrite(dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))

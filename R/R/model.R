@@ -1097,13 +1097,14 @@ robyn_response <- function(robyn_object = NULL,
     dt_point <- data.table(input = metric_value, output = Response)
     p_res <- ggplot(dt_line, aes(x= .data$metric, y = .data$response)) +
       geom_line(color = "steelblue") +
-      geom_point(data= dt_point, aes(x = .data$input, y = .data$output)) +
-      geom_text(data= dt_point,
+      geom_point(data = dt_point, aes(x = .data$input, y = .data$output)) +
+      geom_text(data = dt_point,
                 aes(x = .data$input, y = .data$output, label = formatNum(.data$input, 2, abbr = TRUE)),
                 show.legend = FALSE, hjust = -0.2) +
       labs(title = paste("Saturation curve of", media_type, "media:", media_metric
-                         , ifelse(metric_type == "spend", "spend metric", "exposure metric"))) +
-      theme_lares()
+                         , ifelse(metric_type == "spend", "spend metric", "exposure metric")),
+           x = "Metric", y = "Response") +
+      theme_lares() + scale_x_abbr() + scale_y_abbr()
     print(p_res)
   }
 
