@@ -43,7 +43,7 @@ for row in rpy2.situation.iter_info():
 # SETTINGS
 
 # Set seed
-set_se = r('set.seed')
+set_seed = r('set.seed')
 set_seed(123)
 
 # Force multicore when using RStudio
