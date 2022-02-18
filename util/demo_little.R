@@ -198,6 +198,7 @@ plot_saturation(plot = FALSE)
 # Run hyper_limits() to check valid upper and lower bounds by range
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
+
 # Example hyperparameters for Geometric adstock
 hyperparameters <- list(
   facebook_I_alphas = c(0.5, 3)
