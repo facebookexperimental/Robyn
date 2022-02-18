@@ -19,6 +19,19 @@
 #' @param add_penalty_factor Boolean. Add penalty factor hyperparameters to
 #' glmnet's penalty.factor to be optimized by nevergrad?
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
+#' @param cores Integer. Default to \code{parallel::detectCores()}
+#' @param iterations Integer. Recommended 2000 for default
+#' \code{nevergrad_algo = "TwoPointsDE"}
+#' @param trials Integer. Recommended 5 for default
+#' \code{nevergrad_algo = "TwoPointsDE"}
+#' @param nevergrad_algo Character. Default to "TwoPointsDE". Options are
+#' \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+#' "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+#' "cGA", "RandomSearch")}.
+#' @param intercept_sign Character. Choose one of "non_negative" (default) or
+#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
+#' and refit the model. Consider changing intercept_sign to "unconstrained" when
+#' there are \code{context_vars} with large positive values.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param outputs Boolean. Process results with \code{robyn_outputs()}?
 #' @param lambda_control deprecated in v3.6.0
@@ -27,9 +40,11 @@
 #' \dontrun{
 #' OutputCollect <- robyn_run(
 #'   InputCollect = InputCollect,
-#'   pareto_fronts = 3,
-#'   plot_pareto = TRUE,
-#'   plot_folder = robyn_object
+#'   # cores = NULL,
+#'   # add_penalty_factor = TRUE,
+#'   iterations = 2000,
+#'   trials = 2,
+#'   outputs = FALSE
 #' )
 #' }
 #' @export
@@ -41,10 +56,10 @@ robyn_run <- function(InputCollect,
                       outputs = TRUE,
                       quiet = FALSE,
                       cores = NULL,
-                      iterations = NULL,
-                      trials = NULL,
-                      intercept_sign = "non_negative",
+                      trials = 5,
+                      iterations = 2000,
                       nevergrad_algo = "TwoPointsDE",
+                      intercept_sign = "non_negative",
                       lambda_control = NULL,
                       ...) {
   t0 <- Sys.time()
@@ -56,23 +71,17 @@ robyn_run <- function(InputCollect,
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
   }
 
-  InputCollect <- check_legacy_input(InputCollect, cores, iterations, trials, intercept_sign, nevergrad_algo)
-  if (!is.null(iterations) | !is.null(trials)) {
-    check_iteration(InputCollect$calibration_input, InputCollect$iterations, InputCollect$cores)
-  }
-
-  init_msgs_run(InputCollect, refresh, quiet)
-  if (!is.null(lambda_control)) {
-    message("lambda_control is deprecated in v3.6.0 and now selected automatically
-          by hyperparameter optimisation")
-  }
+  if (is.null(cores)) cores <- parallel::detectCores()
+  hyps_fixed <- !is.null(dt_hyper_fixed)
+  if (hyps_fixed) trials <- iterations <- 1
+  check_run_inputs(cores, iterations, trials, intercept_sign, nevergrad_algo)
+  check_iteration(InputCollect$calibration_input, iterations, trials, hyps_fixed)
+  init_msgs_run(InputCollect, refresh, lambda_control, quiet)
 
   #####################################
   #### Prepare hyper-parameters
 
-  # hyper_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
-  hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters,
-                          add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed)
+  hyps <- hyper_collector(InputCollect, InputCollect$hyperparameters, add_penalty_factor, dt_hyper_fixed, cores)
   InputCollect$hyper_updated <- hyps$hyper_list_all
 
   #####################################
@@ -80,16 +89,19 @@ robyn_run <- function(InputCollect,
 
   OutputModels <- robyn_train(
     InputCollect, hyper_collect = hyps,
-    dt_hyper_fixed, add_penalty_factor,refresh, seed, quiet
+    cores, iterations, trials, intercept_sign, nevergrad_algo,
+    dt_hyper_fixed, add_penalty_factor,
+    refresh, seed, quiet
   )
 
   attr(OutputModels, "hyper_fixed") <- hyps$all_fixed
   attr(OutputModels, "refresh") <- refresh
-  OutputModels$cores <- InputCollect$cores
-  OutputModels$iterations <- InputCollect$iterations
-  OutputModels$trials <- InputCollect$trials
-  OutputModels$intercept_sign <- InputCollect$intercept_sign
-  OutputModels$nevergrad_algo <- InputCollect$nevergrad_algo
+
+  OutputModels$cores <- cores
+  OutputModels$iterations <- iterations
+  OutputModels$trials <- trials
+  OutputModels$intercept_sign <- intercept_sign
+  OutputModels$nevergrad_algo <- nevergrad_algo
   OutputModels$add_penalty_factor <- add_penalty_factor
 
   if (!outputs) {
@@ -110,8 +122,8 @@ robyn_run <- function(InputCollect,
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
   if (!quiet) message(paste("Total run time:", attr(output, "runTime"), "mins"))
 
-  class(output) <- c("robyn_models", class(output))
-  return(invisible(output))
+  class(output) <- unique(c("robyn_models", class(output)))
+  return(output)
 }
 
 #' @rdname robyn_run
@@ -119,28 +131,37 @@ robyn_run <- function(InputCollect,
 #' @param x robyn_models object
 #' @export
 print.robyn_models <- function(x, ...) {
+  is_fixed <- all(lapply(x$hyper_updated, length) == 1)
   print(glued(
     "
-  Total trials: {sum(grepl('trial', names(x)))}
-  Iterations per trial (real): {total_iters}
+  Total trials: {x$trials}
+  Iterations per trial: {x$iterations} {total_iters}
   Runtime (minutes): {attr(x, 'runTime')}
+  Cores: {x$cores}
 
-  Updated Hyper-parameters:
+  Updated Hyper-parameters{fixed}:
   {hypers}
+
+  Nevergrad Algo: {x$nevergrad_algo}
+  Intercept sign: {x$intercept_sign}
+  Penalty factor: {x$add_penalty_factor}
+  Refresh: {isTRUE(attr(x, 'refresh'))}
 
   Convergence on last quantile (iters {iters}):
     {convergence}
 
   ",
-    total_iters = if (!attr(x, "hyper_fixed")) nrow(x$trial1$resultCollect$resultHypParam) else 0,
+    total_iters = sprintf("(%s real)", ifelse(
+        "trial1" %in% names(x), nrow(x$trial1$resultCollect$resultHypParam), 1)),
     iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
-    convergence = if (!attr(x, "hyper_fixed")) x$convergence$errors %>%
+    fixed = ifelse(is_fixed, " (fixed)", ""),
+    convergence = if (!is_fixed) x$convergence$errors %>%
       mutate(label = sprintf(
         "%s: sd = %s | Med. change = %s%%",
         .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2))) %>%
       group_by(.data$error_type) %>%
       mutate(id = row_number()) %>% filter(.data$id == max(.data$id)) %>%
-      pull(.data$label) %>% paste(collapse = "\n  ") else NULL,
+      pull(.data$label) %>% paste(collapse = "\n  ") else "Fixed hyper-parameters",
     hypers = flatten_hyps(x$hyper_updated)
   ))
 }
@@ -165,6 +186,8 @@ print.robyn_models <- function(x, ...) {
 #' }
 #' @export
 robyn_train <- function(InputCollect, hyper_collect,
+                        cores, iterations, trials,
+                        intercept_sign, nevergrad_algo,
                         dt_hyper_fixed = NULL,
                         add_penalty_factor = FALSE,
                         refresh = FALSE, seed = 123,
@@ -179,6 +202,10 @@ robyn_train <- function(InputCollect, hyper_collect,
     OutputModels[[1]] <- robyn_mmm(
       InputCollect = InputCollect,
       hyper_collect = hyper_collect,
+      iterations = iterations,
+      cores = cores,
+      nevergrad_algo = nevergrad_algo,
+      intercept_sign = intercept_sign,
       dt_hyper_fixed = dt_hyper_fixed,
       seed = seed,
       quiet = quiet
@@ -202,20 +229,24 @@ robyn_train <- function(InputCollect, hyper_collect,
 
     if (!quiet) {
       message(paste(
-        ">>> Starting", InputCollect$trials, "trials with",
-        InputCollect$iterations, "iterations per trial",
+        ">>> Starting", trials, "trials with",
+        iterations, "iterations per trial",
         ifelse(is.null(InputCollect$calibration_input), "using", "with calibration using"),
-        InputCollect$nevergrad_algo, "nevergrad algorithm..."
+        nevergrad_algo, "nevergrad algorithm..."
       ))
     }
 
     OutputModels <- list()
 
-    for (ngt in 1:InputCollect$trials) { # ngt = 1
-      if (!quiet) message(paste("  Running trial", ngt, "of", InputCollect$trials))
+    for (ngt in 1:trials) { # ngt = 1
+      if (!quiet) message(paste("  Running trial", ngt, "of", trials))
       model_output <- robyn_mmm(
         InputCollect = InputCollect,
         hyper_collect = hyper_collect,
+        iterations = iterations,
+        cores = cores,
+        nevergrad_algo = nevergrad_algo,
+        intercept_sign = intercept_sign,
         add_penalty_factor = add_penalty_factor,
         refresh = refresh,
         seed = seed + ngt,
@@ -224,7 +255,7 @@ robyn_train <- function(InputCollect, hyper_collect,
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
       if (check_coef0) {
         num_coef0_mod <- model_output$resultCollect$decompSpendDist[decomp.rssd == Inf, uniqueN(paste0(iterNG, "_", iterPar))]
-        num_coef0_mod <- ifelse(num_coef0_mod > InputCollect$iterations, InputCollect$iterations, num_coef0_mod)
+        num_coef0_mod <- ifelse(num_coef0_mod > iterations, iterations, num_coef0_mod)
         if (!quiet) message("This trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
                   \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
       }
@@ -253,7 +284,10 @@ robyn_train <- function(InputCollect, hyper_collect,
 #' @export
 robyn_mmm <- function(InputCollect,
                       hyper_collect,
-                      iterations = InputCollect$iterations,
+                      iterations,
+                      cores,
+                      nevergrad_algo,
+                      intercept_sign,
                       add_penalty_factor = FALSE,
                       dt_hyper_fixed = NULL,
                       # lambda_fixed = NULL,
@@ -274,8 +308,6 @@ robyn_mmm <- function(InputCollect,
   ################################################
   #### Collect hyperparameters
 
-  # hyps <- hyper_collector(InputCollect, hyper_collect
-  #                         , add_penalty_factor = add_penalty_factor, dt_hyper_fixed = dt_hyper_fixed)
   hypParamSamName <- names(hyper_collect$hyper_list_all)
   # Optimization hyper-parameters
   hyper_bound_list_updated <- hyper_collect$hyper_bound_list_updated
@@ -317,9 +349,9 @@ robyn_mmm <- function(InputCollect,
     organic_signs <- InputCollect$organic_signs
     all_media <- InputCollect$all_media
     calibration_input <- InputCollect$calibration_input
-    optimizer_name <- InputCollect$nevergrad_algo
-    cores <- InputCollect$cores
+    optimizer_name <- nevergrad_algo
     add_penalty_factor <- add_penalty_factor
+    intercept_sign <- intercept_sign
     i <- NULL # For parallel iterations (globalVar)
   }
 
@@ -394,7 +426,7 @@ robyn_mmm <- function(InputCollect,
   if (hyper_fixed == FALSE & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
   # Create cluster before big for-loop to minimize overhead for parallel back-end registering
   if (check_parallel() & !hyper_fixed) {
-    registerDoParallel(InputCollect$cores)
+    registerDoParallel(cores)
   } else {
     registerDoSEQ()
   }
@@ -580,7 +612,7 @@ robyn_mmm <- function(InputCollect,
 
           ## If no lift calibration, refit using best lambda
 
-          mod_out <- model_refit(x_train, y_train, lambda = lambda_scaled, lower.limits, upper.limits, InputCollect$intercept_sign)
+          mod_out <- model_refit(x_train, y_train, lambda = lambda_scaled, lower.limits, upper.limits, intercept_sign)
 
           decompCollect <- model_decomp(
             coefs = mod_out$coefs, dt_modSaturated = dt_modSaturated,
@@ -1227,10 +1259,6 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
   df.int <- 1
 
   ## drop intercept if negative and intercept_sign == "non_negative"
-  opts <- c("non_negative", "unconstrained")
-  if (!intercept_sign %in% opts) {
-    stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
-  }
   if (intercept_sign == "non_negative" & coef(mod)[1] < 0) {
     mod <- glmnet(
       x_train,
@@ -1293,7 +1321,7 @@ lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
   return(lambdas)
 }
 
-hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper_fixed = NULL) {
+hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper_fixed = NULL, cores) {
 
   # Fetch hyper-parameters based on media
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
@@ -1345,7 +1373,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
       names(hyper_list_all)[i] <- hypParamSamName[i]
     }
 
-    dt_hyper_fixed_mod <- data.table(sapply(hyper_bound_list_fixed, function(x) rep(x, InputCollect$cores)))
+    dt_hyper_fixed_mod <- data.table(sapply(hyper_bound_list_fixed, function(x) rep(x, cores)))
   } else {
     hyper_bound_list_fixed <- list()
     for (i in 1:length(hypParamSamName)) {
@@ -1355,7 +1383,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
 
     hyper_list_all <- hyper_bound_list_fixed
     hyper_bound_list_updated <- hyper_bound_list_fixed[which(sapply(hyper_bound_list_fixed, length) == 2)]
-    InputCollect$cores <- 1
+    cores <- 1
 
     dt_hyper_fixed_mod <- as.data.table(matrix(hyper_bound_list_fixed, nrow = 1))
     names(dt_hyper_fixed_mod) <- names(hyper_bound_list_fixed)
@@ -1370,7 +1398,9 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   ))
 }
 
-init_msgs_run <- function(InputCollect, refresh, quiet = FALSE) {
+init_msgs_run <- function(InputCollect, refresh, lambda_control, quiet = FALSE) {
+  if (!is.null(lambda_control))
+    message("'lambda_control' deprecated in v3.6.0; lambda is now selected by hyperparameter optimisation")
   if (!quiet) {
     message(sprintf(
       "Input data has %s %ss in total: %s to %s",

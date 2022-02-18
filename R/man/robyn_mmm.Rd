@@ -7,7 +7,10 @@
 robyn_mmm(
   InputCollect,
   hyper_collect,
-  iterations = InputCollect$iterations,
+  iterations,
+  cores,
+  nevergrad_algo,
+  intercept_sign,
   add_penalty_factor = FALSE,
   dt_hyper_fixed = NULL,
   refresh = FALSE,
@@ -23,6 +26,18 @@ Required when \code{robyn_object} is not provided.}
 \code{InputCollect$hyperparameters}.}
 
 \item{iterations}{Integer. Number of iterations to run.}
+
+\item{cores}{Integer. Default to \code{parallel::detectCores()}}
+
+\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
+\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+"cGA", "RandomSearch")}.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
 
 \item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
 glmnet's penalty.factor to be optimized by nevergrad?}

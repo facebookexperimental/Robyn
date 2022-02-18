@@ -269,7 +269,7 @@ print(InputCollect)
 ## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
-  , cores = 8
+  #, cores = NULL
   #, add_penalty_factor = TRUE
   , iterations = 1000
   , trials = 1
@@ -281,11 +281,7 @@ print(OutputModels)
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
 
-<<<<<<< HEAD
-# Calculate Pareto optimality, cluster and export results and plots
-=======
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
->>>>>>> 4bfcdaeeba3de9dc4fb1fa743c4a45f47c068c6d
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
   , pareto_fronts = 3 # decrease pareto_fronts to get less output models
@@ -496,15 +492,15 @@ response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-17 18.31 init/pareto_hyperparameters.csv")
-select_model <- "1_12_7"
+dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-18 09.12 rf1/pareto_hyperparameters.csv")
+select_model <- "1_10_15"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(
   # InputCollect must be provided by robyn_inputs with same dataset and parameters as before
-  InputCollect = InputCollect
-  , plot_folder = robyn_object
-  , dt_hyper_fixed = dt_hyper_fixed)
+  InputCollect = InputCollect,
+  plot_folder = robyn_object,
+  dt_hyper_fixed = dt_hyper_fixed)
 
 # Save Robyn object for further refresh
 robyn_save(robyn_object = robyn_object

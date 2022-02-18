@@ -421,14 +421,16 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
   return(calibration_input)
 }
 
-check_iteration <- function(calibration_input, iterations, trials) {
-  if (is.null(calibration_input) & (iterations < 2000 | trials < 5)) {
-    warning("We recommend to run at least 2000 iterations per trial and 5 trials to build initial model")
-  } else if (!is.null(calibration_input) & (iterations < 2000 | trials < 10)) {
-    warning(paste(
-      "You are calibrating MMM. We recommend to run at least 2000 iterations per trial and",
-      "10 trials to build initial model"
-    ))
+check_iteration <- function(calibration_input, iterations, trials, hyps_fixed) {
+  if (!hyps_fixed) {
+    if (is.null(calibration_input) & (iterations < 2000 | trials < 5)) {
+      warning("We recommend to run at least 2000 iterations per trial and 5 trials to build initial model")
+    } else if (!is.null(calibration_input) & (iterations < 2000 | trials < 10)) {
+      warning(paste(
+        "You are calibrating MMM. We recommend to run at least 2000 iterations per trial and",
+        "10 trials to build initial model"
+      ))
+    }
   }
 }
 
@@ -580,19 +582,12 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   }
 }
 
-check_legacy_input <- function(InputCollect, cores, iterations, trials
-                               , intercept_sign, nevergrad_algo) {
-
-  if (is.null(InputCollect$cores) & is.null(cores)) stop("must provide cores in robyn_run()")
-  if (is.null(InputCollect$iterations) & is.null(iterations)) stop("must provide iterations in robyn_run()")
-  if (is.null(InputCollect$trials) & is.null(trials)) stop("must provide trials in robyn_run()")
-  if (is.null(InputCollect$intercept_sign) & is.null(intercept_sign)) stop("must provide intercept_sign in robyn_run()")
-  if (is.null(InputCollect$nevergrad_algo) & is.null(nevergrad_algo)) stop("must provide nevergrad_algo in robyn_run()")
-
-  if (!is.null(cores)) InputCollect$cores <- cores
-  if (!is.null(iterations)) InputCollect$iterations <- iterations
-  if (!is.null(trials)) InputCollect$trials <- trials
-  if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
-  if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
-  return(InputCollect)
+check_run_inputs <- function(cores, iterations, trials, intercept_sign, nevergrad_algo) {
+  if (is.null(iterations)) stop("Must provide iterations in robyn_run()")
+  if (is.null(trials)) stop("Must provide trials in robyn_run()")
+  if (is.null(nevergrad_algo)) stop("Must provide nevergrad_algo in robyn_run()")
+  opts <- c("non_negative", "unconstrained")
+  if (!intercept_sign %in% opts) {
+    stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
+  }
 }

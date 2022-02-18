@@ -300,10 +300,6 @@ robyn_refresh <- function(robyn_object,
     }
     InputCollectRF$hyperparameters <- hyper_updated_prev
 
-    ## refresh iterations and trial
-    InputCollectRF$iterations <- refresh_iters
-    InputCollectRF$trials <- refresh_trials
-
     #### update refresh model parameters
 
     ## feature engineering for refreshed data
@@ -318,8 +314,8 @@ robyn_refresh <- function(robyn_object,
       plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
       add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
-      iterations = 200,
-      trials = 1,
+      iterations = refresh_iters,
+      trials = refresh_trials,
       pareto_fronts = 1,
       refresh = TRUE,
       plot_pareto = plot_pareto,

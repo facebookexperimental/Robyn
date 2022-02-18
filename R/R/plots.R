@@ -110,7 +110,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         theme_lares()
       # Add MAPE dimension when calibrated
       if (calibrated) {
-        pParFront <- pParFront + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
+        pParFront <- pParFront +
+          geom_point(data = resultHypParam, aes(size = .data$mape, alpha = 1 - .data$mape))
       } else {
         pParFront <- pParFront + geom_point()
       }

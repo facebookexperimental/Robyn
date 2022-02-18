@@ -26,12 +26,7 @@ robyn_inputs(
   hyperparameters = NULL,
   window_start = NULL,
   window_end = NULL,
-  cores = parallel::detectCores(),
-  iterations = 2000,
-  trials = 5,
-  nevergrad_algo = "TwoPointsDE",
   calibration_input = NULL,
-  intercept_sign = "non_negative",
   InputCollect = NULL,
   ...
 )
@@ -136,26 +131,8 @@ in full for the model calculation of trend, seasonality and holidays effects.
 Whereas the window period will determine how much of the full data set will be
 used for media, organic and context variables.}
 
-\item{cores}{Integer. Default to \code{parallel::detectCores()}}
-
-\item{iterations}{Integer. Recommended 2000 for default
-\code{nevergrad_algo = "TwoPointsDE"}}
-
-\item{trials}{Integer. Recommended 5 for default
-\code{nevergrad_algo = "TwoPointsDE"}}
-
-\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
-\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
-"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
-"cGA", "RandomSearch")}}
-
 \item{calibration_input}{A data.table. Optional provide experimental results.
 Check "Guide for calibration source" section.}
-
-\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
-"unconstrained". By default, if intercept is negative, Robyn will drop intercept
-and refit the model. Consider changing intercept_sign to "unconstrained" when
-there are \code{context_vars} with large positive values.}
 
 \item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when
 \code{hyperparameters} are not yet set.}

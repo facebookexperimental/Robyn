@@ -7,6 +7,11 @@
 robyn_train(
   InputCollect,
   hyper_collect,
+  cores,
+  iterations,
+  trials,
+  intercept_sign,
+  nevergrad_algo,
   dt_hyper_fixed = NULL,
   add_penalty_factor = FALSE,
   refresh = FALSE,
@@ -20,6 +25,24 @@ Required when \code{robyn_object} is not provided.}
 
 \item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
 \code{InputCollect$hyperparameters}.}
+
+\item{cores}{Integer. Default to \code{parallel::detectCores()}}
+
+\item{iterations}{Integer. Recommended 2000 for default
+\code{nevergrad_algo = "TwoPointsDE"}}
+
+\item{trials}{Integer. Recommended 5 for default
+\code{nevergrad_algo = "TwoPointsDE"}}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
+
+\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
+\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+"cGA", "RandomSearch")}.}
 
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}

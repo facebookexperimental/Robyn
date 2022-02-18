@@ -51,12 +51,12 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
   for (i in seq_along(last_std$error_type)) {
     if (last_std$alert[i]) {
       temp <- sprintf(
-        "Obj.func. %s hasn't converged (qt-%s sd: %s > %s threshold) -> More iterations recommended",
+        "%s objective hasn't converged (qt-%s sd: %s > %s threshold) -> Try more iterations",
         last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), threshold_sd
       )
     } else {
       temp <- sprintf(
-        "Obj.func. %s has converged (qt-%s sd: %s <= %s threshold)",
+        "%s objective converged (qt-%s sd: %s <= %s threshold)",
         last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), threshold_sd
       )
     }

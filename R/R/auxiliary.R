@@ -48,6 +48,6 @@ robyn_palette <- function() {
 #   limit = length(unique(robyn_palette()$fill)))
 
 flatten_hyps <- function(x) {
-  temp <- sapply(x, function(x) sprintf("[%s]", paste(x, collapse = ", ")))
+  temp <- sapply(x, function(x) sprintf("[%s]", paste(signif(x, 6), collapse = ", ")))
   paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
 }

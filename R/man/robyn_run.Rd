@@ -14,10 +14,10 @@ robyn_run(
   outputs = TRUE,
   quiet = FALSE,
   cores = NULL,
-  iterations = NULL,
-  trials = NULL,
-  intercept_sign = "non_negative",
+  trials = 5,
+  iterations = 2000,
   nevergrad_algo = "TwoPointsDE",
+  intercept_sign = "non_negative",
   lambda_control = NULL,
   ...
 )
@@ -44,21 +44,21 @@ glmnet's penalty.factor to be optimized by nevergrad?}
 
 \item{cores}{Integer. Default to \code{parallel::detectCores()}}
 
+\item{trials}{Integer. Recommended 5 for default
+\code{nevergrad_algo = "TwoPointsDE"}}
+
 \item{iterations}{Integer. Recommended 2000 for default
 \code{nevergrad_algo = "TwoPointsDE"}}
 
-\item{trials}{Integer. Recommended 5 for default
-\code{nevergrad_algo = "TwoPointsDE"}}
+\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
+\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+"cGA", "RandomSearch")}.}
 
 \item{intercept_sign}{Character. Choose one of "non_negative" (default) or
 "unconstrained". By default, if intercept is negative, Robyn will drop intercept
 and refit the model. Consider changing intercept_sign to "unconstrained" when
 there are \code{context_vars} with large positive values.}
-
-\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
-\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
-"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
-"cGA", "RandomSearch")}}
 
 \item{lambda_control}{deprecated in v3.6.0}
 
@@ -74,9 +74,11 @@ runs the \code{robyn_mmm()} functions and plots and collects the result.
 \dontrun{
 OutputCollect <- robyn_run(
   InputCollect = InputCollect,
-  pareto_fronts = 3,
-  plot_pareto = TRUE,
-  plot_folder = robyn_object
+  # cores = NULL,
+  # add_penalty_factor = TRUE,
+  iterations = 2000,
+  trials = 2,
+  outputs = FALSE
 )
 }
 }

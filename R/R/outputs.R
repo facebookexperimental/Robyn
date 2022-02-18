@@ -60,8 +60,9 @@ robyn_outputs <- function(InputCollect, OutputModels,
   #### Run robyn_pareto on OutputModels
 
   totalModels <- OutputModels$iterations * OutputModels$trials
-  message(sprintf(">>> Running Pareto calculations for %s models on %s front%s...",
-                  totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
+  if (!isTRUE(attr(OutputModels,"hyper_fixed"))) message(sprintf(
+    ">>> Running Pareto calculations for %s models on %s front%s...",
+    totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
   pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint)
   allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
@@ -91,6 +92,12 @@ robyn_outputs <- function(InputCollect, OutputModels,
     allSolutions = allSolutions,
     allPareto = allPareto,
     calibration_constraint = calibration_constraint,
+    cores = OutputModels$cores,
+    iterations = OutputModels$iterations,
+    trials = OutputModels$trials,
+    intercept_sign = OutputModels$intercept_sign,
+    nevergrad_algo = OutputModels$nevergrad_algo,
+    add_penalty_factor = OutputModels$add_penalty_factor,
     UI = NULL,
     pareto_fronts = pareto_fronts,
     hyper_fixed = attr(OutputModels, "hyper_fixed"),
@@ -105,7 +112,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
       if (!quiet) message(paste0(">>> Collecting ", length(allSolutions)," pareto-optimum results into: ", OutputCollect$plot_folder))
 
-      if (csv_out %in% c("all", "pareto")) {
+      if (csv_out %in% c("all", "pareto") & !OutputCollect$hyper_fixed) {
         if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
         robyn_csv(OutputCollect, csv_out, export = export)
       }
@@ -119,7 +126,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
       }
 
       if (plot_pareto) {
-        if (!quiet) message(">>> Exporting pareto one-pagers into directory...")
+        if (!quiet) message(sprintf(
+          ">>> Exporting %sone-pagers into directory...", ifelse(!OutputCollect$hyper_fixed, "pareto ", "")))
         selected <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else selected
         pareto_onepagers <- robyn_onepagers(
           InputCollect, OutputCollect,

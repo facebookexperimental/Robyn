@@ -108,21 +108,8 @@
 #' in full for the model calculation of trend, seasonality and holidays effects.
 #' Whereas the window period will determine how much of the full data set will be
 #' used for media, organic and context variables.
-#' @param cores Integer. Default to \code{parallel::detectCores()}
-#' @param iterations Integer. Recommended 2000 for default
-#' \code{nevergrad_algo = "TwoPointsDE"}
-#' @param trials Integer. Recommended 5 for default
-#' \code{nevergrad_algo = "TwoPointsDE"}
-#' @param nevergrad_algo Character. Default to "TwoPointsDE". Options are
-#' \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
-#' "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
-#' "cGA", "RandomSearch")}
 #' @param calibration_input A data.table. Optional provide experimental results.
 #' Check "Guide for calibration source" section.
-#' @param intercept_sign Character. Choose one of "non_negative" (default) or
-#' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
-#' and refit the model. Consider changing intercept_sign to "unconstrained" when
-#' there are \code{context_vars} with large positive values.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
 #' @param ... Additional parameters passed to \code{prophet} functions.
@@ -177,12 +164,7 @@ robyn_inputs <- function(dt_input = NULL,
                          hyperparameters = NULL,
                          window_start = NULL,
                          window_end = NULL,
-                         cores = parallel::detectCores(),
-                         iterations = 2000,
-                         trials = 5,
-                         nevergrad_algo = "TwoPointsDE",
                          calibration_input = NULL,
-                         intercept_sign = "non_negative",
                          InputCollect = NULL,
                          ...) {
 
@@ -287,7 +269,6 @@ robyn_inputs <- function(dt_input = NULL,
       all_media = all_media,
       all_ind_vars = all_ind_vars,
       factor_vars = factor_vars,
-      cores = cores,
       window_start = window_start,
       rollingWindowStartWhich = rollingWindowStartWhich,
       window_end = window_end,
@@ -295,19 +276,14 @@ robyn_inputs <- function(dt_input = NULL,
       rollingWindowLength = rollingWindowLength,
       refreshAddedStart = refreshAddedStart,
       adstock = adstock,
-      iterations = iterations,
-      nevergrad_algo = nevergrad_algo,
-      trials = trials,
       hyperparameters = hyperparameters,
-      calibration_input = calibration_input,
-      intercept_sign = intercept_sign
+      calibration_input = calibration_input
     )
 
     ### Use case 1: running robyn_inputs() for the first time
     if (!is.null(hyperparameters)) {
       ### conditional output 1.2
       ## running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
-      if (!is.null(iterations) & !is.null(trials)) check_iteration(calibration_input, iterations, trials)
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
   } else {
@@ -330,7 +306,6 @@ robyn_inputs <- function(dt_input = NULL,
       ## update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
       check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
-      check_iteration(InputCollect$calibration_input, InputCollect$iterations, InputCollect$trials)
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
   }
@@ -351,10 +326,7 @@ Input Table Columns ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = '
 Date Range: {range} ({nrow(x$dt_input)})
 Date Window: {windows} ({nrow(x$dt_modRollWind)})
 With Calibration: {!is.null(x$calibration_input)}
-Nevergrad Algo: {x$nevergrad_algo}
 Custom parameters: {custom_params}
-
-Cores: {x$cores} | Trials: {x$trials} | Iterations: {x$iterations}
 
 Model Variables ({ncol(x$dt_mod)-2}): {paste(setdiff(names(x$dt_mod),c('ds', 'dep_var')), collapse = ', ')}
 Adstock: {x$adstock}
