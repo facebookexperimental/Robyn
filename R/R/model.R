@@ -982,12 +982,11 @@ robyn_response <- function(robyn_object = NULL,
     dt_coef <- OutputCollect$xDecompAgg
     select_model <- OutputCollect$selectID
   } else {
-    dt_hyppar <- OutputCollect$resultHypParam
-    dt_coef <- OutputCollect$xDecompAgg
-    if (any(is.null(select_model), is.null(InputCollect), is.null(OutputCollect))) {
-      stop(paste(
-        "When 'robyn_object' is not provided, 'InputCollect', 'OutputCollect', and 'select_model' must be provided"
-      ))
+    # Try to get some pre-filled values
+    if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
+    if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
+    if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
+      stop("When 'robyn_object' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
     }
   }
 

@@ -60,7 +60,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   #### Run robyn_pareto on OutputModels
 
   totalModels <- OutputModels$iterations * OutputModels$trials
-  if (!isTRUE(attr(OutputModels,"hyper_fixed"))) message(sprintf(
+  if (!isTRUE(attr(OutputModels, "hyper_fixed"))) message(sprintf(
     ">>> Running Pareto calculations for %s models on %s front%s...",
     totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
   pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint)
