@@ -90,6 +90,7 @@ robyn_run <- function(InputCollect,
   OutputModels$trials <- InputCollect$trials
   OutputModels$intercept_sign <- InputCollect$intercept_sign
   OutputModels$nevergrad_algo <- InputCollect$nevergrad_algo
+  OutputModels$add_penalty_factor <- add_penalty_factor
 
   if (!outputs) {
     output <- OutputModels
