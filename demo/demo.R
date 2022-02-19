@@ -271,8 +271,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   #, cores = NULL
   #, add_penalty_factor = TRUE
-  , iterations = 1000
-  , trials = 1
+  , iterations = 2000
+  , trials = 2
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
@@ -296,12 +296,13 @@ print(OutputCollect)
 ## Run & output in one go
 # OutputCollect <- robyn_run(
 #   InputCollect = InputCollect
-#   , cores = 8
-#   , iterations = 3000
+#   #, cores = NULL
+#   , iterations = 2000
 #   , trials = 5
 #   , outputs = TRUE
 #   , plot_folder = robyn_object
 # )
+# convergence <- robyn_converge(OutputCollect$OutputModels, n_cuts = 10, threshold_sd = 0.025)
 
 ## 4 csv outputs are also saved in the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -370,12 +371,20 @@ print(AllocatorCollect)
 # simulated dataset) response. "optmSpendShareUnit" is the optimum spend share.
 AllocatorCollect$dt_optimOut
 
-## QA optimal response (with or without robyn_object)
-optimal_response(AllocatorCollect, "search_S", robyn_object)
-optimal_response(AllocatorCollect, "tv_S",
-                 InputCollect = InputCollect,
-                 OutputCollect = OutputCollect,
-                 select_model = select_model)
+## QA optimal response
+if (TRUE) {
+  select_media <- "search_S"
+  optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
+                                                             , optmResponseUnit]
+  optimal_response <- robyn_response(robyn_object = robyn_object
+                                     , select_build = 0
+                                     , media_metric = select_media
+                                     , metric_value = optimal_spend
+                                     , plot = TRUE)
+  print(round(optimal_response_allocator) == round(optimal_response))
+  print(optimal_response_allocator);  print(optimal_response)
+}
 
 
 ################################################################
@@ -438,7 +447,7 @@ print(AllocatorCollect)
 ## ------------------------------------------------------------------------------------------ ##
 
 # Get response for 80k from result saved in robyn_object
-Spend1 <- 80000
+Spend1 <- 60000
 Response1 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1 # 2 means the second refresh model. 0 means the initial model
@@ -461,7 +470,7 @@ Response2/Spend2 # ROI for search 81k
 (Response2-Response1)/(Spend2-Spend1)
 
 ## Example of getting paid media exposure response curves
-imps <- 1000000
+imps <- 5000000
 response_imps <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
@@ -484,15 +493,15 @@ response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-18 09.12 rf1/pareto_hyperparameters.csv")
-select_model <- "1_10_15"
+dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-17 18.31 init/pareto_hyperparameters.csv")
+select_model <- "1_12_7"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(
   # InputCollect must be provided by robyn_inputs with same dataset and parameters as before
-  InputCollect = InputCollect,
-  plot_folder = robyn_object,
-  dt_hyper_fixed = dt_hyper_fixed)
+  InputCollect = InputCollect
+  , plot_folder = robyn_object
+  , dt_hyper_fixed = dt_hyper_fixed)
 
 # Save Robyn object for further refresh
 robyn_save(robyn_object = robyn_object

@@ -3,7 +3,27 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
+####################################################################
+#' Check model convergence
+#'
+#' The \code{robyn_converge()} function consumes output from \code{robyn_run()}
+#' and calculate convergence status and output convergence plots.
+#'
+#' @param OutputModels List. Output from \code{robyn_run()}
+#' @param n_cuts Integer. Default to 10. Convergence is calculated on last
+#' quantile of cuts.
+#' @param threshold_sd Numeric. Default to 0.025 that is empirically derived.
+#' @examples
+#' \dontrun{
+#' OutputModels <- robyn_converge(
+#'   OutputModels = OutputModels,
+#'   n_cuts = 10,
+#'   threshold_sd = 0.025
+#' )
+#' }
+#' @export
+
+robyn_converge <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
 
   # Gather all trials
   get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))
@@ -94,8 +114,8 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
     guides(fill = "none") +
     theme_lares() +
     labs(
-      x = "Errors", y = "Iterations [#]",
-      title = "Errors convergence by iterations quantiles",
+      x = "Objective functions", y = "Iterations [#]",
+      title = "Objective convergence by iterations quantiles",
       subtitle = paste(max(dt_objfunc_cvg$trial), "trials combined"),
       caption = paste(conv_msg, collapse = "\n")
     )
@@ -126,9 +146,12 @@ check_conv_error <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
     moo_cloud_plot <- moo_cloud_plot + geom_point()
   }
 
-  return(invisible(list(
+  cvg_out <- list(
     moo_distrb_plot = moo_distrb_plot,
     moo_cloud_plot = moo_cloud_plot,
     errors = select(errors, -.data$alert)
-  )))
+  )
+  attr(cvg_out, "threshold_sd") <- threshold_sd
+
+  return(invisible(cvg_out))
 }

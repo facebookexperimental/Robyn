@@ -106,8 +106,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           colour = "Iterations",
           size = "MAPE",
           alpha = NULL
-        ) +
-        theme_lares()
+        ) #+
+        #theme_lares()
       # Add MAPE dimension when calibrated
       if (calibrated) {
         pParFront <- pParFront +

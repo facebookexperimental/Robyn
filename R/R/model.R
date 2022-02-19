@@ -113,7 +113,7 @@ robyn_run <- function(InputCollect,
   }
 
   # Check convergence
-  output[["convergence"]] <- check_conv_error(OutputModels, n_cuts = 10, threshold_sd = 0.025)
+  output[["convergence"]] <- robyn_converge(OutputModels, n_cuts = 10, threshold_sd = 0.025)
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyps$hyper_list_all
@@ -132,6 +132,7 @@ robyn_run <- function(InputCollect,
 #' @export
 print.robyn_models <- function(x, ...) {
   is_fixed <- all(lapply(x$hyper_updated, length) == 1)
+  threshold_sd <- attr(x$convergence, "threshold_sd")
   print(glued(
     "
   Total trials: {x$trials}
@@ -157,8 +158,9 @@ print.robyn_models <- function(x, ...) {
     fixed = ifelse(is_fixed, " (fixed)", ""),
     convergence = if (!is_fixed) x$convergence$errors %>%
       mutate(label = sprintf(
-        "%s: sd = %s | Med. change = %s%%",
-        .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2))) %>%
+        "%s: sd = %s | Med. change = %s%% | %sconverged",
+        .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2),
+        ifelse(.data$std <= threshold_sd, "", "not "))) %>%
       group_by(.data$error_type) %>%
       mutate(id = row_number()) %>% filter(.data$id == max(.data$id)) %>%
       pull(.data$label) %>% paste(collapse = "\n  ") else "Fixed hyper-parameters",
