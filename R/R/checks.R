@@ -421,15 +421,17 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
   return(calibration_input)
 }
 
-check_iteration <- function(calibration_input, iterations, trials, hyps_fixed) {
-  if (!hyps_fixed) {
-    if (is.null(calibration_input) & (iterations < 2000 | trials < 5)) {
-      warning("We recommend to run at least 2000 iterations per trial and 5 trials to build initial model")
-    } else if (!is.null(calibration_input) & (iterations < 2000 | trials < 10)) {
-      warning(paste(
-        "You are calibrating MMM. We recommend to run at least 2000 iterations per trial and",
-        "10 trials to build initial model"
-      ))
+check_iteration <- function(calibration_input, iterations, trials, hyps_fixed, refresh) {
+  if (!refresh) {
+    if (!hyps_fixed) {
+      if (is.null(calibration_input) & (iterations < 2000 | trials < 5)) {
+        warning("We recommend to run at least 2000 iterations per trial and 5 trials to build initial model")
+      } else if (!is.null(calibration_input) & (iterations < 2000 | trials < 10)) {
+        warning(paste(
+          "You are calibrating MMM. We recommend to run at least 2000 iterations per trial and",
+          "10 trials to build initial model"
+        ))
+      }
     }
   }
 }

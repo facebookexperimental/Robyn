@@ -39,7 +39,7 @@ outputs = FALSE
 quiet = FALSE
 add_penalty_factor = FALSE
 cores = 6
-iterations = 500
+iterations = 200
 trials = 1
 intercept_sign = "non_negative"
 nevergrad_algo = "TwoPointsDE"
@@ -98,12 +98,13 @@ dt_coef = xDecompAggPar
 
 
 ## debug robyn_refresh
+args(robyn_refresh)
 # robyn_object
 plot_folder_sub = NULL
 dt_input = dt_simulated_weekly
 dt_holidays = dt_prophet_holidays
 refresh_steps = 14
-refresh_mode = "auto" # "auto", "manual"
+refresh_mode = "manual" # "auto", "manual"
 refresh_iters = 100
 refresh_trials = 2
 plot_pareto = TRUE

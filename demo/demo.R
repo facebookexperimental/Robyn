@@ -94,9 +94,8 @@ InputCollect <- robyn_inputs(
   ,window_start = "2016-11-23"
   ,window_end = "2018-08-22"
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
-
-  # ?robyn_inputs for more info
 )
+# ?robyn_inputs for more info
 
 #### 2a-2: Second, define and add hyperparameters
 
@@ -117,7 +116,7 @@ plot_saturation(plot = FALSE)
 ## 2. Get correct hyperparameter names:
 # All variables in paid_media_spends and organic_vars require hyperparameter and will be
 # transformed by adstock & saturation.
-# Run hyper_names() as below to get correct hyperparameter names. all names in
+# Run hyper_names() as above to get correct media hyperparameter names. All names in
 # hyperparameters must equal names from hyper_names(), case sensitive.
 # Run ?hyper_names to check parameter definition.
 
@@ -272,7 +271,7 @@ OutputModels <- robyn_run(
   #, cores = NULL
   #, add_penalty_factor = TRUE
   , iterations = 2000
-  , trials = 2
+  , trials = 5
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
@@ -297,14 +296,22 @@ print(OutputCollect)
 # OutputCollect <- robyn_run(
 #   InputCollect = InputCollect
 #   #, cores = NULL
-#   , iterations = 2000
-#   , trials = 5
+#   , iterations = 200
+#   , trials = 2
+#   #, add_penalty_factor = TRUE
 #   , outputs = TRUE
+#   , pareto_fronts = 3
+#   , csv_out = "pareto"
+#   , clusters = TRUE
+#   , plot_pareto = TRUE
 #   , plot_folder = robyn_object
 # )
-# convergence <- robyn_converge(OutputCollect$OutputModels, n_cuts = 10, threshold_sd = 0.025)
+# convergence <- robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025)
+# convergence$moo_distrb_plot
+# convergence$moo_cloud_plot
+# print(OutputCollect)
 
-## 4 csv outputs are also saved in the folder for further usage. Check schema here:
+## 4 csv files are exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model
 # pareto_aggregated.csv, aggregated decomposition per independent variable of all Pareto output
@@ -318,7 +325,7 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-select_model <- "1_113_6" # select one from above
+select_model <- "1_18_4" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -348,8 +355,7 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
-
-# View allocator result. Last column "optmResponseUnitTotalLift" is the total response lift.
+AllocatorCollect$plots
 AllocatorCollect$dt_optimOut
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
@@ -366,13 +372,15 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 7 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
-
-# View allocator result. Column "optmResponseUnitTotal" is the maximum unit (weekly with
-# simulated dataset) response. "optmSpendShareUnit" is the optimum spend share.
+AllocatorCollect$plots
 AllocatorCollect$dt_optimOut
+
+## A csv is exported into the folder for further usage. Check schema here:
+## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
 
 ## QA optimal response
 if (TRUE) {
+  print("QA if results from robyn_allocator and robyn_response agree")
   select_media <- "search_S"
   optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
   optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
@@ -402,11 +410,10 @@ Robyn <- robyn_refresh(
   robyn_object = robyn_object
   , dt_input = dt_simulated_weekly
   , dt_holidays = dt_prophet_holidays
-  , refresh_steps = 4
-  , refresh_mode = "manual"
-  , refresh_iters = 100 # Iteration for refresh. 600 is rough estimation. We'll still
-  # figuring out what's the ideal number.
-  , refresh_trials = 1
+  , refresh_steps = 13
+  , refresh_mode = "auto"
+  , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
+  , refresh_trials = 3
   , clusters = TRUE
 )
 
@@ -423,7 +430,7 @@ Robyn <- robyn_refresh(
 # Run ?robyn_allocator to check parameter definition
 AllocatorCollect <- robyn_allocator(
   robyn_object = robyn_object
-  , select_build = 1 # Use third refresh model
+  #, select_build = 1 # Use third refresh model
   , scenario = "max_response_expected_spend"
   , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
@@ -431,6 +438,8 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 14 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
+AllocatorCollect$plots
+AllocatorCollect$dt_optimOut
 
 ################################################################
 #### Step 8: get marginal returns
@@ -493,8 +502,8 @@ response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-17 18.31 init/pareto_hyperparameters.csv")
-select_model <- "1_12_7"
+dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-21 13.41 init/pareto_hyperparameters.csv")
+select_model <- "1_25_5"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(

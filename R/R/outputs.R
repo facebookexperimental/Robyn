@@ -112,7 +112,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
       if (!quiet) message(paste0(">>> Collecting ", length(allSolutions)," pareto-optimum results into: ", OutputCollect$plot_folder))
 
-      if (csv_out %in% c("all", "pareto") & !OutputCollect$hyper_fixed) {
+      if (csv_out %in% c("all", "pareto")) {
         if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
         robyn_csv(OutputCollect, csv_out, export = export)
       }
@@ -145,6 +145,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     })
   }
 
+  if (!is.null(OutputModels$hyper_updated)) OutputCollect$hyper_updated <- OutputModels$hyper_updated
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
   return(invisible(OutputCollect))
 

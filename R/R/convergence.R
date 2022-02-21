@@ -23,7 +23,7 @@
 #' }
 #' @export
 
-robyn_converge <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
+robyn_converge <- function(OutputModels, n_cuts = 20, threshold_sd = 0.025) {
 
   # Gather all trials
   get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))
@@ -72,12 +72,12 @@ robyn_converge <- function(OutputModels, n_cuts = 10, threshold_sd = 0.025) {
     if (last_std$alert[i]) {
       temp <- sprintf(
         "%s objective hasn't converged (qt-%s sd: %s > %s threshold) -> Try more iterations",
-        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), threshold_sd
+        last_std$error_type[i], round(100/n_cuts), signif(last_std$std[i], 1), threshold_sd
       )
     } else {
       temp <- sprintf(
         "%s objective converged (qt-%s sd: %s <= %s threshold)",
-        last_std$error_type[i], n_cuts, signif(last_std$std[i], 1), threshold_sd
+        last_std$error_type[i], round(100/n_cuts), signif(last_std$std[i], 1), threshold_sd
       )
     }
     message(temp)

@@ -62,7 +62,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     if (length(temp_all) > 0) {
       resultHypParam <- copy(temp_all$resultHypParam)
       resultHypParam.melted <- melt.data.table(resultHypParam[
-        ,c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
+        ,c(names(InputCollect$hyper_updated), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
       all_plots[["pSamp"]] <- pSamp <- ggplot(
         resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
         geom_violin(alpha = .5, size = 0) +
@@ -70,7 +70,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         theme(legend.position = "none") +
         labs(
           title = "Hyperparameter optimisation sampling",
-          subtitle = paste0("Sample distribution", ", iterations = ", OutputModels$iterations, " * ", OutputModels$trials, " trial"),
+          subtitle = paste0("Sample distribution", ", iterations = ", OutputCollect$iterations, " * ", OutputCollect$trials, " trial"),
           x = "Hyperparameter space",
           y = NULL
         )
@@ -98,8 +98,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           ),
           subtitle = sprintf(
             "2D Pareto fronts with %s, for %s trial%s with %s iterations each",
-            OutputModels$nevergrad_algo, OutputModels$trials,
-            ifelse(pareto_fronts > 1, "s", ""), OutputModels$iterations
+            OutputCollect$nevergrad_algo, OutputCollect$trials,
+            ifelse(pareto_fronts > 1, "s", ""), OutputCollect$iterations
           ),
           x = "NRMSE",
           y = "DECOMP.RSSD",
@@ -142,12 +142,12 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_spends
                               , .(variables = rn
                                   , roi_total
-                                  , iteration = (iterNG-1)*OutputModels$cores+iterPar
+                                  , iteration = (iterNG-1)*OutputCollect$cores+iterPar
                                   , trial)][order(iteration, variables)]
       bin_limits <- c(1,20)
-      qt_len <- ifelse(OutputModels$iterations <=100, 1,
-                       ifelse(OutputModels$iterations > 2000, 20, ceiling(OutputModels$iterations/100)))
-      set_qt <- floor(quantile(1:OutputModels$iterations, seq(0, 1, length.out = qt_len+1)))
+      qt_len <- ifelse(OutputCollect$iterations <=100, 1,
+                       ifelse(OutputCollect$iterations > 2000, 20, ceiling(OutputCollect$iterations/100)))
+      set_qt <- floor(quantile(1:OutputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
       set_bin <- set_qt[-1]
       dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
       dt_ridges <- dt_ridges[!is.na(iter_bin)]
@@ -197,7 +197,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   }
 
   # Prepare for parallel plotting
-  if (check_parallel_plot()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+  if (check_parallel_plot()) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
     count_mod_out <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
@@ -210,7 +210,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", OutputModels$cores, "cores..."))
+    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", OutputCollect$cores, "cores..."))
   } else {
     if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }

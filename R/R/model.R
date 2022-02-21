@@ -67,7 +67,7 @@ robyn_run <- function(InputCollect,
   #####################################
   #### Set local environment
 
-  if (!"hyperparameters" %in% names(InputCollect)) {
+  if (!"hyperparameters" %in% names(InputCollect) | is.null(InputCollect$hyperparameters)) {
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
   }
 
@@ -75,7 +75,7 @@ robyn_run <- function(InputCollect,
   hyps_fixed <- !is.null(dt_hyper_fixed)
   if (hyps_fixed) trials <- iterations <- 1
   check_run_inputs(cores, iterations, trials, intercept_sign, nevergrad_algo)
-  check_iteration(InputCollect$calibration_input, iterations, trials, hyps_fixed)
+  check_iteration(InputCollect$calibration_input, iterations, trials, hyps_fixed, refresh)
   init_msgs_run(InputCollect, refresh, lambda_control, quiet)
 
   #####################################
@@ -113,7 +113,7 @@ robyn_run <- function(InputCollect,
   }
 
   # Check convergence
-  output[["convergence"]] <- robyn_converge(OutputModels, n_cuts = 10, threshold_sd = 0.025)
+  output[["convergence"]] <- robyn_converge(OutputModels)
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyps$hyper_list_all
@@ -166,6 +166,23 @@ print.robyn_models <- function(x, ...) {
       pull(.data$label) %>% paste(collapse = "\n  ") else "Fixed hyper-parameters",
     hypers = flatten_hyps(x$hyper_updated)
   ))
+
+  if ("robyn_outputs" %in% class(x)) {
+    print(glued(
+      "
+Plot Folder: {x$plot_folder}
+Calibration Constraint: {x$calibration_constraint}
+Hyper-parameters fixed: {x$hyper_fixed}
+Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions, collapse = ', ')}
+{clusters_info}
+",
+      nSols = length(x$allSolutions),
+      clusters_info = if ("clusters" %in% names(x))
+        glued(
+          "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
+        ) else NULL
+    ))
+  }
 }
 
 
@@ -1089,7 +1106,7 @@ robyn_response <- function(robyn_object = NULL,
   ## decomp
   coeff <- dt_coef[solID == select_model & rn == hpm_name, coef]
   response_vec <- m_saturated * coeff
-  Response <- Saturated * coeff
+  Response <- as.numeric(Saturated * coeff)
 
   ## Plot optimal response
   if (plot) {
@@ -1107,12 +1124,12 @@ robyn_response <- function(robyn_object = NULL,
              formatNum(dt_point$input, signif = 4)),
            x = "Metric", y = "Response") +
       theme_lares() + scale_x_abbr() + scale_y_abbr()
-    return(p_res)
+    print(p_res)
   }
-
-  return(as.numeric(Response))
+  # attr(Response, "response_plot") <- p_res
+  # class(Response) <- unique(c("response_result", class(Response)))
+  return(Response)
 }
-
 
 model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, refreshAddedStart) {
 

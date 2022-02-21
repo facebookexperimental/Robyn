@@ -253,7 +253,7 @@ robyn_refresh <- function(robyn_object,
     }
 
     ## Refresh hyperparameter bounds
-    initBounds <- Robyn$listInit$OutputCollect$OutputModels$hyper_updated
+    initBounds <- Robyn$listInit$OutputCollect$hyper_updated
     initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
     newBoundsFreedom <- refresh_steps / InputCollectRF$rollingWindowLength
 
@@ -303,7 +303,7 @@ robyn_refresh <- function(robyn_object,
       add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
       iterations = refresh_iters,
       trials = refresh_trials,
-      pareto_fronts = 1,
+      pareto_fronts = 3,
       refresh = TRUE,
       plot_pareto = plot_pareto,
       ...
