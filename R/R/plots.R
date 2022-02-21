@@ -61,8 +61,11 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
       resultHypParam <- copy(temp_all$resultHypParam)
-      resultHypParam.melted <- melt.data.table(resultHypParam[
-        ,c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
+      hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated), "robynPareto")
+      hpnames_updated <- str_replace(hpnames_updated, "lambda", "lambda_hp")
+      resultHypParam.melted <- melt.data.table(resultHypParam[, hpnames_updated, with = FALSE],
+                                               id.vars = c("robynPareto"))
+      resultHypParam.melted <- resultHypParam.melted[variable == "lambda_hp", variable := "lambda"]
       all_plots[["pSamp"]] <- ggplot(
         resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
         geom_violin(alpha = .5, size = 0) +

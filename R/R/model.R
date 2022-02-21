@@ -113,6 +113,7 @@ robyn_run <- function(InputCollect,
   OutputModels$intercept_sign <- intercept_sign
   OutputModels$nevergrad_algo <- nevergrad_algo
   OutputModels$add_penalty_factor <- add_penalty_factor
+  OutputModels$hyper_updated <- hyps$hyper_list_all
 
   if (!outputs) {
     output <- OutputModels
