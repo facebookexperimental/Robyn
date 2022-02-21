@@ -563,7 +563,7 @@ For every selected model result, the **`robyn_allocator()`** function can be app
 - <em>Maximum historical response</em>: Assuming the same historical spend, this simulates the optimal budget allocation that will maximise response or effectiveness;
 - <em>Maximum response for expected spend</em>: This simulates the optimal budget allocation to maximise response or effectiveness, where you can define how much you want to spend.
 
-Robyn's budget allocator uses the gradient-based nloptr library to solve the nonlinear saturation function (Hill) analytically. For more details please check the [vignette](https://cran.r-project.org/web/packages/nloptr/vignettes/nloptr.pdf) of the nloptr library.
+Robyn's budget allocator uses the gradient-based nloptr library to solve the nonlinear saturation function (Hill) analytically. For more details please check the [vignette](https://cran.r-project.org/web/packages/nloptr/nloptr.pdf) of the nloptr library.
 
 As a result of using the budget allocator function, three charts will be produced:
 - <em>Initial vs. optimized budget allocation</em>: This channel shows the original spend share vs. the recommended or optimised spend share to maximise the response/effectiveness. If the optimised share is greater than original, this means it is recommended to increase budgets for that channel. Alternatively if optimised is lower than original, it is recommended to reduce spend for that channel.
