@@ -4,7 +4,7 @@
 \alias{robyn_converge}
 \title{Check model convergence}
 \usage{
-robyn_converge(OutputModels, n_cuts = 10, threshold_sd = 0.025)
+robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025)
 }
 \arguments{
 \item{OutputModels}{List. Output from \code{robyn_run()}}
