@@ -268,10 +268,10 @@ print(InputCollect)
 ## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
-  #, cores = NULL
-  #, add_penalty_factor = TRUE
-  , iterations = 2000
-  , trials = 5
+  #, cores = NULL # default
+  #, add_penalty_factor = FALSE # Untested feature. Use with caution.
+  , iterations = 2000 # recommended for the dummy dataset
+  , trials = 5 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
@@ -283,7 +283,7 @@ OutputModels$convergence$moo_cloud_plot
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels
-  , pareto_fronts = 3 # decrease pareto_fronts to get less output models
+  , pareto_fronts = 3
   # , calibration_constraint = 0.1 # range c(0.01, 0.1) & default at 0.1
   , csv_out = "pareto" # "pareto" or "all"
   , clusters = TRUE # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
@@ -298,7 +298,7 @@ print(OutputCollect)
 #   #, cores = NULL
 #   , iterations = 200
 #   , trials = 2
-#   #, add_penalty_factor = TRUE
+#   #, add_penalty_factor = FALSE
 #   , outputs = TRUE
 #   , pareto_fronts = 3
 #   , csv_out = "pareto"
@@ -325,7 +325,7 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-select_model <- "1_122_6" # select one from above
+select_model <- "1_18_4" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -387,9 +387,9 @@ if (TRUE) {
                                      , media_metric = select_media
                                      , metric_value = optimal_spend
                                      , plot = TRUE)
-  cat(round(optimal_response_allocator) == round(optimal_response$response), "\n")
+  cat(round(optimal_response_allocator) == round(optimal_response$response), "( ")
   plot(optimal_response$plot)
-  optimal_response$response
+  cat(optimal_response$response, "==", optimal_response_allocator, ")\n")
 }
 
 ################################################################
@@ -449,7 +449,8 @@ AllocatorCollect$dt_optimOut
 ## The robyn_response() function can now output response for both spends and exposures (imps,
 ## GRP, newsletter sendings etc.) as well as plotting individual saturation curves. New
 ## argument names "media_metric" and "metric_value" instead of "paid_media_var" and "spend"
-## are now used to accommodate this change.
+## are now used to accommodate this change. Also the returned output is a list now and
+## contains also the plot.
 ## ------------------------------------------------------------------------------------------ ##
 
 # Get response for 80k from result saved in robyn_object
@@ -461,6 +462,7 @@ Response1 <- robyn_response(
   , metric_value = Spend1
   , plot = TRUE)
 Response1$response/Spend1 # ROI for search 80k
+Response1$plot
 
 # Get response for 81k
 Spend2 <- Spend1 + 1000
@@ -471,6 +473,7 @@ Response2 <- robyn_response(
   , metric_value = Spend2
   , plot = TRUE)
 Response2$response/Spend2 # ROI for search 81k
+Response2$plot
 
 # Marginal ROI of next 1000$ from 80k spend level for search
 (Response2$response - Response1$response)/(Spend2 - Spend1)
@@ -484,6 +487,7 @@ response_imps <- robyn_response(
   , metric_value = imps
   , plot = TRUE)
 response_imps$response / imps * 1000
+response_imps$plot
 
 ## Example of getting organic media exposure response curves
 sendings <- 30000
@@ -494,6 +498,7 @@ response_sending <- robyn_response(
   , metric_value = sendings
   , plot = TRUE)
 response_sending$response / sendings * 1000
+response_sending$plot
 
 ################################################################
 #### Optional: get old model results

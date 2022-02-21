@@ -48,7 +48,9 @@ there are \code{context_vars} with large positive values.}
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
-glmnet's penalty.factor to be optimized by nevergrad?}
+glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
+this feature might add too much hyperparameter space and probably requires
+more iterations to converge.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 

@@ -40,7 +40,9 @@ and refit the model. Consider changing intercept_sign to "unconstrained" when
 there are \code{context_vars} with large positive values.}
 
 \item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
-glmnet's penalty.factor to be optimized by nevergrad?}
+glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
+this feature might add too much hyperparameter space and probably requires
+more iterations to converge.}
 
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
