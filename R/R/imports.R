@@ -29,7 +29,7 @@
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued removenacols theme_lares `%>%`
-#' scale_x_abbr scale_y_abbr
+#' scale_x_abbr scale_y_abbr v2t
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr

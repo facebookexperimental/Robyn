@@ -277,7 +277,8 @@ robyn_inputs <- function(dt_input = NULL,
       refreshAddedStart = refreshAddedStart,
       adstock = adstock,
       hyperparameters = hyperparameters,
-      calibration_input = calibration_input
+      calibration_input = calibration_input,
+      ...
     )
 
     ### Use case 1: running robyn_inputs() for the first time
@@ -286,7 +287,12 @@ robyn_inputs <- function(dt_input = NULL,
       ## running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
       output <- robyn_engineering(InputCollect = InputCollect, ...)
     }
+
   } else {
+
+    # Check for legacy (deprecated) inputs
+    check_legacy_input(InputCollect)
+
     ### Use case 2: adding 'hyperparameters' and/or 'calibration_input' using robyn_inputs()
     ## check calibration and iters/trials
     calibration_input <- check_calibration(

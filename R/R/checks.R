@@ -32,7 +32,7 @@ check_varnames <- function(dt_input, dt_holidays,
       )
     }
     if (table_name == "dt_holidays") {
-      vars <- c("ds","country") # holiday?
+      vars <- c("ds", "country") # holiday?
     }
     df <- dfs[[i]]
     # COMMENTED: each check_xvar() will give a better clue
@@ -73,7 +73,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
   dt_input <- as.data.table(dt_input)
   dt_input <- dt_input[order(get(date_var))]
   date_var_idate <- as.IDate(dt_input[, get(date_var)])
-  dt_input[, (date_var):= date_var_idate]
+  dt_input[, (date_var) := date_var_idate]
   inputLen <- length(date_var_idate)
   inputLenUnique <- length(unique(date_var_idate))
   if (inputLen != inputLenUnique) {
@@ -142,7 +142,7 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
       stop("Allowed values for 'prophet_vars' are: ", paste(opts, collapse = ", "))
     }
     if (is.null(prophet_country) | length(prophet_country) > 1 |
-        !prophet_country %in% unique(dt_holidays$country)) {
+      !prophet_country %in% unique(dt_holidays$country)) {
       stop(paste(
         "You must provide 1 country code in 'prophet_country' input.",
         length(unique(dt_holidays$country)), "countries are included:",
@@ -174,7 +174,7 @@ check_context <- function(dt_input, context_vars, context_signs) {
       stop("'context_signs' must have same length as 'context_vars'")
     }
   } else if (!is.null(context_vars) & is.null(context_signs)) {
-    context_signs = rep("default", length(context_vars))
+    context_signs <- rep("default", length(context_vars))
   } else {
     context_vars <- context_signs <- NULL
   }
@@ -219,9 +219,11 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
       "contains negative values. Media must be >=0"
     )
   }
-  return(invisible(list(paid_media_signs = paid_media_signs
-                        , mediaVarCount = mediaVarCount
-                        , paid_media_vars = paid_media_vars)))
+  return(invisible(list(
+    paid_media_signs = paid_media_signs,
+    mediaVarCount = mediaVarCount,
+    paid_media_vars = paid_media_vars
+  )))
 }
 
 check_organicvars <- function(dt_input, organic_vars, organic_signs) {
@@ -233,7 +235,7 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
   }
   if (!is.null(organic_vars) & is.null(organic_signs)) {
     organic_signs <- rep("positive", length(organic_vars))
-    #message("'organic_signs' were not provided. Using 'positive'")
+    # message("'organic_signs' were not provided. Using 'positive'")
   }
   if (!all(organic_signs %in% opts_pnd)) {
     stop("Allowed values for 'organic_signs' are: ", paste(opts_pnd, collapse = ", "))
@@ -358,8 +360,10 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org)
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
-      stop("'hyperparameters' contains following wrong names: ",
-           paste(wrong_hyp_names, collapse = ", "))
+      stop(
+        "'hyperparameters' contains following wrong names: ",
+        paste(wrong_hyp_names, collapse = ", ")
+      )
     }
     if (length(get_hyp_names) != length(c(ref_hyp_name_spend, ref_hyp_name_org))) {
       stop("there're missing or too many hyperparameters. run
@@ -386,24 +390,29 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
 
 check_hyper_limits <- function(hyperparameters, hyper) {
   hyper_which <- which(endsWith(names(hyperparameters), hyper))
-  if (length(hyper_which) == 0) return(invisible(NULL))
+  if (length(hyper_which) == 0) {
+    return(invisible(NULL))
+  }
   limits <- hyper_limits()[[hyper]]
   for (i in hyper_which) {
     values <- hyperparameters[[i]]
     # Lower limit
     ineq <- paste(values[1], limits[1], sep = "", collapse = "")
     lower_pass <- eval(parse(text = ineq))
-    if (!lower_pass)
+    if (!lower_pass) {
       stop(sprintf("%s's hyperparameter must have lower bound %s", names(hyperparameters)[i], limits[1]))
+    }
     # Upper limit
     ineq <- paste(values[2], limits[2], sep = "", collapse = "")
     upper_pass <- eval(parse(text = ineq)) | length(values) == 1
-    if (!upper_pass)
+    if (!upper_pass) {
       stop(sprintf("%s's hyperparameter must have upper bound %s", names(hyperparameters)[i], limits[2]))
+    }
     # Order of limits
     order_pass <- !isFALSE(values[1] <= values[2])
-    if (!order_pass)
+    if (!order_pass) {
       stop(sprintf("%s's hyperparameter must have lower bound first and upper bound second", names(hyperparameters)[i]))
+    }
   }
 }
 
@@ -458,13 +467,15 @@ check_InputCollect <- function(list) {
 }
 
 check_robyn_object <- function(robyn_object) {
-  file_end <- substr(robyn_object, nchar(robyn_object)-5, nchar(robyn_object))
-  if (file_end == ".RData") {stop("robyn_object must has format .RDS, not .RData")}
+  file_end <- substr(robyn_object, nchar(robyn_object) - 5, nchar(robyn_object))
+  if (file_end == ".RData") {
+    stop("robyn_object must has format .RDS, not .RData")
+  }
 }
 
 
 check_filedir <- function(plot_folder) {
-  file_end <- substr(plot_folder, nchar(plot_folder)-3, nchar(plot_folder))
+  file_end <- substr(plot_folder, nchar(plot_folder) - 3, nchar(plot_folder))
   if (file_end == ".RDS") {
     plot_folder <- dirname(plot_folder)
     message("Using robyn object location: ", plot_folder)
@@ -487,12 +498,15 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
     }
     models_lower <- 500
     if (total_iters * calibration_constraint < models_lower) {
-      warning(sprintf(paste(
-        "calibration_constraint set for top %s%% calibrated models.",
-        "%s models left for pareto-optimal selection. Minimum suggested: %s"),
+      warning(sprintf(
+        paste(
+          "calibration_constraint set for top %s%% calibrated models.",
+          "%s models left for pareto-optimal selection. Minimum suggested: %s"
+        ),
         calibration_constraint * 100,
         round(total_iters * calibration_constraint, 0),
-        models_lower))
+        models_lower
+      ))
     }
   }
   return(calibration_constraint)
@@ -504,8 +518,10 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
     ## Run robyn_mmm if using old model result tables
     dt_hyper_fixed <- as.data.table(dt_hyper_fixed)
     if (nrow(dt_hyper_fixed) != 1) {
-      stop(paste("Provide only 1 model / 1 row from OutputCollect$resultHypParam or",
-                 "pareto_hyperparameters.csv from previous runs"))
+      stop(paste(
+        "Provide only 1 model / 1 row from OutputCollect$resultHypParam or",
+        "pareto_hyperparameters.csv from previous runs"
+      ))
     }
     hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
     hypParamSamName <- c(hypParamSamName, "lambda")
@@ -513,9 +529,11 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
     if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
     if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
-      stop(paste("dt_hyper_fixed is provided with wrong input.",
-                 "Please provide the table OutputCollect$resultHypParam from previous runs or",
-                 "pareto_hyperparameters.csv with desired model ID"))
+      stop(paste(
+        "dt_hyper_fixed is provided with wrong input.",
+        "Please provide the table OutputCollect$resultHypParam from previous runs or",
+        "pareto_hyperparameters.csv with desired model ID"
+      ))
     }
   }
   return(hyper_fixed)
@@ -530,8 +548,10 @@ check_init_msg <- function(InputCollect, cores) {
   opt <- sum(lapply(InputCollect$hyper_updated, length) == 2)
   fix <- sum(lapply(InputCollect$hyper_updated, length) == 1)
   det <- sprintf("(%s to iterate + %s fixed)", opt, fix)
-  base <- paste("Using", InputCollect$adstock, "adstocking with",
-                length(InputCollect$hyper_updated), "hyperparameters", det)
+  base <- paste(
+    "Using", InputCollect$adstock, "adstocking with",
+    length(InputCollect$hyper_updated), "hyperparameters", det
+  )
   if (check_parallel()) {
     message(paste(base, "on", cores, "cores"))
   } else {
@@ -540,7 +560,7 @@ check_init_msg <- function(InputCollect, cores) {
 }
 
 check_class <- function(x, object) {
- if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
+  if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }
 
 check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
@@ -548,8 +568,10 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
                             expected_spend, expected_spend_days, constr_mode) {
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
   if (!(select_model %in% dt_hyppar$solID)) {
-    stop("Provided 'select_model' is not within the best results. Try any of: ",
-         paste(dt_hyppar$solID, collapse = ", "))
+    stop(
+      "Provided 'select_model' is not within the best results. Try any of: ",
+      paste(dt_hyppar$solID, collapse = ", ")
+    )
   }
   if (any(channel_constr_low < 0.01)) {
     stop("Inputs 'channel_constr_low' must be >= 0.01")
@@ -566,7 +588,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   }
   if (length(channel_constr_up) != 1) {
     if (length(channel_constr_low) != length(paid_media_spends) |
-        length(channel_constr_up) != length(paid_media_spends)) {
+      length(channel_constr_up) != length(paid_media_spends)) {
       stop(paste(
         "Inputs 'channel_constr_low' & 'channel_constr_up' have to contain either only 1",
         "value or have same length as 'InputCollect$paid_media_spends'"
@@ -584,12 +606,39 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   }
 }
 
+LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
+
+check_legacy_input <- function(InputCollect,
+                               cores = NULL, iterations = NULL, trials = NULL,
+                               intercept_sign = NULL, nevergrad_algo = NULL) {
+  if (!any(LEGACY_PARAMS %in% names(InputCollect))) {
+    return(InputCollect)
+  } # Legacy check
+  # Warn the user these InputCollect params will be (are) deprecated
+  legacyValues <- InputCollect[LEGACY_PARAMS]
+  legacyValues <- legacyValues[!sapply(legacyValues, is.null)]
+  if (length(legacyValues) > 0) {
+    warning(sprintf(
+      "Using legacy InputCollect values. Please set %s within robyn_run() instead",
+      v2t(names(legacyValues))
+    ))
+  }
+  # Overwrite InputCollect with robyn_run() inputs
+  if (!is.null(cores)) InputCollect$cores <- cores
+  if (!is.null(iterations)) InputCollect$iterations <- iterations
+  if (!is.null(trials)) InputCollect$trials <- trials
+  if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
+  if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
+  attr(InputCollect, "deprecated_params") <- TRUE
+  return(InputCollect)
+}
+
 check_run_inputs <- function(cores, iterations, trials, intercept_sign, nevergrad_algo) {
-  if (is.null(iterations)) stop("Must provide iterations in robyn_run()")
-  if (is.null(trials)) stop("Must provide trials in robyn_run()")
-  if (is.null(nevergrad_algo)) stop("Must provide nevergrad_algo in robyn_run()")
+  if (is.null(iterations)) stop("Must provide 'iterations' in robyn_run()")
+  if (is.null(trials)) stop("Must provide 'trials' in robyn_run()")
+  if (is.null(nevergrad_algo)) stop("Must provide 'nevergrad_algo' in robyn_run()")
   opts <- c("non_negative", "unconstrained")
   if (!intercept_sign %in% opts) {
-    stop(sprintf("intercept_sign input must be any of: %s", paste(opts, collapse = ", ")))
+    stop(sprintf("Input 'intercept_sign' must be any of: %s", paste(opts, collapse = ", ")))
   }
 }

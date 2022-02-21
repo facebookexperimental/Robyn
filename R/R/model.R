@@ -58,8 +58,8 @@ robyn_run <- function(InputCollect,
                       outputs = TRUE,
                       quiet = FALSE,
                       cores = NULL,
-                      trials = 5,
-                      iterations = 2000,
+                      trials = NULL,
+                      iterations = NULL,
                       nevergrad_algo = "TwoPointsDE",
                       intercept_sign = "non_negative",
                       lambda_control = NULL,
@@ -72,6 +72,14 @@ robyn_run <- function(InputCollect,
   if (!"hyperparameters" %in% names(InputCollect) | is.null(InputCollect$hyperparameters)) {
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
   }
+
+  # Check and warn on legacy inputs (using InputCollect params as robyn_run() inputs)
+  InputCollect <- check_legacy_input(InputCollect, cores, iterations, trials, intercept_sign, nevergrad_algo)
+  # Overwrite values imported from InputCollect
+  legacyValues <- InputCollect[LEGACY_PARAMS]
+  legacyValues <- legacyValues[!sapply(legacyValues, is.null)]
+  if (length(legacyValues) > 0)
+    for (i in 1:length(InputCollect)) assign(names(InputCollect)[i], InputCollect[[i]])
 
   if (is.null(cores)) cores <- parallel::detectCores()
   hyps_fixed <- !is.null(dt_hyper_fixed)
