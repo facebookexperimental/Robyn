@@ -62,8 +62,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     if (length(temp_all) > 0) {
       resultHypParam <- copy(temp_all$resultHypParam)
       resultHypParam.melted <- melt.data.table(resultHypParam[
-        ,c(names(InputCollect$hyper_updated), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
-      all_plots[["pSamp"]] <- pSamp <- ggplot(
+        ,c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
+      all_plots[["pSamp"]] <- ggplot(
         resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
         geom_violin(alpha = .5, size = 0) +
         geom_point(size = 0.2) +
@@ -76,7 +76,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         )
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "hypersampling.png"),
-        plot = pSamp, dpi = 600, width = 12, height = 7
+        plot = all_plots$pSamp, dpi = 600, width = 12, height = 7
       )
     }
 

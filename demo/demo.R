@@ -181,7 +181,7 @@ hyperparameters <- list(
 
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
-  ,ooh_S_thetas = c(0.1, 0.4)
+  ,ooh_S_thetas = c(0.3) # (0.1, 0.4)
 
   ,newsletter_alphas = c(0.5, 3)
   ,newsletter_gammas = c(0.3, 1)
@@ -325,7 +325,7 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-select_model <- "1_18_4" # select one from above
+select_model <- "1_122_6" # select one from above
 robyn_save(robyn_object = robyn_object # model object location and name
            , select_model = select_model # selected model ID
            , InputCollect = InputCollect # all model input
@@ -355,7 +355,6 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
-AllocatorCollect$plots
 AllocatorCollect$dt_optimOut
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
@@ -372,7 +371,6 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 7 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
-AllocatorCollect$plots
 AllocatorCollect$dt_optimOut
 
 ## A csv is exported into the folder for further usage. Check schema here:
@@ -380,20 +378,19 @@ AllocatorCollect$dt_optimOut
 
 ## QA optimal response
 if (TRUE) {
-  print("QA if results from robyn_allocator and robyn_response agree")
+  cat("QA if results from robyn_allocator and robyn_response agree: ")
   select_media <- "search_S"
   optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
-  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media
-                                                             , optmResponseUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media, optmResponseUnit]
   optimal_response <- robyn_response(robyn_object = robyn_object
                                      , select_build = 0
                                      , media_metric = select_media
                                      , metric_value = optimal_spend
                                      , plot = TRUE)
-  print(round(optimal_response_allocator) == round(optimal_response))
-  print(optimal_response_allocator);  print(optimal_response)
+  cat(round(optimal_response_allocator) == round(optimal_response$response), "\n")
+  plot(optimal_response$plot)
+  optimal_response$response
 }
-
 
 ################################################################
 #### Step 6: Model refresh based on selected model and saved Robyn.RDS object - Alpha
@@ -463,20 +460,20 @@ Response1 <- robyn_response(
   , media_metric = "search_S"
   , metric_value = Spend1
   , plot = TRUE)
-Response1/Spend1 # ROI for search 80k
+Response1$response/Spend1 # ROI for search 80k
 
 # Get response for 81k
-Spend2 <- Spend1+1000
+Spend2 <- Spend1 + 1000
 Response2 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
   , media_metric = "search_S"
   , metric_value = Spend2
   , plot = TRUE)
-Response2/Spend2 # ROI for search 81k
+Response2$response/Spend2 # ROI for search 81k
 
 # Marginal ROI of next 1000$ from 80k spend level for search
-(Response2-Response1)/(Spend2-Spend1)
+(Response2$response - Response1$response)/(Spend2 - Spend1)
 
 ## Example of getting paid media exposure response curves
 imps <- 5000000
@@ -486,7 +483,7 @@ response_imps <- robyn_response(
   , media_metric = "facebook_I"
   , metric_value = imps
   , plot = TRUE)
-response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
+response_imps$response / imps * 1000
 
 ## Example of getting organic media exposure response curves
 sendings <- 30000
@@ -496,14 +493,14 @@ response_sending <- robyn_response(
   , media_metric = "newsletter"
   , metric_value = sendings
   , plot = TRUE)
-response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
+response_sending$response / sendings * 1000
 
 ################################################################
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("/Users/gufengzhou/Desktop/2022-02-21 13.41 init/pareto_hyperparameters.csv")
-select_model <- "1_25_5"
+dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-21 11.29 rf11/pareto_hyperparameters.csv")
+select_model <- "1_51_11"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(

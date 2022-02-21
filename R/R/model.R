@@ -894,7 +894,7 @@ robyn_mmm <- function(InputCollect,
 #'   media_metric = "search_S",
 #'   metric_value = spend1,
 #'   plot = TRUE
-#' )
+#' )$response
 #'
 #' # Get ROI for 80k
 #' Response1 / spend1 # ROI for search 80k
@@ -906,7 +906,7 @@ robyn_mmm <- function(InputCollect,
 #'   media_metric = "search_S",
 #'   metric_value = spend2,
 #'   plot = TRUE
-#' )
+#' )$response
 #'
 #' # Get ROI for 81k
 #' Response2 / spend2 # ROI for search 81k
@@ -922,8 +922,8 @@ robyn_mmm <- function(InputCollect,
 #' response_imps <- robyn_response(
 #'   robyn_object = robyn_object,
 #'   media_metric = "facebook_I",
-#'   metric_value = imps,
-#'   plot = TRUE)
+#'   metric_value = imps
+#' )$response
 #' response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
 #'
 #' ## Example of getting organic media exposure response curves
@@ -931,8 +931,8 @@ robyn_mmm <- function(InputCollect,
 #' response_sending <- robyn_response(
 #'   robyn_object = robyn_object,
 #'   media_metric = "newsletter",
-#'   metric_value = sendings,
-#'   plot = TRUE)
+#'   metric_value = sendings
+#' )$response
 #' response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
 #'
 #' ## Get response for 80k for search_S from the third model refresh
@@ -1124,11 +1124,12 @@ robyn_response <- function(robyn_object = NULL,
              formatNum(dt_point$input, signif = 4)),
            x = "Metric", y = "Response") +
       theme_lares() + scale_x_abbr() + scale_y_abbr()
-    print(p_res)
-  }
-  # attr(Response, "response_plot") <- p_res
-  # class(Response) <- unique(c("response_result", class(Response)))
-  return(Response)
+  } else p_res <- NULL
+  class(Response) <- unique(c("robyn_response", class(Response)))
+  return(list(
+    response = Response,
+    plot = p_res
+  ))
 }
 
 model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, refreshAddedStart) {

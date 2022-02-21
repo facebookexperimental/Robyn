@@ -69,7 +69,7 @@ Response1 <- robyn_response(
   media_metric = "search_S",
   metric_value = spend1,
   plot = TRUE
-)
+)$response
 
 # Get ROI for 80k
 Response1 / spend1 # ROI for search 80k
@@ -81,7 +81,7 @@ Response2 <- robyn_response(
   media_metric = "search_S",
   metric_value = spend2,
   plot = TRUE
-)
+)$response
 
 # Get ROI for 81k
 Response2 / spend2 # ROI for search 81k
@@ -97,8 +97,8 @@ imps <- 1000000
 response_imps <- robyn_response(
   robyn_object = robyn_object,
   media_metric = "facebook_I",
-  metric_value = imps,
-  plot = TRUE)
+  metric_value = imps
+)$response
 response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
 
 ## Example of getting organic media exposure response curves
@@ -106,8 +106,8 @@ sendings <- 30000
 response_sending <- robyn_response(
   robyn_object = robyn_object,
   media_metric = "newsletter",
-  metric_value = sendings,
-  plot = TRUE)
+  metric_value = sendings
+)$response
 response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
 
 ## Get response for 80k for search_S from the third model refresh

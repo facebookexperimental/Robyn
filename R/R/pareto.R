@@ -62,7 +62,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         dt_coef = xDecompAggPar,
         InputCollect = InputCollect,
         OutputCollect = OutputModels
-        )
+        )$response
       dt_resp <- data.table(mean_response = get_resp,
                             rn = decompSpendDistPar$rn[respN],
                             solID = decompSpendDistPar$solID[respN])

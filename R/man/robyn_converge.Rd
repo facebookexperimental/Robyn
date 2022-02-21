@@ -9,8 +9,8 @@ robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025)
 \arguments{
 \item{OutputModels}{List. Output from \code{robyn_run()}}
 
-\item{n_cuts}{Integer. Default to 10. Convergence is calculated on last
-quantile of cuts.}
+\item{n_cuts}{Integer. Default to 20 (last 5%). Convergence is calculated
+on last quantile of cuts.}
 
 \item{threshold_sd}{Numeric. Default to 0.025 that is empirically derived.}
 }
