@@ -4,17 +4,25 @@
 \alias{robyn_converge}
 \title{Check model convergence}
 \usage{
-robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025, ...)
+robyn_converge(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3, ...)
 }
 \arguments{
 \item{OutputModels}{List. Output from \code{robyn_run()}}
 
 \item{n_cuts}{Integer. Default to 20 (5% cuts). Convergence is calculated
-on using first and last quantile cuts. Criteria 1: last quantile's sd
-< threshold_sd. Criteria 2: last quantile's median < first quantile's
-median - 2 * sd. Both have to happen to consider convergence.}
+on using first and last quantile cuts. By default, criteria 1: last
+quantile's sd < first 3 quantiles' mean sd. Criteria 2: last quantile's
+median < first quantile's median - 3 * first 3 quantiles' mean sd. Both
+have to be satisfied to consider convergence.}
 
-\item{threshold_sd}{Numeric. Default to 0.025 that is empirically derived.}
+\item{sd_qtref}{Integer. Reference quantile of the error convergence rule
+for standard deviation. Defaults to 3. Error convergence rule for sd is
+defined as by default: last quantile's sd < first 3 quantiles' mean sd.}
+
+\item{med_lowb}{Integer. Lower bound distance of the error convergence rule
+for median. Default to 3. Error convergence rule for median is defined as
+by default: last quantile's median < first quantile's median - 3 * first 3
+quantiles' mean sd.}
 
 \item{...}{Additional parameters}
 }
@@ -26,8 +34,9 @@ and calculate convergence status and output convergence plots.
 \dontrun{
 OutputModels <- robyn_converge(
   OutputModels = OutputModels,
-  n_cuts = 10,
-  threshold_sd = 0.025
+  n_cuts = 20,
+  sd_qtref = 3,
+  med_lowb = 3
 )
 }
 }

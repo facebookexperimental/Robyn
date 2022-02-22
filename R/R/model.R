@@ -143,7 +143,6 @@ robyn_run <- function(InputCollect,
 #' @export
 print.robyn_models <- function(x, ...) {
   is_fixed <- all(lapply(x$hyper_updated, length) == 1)
-  threshold_sd <- attr(x$convergence, "threshold_sd")
   print(glued(
     "
   Total trials: {x$trials}

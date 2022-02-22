@@ -181,7 +181,7 @@ hyperparameters <- list(
 
   ,ooh_S_alphas = c(0.5, 3)
   ,ooh_S_gammas = c(0.3, 1)
-  ,ooh_S_thetas = c(0.3) # (0.1, 0.4)
+  ,ooh_S_thetas = c(0.1, 0.4)
 
   ,newsletter_alphas = c(0.5, 3)
   ,newsletter_gammas = c(0.3, 1)
@@ -276,9 +276,10 @@ OutputModels <- robyn_run(
 )
 print(OutputModels)
 
-## Check MOO (multi-objective optimisation) convergence
+## Check MOO (multi-objective optimisation) convergence plots
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
+# check convergence rules ?robyn_converge
 
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
@@ -306,7 +307,7 @@ print(OutputCollect)
 #   , plot_pareto = TRUE
 #   , plot_folder = robyn_object
 # )
-# convergence <- robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025)
+# convergence <- robyn_converge(OutputModels)
 # convergence$moo_distrb_plot
 # convergence$moo_cloud_plot
 # print(OutputCollect)
