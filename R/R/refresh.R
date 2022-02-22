@@ -157,7 +157,7 @@ robyn_refresh <- function(robyn_object,
   refreshControl <- TRUE
   while (refreshControl) {
 
-    ## load inital model
+    ## Load initial model
     if (!exists("robyn_object")) stop("Must speficy robyn_object")
     check_robyn_object(robyn_object)
     if (!file.exists(robyn_object)) {
@@ -168,9 +168,8 @@ robyn_refresh <- function(robyn_object,
       objectName <- sub("'\\..*$", "", basename(robyn_object))
     }
 
-    ## count refresh
+    ## Count refresh
     refreshCounter <- length(Robyn)
-    refreshCounter
     objectCheck <- if (refreshCounter == 1) {
       c("listInit")
     } else {
@@ -183,12 +182,11 @@ robyn_refresh <- function(robyn_object,
       ))
     }
 
-    ## get previous data
+    ## Get previous data
     if (refreshCounter == 1) {
       InputCollectRF <- Robyn$listInit$InputCollect
       listOutputPrev <- Robyn$listInit$OutputCollect
       InputCollectRF$xDecompAggPrev <- listOutputPrev$xDecompAgg
-
       message(">>> Initial model loaded")
       if (length(unique(Robyn$listInit$OutputCollect$resultHypParam$solID)) > 1) {
         stop("Run robyn_save first to select one initial model")
@@ -199,7 +197,7 @@ robyn_refresh <- function(robyn_object,
       listOutputPrev <- Robyn[[listName]][["OutputCollect"]]
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
 
-      message(paste0(">>> Refresh model nr.", refreshCounter - 1, " loaded"))
+      message(paste(">>> Loaded refresh model:", refreshCounter - 1))
 
       ## model selection from previous build
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[bestModRF == TRUE]
@@ -214,7 +212,7 @@ robyn_refresh <- function(robyn_object,
       stop("Refresh input data is completely new. Please rebuild model using robyn_run().")
     }
 
-    ## load new data
+    ## Load new data
     dt_input <- as.data.table(dt_input)
     date_input <- check_datevar(dt_input, InputCollectRF$date_var)
     dt_input <- date_input$dt_input # sort date by ascending
@@ -222,9 +220,9 @@ robyn_refresh <- function(robyn_object,
     InputCollectRF$dt_input <- dt_input
     InputCollectRF$dt_holidays <- dt_holidays
 
-    #### update refresh model parameters
+    #### Update refresh model parameters
 
-    ## refresh rolling window
+    ## Refresh rolling window
     totalDates <- as.Date(dt_input[, get(InputCollectRF$date_var)])
     refreshStart <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
     refreshEnd <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
@@ -241,55 +239,57 @@ robyn_refresh <- function(robyn_object,
     if (refreshEnd > max(totalDates)) {
       stop("Not enough data for this refresh. Input data from date ", refreshEnd, " or later required")
     }
-
     if (refresh_mode == "manual") {
       refreshLooper <- 1
-      message(paste(">>> Refreshing model nr.", refreshCounter, "in", refresh_mode, "mode"))
+      message(paste(">>> Refreshing model", refreshCounter, "in", refresh_mode, "mode"))
       refreshControl <- FALSE
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
         InputCollectRF$dayInterval / refresh_steps)
       message(paste(
-        ">>> Refreshing model nr.", refreshCounter, "in",
+        ">>> Refreshing model", refreshCounter, "in",
         refresh_mode, "mode.", refreshLooper, "more to go..."
       ))
     }
 
-    #### update refresh model parameters
-
-
-    ## refresh hyperparameter bounds
-    initBounds <- Robyn$listInit$InputCollect$hyperparameters
-    initBoundsDis <- sapply(initBounds, function(x) {
-      return(x[2] - x[1])
-    })
+    ## Refresh hyperparameter bounds
+    initBounds <- Robyn$listInit$OutputCollect$hyper_updated
+    initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
     newBoundsFreedom <- refresh_steps / InputCollectRF$rollingWindowLength
 
-    hyperparameters <- InputCollectRF$hyperparameters
-    hypNames <- names(hyperparameters)
+    hyper_updated_prev <- listOutputPrev$hyper_updated
+    hypNames <- names(hyper_updated_prev)
     for (h in 1:length(hypNames)) {
-      getHyp <- listOutputPrev$resultHypParam[, get(hypNames[h])]
-      getDis <- initBoundsDis[hypNames[h]]
-      newLowB <- getHyp - getDis * newBoundsFreedom
-      if (newLowB < initBounds[hypNames[h]][[1]][1]) {
-        newLowB <- initBounds[hypNames[h]][[1]][1]
+      hn <- hypNames[h]
+      getHyp <- listOutputPrev$resultHypParam[, get(hn)]
+      getDis <- initBoundsDis[hn]
+      if (hn == "lambda") {
+        lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
+        lambda_min <- lambda_max * 0.0001
+        getHyp <- getHyp / (lambda_max - lambda_min)
       }
-      newUpB <- getHyp + getDis * newBoundsFreedom
-      if (newUpB > initBounds[hypNames[h]][[1]][2]) {
-        newUpB <- initBounds[hypNames[h]][[1]][2]
+      getRange <- initBounds[hn][[1]]
+
+      if (length(getRange)==2) {
+        newLowB <- getHyp - getDis * newBoundsFreedom
+        if (newLowB < getRange[1]) {
+          newLowB <- getRange[1]
+        }
+        newUpB <- getHyp + getDis * newBoundsFreedom
+        if (newUpB > getRange[2]) {
+          newUpB <- getRange[2]
+        }
+        newBounds <- unname(c(newLowB, newUpB))
+        hyper_updated_prev[hn][[1]] <- newBounds
+      } else {
+        hyper_updated_prev[hn][[1]] <- getRange
       }
-      newBounds <- unname(c(newLowB, newUpB))
-      hyperparameters[hypNames[h]][[1]] <- newBounds
     }
-    InputCollectRF$hyperparameters <- hyperparameters
+    InputCollectRF$hyperparameters <- hyper_updated_prev
 
-    ## refresh iterations and trial
-    InputCollectRF$iterations <- refresh_iters
-    InputCollectRF$trials <- refresh_trials
+    #### Update refresh model parameters
 
-    #### update refresh model parameters
-
-    ## feature engineering for refreshed data
+    ## Feature engineering for refreshed data
     # Note that if custom prophet parameters were passed initially, will be used again unless changed in ...
     InputCollectRF <- robyn_engineering(InputCollect = InputCollectRF, ...)
 
@@ -300,7 +300,10 @@ robyn_refresh <- function(robyn_object,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
-      pareto_fronts = 1,
+      add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
+      iterations = refresh_iters,
+      trials = refresh_trials,
+      pareto_fronts = 3,
       refresh = TRUE,
       plot_pareto = plot_pareto,
       ...
@@ -391,9 +394,8 @@ robyn_refresh <- function(robyn_object,
     fwrite(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
     fwrite(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
 
-    #### reporting plots
-    ## actual vs fitted
-
+    #### Reporting plots
+    ## Actual vs fitted
     xDecompVecReportPlot <- copy(xDecompVecReport)
     xDecompVecReportPlot[, ":="(refreshStart = min(ds),
       refreshEnd = max(ds)), by = "refreshStatus"]
@@ -509,15 +511,13 @@ robyn_refresh <- function(robyn_object,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
 
-    #### save result objects
-
+    #### Save result objects
     ReportCollect <- list(
       resultHypParamReport = resultHypParamReport,
       xDecompAggReport = xDecompAggReport,
       mediaVecReport = mediaVecReport,
       xDecompVecReport = xDecompVecReport
     )
-    # assign("ReportCollect", ReportCollect)
 
     listHolder <- list(
       InputCollect = InputCollectRF,
@@ -525,11 +525,8 @@ robyn_refresh <- function(robyn_object,
       ReportCollect = ReportCollect
     )
 
-
     listNameUpdate <- paste0("listRefresh", refreshCounter)
-    # assign(listNameUpdate, listHolder)
     Robyn[[listNameUpdate]] <- listHolder
-
     saveRDS(Robyn, file = robyn_object)
 
     if (refreshLooper == 0) {
@@ -537,5 +534,37 @@ robyn_refresh <- function(robyn_object,
       message("Reached maximum available date. No further refresh possible")
     }
   }
+
+  # Save some parameters to print
+  Robyn[["refresh_steps"]] <- refresh_steps
+  Robyn[["refresh_mode"]] <- refresh_mode
+  Robyn[["refresh_trials"]] <- refresh_trials
+  Robyn[["refresh_iters"]] <- refresh_iters
+
+  class(Robyn) <- c("robyn_refresh", class(Robyn))
   invisible(Robyn)
 }
+
+#' @rdname robyn_refresh
+#' @aliases robyn_refresh
+#' @param x robyn_refresh object
+#' @export
+print.robyn_refresh <- function(x, ...) {
+  rf_list <- x[grep("Refresh", names(x), value = TRUE)]
+  top_models <- data.frame(sapply(rf_list, function(y) y$ReportCollect$resultHypParamReport$solID))
+  print(glued(
+    "
+Refresh Models: {length(rf_list)}
+Mode: {x$refresh_mode}
+Steps: {x$refresh_steps}
+Trials: {x$refresh_trials}
+Iterations: {x$refresh_iters}
+
+Models (IDs):
+  {paste(top_models_plain, collapse = ', ')}
+",
+    top_models_plain = sapply(seq_along(top_models), function(i)
+      paste(names(top_models), paste(top_models[,i], collapse = ', '), sep = ": "))
+  ))
+}
+

@@ -25,7 +25,9 @@ Gufeng Zhou (gufeng@fb.com)
 
 Leonel Sentana (leonelsentana@fb.com)
 
-Antonio Prada (aprada@fb.com)
-
 Igor Skokan (igorskokan@fb.com)
+
+Bernardo Lares (bernardolares@fb.com)
+
+Antonio Prada (aprada@fb.com)
 }

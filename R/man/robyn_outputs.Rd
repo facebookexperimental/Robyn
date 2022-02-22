@@ -2,6 +2,7 @@
 % Please edit documentation in R/outputs.R
 \name{robyn_outputs}
 \alias{robyn_outputs}
+\alias{print.robyn_outputs}
 \title{Output results into local files}
 \usage{
 robyn_outputs(
@@ -20,6 +21,8 @@ robyn_outputs(
   quiet = FALSE,
   ...
 )
+
+\method{print}{robyn_outputs}(x, ...)
 }
 \arguments{
 \item{InputCollect, OutputModels}{\code{robyn_run()} outcomes.}
@@ -58,6 +61,8 @@ wish to plot the one-pagers and export? Default will take top
 \item{quiet}{Boolean. Keep messages off?}
 
 \item{...}{Additional parameters passed to \code{robyn_clusters()}}
+
+\item{x}{robyn_outputs object}
 }
 \value{
 (Invisible) list with processed results.

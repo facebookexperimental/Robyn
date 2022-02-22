@@ -5,34 +5,47 @@
 \title{The core MMM function}
 \usage{
 robyn_mmm(
-  hyper_collect,
   InputCollect,
-  iterations = InputCollect$iterations,
-  lambda.n = 100,
-  lambda_control = 1,
-  lambda_fixed = NULL,
+  hyper_collect,
+  iterations,
+  cores,
+  nevergrad_algo,
+  intercept_sign,
+  add_penalty_factor = FALSE,
+  dt_hyper_fixed = NULL,
   refresh = FALSE,
   seed = 123L,
   quiet = FALSE
 )
 }
 \arguments{
-\item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
-\code{InputCollect$hyperparameters}.}
-
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 
+\item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
+\code{InputCollect$hyperparameters}.}
+
 \item{iterations}{Integer. Number of iterations to run.}
 
-\item{lambda.n}{Integer. Number of lambda cross-validation in \code{glmnet}.
-Defaults to 100.}
+\item{cores}{Integer. Default to \code{parallel::detectCores()}}
 
-\item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
-lambda.min and lambda.1se.}
+\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
+\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+"cGA", "RandomSearch")}.}
 
-\item{lambda_fixed}{Boolean. \code{lambda_fixed = TRUE} when inputting
-old model results.}
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
+
+\item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
+glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
+this feature might add too much hyperparameter space and probably requires
+more iterations to converge.}
+
+\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
+It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 

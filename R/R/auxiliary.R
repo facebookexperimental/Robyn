@@ -46,3 +46,9 @@ robyn_palette <- function() {
 # lares::plot_palette(
 #   fill = robyn_palette()$fill, colour = robyn_palette()$colour,
 #   limit = length(unique(robyn_palette()$fill)))
+
+flatten_hyps <- function(x) {
+  temp <- sapply(x, function(x) sprintf("[%s]", paste(signif(x, 6), collapse = ", ")))
+  paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
+}
+

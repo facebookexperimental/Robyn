@@ -2,6 +2,7 @@
 % Please edit documentation in R/allocator.R
 \name{robyn_allocator}
 \alias{robyn_allocator}
+\alias{print.robyn_allocator}
 \title{Robyn budget allocator}
 \usage{
 robyn_allocator(
@@ -18,15 +19,19 @@ robyn_allocator(
   channel_constr_up = 2,
   maxeval = 1e+05,
   constr_mode = "eq",
+  export = TRUE,
+  quiet = FALSE,
   ui = FALSE
 )
+
+\method{print}{robyn_allocator}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
 
-\item{select_build}{Integer. Default to the latest model build. \code{select_buil = 0}
-selects the initial model. \code{select_buil = 1} selects the first refresh model.}
+\item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
+selects the initial model. \code{select_build = 1} selects the first refresh model.}
 
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
@@ -62,7 +67,7 @@ for each paid media variable when maximizing total media response. \code{channel
 = 0.7} means minimum spend of the variable is 70% of historical average. Lower bound must
 be >=0.01. \code{channel_constr_up = 1.5} means maximum spend of the variable is 150% of
 historical average. Upper bound must be >= lower bound. Both must have same length and order
-as \code{paid_media_vars}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
+as \code{paid_media_spends}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
 new level is way higher than historical level.}
 
 \item{maxeval}{Integer. The maximum iteration of the global optimization algorithm.
@@ -71,7 +76,15 @@ Defaults to 100000.}
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
 
+\item{export}{Boolean. Export outcomes into local files?}
+
+\item{quiet}{Boolean. Keep messages off?}
+
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
+
+\item{x}{robyn_allocator object}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
 A list object containing allocator result.
