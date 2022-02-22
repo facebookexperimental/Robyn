@@ -50,38 +50,46 @@ robyn_converge <- function(OutputModels, n_cuts = 20, threshold_sd = 0.025) {
       include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6
     ))
 
-  # Calculate sd on each cut to alert user
+  # Calculate sd and median on each cut to alert user on:
+  # 1) last quantile's sd < threshold_sd
+  # 2) last quantile's median < first quantile's median - 2 * sd
   errors <- dt_objfunc_cvg %>%
     group_by(.data$error_type, .data$cuts) %>%
     summarise(
+      n = n(),
       median = median(.data$value),
       std = sd(.data$value),
       .groups = "drop"
     ) %>%
+    group_by(.data$error_type) %>%
     mutate(
       med_var_P = abs(round(100 * (.data$median - lag(.data$median)) / .data$median, 2)),
-      alert = .data$std > threshold_sd
-    )
-  last_std <- errors %>%
+      flag_sd = .data$std > threshold_sd
+    ) %>%
     group_by(.data$error_type) %>%
-    slice(n_cuts)
+    mutate(flag_med = dplyr::last(.data$median[1]) < dplyr::first(.data$median[2]) - 2 * dplyr::first(.data$std))
 
   conv_msg <- NULL
-  for (i in seq_along(last_std$error_type)) {
-    if (last_std$alert[i]) {
-      temp <- sprintf(
-        "%s objective hasn't converged (qt-%s sd: %s > %s threshold) -> Try more iterations",
-        last_std$error_type[i], round(100/n_cuts), signif(last_std$std[i], 1), threshold_sd
+  for (obj_fun in unique(errors$error_type)) {
+    temp.df <- filter(errors, .data$error_type == obj_fun) %>%
+      mutate(median = signif(median, 2))
+    last.qt <- tail(temp.df, 1)
+    temp <- glued(paste(
+        "{error_type} {did}converged: sd {sd} @qt.{quantile} {symb_sd} {sd_threh} &",
+        "med {qtn_median} @qt.{quantile} {symb_med} {med_threh} med@qt.1-2*sd"),
+        error_type = last.qt$error_type,
+        did = ifelse(last.qt$flag_sd | last.qt$flag_med, "NOT ", ""),
+        sd = signif(last.qt$std, 1),
+        symb_sd = ifelse(last.qt$flag_sd, ">", "<="),
+        sd_threh = threshold_sd,
+        quantile = round(100/n_cuts),
+        qtn_median = temp.df$median[n_cuts],
+        symb_med = ifelse(last.qt$flag_med, ">", "<="),
+        med_threh = signif(temp.df$median[1] - 2 * temp.df$std[1], 2)
       )
-    } else {
-      temp <- sprintf(
-        "%s objective converged (qt-%s sd: %s <= %s threshold)",
-        last_std$error_type[i], round(100/n_cuts), signif(last_std$std[i], 1), threshold_sd
-      )
-    }
-    message(temp)
     conv_msg <- c(conv_msg, temp)
   }
+  message(paste(paste("-", conv_msg), collapse = "\n"))
 
   # # Moving average
   # dt_objfunc_cvg %>%
@@ -148,7 +156,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, threshold_sd = 0.025) {
   cvg_out <- list(
     moo_distrb_plot = moo_distrb_plot,
     moo_cloud_plot = moo_cloud_plot,
-    errors = select(errors, -.data$alert)
+    errors = errors,
+    conv_msg = conv_msg
   )
   attr(cvg_out, "threshold_sd") <- threshold_sd
 

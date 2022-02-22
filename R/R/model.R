@@ -167,14 +167,7 @@ print.robyn_models <- function(x, ...) {
         "trial1" %in% names(x), nrow(x$trial1$resultCollect$resultHypParam), 1)),
     iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
     fixed = ifelse(is_fixed, " (fixed)", ""),
-    convergence = if (!is_fixed) x$convergence$errors %>%
-      mutate(label = sprintf(
-        "%s: sd = %s | Med. change = %s%% | %sconverged",
-        .data$error_type, signif(.data$std, 1), signif(100*.data$med_var_P, 2),
-        ifelse(.data$std <= threshold_sd, "", "not "))) %>%
-      group_by(.data$error_type) %>%
-      mutate(id = row_number()) %>% filter(.data$id == max(.data$id)) %>%
-      pull(.data$label) %>% paste(collapse = "\n  ") else "Fixed hyper-parameters",
+    convergence = if (!is_fixed) paste(x$convergence$conv_msg, collapse = "\n  ") else "Fixed hyper-parameters",
     hypers = flatten_hyps(x$hyper_updated)
   ))
 
@@ -259,7 +252,7 @@ robyn_train <- function(InputCollect, hyper_collect,
     if (!quiet) {
       message(paste(
         ">>> Starting", trials, "trials with",
-        iterations, "iterations per trial",
+        iterations, "iterations each",
         ifelse(is.null(InputCollect$calibration_input), "using", "with calibration using"),
         nevergrad_algo, "nevergrad algorithm..."
       ))

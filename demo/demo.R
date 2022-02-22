@@ -270,7 +270,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   #, cores = NULL # default
   #, add_penalty_factor = FALSE # Untested feature. Use with caution.
-  , iterations = 100 # recommended for the dummy dataset
+  , iterations = 2000 # recommended for the dummy dataset
   , trials = 5 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
