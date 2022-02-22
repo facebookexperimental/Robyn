@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -12,7 +12,7 @@
 #### Step 0: setup environment
 
 ## Install and load libraries
-# install.packages("remotes") # Install remotes first if not already happend
+# install.packages("remotes") # Install remotes first if you haven't already
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
 set.seed(123)
 
@@ -21,12 +21,14 @@ Sys.setenv(R_FUTURE_FORK_ENABLE="true")
 options(future.fork.enable = TRUE)
 
 ## Must install the python library Nevergrad once
-## ATTENTION: The latest Python 3.10 version will cause Nevergrad installation error
+## ATTENTION: The latest Python 3.10 version may cause Nevergrad installation error
 ## See here for more info about installing Python packages via reticulate
 ## https://rstudio.github.io/reticulate/articles/python_packages.html
 
-## Load library(reticulate)
-## Option 1: nevergrad installation via PIP
+# install.packages("reticulate") # Install reticulate first if you haven't already
+# library("reticulate") # Load the library
+
+## Option 1: nevergrad installation via PIP (no additional installs)
 # virtualenv_create("r-reticulate")
 # use_virtualenv("r-reticulate", required = TRUE)
 # py_install("nevergrad", pip = TRUE)
@@ -35,7 +37,7 @@ options(future.fork.enable = TRUE)
 # Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate/bin/python")
 # Reset your R session and re-install Nevergrad with option 1
 
-## Option 2: nevergrad installation via conda
+## Option 2: nevergrad installation via conda (must have conda installed)
 # conda_create("r-reticulate", "Python 3.9") # Only works with <= Python 3.9 sofar
 # use_condaenv("r-reticulate")
 # conda_install("r-reticulate", "nevergrad", pip=TRUE)
