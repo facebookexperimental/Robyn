@@ -113,8 +113,13 @@ The chart below shows the performance of the multi-objective optimisation from t
 
 ![Pareto-front for initial model](figures/plt1.png?raw=true)
 
+### Convergence plot per iteration quantile 
+The convergence of each objective function over iteration is showed. It's clear to observe that the median of both objective functions are trending smaller as iteration increases, while the spread / standard deviation are also getting smaller. There're two rules for convergence. For median, it's considered converged when median of last iteration quantile < mean median of first quantile - 3 * sd from first 3 quantiles. For sd, it's considered converged when sd of last quantile < mean sd of the first 3 quantiles. 
+
+![Convergence over itertion](figures/plt1_cvg.png?raw=true)
+
 ### Pareto-front chart for the refresh model build
-Similar to above, a more obvious trend of the multi-objective minimization process can be observed during the refreshing process with 3k iterations. The reason for this behaviour is that hyperparameter bounds are narrower during refresh than in the initial build which leads to faster convergence.
+Similar to initial model above, a more obvious trend of the multi-objective minimization process can be observed during the refreshing process with 3k iterations. The reason for this behaviour is that hyperparameter bounds are narrower during refresh than in the initial build which leads to faster convergence.
 
 ![Pareto-front for refresh model](figures/plt2.png?raw=true)
 
