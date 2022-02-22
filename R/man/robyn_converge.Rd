@@ -4,15 +4,19 @@
 \alias{robyn_converge}
 \title{Check model convergence}
 \usage{
-robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025)
+robyn_converge(OutputModels, n_cuts = 20, threshold_sd = 0.025, ...)
 }
 \arguments{
 \item{OutputModels}{List. Output from \code{robyn_run()}}
 
-\item{n_cuts}{Integer. Default to 20 (last 5%). Convergence is calculated
-on last quantile of cuts.}
+\item{n_cuts}{Integer. Default to 20 (5% cuts). Convergence is calculated
+on using first and last quantile cuts. Criteria 1: last quantile's sd
+< threshold_sd. Criteria 2: last quantile's median < first quantile's
+median - 2 * sd. Both have to happen to consider convergence.}
 
 \item{threshold_sd}{Numeric. Default to 0.025 that is empirically derived.}
+
+\item{...}{Additional parameters}
 }
 \description{
 The \code{robyn_converge()} function consumes output from \code{robyn_run()}

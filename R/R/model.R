@@ -124,7 +124,7 @@ robyn_run <- function(InputCollect,
   }
 
   # Check convergence
-  output[["convergence"]] <- robyn_converge(OutputModels)
+  output[["convergence"]] <- robyn_converge(OutputModels, ...)
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyps$hyper_list_all

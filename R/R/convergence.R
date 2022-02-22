@@ -10,9 +10,12 @@
 #' and calculate convergence status and output convergence plots.
 #'
 #' @param OutputModels List. Output from \code{robyn_run()}
-#' @param n_cuts Integer. Default to 20 (last 5%). Convergence is calculated
-#' on last quantile of cuts.
+#' @param n_cuts Integer. Default to 20 (5% cuts). Convergence is calculated
+#' on using first and last quantile cuts. Criteria 1: last quantile's sd
+#' < threshold_sd. Criteria 2: last quantile's median < first quantile's
+#' median - 2 * sd. Both have to happen to consider convergence.
 #' @param threshold_sd Numeric. Default to 0.025 that is empirically derived.
+#' @param ... Additional parameters
 #' @examples
 #' \dontrun{
 #' OutputModels <- robyn_converge(
@@ -22,7 +25,7 @@
 #' )
 #' }
 #' @export
-robyn_converge <- function(OutputModels, n_cuts = 20, threshold_sd = 0.025) {
+robyn_converge <- function(OutputModels, n_cuts = 20, threshold_sd = 0.025, ...) {
 
   # Gather all trials
   get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))
