@@ -273,7 +273,7 @@ OutputModels <- robyn_run(
   #, cores = NULL # default
   #, add_penalty_factor = FALSE # Untested feature. Use with caution.
   , iterations = 2000 # recommended for the dummy dataset
-  , trials = 5 # recommended for the dummy dataset
+  , trials = 1 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)

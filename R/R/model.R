@@ -411,7 +411,7 @@ robyn_mmm <- function(InputCollect,
                         y = dt_mod$dep_var,
                         seq_len = 100, lambda_min_ratio)
   lambda_min_ratio
-  lambda_max <- max(lambdas)
+  lambda_max <- max(lambdas) * 0.1
   lambda_min <- lambda_max * lambda_min_ratio
 
   ################################################
@@ -1333,6 +1333,8 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
 lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
   mysd <- function(y) sqrt(sum((y - mean(y))^2) / length(y))
   sx <- scale(x, scale = apply(x, 2, mysd))
+  check_nan <- apply(sx, 2, function(sxj) all(is.nan(sxj)))
+  sx <- mapply(function(sxj, v) return(if(v) rep(0, length(sxj)) else sxj), sxj = as.data.frame(sx), v = check_nan)
   sx <- as.matrix(sx, ncol = ncol(x), nrow = nrow(x))
   # sy <- as.vector(scale(y, scale=mysd(y)))
   sy <- y
