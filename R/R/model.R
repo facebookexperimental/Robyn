@@ -3,13 +3,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function robyn_run, robyn_mmm, model_refit, model_decomp, calibrate_mmm, lambda_seq
-
 ####################################################################
-#' The major Robyn modelling function
+#' Robyn Modelling Function
 #'
-#' The \code{robyn_run()} function consumes output from \code{robyn_input()},
-#' runs the \code{robyn_mmm()} functions and plots and collects the result.
+#' \code{robyn_run()} consumes \code{robyn_input()} outputs,
+#' runs \code{robyn_mmm()}, and collects all modeling results.
 #'
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
@@ -21,11 +19,11 @@
 #' this feature might add too much hyperparameter space and probably requires
 #' more iterations to converge.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
-#' @param cores Integer. Default to \code{parallel::detectCores()}
-#' @param iterations Integer. Recommended 2000 for default
-#' \code{nevergrad_algo = "TwoPointsDE"}
+#' @param cores Integer. Default to \code{parallel::detectCores()} (max cores).
+#' @param iterations Integer. Recommended 2000 for default when using
+#' \code{nevergrad_algo = "TwoPointsDE"}.
 #' @param trials Integer. Recommended 5 for default
-#' \code{nevergrad_algo = "TwoPointsDE"}
+#' \code{nevergrad_algo = "TwoPointsDE"}.
 #' @param nevergrad_algo Character. Default to "TwoPointsDE". Options are
 #' \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
 #' "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
@@ -36,8 +34,10 @@
 #' there are \code{context_vars} with large positive values.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param outputs Boolean. Process results with \code{robyn_outputs()}?
-#' @param lambda_control deprecated in v3.6.0
+#' @param lambda_control Deprecated in v3.6.0.
 #' @param ... Additional parameters passed to \code{robyn_outputs()}.
+#' @return List. Class: \code{robyn_models}. Contains the results of all trials
+#' and iterations modeled.
 #' @examples
 #' \dontrun{
 #' OutputCollect <- robyn_run(
@@ -139,7 +139,7 @@ robyn_run <- function(InputCollect,
 
 #' @rdname robyn_run
 #' @aliases robyn_run
-#' @param x robyn_models object
+#' @param x \code{robyn_models()} output.
 #' @export
 print.robyn_models <- function(x, ...) {
   is_fixed <- all(lapply(x$hyper_updated, length) == 1)
@@ -192,20 +192,12 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 ####################################################################
 #' Train Robyn Models
 #'
-#' The \code{robyn_train()} function consumes output from \code{robyn_input()}
+#' \code{robyn_train()} consumes output from \code{robyn_input()}
 #' and runs the \code{robyn_mmm()} on each trial.
 #'
 #' @inheritParams robyn_run
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
-#' @examples
-#' \dontrun{
-#' OutputCollect <- robyn_train(
-#'   InputCollect = InputCollect,
-#'   dt_hyper_fixed = NULL,
-#'   seed = 0
-#' )
-#' }
 #' @export
 robyn_train <- function(InputCollect, hyper_collect,
                         cores, iterations, trials,
@@ -290,9 +282,9 @@ robyn_train <- function(InputCollect, hyper_collect,
 
 
 ####################################################################
-#' The core MMM function
+#' Core MMM Function
 #'
-#' The \code{robyn_mmm()} function activates Nevergrad to generate samples of
+#' \code{robyn_mmm()} function activates Nevergrad to generate samples of
 #' hyperparameters, conducts media transformation within each loop, fits the
 #' Ridge regression, calibrates the model optionally, decomposes responses
 #' and collects the result. It's an inner function within \code{robyn_run()}.
@@ -867,11 +859,11 @@ robyn_mmm <- function(InputCollect,
 }
 
 ####################################################################
-#' The response function
+#' Response Function
 #'
-#' The \code{robyn_response()} function returns the response for a given
+#' \code{robyn_response()} returns the response for a given
 #' spend level of a given \code{paid_media_vars} from a selected model
-#' result from a selected model build (initial model, refresh model etc.).
+#' result and selected model build (initial model, refresh model, etc.).
 #'
 #' @inheritParams robyn_allocator
 #' @param media_metric A character. Selected media variable for the response.
@@ -883,7 +875,6 @@ robyn_mmm <- function(InputCollect,
 #' @param dt_coef A data.table. When \code{robyn_object} is not provided, use
 #' \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 #' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
-#' @param plot Logical. Set TRUE to plot individual saturation curve.
 #' @examples
 #' \dontrun{
 #' ## Get marginal response (mResponse) and marginal ROI (mROI) for
@@ -895,8 +886,7 @@ robyn_mmm <- function(InputCollect,
 #' Response1 <- robyn_response(
 #'   robyn_object = robyn_object,
 #'   media_metric = "search_S",
-#'   metric_value = spend1,
-#'   plot = TRUE
+#'   metric_value = spend1
 #' )$response
 #'
 #' # Get ROI for 80k
@@ -907,8 +897,7 @@ robyn_mmm <- function(InputCollect,
 #' Response2 <- robyn_response(
 #'   robyn_object = robyn_object,
 #'   media_metric = "search_S",
-#'   metric_value = spend2,
-#'   plot = TRUE
+#'   metric_value = spend2
 #' )$response
 #'
 #' # Get ROI for 81k
@@ -944,8 +933,7 @@ robyn_mmm <- function(InputCollect,
 #'   robyn_object = robyn_object,
 #'   select_build = 3,
 #'   media_metric = "search_S",
-#'   metric_value = 80000,
-#'   plot = TRUE
+#'   metric_value = 80000
 #' )
 #'
 #' ## Get response for 80k for search_S from the a certain model SolID
@@ -970,8 +958,7 @@ robyn_response <- function(robyn_object = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
                            InputCollect = NULL,
-                           OutputCollect = NULL,
-                           plot = FALSE) {
+                           OutputCollect = NULL) {
 
   ## get input
   if (!is.null(robyn_object)) {
@@ -1112,22 +1099,21 @@ robyn_response <- function(robyn_object = NULL,
   Response <- as.numeric(Saturated * coeff)
 
   ## Plot optimal response
-  if (plot) {
-    media_type <- ifelse(metric_type == "organic", "organic", "paid")
-    dt_line <- data.table(metric = m_adstockedRW, response = response_vec, channel = media_metric)
-    dt_point <- data.table(input = metric_value, output = Response)
-    p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
-      geom_line(color = "steelblue") +
-      geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
-      labs(title = paste("Saturation curve of", media_type, "media:", media_metric,
-                         ifelse(metric_type == "spend", "spend metric", "exposure metric")),
-           subtitle = sprintf(
-             "Response of %s @ %s",
-             formatNum(dt_point$output, signif = 4),
-             formatNum(dt_point$input, signif = 4)),
-           x = "Metric", y = "Response") +
-      theme_lares() + scale_x_abbr() + scale_y_abbr()
-  } else p_res <- NULL
+  media_type <- ifelse(metric_type == "organic", "organic", "paid")
+  dt_line <- data.table(metric = m_adstockedRW, response = response_vec, channel = media_metric)
+  dt_point <- data.table(input = metric_value, output = Response)
+  p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
+    geom_line(color = "steelblue") +
+    geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
+    labs(title = paste("Saturation curve of", media_type, "media:", media_metric,
+                       ifelse(metric_type == "spend", "spend metric", "exposure metric")),
+         subtitle = sprintf(
+           "Response of %s @ %s",
+           formatNum(dt_point$output, signif = 4),
+           formatNum(dt_point$input, signif = 4)),
+         x = "Metric", y = "Response") +
+    theme_lares() + scale_x_abbr() + scale_y_abbr()
+
   class(Response) <- unique(c("robyn_response", class(Response)))
   return(list(
     response = Response,

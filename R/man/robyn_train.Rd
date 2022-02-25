@@ -26,13 +26,13 @@ Required when \code{robyn_object} is not provided.}
 \item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
 \code{InputCollect$hyperparameters}.}
 
-\item{cores}{Integer. Default to \code{parallel::detectCores()}}
+\item{cores}{Integer. Default to \code{parallel::detectCores()} (max cores).}
 
-\item{iterations}{Integer. Recommended 2000 for default
-\code{nevergrad_algo = "TwoPointsDE"}}
+\item{iterations}{Integer. Recommended 2000 for default when using
+\code{nevergrad_algo = "TwoPointsDE"}.}
 
 \item{trials}{Integer. Recommended 5 for default
-\code{nevergrad_algo = "TwoPointsDE"}}
+\code{nevergrad_algo = "TwoPointsDE"}.}
 
 \item{intercept_sign}{Character. Choose one of "non_negative" (default) or
 "unconstrained". By default, if intercept is negative, Robyn will drop intercept
@@ -59,15 +59,6 @@ more iterations to converge.}
 \item{quiet}{Boolean. Keep messages off?}
 }
 \description{
-The \code{robyn_train()} function consumes output from \code{robyn_input()}
+\code{robyn_train()} consumes output from \code{robyn_input()}
 and runs the \code{robyn_mmm()} on each trial.
-}
-\examples{
-\dontrun{
-OutputCollect <- robyn_train(
-  InputCollect = InputCollect,
-  dt_hyper_fixed = NULL,
-  seed = 0
-)
-}
 }

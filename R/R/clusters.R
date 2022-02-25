@@ -4,11 +4,11 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Reduce number of models based on ROI clusters and minimum combined errors
+#' Clustering to Reduce Number of Models based on ROI and Errors
 #'
-#' The \code{robyn_clusters()} function uses output from \code{robyn_run()},
-#' to reduce the amount of models and help the user pick up the best (lowest
-#' combined error) of different kinds (clusters) of models.
+#' \code{robyn_clusters()} uses output from \code{robyn_run()},
+#' to reduce the number of models and help the user pick up the best (lowest
+#' combined error) of the most different kinds (clusters) of models.
 #'
 #' @inheritParams lares::clusterKmeans
 #' @inheritParams hyper_names

@@ -4,10 +4,10 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Output results into local files
+#' Evaluate Models and Output Results into Local Files
 #'
 #' Pack \code{robyn_plots()}, \code{robyn_csv()}, and \code{robyn_clusters()}
-#' outcomes for \code{robyn_run()} results. When \code{UI=TRUE}, enriched
+#' outcomes on \code{robyn_run()} results. When \code{UI=TRUE}, enriched
 #' \code{OutputModels} results with additional plots and objects.
 #'
 #' @param InputCollect,OutputModels \code{robyn_run()} outcomes.
@@ -34,7 +34,8 @@
 #' @param export Boolean. Export outcomes into local files?
 #' @param quiet Boolean. Keep messages off?
 #' @param ... Additional parameters passed to \code{robyn_clusters()}
-#' @return (Invisible) list with processed results.
+#' @return (Invisible) list. Class: \code{robyn_outputs}. Contains processed
+#' results based on \code{robyn_run()} results.
 #' @export
 robyn_outputs <- function(InputCollect, OutputModels,
                           pareto_fronts = 1,
@@ -153,7 +154,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
 #' @rdname robyn_outputs
 #' @aliases robyn_outputs
-#' @param x robyn_outputs object
+#' @param x \code{robyn_outputs()} output.
 #' @export
 print.robyn_outputs <- function(x, ...) {
   print(glued(
@@ -176,8 +177,8 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 ####################################################################
 #' Output results into local files: CSV files
 #'
-#' @inheritParams robyn_outputs
-#' @param OutputCollect \code{robyn_run(..., export = FALSE)} output
+#' @param OutputCollect \code{robyn_run(..., export = FALSE)} output.
+#' @rdname robyn_outputs
 #' @export
 robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
   if (export) {

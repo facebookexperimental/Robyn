@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Robyn MMM Open Source 3.0 - a Beta Project from Facebook Marketing Science
+#' Robyn MMM Project from Meta Marketing Science
 #'
 #' Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human
 #' bias by means of ridge regression and evolutionary algorithms, enables actionable

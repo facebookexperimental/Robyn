@@ -4,36 +4,39 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Check model convergence
+#' Check Models Convergence
 #'
-#' The \code{robyn_converge()} function consumes output from \code{robyn_run()}
-#' and calculate convergence status and output convergence plots.
+#' \code{robyn_converge()} consumes \code{robyn_run()} outputs
+#' and calculate convergence status and builds convergence plots.
+#' Convergence is calculated by default using the following criteria:
+#' \describe{
+#'   \item{Criteria #1:}{Last quantile's standard deviation < first 3
+#'   quantiles' mean standard deviation}
+#'   \item{Criteria #2:}{Last quantile's median < first quantile's
+#'   median - 3 * first 3 quantiles' mean standard deviation.}
+#' }
+#' Both criteria have to be satisfied to consider convergence.
 #'
-#' @param OutputModels List. Output from \code{robyn_run()}
-#' @param n_cuts Integer. Default to 20 (5% cuts). Convergence is calculated
-#' on using first and last quantile cuts. By default, criteria 1: last
-#' quantile's sd < first 3 quantiles' mean sd. Criteria 2: last quantile's
-#' median < first quantile's median - 3 * first 3 quantiles' mean sd. Both
-#' have to be satisfied to consider convergence.
+#' @param OutputModels List. Output from \code{robyn_run()}.
+#' @param n_cuts Integer. Default to 20 (5\% cuts each).
 #' @param sd_qtref Integer. Reference quantile of the error convergence rule
-#' for standard deviation. Defaults to 3. Error convergence rule for sd is
-#' defined as by default: last quantile's sd < first 3 quantiles' mean sd.
+#' for standard deviation (Criteria #1). Defaults to 3.
 #' @param med_lowb Integer. Lower bound distance of the error convergence rule
-#' for median. Default to 3. Error convergence rule for median is defined as
-#' by default: last quantile's median < first quantile's median - 3 * first 3
-#' quantiles' mean sd.
+#' for median. (Criteria #2). Default to 3.
 #' @param ... Additional parameters
 #' @examples
 #' \dontrun{
 #' OutputModels <- robyn_converge(
 #'   OutputModels = OutputModels,
-#'   n_cuts = 20,
+#'   n_cuts = 10,
 #'   sd_qtref = 3,
 #'   med_lowb = 3
 #' )
 #' }
 #' @export
 robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3, ...) {
+
+  stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
   # Gather all trials
   get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))

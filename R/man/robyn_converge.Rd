@@ -2,39 +2,40 @@
 % Please edit documentation in R/convergence.R
 \name{robyn_converge}
 \alias{robyn_converge}
-\title{Check model convergence}
+\title{Check Models Convergence}
 \usage{
 robyn_converge(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3, ...)
 }
 \arguments{
-\item{OutputModels}{List. Output from \code{robyn_run()}}
+\item{OutputModels}{List. Output from \code{robyn_run()}.}
 
-\item{n_cuts}{Integer. Default to 20 (5% cuts). Convergence is calculated
-on using first and last quantile cuts. By default, criteria 1: last
-quantile's sd < first 3 quantiles' mean sd. Criteria 2: last quantile's
-median < first quantile's median - 3 * first 3 quantiles' mean sd. Both
-have to be satisfied to consider convergence.}
+\item{n_cuts}{Integer. Default to 20 (5\% cuts each).}
 
 \item{sd_qtref}{Integer. Reference quantile of the error convergence rule
-for standard deviation. Defaults to 3. Error convergence rule for sd is
-defined as by default: last quantile's sd < first 3 quantiles' mean sd.}
+for standard deviation (Criteria #1). Defaults to 3.}
 
 \item{med_lowb}{Integer. Lower bound distance of the error convergence rule
-for median. Default to 3. Error convergence rule for median is defined as
-by default: last quantile's median < first quantile's median - 3 * first 3
-quantiles' mean sd.}
+for median. (Criteria #2). Default to 3.}
 
 \item{...}{Additional parameters}
 }
 \description{
-The \code{robyn_converge()} function consumes output from \code{robyn_run()}
-and calculate convergence status and output convergence plots.
+\code{robyn_converge()} consumes \code{robyn_run()} outputs
+and calculate convergence status and builds convergence plots.
+Convergence is calculated by default using the following criteria:
+\describe{
+  \item{Criteria #1:}{Last quantile's standard deviation < first 3
+  quantiles' mean standard deviation}
+  \item{Criteria #2:}{Last quantile's median < first quantile's
+  median - 3 * first 3 quantiles' mean standard deviation.}
+}
+Both criteria have to be satisfied to consider convergence.
 }
 \examples{
 \dontrun{
 OutputModels <- robyn_converge(
   OutputModels = OutputModels,
-  n_cuts = 20,
+  n_cuts = 10,
   sd_qtref = 3,
   med_lowb = 3
 )

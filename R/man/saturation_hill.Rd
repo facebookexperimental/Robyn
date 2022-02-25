@@ -2,23 +2,41 @@
 % Please edit documentation in R/transformation.R
 \name{saturation_hill}
 \alias{saturation_hill}
-\title{Hill saturation function}
+\alias{plot_saturation}
+\title{Hill Saturation Transformation}
 \usage{
 saturation_hill(x, alpha, gamma, x_marginal = NULL)
+
+plot_saturation(plot = TRUE)
 }
 \arguments{
-\item{x}{A numeric vector.}
+\item{x}{Numeric vector.}
 
-\item{alpha}{A numeric value. Alpha controls the shape of the saturation curve.
+\item{alpha}{Numeric. Alpha controls the shape of the saturation curve.
 The larger the alpha, the more S-shape. The smaller, the more C-shape.}
 
-\item{gamma}{A numeric value. Gamma controls the inflexion point of the
+\item{gamma}{Numeric. Gamma controls the inflexion point of the
 saturation curve. The larger the gamma, the later the inflexion point occurs.}
 
-\item{x_marginal}{A numeric value. When provided, the function returns the
+\item{x_marginal}{Numeric. When provided, the function returns the
 Hill-transformed value of the x_marginal input.}
+
+\item{plot}{Boolean. Do you wish to return the plot?}
 }
 \description{
-The Hill function applied here is a two-parametric version of the
+\code{saturation_hill} is a two-parametric version of the Hill
 function that allows the saturation curve to flip between S and C shape.
+
+Produce example plots for the Hill saturation curve.
 }
+\examples{
+saturation_hill(c(100, 150, 170, 190, 200), alpha = 3, gamma = 0.5)
+
+plot_saturation()
+}
+\seealso{
+Other Transformations: 
+\code{\link{adstock_geometric}()},
+\code{\link{mic_men}()}
+}
+\concept{Transformations}

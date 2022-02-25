@@ -1,6 +1,6 @@
 Package: Robyn
 Type: Package
-Title: Automated Marketing Mix Modeling (MMM) Open Source Beta Project from Facebook Marketing Science 
+Title: Semi-Automated Marketing Mix Modeling (MMM) from Meta Marketing Science 
 Version: 3.6.0
 Authors@R: c(
     person("Gufeng", "Zhou", , "gufeng@fb.com", c("aut")),
@@ -8,7 +8,7 @@ Authors@R: c(
     person("Igor", "Skokan", , "igorskokan@fb.com", c("aut")),
     person("Bernardo", "Lares", , "bernardolares@fb.com", c("cre","aut")))
 Maintainer: Gufeng Zhou <gufeng@fb.com>, Bernardo Lares <bernardolares@fb.com>
-Description: Automated Marketing Mix Modeling (MMM) package that aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation.
+Description: Semi-Automated Marketing Mix Modeling (MMM) package that aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation.
 Depends:
     R (>= 4.0)
 Imports:

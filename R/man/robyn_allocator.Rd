@@ -3,7 +3,7 @@
 \name{robyn_allocator}
 \alias{robyn_allocator}
 \alias{print.robyn_allocator}
-\title{Robyn budget allocator}
+\title{Budget Allocator}
 \usage{
 robyn_allocator(
   robyn_object = NULL,
@@ -82,7 +82,7 @@ indicating constraints with equality or inequality.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 
-\item{x}{robyn_allocator object}
+\item{x}{\code{robyn_allocator()} output.}
 
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
@@ -90,7 +90,7 @@ indicating constraints with equality or inequality.}
 A list object containing allocator result.
 }
 \description{
-The \code{robyn_allocator()} function returns a new split of media
+\code{robyn_allocator()} function returns a new split of media
 variable spends that maximizes the total media response.
 }
 \examples{

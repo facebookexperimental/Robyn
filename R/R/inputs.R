@@ -3,15 +3,13 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function robyn_inputs(), hyper_names(), robyn_engineering()
-
 ####################################################################
-#' Input data sanity check & transformation
+#' Input Data Check & Transformation
 #'
 #' \code{robyn_inputs()} is the function to input all model parameters and
 #' check input correctness for the initial model build. It includes the
-#' \code{robyn_engineering()} function that conducts trend, season,
-#' holiday & weekday decomposition using Facebook's time-serie forecasting
+#' engineering process results that conducts trend, season,
+#' holiday & weekday decomposition using Facebook's time-series forecasting
 #' library \code{prophet} and fit a nonlinear model to spend and exposure
 #' metrics in case exposure metrics are used in \code{paid_media_vars}.
 #'
@@ -30,16 +28,48 @@
 #'    experimental HO is 70%, input the point-estimate for the 30k$, not the 70k$.
 #' }
 #'
-#' @param dt_input A data.frame. Raw input data. Load simulated
+#' @param dt_input data.frame. Raw input data. Load simulated
 #' dataset using \code{data("dt_simulated_weekly")}
-#' @param dt_holidays A data.frame. Raw input holiday data. Load standard
+#' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}
-#' @param date_var A character. Name of date variable. Daily, weekly
+#' @param date_var Character. Name of date variable. Daily, weekly
 #' and monthly data supported. Weekly requires weekstart of Monday or Sunday.
 #' date_var must have format "2020-01-01". Default to automatic date detection.
 #' @param dep_var Character. Name of dependent variable. Only one allowed
 #' @param dep_var_type Character. Type of dependent variable
 #' as "revenue" or "conversion". Only one allowed and case sensitive.
+#' @param paid_media_spends Character vector. When using exposure level
+#' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
+#' corresponding spends for ROAS calculation. For spend metrics in
+#' \code{paid_media_vars}, use the same name. \code{media_spend_vars} must
+#' have same order and same length as \code{paid_media_vars}.
+#' @param paid_media_vars Character vector. Recommended to use exposure
+#' level metrics (impressions, clicks, GRP etc) other than spend. Also
+#' recommended to split media channel into sub-channels
+#' (e.g. fb_retargeting, fb_prospecting, etc.) to gain more variance.
+#' \code{paid_media_vars} only accepts numerical variable.
+#' @param paid_media_signs Character vector. Choose any of
+#' \code{c("default", "positive", "negative")}. Control
+#' the signs of coefficients for paid_media_vars. Must have same
+#' order and same length as \code{paid_media_vars}. By default it's
+#' set to 'positive'.
+#' @param context_vars Character vector. Typically competitors,
+#' price & promotion, temperature, unemployment rate, etc.
+#' @param context_signs Character vector. Choose any of
+#' \code{c("default", "positive", "negative")}. Control
+#' the signs of coefficients for context_vars. Must have same
+#' order and same length as \code{context_vars}. By default it's
+#' set to 'defualt'.
+#' @param organic_vars Character vector. Typically newsletter sendings,
+#' push-notifications, social media posts etc. Compared to paid_media_vars
+#' organic_vars are often  marketing activities without clear spends.
+#' @param organic_signs Character vector. Choose any of
+#' \code{c("default", "positive", "negative")}. Control
+#' the signs of coefficients for organic_signs. Must have same
+#' order and same length as \code{organic_vars}. By default it's
+#' set to 'positive'.
+#' @param factor_vars Character vector. Specify which of the provided
+#' variables in organic_vars or context_vars should be forced as a factor.
 #' @param prophet_vars Character vector. Include any of "trend",
 #' "season", "weekday", "holiday". Are case-sensitive. Highly recommended
 #' to use all for daily data and "trend", "season", "holiday" for
@@ -52,38 +82,6 @@
 #' @param prophet_country Character. Only one country allowed once.
 #' Including national holidays for 59 countries, whose list can
 #' be found loading \code{data("dt_prophet_holidays")}.
-#' @param context_vars Character vector. Typically competitors,
-#' price & promotion, temperature, unemployment rate, etc.
-#' @param context_signs Character vector. Choose any of
-#' \code{c("default", "positive", "negative")}. Control
-#' the signs of coefficients for context_vars. Must have same
-#' order and same length as \code{context_vars}. By default it's
-#' set to 'defualt'.
-#' @param paid_media_spends Character vector. When using exposure level
-#' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
-#' corresponding spends for ROAS calculation. For spend metrics in
-#' \code{paid_media_vars}, use the same name. \code{media_spend_vars} must
-#' have same order and same length as \code{paid_media_vars}.
-#' @param paid_media_vars Character vector. Recommended to use exposure
-#' level metrics (impressions, clicks, GRP etc) other than spend. Also
-#' recommended to split media channel into sub-channels
-#' (e.g. fb_retargeting, fb_prospecting etc.) to gain more variance.
-#' paid_media_vars only accept numerical variable
-#' @param paid_media_signs Character vector. Choose any of
-#' \code{c("default", "positive", "negative")}. Control
-#' the signs of coefficients for paid_media_vars. Must have same
-#' order and same length as \code{paid_media_vars}. By default it's
-#' set to 'positive'.
-#' @param organic_vars Character vector. Typically newsletter sendings,
-#' push-notifications, social media posts etc. Compared to paid_media_vars
-#' organic_vars are often  marketing activities without clear spends
-#' @param organic_signs Character vector. Choose any of
-#' \code{c("default", "positive", "negative")}. Control
-#' the signs of coefficients for organic_signs. Must have same
-#' order and same length as \code{organic_vars}. By default it's
-#' set to 'positive'.
-#' @param factor_vars Character vector. Specify which of the provided
-#' variables in organic_vars or context_vars should be forced as a factor
 #' @param adstock Character. Choose any of \code{c("geometric", "weibull_cdf",
 #' "weibull_pdf")}. Weibull adtock is a two-parametric function and thus more
 #' flexible, but takes longer time than the traditional geometric one-parametric
@@ -95,8 +93,9 @@
 #' see the difference visually. Time estimation: with geometric adstock, 2000
 #' iterations * 5 trials on 8 cores, it takes less than 30 minutes. Both Weibull
 #' options take up to twice as much time.
-#' @param hyperparameters List containing hyperparameter lower and upper bounds.
-#' Names of elements in list must be identical to output of \code{hyper_names()}
+#' @param hyperparameters List. Contains hyperparameter lower and upper bounds.
+#' Names of elements in list must be identical to output of \code{hyper_names()}.
+#' To fix hyperparameter values, provide only one value.
 #' @param window_start,window_end Character. Set start and end dates of modelling
 #' period. Recommended to not start in the first date in dataset to gain adstock
 #' effect from previous periods. Also, columns to rows ratio in the input data
@@ -108,17 +107,18 @@
 #' in full for the model calculation of trend, seasonality and holidays effects.
 #' Whereas the window period will determine how much of the full data set will be
 #' used for media, organic and context variables.
-#' @param calibration_input A data.table. Optional provide experimental results.
+#' @param calibration_input data.frame. Optional provide experimental results.
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
 #' @param ... Additional parameters passed to \code{prophet} functions.
 #' @examples
-#' # load similated input data
+#' # Load simulated input data
 #' data("dt_simulated_weekly")
 #'
-#' # load standard prophet holidays
+#' # Load standard prophet holidays
 #' data("dt_prophet_holidays")
+#'
 #' \dontrun{
 #' InputCollect <- robyn_inputs(
 #'   dt_input = dt_simulated_weekly,
@@ -136,13 +136,16 @@
 #'   window_start = "2016-11-23",
 #'   window_end = "2018-08-22",
 #'   adstock = "geometric",
-#'   hyperparameters = hyperparameters, # to be defined separately
-#'   calibration_input = dt_calibration # to be defined separately
+#'   # To be defined separately
+#'   hyperparameters = NULL,
+#'   calibration_input = NULL
 #' )
+#' print(InputCollect)
 #' }
-#' @return A list containing the all input parameters and modified input data from
-#' \code{robyn_engineering()}. The list is passed to further functions like
-#' \code{robyn_run()}, \code{robyn_save()} and \code{robyn_allocator()}
+#' @return List. Contains all input parameters and modified results
+#' using \code{Robyn:::robyn_engineering()}. This list is ready to be
+#' used on other functions like \code{robyn_run()} and \code{print()}.
+#' Class: \code{robyn_inputs}.
 #' @export
 robyn_inputs <- function(dt_input = NULL,
                          dt_holidays = NULL,
@@ -285,7 +288,7 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(hyperparameters)) {
       ### conditional output 1.2
       ## running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
-      output <- robyn_engineering(InputCollect = InputCollect, ...)
+      output <- robyn_engineering(InputCollect, ...)
     }
 
   } else {
@@ -312,7 +315,7 @@ robyn_inputs <- function(dt_input = NULL,
       ## update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
       check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
-      output <- robyn_engineering(InputCollect = InputCollect, ...)
+      output <- robyn_engineering(InputCollect, ...)
     }
   }
   output$custom_params <- list(...)
@@ -320,9 +323,9 @@ robyn_inputs <- function(dt_input = NULL,
   return(output)
 }
 
+#' @param x \code{robyn_inputs()} output.
 #' @rdname robyn_inputs
 #' @aliases robyn_inputs
-#' @param x robyn_inputs object
 #' @export
 print.robyn_inputs <- function(x, ...) {
   print(glued(
@@ -481,24 +484,19 @@ hyper_limits <- function() {
 }
 
 ####################################################################
-#' Apply prophet decomposition and spend exposure transformation
-#'
-#' This function is included in the \code{robyn_inputs()} function and
-#' will only run after all the condition checks are passed. It
-#' applies the decomposition of trend, season, holiday and weekday
-#' from \code{prophet} and builds the nonlinear fitting model when
-#' using non-spend variables in \code{paid_media_vars}, for example
-#' impressions for Facebook variables.
-#'
-#' @inheritParams robyn_inputs
-#' @param InputCollect Default to \code{InputCollect}
-#' @return A list containing the all input parameters and modified input
-#' data. The list is passed to further functions like
-#' \code{robyn_run()}, \code{robyn_save()} and \code{robyn_allocator()}.
-#' @export
-robyn_engineering <- function(InputCollect, ...) {
+# Apply prophet decomposition and spend exposure transformation
+#
+# \code{robyn_engineering()} is included in the \code{robyn_inputs()}
+# function and will only run after all the condition checks are passed.
+# It applies the decomposition of trend, season, holiday and weekday
+# from \code{prophet} and builds the nonlinear fitting model when
+# using non-spend variables in \code{paid_media_vars}, for example
+# impressions for Facebook variables.
+#
+# @rdname robyn_inputs
+robyn_engineering <- function(x, ...) {
+  InputCollect <- x
   check_InputCollect(InputCollect)
-
   dt_input <- InputCollect$dt_input
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends

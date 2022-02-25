@@ -2,7 +2,7 @@
 % Please edit documentation in R/model.R
 \name{robyn_mmm}
 \alias{robyn_mmm}
-\title{The core MMM function}
+\title{Core MMM Function}
 \usage{
 robyn_mmm(
   InputCollect,
@@ -27,7 +27,7 @@ Required when \code{robyn_object} is not provided.}
 
 \item{iterations}{Integer. Number of iterations to run.}
 
-\item{cores}{Integer. Default to \code{parallel::detectCores()}}
+\item{cores}{Integer. Default to \code{parallel::detectCores()} (max cores).}
 
 \item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
@@ -54,7 +54,7 @@ It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 \item{quiet}{Boolean. Keep messages off?}
 }
 \description{
-The \code{robyn_mmm()} function activates Nevergrad to generate samples of
+\code{robyn_mmm()} function activates Nevergrad to generate samples of
 hyperparameters, conducts media transformation within each loop, fits the
 Ridge regression, calibrates the model optionally, decomposes responses
 and collects the result. It's an inner function within \code{robyn_run()}.

@@ -2,7 +2,7 @@
 % Please edit documentation in R/model.R
 \name{robyn_response}
 \alias{robyn_response}
-\title{The response function}
+\title{Response Function}
 \usage{
 robyn_response(
   robyn_object = NULL,
@@ -13,8 +13,7 @@ robyn_response(
   dt_hyppar = NULL,
   dt_coef = NULL,
   InputCollect = NULL,
-  OutputCollect = NULL,
-  plot = FALSE
+  OutputCollect = NULL
 )
 }
 \arguments{
@@ -48,13 +47,11 @@ Required when \code{robyn_object} is not provided.}
 
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
-
-\item{plot}{Logical. Set TRUE to plot individual saturation curve.}
 }
 \description{
-The \code{robyn_response()} function returns the response for a given
+\code{robyn_response()} returns the response for a given
 spend level of a given \code{paid_media_vars} from a selected model
-result from a selected model build (initial model, refresh model etc.).
+result and selected model build (initial model, refresh model, etc.).
 }
 \examples{
 \dontrun{
@@ -67,8 +64,7 @@ spend1 <- 80000
 Response1 <- robyn_response(
   robyn_object = robyn_object,
   media_metric = "search_S",
-  metric_value = spend1,
-  plot = TRUE
+  metric_value = spend1
 )$response
 
 # Get ROI for 80k
@@ -79,8 +75,7 @@ spend2 <- spend1 + 1000
 Response2 <- robyn_response(
   robyn_object = robyn_object,
   media_metric = "search_S",
-  metric_value = spend2,
-  plot = TRUE
+  metric_value = spend2
 )$response
 
 # Get ROI for 81k
@@ -116,8 +111,7 @@ robyn_response(
   robyn_object = robyn_object,
   select_build = 3,
   media_metric = "search_S",
-  metric_value = 80000,
-  plot = TRUE
+  metric_value = 80000
 )
 
 ## Get response for 80k for search_S from the a certain model SolID

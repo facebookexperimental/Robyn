@@ -3,12 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function robyn_allocator()
-
 ####################################################################
-#' Robyn budget allocator
+#' Budget Allocator
 #'
-#' The \code{robyn_allocator()} function returns a new split of media
+#' \code{robyn_allocator()} function returns a new split of media
 #' variable spends that maximizes the total media response.
 #'
 #' @inheritParams robyn_run
@@ -337,7 +335,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
 #' @rdname robyn_allocator
 #' @aliases robyn_allocator
-#' @param x robyn_allocator object
+#' @param x \code{robyn_allocator()} output.
 #' @export
 print.robyn_allocator <- function(x, ...) {
   print(glued(

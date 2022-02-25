@@ -385,11 +385,11 @@ if (TRUE) {
   select_media <- "search_S"
   optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
   optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media, optmResponseUnit]
-  optimal_response <- robyn_response(robyn_object = robyn_object
-                                     , select_build = 0
-                                     , media_metric = select_media
-                                     , metric_value = optimal_spend
-                                     , plot = TRUE)
+  optimal_response <- robyn_response(
+    robyn_object = robyn_object,
+    select_build = 0,
+    media_metric = select_media,
+    metric_value = optimal_spend)
   cat(round(optimal_response_allocator) == round(optimal_response$response), "( ")
   plot(optimal_response$plot)
   cat(optimal_response$response, "==", optimal_response_allocator, ")\n")
@@ -462,8 +462,7 @@ Response1 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1 # 2 means the second refresh model. 0 means the initial model
   , media_metric = "search_S"
-  , metric_value = Spend1
-  , plot = TRUE)
+  , metric_value = Spend1)
 Response1$response/Spend1 # ROI for search 80k
 Response1$plot
 
@@ -473,8 +472,7 @@ Response2 <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
   , media_metric = "search_S"
-  , metric_value = Spend2
-  , plot = TRUE)
+  , metric_value = Spend2)
 Response2$response/Spend2 # ROI for search 81k
 Response2$plot
 
@@ -487,8 +485,7 @@ response_imps <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
   , media_metric = "facebook_I"
-  , metric_value = imps
-  , plot = TRUE)
+  , metric_value = imps)
 response_imps$response / imps * 1000
 response_imps$plot
 
@@ -498,8 +495,7 @@ response_sending <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
   , media_metric = "newsletter"
-  , metric_value = sendings
-  , plot = TRUE)
+  , metric_value = sendings)
 response_sending$response / sendings * 1000
 response_sending$plot
 

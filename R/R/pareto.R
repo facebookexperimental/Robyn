@@ -15,7 +15,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
   # Assign unique IDs using: trial + iterNG + iterPar
   resultHypParam[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
   xDecompAgg[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
-  xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_spends, .(coef0 = min(coef) == 0), by = "solID"]
+  xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_spends, .(coef0 = min(coef, na.rm = TRUE) == 0), by = "solID"]
 
   if (!hyper_fixed) {
     mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint, na.rm = TRUE)
@@ -281,7 +281,6 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
             dt_expoCurvePlot[channel == spends_to_fit[s]
                              , ':='(exposure_pred = mic_men(x = spend, Vmax = Vmax, Km = Km)
                                     ,channel = get_med)]
-            dt_expoCurvePlot
           } else {
             coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
             dt_expoCurvePlot[channel == spends_to_fit[s]

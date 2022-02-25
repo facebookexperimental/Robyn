@@ -3,15 +3,13 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function robyn_save, robyn_refresh
-
 ####################################################################
-#' Save Robyn object
+#' Export Robyn Model to Local File
 #'
-#' Use \code{robyn_save()} to select and save the initial model.
+#' Use \code{robyn_save()} to select and save as .RDS file the initial model.
 #'
 #' @inheritParams robyn_allocator
-#' @return A list containing all information for the initial model.
+#' @return (Invisible) file's name.
 #' @examples
 #' \dontrun{
 #' ## Get all model IDs in result from OutputCollect$allSolutions
@@ -56,20 +54,19 @@ robyn_save <- function(robyn_object,
   OutputCollect$selectID <- select_model
 
   InputCollect$refreshCounter <- 0
-  # listParamInit <- listParam
   listInit <- list(OutputCollect = OutputCollect, InputCollect = InputCollect)
   Robyn <- list(listInit = listInit)
-
   saveRDS(Robyn, file = robyn_object)
-  # listOutputInit <- NULL;  listParamInit <- NULL
-  # load("/Users/gufengzhou/Documents/GitHub/plots/listInit.RDS")
+
+  return(invisible(robyn_object))
 }
 
 
 ####################################################################
-#' Build refresh model
+#' Build Refresh Model
 #'
-#' The \code{robyn_refresh()} function builds update models based on
+#' @description
+#' \code{robyn_refresh()} builds update models based on
 #' the previously built models saved in the \code{Robyn.RDS} object specified
 #' in \code{robyn_object}. For example, when updating the initial build with 4
 #' weeks of new data, \code{robyn_refresh()} consumes the selected model of
@@ -80,40 +77,44 @@ robyn_save <- function(robyn_object,
 #' spend level. It returns aggregated result with all previous builds for
 #' reporting purpose and produces reporting plots.
 #'
+#' You must run \code{robyn_save()} to select and save an initial model first,
+#' before refreshing.
+#'
+#' The \code{robyn_refresh()} function is suitable for
+#' updating within "reasonable periods". Two situations are considered better
+#' to rebuild model:
+#' \describe{
+#'   \item{1. Most data is new}{If initial model has 100 weeks and 80 weeks
+#'   new data is added in refresh, it might be better to rebuild the model}
+#'   \item{2. New variables are added}{}
+#' }
+#'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
-#' @param dt_input A data.frame. Should include all previous data and newly added
+#' @param dt_input data.frame. Should include all previous data and newly added
 #' data for the refresh.
-#' @param dt_holidays A data.frame. Raw input holiday data. Load standard
+#' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}.
-#' @param refresh_steps An integer. It controls how many time units the refresh
+#' @param refresh_steps Integer. It controls how many time units the refresh
 #' model build move forward. For example, \code{refresh_steps = 4} on weekly data
 #' means the InputCollect$window_start & InputCollect$window_end move forward
 #' 4 weeks.
-#' @param refresh_mode A character. Options are "auto" and "manual". In auto mode,
+#' @param refresh_mode Character. Options are "auto" and "manual". In auto mode,
 #' the \code{robyn_refresh()} function builds refresh models with given
 #' \code{refresh_steps} repeatedly until there's no more data available. I
 #' manual mode, the \code{robyn_refresh()} only moves forward \code{refresh_steps}
 #' only once.
-#' @param refresh_iters An integer. Iterations per refresh. Rule of thumb is, the
+#' @param refresh_iters Integer. Iterations per refresh. Rule of thumb is, the
 #' more new data added, the more iterations needed. More reliable recommendation
 #' still needs to be investigated.
-#' @param refresh_trials An integer. Trials per refresh. Defaults to 5 trials.
+#' @param refresh_trials Integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
-#' @param ... Additional parameters passed to \code{robyn_engineering()} to
-#' overwrite original custom parameters passed into initial model.
-#' @return A list. The Robyn object.
+#' @param ... Additional parameters to overwrite original custom parameters
+#' passed into initial model.
+#' @return List. The Robyn object, class \code{robyn_refresh}.
 #' @examples
 #' \dontrun{
-#' ## NOTE: must run \code{robyn_save()} to select and save an initial model first,
-#' ## before refreshing below. The \code{robyn_refresh()} function is suitable for
-#' ## updating within "reasonable periods".
-#' ## Two situations are considered better to rebuild model:
-#' ## 1, most data is new. If initial model has 100 weeks and 80 weeks new data is
-#' ## added in refresh, it might be better to rebuild the model
-#' ## 2, new variables are added
-#'
 #' # Set the Robyn object path
 #' robyn_object <- "~/Desktop/Robyn.RDS"
 #'
@@ -291,7 +292,7 @@ robyn_refresh <- function(robyn_object,
 
     ## Feature engineering for refreshed data
     # Note that if custom prophet parameters were passed initially, will be used again unless changed in ...
-    InputCollectRF <- robyn_engineering(InputCollect = InputCollectRF, ...)
+    InputCollectRF <- robyn_engineering(InputCollectRF, ...)
 
     ## refresh model with adjusted decomp.rssd
 
@@ -547,7 +548,7 @@ robyn_refresh <- function(robyn_object,
 
 #' @rdname robyn_refresh
 #' @aliases robyn_refresh
-#' @param x robyn_refresh object
+#' @param x \code{robyn_refresh()} output.
 #' @export
 print.robyn_refresh <- function(x, ...) {
   rf_list <- x[grep("Refresh", names(x), value = TRUE)]
