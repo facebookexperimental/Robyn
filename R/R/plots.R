@@ -154,21 +154,27 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       dt_ridges <- dt_ridges[!is.na(iter_bin)]
       dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
       dt_ridges[, trial := as.factor(trial)]
-      all_plots[["pRidges"]] <- pRidges <- ggplot(
-        dt_ridges, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
-        scale_fill_distiller(palette = "GnBu") +
-        geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
-        facet_wrap(~ variables, scales = "free") +
-        guides(fill = "none")+
-        theme(panel.background = element_blank()) +
-        labs(x = "Total ROAS", y = "Iteration Bucket"
-             ,title = "ROAS distribution over iteration"
-             ,fill = "iter bucket")
-      if (export) suppressMessages(ggsave(
-        paste0(OutputCollect$plot_folder, "roas_convergence.png"),
-        plot = pRidges, dpi = 600, width = 12,
-        height = ceiling(InputCollect$mediaVarCount / 3) * 6
-      ))
+      plot_vars <- dt_ridges[, unique(variables)]
+      plot_n <- ceiling(length(plot_vars) / 6)
+      for (pl in 1:plot_n) {
+        loop_vars <- na.omit(plot_vars[(1:6)+6*(pl-1)])
+        dt_ridges_loop <- dt_ridges[variables %in% loop_vars, ]
+        all_plots[[paste0("pRidges",pl)]] <- pRidges <- ggplot(
+          dt_ridges_loop, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
+          scale_fill_distiller(palette = "GnBu") +
+          geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
+          facet_wrap(~ variables, scales = "free") +
+          guides(fill = "none")+
+          theme(panel.background = element_blank()) +
+          labs(x = "Total ROAS", y = "Iteration Bucket"
+               ,title = "ROAS distribution over iteration"
+               ,fill = "iter bucket")
+        if (export) suppressMessages(ggsave(
+          paste0(OutputCollect$plot_folder, "roas_convergence",pl,".png"),
+          plot = pRidges, dpi = 600, width = 12,
+          height = ceiling(length(loop_vars) / 3) * 6
+        ))
+      }
     }
   } # End of !hyper_fixed
 
