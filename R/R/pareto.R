@@ -289,6 +289,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
                                     , channel = get_med)]
           }
         }
+      } else {
+        dt_expoCurvePlot <- NULL
       }
       plot4data <- list(dt_scurvePlot = dt_scurvePlot,
                         dt_scurvePlotMean = dt_scurvePlotMean,
