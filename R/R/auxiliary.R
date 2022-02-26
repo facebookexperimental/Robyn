@@ -48,7 +48,7 @@ robyn_palette <- function() {
 #   limit = length(unique(robyn_palette()$fill)))
 
 flatten_hyps <- function(x) {
-  temp <- sapply(x, function(x) sprintf("[%s]", paste(signif(x, 6), collapse = ", ")))
+  if (is.null(x)) return(x)
+  temp <- sapply(x, function(x) sprintf("[%s]", paste(if(is.numeric(x)) signif(x, 6) else x, collapse = ", ")))
   paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
 }
-

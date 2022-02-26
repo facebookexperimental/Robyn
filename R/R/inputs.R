@@ -328,23 +328,28 @@ robyn_inputs <- function(dt_input = NULL,
 #' @aliases robyn_inputs
 #' @export
 print.robyn_inputs <- function(x, ...) {
+  mod_vars <- paste(setdiff(names(x$dt_mod), c('ds', 'dep_var')), collapse = ', ')
   print(glued(
     "
 Total Observations: {nrow(x$dt_input)}
 Input Table Columns ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = ', ')}
 Date Range: {range} ({nrow(x$dt_input)})
-Date Window: {windows} ({nrow(x$dt_modRollWind)})
+Date Window: {windows} {win_total}
 With Calibration: {!is.null(x$calibration_input)}
 Custom parameters: {custom_params}
 
-Model Variables ({ncol(x$dt_mod)-2}): {paste(setdiff(names(x$dt_mod),c('ds', 'dep_var')), collapse = ', ')}
 Adstock: {x$adstock}
-Hyper-parameters for media transformations:
-{flatten_hyps(x$hyperparameters)}
+{hyps}
 ",
     range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),
     windows = paste(x$window_start, x$window_end, sep = ":"),
-    custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None"
+    win_total = ifelse(!is.null(x$dt_modRollWind), glued("({nrow(x$dt_modRollWind)})"), ""),
+    custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
+    model_vars = if (!is.null(x$dt_mod)) glued(
+      "Model Variables ({ncol(x$dt_mod)-2}): {mod_vars}") else NULL,
+    hyps = if (!is.null(x$hyperparameters)) glued(
+      "Hyper-parameters for media transformations:\n{flatten_hyps(x$hyperparameters)}") else
+        "Hyper-parameters: Not set yet"
   ))
 }
 
