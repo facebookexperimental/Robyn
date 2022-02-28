@@ -32,7 +32,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         xlab(NULL) + ylab(NULL)
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
-        plot = pProphet,
+        plot = pProphet, limitsize = FALSE,
         dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
       )
     }
@@ -49,7 +49,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         )
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "spend_exposure_fitting.png"),
-        plot = pSpendExposure, dpi = 600, width = 12,
+        plot = pSpendExposure, dpi = 600, width = 12, limitsize = FALSE,
         height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
       )
     } else {
@@ -77,7 +77,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         )
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "hypersampling.png"),
-        plot = all_plots$pSamp, dpi = 600, width = 12, height = 7
+        plot = all_plots$pSamp, dpi = 600, width = 12, height = 7, limitsize = FALSE
       )
     }
 
@@ -132,7 +132,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       all_plots[["pParFront"]] <- pParFront
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "pareto_front.png"),
-        plot = pParFront,
+        plot = pParFront, limitsize = FALSE,
         dpi = 600, width = 12, height = 7
       )
     }
@@ -171,7 +171,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
                ,fill = "iter bucket")
         if (export) suppressMessages(ggsave(
           paste0(OutputCollect$plot_folder, "roas_convergence",pl,".png"),
-          plot = pRidges, dpi = 600, width = 12,
+          plot = pRidges, dpi = 600, width = 12, limitsize = FALSE,
           height = ceiling(length(loop_vars) / 3) * 6
         ))
       }
@@ -396,7 +396,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
       if (export) {
         ggsave(
           filename = paste0(OutputCollect$plot_folder, "/", sid, ".png"),
-          plot = pg,
+          plot = pg, limitsize = FALSE,
           dpi = 600, width = 18, height = 18
         )
       }
@@ -526,8 +526,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(
       filename = filename,
-      plot = plots,
-      dpi = 400, width = 18, height = 14, limitsize = FALSE
+      plot = plots, limitsize = FALSE,
+      dpi = 400, width = 18, height = 14
     )
   }
 
