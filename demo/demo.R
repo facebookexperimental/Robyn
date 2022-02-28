@@ -97,6 +97,7 @@ InputCollect <- robyn_inputs(
   ,window_end = "2018-08-22"
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
 )
+print(InputCollect)
 # ?robyn_inputs for more info
 
 #### 2a-2: Second, define and add hyperparameters
@@ -278,7 +279,7 @@ OutputModels <- robyn_run(
 )
 print(OutputModels)
 
-## Check MOO (multi-objective optimisation) convergence plots
+## Check MOO (multi-objective optimization) convergence plots
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
 # check convergence rules ?robyn_converge

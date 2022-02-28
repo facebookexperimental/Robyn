@@ -238,12 +238,15 @@ robyn_inputs <- function(dt_input = NULL,
     adstock <- check_adstock(adstock)
 
     ## check hyperparameters (if passed)
-    hyperparameters <- check_hyperparameters(hyperparameters, adstock,
-                                             paid_media_spends, organic_vars,
-                                             exposure_vars)
+    hyperparameters <- check_hyperparameters(
+      hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars)
 
     ## check calibration and iters/trials
     calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval)
+
+    ## Not used variables
+    unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
+      dep_var, date_var, context_vars, paid_media_vars, paid_media_spends, organic_vars)]
 
     ## collect input
     InputCollect <- output <- list(
@@ -272,6 +275,7 @@ robyn_inputs <- function(dt_input = NULL,
       all_media = all_media,
       all_ind_vars = all_ind_vars,
       factor_vars = factor_vars,
+      unused_vars = unused_vars,
       window_start = window_start,
       rollingWindowStartWhich = rollingWindowStartWhich,
       window_end = window_end,
@@ -331,10 +335,19 @@ print.robyn_inputs <- function(x, ...) {
   mod_vars <- paste(setdiff(names(x$dt_mod), c('ds', 'dep_var')), collapse = ', ')
   print(glued(
     "
-Total Observations: {nrow(x$dt_input)}
-Input Table Columns ({ncol(x$dt_input)}): {paste(names(x$dt_input), collapse = ', ')}
-Date Range: {range} ({nrow(x$dt_input)})
-Date Window: {windows} {win_total}
+Total Observations: {nrow(x$dt_input)} ({x$intervalType}s)
+Input Table Columns ({ncol(x$dt_input)}):
+  Date: {x$date_var}
+  Dependent: {x$dep_var} [{x$dep_var_type}]
+  Paid Media: {paste(x$paid_media_vars, collapse = ', ')}
+  Paid Media Spend: {paste(x$paid_media_spends, collapse = ', ')}
+  Context: {paste(x$context_vars, collapse = ', ')}
+  Organic: {paste(x$organic_vars, collapse = ', ')}
+  Prophet (Auto-generated): {paste(x$prophet_vars, collapse = ', ')} on {x$prophet_country}
+  Unused: {paste(x$unused_vars, collapse = ', ')}
+
+Date Range: {range}
+Model Window: {windows} ({x$rollingWindowEndWhich - x$rollingWindowStartWhich + 1} {x$intervalType}s)
 With Calibration: {!is.null(x$calibration_input)}
 Custom parameters: {custom_params}
 
@@ -343,13 +356,11 @@ Adstock: {x$adstock}
 ",
     range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),
     windows = paste(x$window_start, x$window_end, sep = ":"),
-    win_total = ifelse(!is.null(x$dt_modRollWind), glued("({nrow(x$dt_modRollWind)})"), ""),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
-    model_vars = if (!is.null(x$dt_mod)) glued(
-      "Model Variables ({ncol(x$dt_mod)-2}): {mod_vars}") else NULL,
     hyps = if (!is.null(x$hyperparameters)) glued(
       "Hyper-parameters for media transformations:\n{flatten_hyps(x$hyperparameters)}") else
-        "Hyper-parameters: Not set yet"
+        paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
+    # lares::formatColoured("Not set yet", "red", cat = FALSE)
   ))
 }
 
