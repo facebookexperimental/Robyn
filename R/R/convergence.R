@@ -52,7 +52,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
   dt_objfunc_cvg <- tidyr::gather(df, "error_type", "value", any_of(c("nrmse", "decomp.rssd", "mape"))) %>%
     select(.data$ElapsedAccum, .data$trial, .data$error_type, .data$value) %>%
     arrange(.data$trial, .data$ElapsedAccum) %>%
-    filter(.data$value > 0) %>%
+    filter(.data$value > 0, is.finite(.data$value)) %>%
     mutate(error_type = toupper(.data$error_type)) %>%
     group_by(.data$error_type, .data$trial) %>%
     mutate(iter = row_number()) %>%
@@ -95,17 +95,18 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     temp.df <- filter(errors, .data$error_type == obj_fun) %>%
       mutate(median = signif(median, 2))
     last.qt <- tail(temp.df, 1)
+    greater <- ">" #intToUtf8(8814)
     temp <- glued(paste(
         "{error_type} {did}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_threh} &",
         "med@qt.{quantile} {qtn_median} {symb_med} {med_threh} med@qt.1-{med_lowb}*sd"),
         error_type = last.qt$error_type,
         did = ifelse(last.qt$flag_sd & last.qt$flag_med, "", "NOT "),
         sd = signif(last.qt$last_sd, 2),
-        symb_sd = ifelse(last.qt$flag_sd, "<", ">="),
+        symb_sd = ifelse(last.qt$flag_sd, "<=", greater),
         sd_threh = signif(last.qt$first_sd_avg, 2),
         quantile = n_cuts,
         qtn_median = signif(last.qt$last_med, 2),
-        symb_med = ifelse(last.qt$flag_med, "<", ">="),
+        symb_med = ifelse(last.qt$flag_med, "<=", greater),
         med_threh = signif(last.qt$med_thres, 2),
         med_lowb = med_lowb
       )
@@ -131,6 +132,12 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
   #   theme_lares(legend = "top") +
   #   labs(colour = "Trial", x = "Iterations", y = NULL)
 
+  subtitle <- sprintf(
+    "%s trial%s with %s iterations %s",
+    max(df$trial), ifelse(max(df$trial) > 1, "s", ""), max(dt_objfunc_cvg$cuts),
+    ifelse(max(df$trial) > 1, "each", "")
+  )
+
   moo_distrb_plot <- dt_objfunc_cvg %>%
     mutate(id = as.integer(.data$cuts)) %>%
     mutate(cuts = factor(.data$cuts, levels = rev(levels(.data$cuts)))) %>%
@@ -145,7 +152,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     labs(
       x = "Objective functions", y = "Iterations [#]",
       title = "Objective convergence by iterations quantiles",
-      subtitle = paste(max(dt_objfunc_cvg$trial), "trials combined"),
+      subtitle = subtitle,
       caption = paste(conv_msg, collapse = "\n")
     )
 
@@ -156,10 +163,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
       title = ifelse(!calibrated, "Multi-objective evolutionary performance",
         "Multi-objective evolutionary performance with calibration"
       ),
-      subtitle = sprintf(
-        "%s trial%s with %s iterations each",
-        max(df$trial), ifelse(max(df$trial) > 1, "s", ""), max(dt_objfunc_cvg$cuts)
-      ),
+      subtitle = subtitle,
       x = "NRMSE",
       y = "DECOMP.RSSD",
       colour = "Time [s]",
