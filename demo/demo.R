@@ -11,10 +11,9 @@
 ################################################################
 #### Step 0: setup environment
 
-## Install and load libraries
+## Install and load  libraries
 # install.packages("remotes") # Install remotes first if you haven't already
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
-set.seed(123)
 
 ## force multicore when using RStudio
 Sys.setenv(R_FUTURE_FORK_ENABLE="true")
