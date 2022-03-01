@@ -48,6 +48,8 @@
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
 #' indicating constraints with equality or inequality.
+#' @param date_min,date_max Character. Date range to calculate mean (of non-zero spends) and
+#' total spends. Default will consider all dates within window.
 #' @return A list object containing allocator result.
 #' @examples
 #' \dontrun{
@@ -86,7 +88,7 @@
 #' }
 #' @export
 robyn_allocator <- function(robyn_object = NULL,
-                            select_build = NULL,
+                            select_build = 0,
                             InputCollect = NULL,
                             OutputCollect = NULL,
                             select_model = NULL,
@@ -98,6 +100,8 @@ robyn_allocator <- function(robyn_object = NULL,
                             channel_constr_up = 2,
                             maxeval = 100000,
                             constr_mode = "eq",
+                            date_min = NULL,
+                            date_max = NULL,
                             export = TRUE,
                             quiet = FALSE,
                             ui = FALSE) {
@@ -138,11 +142,15 @@ robyn_allocator <- function(robyn_object = NULL,
                   channel_constr_low, channel_constr_up,
                   expected_spend, expected_spend_days, constr_mode)
 
+  # Channel contrains
+  # channel_constr_low <- rep(0.8, length(paid_media_spends))
+  # channel_constr_up <- rep(1.2, length(paid_media_spends))
   names(channel_constr_low) <- paid_media_spends
   names(channel_constr_up) <- paid_media_spends
+
+  # Hyper-parameters and results
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
   dt_bestCoef <- OutputCollect$xDecompAgg[solID == select_model & rn %in% paid_media_spends]
-  dt_mediaSpend <- dt_input[startRW:endRW, mediaSpendSorted, with = FALSE]
 
   ## Sort table and get filter for channels mmm coef reduced to 0
   dt_coef <- dt_bestCoef[, .(rn, coef)]
@@ -153,37 +161,16 @@ robyn_allocator <- function(robyn_object = NULL,
   names(coefSelectorSorted) <- dt_coefSorted$rn
 
   ## Filter and sort all variables by name that is essential for the apply function later
-  #mediaVarSortedFiltered <- mediaVarSorted[coefSelectorSorted]
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   if (!all(coefSelectorSorted)) {
     chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSortedFiltered)
-    message(paste(chn_coef0, collapse = ", "), " are excluded in optimiser because their coeffients are 0")
+    message("Excluded in optimiser because their coeffients are 0: ", paste(chn_coef0, collapse = ", "))
   }
-
   dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
   setcolorder(dt_hyppar, sort(names(dt_hyppar)))
-  dt_optim <- dt_mod[, mediaSpendSortedFiltered, with = FALSE]
-  dt_optimCost <- dt_input[startRW:endRW, mediaSpendSortedFiltered, with = FALSE]
   dt_bestCoef <- dt_bestCoef[rn %in% mediaSpendSortedFiltered]
-  costMultiplierVec <- InputCollect$mediaCostFactor[mediaSpendSortedFiltered]
-
-  # if (any(InputCollect$exposure_selector)) {
-  #   dt_modNLS <- merge(data.table(channel = mediaVarSortedFiltered), spendExpoMod, all.x = TRUE, by = "channel")
-  #   vmaxVec <- dt_modNLS[order(rank(channel))][, Vmax]
-  #   names(vmaxVec) <- mediaVarSortedFiltered
-  #   kmVec <- dt_modNLS[order(rank(channel))][, Km]
-  #   names(kmVec) <- mediaVarSortedFiltered
-  # } else {
-  #   vmaxVec <- rep(0, length(mediaVarSortedFiltered))
-  #   kmVec <- rep(0, length(mediaVarSortedFiltered))
-  # }
-
-  # exposure_selectorSorted <- InputCollect$exposure_selector[media_order]
-  # exposure_selectorSorted <- exposure_selectorSorted[coefSelectorSorted]
-  # exposure_selectorSortedFiltered <- exposure_selectorSorted[mediaVarSortedFiltered]
   channelConstrLowSorted <- channel_constr_low[media_order][coefSelectorSorted]
   channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
-
 
   ## Get adstock parameters for each channel
   getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)
@@ -195,22 +182,35 @@ robyn_allocator <- function(robyn_object = NULL,
   gammaTrans <- hills$gammaTrans
   coefsFiltered <- hills$coefsFiltered
 
-  # ## build evaluation funciton
-  # if (!is.null(spendExpoMod)) {
-  #   mm_lm_coefs <- spendExpoMod$coef_lm
-  #   names(mm_lm_coefs) <- spendExpoMod$channel
-  # } else {
-  #   mm_lm_coefs <- c()
-  # }
+  # Spend values based on date range set
+  dt_optimCost <- dt_mod %>% slice(startRW:endRW)
+  if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
+  if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
+  stopifnot(date_min >= min(dt_optimCost$ds))
+  stopifnot(date_max <= max(dt_optimCost$ds))
+  histFiltered <- filter(dt_optimCost, .data$ds >= date_min & .data$ds <= date_max)
+  nPeriod <- nrow(histFiltered)
+  message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, nPeriod, InputCollect$intervalType))
 
-  ## Build constraints function with scenarios
-  nPeriod <- nrow(dt_optimCost)
+  histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
+  histSpendTotal <- sum(histSpendB)
+  histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSorted)), sum))
+  histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
+  histSpendUnitTotal <- sum(histSpendUnit)
+  histSpendShare <- histSpendUnit/histSpendUnitTotal
+
+  # Response values NOT based on date range set
   xDecompAggMedia <- OutputCollect$xDecompAgg[
     solID == select_model & rn %in% paid_media_spends][order(rank(rn))]
+  histResponseUnitModel <- setNames(
+    xDecompAggMedia[rn %in% mediaSpendSortedFiltered, get("mean_response")],
+    mediaSpendSortedFiltered)
+  histResponseUnitAllocator <- unlist(-eval_f(histSpendUnit)[["objective.channel"]])
 
+  ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {
-    expected_spend <- sum(xDecompAggMedia$total_spend)
-    expSpendUnitTotal <- sum(xDecompAggMedia$mean_spend) # expected_spend / nPeriod
+    expected_spend <- histSpendTotal
+    expSpendUnitTotal <- histSpendUnitTotal
   } else {
     expSpendUnitTotal <- expected_spend / (expected_spend_days / InputCollect$dayInterval)
   }
@@ -227,8 +227,6 @@ robyn_allocator <- function(robyn_object = NULL,
     # kmVec = kmVec,
     expSpendUnitTotal = expSpendUnitTotal)
   # So we can implicitly use these values within eval_f()
-  # optim_env <- new.env(parent = globalenv())
-  # optim_env$eval_list <- eval_list
   options("ROBYN_TEMP" = eval_list)
 
   # eval_f(c(1,1))
@@ -238,23 +236,6 @@ robyn_allocator <- function(robyn_object = NULL,
   # [1] -1.923670e-06 -8.148831e-06 -3.163465e-02 -3.553371e-05
   # $objective.channel
   # [1] -6.590166e-07 -3.087475e-06 -2.316821e-02 -1.250144e-05
-
-  histSpend <- xDecompAggMedia[, .(rn, total_spend)]
-  histSpend <- histSpend$total_spend
-  names(histSpend) <- sort(InputCollect$paid_media_spends)
-  histSpendTotal <- sum(histSpend)
-  histSpendUnitTotal <- sum(xDecompAggMedia$mean_spend)
-  histSpendUnit <- xDecompAggMedia[rn %in% mediaSpendSortedFiltered, mean_spend]
-  names(histSpendUnit) <- mediaSpendSortedFiltered
-  histSpendShare <- histSpendUnit/histSpendUnitTotal
-  names(histSpendShare) <- mediaSpendSortedFiltered
-
-  # QA: check if objective function correctly implemented
-  histResponseUnitModel <- setNames(
-    xDecompAggMedia[rn %in% mediaSpendSortedFiltered, get("mean_response")],
-    mediaSpendSortedFiltered)
-  histResponseUnitAllocator <- unlist(-eval_f(histSpendUnit)[["objective.channel"]])
-  identical(round(histResponseUnitModel, 3), round(histResponseUnitAllocator, 3))
 
   ## Set initial values and bounds
   x0 <- lb <- histSpendUnit * channelConstrLowSorted
@@ -288,9 +269,12 @@ robyn_allocator <- function(robyn_object = NULL,
     ))
 
   ## Collect output
-  dt_bestModel <- dt_bestCoef[, .(rn, mean_spend, xDecompAgg, roi_total, roi_mean)][order(rank(rn))]
   dt_optimOut <- data.table(
     channels = mediaSpendSortedFiltered,
+    date_min = date_min,
+    date_max = date_max,
+    periods = sprintf("%s %ss", nPeriod, InputCollect$intervalType),
+    # Initial
     histSpend = histSpend[mediaSpendSortedFiltered],
     histSpendTotal = histSpendTotal,
     initSpendUnitTotal = histSpendUnitTotal,
@@ -299,9 +283,11 @@ robyn_allocator <- function(robyn_object = NULL,
     initResponseUnit = histResponseUnitModel,
     initResponseUnitTotal = sum(xDecompAggMedia$mean_response),
     initRoiUnit = histResponseUnitModel / histSpendUnit,
+    # Expected
     expSpendTotal = expected_spend,
     expSpendUnitTotal = expSpendUnitTotal,
     expSpendUnitDelta = expSpendUnitTotal / histSpendUnitTotal - 1,
+    # Optimized
     optmSpendUnit = nlsMod$solution,
     optmSpendUnitDelta = (nlsMod$solution / histSpendUnit - 1),
     optmSpendUnitTotal = sum(nlsMod$solution),
@@ -343,6 +329,7 @@ print.robyn_allocator <- function(x, ...) {
 Model ID: {x$dt_optimOut$solID[1]}
 Total Spend Increase: {spend_increase_p}% ({spend_increase})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
+Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
 Allocation Summary:
   {summary}

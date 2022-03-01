@@ -7,7 +7,7 @@
 \usage{
 robyn_allocator(
   robyn_object = NULL,
-  select_build = NULL,
+  select_build = 0,
   InputCollect = NULL,
   OutputCollect = NULL,
   select_model = NULL,
@@ -19,6 +19,8 @@ robyn_allocator(
   channel_constr_up = 2,
   maxeval = 1e+05,
   constr_mode = "eq",
+  date_min = NULL,
+  date_max = NULL,
   export = TRUE,
   quiet = FALSE,
   ui = FALSE
@@ -75,6 +77,9 @@ Defaults to 100000.}
 
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
+
+\item{date_min, date_max}{Character. Date range to calculate mean (of non-zero spends) and
+total spends. Default will consider all dates within window.}
 
 \item{export}{Boolean. Export outcomes into local files?}
 
