@@ -356,9 +356,12 @@ AllocatorCollect <- robyn_allocator(
   , scenario = "max_historical_response"
   , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
+  , date_min = "2017-12-01"
+  , date_max = "2018-02-01"
 )
 print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
+AllocatorCollect$plots$p14
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -375,6 +378,7 @@ AllocatorCollect <- robyn_allocator(
 )
 print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
+AllocatorCollect$plots$p14
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -383,8 +387,8 @@ AllocatorCollect$dt_optimOut
 if (TRUE) {
   cat("QA if results from robyn_allocator and robyn_response agree: ")
   select_media <- "search_S"
-  optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
-  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media, optmResponseUnit]
+  optimal_spend <- AllocatorCollect$dt_optimOut[channels == select_media, optmSpendUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels == select_media, optmResponseUnit]
   optimal_response <- robyn_response(
     robyn_object = robyn_object,
     select_build = 0,

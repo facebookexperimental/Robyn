@@ -960,7 +960,7 @@ robyn_response <- function(robyn_object = NULL,
                            InputCollect = NULL,
                            OutputCollect = NULL) {
 
-  ## get input
+  ## Get input
   if (!is.null(robyn_object)) {
 
     if (!file.exists(robyn_object)) {
@@ -1026,15 +1026,13 @@ robyn_response <- function(robyn_object = NULL,
     stop("media_metric must be one value from paid_media_spends, paid_media_vars or organic_vars")
   }
 
-  #media_vec <- dt_input[, get(media_metric)]
-
   if (!is.null(metric_value)) {
     if (length(metric_value) != 1 | metric_value <= 0 | !is.numeric(metric_value)) {
       stop("'metric_value' must be a positive number")
     }
   }
 
-  ## transform exposure to spend when necessary
+  ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {
 
     get_spend_name <- paid_media_spends[which(paid_media_vars==media_metric)]
@@ -1052,17 +1050,15 @@ robyn_response <- function(robyn_object = NULL,
       Vmax <- spendExpoMod[channel == media_metric, Vmax]
       Km <- spendExpoMod[channel == media_metric, Km]
       media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
-      #metric_value <- mic_men(x = metric_value, Vmax = Vmax, Km = Km, reverse = FALSE)
     } else {
       coef_lm <- spendExpoMod[channel == media_metric, coef_lm]
       media_vec <- spend_vec * coef_lm
-      #metric_value <- metric_value * coef_lm
     }
     hpm_name <- get_spend_name
   } else {
 
     media_vec <- dt_input[, get(media_metric)]
-    # use non-0 meanas marginal level if spend not provided
+    # use non-0 means marginal level if spend not provided
     if (is.null(metric_value)) {
       metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
       message("metric_value not provided. using mean of ", media_metric, " instead")
@@ -1071,7 +1067,7 @@ robyn_response <- function(robyn_object = NULL,
   }
 
 
-  ## adstocking
+  ## Adstocking
   if (adstock == "geometric") {
     theta <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_thetas"))]
     x_list <- adstock_geometric(x = media_vec, theta = theta)
@@ -1086,14 +1082,14 @@ robyn_response <- function(robyn_object = NULL,
   }
   m_adstocked <- x_list$x_decayed
 
-  ## saturation
+  ## Saturation
   m_adstockedRW <- m_adstocked[startRW:endRW]
   alpha <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_alphas"))]
   gamma <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_gammas"))]
   Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
   m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
 
-  ## decomp
+  ## Decomp
   coeff <- dt_coef[solID == select_model & rn == hpm_name, coef]
   response_vec <- m_saturated * coeff
   Response <- as.numeric(Saturated * coeff)

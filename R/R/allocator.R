@@ -123,7 +123,6 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Set local data & params values
   if (TRUE) {
-    dt_input <- InputCollect$dt_input
     dt_mod <- InputCollect$dt_mod
     paid_media_vars <- InputCollect$paid_media_vars
     media_order <- order(paid_media_vars)
@@ -186,8 +185,8 @@ robyn_allocator <- function(robyn_object = NULL,
   dt_optimCost <- dt_mod %>% slice(startRW:endRW)
   if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
   if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
-  stopifnot(date_min >= min(dt_optimCost$ds))
-  stopifnot(date_max <= max(dt_optimCost$ds))
+  if (date_min < min(dt_optimCost$ds)) date_min <- min(dt_optimCost$ds)
+  if (date_max > max(dt_optimCost$ds)) date_max <- max(dt_optimCost$ds)
   histFiltered <- filter(dt_optimCost, .data$ds >= date_min & .data$ds <= date_max)
   nPeriod <- nrow(histFiltered)
   message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, nPeriod, InputCollect$intervalType))
@@ -199,13 +198,23 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendUnitTotal <- sum(histSpendUnit)
   histSpendShare <- histSpendUnit/histSpendUnitTotal
 
-  # Response values NOT based on date range set
-  xDecompAggMedia <- OutputCollect$xDecompAgg[
-    solID == select_model & rn %in% paid_media_spends][order(rank(rn))]
-  histResponseUnitModel <- setNames(
-    xDecompAggMedia[rn %in% mediaSpendSortedFiltered, get("mean_response")],
-    mediaSpendSortedFiltered)
-  histResponseUnitAllocator <- unlist(-eval_f(histSpendUnit)[["objective.channel"]])
+  # Response values based on date range -> mean spend
+  histResponseUnitModel <- NULL
+  for (i in seq_along(mediaSpendSortedFiltered)) {
+    histResponseUnitModel <- c(
+      histResponseUnitModel,
+      robyn_response(
+        robyn_object = robyn_object,
+        select_build = select_build,
+        mediaSpendSortedFiltered[i],
+        select_model = select_model,
+        metric_value = histSpendUnit[i],
+        dt_hyppar = OutputCollect$resultHypParam,
+        dt_coef = OutputCollect$xDecompAgg,
+        InputCollect = InputCollect,
+        OutputCollect = OutputCollect)$response)
+  }
+  names(histResponseUnitModel) <- mediaSpendSortedFiltered
 
   ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {
@@ -281,7 +290,7 @@ robyn_allocator <- function(robyn_object = NULL,
     initSpendUnit = histSpendUnit,
     initSpendShare = histSpendShare,
     initResponseUnit = histResponseUnitModel,
-    initResponseUnitTotal = sum(xDecompAggMedia$mean_response),
+    initResponseUnitTotal = sum(histResponseUnitModel),
     initRoiUnit = histResponseUnitModel / histSpendUnit,
     # Expected
     expSpendTotal = expected_spend,

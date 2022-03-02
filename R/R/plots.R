@@ -504,14 +504,18 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       show.legend = FALSE, hjust = -0.2) +
     theme(legend.position = c(0.9, 0.4), legend.title = element_blank()) +
     labs(
-      title = "Response curve and mean spend by channel",
+      title = "Response curve and mean spend* by channel",
       subtitle = paste0(
         "rsq_train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
         ", nrmse = ", plotDT_scurveMeanResponse[, round(mean(nrmse), 4)],
         ", decomp.rssd = ", plotDT_scurveMeanResponse[, round(mean(decomp.rssd), 4)],
         ", mape.lift = ", plotDT_scurveMeanResponse[, round(mean(mape), 4)]
       ),
-      x = "Spend", y = "Response"
+      x = "Spend", y = "Response",
+      caption = sprintf("*Based on date range: %s to %s (%s)",
+                        dt_optimOut$date_min[1],
+                        dt_optimOut$date_max[1],
+                        dt_optimOut$periods[1])
     ) + lares::scale_x_abbr() + lares::scale_y_abbr()
 
   # Gather all plots
