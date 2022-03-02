@@ -200,12 +200,12 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendShare <- histSpendUnit/histSpendUnitTotal
 
   # Response values NOT based on date range set
+  # OutputCollect$xDecompVecCollect only contains default selected model
   xDecompAggMedia <- OutputCollect$xDecompAgg[
     solID == select_model & rn %in% paid_media_spends][order(rank(rn))]
   histResponseUnitModel <- setNames(
     xDecompAggMedia[rn %in% mediaSpendSortedFiltered, get("mean_response")],
     mediaSpendSortedFiltered)
-  histResponseUnitAllocator <- unlist(-eval_f(histSpendUnit)[["objective.channel"]])
 
   ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {

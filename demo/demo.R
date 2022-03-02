@@ -383,8 +383,8 @@ AllocatorCollect$dt_optimOut
 if (TRUE) {
   cat("QA if results from robyn_allocator and robyn_response agree: ")
   select_media <- "search_S"
-  optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
-  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media, optmResponseUnit]
+  optimal_spend <- AllocatorCollect$dt_optimOut[channels == select_media, optmSpendUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels == select_media, optmResponseUnit]
   optimal_response <- robyn_response(
     robyn_object = robyn_object,
     select_build = 0,
