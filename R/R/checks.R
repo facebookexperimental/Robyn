@@ -351,6 +351,34 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL, all_me
         paste(local_name, collapse = ", ")
       )
     }
+    check_hyper_limits(hyperparameters, "thetas")
+    check_hyper_limits(hyperparameters, "alphas")
+    check_hyper_limits(hyperparameters, "gammas")
+    check_hyper_limits(hyperparameters, "shapes")
+    check_hyper_limits(hyperparameters, "scales")
+  }
+}
+
+check_hyper_limits <- function(hyperparameters, hyper) {
+  hyper_which <- which(endsWith(names(hyperparameters), hyper))
+  if (length(hyper_which) == 0) return(invisible(NULL))
+  limits <- hyper_limits()[[hyper]]
+  for (i in hyper_which) {
+    values <- hyperparameters[[i]]
+    # Lower limit
+    ineq <- paste(values[1], limits[1], sep = "", collapse = "")
+    lower_pass <- eval(parse(text = ineq))
+    if (!lower_pass)
+      stop(sprintf("%s's hyperparameter must have lower bound %s", names(hyperparameters)[i], limits[1]))
+    # Upper limit
+    ineq <- paste(values[2], limits[2], sep = "", collapse = "")
+    upper_pass <- eval(parse(text = ineq))
+    if (!upper_pass)
+      stop(sprintf("%s's hyperparameter must have upper bound %s", names(hyperparameters)[i], limits[2]))
+    # Order of limits
+    order_pass <- !isFALSE(values[1] <= values[2])
+    if (!order_pass)
+      stop(sprintf("%s's hyperparameter must have lower bound first and upper bound second", names(hyperparameters)[i]))
   }
 }
 
@@ -424,13 +452,68 @@ check_filedir <- function(plot_folder) {
 check_calibconstr <- function(calibration_constraint, iterations, trials, calibration_input) {
   if (!is.null(calibration_input)) {
     total_iters <- iterations * trials
-    if (calibration_constraint <0.01 | calibration_constraint > 0.1) {
+    if (calibration_constraint < 0.01 || calibration_constraint > 0.1) {
+      message("calibration_constraint must be >=0.01 and <=0.1. Changed to default value: 0.1")
       calibration_constraint <- 0.1
-      message("calibration_constraint must be >=0.01 and <=0.1. Using default value 0.1")
-    } else if (total_iters * calibration_constraint < 500) {
-      warning("Calibration constraint set to be top ", calibration_constraint*100, "% calibrated models.",
-              " Only ", round(total_iters*calibration_constraint,0), " models left for pareto-optimal selection")
+    }
+    models_lower <- 500
+    if (total_iters * calibration_constraint < models_lower) {
+      warning(sprintf(paste(
+        "calibration_constraint set for top %s%% calibrated models.",
+        "%s models left for pareto-optimal selection. Minimum suggested: %s"),
+        calibration_constraint * 100,
+        round(total_iters * calibration_constraint, 0),
+        models_lower))
     }
   }
   return(calibration_constraint)
+}
+
+check_hyper_fixed <- function(InputCollect, dt_hyper_fixed) {
+  hyper_fixed <- all(length(InputCollect$hyperparameters) == 1)
+  if (hyper_fixed & is.null(dt_hyper_fixed)) {
+    stop(paste("hyperparameters can't be all fixed for hyperparameter optimisation.",
+               "If you want to get old model result, please provide only 1 model / 1 row from",
+               "OutputCollect$resultHypParam or pareto_hyperparameters.csv from previous runs"))
+  }
+  if (!is.null(dt_hyper_fixed)) {
+    ## Run robyn_mmm if using old model result tables
+    dt_hyper_fixed <- as.data.table(dt_hyper_fixed)
+    if (nrow(dt_hyper_fixed) != 1) {
+      stop(paste("Provide only 1 model / 1 row from OutputCollect$resultHypParam or",
+                 "pareto_hyperparameters.csv from previous runs"))
+    }
+    hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+    if (!all(c(hypParamSamName, "lambda") %in% names(dt_hyper_fixed))) {
+      stop(paste("dt_hyper_fixed is provided with wrong input.",
+                 "Please provide the table OutputCollect$resultHypParam from previous runs or",
+                 "pareto_hyperparameters.csv with desired model ID"))
+    }
+  }
+  return(hyper_fixed)
+}
+
+# Enable parallelisation of main modelling loop for MacOS and Linux only
+check_parallel <- function() "unix" %in% .Platform$OS.type
+# ggplot doesn't work with process forking on MacOS; however it works fine on Linux and Windows
+check_parallel_plot <- function() !"Darwin" %in% Sys.info()["sysname"]
+
+check_parallel_msg <- function(InputCollect) {
+  if (check_parallel()) {
+    message(paste(
+      "Using", InputCollect$adstock, "adstocking with",
+      length(InputCollect$hyperparameters),
+      "hyperparameters & 10-fold ridge x-validation on", InputCollect$cores, "cores"
+    ))
+  } else {
+    message(paste(
+      "Using", InputCollect$adstock, "adstocking with",
+      length(InputCollect$hyperparameters),
+      "hyperparameters & 10-fold ridge x-validation on 1 core (Windows fallback)"
+    ))
+  }
+}
+
+check_class <- function(x, object) {
+ if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }

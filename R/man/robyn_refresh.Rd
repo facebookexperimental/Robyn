@@ -13,7 +13,8 @@ robyn_refresh(
   refresh_mode = "manual",
   refresh_iters = 1000,
   refresh_trials = 3,
-  plot_pareto = TRUE
+  plot_pareto = TRUE,
+  ...
 )
 }
 \arguments{
@@ -48,8 +49,11 @@ still needs to be investigated.}
 \item{refresh_trials}{An integer. Trials per refresh. Defaults to 5 trials.
 More reliable recommendation still needs to be investigated.}
 
-\item{plot_pareto}{A logical value. Set to \code{FALSE} to deactivate plotting
-and saving model onepagers. Used when testing models.}
+\item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
+and saving model one-pagers. Used when testing models.}
+
+\item{...}{Additional parameters passed to \code{robyn_engineering()} to
+overwrite original custom parameters passed into initial model.}
 }
 \value{
 A list. The Robyn object.
@@ -68,7 +72,6 @@ reporting purpose and produces reporting plots.
 }
 \examples{
 \dontrun{
-
 ## NOTE: must run \code{robyn_save()} to select and save an initial model first,
 ## before refreshing below. The \code{robyn_refresh()} function is suitable for
 ## updating within "reasonable periods".
