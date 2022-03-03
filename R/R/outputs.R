@@ -4,10 +4,10 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Output results into local files
+#' Evaluate Models and Output Results into Local Files
 #'
 #' Pack \code{robyn_plots()}, \code{robyn_csv()}, and \code{robyn_clusters()}
-#' outcomes for \code{robyn_run()} results. When \code{UI=TRUE}, enriched
+#' outcomes on \code{robyn_run()} results. When \code{UI=TRUE}, enriched
 #' \code{OutputModels} results with additional plots and objects.
 #'
 #' @param InputCollect,OutputModels \code{robyn_run()} outcomes.
@@ -34,7 +34,8 @@
 #' @param export Boolean. Export outcomes into local files?
 #' @param quiet Boolean. Keep messages off?
 #' @param ... Additional parameters passed to \code{robyn_clusters()}
-#' @return (Invisible) list with processed results.
+#' @return (Invisible) list. Class: \code{robyn_outputs}. Contains processed
+#' results based on \code{robyn_run()} results.
 #' @export
 robyn_outputs <- function(InputCollect, OutputModels,
                           pareto_fronts = 1,
@@ -52,16 +53,17 @@ robyn_outputs <- function(InputCollect, OutputModels,
   # Check calibration constrains
   calibration_constraint <- check_calibconstr(
     calibration_constraint,
-    InputCollect$iterations,
-    InputCollect$trials,
+    OutputModels$iterations,
+    OutputModels$trials,
     InputCollect$calibration_input)
 
   #####################################
   #### Run robyn_pareto on OutputModels
 
-  totalModels <- InputCollect$iterations * InputCollect$trials
-  message(sprintf(">>> Running Pareto calculations for %s models on %s front%s...",
-                  totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
+  totalModels <- OutputModels$iterations * OutputModels$trials
+  if (!isTRUE(attr(OutputModels, "hyper_fixed"))) message(sprintf(
+    ">>> Running Pareto calculations for %s models on %s front%s...",
+    totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
   pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint)
   allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
@@ -91,6 +93,12 @@ robyn_outputs <- function(InputCollect, OutputModels,
     allSolutions = allSolutions,
     allPareto = allPareto,
     calibration_constraint = calibration_constraint,
+    cores = OutputModels$cores,
+    iterations = OutputModels$iterations,
+    trials = OutputModels$trials,
+    intercept_sign = OutputModels$intercept_sign,
+    nevergrad_algo = OutputModels$nevergrad_algo,
+    add_penalty_factor = OutputModels$add_penalty_factor,
     UI = NULL,
     pareto_fronts = pareto_fronts,
     hyper_fixed = attr(OutputModels, "hyper_fixed"),
@@ -115,12 +123,13 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
       if (clusters) {
         if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-        OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...)
+        try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...))
       }
 
       if (plot_pareto) {
-        if (!quiet) message(">>> Exporting pareto one-pagers into directory...")
-        selected <- if (!clusters) NULL else selected
+        if (!quiet) message(sprintf(
+          ">>> Exporting %sone-pagers into directory...", ifelse(!OutputCollect$hyper_fixed, "pareto ", "")))
+        selected <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else selected
         pareto_onepagers <- robyn_onepagers(
           InputCollect, OutputCollect,
           selected = selected,
@@ -137,16 +146,39 @@ robyn_outputs <- function(InputCollect, OutputModels,
     })
   }
 
+  if (!is.null(OutputModels$hyper_updated)) OutputCollect$hyper_updated <- OutputModels$hyper_updated
+  class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
   return(invisible(OutputCollect))
 
+}
+
+#' @rdname robyn_outputs
+#' @aliases robyn_outputs
+#' @param x \code{robyn_outputs()} output.
+#' @export
+print.robyn_outputs <- function(x, ...) {
+  print(glued(
+    "
+Plot Folder: {x$plot_folder}
+Calibration Constraint: {x$calibration_constraint}
+Hyper-parameters fixed: {x$hyper_fixed}
+Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions, collapse = ', ')}
+{clusters_info}
+",
+    nSols = length(x$allSolutions),
+    clusters_info = if ("clusters" %in% names(x))
+      glued(
+        "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
+      ) else NULL
+  ))
 }
 
 
 ####################################################################
 #' Output results into local files: CSV files
 #'
-#' @inheritParams robyn_outputs
-#' @param OutputCollect \code{robyn_run(..., export = FALSE)} output
+#' @param OutputCollect \code{robyn_run(..., export = FALSE)} output.
+#' @rdname robyn_outputs
 #' @export
 robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
   if (export) {

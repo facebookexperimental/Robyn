@@ -7,18 +7,20 @@
 # saturation_hill, plot_adstock, plot_saturation
 
 ####################################################################
-#' Michaelis-Menten transformation
+#' Michaelis-Menten Transformation
 #'
-#' The Michaelis-Menten function is used to fit the spend exposure relationship
-#' for paid media variables, when exposure metrics like impressions, clicks or
-#' GRPs are provided in \code{paid_media_vars} instead of spend metric.
+#' The Michaelis-Menten \code{mic_men()} function is used to fit the spend
+#' exposure relationship for paid media variables, when exposure metrics like
+#' impressions, clicks or GRPs are provided in \code{paid_media_vars} instead
+#' of spend metric.
 #'
+#' @family Transformations
 #' @param x Numeric value or vector. Input media spend when
 #' \code{reverse = FALSE}. Input media exposure metrics (impression, clicks,
 #' GRPs, etc.) when \code{reverse = TRUE}.
-#' @param Vmax A numeric value. Indicates maximum rate achieved by the system.
-#' @param Km A numeric value. The Michaelis constant.
-#' @param reverse A logical value. Input media spend when \code{reverse = FALSE}.
+#' @param Vmax Numeric Indicates maximum rate achieved by the system.
+#' @param Km Numeric. The Michaelis constant.
+#' @param reverse Boolean. Input media spend when \code{reverse = FALSE}.
 #' Input media exposure metrics (impression, clicks, GRPs etc.) when \code{reverse = TRUE}.
 #' @export
 mic_men <- function(x, Vmax, Km, reverse = FALSE) {
@@ -32,16 +34,21 @@ mic_men <- function(x, Vmax, Km, reverse = FALSE) {
 
 
 ####################################################################
-#' Geometric adstocking function
+#' Adstocking Transformation (Geometric and Weibull)
 #'
-#' The geometric adstock function is the classic one-parametric adstock function.
+#' \code{adstock_geometric()} for Geometric Adstocking is the classic one-parametric
+#' adstock function.
 #'
+#' @family Transformations
 #' @param x A numeric vector.
-#' @param theta A numeric value. Theta is the only parameter and means fixed decay
-#' rate. Assuming TV spend on day 1 is 100€ and theta = 0.7, then day 2 has
+#' @param theta Numeric. Theta is the only parameter on Geometric Adstocking and means
+#' fixed decay rate. Assuming TV spend on day 1 is 100€ and theta = 0.7, then day 2 has
 #' 100 x 0.7 = 70€ worth of effect carried-over from day 1, day 3 has 70 x 0.7 = 49€
 #' from day 2 etc. Rule-of-thumb for common media genre: TV c(0.3, 0.8), OOH/Print/
 #' Radio c(0.1, 0.4), digital c(0, 0.3).
+#' @examples
+#' adstock_geometric(rep(100, 5), theta = 0.5)
+#' @rdname adstocks
 #' @export
 adstock_geometric <- function(x, theta) {
   x_decayed <- c(x[1], rep(0, length(x) - 1))
@@ -54,26 +61,27 @@ adstock_geometric <- function(x, theta) {
     thetaVecCum[t] <- thetaVecCum[t - 1] * theta
   } # plot(thetaVecCum)
 
-  return(list(x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
 }
 
+
 ####################################################################
-#' Weibull adstock functions
+#' Adstocking Transformation (Geometric and Weibull)
 #'
-#' The Weibull adstock is a two-parametric adstock function that allows changing
-#' decay rate over time, as opposed to the fixed decay rate over time as in
-#' Geometric adstock. It has two options, the cumulative density function "cdf"
-#' or the probability density function "pdf".
+#' \code{adstock_weibull()} for Weibull Adstocking is a two-parametric adstock
+#' function that allows changing decay rate over time, as opposed to the fixed
+#' decay rate over time as in Geometric adstock. It has two options, the cumulative
+#' density function "CDF" or the probability density function "PDF".
 #'
-#' @param x A numeric vector.
-#' @param shape,scale Numeric. The CDF (Cumulative Distribution Function) of Weibull has
+#' \describe{
+#'   \item{Weibull's CDF (Cumulative Distribution Function)}{has
 #' two parameters, shape & scale, and has flexible decay rate, compared to Geometric
 #' adstock with fixed decay rate. The shape parameter controls the shape of the decay
 #' curve. Recommended bound is c(0.0001, 2). The larger the shape, the more S-shape. The
 #' smaller, the more L-shape. Scale controls the inflexion point of the decay curve. We
 #' recommend very conservative bounce of c(0, 0.1), because scale increases the adstock
-#' half-life greatly.
-#' The PDF (Probability Density Function) of the Weibull also shape & scale as parameter
+#' half-life greatly.}
+#'   \item{Weibull's PDF (Probability Density Function)}{also shape & scale as parameter
 #' and also has flexible decay rate as Weibull CDF. The difference is that Weibull PDF
 #' offers lagged effect. When shape > 2, the curve peaks after x = 0 and has NULL slope at
 #' x = 0, enabling lagged effect and sharper increase and decrease of adstock, while the
@@ -87,31 +95,38 @@ adstock_geometric <- function(x, theta) {
 #' strong lagged effect is of interest, we recommend c(2.0001, 10) as bound for shape. In
 #' all cases, we recommend conservative bound of c(0, 0.1) for scale. Due to the great
 #' flexibility of Weibull PDF, meaning more freedom in hyperparameter spaces for Nevergrad
-#' to explore, it also requires larger iterations to converge.
-#' @param windlen An integer value. Length of modelling window.
-#' @param type Character. Accepts "cdf" or "pdf". CDF, or cumulative density
+#' to explore, it also requires larger iterations to converge.}
+#' }
+#'
+#' Run \code{plot_adstock()} to see the difference visually.
+#'
+#' @param shape,scale Numeric. Check "Details" section for more details.
+#' @param windlen Integer. Length of modelling window. By default, same length as \code{x}.
+#' @param type Character. Accepts "CDF" or "PDF". CDF, or cumulative density
 #' function of the Weibull function allows changing decay rate over time in both
 #' C and S shape, while the peak value will always stay at the first period,
 #' meaning no lagged effect. PDF, or the probability density function, enables
-#' peak value occuring after the first period when shape >=1, allowing lagged
-#' effect. Run \code{plot_adstock()} to see the difference visually.
+#' peak value occurring after the first period when shape >=1, allowing lagged
+#' effect.
+#' @examples
+#' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "CDF")
+#' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
+#' @rdname adstocks
 #' @export
-adstock_weibull <- function(x, shape, scale, windlen=NULL, type) {
-  x.n <- length(x)
-  x_bin <- 1:x.n
-  if (is.null(windlen)) {windlen <- x.n}
+adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") {
+  check_opts(toupper(type), c("CDF", "PDF"))
+  x_bin <- 1:windlen
   scaleTrans <- round(quantile(1:windlen, scale), 0)
-
-  if (shape==0) {
-    thetaVecCum <- thetaVec <- rep(0, x.n)
+  if (shape == 0) {
+    thetaVecCum <- thetaVec <- rep(0, windlen)
   } else {
-    if (type == "cdf") {
+    if ("CDF" %in% toupper(type)) {
       thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
       thetaVecCum <- cumprod(thetaVec) # plot(thetaVecCum)
-    } else if (type == "pdf") {
+    } else if ("PDF" %in% toupper(type)) {
       normalize <- function(x) {
-        if (diff(range(x))==0) {
-          return(c(1, rep(0, length(x)-1)))
+        if (diff(range(x)) == 0) {
+          return(c(1, rep(0, length(x) - 1)))
         } else {
           return((x - min(x)) / (max(x) - min(x)))
         }
@@ -121,33 +136,35 @@ adstock_weibull <- function(x, shape, scale, windlen=NULL, type) {
   }
 
   x_decayed <- mapply(function(x_val, x_pos) {
-    x.vec <- c(rep(0, x_pos - 1), rep(x_val, x.n - x_pos + 1))
+    x.vec <- c(rep(0, x_pos - 1), rep(x_val, windlen - x_pos + 1))
     thetaVecCumLag <- shift(thetaVecCum, x_pos - 1, fill = 0)
     x.prod <- x.vec * thetaVecCumLag
     return(x.prod)
   }, x_val = x, x_pos = x_bin)
   x_decayed <- rowSums(x_decayed)
 
-  return(list(x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
 }
 
 ####################################################################
-#' Hill saturation function
+#' Hill Saturation Transformation
 #'
-#' The Hill function applied here is a two-parametric version of the
+#' \code{saturation_hill} is a two-parametric version of the Hill
 #' function that allows the saturation curve to flip between S and C shape.
 #'
-#' @param x A numeric vector.
-#' @param alpha A numeric value. Alpha controls the shape of the saturation curve.
+#' @family Transformations
+#' @param x Numeric vector.
+#' @param alpha Numeric. Alpha controls the shape of the saturation curve.
 #' The larger the alpha, the more S-shape. The smaller, the more C-shape.
-#' @param gamma A numeric value. Gamma controls the inflexion point of the
+#' @param gamma Numeric. Gamma controls the inflexion point of the
 #' saturation curve. The larger the gamma, the later the inflexion point occurs.
-#' @param x_marginal A numeric value. When provided, the function returns the
+#' @param x_marginal Numeric. When provided, the function returns the
 #' Hill-transformed value of the x_marginal input.
+#' @examples
+#' saturation_hill(c(100, 150, 170, 190, 200), alpha = 3, gamma = 0.5)
 #' @export
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
   gammaTrans <- round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
-
   if (is.null(x_marginal)) {
     x_scurve <- x**alpha / (x**alpha + gammaTrans**alpha) # plot(x_scurve) summary(x_scurve)
   } else {
@@ -158,17 +175,17 @@ saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
 
 
 ####################################################################
-#' Adstocking help plot
-#'
-#' Produce example plots for both Geometric and Weibull adstock.
+#' Adstocking Help Plot
 #'
 #' @param plot Boolean. Do you wish to return the plot?
 #' @examples
+#'
 #' plot_adstock()
+#' @rdname adstocks
 #' @export
 plot_adstock <- function(plot = TRUE) {
   if (plot) {
-    ## plot geometric
+    ## Plot geometric
     geomCollect <- list()
     thetaVec <- c(0.01, 0.05, 0.1, 0.2, 0.5, 0.6, 0.7, 0.8, 0.9)
 
@@ -211,42 +228,45 @@ plot_adstock <- function(plot = TRUE) {
           dt_weibull <- data.table(
             x = 1:100,
             decay_accumulated = adstock_weibull(1:100, shape = shapeVec[v1], scale = scaleVec[v2], type = tolower(types[t]))$thetaVecCum,
-            shape = paste0("shape=",shapeVec[v1]),
+            shape = paste0("shape=", shapeVec[v1]),
             scale = as.factor(scaleVec[v2]),
             type = types[t]
           )
           dt_weibull[, halflife := which.min(abs(decay_accumulated - 0.5))]
           weibullCollect[[n]] <- dt_weibull
-          n <- n+1
+          n <- n + 1
         }
       }
     }
 
     weibullCollect <- rbindlist(weibullCollect)
-    #weibullCollect[, scale_halflife := paste(scale, halflife, sep = "_")]
+    # weibullCollect[, scale_halflife := paste(scale, halflife, sep = "_")]
     p2 <- ggplot(weibullCollect, aes(x = x, y = decay_accumulated)) +
       geom_line(aes(color = scale)) +
-      facet_grid(shape~type) +
+      facet_grid(shape ~ type) +
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
       geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
-      labs(title = "Weibull adstock CDF vs PDF (flexible decay rate)",
-           subtitle = "Halflife = time until effect reduces to 50%",
-           x = "time unit",
-           y = "Media decay accumulated")
-
+      labs(
+        title = "Weibull adstock CDF vs PDF (flexible decay rate)",
+        subtitle = "Halflife = time until effect reduces to 50%",
+        x = "time unit",
+        y = "Media decay accumulated"
+      )
     return(wrap_plots(A = p1, B = p2, design = "ABB"))
   }
 }
 
 
 ####################################################################
-#' Saturation help plot
+#' Saturation Help Plot
 #'
 #' Produce example plots for the Hill saturation curve.
 #'
 #' @inheritParams plot_adstock
 #' @examples
+#'
 #' plot_saturation()
+#' @rdname saturation_hill
 #' @export
 plot_saturation <- function(plot = TRUE) {
   if (plot) {

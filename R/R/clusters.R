@@ -4,11 +4,11 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Reduce number of models based on ROI clusters and minimum combined errors
+#' Clustering to Reduce Number of Models based on ROI and Errors
 #'
-#' The \code{robyn_clusters()} function uses output from \code{robyn_run()},
-#' to reduce the amount of models and help the user pick up the best (lowest
-#' combined error) of different kinds (clusters) of models.
+#' \code{robyn_clusters()} uses output from \code{robyn_run()},
+#' to reduce the number of models and help the user pick up the best (lowest
+#' combined error) of the most different kinds (clusters) of models.
 #'
 #' @inheritParams lares::clusterKmeans
 #' @inheritParams hyper_names
@@ -49,7 +49,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
       df <- .prepare_roi(input, all_media)
     } else {
       stop(paste(
-        "You must run robyn_export(..., clusters = TRUE) or",
+        "You must run robyn_outputs(..., clusters = TRUE) or",
         "pass a valid data.frame (sames as pareto_aggregated.csv output)",
         "in order to use robyn_clusters()"
       ))
@@ -106,7 +106,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     # Top Clusters
     models = top_sols,
     plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
-    plot_models_rois = .plot_topsols_rois(top_sols, all_media, limit)
+    plot_models_rois = .plot_topsols_rois(df, top_sols, all_media, limit)
   )
 
   if (export) {
@@ -121,11 +121,11 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
 }
 
-
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
 .prepare_roi <- function(x, all_media) {
   check_opts(all_media, unique(x$rn))
-  rois <- pivot_wider(x, id_cols = "solID", names_from = "rn", values_from = "roi_total")
+  rois <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
+    tidyr::spread(key = .data$rn, value = .data$roi_total)
   rois <- removenacols(rois, all = FALSE)
   rois <- select(rois, any_of(c("solID", all_media)))
   errors <- distinct(x, .data$solID, .data$nrmse, .data$decomp.rssd, .data$mape)
@@ -133,7 +133,11 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   return(rois)
 }
 
-.min_max_norm <- function(x) (x - min(x)) / (max(x) - min(x))
+.min_max_norm <- function(x, min = 0, max = 1) {
+  a <- min(x, na.rm = TRUE)
+  b <- max(x, na.rm = TRUE)
+  (max - min) * (x - a) / (b - a) + min
+}
 
 .clusters_df <- function(df, balance = rep(1, 3)) {
   stopifnot(length(balance) == 3)
@@ -188,16 +192,21 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     theme_lares()
 }
 
-.plot_topsols_rois <- function(top_sols, all_media, limit = 1) {
+.plot_topsols_rois <- function(df, top_sols, all_media, limit = 1) {
+  real_rois <- as.data.frame(df)[,-c(which(colnames(df) %in% c("mape","nrmse","decomp.rssd")))]
+  colnames(real_rois) <- paste0("real_", colnames(real_rois))
   top_sols %>%
+    left_join(real_rois, by = c("solID" = "real_solID")) %>%
     mutate(label = sprintf("[%s.%s]\n%s", .data$cluster, .data$rank, .data$solID)) %>%
     tidyr::gather("media", "roi", contains(all_media)) %>%
-    ggplot(aes(x = .data$media, y = .data$roi)) +
+    filter(grepl("real_", .data$media)) %>%
+    mutate(media = gsub("real_", "", .data$media)) %>%
+    ggplot(aes(x = reorder(.data$media, .data$roi), y = .data$roi)) +
     facet_grid(.data$label ~ .) +
     geom_col() +
     coord_flip() +
     labs(
-      title = paste("ROIs on Top", limit, "Performing Models"),
+      title = paste("ROIs on Top Performing Models"),
       x = NULL, y = "ROI per Media"
     ) +
     theme_lares()

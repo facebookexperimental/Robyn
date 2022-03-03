@@ -2,7 +2,7 @@
 % Please edit documentation in R/clusters.R
 \name{robyn_clusters}
 \alias{robyn_clusters}
-\title{Reduce number of models based on ROI clusters and minimum combined errors}
+\title{Clustering to Reduce Number of Models based on ROI and Errors}
 \usage{
 robyn_clusters(
   input,
@@ -41,9 +41,9 @@ Pass any of: \code{c("PCA", "tSNE", "all", "none")}.}
 \item{...}{Additional parameters passed to \code{lares::clusterKmeans()}.}
 }
 \description{
-The \code{robyn_clusters()} function uses output from \code{robyn_run()},
-to reduce the amount of models and help the user pick up the best (lowest
-combined error) of different kinds (clusters) of models.
+\code{robyn_clusters()} uses output from \code{robyn_run()},
+to reduce the number of models and help the user pick up the best (lowest
+combined error) of the most different kinds (clusters) of models.
 }
 \examples{
 \dontrun{

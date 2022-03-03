@@ -4,7 +4,7 @@
 \name{Robyn}
 \alias{Robyn}
 \alias{Robyn-package}
-\title{Robyn MMM Open Source 3.0 - a Beta Project from Facebook Marketing Science}
+\title{Robyn MMM Project from Meta Marketing Science}
 \description{
 Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human
 bias by means of ridge regression and evolutionary algorithms, enables actionable
@@ -25,7 +25,9 @@ Gufeng Zhou (gufeng@fb.com)
 
 Leonel Sentana (leonelsentana@fb.com)
 
-Antonio Prada (aprada@fb.com)
-
 Igor Skokan (igorskokan@fb.com)
+
+Bernardo Lares (bernardolares@fb.com)
+
+Antonio Prada (aprada@fb.com)
 }

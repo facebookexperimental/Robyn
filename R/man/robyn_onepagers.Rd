@@ -15,7 +15,7 @@ robyn_onepagers(
 \arguments{
 \item{InputCollect}{\code{robyn_run()} outcomes.}
 
-\item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output}
+\item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
 \item{selected}{Character vector. Which models (by \code{solID}) do you
 wish to plot the one-pagers and export? Default will take top

@@ -3,12 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-
 ####################################################################
 #' Generate and Export Robyn Plots
 #'
-#' @inheritParams robyn_outputs
-#' @inheritParams robyn_csv
+#' @rdname robyn_outputs
 #' @export
 robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
@@ -34,13 +32,13 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         xlab(NULL) + ylab(NULL)
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
-        plot = pProphet,
+        plot = pProphet, limitsize = FALSE,
         dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
       )
     }
 
     ## Spend exposure model
-    if (any(InputCollect$costSelector)) {
+    if (any(InputCollect$exposure_selector)) {
       all_plots[["pSpendExposure"]] <- pSpendExposure <- wrap_plots(
         InputCollect$plotNLSCollect,
         ncol = ifelse(length(InputCollect$plotNLSCollect) <= 3, length(InputCollect$plotNLSCollect), 3)
@@ -51,31 +49,35 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         )
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "spend_exposure_fitting.png"),
-        plot = pSpendExposure, dpi = 600, width = 12,
+        plot = pSpendExposure, dpi = 600, width = 12, limitsize = FALSE,
         height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
       )
     } else {
-      message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
+     # message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
     }
 
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
       resultHypParam <- copy(temp_all$resultHypParam)
-      resultHypParam.melted <- melt.data.table(resultHypParam[, c(names(InputCollect$hyperparameters), "robynPareto"), with = FALSE], id.vars = c("robynPareto"))
-      all_plots[["pSamp"]] <- pSamp <- ggplot(
+      hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated), "robynPareto")
+      hpnames_updated <- str_replace(hpnames_updated, "lambda", "lambda_hp")
+      resultHypParam.melted <- melt.data.table(resultHypParam[, hpnames_updated, with = FALSE],
+                                               id.vars = c("robynPareto"))
+      resultHypParam.melted <- resultHypParam.melted[variable == "lambda_hp", variable := "lambda"]
+      all_plots[["pSamp"]] <- ggplot(
         resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)) +
         geom_violin(alpha = .5, size = 0) +
         geom_point(size = 0.2) +
         theme(legend.position = "none") +
         labs(
           title = "Hyperparameter optimisation sampling",
-          subtitle = paste0("Sample distribution", ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
+          subtitle = paste0("Sample distribution", ", iterations = ", OutputCollect$iterations, " * ", OutputCollect$trials, " trial"),
           x = "Hyperparameter space",
-          y = ""
+          y = NULL
         )
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "hypersampling.png"),
-        plot = pSamp, dpi = 600, width = 12, height = 7
+        plot = all_plots$pSamp, dpi = 600, width = 12, height = 7, limitsize = FALSE
       )
     }
 
@@ -86,34 +88,51 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       if (!is.null(InputCollect$calibration_input)) {
         resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
       }
-      pParFront <- ggplot(resultHypParam, aes(x = nrmse, y = decomp.rssd, color = iterations)) +
-        geom_point(size = 0.5) +
-        geom_line(data = resultHypParam[robynPareto == 1], aes(x = nrmse, y = decomp.rssd), colour = "coral4") +
-        scale_colour_gradient(low = "navyblue", high = "skyblue") +
+
+      calibrated <- !is.null(InputCollect$calibration_input)
+      pParFront <- ggplot(resultHypParam, aes(
+        x = .data$nrmse, y = .data$decomp.rssd, colour = .data$iterations)) +
+        scale_colour_gradient(low = "skyblue", high = "navyblue") +
         labs(
-          title = ifelse(is.null(InputCollect$calibration_input), "Multi-objective evolutionary performance", "Multi-objective evolutionary performance with top 10% calibration"),
-          subtitle = paste0("2D Pareto front 1-3 with ", InputCollect$nevergrad_algo, ", iterations = ", InputCollect$iterations, " * ", InputCollect$trials, " trial"),
+          title = ifelse(!calibrated, "Multi-objective evolutionary performance",
+                         "Multi-objective evolutionary performance with calibration"
+          ),
+          subtitle = sprintf(
+            "2D Pareto fronts with %s, for %s trial%s with %s iterations each",
+            OutputCollect$nevergrad_algo, OutputCollect$trials,
+            ifelse(pareto_fronts > 1, "s", ""), OutputCollect$iterations
+          ),
           x = "NRMSE",
-          y = "DECOMP.RSSD"
-        )
-      if (length(pareto_fronts_vec) > 1) {
-        for (pfs in 2:max(pareto_fronts_vec)) {
-          if (pfs == 2) {
-            pf_color <- "coral3"
-          } else if (pfs == 3) {
-            pf_color <- "coral2"
-          } else {
-            pf_color <- "coral"
-          }
-          pParFront <- pParFront + geom_line(
-            data = resultHypParam[robynPareto == pfs],
-            aes(x = nrmse, y = decomp.rssd), colour = pf_color)
+          y = "DECOMP.RSSD",
+          colour = "Iterations",
+          size = "MAPE",
+          alpha = NULL
+        ) #+
+        #theme_lares()
+      # Add MAPE dimension when calibrated
+      if (calibrated) {
+        pParFront <- pParFront +
+          geom_point(data = resultHypParam, aes(size = .data$mape, alpha = 1 - .data$mape))
+      } else {
+        pParFront <- pParFront + geom_point()
+      }
+      # Add pareto front lines
+      for (pfs in 1:max(pareto_fronts_vec)) {
+        if (pfs == 2) {
+          pf_color <- "coral3"
+        } else if (pfs == 3) {
+          pf_color <- "coral2"
+        } else {
+          pf_color <- "coral"
         }
+        pParFront <- pParFront + geom_line(
+          data = resultHypParam[robynPareto == pfs],
+          aes(x = .data$nrmse, y = .data$decomp.rssd), colour = pf_color)
       }
       all_plots[["pParFront"]] <- pParFront
       if (export) ggsave(
         paste0(OutputCollect$plot_folder, "pareto_front.png"),
-        plot = pParFront,
+        plot = pParFront, limitsize = FALSE,
         dpi = 600, width = 12, height = 7
       )
     }
@@ -121,35 +140,41 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Ridgeline model convergence
     if (length(temp_all) > 0) {
       xDecompAgg <- copy(temp_all$xDecompAgg)
-      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_vars
+      dt_ridges <- xDecompAgg[rn %in% InputCollect$paid_media_spends
                               , .(variables = rn
                                   , roi_total
-                                  , iteration = (iterNG-1)*InputCollect$cores+iterPar
+                                  , iteration = (iterNG-1)*OutputCollect$cores+iterPar
                                   , trial)][order(iteration, variables)]
       bin_limits <- c(1,20)
-      qt_len <- ifelse(InputCollect$iterations <=100, 1,
-                       ifelse(InputCollect$iterations > 2000, 20, ceiling(InputCollect$iterations/100)))
-      set_qt <- floor(quantile(1:InputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
+      qt_len <- ifelse(OutputCollect$iterations <=100, 1,
+                       ifelse(OutputCollect$iterations > 2000, 20, ceiling(OutputCollect$iterations/100)))
+      set_qt <- floor(quantile(1:OutputCollect$iterations, seq(0, 1, length.out = qt_len+1)))
       set_bin <- set_qt[-1]
       dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
       dt_ridges <- dt_ridges[!is.na(iter_bin)]
       dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
       dt_ridges[, trial := as.factor(trial)]
-      all_plots[["pRidges"]] <- pRidges <- ggplot(
-        dt_ridges, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
-        scale_fill_distiller(palette = "GnBu") +
-        geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
-        facet_wrap(~ variables, scales = "free") +
-        guides(fill = "none")+
-        theme(panel.background = element_blank()) +
-        labs(x = "Total ROAS", y = "Iteration Bucket"
-             ,title = "ROAS distribution over iteration"
-             ,fill = "iter bucket")
-      if (export) suppressMessages(ggsave(
-        paste0(OutputCollect$plot_folder, "roas_convergence.png"),
-        plot = pRidges, dpi = 600, width = 12,
-        height = ceiling(InputCollect$mediaVarCount / 3) * 6
-      ))
+      plot_vars <- dt_ridges[, unique(variables)]
+      plot_n <- ceiling(length(plot_vars) / 6)
+      for (pl in 1:plot_n) {
+        loop_vars <- na.omit(plot_vars[(1:6)+6*(pl-1)])
+        dt_ridges_loop <- dt_ridges[variables %in% loop_vars, ]
+        all_plots[[paste0("pRidges",pl)]] <- pRidges <- ggplot(
+          dt_ridges_loop, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)) +
+          scale_fill_distiller(palette = "GnBu") +
+          geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
+          facet_wrap(~ variables, scales = "free") +
+          guides(fill = "none")+
+          theme(panel.background = element_blank()) +
+          labs(x = "Total ROAS", y = "Iteration Bucket"
+               ,title = "ROAS distribution over iteration"
+               ,fill = "iter bucket")
+        if (export) suppressMessages(ggsave(
+          paste0(OutputCollect$plot_folder, "roas_convergence",pl,".png"),
+          plot = pRidges, dpi = 600, width = 12, limitsize = FALSE,
+          height = ceiling(length(loop_vars) / 3) * 6
+        ))
+      }
     }
   } # End of !hyper_fixed
 
@@ -179,7 +204,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   }
 
   # Prepare for parallel plotting
-  if (check_parallel_plot()) registerDoParallel(InputCollect$cores) else registerDoSEQ()
+  if (check_parallel_plot()) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
     count_mod_out <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
@@ -192,7 +217,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", InputCollect$cores, "cores..."))
+    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", OutputCollect$cores, "cores..."))
   } else {
     if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }
@@ -202,9 +227,9 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   all_plots <- list()
   cnt <- 0
 
-  for (pf in pareto_fronts_vec) {
+  for (pf in pareto_fronts_vec) { # pf = 1
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_vars]
+    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
     uniqueSol <- plotMediaShare[, unique(solID)]
 
     # parallelResult <- for (sid in uniqueSol) {
@@ -317,12 +342,16 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
       ## 4. Response curve
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
-      p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_vars,],
+      if (!"channel" %in% colnames(dt_scurvePlotMean)) dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
+      p4 <- ggplot(dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends,],
                    aes(x = .data$spend, y = .data$response, color = .data$channel)) +
         geom_line() +
-        geom_point(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, color = .data$channel)) +
-        geom_text(data = dt_scurvePlotMean, aes(x = .data$mean_spend, y = .data$mean_response, label = round(.data$mean_spend, 0)),
-                  show.legend = FALSE, hjust = -0.2) +
+        geom_point(data = dt_scurvePlotMean, aes(
+          x = .data$mean_spend, y = .data$mean_response, color = .data$channel)) +
+        geom_text(data = dt_scurvePlotMean, aes(
+          x = .data$mean_spend, y = .data$mean_response, color = .data$channel,
+          label = formatNum(.data$mean_spend, 2, abbr = TRUE)),
+          show.legend = FALSE, hjust = -0.2) +
         theme(legend.position = c(0.9, 0.2)) +
         labs(
           title = "Response curve and mean spend by channel",
@@ -333,7 +362,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
             ifelse(!is.na(mape_lift_plot), paste0(", mape.lift = ", mape_lift_plot), "")
           ),
           x = "Spend", y = "Response"
-        )
+        ) + lares::scale_x_abbr() + lares::scale_y_abbr()
 
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted
@@ -367,7 +396,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
       if (export) {
         ggsave(
           filename = paste0(OutputCollect$plot_folder, "/", sid, ".png"),
-          plot = pg,
+          plot = pg, limitsize = FALSE,
           dpi = 600, width = 18, height = 18
         )
       }
@@ -385,5 +414,123 @@ robyn_onepagers <- function(InputCollect, OutputCollect, selected = NULL, quiet 
   # Stop cluster to avoid memory leaks
   if (check_parallel_plot()) stopImplicitCluster()
   return(invisible(all_plots))
+
+}
+
+allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
+
+  # 1. Response comparison plot
+  plotDT_resp <- dt_optimOut[, c("channels", "initResponseUnit", "optmResponseUnit")][order(rank(channels))]
+  plotDT_resp[, channels := as.factor(channels)]
+  chn_levels <- plotDT_resp[, as.character(channels)]
+  plotDT_resp[, channels := factor(channels, levels = chn_levels)]
+  setnames(plotDT_resp, names(plotDT_resp), new = c("channel", "initial response / time unit", "optimised response / time unit"))
+  plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
+  p12 <- ggplot(plotDT_resp, aes(x = .data$channel, y = .data$response, fill = .data$variable)) +
+    geom_bar(stat = "identity", width = 0.5, position = "dodge") +
+    coord_flip() +
+    scale_fill_brewer(palette = "Paired") +
+    geom_text(aes(label = round(.data$response, 0), hjust = 1, size = 2.0),
+              position = position_dodge(width = 0.5), fontface = "bold", show.legend = FALSE
+    ) +
+    theme(
+      legend.title = element_blank(), legend.position = c(0.8, 0.2),
+      axis.text.x = element_blank(), legend.background = element_rect(
+        colour = "grey", fill = "transparent"
+      )
+    ) +
+    labs(
+      title = "Initial vs. optimised mean response",
+      subtitle = paste0(
+        "Total spend increases ", dt_optimOut[
+          , round(mean(optmSpendUnitTotalDelta) * 100, 1)
+        ], "%",
+        "\nTotal response increases ", dt_optimOut[
+          , round(mean(optmResponseUnitTotalLift) * 100, 1)
+        ], "% with optimised spend allocation"
+      ),
+      y = NULL, x = "Channels"
+    )
+
+  # 2. Budget share comparison plot
+  plotDT_share <- dt_optimOut[, c("channels", "initSpendShare", "optmSpendShareUnit")][order(rank(channels))]
+  plotDT_share[, channels := as.factor(channels)]
+  chn_levels <- plotDT_share[, as.character(channels)]
+  plotDT_share[, channels := factor(channels, levels = chn_levels)]
+  setnames(plotDT_share, names(plotDT_share), new = c("channel", "initial avg.spend share", "optimised avg.spend share"))
+  plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
+  p13 <- ggplot(plotDT_share, aes(x = .data$channel, y = .data$spend_share, fill = .data$variable)) +
+    geom_bar(stat = "identity", width = 0.5, position = "dodge") +
+    coord_flip() +
+    scale_fill_brewer(palette = "Paired") +
+    geom_text(aes(label = paste0(round(.data$spend_share * 100, 2), "%"), hjust = 1, size = 2.0),
+              position = position_dodge(width = 0.5), fontface = "bold", show.legend = FALSE
+    ) +
+    theme(
+      legend.title = element_blank(), legend.position = c(0.8, 0.2),
+      axis.text.x = element_blank(), legend.background = element_rect(
+        colour = "grey", fill = "transparent"
+      )
+    ) +
+    labs(
+      title = "Initial vs. optimised budget allocation",
+      subtitle = paste0(
+        "Total spend increases ", dt_optimOut[, round(mean(optmSpendUnitTotalDelta) * 100, 1)], "%",
+        "\nTotal response increases ", dt_optimOut[, round(mean(optmResponseUnitTotalLift) * 100, 1)], "% with optimised spend allocation"
+      ),
+      y = NULL, x = "Channels"
+    )
+
+  ## 3. Response curve
+  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "saturatedSpendReversed"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
+  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "decompMedia"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
+  plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
+  plotDT_scurve <- plotDT_scurve[spend >= 0] # remove outlier introduced by MM nls fitting
+  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_spends]
+  dt_optimOutScurve <- rbind(dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type := "initial"],
+                             dt_optimOut[, .(channels, optmSpendUnit, optmResponseUnit)][, type := "optimised"], use.names = FALSE)
+  setnames(dt_optimOutScurve, c("channels", "spend", "response", "type"))
+  p14 <- ggplot(data = plotDT_scurve, aes(x = .data$spend, y = .data$response, color = .data$channel)) +
+    geom_line() +
+    geom_point(data = dt_optimOutScurve, aes(
+      x = .data$spend, y = .data$response, color = .data$channels, shape = .data$type), size = 2) +
+    geom_text(data = dt_optimOutScurve, aes(
+      x = .data$spend, y = .data$response, color = .data$channels,
+      label = formatNum(.data$spend, 2, abbr = TRUE)),
+      show.legend = FALSE, hjust = -0.2) +
+    theme(legend.position = c(0.9, 0.4), legend.title = element_blank()) +
+    labs(
+      title = "Response curve and mean spend by channel",
+      subtitle = paste0(
+        "rsq_train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
+        ", nrmse = ", plotDT_scurveMeanResponse[, round(mean(nrmse), 4)],
+        ", decomp.rssd = ", plotDT_scurveMeanResponse[, round(mean(decomp.rssd), 4)],
+        ", mape.lift = ", plotDT_scurveMeanResponse[, round(mean(mape), 4)]
+      ),
+      x = "Spend", y = "Response"
+    ) + lares::scale_x_abbr() + lares::scale_y_abbr()
+
+  # Gather all plots
+  grobTitle <- paste0("Budget allocator optimum result for model ID ", select_model)
+  plots <- (p13 + p12) / p14 + plot_annotation(
+    title = grobTitle, theme = theme(plot.title = element_text(hjust = 0.5))
+  )
+
+  if (export) {
+    scenario <- ifelse(scenario == "max_historical_response", "hist", "respo")
+    filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
+    if (!quiet) message("Exporting charts into file: ", filename)
+    ggsave(
+      filename = filename,
+      plot = plots, limitsize = FALSE,
+      dpi = 400, width = 18, height = 14
+    )
+  }
+
+  return(list(p12 = p12, p13 = p13, p14 = p14))
 
 }
