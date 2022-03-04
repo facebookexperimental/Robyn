@@ -42,7 +42,7 @@ P: Python
       Already done above  
 
 4. Within conda env launch R
-      R: 'R --vanilla'
+      S: 'R --vanilla'
 
 5. Install packages # Why this order?
       R: 'install.packages('remotes')'

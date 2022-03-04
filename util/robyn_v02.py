@@ -10,6 +10,7 @@ import pandas as pd
 import rpy2
 import rpy2.situation
 from rpy2 import robjects
+import rpy2.robjects as ro
 from rpy2.robjects import r, pandas2ri
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter, py2rpy
@@ -48,6 +49,9 @@ set_seed(123)
 
 # Force multicore when using RStudio
 # TODO
+# robjects.r['import']('sys')  # Gives an error
+# base.Sys_getenv(R_FUTURE_FORK_ENABLE="true")
+# Sys.setenv(R_FUTURE_FORK_ENABLE="true")
 
 ########################################################################################################################
 # READ IN DATA
@@ -59,16 +63,19 @@ r['dt_simulated_weekly'].head()
 
 # Import data then convert to R data frame
 df_simulated = pd.read_csv('util/data/simulated_weekly.csv')  # import as pandas data frame
-# with localconverter(ro.default_converter + pandas2ri.converter):
-#     dt_simulated_weekly = ro.conversion.py2rpy(df_simulated)
+with localconverter(ro.default_converter + pandas2ri.converter):
+  r_df_simulated = ro.conversion.py2rpy(df_simulated)
+
 
 # Check holidays from Prophet
 # 59 countries included. If your country is not included, please manually add it.
 # Tip: any events can be added into this table, school break, events et
 r.data('dt_prophet_holidays')
-
 r['dt_prophet_holidays'].head()
+
 df_prophet = pd.read_csv('util/data/prophet_holidays.csv')
+with localconverter(ro.default_converter + pandas2ri.converter):
+  r_df_prophet = ro.conversion.py2rpy(df_prophet)
 
 # Set robyn_object. It must have extension .RDS. The object name can be different than Robyn:
 # TODO
@@ -88,8 +95,8 @@ robyn.robyn_inputs(
     # , dt_holidays=df_prophet
     # dt_input=r['dt_simulated_weekly']
     # , dt_holidays=r['dt_prophet_holidays']
-    dt_input=r.data('dt_simulated_weekly')
-    , dt_holidays=r.data('dt_prophet_holidays')
+    dt_input=r_df_prophet
+    , dt_holidays=r_df_prophet
 
     # set variables
     , date_var="DATE"
