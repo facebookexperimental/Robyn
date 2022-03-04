@@ -3,15 +3,13 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function robyn_save, robyn_refresh
-
 ####################################################################
-#' Save Robyn object
+#' Export Robyn Model to Local File
 #'
-#' Use \code{robyn_save()} to select and save the initial model.
+#' Use \code{robyn_save()} to select and save as .RDS file the initial model.
 #'
 #' @inheritParams robyn_allocator
-#' @return A list containing all information for the initial model.
+#' @return (Invisible) file's name.
 #' @examples
 #' \dontrun{
 #' ## Get all model IDs in result from OutputCollect$allSolutions
@@ -56,20 +54,19 @@ robyn_save <- function(robyn_object,
   OutputCollect$selectID <- select_model
 
   InputCollect$refreshCounter <- 0
-  # listParamInit <- listParam
   listInit <- list(OutputCollect = OutputCollect, InputCollect = InputCollect)
   Robyn <- list(listInit = listInit)
-
   saveRDS(Robyn, file = robyn_object)
-  # listOutputInit <- NULL;  listParamInit <- NULL
-  # load("/Users/gufengzhou/Documents/GitHub/plots/listInit.RDS")
+
+  return(invisible(robyn_object))
 }
 
 
 ####################################################################
-#' Build refresh model
+#' Build Refresh Model
 #'
-#' The \code{robyn_refresh()} function builds update models based on
+#' @description
+#' \code{robyn_refresh()} builds update models based on
 #' the previously built models saved in the \code{Robyn.RDS} object specified
 #' in \code{robyn_object}. For example, when updating the initial build with 4
 #' weeks of new data, \code{robyn_refresh()} consumes the selected model of
@@ -80,40 +77,44 @@ robyn_save <- function(robyn_object,
 #' spend level. It returns aggregated result with all previous builds for
 #' reporting purpose and produces reporting plots.
 #'
+#' You must run \code{robyn_save()} to select and save an initial model first,
+#' before refreshing.
+#'
+#' The \code{robyn_refresh()} function is suitable for
+#' updating within "reasonable periods". Two situations are considered better
+#' to rebuild model:
+#' \describe{
+#'   \item{1. Most data is new}{If initial model has 100 weeks and 80 weeks
+#'   new data is added in refresh, it might be better to rebuild the model}
+#'   \item{2. New variables are added}{}
+#' }
+#'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
-#' @param dt_input A data.frame. Should include all previous data and newly added
+#' @param dt_input data.frame. Should include all previous data and newly added
 #' data for the refresh.
-#' @param dt_holidays A data.frame. Raw input holiday data. Load standard
+#' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}.
-#' @param refresh_steps An integer. It controls how many time units the refresh
+#' @param refresh_steps Integer. It controls how many time units the refresh
 #' model build move forward. For example, \code{refresh_steps = 4} on weekly data
 #' means the InputCollect$window_start & InputCollect$window_end move forward
 #' 4 weeks.
-#' @param refresh_mode A character. Options are "auto" and "manual". In auto mode,
+#' @param refresh_mode Character. Options are "auto" and "manual". In auto mode,
 #' the \code{robyn_refresh()} function builds refresh models with given
 #' \code{refresh_steps} repeatedly until there's no more data available. I
 #' manual mode, the \code{robyn_refresh()} only moves forward \code{refresh_steps}
 #' only once.
-#' @param refresh_iters An integer. Iterations per refresh. Rule of thumb is, the
+#' @param refresh_iters Integer. Iterations per refresh. Rule of thumb is, the
 #' more new data added, the more iterations needed. More reliable recommendation
 #' still needs to be investigated.
-#' @param refresh_trials An integer. Trials per refresh. Defaults to 5 trials.
+#' @param refresh_trials Integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
-#' @param ... Additional parameters passed to \code{robyn_engineering()} to
-#' overwrite original custom parameters passed into initial model.
-#' @return A list. The Robyn object.
+#' @param ... Additional parameters to overwrite original custom parameters
+#' passed into initial model.
+#' @return List. The Robyn object, class \code{robyn_refresh}.
 #' @examples
 #' \dontrun{
-#' ## NOTE: must run \code{robyn_save()} to select and save an initial model first,
-#' ## before refreshing below. The \code{robyn_refresh()} function is suitable for
-#' ## updating within "reasonable periods".
-#' ## Two situations are considered better to rebuild model:
-#' ## 1, most data is new. If initial model has 100 weeks and 80 weeks new data is
-#' ## added in refresh, it might be better to rebuild the model
-#' ## 2, new variables are added
-#'
 #' # Set the Robyn object path
 #' robyn_object <- "~/Desktop/Robyn.RDS"
 #'
@@ -157,7 +158,7 @@ robyn_refresh <- function(robyn_object,
   refreshControl <- TRUE
   while (refreshControl) {
 
-    ## load inital model
+    ## Load initial model
     if (!exists("robyn_object")) stop("Must speficy robyn_object")
     check_robyn_object(robyn_object)
     if (!file.exists(robyn_object)) {
@@ -168,9 +169,8 @@ robyn_refresh <- function(robyn_object,
       objectName <- sub("'\\..*$", "", basename(robyn_object))
     }
 
-    ## count refresh
+    ## Count refresh
     refreshCounter <- length(Robyn)
-    refreshCounter
     objectCheck <- if (refreshCounter == 1) {
       c("listInit")
     } else {
@@ -183,12 +183,11 @@ robyn_refresh <- function(robyn_object,
       ))
     }
 
-    ## get previous data
+    ## Get previous data
     if (refreshCounter == 1) {
       InputCollectRF <- Robyn$listInit$InputCollect
       listOutputPrev <- Robyn$listInit$OutputCollect
       InputCollectRF$xDecompAggPrev <- listOutputPrev$xDecompAgg
-
       message(">>> Initial model loaded")
       if (length(unique(Robyn$listInit$OutputCollect$resultHypParam$solID)) > 1) {
         stop("Run robyn_save first to select one initial model")
@@ -199,7 +198,7 @@ robyn_refresh <- function(robyn_object,
       listOutputPrev <- Robyn[[listName]][["OutputCollect"]]
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
 
-      message(paste0(">>> Refresh model nr.", refreshCounter - 1, " loaded"))
+      message(paste(">>> Loaded refresh model:", refreshCounter - 1))
 
       ## model selection from previous build
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[bestModRF == TRUE]
@@ -214,7 +213,7 @@ robyn_refresh <- function(robyn_object,
       stop("Refresh input data is completely new. Please rebuild model using robyn_run().")
     }
 
-    ## load new data
+    ## Load new data
     dt_input <- as.data.table(dt_input)
     date_input <- check_datevar(dt_input, InputCollectRF$date_var)
     dt_input <- date_input$dt_input # sort date by ascending
@@ -222,9 +221,9 @@ robyn_refresh <- function(robyn_object,
     InputCollectRF$dt_input <- dt_input
     InputCollectRF$dt_holidays <- dt_holidays
 
-    #### update refresh model parameters
+    #### Update refresh model parameters
 
-    ## refresh rolling window
+    ## Refresh rolling window
     totalDates <- as.Date(dt_input[, get(InputCollectRF$date_var)])
     refreshStart <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
     refreshEnd <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
@@ -241,57 +240,59 @@ robyn_refresh <- function(robyn_object,
     if (refreshEnd > max(totalDates)) {
       stop("Not enough data for this refresh. Input data from date ", refreshEnd, " or later required")
     }
-
     if (refresh_mode == "manual") {
       refreshLooper <- 1
-      message(paste(">>> Refreshing model nr.", refreshCounter, "in", refresh_mode, "mode"))
+      message(paste(">>> Refreshing model", refreshCounter, "in", refresh_mode, "mode"))
       refreshControl <- FALSE
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
         InputCollectRF$dayInterval / refresh_steps)
       message(paste(
-        ">>> Refreshing model nr.", refreshCounter, "in",
+        ">>> Refreshing model", refreshCounter, "in",
         refresh_mode, "mode.", refreshLooper, "more to go..."
       ))
     }
 
-    #### update refresh model parameters
-
-
-    ## refresh hyperparameter bounds
-    initBounds <- Robyn$listInit$InputCollect$hyperparameters
-    initBoundsDis <- sapply(initBounds, function(x) {
-      return(x[2] - x[1])
-    })
+    ## Refresh hyperparameter bounds
+    initBounds <- Robyn$listInit$OutputCollect$hyper_updated
+    initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
     newBoundsFreedom <- refresh_steps / InputCollectRF$rollingWindowLength
 
-    hyperparameters <- InputCollectRF$hyperparameters
-    hypNames <- names(hyperparameters)
+    hyper_updated_prev <- listOutputPrev$hyper_updated
+    hypNames <- names(hyper_updated_prev)
     for (h in 1:length(hypNames)) {
-      getHyp <- listOutputPrev$resultHypParam[, get(hypNames[h])]
-      getDis <- initBoundsDis[hypNames[h]]
-      newLowB <- getHyp - getDis * newBoundsFreedom
-      if (newLowB < initBounds[hypNames[h]][[1]][1]) {
-        newLowB <- initBounds[hypNames[h]][[1]][1]
+      hn <- hypNames[h]
+      getHyp <- listOutputPrev$resultHypParam[, get(hn)]
+      getDis <- initBoundsDis[hn]
+      if (hn == "lambda") {
+        lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
+        lambda_min <- lambda_max * 0.0001
+        getHyp <- getHyp / (lambda_max - lambda_min)
       }
-      newUpB <- getHyp + getDis * newBoundsFreedom
-      if (newUpB > initBounds[hypNames[h]][[1]][2]) {
-        newUpB <- initBounds[hypNames[h]][[1]][2]
+      getRange <- initBounds[hn][[1]]
+
+      if (length(getRange)==2) {
+        newLowB <- getHyp - getDis * newBoundsFreedom
+        if (newLowB < getRange[1]) {
+          newLowB <- getRange[1]
+        }
+        newUpB <- getHyp + getDis * newBoundsFreedom
+        if (newUpB > getRange[2]) {
+          newUpB <- getRange[2]
+        }
+        newBounds <- unname(c(newLowB, newUpB))
+        hyper_updated_prev[hn][[1]] <- newBounds
+      } else {
+        hyper_updated_prev[hn][[1]] <- getRange
       }
-      newBounds <- unname(c(newLowB, newUpB))
-      hyperparameters[hypNames[h]][[1]] <- newBounds
     }
-    InputCollectRF$hyperparameters <- hyperparameters
+    InputCollectRF$hyperparameters <- hyper_updated_prev
 
-    ## refresh iterations and trial
-    InputCollectRF$iterations <- refresh_iters
-    InputCollectRF$trials <- refresh_trials
+    #### Update refresh model parameters
 
-    #### update refresh model parameters
-
-    ## feature engineering for refreshed data
+    ## Feature engineering for refreshed data
     # Note that if custom prophet parameters were passed initially, will be used again unless changed in ...
-    InputCollectRF <- robyn_engineering(InputCollect = InputCollectRF, ...)
+    InputCollectRF <- robyn_engineering(InputCollectRF, ...)
 
     ## refresh model with adjusted decomp.rssd
 
@@ -300,7 +301,10 @@ robyn_refresh <- function(robyn_object,
       plot_folder = objectPath,
       plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
-      pareto_fronts = 1,
+      add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
+      iterations = refresh_iters,
+      trials = refresh_trials,
+      pareto_fronts = 3,
       refresh = TRUE,
       plot_pareto = plot_pareto,
       ...
@@ -391,9 +395,8 @@ robyn_refresh <- function(robyn_object,
     fwrite(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
     fwrite(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
 
-    #### reporting plots
-    ## actual vs fitted
-
+    #### Reporting plots
+    ## Actual vs fitted
     xDecompVecReportPlot <- copy(xDecompVecReport)
     xDecompVecReportPlot[, ":="(refreshStart = min(ds),
       refreshEnd = max(ds)), by = "refreshStatus"]
@@ -509,15 +512,13 @@ robyn_refresh <- function(robyn_object,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
 
-    #### save result objects
-
+    #### Save result objects
     ReportCollect <- list(
       resultHypParamReport = resultHypParamReport,
       xDecompAggReport = xDecompAggReport,
       mediaVecReport = mediaVecReport,
       xDecompVecReport = xDecompVecReport
     )
-    # assign("ReportCollect", ReportCollect)
 
     listHolder <- list(
       InputCollect = InputCollectRF,
@@ -525,11 +526,8 @@ robyn_refresh <- function(robyn_object,
       ReportCollect = ReportCollect
     )
 
-
     listNameUpdate <- paste0("listRefresh", refreshCounter)
-    # assign(listNameUpdate, listHolder)
     Robyn[[listNameUpdate]] <- listHolder
-
     saveRDS(Robyn, file = robyn_object)
 
     if (refreshLooper == 0) {
@@ -537,5 +535,37 @@ robyn_refresh <- function(robyn_object,
       message("Reached maximum available date. No further refresh possible")
     }
   }
+
+  # Save some parameters to print
+  Robyn[["refresh_steps"]] <- refresh_steps
+  Robyn[["refresh_mode"]] <- refresh_mode
+  Robyn[["refresh_trials"]] <- refresh_trials
+  Robyn[["refresh_iters"]] <- refresh_iters
+
+  class(Robyn) <- c("robyn_refresh", class(Robyn))
   invisible(Robyn)
 }
+
+#' @rdname robyn_refresh
+#' @aliases robyn_refresh
+#' @param x \code{robyn_refresh()} output.
+#' @export
+print.robyn_refresh <- function(x, ...) {
+  rf_list <- x[grep("Refresh", names(x), value = TRUE)]
+  top_models <- data.frame(sapply(rf_list, function(y) y$ReportCollect$resultHypParamReport$solID))
+  print(glued(
+    "
+Refresh Models: {length(rf_list)}
+Mode: {x$refresh_mode}
+Steps: {x$refresh_steps}
+Trials: {x$refresh_trials}
+Iterations: {x$refresh_iters}
+
+Models (IDs):
+  {paste(top_models_plain, collapse = ', ')}
+",
+    top_models_plain = sapply(seq_along(top_models), function(i)
+      paste(names(top_models), paste(top_models[,i], collapse = ', '), sep = ": "))
+  ))
+}
+

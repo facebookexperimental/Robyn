@@ -2,7 +2,7 @@
 % Please edit documentation in R/refresh.R
 \name{robyn_save}
 \alias{robyn_save}
-\title{Save Robyn object}
+\title{Export Robyn Model to Local File}
 \usage{
 robyn_save(robyn_object, select_model, InputCollect, OutputCollect)
 }
@@ -23,10 +23,10 @@ Required when \code{robyn_object} is not provided.}
 Required when \code{robyn_object} is not provided.}
 }
 \value{
-A list containing all information for the initial model.
+(Invisible) file's name.
 }
 \description{
-Use \code{robyn_save()} to select and save the initial model.
+Use \code{robyn_save()} to select and save as .RDS file the initial model.
 }
 \examples{
 \dontrun{

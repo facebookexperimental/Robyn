@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Robyn MMM Open Source 3.0 - a Beta Project from Facebook Marketing Science
+#' Robyn MMM Project from Meta Marketing Science
 #'
 #' Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human
 #' bias by means of ridge regression and evolutionary algorithms, enables actionable
@@ -16,18 +16,20 @@
 #' @docType package
 #' @author Gufeng Zhou (gufeng@@fb.com)
 #' @author Leonel Sentana (leonelsentana@@fb.com)
-#' @author Antonio Prada (aprada@@fb.com)
 #' @author Igor Skokan (igorskokan@@fb.com)
+#' @author Bernardo Lares (bernardolares@@fb.com)
+#' @author Antonio Prada (aprada@@fb.com)
 #' @import data.table
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
-#' group_by lag left_join mutate pull row_number select slice ungroup
+#' group_by lag left_join mutate n pull rename row_number select slice summarise ungroup
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
-#' @importFrom lares check_opts clusterKmeans formatNum freqs removenacols theme_lares `%>%`
+#' @importFrom lares check_opts clusterKmeans formatNum freqs glued removenacols theme_lares `%>%`
+#' scale_x_abbr scale_y_abbr v2t
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
@@ -37,11 +39,11 @@
 #' @importFrom reticulate tuple use_condaenv import conda_create conda_install py_module_available
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel
-#' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control
-#' predict pweibull dweibull quantile qunif start
+#' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control median sd
+#' predict pweibull dweibull quantile qunif reorder start setNames
 #' @importFrom stringr str_detect str_remove str_which str_extract str_replace
 #' @importFrom tidyr pivot_longer pivot_wider
-#' @importFrom utils askYesNo flush.console head setTxtProgressBar txtProgressBar
+#' @importFrom utils askYesNo flush.console head setTxtProgressBar tail txtProgressBar
 "_PACKAGE"
 
 # data.table column names used
@@ -62,7 +64,8 @@ dt_vars <- c(
   "theta", "theta_halflife", "total_spend", "trend", "trial", "type", "value", "variable",
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
   "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat",
-  "respN","iteration","variables","iter_bin", "thetas", "cut_time"
+  "respN","iteration","variables","iter_bin", "thetas", "cut_time", "exposure_vars", "OutputModels",
+  "exposure_pred"
 )
 
 if (getRversion() >= "2.15.1") {

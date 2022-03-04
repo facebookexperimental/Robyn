@@ -2,7 +2,8 @@
 % Please edit documentation in R/refresh.R
 \name{robyn_refresh}
 \alias{robyn_refresh}
-\title{Build refresh model}
+\alias{print.robyn_refresh}
+\title{Build Refresh Model}
 \usage{
 robyn_refresh(
   robyn_object,
@@ -16,6 +17,8 @@ robyn_refresh(
   plot_pareto = TRUE,
   ...
 )
+
+\method{print}{robyn_refresh}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
@@ -25,41 +28,43 @@ that contains all previous modeling information.}
 path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
 For example, plot_folder_sub = "sub_dir".}
 
-\item{dt_input}{A data.frame. Should include all previous data and newly added
+\item{dt_input}{data.frame. Should include all previous data and newly added
 data for the refresh.}
 
-\item{dt_holidays}{A data.frame. Raw input holiday data. Load standard
+\item{dt_holidays}{data.frame. Raw input holiday data. Load standard
 Prophet holidays using \code{data("dt_prophet_holidays")}.}
 
-\item{refresh_steps}{An integer. It controls how many time units the refresh
+\item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data
 means the InputCollect$window_start & InputCollect$window_end move forward
 4 weeks.}
 
-\item{refresh_mode}{A character. Options are "auto" and "manual". In auto mode,
+\item{refresh_mode}{Character. Options are "auto" and "manual". In auto mode,
 the \code{robyn_refresh()} function builds refresh models with given
 \code{refresh_steps} repeatedly until there's no more data available. I
 manual mode, the \code{robyn_refresh()} only moves forward \code{refresh_steps}
 only once.}
 
-\item{refresh_iters}{An integer. Iterations per refresh. Rule of thumb is, the
+\item{refresh_iters}{Integer. Iterations per refresh. Rule of thumb is, the
 more new data added, the more iterations needed. More reliable recommendation
 still needs to be investigated.}
 
-\item{refresh_trials}{An integer. Trials per refresh. Defaults to 5 trials.
+\item{refresh_trials}{Integer. Trials per refresh. Defaults to 5 trials.
 More reliable recommendation still needs to be investigated.}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
 
-\item{...}{Additional parameters passed to \code{robyn_engineering()} to
-overwrite original custom parameters passed into initial model.}
+\item{...}{Additional parameters to overwrite original custom parameters
+passed into initial model.}
+
+\item{x}{\code{robyn_refresh()} output.}
 }
 \value{
-A list. The Robyn object.
+List. The Robyn object, class \code{robyn_refresh}.
 }
 \description{
-The \code{robyn_refresh()} function builds update models based on
+\code{robyn_refresh()} builds update models based on
 the previously built models saved in the \code{Robyn.RDS} object specified
 in \code{robyn_object}. For example, when updating the initial build with 4
 weeks of new data, \code{robyn_refresh()} consumes the selected model of
@@ -69,17 +74,21 @@ stabilizes the effect of baseline variables across old and new builds and
 regulates the new effect share of media variables towards the latest
 spend level. It returns aggregated result with all previous builds for
 reporting purpose and produces reporting plots.
+
+You must run \code{robyn_save()} to select and save an initial model first,
+before refreshing.
+
+The \code{robyn_refresh()} function is suitable for
+updating within "reasonable periods". Two situations are considered better
+to rebuild model:
+\describe{
+  \item{1. Most data is new}{If initial model has 100 weeks and 80 weeks
+  new data is added in refresh, it might be better to rebuild the model}
+  \item{2. New variables are added}{}
+}
 }
 \examples{
 \dontrun{
-## NOTE: must run \code{robyn_save()} to select and save an initial model first,
-## before refreshing below. The \code{robyn_refresh()} function is suitable for
-## updating within "reasonable periods".
-## Two situations are considered better to rebuild model:
-## 1, most data is new. If initial model has 100 weeks and 80 weeks new data is
-## added in refresh, it might be better to rebuild the model
-## 2, new variables are added
-
 # Set the Robyn object path
 robyn_object <- "~/Desktop/Robyn.RDS"
 
