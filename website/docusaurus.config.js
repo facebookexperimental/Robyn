@@ -9,8 +9,7 @@
 
 module.exports = {
   title: 'Robyn',
-  tagline:
-    'Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation',
+  tagline: 'Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation.',
   url: 'https://facebookexperimental.github.io',
   baseUrl: '/Robyn/',
   onBrokenLinks: 'throw',
@@ -18,6 +17,14 @@ module.exports = {
   organizationName: 'facebookexperimental', // Usually your GitHub org/user name.
   projectName: 'Robyn', // Usually your repo name.
   themeConfig: {
+    announcementBar: {
+      id: 'support_ukraine',
+      content:
+        'Support Ukraine 🇺🇦 <a target="_blank" rel="noopener noreferrer" href="https://opensource.facebook.com/support-ukraine"> Help Provide Humanitarian Aid to Ukraine</a>.',
+      backgroundColor: '#20232a',
+      textColor: '#fff',
+      isCloseable: false,
+    },
     navbar: {
       title: 'Robyn',
       logo: {
