@@ -139,7 +139,13 @@ For the independent variables, this will depend on the type of activity:
   - For print (e.g. newspapers or magazines), the most commonly used metrics are readership.
   - As mentioned above, aim to collect data that reflects “eyeballs” or impressions for all other channels.
 
-  <em>Paid vs. organic?</em> Historically it was best practice to collect and model data for paid activity only, as this would produce more actionable results (given that it is difficult to control organic activity). However with more options to interact with consumers with organic content (e.g. branded content on Facebook), there could be good reasons to include it in the model. Robyn allows for the modeling of organic activity - more details on how to include it are [here](https://facebookexperimental.github.io/Robyn/docs/organic-media/).
+
+  <em>Paid vs. organic?</em>
+
+  Historically it was best practice to collect and model data for paid activity only, as this would produce more actionable results (given that it is difficult to control organic activity).
+  However with more options to interact with consumers with organic content (e.g. branded content on Facebook), there could be good reasons to include it in the model. Robyn allows for the modeling of organic activity.
+  More details on how to include it are [here](https://facebookexperimental.github.io/Robyn/docs/organic-media).
+
 - Non-media marketing activity (e.g. promotions, discounts): Commonly used metrics include time-series pricing data or the use of dummy variables to indicate promotions. If it is required to measure each type of promotion separately (e.g. buy one get one free vs. gift with purchase), ensure separate dummy variables are created for each promotion.
 - Seasonality and holidays: External factors that have a big impact on the dependent variable, such as seasonality and holidays, should be included in the model. There are two options for including this in the model:
   - [Prophet](https://facebook.github.io/prophet/) is a Meta open source code for forecasting time series data, and has been included in the Robyn code to decompose the time series data into trends, seasonality and holidays. As Prophet automatically calculates the impact of seasonality and holidays, this is a good option for non-experts - more details on Prophet are available in the [Feature Engineering](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#feature-engineering) section.
@@ -304,8 +310,14 @@ As MMM models are built on historical data, an important consideration is select
 Fortunately you can achieve this balance with the [model window](https://facebookexperimental.github.io/Robyn/docs/window) feature in Robyn. For example, with Robyn's integrated dataset of 208 weeks, users can set the ‘modeling period’ to a subset of available data (e.g. 100 weeks), while the trend/seasonality/holiday variables are still derived from the entire 208 weeks, which improves the accuracy for time-series decomposition.
 
 When it comes to choosing a modeling window, this is not a simple question to answer. This will vary depending on each business and dataset - see below for some general considerations to help with choosing:
-  - <em>Business context</em> is always important and should be considered. Analysts should ask themselves <em>‘how much time is enough to capture recency in modeling and also deliver up-to-date results?’</em> Factors such as internal shifts in marketing practices, ad platform evolvement, external macro factors should be considered - as addressed in the [Data Review](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-review) section, charting data is always helpful to visualise.
-  - <em>Data sparsity</em> also needs to be considered. There must be balance so that there are enough data points captured in the modeling window. The recommended ratio of data points is 1 independent variable : 10 observations. For example if you aim to run a model with recent 6 month data, weekly data will be too sparse to fit the model and so daily data is recommended in this case. If your dataset is not long enough to split the model window, you can simply start fitting the model with the entire period you have.
+  - <em>Business context</em>
+
+  Business context is always important and should be considered. Analysts should ask themselves <em>‘how much time is enough to capture recency in modeling and also deliver up-to-date results?’</em> Factors such as internal shifts in marketing practices, ad platform evolvement, external macro factors should be considered.
+  As addressed in the [Data Review](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-review) section, charting data is always helpful to visualise.
+
+  - <em>Data sparsity</em>
+
+  Data sparsity also needs to be considered. There must be balance so that there are enough data points captured in the modeling window. The recommended ratio of data points is 1 independent variable : 10 observations. For example if you aim to run a model with recent 6 month data, weekly data will be too sparse to fit the model and so daily data is recommended in this case. If your dataset is not long enough to split the model window, you can simply start fitting the model with the entire period you have.
 
 Ultimately if you are not sure about which model window to use, don’t stress! Experiment with several different windows as part of an **iterative** process.
 
@@ -351,11 +363,15 @@ It is important that you understand the meaning of each hyperparameter correctly
 
 There are two adstock techniques you may choose from in Robyn, each with its pros and cons. In order to find the approach that best fits your model objectives and business purposes, we recommend testing various transformations.
 
-1. <em>Geometric</em> - the biggest advantage of the Geometric transformation is its simplicity. It only requires one parameter called ‘theta’ that can be quite intuitive. For example, an ad-stock of theta = 0.75 means that 75% of the impressions in period 1 were carried over to period 2. This can make it much easier to communicate results to non-technical stakeholders. In addition, Geometric is much faster to run than Weibull, which has two parameters to optimize. However, Geometric can be considered as too simple and often not suitable for digital media transformations, as shown in this [study](https://github.com/annalectnl/weibull-adstock/blob/master/adstock_weibull_annalect.pdf).
-When it comes to setting hyperparameters for a Geometric transformation technique, theta is the only parameter that can be adjusted, which reflects the fixed decay rate. For example, assuming TV spend on day 1 is 100€ and theta = 0.7, then day 2 has 100x0.7=70€ worth of effect carried-over from day 1, day 3 has 70x0.7=49€ from day 2 etc. A general rule-of-thumb for common media channels are:
+1. <em>Geometric</em> - the biggest advantage of the Geometric transformation is its simplicity. It only requires one parameter called ‘theta’ that can be quite intuitive. For example, an ad-stock of theta = 0.75 means that 75% of the impressions in period 1 were carried over to period 2. This can make it much easier to communicate results to non-technical stakeholders. In addition, Geometric is much faster to run than Weibull, which has two parameters to optimize.
+
+  However, Geometric can be considered as too simple and often not suitable for digital media transformations, as shown in this [study](https://github.com/annalectnl/weibull-adstock/blob/master/adstock_weibull_annalect.pdf).
+  When it comes to setting hyperparameters for a Geometric transformation technique, theta is the only parameter that can be adjusted, which reflects the fixed decay rate. For example, assuming TV spend on day 1 is 100€ and theta = 0.7, then day 2 has 100x0.7=70€ worth of effect carried-over from day 1, day 3 has 70x0.7=49€ from day 2 etc. A general rule-of-thumb for common media channels are:
+
     - TV = c(0.3, 0.8)
     - OOH/Print/Radio = c(0.1, 0.4)
     - Digital = c(0, 0.3)
+
 
 2. <em>Weibull</em> - while the traditional exponential adstock is very popular, it was recently reported by Ekimetrics & Annalect that the Weibull survival function / Weibull distribution can better fit modern media activity such as Facebook. The Weibull survival function / Weibull distribution provides significantly more flexibility in the shape and scale of the distribution. However, Weibull can take more time to run than Geometric, as it optimizes two parameters (i.e. shape and scale) and it can often be difficult to explain to non-technical stakeholders without charting.
 
@@ -461,7 +477,9 @@ However, in the situation that you would like to quickly check how the code runs
 
 <u>Model Calibration</u>
 
-As mentioned above, we strongly recommend using experimental and causal results that are considered to be the ground truth to calibrate MMM. People-based (e.g. Meta Conversion Lift: https://www.facebook.com/business/m/one-sheeters/conversion-lift), or geo-based incrementality studies (e.g. Meta GeoLift: https://github.com/facebookincubator/GeoLift) are two methodologies that can be used to establish the true incrementality of your advertising. By applying the results from these experiments, it is highly likely that this will improve the accuracy of your models.
+As mentioned above, we strongly recommend using experimental and causal results that are considered to be the ground truth to calibrate MMM.
+People-based e.g. [Meta Conversion Lift](https://www.facebook.com/business/m/one-sheeters/conversion-lift),
+or geo-based incrementality studies e.g. [Meta GeoLift](https://github.com/facebookincubator/GeoLift) are two methodologies that can be used to establish the true incrementality of your advertising. By applying the results from these experiments, it is highly likely that this will improve the accuracy of your models.
 
 As discussed in the **Model Selection** part, calibration can increase your confidence when selecting the final model, especially when there is no strong prior knowledge of media effectiveness and performance. It is recommended to run incrementality studies on an ongoing and regular basis in order to have results that can permanently calibrate the MMM. In general, we want to compare the results of an incrementality study with the MMM outputs for a marketing channel. Conceptually, this method is like a Bayesian method, where experiment results are used as a prior to calibrate the coefficients of media variables.
 
