@@ -11,7 +11,7 @@
 ################################################################
 #### Step 0: setup environment
 
-## Install and load  libraries
+## Install and load libraries
 # install.packages("remotes") # Install remotes first if you haven't already
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
 
@@ -329,11 +329,13 @@ print(OutputCollect)
 
 print(OutputCollect)
 select_model <- "1_18_4" # select one from above
-robyn_save(robyn_object = robyn_object # model object location and name
-           , select_model = select_model # selected model ID
-           , InputCollect = InputCollect # all model input
-           , OutputCollect = OutputCollect # all model output
+ExportedModel <- robyn_save(
+  robyn_object = robyn_object # model object location and name
+  , select_model = select_model # selected model ID
+  , InputCollect = InputCollect # all model input
+  , OutputCollect = OutputCollect # all model output
 )
+print(ExportedModel)
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -345,6 +347,7 @@ robyn_save(robyn_object = robyn_object # model object location and name
 OutputCollect$xDecompAgg[solID == select_model & !is.na(mean_spend)
                          , .(rn, coef,mean_spend, mean_response, roi_mean
                              , total_spend, total_response=xDecompAgg, roi_total, solID)]
+# OR: print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the
@@ -383,8 +386,8 @@ AllocatorCollect$dt_optimOut
 if (TRUE) {
   cat("QA if results from robyn_allocator and robyn_response agree: ")
   select_media <- "search_S"
-  optimal_spend <- AllocatorCollect$dt_optimOut[channels== select_media, optmSpendUnit]
-  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels== select_media, optmResponseUnit]
+  optimal_spend <- AllocatorCollect$dt_optimOut[channels == select_media, optmSpendUnit]
+  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels == select_media, optmResponseUnit]
   optimal_response <- robyn_response(
     robyn_object = robyn_object,
     select_build = 0,
