@@ -137,9 +137,11 @@ robyn_allocator <- function(robyn_object = NULL,
   }
 
   ## Check inputs and parameters
-  check_allocator(OutputCollect, select_model, paid_media_spends, scenario,
-                  channel_constr_low, channel_constr_up,
-                  expected_spend, expected_spend_days, constr_mode)
+  check_allocator(
+    OutputCollect, select_model, paid_media_spends, scenario,
+    channel_constr_low, channel_constr_up,
+    expected_spend, expected_spend_days, constr_mode
+  )
 
   # Channel contrains
   # channel_constr_low <- rep(0.8, length(paid_media_spends))
@@ -176,7 +178,8 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Get hill parameters for each channel
   hills <- get_hill_params(
-    InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model)
+    InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model
+  )
   alphas <- hills$alphas
   gammaTrans <- hills$gammaTrans
   coefsFiltered <- hills$coefsFiltered
@@ -196,7 +199,7 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSorted)), sum))
   histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
   histSpendUnitTotal <- sum(histSpendUnit)
-  histSpendShare <- histSpendUnit/histSpendUnitTotal
+  histSpendShare <- histSpendUnit / histSpendUnitTotal
 
   # Response values based on date range -> mean spend
   histResponseUnitModel <- NULL
@@ -212,7 +215,9 @@ robyn_allocator <- function(robyn_object = NULL,
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
-        OutputCollect = OutputCollect)$response)
+        OutputCollect = OutputCollect
+      )$response
+    )
   }
   names(histResponseUnitModel) <- mediaSpendSortedFiltered
 
@@ -226,7 +231,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Gather all values that will be used internally on optim (nloptr)
   eval_list <- list(
-    #mm_lm_coefs = mm_lm_coefs,
+    # mm_lm_coefs = mm_lm_coefs,
     coefsFiltered = coefsFiltered,
     alphas = alphas,
     gammaTrans = gammaTrans,
@@ -234,7 +239,8 @@ robyn_allocator <- function(robyn_object = NULL,
     # exposure_selectorSortedFiltered = exposure_selectorSortedFiltered,
     # vmaxVec = vmaxVec,
     # kmVec = kmVec,
-    expSpendUnitTotal = expSpendUnitTotal)
+    expSpendUnitTotal = expSpendUnitTotal
+  )
   # So we can implicitly use these values within eval_f()
   options("ROBYN_TEMP" = eval_list)
 
@@ -275,7 +281,8 @@ robyn_allocator <- function(robyn_object = NULL,
       "xtol_rel" = 1.0e-10,
       "maxeval" = maxeval,
       "local_opts" = local_opts
-    ))
+    )
+  )
 
   ## Collect output
   dt_optimOut <- data.table(
@@ -321,11 +328,11 @@ robyn_allocator <- function(robyn_object = NULL,
     dt_optimOut = dt_optimOut,
     nlsMod = nlsMod,
     plots = plots,
-    ui = if (ui) plots else NULL)
+    ui = if (ui) plots else NULL
+  )
 
   class(output) <- c("robyn_allocator", class(output))
   return(output)
-
 }
 
 #' @rdname robyn_allocator
@@ -346,7 +353,8 @@ Allocation Summary:
     spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
-      abbr = TRUE),
+      abbr = TRUE
+    ),
     summary = paste(sprintf(
       "
 - %s:
@@ -376,10 +384,11 @@ robyn_import <- function(robyn_object, select_build, quiet) {
   select_build_all <- 0:(length(Robyn) - 1)
   if (is.null(select_build)) {
     select_build <- max(select_build_all)
-    if (!quiet) message(
-      "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build
-      )), " for the response function"
-    )
+    if (!quiet) {
+      message(
+        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)), " for the response function"
+      )
+    }
   }
   if (!(select_build %in% select_build_all) | length(select_build) != 1) {
     stop("Input 'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
@@ -395,18 +404,18 @@ eval_f <- function(X) {
 
   # eval_list <- get("eval_list", pos = as.environment(-1))
   eval_list <- getOption("ROBYN_TEMP")
-  #mm_lm_coefs <- eval_list[["mm_lm_coefs"]]
+  # mm_lm_coefs <- eval_list[["mm_lm_coefs"]]
   coefsFiltered <- eval_list[["coefsFiltered"]]
   alphas <- eval_list[["alphas"]]
   gammaTrans <- eval_list[["gammaTrans"]]
   mediaSpendSortedFiltered <- eval_list[["mediaSpendSortedFiltered"]]
-  #exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
-  #vmaxVec <- eval_list[["vmaxVec"]]
-  #kmVec <- eval_list[["kmVec"]]
+  # exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
+  # vmaxVec <- eval_list[["vmaxVec"]]
+  # kmVec <- eval_list[["kmVec"]]
 
   fx_objective <- function(x, coeff, alpha, gammaTran
-                           #, chnName, vmax, km, criteria
-                           ) {
+                           # , chnName, vmax, km, criteria
+  ) {
     # Apply Michaelis Menten model to scale spend to exposure
     # if (criteria) {
     #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
@@ -439,8 +448,8 @@ eval_f <- function(X) {
 
   # https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
   fx_gradient <- function(x, coeff, alpha, gammaTran
-                          #, chnName, vmax, km, criteria
-                          ) {
+                          # , chnName, vmax, km, criteria
+  ) {
     # Apply Michaelis Menten model to scale spend to exposure
     # if (criteria) {
     #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
@@ -470,8 +479,8 @@ eval_f <- function(X) {
   ))
 
   fx_objective.chanel <- function(x, coeff, alpha, gammaTran
-                                  #, chnName, vmax, km, criteria
-                                  ) {
+                                  # , chnName, vmax, km, criteria
+  ) {
     # Apply Michaelis Menten model to scale spend to exposure
     # if (criteria) {
     #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
@@ -541,7 +550,8 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
   endRW <- InputCollect$rollingWindowEndWhich
   chnAdstocked <- OutputCollect$mediaVecCollect[
     type == "adstockedMedia" & solID == select_model, mediaSpendSortedFiltered,
-    with = FALSE][startRW:endRW]
+    with = FALSE
+  ][startRW:endRW]
   gammaTrans <- mapply(function(gamma, x) {
     round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
   }, gamma = gammas, x = chnAdstocked)
@@ -555,4 +565,3 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
     coefsFiltered = coefsFiltered
   ))
 }
-
