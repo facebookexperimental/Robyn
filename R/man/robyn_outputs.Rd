@@ -17,7 +17,7 @@ robyn_outputs(
   plot_pareto = TRUE,
   csv_out = "pareto",
   clusters = TRUE,
-  selected = "clusters",
+  select_model = "clusters",
   ui = FALSE,
   export = TRUE,
   quiet = FALSE,
@@ -56,7 +56,7 @@ to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.}
 
 \item{clusters}{Boolean. Apply \code{robyn_clusters()} to output models?}
 
-\item{selected}{Character vector. Which models (by \code{solID}) do you
+\item{select_model}{Character vector. Which models (by \code{solID}) do you
 wish to plot the one-pagers and export? Default will take top
 \code{robyn_clusters()} results.}
 
