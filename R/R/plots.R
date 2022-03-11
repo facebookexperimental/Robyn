@@ -28,8 +28,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         geom_line(color = "steelblue") +
         facet_wrap(~variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition") +
-        xlab(NULL) +
-        ylab(NULL)
+        xlab(NULL) + ylab(NULL) + theme_lares()
       if (export) {
         ggsave(
           paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
@@ -443,6 +442,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 }
 
 allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
+
   subtitle <- paste0(
     "Total spend increase: ", dt_optimOut[
       , round(mean(optmSpendUnitTotalDelta) * 100, 1)
@@ -451,6 +451,16 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       , round(mean(optmResponseUnitTotalLift) * 100, 1)
     ], "% with optimised spend allocation"
   )
+
+  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "saturatedSpendReversed"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
+  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "decompMedia"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
+  plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
+  plotDT_scurve <- plotDT_scurve[spend >= 0] # remove outlier introduced by MM nls fitting
+  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_spends]
 
   errors <- paste0(
     "R2 train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
@@ -492,7 +502,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   p13 <- ggplot(plotDT_share, aes(y = .data$channel, x = .data$spend_share, fill = .data$variable)) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
-    geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, signif = 3, pos = "%"), hjust = -0.1),
+    geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
       position = position_dodge2(width = 0.5, reverse = TRUE), fontface = "bold", show.legend = FALSE
     ) +
     theme_lares(legend = "top") +
@@ -504,40 +514,39 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   ## 3. Response curve
-  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "saturatedSpendReversed"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
-  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "decompMedia"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
-  plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
-  plotDT_scurve <- plotDT_scurve[spend >= 0] # remove outlier introduced by MM nls fitting
-  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_spends]
-  dt_optimOutScurve <- rbind(dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type := "Initial"],
+  dt_optimOutScurve <- rbind(
+    dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type := "Initial"],
     dt_optimOut[, .(channels, optmSpendUnit, optmResponseUnit)][, type := "Optimised"],
     use.names = FALSE
   )
   setnames(dt_optimOutScurve, c("channels", "spend", "response", "type"))
-  dt_optimOutScurve$hjust <- ifelse(dt_optimOutScurve$type == "Initial", 1.2, -0.2)
+  dt_optimOutScurve <- dt_optimOutScurve %>%
+    mutate(hjust = ifelse(.data$type == "Initial", 1.2, -0.2)) %>%
+    group_by(.data$channels) %>%
+    mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
+           response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))
   p14 <- ggplot(data = plotDT_scurve, aes(x = .data$spend, y = .data$response, color = .data$channel)) +
     geom_line() +
     geom_point(data = dt_optimOutScurve, aes(
       x = .data$spend, y = .data$response,
       color = .data$channels, shape = .data$type
     ), size = 2.5) +
-    geom_text(
-      data = dt_optimOutScurve, aes(
-        x = .data$spend, y = .data$response, color = .data$channels,
-        hjust = .data$hjust,
-        label = formatNum(.data$spend, 2, abbr = TRUE)
-      ),
-      show.legend = FALSE
+    # geom_text(
+    #   data = dt_optimOutScurve, aes(
+    #     x = .data$spend, y = .data$response, color = .data$channels,
+    #     hjust = .data$hjust,
+    #     label = formatNum(.data$spend, 2, abbr = TRUE)
+    #   ),
+    #   show.legend = FALSE
+    # ) +
+    theme_lares(legend.position = c(0.9, 0), pal = 2) +
+    theme(
+      legend.position = c(0.9, 0.5),
+      legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90")
     ) +
-    theme_lares(legend.position = c(0.9, 0.4), pal = 2) +
-    theme(legend.title = element_blank()) +
     labs(
       title = "Response Curve and Mean Spend* by Channel",
-      x = "Spend", y = "Response",
+      x = "Spend", y = "Response", shape = NULL, color = NULL,
       caption = sprintf(
         "*Based on date range: %s to %s (%s)",
         dt_optimOut$date_min[1],
@@ -555,7 +564,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
     p13 <- p13 + labs(subtitle = NULL)
     p12 <- p12 + labs(subtitle = NULL)
-    plots <- (p13 + p12) / p14 + plot_annotation(
+    plots <- ((p13 + p12) / p14) + plot_annotation(
+    # plots <- ((p13 / p12) | p14) + plot_annotation(
       title = grobTitle, subtitle = subtitle,
       theme = theme_lares(background = "white")
     )
