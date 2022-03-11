@@ -285,22 +285,21 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         ) +
         geom_point(
           data = plotMediaShareLoopLine, aes(
-            x = .data$rn, y = .data$value / ySecScale, group = 1
+            x = .data$rn, y = .data$value / ySecScale, group = 1, color = "Total ROI"
           ),
-          inherit.aes = FALSE, size = 4, color = "#03396C"
+          inherit.aes = FALSE, size = 4
         ) +
         geom_text(
           data = plotMediaShareLoopLine, aes(
-            label = round(.data$value, 2), x = .data$rn, y = .data$value / ySecScale,
-            group = 1, color = .data$variable
+            label = round(.data$value, 2), x = .data$rn, y = .data$value / ySecScale, group = 1
           ),
           fontface = "bold", inherit.aes = FALSE, hjust = -.5, size = 5
         ) +
         scale_y_percent() +
         coord_flip() +
-        theme_lares(axis.text.x = element_blank(), legend = "top") +
+        theme_lares(axis.text.x = element_blank(), legend = "top", grid = "Xx") +
         scale_fill_brewer(palette = 3) +
-        scale_color_manual(values = "#03396C") +
+        scale_color_manual(values = c("Total ROI" = "#03396C")) +
         labs(
           title = paste0("Share of Spend VS Share of Effect with total ", ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")),
           y = "Total Share by Channel", x = NULL, fill = NULL, color = NULL
@@ -334,7 +333,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         dt_geometric <- temp[[sid]]$plot3data$dt_geometric
         p3 <- ggplot(dt_geometric, aes(x = .data$channels, y = .data$thetas, fill = "coral")) +
           geom_bar(stat = "identity", width = 0.5) +
-          theme_lares(legend = "none") +
+          theme_lares(legend = "none", grid = "Xx") +
           coord_flip() +
           geom_text(aes(label = formatNum(100 * thetas, 1, pos = "%")),
             hjust = -.1, position = position_dodge(width = 0.5), fontface = "bold"
@@ -353,7 +352,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           facet_wrap(~ .data$channel) +
           geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
           geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
-          theme_lares(legend = "none") +
+          theme_lares(legend = "none", grid = "Xx") +
           labs(
             title = paste0("Weibull Adstock ", wb_type, ": Flexible Decay Rate Over Time"),
             x = "Time Unit", y = NULL
@@ -380,8 +379,10 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           show.legend = FALSE, hjust = -0.2
         ) +
         theme_lares(pal = 2) +
-        theme(legend.position = c(0.9, 0.2),
-              legend.background = element_rect(fill = alpha('grey98', 0.6), color = "grey90")) +
+        theme(
+          legend.position = c(0.9, 0.2),
+          legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90")
+        ) +
         labs(
           title = "Response Curves and Mean Spends by Channel",
           x = "Spend", y = "Response", color = NULL
