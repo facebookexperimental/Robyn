@@ -870,7 +870,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   if (intervalType == "week") {
     weekStartInput <- lubridate::wday(dt_transform$ds[1], week_start = 1)
     if (!weekStartInput %in% c(1, 7)) stop("Week start has to be Monday or Sunday")
-    dt_holidays$dsWeekStart <- floor_date(dt_holidays$ds, unit = "week", week_start = 1)
+    dt_holidays$dsWeekStart <- floor_date(dt_holidays$ds, unit = "week", week_start = weekStartInput)
     holidays <- dt_holidays[, .(ds = dsWeekStart, holiday, country, year)]
     holidays <- holidays[, lapply(.SD, paste0, collapse = "#"), by = c("ds", "country", "year"), .SDcols = "holiday"]
   }

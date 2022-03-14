@@ -4,18 +4,22 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.6.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.6.1    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
 ################################################################
-#### Step 0: setup environment
+#### Step 0: Setup environment
 
-## Install and load libraries
+## Install, load, and check (latest) version
 # install.packages("remotes") # Install remotes first if you haven't already
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
 
-## force multicore when using RStudio
+# Please, check if you have installed the latest version before running this demo. Update if not
+# https://github.com/facebookexperimental/Robyn/blob/main/R/DESCRIPTION#L4
+packageVersion("Robyn")
+
+## Force multicore when using RStudio
 Sys.setenv(R_FUTURE_FORK_ENABLE="true")
 options(future.fork.enable = TRUE)
 
@@ -52,7 +56,7 @@ options(future.fork.enable = TRUE)
 # https://github.com/facebookexperimental/Robyn/issues/189
 
 ################################################################
-#### Step 1: load data
+#### Step 1: Load data
 
 ## Check simulated dataset or load your own dataset
 data("dt_simulated_weekly")
