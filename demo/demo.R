@@ -360,6 +360,7 @@ AllocatorCollect <- robyn_allocator(
   , date_max = "2018-02-01"
 )
 print(AllocatorCollect)
+# plot(AllocatorCollect)
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -375,6 +376,7 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 7 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
+# plot(AllocatorCollect)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
