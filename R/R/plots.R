@@ -443,6 +443,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
 allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
 
+  outputs <- list()
+
   subtitle <- paste0(
     "Total spend increase: ", dt_optimOut[
       , round(mean(optmSpendUnitTotalDelta) * 100, 1)
@@ -477,7 +479,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   fcts <- c("channel", "Initial Response / Time Unit", "Optimised Response / Time Unit")
   setnames(plotDT_resp, names(plotDT_resp), new = fcts)
   plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
-  p12 <- ggplot(plotDT_resp, aes(y = .data$channel, x = .data$response, fill = reorder(.data$variable, as.numeric(.data$variable)))) +
+  outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
+    y = .data$channel, x = .data$response, fill = reorder(.data$variable, as.numeric(.data$variable)))) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$response, 0), hjust = -0.1),
@@ -499,7 +502,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   fcts <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
   setnames(plotDT_share, names(plotDT_share), new = fcts)
   plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
-  p13 <- ggplot(plotDT_share, aes(y = .data$channel, x = .data$spend_share, fill = .data$variable)) +
+  outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
+    y = .data$channel, x = .data$spend_share, fill = .data$variable)) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
@@ -525,7 +529,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     group_by(.data$channels) %>%
     mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
            response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))
-  p14 <- ggplot(data = plotDT_scurve, aes(x = .data$spend, y = .data$response, color = .data$channel)) +
+  outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
+    x = .data$spend, y = .data$response, color = .data$channel)) +
     geom_line() +
     geom_point(data = dt_optimOutScurve, aes(
       x = .data$spend, y = .data$response,
@@ -557,19 +562,20 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     scale_x_abbr() +
     scale_y_abbr()
 
+  # Gather all plots into a single one
+  p13 <- p13 + labs(subtitle = NULL)
+  p12 <- p12 + labs(subtitle = NULL)
+  outputs[["plots"]] <- plots <- ((p13 + p12) / p14) + plot_annotation(
+    title = paste0("Budget Allocator Optimum Result for Model ID ", select_model),
+    subtitle = subtitle,
+    theme = theme_lares(background = "white")
+  )
+
   # Gather all plots
   if (export) {
-    grobTitle <- paste0("Budget Allocator Optimum Result for Model ID ", select_model)
+    if (!quiet) message("Exporting charts into file: ", filename)
     scenario <- ifelse(scenario == "max_historical_response", "hist", "respo")
     filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
-    p13 <- p13 + labs(subtitle = NULL)
-    p12 <- p12 + labs(subtitle = NULL)
-    plots <- ((p13 + p12) / p14) + plot_annotation(
-    # plots <- ((p13 / p12) | p14) + plot_annotation(
-      title = grobTitle, subtitle = subtitle,
-      theme = theme_lares(background = "white")
-    )
-    if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
@@ -577,5 +583,5 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
   }
 
-  return(list(p12 = p12, p13 = p13, p14 = p14))
+  return(invisible(outputs))
 }

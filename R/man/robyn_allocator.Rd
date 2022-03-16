@@ -3,6 +3,7 @@
 \name{robyn_allocator}
 \alias{robyn_allocator}
 \alias{print.robyn_allocator}
+\alias{plot.robyn_allocator}
 \title{Budget Allocator}
 \usage{
 robyn_allocator(
@@ -27,6 +28,8 @@ robyn_allocator(
 )
 
 \method{print}{robyn_allocator}(x, ...)
+
+\method{plot}{robyn_allocator}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object

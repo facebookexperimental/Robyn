@@ -373,6 +373,12 @@ Allocation Summary:
   ))
 }
 
+#' @rdname robyn_allocator
+#' @aliases robyn_allocator
+#' @param x \code{robyn_allocator()} output.
+#' @export
+plot.robyn_allocator <- function(x, ...) plot(x$plots$plots, ...)
+
 robyn_import <- function(robyn_object, select_build, quiet) {
   if (!file.exists(robyn_object)) {
     stop("File does not exist or is somewhere else. Check: ", robyn_object)
