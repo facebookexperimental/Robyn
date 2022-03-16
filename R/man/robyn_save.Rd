@@ -3,6 +3,7 @@
 \name{robyn_save}
 \alias{robyn_save}
 \alias{print.robyn_save}
+\alias{plot.robyn_save}
 \title{Export Robyn Model to Local File}
 \usage{
 robyn_save(
@@ -14,6 +15,8 @@ robyn_save(
 )
 
 \method{print}{robyn_save}(x, ...)
+
+\method{plot}{robyn_save}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object

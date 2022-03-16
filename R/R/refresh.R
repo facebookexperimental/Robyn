@@ -47,7 +47,8 @@ robyn_save <- function(robyn_object,
     summary = OutputCollect$xDecompAgg[
       solID == select_model & !is.na(mean_spend)
       , .(rn, coef,mean_spend, mean_response, roi_mean
-          , total_spend, total_response = xDecompAgg, roi_total)])
+          , total_spend, total_response = xDecompAgg, roi_total)],
+    plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE))
   class(output) <- c("robyn_save", class(output))
 
   if (file.exists(robyn_object)) {
@@ -89,6 +90,12 @@ print.robyn_save <- function(x, ...) {
   "))
   print(x$summary)
 }
+
+#' @rdname robyn_save
+#' @aliases robyn_save
+#' @param x \code{robyn_save()} output.
+#' @export
+plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 
 
 ####################################################################
