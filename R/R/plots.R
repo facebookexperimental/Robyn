@@ -573,9 +573,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   # Gather all plots
   if (export) {
-    if (!quiet) message("Exporting charts into file: ", filename)
     scenario <- ifelse(scenario == "max_historical_response", "hist", "respo")
     filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
+    if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
