@@ -129,11 +129,9 @@ robyn_allocator <- function(robyn_object = NULL,
     paid_media_spends <- InputCollect$paid_media_spends
     mediaVarSorted <- paid_media_vars[media_order]
     mediaSpendSorted <- paid_media_spends[media_order]
-    exposure_vars <- InputCollect$exposure_vars
     startRW <- InputCollect$rollingWindowStartWhich
     endRW <- InputCollect$rollingWindowEndWhich
     adstock <- InputCollect$adstock
-    spendExpoMod <- InputCollect$modNLSCollect
   }
 
   ## Check inputs and parameters
@@ -143,11 +141,13 @@ robyn_allocator <- function(robyn_object = NULL,
     expected_spend, expected_spend_days, constr_mode
   )
 
-  # Channel contrains
+  # Channels contrains
   # channel_constr_low <- rep(0.8, length(paid_media_spends))
   # channel_constr_up <- rep(1.2, length(paid_media_spends))
   names(channel_constr_low) <- paid_media_spends
   names(channel_constr_up) <- paid_media_spends
+  channel_constr_low <- channel_constr_low[media_order]
+  channel_constr_up <- channel_constr_up[media_order]
 
   # Hyper-parameters and results
   dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
@@ -170,8 +170,8 @@ robyn_allocator <- function(robyn_object = NULL,
   dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
   setcolorder(dt_hyppar, sort(names(dt_hyppar)))
   dt_bestCoef <- dt_bestCoef[rn %in% mediaSpendSortedFiltered]
-  channelConstrLowSorted <- channel_constr_low[media_order][coefSelectorSorted]
-  channelConstrUpSorted <- channel_constr_up[media_order][coefSelectorSorted]
+  channelConstrLowSorted <- channel_constr_low[coefSelectorSorted]
+  channelConstrUpSorted <- channel_constr_up[coefSelectorSorted]
 
   ## Get adstock parameters for each channel
   getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)
@@ -286,12 +286,15 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Collect output
   dt_optimOut <- data.table(
+    solID = select_model,
     channels = mediaSpendSortedFiltered,
     date_min = date_min,
     date_max = date_max,
     periods = sprintf("%s %ss", nPeriod, InputCollect$intervalType),
+    constr_low = channel_constr_low,
+    constr_up = channel_constr_up,
     # Initial
-    histSpend = histSpend[mediaSpendSortedFiltered],
+    histSpend = histSpend,
     histSpendTotal = histSpendTotal,
     initSpendUnitTotal = histSpendUnitTotal,
     initSpendUnit = histSpendUnit,
@@ -312,8 +315,7 @@ robyn_allocator <- function(robyn_object = NULL,
     optmResponseUnit = -eval_f(nlsMod$solution)[["objective.channel"]],
     optmResponseUnitTotal = sum(-eval_f(nlsMod$solution)[["objective.channel"]]),
     optmRoiUnit = -eval_f(nlsMod$solution)[["objective.channel"]] / nlsMod$solution,
-    optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) - 1,
-    solID = select_model
+    optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) - 1
   )
   dt_optimOut[, optmResponseUnitTotalLift := (optmResponseUnitTotal / initResponseUnitTotal) - 1]
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method

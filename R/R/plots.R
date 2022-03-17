@@ -454,16 +454,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ], "% with optimised spend allocation"
   )
 
-  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "saturatedSpendReversed"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
-  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "decompMedia"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
-  plotDT_scurve <- cbind(plotDT_saturation, plotDT_decomp[, .(response)])
-  plotDT_scurve <- plotDT_scurve[spend >= 0] # remove outlier introduced by MM nls fitting
-  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[solID == select_model & rn %in% InputCollect$paid_media_spends]
-
+  # Calculate errors for subtitles
+  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[
+    solID == select_model & rn %in% InputCollect$paid_media_spends]
   errors <- paste0(
     "R2 train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
     ", NRMSE = ", plotDT_scurveMeanResponse[, round(mean(nrmse), 4)],
@@ -472,15 +465,13 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   )
 
   # 1. Response comparison plot
-  plotDT_resp <- dt_optimOut[, c("channels", "initResponseUnit", "optmResponseUnit")][order(rank(channels))]
-  plotDT_resp[, channels := as.factor(channels)]
-  chn_levels <- plotDT_resp[, as.character(channels)]
-  plotDT_resp[, channels := factor(channels, levels = chn_levels)]
-  fcts <- c("channel", "Initial Response / Time Unit", "Optimised Response / Time Unit")
-  setnames(plotDT_resp, names(plotDT_resp), new = fcts)
+  plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
+    mutate(channels = as.factor(.data$channels))
+  names(plotDT_resp) <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
   plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
   outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
-    y = .data$channel, x = .data$response, fill = reorder(.data$variable, as.numeric(.data$variable)))) +
+    y = reorder(.data$channel, -as.integer(.data$channel)),
+    x = .data$response, fill = reorder(.data$variable, as.numeric(.data$variable)))) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$response, 0), hjust = -0.1),
@@ -495,15 +486,13 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   # 2. Budget share comparison plot
-  plotDT_share <- dt_optimOut[, c("channels", "initSpendShare", "optmSpendShareUnit")][order(rank(channels))]
-  plotDT_share[, channels := as.factor(channels)]
-  chn_levels <- plotDT_share[, as.character(channels)]
-  plotDT_share[, channels := factor(channels, levels = chn_levels)]
-  fcts <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
-  setnames(plotDT_share, names(plotDT_share), new = fcts)
+  plotDT_share <- select(dt_optimOut, .data$channels, .data$initSpendShare, .data$optmSpendShareUnit) %>%
+    mutate(channels = as.factor(.data$channels))
+  names(plotDT_share) <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
   plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
   outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
-    y = .data$channel, x = .data$spend_share, fill = .data$variable)) +
+    y = reorder(.data$channel, -as.integer(.data$channel)),
+    x = .data$spend_share, fill = .data$variable)) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
@@ -517,18 +506,26 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       fill = NULL, x = "Budget Allocation [%]", y = NULL
     )
 
-  ## 3. Response curve
+  ## 3. Response curves
+  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "saturatedSpendReversed"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
+  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
+    solID == select_model & type == "decompMedia"
+  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
+  plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
+    filter(.data$spend >= 0) %>% as_tibble()
+
   dt_optimOutScurve <- rbind(
-    dt_optimOut[, .(channels, initSpendUnit, initResponseUnit)][, type := "Initial"],
-    dt_optimOut[, .(channels, optmSpendUnit, optmResponseUnit)][, type := "Optimised"],
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(type = "Initial"),
+    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(type = "Optimised"),
     use.names = FALSE
-  )
-  setnames(dt_optimOutScurve, c("channels", "spend", "response", "type"))
-  dt_optimOutScurve <- dt_optimOutScurve %>%
-    mutate(hjust = ifelse(.data$type == "Initial", 1.2, -0.2)) %>%
+  ) %>%
+    magrittr::set_colnames(c("channels", "spend", "response", "type")) %>%
     group_by(.data$channels) %>%
     mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
            response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))
+
   outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
     x = .data$spend, y = .data$response, color = .data$channel)) +
     geom_line() +
@@ -550,7 +547,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90")
     ) +
     labs(
-      title = "Response Curve and Mean Spend* by Channel",
+      title = "Response Curve and Mean* Spend by Channel",
       x = "Spend", y = "Response", shape = NULL, color = NULL,
       caption = sprintf(
         "*Based on date range: %s to %s (%s)",
