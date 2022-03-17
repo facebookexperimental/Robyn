@@ -330,6 +330,9 @@ robyn_allocator <- function(robyn_object = NULL,
     dt_optimOut = dt_optimOut,
     nlsMod = nlsMod,
     plots = plots,
+    scenario = scenario,
+    expected_spend = expected_spend,
+    expected_spend_days = expected_spend_days,
     ui = if (ui) plots else NULL
   )
 
@@ -345,13 +348,21 @@ print.robyn_allocator <- function(x, ...) {
   print(glued(
     "
 Model ID: {x$dt_optimOut$solID[1]}
-Total Spend Increase: {spend_increase_p}% ({spend_increase})
+Scenario: {scenario}
+Total Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
 Allocation Summary:
   {summary}
 ",
+    scenario = ifelse(
+      x$scenario == "max_historical_response",
+      "Maximum Historical Response",
+      "Maximum Response with Expected Spend"),
+    scenario_plus = ifelse(
+      x$scenario == "max_response_expected_spend",
+      sprintf(" in %s days", x$expected_spend_days), ""),
     spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
@@ -360,10 +371,13 @@ Allocation Summary:
     summary = paste(sprintf(
       "
 - %s:
-  Spend Share: Initial (avg) = %s%% -> Optimized = %s%%
-  Mean Response (per time unit): %s -> Optimized = %s
-  Response: %s -> Optimized = %s (Delta = %s%%)",
+  Optimizable Range (bounds): [%s%%, %s%%]
+  Mean Spend Share (avg): %s%% -> Optimized = %s%%
+  Mean Response: %s -> Optimized = %s
+  Mean Spend (per time unit): %s -> Optimized = %s [Delta = %s%%]",
       x$dt_optimOut$channels,
+      100 * x$dt_optimOut$constr_low - 100,
+      100 * x$dt_optimOut$constr_up - 100,
       signif(100 * x$dt_optimOut$initSpendShare, 3),
       signif(100 * x$dt_optimOut$optmSpendShareUnit, 3),
       formatNum(x$dt_optimOut$initResponseUnit, 0),

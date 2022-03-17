@@ -356,8 +356,8 @@ AllocatorCollect <- robyn_allocator(
   , scenario = "max_historical_response"
   , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
-  , date_min = "2017-12-01"
-  , date_max = "2018-02-01"
+  # , date_min = "2017-12-01"
+  # , date_max = "2018-02-01"
 )
 print(AllocatorCollect)
 # plot(AllocatorCollect)
