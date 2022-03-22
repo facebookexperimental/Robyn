@@ -958,7 +958,8 @@ robyn_response <- function(robyn_object = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
                            InputCollect = NULL,
-                           OutputCollect = NULL) {
+                           OutputCollect = NULL,
+                           quiet = FALSE) {
 
   ## Get input
   if (!is.null(robyn_object)) {
@@ -974,14 +975,14 @@ robyn_response <- function(robyn_object = NULL,
     select_build_all <- 0:(length(Robyn) - 1)
     if (is.null(select_build)) {
       select_build <- max(select_build_all)
-      message(
-        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model nr.", select_build)),
+      if (!quiet & length(select_build_all) > 1) message(
+        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)),
         " for the response function. Use parameter 'select_build' to specify which run to use"
       )
     }
 
     if (!(select_build %in% select_build_all) | length(select_build) != 1) {
-      stop("select_build must be one value of ", paste(select_build_all, collapse = ", "))
+      stop("'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
     }
 
     listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
@@ -1016,14 +1017,14 @@ robyn_response <- function(robyn_object = NULL,
   }
 
   ## get media valu
-  if (media_metric %in% paid_media_spends & length(media_metric)==1) {
+  if (media_metric %in% paid_media_spends & length(media_metric) == 1) {
     metric_type <- "spend"
-  } else if (media_metric %in% exposure_vars & length(media_metric)==1){
+  } else if (media_metric %in% exposure_vars & length(media_metric) == 1){
     metric_type <- "exposure"
-  } else if (media_metric %in% organic_vars & length(media_metric)==1) {
+  } else if (media_metric %in% organic_vars & length(media_metric) == 1) {
     metric_type <- "organic"
   } else {
-    stop("media_metric must be one value from paid_media_spends, paid_media_vars or organic_vars")
+    stop("'media_metric' must be one value from paid_media_spends, paid_media_vars or organic_vars")
   }
 
   if (!is.null(metric_value)) {
@@ -1040,7 +1041,7 @@ robyn_response <- function(robyn_object = NULL,
     # use non-0 mean as marginal level if metric_value not provided
     if (is.null(metric_value)) {
       metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
-      message("'metric_value' not provided. Using mean of ", media_metric, " instead")
+      if (!quiet) message("'metric_value' not provided. Using mean of ", media_metric, " instead")
     }
 
     # fit spend to exposure
@@ -1061,7 +1062,7 @@ robyn_response <- function(robyn_object = NULL,
     # use non-0 means marginal level if spend not provided
     if (is.null(metric_value)) {
       metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
-      message("metric_value not provided. using mean of ", media_metric, " instead")
+      if (!quiet) message("'metric_value' not provided. Using mean of ", media_metric, " instead")
     }
     hpm_name <- media_metric
   }

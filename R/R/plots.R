@@ -520,8 +520,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(type = "Initial"),
     select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(type = "Optimised"),
     use.names = FALSE
-  ) %>%
-    magrittr::set_colnames(c("channels", "spend", "response", "type")) %>%
+  )
+  colnames(dt_optimOutScurve) <- c("channels", "spend", "response", "type")
+  dt_optimOutScurve <- dt_optimOutScurve %>%
     group_by(.data$channels) %>%
     mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
            response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))

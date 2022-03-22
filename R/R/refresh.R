@@ -12,27 +12,21 @@
 #' @return (Invisible) file's name.
 #' @examples
 #' \dontrun{
-#' ## Get all model IDs in result from OutputCollect$allSolutions
-#'
-#' ## Select one from above
+#' # Get model IDs from OutputCollect
 #' select_model <- "3_10_3"
 #'
-#' ## Save the robyn object. Overwriting old object needs confirmation.
-#' robyn_object <- "~/Desktop/Robyn.RDS"
+#' # Save the results. Overwriting old object needs confirmation.
 #' robyn_save(
-#'   robyn_object = robyn_object,
-#'   select_model = select_model,
+#'   robyn_object = "~/Desktop/Robyn.RDS",
 #'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect
+#'   OutputCollect = OutputCollect,
+#'   select_model = select_model
 #' )
 #' }
 #' @export
-robyn_save <- function(robyn_object,
-                       select_model,
-                       InputCollect,
-                       OutputCollect) {
+robyn_save <- function(robyn_object, InputCollect, OutputCollect, select_model = NULL) {
   check_robyn_object(robyn_object)
-
+  if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
     stop(paste0("'select_model' must be one of these values: ", paste(
       OutputCollect$resultHypParam$solID,
@@ -66,16 +60,16 @@ robyn_save <- function(robyn_object,
 #' Build Refresh Model
 #'
 #' @description
-#' \code{robyn_refresh()} builds update models based on
+#' \code{robyn_refresh()} builds updated models based on
 #' the previously built models saved in the \code{Robyn.RDS} object specified
 #' in \code{robyn_object}. For example, when updating the initial build with 4
 #' weeks of new data, \code{robyn_refresh()} consumes the selected model of
-#' the initial build. it sets lower and upper bounds of hyperparameters for the
+#' the initial build, sets lower and upper bounds of hyperparameters for the
 #' new build around the selected hyperparameters of the previous build,
-#' stabilizes the effect of baseline variables across old and new builds and
+#' stabilizes the effect of baseline variables across old and new builds, and
 #' regulates the new effect share of media variables towards the latest
-#' spend level. It returns aggregated result with all previous builds for
-#' reporting purpose and produces reporting plots.
+#' spend level. It returns the aggregated results with all previous builds for
+#' reporting purposes and produces reporting plots.
 #'
 #' You must run \code{robyn_save()} to select and save an initial model first,
 #' before refreshing.

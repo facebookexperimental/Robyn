@@ -273,7 +273,7 @@ OutputModels <- robyn_run(
   #, cores = NULL # default
   #, add_penalty_factor = FALSE # Untested feature. Use with caution.
   , iterations = 2000 # recommended for the dummy dataset
-  , trials = 5 # recommended for the dummy dataset
+  , trials = 3 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
@@ -494,29 +494,32 @@ response_imps$plot
 ## Example of getting organic media exposure response curves
 sendings <- 30000
 response_sending <- robyn_response(
-  robyn_object = robyn_object
-  #, select_build = 1
-  , media_metric = "newsletter"
-  , metric_value = sendings)
+  robyn_object = robyn_object,
+  # select_build = 0,
+  media_metric = "newsletter",
+  metric_value = sendings)
 response_sending$response / sendings * 1000
 response_sending$plot
 
 ################################################################
 #### Optional: get old model results
 
-# Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-21 11.29 rf11/pareto_hyperparameters.csv")
-select_model <- "1_51_11"
-dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
+# Get InputCollect and selected model ID
+robyn_object <- "~/Desktop/MyRobyn.RDS"
+MyOldRobyn <- readRDS(robyn_object)
+select_model <- MyOldRobyn[[length(MyOldRobyn)]]$OutputCollect$selectID
+# Get hyperparameters for selected model
+dt_hyper_fixed <- read.csv("~/Desktop/2022-03-22 16.47 init/pareto_hyperparameters.csv")
+dt_hyper_fixed <- dt_hyper_fixed[dt_hyper_fixed$solID == select_model,]
 
+# Re-generate OutputCollect with fixed hyperparameters
 OutputCollectFixed <- robyn_run(
-  # InputCollect must be provided by robyn_inputs with same dataset and parameters as before
-  InputCollect = InputCollect
-  , plot_folder = robyn_object
-  , dt_hyper_fixed = dt_hyper_fixed)
+  InputCollect = MyOldRobyn$listInit$InputCollect,
+  plot_folder = robyn_object,
+  dt_hyper_fixed = dt_hyper_fixed)
 
 # Save Robyn object for further refresh
-robyn_save(robyn_object = robyn_object
-           , select_model = select_model
-           , InputCollect = InputCollect
-           , OutputCollect = OutputCollectFixed)
+robyn_save(robyn_object = robyn_object,
+           InputCollect = InputCollect,
+           OutputCollect = OutputCollectFixed,
+           select_model = select_model)

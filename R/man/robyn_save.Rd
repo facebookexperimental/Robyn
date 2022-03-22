@@ -4,23 +4,23 @@
 \alias{robyn_save}
 \title{Export Robyn Model to Local File}
 \usage{
-robyn_save(robyn_object, select_model, InputCollect, OutputCollect)
+robyn_save(robyn_object, InputCollect, OutputCollect, select_model = NULL)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
-
-\item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
-is provided, \code{select_model} defaults to the already selected \code{SolID}. When
-\code{robyn_object} is not provided, \code{select_model} must be provided with
-\code{InputCollect} and \code{OutputCollect}, and must be one of
-\code{OutputCollect$allSolutions}.}
 
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
+
+\item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
+is provided, \code{select_model} defaults to the already selected \code{SolID}. When
+\code{robyn_object} is not provided, \code{select_model} must be provided with
+\code{InputCollect} and \code{OutputCollect}, and must be one of
+\code{OutputCollect$allSolutions}.}
 }
 \value{
 (Invisible) file's name.
@@ -30,18 +30,15 @@ Use \code{robyn_save()} to select and save as .RDS file the initial model.
 }
 \examples{
 \dontrun{
-## Get all model IDs in result from OutputCollect$allSolutions
-
-## Select one from above
+# Get model IDs from OutputCollect
 select_model <- "3_10_3"
 
-## Save the robyn object. Overwriting old object needs confirmation.
-robyn_object <- "~/Desktop/Robyn.RDS"
+# Save the results. Overwriting old object needs confirmation.
 robyn_save(
-  robyn_object = robyn_object,
-  select_model = select_model,
+  robyn_object = "~/Desktop/Robyn.RDS",
   InputCollect = InputCollect,
-  OutputCollect = OutputCollect
+  OutputCollect = OutputCollect,
+  select_model = select_model
 )
 }
 }

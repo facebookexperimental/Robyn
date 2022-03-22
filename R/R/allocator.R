@@ -162,16 +162,16 @@ robyn_allocator <- function(robyn_object = NULL,
   names(coefSelectorSorted) <- dt_coefSorted$rn
 
   ## Filter and sort all variables by name that is essential for the apply function later
-  mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   if (!all(coefSelectorSorted)) {
-    chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSortedFiltered)
+    chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSorted[coefSelectorSorted])
     message("Excluded in optimiser because their coeffients are 0: ", paste(chn_coef0, collapse = ", "))
   }
+  mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
   setcolorder(dt_hyppar, sort(names(dt_hyppar)))
   dt_bestCoef <- dt_bestCoef[rn %in% mediaSpendSortedFiltered]
-  channelConstrLowSorted <- channel_constr_low[coefSelectorSorted]
-  channelConstrUpSorted <- channel_constr_up[coefSelectorSorted]
+  channelConstrLowSorted <- channel_constr_low[mediaSpendSortedFiltered]
+  channelConstrUpSorted <- channel_constr_up[mediaSpendSortedFiltered]
 
   ## Get adstock parameters for each channel
   getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)
@@ -196,7 +196,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
   histSpendTotal <- sum(histSpendB)
-  histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSorted)), sum))
+  histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
   histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
   histSpendUnitTotal <- sum(histSpendUnit)
   histSpendShare <- histSpendUnit / histSpendUnitTotal
@@ -215,7 +215,8 @@ robyn_allocator <- function(robyn_object = NULL,
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
-        OutputCollect = OutputCollect
+        OutputCollect = OutputCollect,
+        quiet = quiet
       )$response
     )
   }
@@ -291,8 +292,8 @@ robyn_allocator <- function(robyn_object = NULL,
     date_min = date_min,
     date_max = date_max,
     periods = sprintf("%s %ss", nPeriod, InputCollect$intervalType),
-    constr_low = channel_constr_low,
-    constr_up = channel_constr_up,
+    constr_low = channelConstrLowSorted,
+    constr_up = channelConstrUpSorted,
     # Initial
     histSpend = histSpend,
     histSpendTotal = histSpendTotal,

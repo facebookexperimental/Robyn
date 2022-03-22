@@ -65,7 +65,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   if (!isTRUE(attr(OutputModels, "hyper_fixed"))) message(sprintf(
     ">>> Running Pareto calculations for %s models on %s front%s...",
     totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
-  pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint)
+  pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet)
   allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
   #####################################
