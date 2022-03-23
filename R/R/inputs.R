@@ -285,7 +285,7 @@ robyn_inputs <- function(dt_input = NULL,
       adstock = adstock,
       hyperparameters = hyperparameters,
       calibration_input = calibration_input,
-      ...
+      custom_params = list(...)
     )
 
     ### Use case 1: running robyn_inputs() for the first time
@@ -322,7 +322,6 @@ robyn_inputs <- function(dt_input = NULL,
       output <- robyn_engineering(InputCollect, ...)
     }
   }
-  output$custom_params <- list(...)
   class(output) <- c("robyn_inputs", class(output))
   return(output)
 }
@@ -616,10 +615,9 @@ robyn_engineering <- function(x, ...) {
   #### Obtain prophet trend, seasonality and change-points
 
   if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
-    custom_params <- list(...) # custom_params <- list()
     if (length(InputCollect[["custom_params"]]) > 0) {
       custom_params <- InputCollect[["custom_params"]]
-    }
+    } else custom_params <- list(...) # custom_params <- list()
     robyn_args <- setdiff(
       unique(c(names(as.list(args(robyn_run))),
                names(as.list(args(robyn_outputs))),
