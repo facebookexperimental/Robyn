@@ -188,11 +188,11 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         } else if (InputCollect$adstock == "weibull_cdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
         } else if (InputCollect$adstock == "weibull_pdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
         }
         m_adstocked <- x_list$x_decayed
         dt_transformAdstock[, (med_select) := m_adstocked]

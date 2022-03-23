@@ -1078,11 +1078,11 @@ robyn_response <- function(robyn_object = NULL,
   } else if (adstock == "weibull_cdf") {
     shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
     scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "cdf")
   } else if (adstock == "weibull_pdf") {
     shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
     scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
+    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "pdf")
   }
   m_adstocked <- x_list$x_decayed
 
