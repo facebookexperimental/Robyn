@@ -512,11 +512,11 @@ robyn_mmm <- function(InputCollect,
             } else if (adstock == "weibull_cdf") {
               shape <- hypParamSam[paste0(all_media[v], "_shapes")]
               scale <- hypParamSam[paste0(all_media[v], "_scales")]
-              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "cdf")
+              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
             } else if (adstock == "weibull_pdf") {
               shape <- hypParamSam[paste0(all_media[v], "_shapes")]
               scale <- hypParamSam[paste0(all_media[v], "_scales")]
-              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = rollingWindowLength, type = "pdf")
+              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
             }
             m_adstocked <- x_list$x_decayed
             mediaAdstocked[[v]] <- m_adstocked
@@ -1078,11 +1078,11 @@ robyn_response <- function(robyn_object = NULL,
   } else if (adstock == "weibull_cdf") {
     shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
     scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "cdf")
   } else if (adstock == "weibull_pdf") {
     shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
     scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
+    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "pdf")
   }
   m_adstocked <- x_list$x_decayed
 
