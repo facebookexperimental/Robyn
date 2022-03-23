@@ -628,7 +628,7 @@ robyn_engineering <- function(x, ...) {
       c("", "..."))
     prophet_custom_args <- setdiff(names(custom_params), robyn_args)
     if (length(prophet_custom_args)>0)
-      message(paste("Using custom prophet parameters:", paste(names(prophet_custom_args), collapse = ", ")))
+      message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
