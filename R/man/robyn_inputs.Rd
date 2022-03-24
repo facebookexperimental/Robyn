@@ -132,7 +132,9 @@ in full for the model calculation of trend, seasonality and holidays effects.
 Whereas the window period will determine how much of the full data set will be
 used for media, organic and context variables.}
 
-\item{calibration_input}{data.frame. Optional provide experimental results.
+\item{calibration_input}{data.frame. Optional. Provide experimental results to
+calibrate. Your input should include the following values for each experiment:
+channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
 Check "Guide for calibration source" section.}
 
 \item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when

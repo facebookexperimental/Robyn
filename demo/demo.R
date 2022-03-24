@@ -4,18 +4,22 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.6.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.6.1    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
 ################################################################
-#### Step 0: setup environment
+#### Step 0: Setup environment
 
-## Install and load libraries
+## Install, load, and check (latest) version
 # install.packages("remotes") # Install remotes first if you haven't already
 library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
 
-## force multicore when using RStudio
+# Please, check if you have installed the latest version before running this demo. Update if not
+# https://github.com/facebookexperimental/Robyn/blob/main/R/DESCRIPTION#L4
+packageVersion("Robyn")
+
+## Force multicore when using RStudio
 Sys.setenv(R_FUTURE_FORK_ENABLE="true")
 options(future.fork.enable = TRUE)
 
@@ -52,7 +56,7 @@ options(future.fork.enable = TRUE)
 # https://github.com/facebookexperimental/Robyn/issues/189
 
 ################################################################
-#### Step 1: load data
+#### Step 1: Load data
 
 ## Check simulated dataset or load your own dataset
 data("dt_simulated_weekly")
@@ -224,19 +228,23 @@ print(InputCollect)
 ## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
 ## As noted above, calibration channels need to be paid_media_spends name.
 ## ------------------------------------------------------------------------------------------ ##
-# dt_calibration <- data.frame(
-#   channel = c("facebook_S",  "tv_S", "facebook_S")
+# calibration_input <- data.frame(
 #   # channel name must in paid_media_vars
-#   , liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01"))
+#   channel = c("facebook_S",  "tv_S", "facebook_S"),
 #   # liftStartDate must be within input data range
-#   , liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20"))
+#   liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01")),
 #   # liftEndDate must be within input data range
-#   , liftAbs = c(400000, 300000, 200000) # Provided value must be
-#   # tested on same campaign level in model and same metric as dep_var_type
+#   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20")),
+#   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
+#   liftAbs = c(400000, 300000, 200000),
+#   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
+#   spend = c(421000, 7100, 240000),
+#   # Confidence: if frequentist experiment, you may use 1 - pvalue
+#   confidence = c(0.85, 0.8, 0.99),
+#   # KPI measured: must match your dep_var
+#   metric = c("revenue", "revenue", "revenue")
 # )
-#
-# InputCollect <- robyn_inputs(InputCollect = InputCollect
-#                              , calibration_input = dt_calibration)
+# InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
 
 
 ################################################################
@@ -273,7 +281,7 @@ OutputModels <- robyn_run(
   #, cores = NULL # default
   #, add_penalty_factor = FALSE # Untested feature. Use with caution.
   , iterations = 2000 # recommended for the dummy dataset
-  , trials = 3 # recommended for the dummy dataset
+  , trials = 5 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
 print(OutputModels)
@@ -328,12 +336,15 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-select_model <- "1_18_4" # select one from above
-robyn_save(robyn_object = robyn_object # model object location and name
-           , select_model = select_model # selected model ID
-           , InputCollect = InputCollect # all model input
-           , OutputCollect = OutputCollect # all model output
+select_model <- "1_101_4" # select one from above
+ExportedModel <- robyn_save(
+  robyn_object = robyn_object # model object location and name
+  , select_model = select_model # selected model ID
+  , InputCollect = InputCollect # all model input
+  , OutputCollect = OutputCollect # all model output
 )
+print(ExportedModel)
+# plot(ExportedModel)
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -345,6 +356,7 @@ robyn_save(robyn_object = robyn_object # model object location and name
 OutputCollect$xDecompAgg[solID == select_model & !is.na(mean_spend)
                          , .(rn, coef,mean_spend, mean_response, roi_mean
                              , total_spend, total_response=xDecompAgg, roi_total, solID)]
+# OR: print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the
@@ -356,11 +368,9 @@ AllocatorCollect <- robyn_allocator(
   , scenario = "max_historical_response"
   , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
-  # , date_min = "2017-12-01"
-  # , date_max = "2018-02-01"
 )
 print(AllocatorCollect)
-# plot(AllocatorCollect)
+AllocatorCollect$dt_optimOut
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -376,7 +386,7 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 7 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
-# plot(AllocatorCollect)
+AllocatorCollect$dt_optimOut
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -494,32 +504,29 @@ response_imps$plot
 ## Example of getting organic media exposure response curves
 sendings <- 30000
 response_sending <- robyn_response(
-  robyn_object = robyn_object,
-  # select_build = 0,
-  media_metric = "newsletter",
-  metric_value = sendings)
+  robyn_object = robyn_object
+  #, select_build = 1
+  , media_metric = "newsletter"
+  , metric_value = sendings)
 response_sending$response / sendings * 1000
 response_sending$plot
 
 ################################################################
 #### Optional: get old model results
 
-# Get InputCollect and selected model ID
-robyn_object <- "~/Desktop/MyRobyn.RDS"
-MyOldRobyn <- readRDS(robyn_object)
-select_model <- MyOldRobyn[[length(MyOldRobyn)]]$OutputCollect$selectID
-# Get hyperparameters for selected model
-dt_hyper_fixed <- read.csv("~/Desktop/2022-03-22 16.47 init/pareto_hyperparameters.csv")
-dt_hyper_fixed <- dt_hyper_fixed[dt_hyper_fixed$solID == select_model,]
+# Get old hyperparameters and select model
+dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-21 11.29 rf11/pareto_hyperparameters.csv")
+select_model <- "1_51_11"
+dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
-# Re-generate OutputCollect with fixed hyperparameters
 OutputCollectFixed <- robyn_run(
-  InputCollect = MyOldRobyn$listInit$InputCollect,
-  plot_folder = robyn_object,
-  dt_hyper_fixed = dt_hyper_fixed)
+  # InputCollect must be provided by robyn_inputs with same dataset and parameters as before
+  InputCollect = InputCollect
+  , plot_folder = robyn_object
+  , dt_hyper_fixed = dt_hyper_fixed)
 
 # Save Robyn object for further refresh
-robyn_save(robyn_object = robyn_object,
-           InputCollect = InputCollect,
-           OutputCollect = OutputCollectFixed,
-           select_model = select_model)
+robyn_save(robyn_object = robyn_object
+           , select_model = select_model
+           , InputCollect = InputCollect
+           , OutputCollect = OutputCollectFixed)

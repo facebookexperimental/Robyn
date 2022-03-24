@@ -107,7 +107,9 @@
 #' in full for the model calculation of trend, seasonality and holidays effects.
 #' Whereas the window period will determine how much of the full data set will be
 #' used for media, organic and context variables.
-#' @param calibration_input data.frame. Optional provide experimental results.
+#' @param calibration_input data.frame. Optional. Provide experimental results to
+#' calibrate. Your input should include the following values for each experiment:
+#' channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
@@ -176,55 +178,55 @@ robyn_inputs <- function(dt_input = NULL,
     dt_input <- as.data.table(dt_input)
     dt_holidays <- as.data.table(dt_holidays)
 
-    # check for NA values
+    ## Check for NA values
     check_nas(dt_input)
     check_nas(dt_holidays)
 
-    # check vars names (duplicates and valid)
+    ## Check vars names (duplicates and valid)
     check_varnames(dt_input, dt_holidays,
                    dep_var, date_var,
                    context_vars, paid_media_spends,
                    organic_vars)
 
-    ## check date input (and set dayInterval and intervalType)
+    ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
     dt_input <- date_input$dt_input # sort date by ascending
     date_var <- date_input$date_var # when date_var = "auto"
     dayInterval <- date_input$dayInterval
     intervalType <- date_input$intervalType
 
-    ## check dependent var
+    ## Check dependent var
     check_depvar(dt_input, dep_var, dep_var_type)
 
-    ## check prophet
+    ## Check prophet
     prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
 
-    ## check baseline variables (and maybe transform context_signs)
+    ## Check baseline variables (and maybe transform context_signs)
     context <- check_context(dt_input, context_vars, context_signs)
     context_signs <- context$context_signs
 
-    ## check paid media variables (set mediaVarCount and maybe transform paid_media_signs)
+    ## Check paid media variables (set mediaVarCount and maybe transform paid_media_signs)
     paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
     paid_media_signs <- paidmedia$paid_media_signs
     mediaVarCount <- paidmedia$mediaVarCount
     exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
-    ## check organic media variables (and maybe transform organic_signs)
+    ## Check organic media variables (and maybe transform organic_signs)
     organic <- check_organicvars(dt_input, organic_vars, organic_signs)
     organic_signs <- organic$organic_signs
 
-    ## check factor_vars
+    ## Check factor_vars
     check_factorvars(factor_vars, context_vars, organic_vars)
 
-    ## check all vars
+    ## Check all vars
     all_media <- c(paid_media_spends, organic_vars)
     all_ind_vars <- c(prophet_vars, context_vars, all_media)
     check_allvars(all_ind_vars)
 
-    ## check data dimension
+    ## Check data dimension
     check_datadim(dt_input, all_ind_vars, rel = 10)
 
-    ## check window_start & window_end (and transform parameters/data)
+    ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
     dt_input <- windows$dt_input
     window_start <- windows$window_start
@@ -234,21 +236,21 @@ robyn_inputs <- function(dt_input = NULL,
     rollingWindowEndWhich <- windows$rollingWindowEndWhich
     rollingWindowLength <- windows$rollingWindowLength
 
-    ## check adstock
+    ## Check adstock
     adstock <- check_adstock(adstock)
 
-    ## check hyperparameters (if passed)
+    ## Check hyperparameters (if passed)
     hyperparameters <- check_hyperparameters(
       hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars)
 
-    ## check calibration and iters/trials
-    calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval)
+    ## Check calibration and iters/trials
+    calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_var)
 
     ## Not used variables
     unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
       dep_var, date_var, context_vars, paid_media_vars, paid_media_spends, organic_vars)]
 
-    ## collect input
+    ## Collect input
     InputCollect <- output <- list(
       dt_input = dt_input,
       dt_holidays = dt_holidays,
@@ -288,35 +290,34 @@ robyn_inputs <- function(dt_input = NULL,
       ...
     )
 
-    ### Use case 1: running robyn_inputs() for the first time
     if (!is.null(hyperparameters)) {
-      ### conditional output 1.2
-      ## running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
+      ### Conditional output 1.2
+      ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
       output <- robyn_engineering(InputCollect, ...)
     }
 
   } else {
-
+    ### Use case 2: adding 'hyperparameters' and/or 'calibration_input' using robyn_inputs()
     # Check for legacy (deprecated) inputs
     check_legacy_input(InputCollect)
 
-    ### Use case 2: adding 'hyperparameters' and/or 'calibration_input' using robyn_inputs()
-    ## check calibration and iters/trials
+    ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       InputCollect$dt_input,
       InputCollect$date_var,
       calibration_input,
-      InputCollect$dayInterval
+      InputCollect$dayInterval,
+      InputCollect$dep_var
     )
-    ## update calibration_input
+    ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
     if (!is.null(hyperparameters)) InputCollect$hyperparameters <- hyperparameters
     if (is.null(InputCollect$hyperparameters) & is.null(hyperparameters)) {
       stop("must provide hyperparameters in robyn_inputs()")
     } else {
-      ### conditional output 2.1
+      ### Conditional output 2.1
       ## 'hyperparameters' provided --> run robyn_engineering()
-      ## update & check hyperparameters
+      ## Update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
       check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
       output <- robyn_engineering(InputCollect, ...)

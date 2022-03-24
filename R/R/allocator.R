@@ -165,7 +165,7 @@ robyn_allocator <- function(robyn_object = NULL,
   if (!all(coefSelectorSorted)) {
     chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSorted[coefSelectorSorted])
     message("Excluded in optimiser because their coeffients are 0: ", paste(chn_coef0, collapse = ", "))
-  }
+  } else chn_coef0 <- "None"
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
   setcolorder(dt_hyppar, sort(names(dt_hyppar)))
@@ -334,6 +334,7 @@ robyn_allocator <- function(robyn_object = NULL,
     scenario = scenario,
     expected_spend = expected_spend,
     expected_spend_days = expected_spend_days,
+    skipped = chn_coef0,
     ui = if (ui) plots else NULL
   )
 
@@ -350,6 +351,7 @@ print.robyn_allocator <- function(x, ...) {
     "
 Model ID: {x$dt_optimOut$solID[1]}
 Scenario: {scenario}
+Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')}
 Total Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})

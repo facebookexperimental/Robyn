@@ -28,7 +28,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         geom_line(color = "steelblue") +
         facet_wrap(~variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition") +
-        xlab(NULL) + ylab(NULL) + theme_lares()
+        xlab(NULL) + ylab(NULL) + theme_lares() + scale_y_abbr()
       if (export) {
         ggsave(
           paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
@@ -544,8 +544,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     # ) +
     theme_lares(legend.position = c(0.9, 0), pal = 2) +
     theme(
-      legend.position = c(0.9, 0.5),
-      legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90")
+      legend.position = c(0.87, 0.5),
+      legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90"),
+      legend.spacing.y = unit(0.2, 'cm')
     ) +
     labs(
       title = "Response Curve and Mean* Spend by Channel",

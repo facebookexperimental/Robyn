@@ -416,15 +416,45 @@ check_hyper_limits <- function(hyperparameters, hyper) {
   }
 }
 
-check_calibration <- function(dt_input, date_var, calibration_input, dayInterval) {
+check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var) {
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
-    if (!all(names(calibration_input) %in% c("channel", "liftStartDate", "liftEndDate", "liftAbs"))) {
+    if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("calibration_input must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
     if ((min(calibration_input$liftStartDate) < min(dt_input[, get(date_var)])) |
       (max(calibration_input$liftEndDate) > (max(dt_input[, get(date_var)]) + dayInterval - 1))) {
       stop("We recommend you to only use lift results conducted within your MMM input data date range")
+    }
+    if ("spend" %in% colnames(calibration_input)) {
+      for (i in 1:nrow(calibration_input)) {
+        temp <- calibration_input[i, ]
+        dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
+          pull(get(temp$channel)) %>% sum(.) %>% round(., 0)
+        if (dt_input_spend > temp$spend * 1.1 | dt_input_spend < temp$spend * 0.9) {
+          warning(sprintf("Your calibration's spend (%s) for %s between %s and %s does not match your dt_input spend (~%s)",
+                          formatNum(temp$spend, 0), temp$channel, temp$liftStartDate, temp$liftEndDate,
+                          formatNum(dt_input_spend, 3, abbr = TRUE)))
+        }
+      }
+    }
+    if ("confidence" %in% colnames(calibration_input)) {
+      for (i in 1:nrow(calibration_input)) {
+        temp <- calibration_input[i, ]
+        if (temp$confidence < 0.8) {
+          warning(sprintf("Your calibration's confidence for %s between %s and %s is lower than 80%%, thus low-confidence",
+                          temp$channel, temp$liftStartDate, temp$liftEndDate))
+        }
+      }
+    }
+    if ("metric" %in% colnames(calibration_input)) {
+      for (i in 1:nrow(calibration_input)) {
+        temp <- calibration_input[i, ]
+        if (temp$metric != dep_var) {
+          warning(sprintf("Your calibration's metric for %s between %s and %s is not '%s'",
+                          temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var))
+        }
+      }
     }
   }
   return(calibration_input)
