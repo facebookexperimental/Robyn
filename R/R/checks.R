@@ -432,9 +432,11 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
         dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
           pull(get(temp$channel)) %>% sum(.) %>% round(., 0)
         if (dt_input_spend > temp$spend * 1.1 | dt_input_spend < temp$spend * 0.9) {
-          warning(sprintf("Your calibration's spend (%s) for %s between %s and %s does not match your dt_input spend (~%s)",
-                          formatNum(temp$spend, 0), temp$channel, temp$liftStartDate, temp$liftEndDate,
-                          formatNum(dt_input_spend, 3, abbr = TRUE)))
+          warning(sprintf(paste(
+            "Your calibration's spend (%s) for %s between %s and %s does not match your dt_input spend (~%s).",
+            "Please, check again your dates or split your media inputs into separate media channels."),
+            formatNum(temp$spend, 0), temp$channel, temp$liftStartDate, temp$liftEndDate,
+            formatNum(dt_input_spend, 3, abbr = TRUE)))
         }
       }
     }
@@ -442,8 +444,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$confidence < 0.8) {
-          warning(sprintf("Your calibration's confidence for %s between %s and %s is lower than 80%%, thus low-confidence",
-                          temp$channel, temp$liftStartDate, temp$liftEndDate))
+          warning(sprintf(paste(
+            "Your calibration's confidence for %s between %s and %s is lower than 80%%, thus low-confidence.",
+            "Consider getting rid of this experiment and running it again."),
+            temp$channel, temp$liftStartDate, temp$liftEndDate))
         }
       }
     }
@@ -451,8 +455,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$metric != dep_var) {
-          warning(sprintf("Your calibration's metric for %s between %s and %s is not '%s'",
-                          temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var))
+          warning(sprintf(paste(
+            "Your calibration's metric for %s between %s and %s is not '%s'.",
+            "Please, remove this experiment from 'calibration_input'."),
+            temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var))
         }
       }
     }
