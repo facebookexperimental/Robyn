@@ -131,7 +131,7 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
   }
 }
 
-check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_signs) {
+check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval) {
   if (is.null(prophet_vars)) {
     prophet_signs <- NULL
     prophet_country <- NULL
@@ -140,6 +140,9 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     opts <- c("trend", "season", "weekday", "holiday")
     if (!all(prophet_vars %in% opts)) {
       stop("Allowed values for 'prophet_vars' are: ", paste(opts, collapse = ", "))
+    }
+    if ("weekday" %in% prophet_vars & dayInterval > 7) {
+      warning("Ignoring prophet_vars = 'weekday' input given your data granularity")
     }
     if (is.null(prophet_country) | length(prophet_country) > 1 |
       !prophet_country %in% unique(dt_holidays$country)) {
@@ -152,7 +155,6 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     }
     if (is.null(prophet_signs)) {
       prophet_signs <- rep("default", length(prophet_vars))
-      # message("'prophet_signs' were not provided. 'default' is used")
     }
     if (!all(prophet_signs %in% opts_pnd)) {
       stop("Allowed values for 'prophet_signs' are: ", paste(opts_pnd, collapse = ", "))

@@ -370,7 +370,7 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
-AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -387,6 +387,7 @@ AllocatorCollect <- robyn_allocator(
 )
 print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

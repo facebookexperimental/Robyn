@@ -14,6 +14,7 @@ prophet_decomp(
   context_vars,
   paid_media_spends,
   intervalType,
+  dayInterval,
   custom_params
 )
 }
@@ -22,19 +23,9 @@ prophet_decomp(
 
 \item{dt_holidays}{As in \code{robyn_inputs()}}
 
-\item{prophet_country}{As in \code{robyn_inputs()}}
+\item{prophet_country, prophet_vars, prophet_signs, factor_vars}{As included in \code{InputCollect}}
 
-\item{prophet_vars}{As in \code{robyn_inputs()}}
-
-\item{prophet_signs}{As in \code{robyn_inputs()}}
-
-\item{factor_vars}{As in \code{robyn_inputs()}}
-
-\item{context_vars}{As in \code{robyn_inputs()}}
-
-\item{paid_media_spends}{As in \code{robyn_inputs()}}
-
-\item{intervalType}{As included in \code{InputCollect}}
+\item{context_vars, paid_media_spends, intervalType, dayInterval}{As included in \code{InputCollect}}
 
 \item{custom_params}{List. Custom parameters passed to \code{prophet()}}
 }

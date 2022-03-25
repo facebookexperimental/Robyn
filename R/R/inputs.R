@@ -199,7 +199,7 @@ robyn_inputs <- function(dt_input = NULL,
     check_depvar(dt_input, dep_var, dep_var_type)
 
     ## Check prophet
-    prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
+    prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
 
     ## Check baseline variables (and maybe transform context_signs)
     context <- check_context(dt_input, context_vars, context_signs)
@@ -640,6 +640,7 @@ robyn_engineering <- function(x, ...) {
       context_vars = InputCollect$context_vars,
       paid_media_spends = paid_media_spends,
       intervalType = InputCollect$intervalType,
+      dayInterval = InputCollect$dayInterval,
       custom_params = custom_params
     )
   }
@@ -668,20 +669,17 @@ robyn_engineering <- function(x, ...) {
 #' dependent variable.
 #' @param dt_transform A data.frame with all model features.
 #' @param dt_holidays As in \code{robyn_inputs()}
-#' @param prophet_country As in \code{robyn_inputs()}
-#' @param prophet_vars As in \code{robyn_inputs()}
-#' @param prophet_signs As in \code{robyn_inputs()}
-#' @param factor_vars As in \code{robyn_inputs()}
-#' @param context_vars As in \code{robyn_inputs()}
-#' @param paid_media_spends As in \code{robyn_inputs()}
-#' @param intervalType As included in \code{InputCollect}
+#' @param context_vars,paid_media_spends,intervalType,dayInterval
+#' As included in \code{InputCollect}
+#' @param prophet_country,prophet_vars,prophet_signs,factor_vars
+#' As included in \code{InputCollect}
 #' @param custom_params List. Custom parameters passed to \code{prophet()}
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
                            factor_vars, context_vars, paid_media_spends,
-                           intervalType, custom_params) {
-  check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs)
+                           intervalType, dayInterval, custom_params) {
+  check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
   recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
   colnames(recurrence)[2] <- "y"
 
@@ -698,7 +696,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
                                 custom_params[["yearly.seasonality"]],
                                 use_season),
-    weekly.seasonality = ifelse("weekly.seasonality" %in% names(custom_params),
+    weekly.seasonality = ifelse("weekly.seasonality" %in% names(custom_params) & dayInterval <= 7,
                                 custom_params[["weekly.seasonality"]],
                                 use_weekday),
     daily.seasonality = FALSE # No hourly models allowed
