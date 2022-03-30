@@ -352,7 +352,7 @@ print.robyn_allocator <- function(x, ...) {
 Model ID: {x$dt_optimOut$solID[1]}
 Scenario: {scenario}
 Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')}
-Total Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
+Relative Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
@@ -363,14 +363,14 @@ Allocation Summary:
       x$scenario == "max_historical_response",
       "Maximum Historical Response",
       "Maximum Response with Expected Spend"),
-    scenario_plus = ifelse(
-      x$scenario == "max_response_expected_spend",
-      sprintf(" in %s days", x$expected_spend_days), ""),
     spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
-      abbr = TRUE
+      abbr = TRUE, sign = TRUE
     ),
+    scenario_plus = ifelse(
+      x$scenario == "max_response_expected_spend",
+      sprintf(" in %s days", x$expected_spend_days), ""),
     summary = paste(sprintf(
       "
 - %s:
