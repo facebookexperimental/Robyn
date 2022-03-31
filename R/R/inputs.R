@@ -287,7 +287,7 @@ robyn_inputs <- function(dt_input = NULL,
       adstock = adstock,
       hyperparameters = hyperparameters,
       calibration_input = calibration_input,
-      ...
+      custom_params = list(...)
     )
 
     if (!is.null(hyperparameters)) {
@@ -323,7 +323,6 @@ robyn_inputs <- function(dt_input = NULL,
       output <- robyn_engineering(InputCollect, ...)
     }
   }
-  output$custom_params <- list(...)
   class(output) <- c("robyn_inputs", class(output))
   return(output)
 }
@@ -626,10 +625,9 @@ robyn_engineering <- function(x, ...) {
   #### Obtain prophet trend, seasonality and change-points
 
   if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
-    custom_params <- list(...) # custom_params <- list()
     if (length(InputCollect[["custom_params"]]) > 0) {
       custom_params <- InputCollect[["custom_params"]]
-    }
+    } else custom_params <- list(...) # custom_params <- list()
     robyn_args <- setdiff(
       unique(c(names(as.list(args(robyn_run))),
                names(as.list(args(robyn_outputs))),
@@ -638,7 +636,7 @@ robyn_engineering <- function(x, ...) {
       c("", "..."))
     prophet_custom_args <- setdiff(names(custom_params), robyn_args)
     if (length(prophet_custom_args)>0)
-      message(paste("Using custom prophet parameters:", paste(names(prophet_custom_args), collapse = ", ")))
+      message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -865,7 +863,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   if (intervalType == "week") {
     weekStartInput <- lubridate::wday(dt_transform$ds[1], week_start = 1)
     if (!weekStartInput %in% c(1, 7)) stop("Week start has to be Monday or Sunday")
-    dt_holidays$dsWeekStart <- floor_date(dt_holidays$ds, unit = "week", week_start = 1)
+    dt_holidays$dsWeekStart <- floor_date(dt_holidays$ds, unit = "week", week_start = weekStartInput)
     holidays <- dt_holidays[, .(ds = dsWeekStart, holiday, country, year)]
     holidays <- holidays[, lapply(.SD, paste0, collapse = "#"), by = c("ds", "country", "year"), .SDcols = "holiday"]
   }

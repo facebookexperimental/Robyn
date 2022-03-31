@@ -112,7 +112,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   if (export) {
     fwrite(output$data, file = paste0(path, "pareto_clusters.csv"))
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
-    ggsave(paste0(path, "pareto_clusters_corr.png"), plot = output$corrs, dpi = 500, width = 7, height = 5)
+    # ggsave(paste0(path, "pareto_clusters_corr.png"), plot = output$corrs, dpi = 500, width = 7, height = 5)
     db <- wrap_plots(output$plot_models_rois, output$plot_models_errors)
     ggsave(paste0(path, "pareto_clusters_detail.png"), plot = db, dpi = 600, width = 12, height = 9)
   }
@@ -120,6 +120,28 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   return(output)
 
 }
+
+# # Mean Media ROI by Cluster
+# df %>%
+#   mutate(cluster = sprintf("Cluster %s", cls$df$cluster)) %>%
+#   select(-.data$mape, -.data$decomp.rssd, -.data$nrmse, -.data$solID) %>%
+#   group_by(.data$cluster) %>%
+#   summarize_all(list(mean)) %>%
+#   tidyr::pivot_longer(-one_of("cluster"), names_to = "media", values_to = "meanROI") %>%
+#   ggplot(aes(y = reorder(.data$media, .data$meanROI), x = .data$meanROI)) +
+#   facet_grid(.data$cluster~.) +
+#   geom_col() + theme_lares() +
+#   labs(title = "Mean Media ROI by Cluster",
+#        x = "(Un-normalized) mean ROI within clsuter", y = NULL)
+# df %>%
+#   mutate(cluster = sprintf("Cluster %s", cls$df$cluster)) %>%
+#   select(-.data$solID, -.data$mape, -.data$decomp.rssd, -.data$nrmse) %>%
+#   tidyr::pivot_longer(-one_of("cluster"), names_to = "media", values_to = "roi") %>%
+#   ggplot(aes(y = reorder(.data$media, .data$roi), x = .data$roi)) +
+#   facet_grid(.data$cluster~.) +
+#   geom_boxplot() + theme_lares() +
+#   labs(title = "Media ROI by Cluster",
+#        x = "(Un-normalized) ROI", y = NULL)
 
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
 .prepare_roi <- function(x, all_media) {
@@ -171,7 +193,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   balance <- balance / sum(balance)
   left_join(df, select(top_sols, 1:3), "solID") %>%
     mutate(
-      alpha = ifelse(is.na(.data$cluster), 0.5, 1),
+      alpha = ifelse(is.na(.data$cluster), 0.6, 1),
       label = ifelse(!is.na(.data$cluster), sprintf(
         "[%s.%s]", .data$cluster, .data$rank
       ), NA)

@@ -9,7 +9,7 @@
 #' Use \code{robyn_save()} to select and save as .RDS file the initial model.
 #'
 #' @inheritParams robyn_allocator
-#' @return (Invisible) file's name.
+#' @return (Invisible) list with filename and summary.
 #' @examples
 #' \dontrun{
 #' # Get model IDs from OutputCollect
@@ -24,7 +24,11 @@
 #' )
 #' }
 #' @export
-robyn_save <- function(robyn_object, InputCollect, OutputCollect, select_model = NULL) {
+robyn_save <- function(robyn_object,
+                       select_model,
+                       InputCollect,
+                       OutputCollect,
+                       quiet = FALSE) {
   check_robyn_object(robyn_object)
   if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
@@ -34,10 +38,23 @@ robyn_save <- function(robyn_object, InputCollect, OutputCollect, select_model =
     )))
   }
 
+  output <- list(
+    robyn_object = robyn_object,
+    select_model = select_model,
+    summary = OutputCollect$xDecompAgg[
+      solID == select_model & !is.na(mean_spend)
+      , .(rn, coef,mean_spend, mean_response, roi_mean
+          , total_spend, total_response = xDecompAgg, roi_total)],
+    plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE))
+  class(output) <- c("robyn_save", class(output))
+
   if (file.exists(robyn_object)) {
-    answer <- askYesNo(paste0(robyn_object, " already exists. Are you certain to overwrite it?"))
+    if (!quiet) {
+      answer <- askYesNo(paste0(robyn_object, " already exists. Are you certain to overwrite it?"))
+    } else answer <- TRUE
     if (answer == FALSE | is.na(answer)) {
-      stop("stopped")
+      message("Stopped export to avoid overwriting")
+      return(invisible(output))
     }
   }
 
@@ -50,10 +67,32 @@ robyn_save <- function(robyn_object, InputCollect, OutputCollect, select_model =
   InputCollect$refreshCounter <- 0
   listInit <- list(OutputCollect = OutputCollect, InputCollect = InputCollect)
   Robyn <- list(listInit = listInit)
-  saveRDS(Robyn, file = robyn_object)
 
-  return(invisible(robyn_object))
+  saveRDS(Robyn, file = robyn_object)
+  if (!quiet) message("Exported results: ", robyn_object)
+  return(invisible(output))
 }
+
+#' @rdname robyn_save
+#' @aliases robyn_save
+#' @param x \code{robyn_save()} output.
+#' @export
+print.robyn_save <- function(x, ...) {
+  print(glued(
+    "
+  Exported file: {x$robyn_object}
+  Exported model: {x$select_model}
+
+  Media Summary for Selected Model:
+  "))
+  print(x$summary)
+}
+
+#' @rdname robyn_save
+#' @aliases robyn_save
+#' @param x \code{robyn_save()} output.
+#' @export
+plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 
 
 ####################################################################

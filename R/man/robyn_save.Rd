@@ -2,9 +2,21 @@
 % Please edit documentation in R/refresh.R
 \name{robyn_save}
 \alias{robyn_save}
+\alias{print.robyn_save}
+\alias{plot.robyn_save}
 \title{Export Robyn Model to Local File}
 \usage{
-robyn_save(robyn_object, InputCollect, OutputCollect, select_model = NULL)
+robyn_save(
+  robyn_object,
+  select_model,
+  InputCollect,
+  OutputCollect,
+  quiet = FALSE
+)
+
+\method{print}{robyn_save}(x, ...)
+
+\method{plot}{robyn_save}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
@@ -16,14 +28,14 @@ Required when \code{robyn_object} is not provided.}
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
 
-\item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
-is provided, \code{select_model} defaults to the already selected \code{SolID}. When
-\code{robyn_object} is not provided, \code{select_model} must be provided with
-\code{InputCollect} and \code{OutputCollect}, and must be one of
-\code{OutputCollect$allSolutions}.}
+\item{quiet}{Boolean. Keep messages off?}
+
+\item{x}{\code{robyn_save()} output.}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
-(Invisible) file's name.
+(Invisible) list with filename and summary.
 }
 \description{
 Use \code{robyn_save()} to select and save as .RDS file the initial model.

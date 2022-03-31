@@ -245,13 +245,13 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   all_plots <- list()
   cnt <- 0
 
-  for (pf in pareto_fronts_vec) { # pf = 1
+  for (pf in pareto_fronts_vec) { # pf = pareto_fronts_vec[1]
 
     plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
     uniqueSol <- plotMediaShare[, unique(solID)]
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
-    parallelResult <- foreach(sid = uniqueSol) %dorng% {
+    parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
       plotMediaShareLoop <- plotMediaShare[solID == sid]
       rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train), 4)]
       nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse), 4)]
@@ -429,6 +429,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         cnt <- cnt + 1
         setTxtProgressBar(pbplot, cnt)
       }
+      return(all_plots)
     }
     if (!quiet & count_mod_out > 0) {
       cnt <- cnt + length(uniqueSol)
@@ -438,7 +439,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   if (!quiet & count_mod_out > 0) close(pbplot)
   # Stop cluster to avoid memory leaks
   if (check_parallel_plot()) stopImplicitCluster()
-  return(invisible(all_plots))
+  return(invisible(parallelResult[[1]]))
 }
 
 allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
