@@ -25,7 +25,7 @@
 #' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
 #' and saving model one-pagers. Used when testing models.
 #' @param clusters Boolean. Apply \code{robyn_clusters()} to output models?
-#' @param selected Character vector. Which models (by \code{solID}) do you
+#' @param select_model Character vector. Which models (by \code{solID}) do you
 #' wish to plot the one-pagers and export? Default will take top
 #' \code{robyn_clusters()} results.
 #' @param csv_out Character. Accepts "pareto" or "all". Default to "pareto". Set
@@ -43,7 +43,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           plot_folder = getwd(), plot_folder_sub = NULL,
                           plot_pareto = TRUE,
                           csv_out = "pareto",
-                          clusters = TRUE, selected = "clusters",
+                          clusters = TRUE,
+                          select_model = "clusters",
                           ui = FALSE, export = TRUE,
                           quiet = FALSE, ...) {
 
@@ -64,7 +65,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   if (!isTRUE(attr(OutputModels, "hyper_fixed"))) message(sprintf(
     ">>> Running Pareto calculations for %s models on %s front%s...",
     totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
-  pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint)
+  pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet)
   allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
   #####################################
@@ -129,10 +130,10 @@ robyn_outputs <- function(InputCollect, OutputModels,
       if (plot_pareto) {
         if (!quiet) message(sprintf(
           ">>> Exporting %sone-pagers into directory...", ifelse(!OutputCollect$hyper_fixed, "pareto ", "")))
-        selected <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else selected
+        select_model <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else select_model
         pareto_onepagers <- robyn_onepagers(
           InputCollect, OutputCollect,
-          selected = selected,
+          select_model = select_model,
           quiet = quiet,
           export = export)
       }

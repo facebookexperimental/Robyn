@@ -131,7 +131,7 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
   }
 }
 
-check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_signs) {
+check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval) {
   if (is.null(prophet_vars)) {
     prophet_signs <- NULL
     prophet_country <- NULL
@@ -140,6 +140,9 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     opts <- c("trend", "season", "weekday", "holiday")
     if (!all(prophet_vars %in% opts)) {
       stop("Allowed values for 'prophet_vars' are: ", paste(opts, collapse = ", "))
+    }
+    if ("weekday" %in% prophet_vars & dayInterval > 7) {
+      warning("Ignoring prophet_vars = 'weekday' input given your data granularity")
     }
     if (is.null(prophet_country) | length(prophet_country) > 1 |
       !prophet_country %in% unique(dt_holidays$country)) {
@@ -152,7 +155,6 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     }
     if (is.null(prophet_signs)) {
       prophet_signs <- rep("default", length(prophet_vars))
-      # message("'prophet_signs' were not provided. 'default' is used")
     }
     if (!all(prophet_signs %in% opts_pnd)) {
       stop("Allowed values for 'prophet_signs' are: ", paste(opts_pnd, collapse = ", "))
@@ -416,15 +418,51 @@ check_hyper_limits <- function(hyperparameters, hyper) {
   }
 }
 
-check_calibration <- function(dt_input, date_var, calibration_input, dayInterval) {
+check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var) {
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
-    if (!all(names(calibration_input) %in% c("channel", "liftStartDate", "liftEndDate", "liftAbs"))) {
+    if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("calibration_input must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
     if ((min(calibration_input$liftStartDate) < min(dt_input[, get(date_var)])) |
       (max(calibration_input$liftEndDate) > (max(dt_input[, get(date_var)]) + dayInterval - 1))) {
       stop("We recommend you to only use lift results conducted within your MMM input data date range")
+    }
+    if ("spend" %in% colnames(calibration_input)) {
+      for (i in 1:nrow(calibration_input)) {
+        temp <- calibration_input[i, ]
+        dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
+          pull(get(temp$channel)) %>% sum(.) %>% round(., 0)
+        if (dt_input_spend > temp$spend * 1.1 | dt_input_spend < temp$spend * 0.9) {
+          warning(sprintf(paste(
+            "Your calibration's spend (%s) for %s between %s and %s does not match your dt_input spend (~%s).",
+            "Please, check again your dates or split your media inputs into separate media channels."),
+            formatNum(temp$spend, 0), temp$channel, temp$liftStartDate, temp$liftEndDate,
+            formatNum(dt_input_spend, 3, abbr = TRUE)))
+        }
+      }
+    }
+    if ("confidence" %in% colnames(calibration_input)) {
+      for (i in 1:nrow(calibration_input)) {
+        temp <- calibration_input[i, ]
+        if (temp$confidence < 0.8) {
+          warning(sprintf(paste(
+            "Your calibration's confidence for %s between %s and %s is lower than 80%%, thus low-confidence.",
+            "Consider getting rid of this experiment and running it again."),
+            temp$channel, temp$liftStartDate, temp$liftEndDate))
+        }
+      }
+    }
+    if ("metric" %in% colnames(calibration_input)) {
+      for (i in 1:nrow(calibration_input)) {
+        temp <- calibration_input[i, ]
+        if (temp$metric != dep_var) {
+          warning(sprintf(paste(
+            "Your calibration's metric for %s between %s and %s is not '%s'.",
+            "Please, remove this experiment from 'calibration_input'."),
+            temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var))
+        }
+      }
     }
   }
   return(calibration_input)

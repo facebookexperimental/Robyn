@@ -13,7 +13,8 @@ robyn_response(
   dt_hyppar = NULL,
   dt_coef = NULL,
   InputCollect = NULL,
-  OutputCollect = NULL
+  OutputCollect = NULL,
+  quiet = FALSE
 )
 }
 \arguments{
@@ -47,6 +48,8 @@ Required when \code{robyn_object} is not provided.}
 
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
+
+\item{quiet}{Boolean. Keep messages off?}
 }
 \description{
 \code{robyn_response()} returns the response for a given

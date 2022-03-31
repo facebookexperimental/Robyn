@@ -64,9 +64,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
       include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6
     ))
 
-  # Calculate sd and median on each cut to alert user on:
-  # 1) last quantile's sd < mean sd of default first 3 qt
-  # 2) last quantile's median < median of first qt - default 3 * mean sd of defualt first 3 qt
+  # Calculate sd and median on each cut to alert user when no convergence
   errors <- dt_objfunc_cvg %>%
     group_by(.data$error_type, .data$cuts) %>%
     summarise(
@@ -174,7 +172,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     theme_lares()
 
   if (calibrated) {
-    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
+    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape)) +
+      guides(alpha = "none")
   } else {
     moo_cloud_plot <- moo_cloud_plot + geom_point()
   }

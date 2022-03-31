@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint = 0.1) {
+robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint = 0.1, quiet = FALSE) {
 
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
@@ -61,7 +61,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         dt_hyppar = resultHypParamPar,
         dt_coef = xDecompAggPar,
         InputCollect = InputCollect,
-        OutputCollect = OutputModels
+        OutputCollect = OutputModels,
+        quiet = quiet
         )$response
       dt_resp <- data.table(mean_response = get_resp,
                             rn = decompSpendDistPar$rn[respN],

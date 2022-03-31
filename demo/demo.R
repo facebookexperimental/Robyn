@@ -228,19 +228,23 @@ print(InputCollect)
 ## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
 ## As noted above, calibration channels need to be paid_media_spends name.
 ## ------------------------------------------------------------------------------------------ ##
-# dt_calibration <- data.frame(
-#   channel = c("facebook_S",  "tv_S", "facebook_S")
+# calibration_input <- data.frame(
 #   # channel name must in paid_media_vars
-#   , liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01"))
+#   channel = c("facebook_S",  "tv_S", "facebook_S"),
 #   # liftStartDate must be within input data range
-#   , liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20"))
+#   liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01")),
 #   # liftEndDate must be within input data range
-#   , liftAbs = c(400000, 300000, 200000) # Provided value must be
-#   # tested on same campaign level in model and same metric as dep_var_type
+#   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20")),
+#   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
+#   liftAbs = c(400000, 300000, 200000),
+#   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
+#   spend = c(421000, 7100, 240000),
+#   # Confidence: if frequentist experiment, you may use 1 - pvalue
+#   confidence = c(0.85, 0.8, 0.99),
+#   # KPI measured: must match your dep_var
+#   metric = c("revenue", "revenue", "revenue")
 # )
-#
-# InputCollect <- robyn_inputs(InputCollect = InputCollect
-#                              , calibration_input = dt_calibration)
+# InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
 
 
 ################################################################
@@ -366,7 +370,7 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
-AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -383,6 +387,7 @@ AllocatorCollect <- robyn_allocator(
 )
 print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

@@ -3,24 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function format_unit, get_rsq
-
-# Format unit
-format_unit <- function(x_in) {
-  x_out <- sapply(x_in, function(x) {
-    if (abs(x) >= 1000000000) {
-      x_out <- paste0(round(x / 1000000000, 1), " B")
-    } else if (abs(x) >= 1000000 & abs(x) < 1000000000) {
-      x_out <- paste0(round(x / 1000000, 1), " M")
-    } else if (abs(x) >= 1000 & abs(x) < 1000000) {
-      x_out <- paste0(round(x / 1000, 1), " K")
-    } else {
-      x_out <- round(x, 0)
-    }
-  }, simplify = TRUE)
-  return(x_out)
-}
-
 # Calculate R-squared
 get_rsq <- function(true, predicted, p = NULL, df.int = NULL) {
   sse <- sum((predicted - true)^2)

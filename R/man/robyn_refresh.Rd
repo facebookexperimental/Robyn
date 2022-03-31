@@ -64,16 +64,16 @@ passed into initial model.}
 List. The Robyn object, class \code{robyn_refresh}.
 }
 \description{
-\code{robyn_refresh()} builds update models based on
+\code{robyn_refresh()} builds updated models based on
 the previously built models saved in the \code{Robyn.RDS} object specified
 in \code{robyn_object}. For example, when updating the initial build with 4
 weeks of new data, \code{robyn_refresh()} consumes the selected model of
-the initial build. it sets lower and upper bounds of hyperparameters for the
+the initial build, sets lower and upper bounds of hyperparameters for the
 new build around the selected hyperparameters of the previous build,
-stabilizes the effect of baseline variables across old and new builds and
+stabilizes the effect of baseline variables across old and new builds, and
 regulates the new effect share of media variables towards the latest
-spend level. It returns aggregated result with all previous builds for
-reporting purpose and produces reporting plots.
+spend level. It returns the aggregated results with all previous builds for
+reporting purposes and produces reporting plots.
 
 You must run \code{robyn_save()} to select and save an initial model first,
 before refreshing.
