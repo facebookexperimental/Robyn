@@ -336,7 +336,7 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-select_model <- "1_101_4" # select one from above
+select_model <- "1_92_12" # select one from above
 ExportedModel <- robyn_save(
   robyn_object = robyn_object # model object location and name
   , select_model = select_model # selected model ID
@@ -451,8 +451,7 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 14 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
-AllocatorCollect$plots
-AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 ################################################################
 #### Step 8: get marginal returns
@@ -493,7 +492,7 @@ Response2$plot
 (Response2$response - Response1$response)/(Spend2 - Spend1)
 
 ## Example of getting paid media exposure response curves
-imps <- 5000000
+imps <- 50000000
 response_imps <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
@@ -516,8 +515,8 @@ response_sending$plot
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-21 11.29 rf11/pareto_hyperparameters.csv")
-select_model <- "1_51_11"
+dt_hyper_fixed <- data.table::fread("~/Desktop/2022-03-31 12.32 rf4/pareto_hyperparameters.csv")
+select_model <- "1_25_9"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(

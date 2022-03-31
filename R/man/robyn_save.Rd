@@ -22,6 +22,12 @@ robyn_save(
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
 
+\item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
+is provided, \code{select_model} defaults to the already selected \code{SolID}. When
+\code{robyn_object} is not provided, \code{select_model} must be provided with
+\code{InputCollect} and \code{OutputCollect}, and must be one of
+\code{OutputCollect$allSolutions}.}
+
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 

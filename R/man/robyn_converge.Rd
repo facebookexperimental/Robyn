@@ -22,14 +22,15 @@ for median. (Criteria #2). Default to 3.}
 \description{
 \code{robyn_converge()} consumes \code{robyn_run()} outputs
 and calculate convergence status and builds convergence plots.
-Convergence is calculated by default using the following criteria:
+Convergence is calculated by default using the following criteria
+(having kept the default parameters: sd_qtref = 3 and med_lowb = 3):
 \describe{
   \item{Criteria #1:}{Last quantile's standard deviation < first 3
   quantiles' mean standard deviation}
   \item{Criteria #2:}{Last quantile's median < first quantile's
   median - 3 * first 3 quantiles' mean standard deviation.}
 }
-Both criteria have to be satisfied to consider convergence.
+Both mentioned criteria have to be satisfied to consider MOO convergence.
 }
 \examples{
 \dontrun{
