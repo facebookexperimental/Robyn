@@ -187,7 +187,6 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (is.null(paid_media_spends)) {
     stop("Must provide 'paid_media_spends'")
   }
-  if (is.null(paid_media_vars)) paid_media_vars <- paid_media_spends
 
   mediaVarCount <- length(paid_media_vars)
   spendVarCount <- length(paid_media_spends)

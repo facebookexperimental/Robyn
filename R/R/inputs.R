@@ -206,6 +206,7 @@ robyn_inputs <- function(dt_input = NULL,
     context_signs <- context$context_signs
 
     ## Check paid media variables (set mediaVarCount and maybe transform paid_media_signs)
+    if (is.null(paid_media_vars)) paid_media_vars <- paid_media_spends
     paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
     paid_media_signs <- paidmedia$paid_media_signs
     mediaVarCount <- paidmedia$mediaVarCount
