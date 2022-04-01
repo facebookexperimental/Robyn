@@ -27,8 +27,8 @@ Convergence is calculated by default using the following criteria
 \describe{
   \item{Criteria #1:}{Last quantile's standard deviation < first 3
   quantiles' mean standard deviation}
-  \item{Criteria #2:}{Last quantile's median < first quantile's
-  median - 3 * first 3 quantiles' mean standard deviation.}
+  \item{Criteria #2:}{Last quantile's absolute median < first quantile's
+  absolute median - 3 * first 3 quantiles' mean standard deviation.}
 }
 Both mentioned criteria have to be satisfied to consider MOO convergence.
 }

@@ -143,7 +143,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         ggsave(
           paste0(OutputCollect$plot_folder, "pareto_front.png"),
           plot = pParFront, limitsize = FALSE,
-          dpi = 600, width = 12, height = 7
+          dpi = 600, width = 12, height = 8
         )
       }
     }

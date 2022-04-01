@@ -13,8 +13,8 @@
 #' \describe{
 #'   \item{Criteria #1:}{Last quantile's standard deviation < first 3
 #'   quantiles' mean standard deviation}
-#'   \item{Criteria #2:}{Last quantile's median < first quantile's
-#'   median - 3 * first 3 quantiles' mean standard deviation.}
+#'   \item{Criteria #2:}{Last quantile's absolute median < first quantile's
+#'   absolute median - 3 * first 3 quantiles' mean standard deviation.}
 #' }
 #' Both mentioned criteria have to be satisfied to consider MOO convergence.
 #'
@@ -65,7 +65,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
       include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6
     ))
 
-  # Calculate sd and median on each cut to alert user when no convergence
+  # Calculate standard deviations and absolute medians on each cut
   errors <- dt_objfunc_cvg %>%
     group_by(.data$error_type, .data$cuts) %>%
     summarise(
@@ -79,9 +79,9 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
       med_var_P = abs(round(100 * (.data$median - lag(.data$median)) / .data$median, 2))
     ) %>%
     group_by(.data$error_type) %>%
-    mutate(first_med = dplyr::first(.data$median),
-           first_med_avg = mean(.data$median[1:sd_qtref]),
-           last_med = dplyr::last(.data$median),
+    mutate(first_med = abs(dplyr::first(.data$median)),
+           first_med_avg = abs(mean(.data$median[1:sd_qtref])),
+           last_med = abs(dplyr::last(.data$median)),
            first_sd = dplyr::first(.data$std),
            first_sd_avg = mean(.data$std[1:sd_qtref]),
            last_sd = dplyr::last(.data$std))  %>%
@@ -97,7 +97,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     greater <- ">" #intToUtf8(8814)
     temp <- glued(paste(
         "{error_type} {did}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_threh} &",
-        "med@qt.{quantile} {qtn_median} {symb_med} {med_threh} med@qt.1-{med_lowb}*sd"),
+        "abs-med@qt.{quantile} {qtn_median} {symb_med} {med_threh} abs-med@qt.1-{med_lowb}*sd"),
         error_type = last.qt$error_type,
         did = ifelse(last.qt$flag_sd & last.qt$flag_med, "", "NOT "),
         sd = signif(last.qt$last_sd, 2),

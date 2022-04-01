@@ -164,7 +164,7 @@ plot_saturation(plot = FALSE)
 # larger the gamma, the later the inflection point in the response curve.
 
 ## 4. Set individual hyperparameter bounds. They either contain two values e.g. c(0, 0.5),
-# or only one value, in which case you'd "fixed" that hyperparameter
+# or only one value, in which case you'd "fix" that hyperparameter.
 
 # Run hyper_limits() to check maximum upper and lower bounds by range
 # Example hyperparameters ranges for Geometric adstock
