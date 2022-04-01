@@ -119,11 +119,12 @@ robyn_run <- function(InputCollect,
     output <- OutputModels
   } else if (!hyps$all_fixed) {
     output <- robyn_outputs(InputCollect, OutputModels, ...)
-    # Check convergence
-    output[["convergence"]] <- robyn_converge(OutputModels, ...)
   } else {
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
+
+  # Check convergence
+  if (!hyps$all_fixed) output[["convergence"]] <- robyn_converge(OutputModels, ...)
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyps$hyper_list_all

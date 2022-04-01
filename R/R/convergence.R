@@ -97,7 +97,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     greater <- ">" #intToUtf8(8814)
     temp <- glued(paste(
         "{error_type} {did}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_threh} &",
-        "abs-med@qt.{quantile} {qtn_median} {symb_med} {med_threh} abs-med@qt.1-{med_lowb}*sd"),
+        "|med@qt.{quantile}| {qtn_median} {symb_med} {med_threh}"),
         error_type = last.qt$error_type,
         did = ifelse(last.qt$flag_sd & last.qt$flag_med, "", "NOT "),
         sd = signif(last.qt$last_sd, 2),
@@ -106,8 +106,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
         quantile = n_cuts,
         qtn_median = signif(last.qt$last_med, 2),
         symb_med = ifelse(last.qt$flag_med, "<=", greater),
-        med_threh = signif(last.qt$med_thres, 2),
-        med_lowb = med_lowb
+        med_threh = signif(last.qt$med_thres, 2)
       )
     conv_msg <- c(conv_msg, temp)
   }
