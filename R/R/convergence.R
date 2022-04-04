@@ -131,9 +131,9 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
   #   labs(colour = "Trial", x = "Iterations", y = NULL)
 
   subtitle <- sprintf(
-    "%s trial%s with %s iterations %s",
+    "%s trial%s with %s iterations%s using %s",
     max(df$trial), ifelse(max(df$trial) > 1, "s", ""), max(dt_objfunc_cvg$cuts),
-    ifelse(max(df$trial) > 1, "each", "")
+    ifelse(max(df$trial) > 1, " each", ""), OutputModels$nevergrad_algo
   )
 
   moo_distrb_plot <- dt_objfunc_cvg %>%
