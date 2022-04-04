@@ -9,10 +9,9 @@
 
 module.exports = {
   someSidebar: {
-    'How-to guide': ['quick-start', 'demo-R-script', 'step-by-step-videos'],
-    'Robyn at a glance':['robyn-at-a-glance', 'example-plots'],
+    'How-to guide': ['quick-start', 'additional-materials'],
     'Analysts guide to MMM':['analysts-guide-to-MMM'],
-    Features: [
+    'Key Features': [
       'ridge-regression',
       'variable-transformations',
       'facebook-prophet',
@@ -21,8 +20,22 @@ module.exports = {
       'outputs-diagnostics',
       'window',
       'refresh',
-      'organic-media'
+      'organic-media',
+      'response'
     ],
+    'Implementation': [
+      'inputs',
+      'hyperparameters',
+      'calibration-inputs'
+      'model-run',
+      'outputs',
+      'convergence',
+      'export',
+      'allocator',
+      'robyn-response',
+      'refresh'
+    ]
+    'Releases' :['releases']
     'Getting help and contributing':['contributing'],
     'About Robyn': ['about'],
   },

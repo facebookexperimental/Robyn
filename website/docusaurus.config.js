@@ -68,6 +68,10 @@ module.exports = {
               label: 'Case study: Central Group',
               href: 'https://www.facebook.com/business/success/central-retail-corporation',
             },
+            {
+              label: 'Case study: Bark',
+              href: 'https://www.facebook.com/business/measurement/case-studies/bark',
+            },
           ],
         },
         {
@@ -126,7 +130,7 @@ module.exports = {
         gtag: {
           trackingID: 'G-TMZK4YFDGL',
           anonymizeIP: true,
-        },      
+        },
       },
     ],
   ],
