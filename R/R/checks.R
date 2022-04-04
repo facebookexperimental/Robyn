@@ -417,15 +417,20 @@ check_hyper_limits <- function(hyperparameters, hyper) {
   }
 }
 
-check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var) {
+check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var, window_start, window_end) {
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("calibration_input must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
-    if ((min(calibration_input$liftStartDate) < min(dt_input[, get(date_var)])) |
-      (max(calibration_input$liftEndDate) > (max(dt_input[, get(date_var)]) + dayInterval - 1))) {
-      stop("We recommend you to only use lift results conducted within your MMM input data date range")
+    for (i in 1:nrow(calibration_input)) {
+      temp <- calibration_input[i, ]
+      if (temp$liftStartDate < as.Date(window_start) | temp$liftEndDate > as.Date(window_end)) {
+        stop(sprintf(paste(
+          "Your calibration's date range for %s between %s and %s is not within modeling window (%s to %s).",
+          "Please, remove this experiment from 'calibration_input'."),
+          temp$channel, temp$liftStartDate, temp$liftEndDate, window_start, window_end))
+      }
     }
     if ("spend" %in% colnames(calibration_input)) {
       for (i in 1:nrow(calibration_input)) {
@@ -456,7 +461,7 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$metric != dep_var) {
-          warning(sprintf(paste(
+          stop(sprintf(paste(
             "Your calibration's metric for %s between %s and %s is not '%s'.",
             "Please, remove this experiment from 'calibration_input'."),
             temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var))

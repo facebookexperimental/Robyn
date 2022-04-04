@@ -245,7 +245,8 @@ robyn_inputs <- function(dt_input = NULL,
       hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars)
 
     ## Check calibration and iters/trials
-    calibration_input <- check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_var)
+    calibration_input <- check_calibration(
+      dt_input, date_var, calibration_input, dayInterval, dep_var, window_start, window_end)
 
     ## Not used variables
     unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
@@ -304,11 +305,13 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
-      InputCollect$dt_input,
-      InputCollect$date_var,
-      calibration_input,
-      InputCollect$dayInterval,
-      InputCollect$dep_var
+      dt_input = InputCollect$dt_input,
+      date_var = InputCollect$date_var,
+      calibration_input = calibration_input,
+      dayInterval = InputCollect$dayInterval,
+      dep_var = InputCollect$dep_var,
+      window_start = InputCollect$window_start,
+      window_end = InputCollect$window_end
     )
     ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
