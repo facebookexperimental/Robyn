@@ -113,14 +113,16 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' You must run \code{robyn_save()} to select and save an initial model first,
 #' before refreshing.
 #'
+#' \strong{When should \code{robyn_refresh()} NOT be used:}
 #' The \code{robyn_refresh()} function is suitable for
 #' updating within "reasonable periods". Two situations are considered better
-#' to rebuild model:
-#' \describe{
-#'   \item{1. Most data is new}{If initial model has 100 weeks and 80 weeks
-#'   new data is added in refresh, it might be better to rebuild the model}
-#'   \item{2. New variables are added}{}
-#' }
+#' to rebuild model instead of refreshing:
+#'
+#' 1. Most data is new: If initial model was trained with 100 weeks worth of
+#' data but we add +50 weeks of new data.
+#'
+#' 2. New variables are added: If initial model had less variables than the ones
+#' we want to start using on new refresh model.
 #'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
@@ -215,6 +217,17 @@ robyn_refresh <- function(robyn_object,
         collapse = ",", ". Please rerun model."
       ))
     }
+
+    ## Check rule of thumb: 50% of data shouldn't be new
+    original_periods <- nrow(Robyn$listInit$InputCollect$dt_modRollWind)
+    new_periods <- nrow(filter(
+      dt_input, get(Robyn$listInit$InputCollect$date_var) > Robyn$listInit$InputCollect$window_end))
+    it <- Robyn$listInit$InputCollect$intervalType
+    if (new_periods > 0.5 * (original_periods + new_periods))
+      warning(sprintf(paste(
+        "We recommend re-building a model rather than refreshing this one.",
+        "More than 50%% of your refresh data (%s %ss) is new data (%s %ss)"),
+        original_periods + new_periods, it, new_periods, it))
 
     ## Get previous data
     if (refreshCounter == 1) {

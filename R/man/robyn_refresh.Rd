@@ -78,14 +78,16 @@ reporting purposes and produces reporting plots.
 You must run \code{robyn_save()} to select and save an initial model first,
 before refreshing.
 
+\strong{When should \code{robyn_refresh()} NOT be used:}
 The \code{robyn_refresh()} function is suitable for
 updating within "reasonable periods". Two situations are considered better
-to rebuild model:
-\describe{
-  \item{1. Most data is new}{If initial model has 100 weeks and 80 weeks
-  new data is added in refresh, it might be better to rebuild the model}
-  \item{2. New variables are added}{}
-}
+to rebuild model instead of refreshing:
+
+1. Most data is new: If initial model was trained with 100 weeks worth of
+data but we add +50 weeks of new data.
+
+2. New variables are added: If initial model had less variables than the ones
+we want to start using on new refresh model.
 }
 \examples{
 \dontrun{
