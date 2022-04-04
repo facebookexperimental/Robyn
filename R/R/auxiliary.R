@@ -34,3 +34,24 @@ flatten_hyps <- function(x) {
   temp <- sapply(x, function(x) sprintf("[%s]", paste(if(is.numeric(x)) signif(x, 6) else x, collapse = ", ")))
   paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
 }
+
+####################################################################
+#' Update Robyn Version
+#'
+#' Update Robyn version from
+#' \href{https://github.com/facebookexperimental/Robyn}{Github repository}
+#' for "dev" version or from CRAN (not yet submitted, but soon!).
+#'
+#' @param dev Boolean. Dev version? If not, CRAN version.
+#' @param ... Parameters to pass to \code{remotes::install_github}
+#' or \code{utils::install.packages}, depending on \code{dev} parameter.
+#' @export
+robyn_update <- function(dev = TRUE, ...) {
+  if (dev) {
+    try_require("remotes")
+    # options(timeout = 400)
+    install_github(repo = "facebookexperimental/Robyn/R", ...)
+  } else {
+    utils::install.packages("Robyn", ...)
+  }
+}

@@ -29,7 +29,7 @@
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued removenacols theme_lares `%>%`
-#' scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr v2t
+#' scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
@@ -65,7 +65,7 @@ dt_vars <- c(
   "weekday", "x", "xDecompAgg", "xDecompMeanNon0", "xDecompMeanNon0Perc",
   "xDecompMeanNon0PercRF", "xDecompMeanNon0RF", "xDecompPerc", "xDecompPercRF", "y", "yhat",
   "respN","iteration","variables","iter_bin", "thetas", "cut_time", "exposure_vars", "OutputModels",
-  "exposure_pred"
+  "exposure_pred",'install_github'
 )
 
 if (getRversion() >= "2.15.1") {
