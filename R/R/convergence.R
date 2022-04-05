@@ -9,12 +9,13 @@
 #' \code{robyn_converge()} consumes \code{robyn_run()} outputs
 #' and calculate convergence status and builds convergence plots.
 #' Convergence is calculated by default using the following criteria
-#' (having kept the default parameters: sd_qtref = 3 and med_lowb = 3):
+#' (having kept the default parameters: sd_qtref = 3 and med_lowb = 2):
 #' \describe{
 #'   \item{Criteria #1:}{Last quantile's standard deviation < first 3
 #'   quantiles' mean standard deviation}
-#'   \item{Criteria #2:}{Last quantile's absolute median < first quantile's
-#'   absolute median - 3 * first 3 quantiles' mean standard deviation.}
+#'   \item{Criteria #2:}{Last quantile's absolute median < absolute first
+#'   quantile's absolute median - 2 * first 3 quantiles' mean standard
+#'   deviation}
 #' }
 #' Both mentioned criteria have to be satisfied to consider MOO convergence.
 #'
@@ -35,7 +36,7 @@
 #' )
 #' }
 #' @export
-robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3, ...) {
+robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...) {
 
   stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
@@ -85,8 +86,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
            first_sd = dplyr::first(.data$std),
            first_sd_avg = mean(.data$std[1:sd_qtref]),
            last_sd = dplyr::last(.data$std))  %>%
-    mutate(med_thres = .data$first_med - med_lowb * .data$first_sd_avg,
-           flag_med = .data$median < .data$first_med - med_lowb * .data$first_sd_avg,
+    mutate(med_thres = abs(.data$first_med - med_lowb * .data$first_sd_avg),
+           flag_med = abs(.data$median) < .data$med_thres,
            flag_sd = .data$std < .data$first_sd_avg)
 
   conv_msg <- NULL
