@@ -8,35 +8,24 @@
  */
 
 module.exports = {
-  someSidebar: {
-    'How-to guide': ['quick-start', 'additional-materials'],
-    'Analysts guide to MMM':['analysts-guide-to-MMM'],
-    'Key Features': [
-      'ridge-regression',
-      'variable-transformations',
-      'facebook-prophet',
-      'automated-hyperparameter-selection-optimization',
-      'calibration',
-      'outputs-diagnostics',
-      'window',
-      'refresh',
-      'organic-media',
-      'response'
-    ],
-    'Implementation': [
-      'inputs',
-      'hyperparameters',
-      'calibration-inputs'
-      'model-run',
-      'outputs',
-      'convergence',
-      'export',
-      'allocator',
-      'robyn-response',
-      'refresh'
+  someSidebar:[
+    {
+      type: 'category',
+      label: 'How-to guide',
+      link: {
+        type: 'generated-index',
+      },
+      collapsed: false,
+      items: [
+      'quick-start',
+      'additional-materials',
+      ],
+    },
+    'analysts-guide-to-MMM',
+    'features',
+    'implementation',
+    'releases',
+    'contributing',
+    'about',
     ]
-    'Releases' :['releases']
-    'Getting help and contributing':['contributing'],
-    'About Robyn': ['about'],
-  },
 };
