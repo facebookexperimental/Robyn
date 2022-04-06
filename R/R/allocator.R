@@ -49,7 +49,7 @@
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
 #' indicating constraints with equality or inequality.
 #' @param date_min,date_max Character. Date range to calculate mean (of non-zero spends) and
-#' total spends. Default will consider all dates within window.
+#' total spends. Default will consider all dates within window. Length must be 1.
 #' @return A list object containing allocator result.
 #' @examples
 #' \dontrun{
@@ -186,6 +186,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Spend values based on date range set
   dt_optimCost <- dt_mod %>% slice(startRW:endRW)
+  check_daterange(date_min, date_max, dt_optimCost$ds)
   if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
   if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
   if (date_min < min(dt_optimCost$ds)) date_min <- min(dt_optimCost$ds)

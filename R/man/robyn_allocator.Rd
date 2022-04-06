@@ -82,7 +82,7 @@ Defaults to 100000.}
 indicating constraints with equality or inequality.}
 
 \item{date_min, date_max}{Character. Date range to calculate mean (of non-zero spends) and
-total spends. Default will consider all dates within window.}
+total spends. Default will consider all dates within window. Length must be 1.}
 
 \item{export}{Boolean. Export outcomes into local files?}
 

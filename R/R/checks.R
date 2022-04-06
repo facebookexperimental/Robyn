@@ -684,3 +684,16 @@ check_run_inputs <- function(cores, iterations, trials, intercept_sign, nevergra
     stop(sprintf("Input 'intercept_sign' must be any of: %s", paste(opts, collapse = ", ")))
   }
 }
+
+check_daterange <- function(date_min, date_max, dates) {
+  if (!is.null(date_min)) {
+    if (length(date_min) > 1) stop("Set a single date for 'date_min' parameter")
+    if (date_min < min(dates)) warning(sprintf(
+      "Parameter 'date_min' not in your data's date range. Changed to '%s'", min(dates)))
+  }
+  if (!is.null(date_max)) {
+    if (length(date_max) > 1) stop("Set a single date for 'date_max' parameter")
+    if (date_max > max(dates)) warning(sprintf(
+      "Parameter 'date_max' not in your data's date range. Changed to '%s'", max(dates)))
+  }
+}
