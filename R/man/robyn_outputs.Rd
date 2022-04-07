@@ -10,7 +10,7 @@
 robyn_outputs(
   InputCollect,
   OutputModels,
-  pareto_fronts = 1,
+  pareto_fronts = 3,
   calibration_constraint = 0.1,
   plot_folder = getwd(),
   plot_folder_sub = NULL,

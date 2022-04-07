@@ -270,37 +270,39 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       plotMediaShareLoopLine <- temp[[sid]]$plot1data$plotMediaShareLoopLine
       ySecScale <- temp[[sid]]$plot1data$ySecScale
       plotMediaShareLoopBar$variable <- stringr::str_to_title(gsub("_", " ", plotMediaShareLoopBar$variable))
-      plotMediaShareLoopLine$variable <- "Total ROI"
+      type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")
+      plotMediaShareLoopLine$type_colour <- type_colour <- "#03396C"
+      names(type_colour) <- "type_colour"
       p1 <- ggplot(plotMediaShareLoopBar, aes(x = .data$rn, y = .data$value, fill = .data$variable)) +
         geom_bar(stat = "identity", width = 0.5, position = "dodge") +
         geom_text(aes(y = 0, label = paste0(round(.data$value * 100, 1), "%")),
-          hjust = -.1, color = "darkblue", position = position_dodge(width = 0.5), fontface = "bold"
+          hjust = -.1, position = position_dodge(width = 0.5), fontface = "bold"
         ) +
         geom_line(
           data = plotMediaShareLoopLine, aes(
             x = .data$rn, y = .data$value / ySecScale, group = 1
           ),
-          inherit.aes = FALSE, color = "#03396C"
+          color = type_colour, inherit.aes = FALSE
         ) +
         geom_point(
           data = plotMediaShareLoopLine, aes(
-            x = .data$rn, y = .data$value / ySecScale, group = 1, color = "Total ROI"
+            x = .data$rn, y = .data$value / ySecScale, group = 1, color = type_colour
           ),
-          inherit.aes = FALSE, size = 4
+          inherit.aes = FALSE, size = 3.5
         ) +
         geom_text(
           data = plotMediaShareLoopLine, aes(
             label = round(.data$value, 2), x = .data$rn, y = .data$value / ySecScale, group = 1
           ),
-          fontface = "bold", inherit.aes = FALSE, hjust = -.5, size = 5
+          color = type_colour, fontface = "bold", inherit.aes = FALSE, hjust = -.4, size = 4
         ) +
         scale_y_percent() +
         coord_flip() +
         theme_lares(axis.text.x = element_blank(), legend = "top", grid = "Xx") +
         scale_fill_brewer(palette = 3) +
-        scale_color_manual(values = c("Total ROI" = "#03396C")) +
+        scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Share of Spend VS Share of Effect with total ", ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")),
+          title = paste0("Share of Spend VS Share of Effect with total ", type),
           y = "Total Share by Channel", x = NULL, fill = NULL, color = NULL
         )
 
