@@ -813,7 +813,7 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   if (max(rsq_lm, rsq_nls) < 0.7) {
     warning(paste(
       "Spend-exposure fitting for", paid_media_var,
-      "has rsq = ", max(rsq_lm, rsq_nls),
+      "has rsq = ", round(max(rsq_lm, rsq_nls), 4),
       "To increase the fit, try splitting the variable.",
       "Otherwise consider using spend instead."
     ))

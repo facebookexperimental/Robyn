@@ -38,7 +38,7 @@
 #' results based on \code{robyn_run()} results.
 #' @export
 robyn_outputs <- function(InputCollect, OutputModels,
-                          pareto_fronts = 1,
+                          pareto_fronts = 3,
                           calibration_constraint = 0.1,
                           plot_folder = getwd(), plot_folder_sub = NULL,
                           plot_pareto = TRUE,

@@ -164,7 +164,7 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Filter and sort all variables by name that is essential for the apply function later
   if (!all(coefSelectorSorted)) {
     chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSorted[coefSelectorSorted])
-    message("Excluded in optimiser because their coeffients are 0: ", paste(chn_coef0, collapse = ", "))
+    message("Excluded in optimiser because their coefficients are 0: ", paste(chn_coef0, collapse = ", "))
   } else chn_coef0 <- "None"
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
