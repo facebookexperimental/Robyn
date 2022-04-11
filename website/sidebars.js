@@ -24,6 +24,7 @@ module.exports = {
     'analysts-guide-to-MMM',
     'features',
     'implementation',
+    'features2',
     'releases',
     'contributing',
     'about',

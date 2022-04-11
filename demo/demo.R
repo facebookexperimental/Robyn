@@ -276,7 +276,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   #, cores = NULL # default
   #, add_penalty_factor = FALSE # Untested feature. Use with caution.
-  , iterations = 2000 # recommended for the dummy dataset
+  , iterations = 200 # recommended for the dummy dataset
   , trials = 5 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
@@ -332,12 +332,12 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-select_model <- "1_101_4" # select one from above
+select_model <- "1_26_12" # select one from above
 ExportedModel <- robyn_save(
   robyn_object = robyn_object # model object location and name
   , select_model = select_model # selected model ID
-  , InputCollect = InputCollect # all model input
-  , OutputCollect = OutputCollect # all model output
+  , InputCollect = Robyn$listRefresh1$InputCollect # all model input
+  , OutputCollect = Robyn$listRefresh1$OutputCollect # all model output
 )
 print(ExportedModel)
 # plot(ExportedModel)
@@ -418,11 +418,11 @@ Robyn <- robyn_refresh(
   robyn_object = robyn_object
   , dt_input = dt_simulated_weekly
   , dt_holidays = dt_prophet_holidays
-  , refresh_steps = 13
-  , refresh_mode = "auto"
-  , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
+  , refresh_steps = 1
+  , refresh_mode = "manual"
+  , refresh_iters = 100 # 1k is estimation. Use refresh_mode = "manual" to try out.
   , refresh_trials = 3
-  , clusters = TRUE
+  , clusters = F
 )
 
 ## Besides plots: there're 4 csv output saved in the folder for further usage
@@ -431,6 +431,15 @@ Robyn <- robyn_refresh(
 # report_media_transform_matrix.csv, all media transformation vectors
 # report_alldecomp_matrix.csv,all decomposition vectors of independent variables
 
+# Export this refreshed model you wish to export
+last_refresh_num <- sum(grepl('listRefresh', names(Robyn))) + 1 # Pick any refresh.
+  #Here's the final refresh using the model recommended by least combined normalized nrmse and decomp.rssd
+ExportedRefreshModel <- robyn_save(
+  robyn_object = robyn_object
+  , select_model = Robyn[[last_refresh_num]]$OutputCollect$selectID
+  , InputCollect = Robyn[[last_refresh_num]]$InputCollect
+  , OutputCollect = Robyn[[last_refresh_num]]$OutputCollect
+)
 
 ################################################################
 #### Step 7: Get budget allocation recommendation based on selected refresh runs
