@@ -19,13 +19,14 @@ prophet_decomp(
 )
 }
 \arguments{
-\item{dt_transform}{A data.frame with all model features.}
+\item{dt_transform}{A data.frame with all model features.
+Must contain \code{ds} column for time variable values and
+\code{dep_var} column for dependent variable values.}
 
-\item{dt_holidays}{As in \code{robyn_inputs()}}
+\item{dt_holidays}{data.frame. Raw input holiday data. Load standard
+Prophet holidays using \code{data("dt_prophet_holidays")}}
 
-\item{prophet_country, prophet_vars, prophet_signs, factor_vars}{As included in \code{InputCollect}}
-
-\item{context_vars, paid_media_spends, intervalType, dayInterval}{As included in \code{InputCollect}}
+\item{context_vars, paid_media_spends, intervalType, dayInterval, prophet_country, prophet_vars, prophet_signs, factor_vars}{As included in \code{InputCollect}}
 
 \item{custom_params}{List. Custom parameters passed to \code{prophet()}}
 }

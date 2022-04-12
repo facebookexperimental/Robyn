@@ -78,8 +78,9 @@ robyn_run <- function(InputCollect,
   # Overwrite values imported from InputCollect
   legacyValues <- InputCollect[LEGACY_PARAMS]
   legacyValues <- legacyValues[!sapply(legacyValues, is.null)]
-  if (length(legacyValues) > 0)
+  if (length(legacyValues) > 0) {
     for (i in 1:length(InputCollect)) assign(names(InputCollect)[i], InputCollect[[i]])
+  }
 
   if (is.null(cores)) cores <- parallel::detectCores()
   hyps_fixed <- !is.null(dt_hyper_fixed)
@@ -98,7 +99,8 @@ robyn_run <- function(InputCollect,
   #### Run robyn_mmm on set_trials
 
   OutputModels <- robyn_train(
-    InputCollect, hyper_collect = hyps,
+    InputCollect,
+    hyper_collect = hyps,
     cores, iterations, trials, intercept_sign, nevergrad_algo,
     dt_hyper_fixed, add_penalty_factor,
     refresh, seed, quiet
@@ -163,7 +165,8 @@ print.robyn_models <- function(x, ...) {
 
   ",
     total_iters = sprintf("(%s real)", ifelse(
-        "trial1" %in% names(x), nrow(x$trial1$resultCollect$resultHypParam), 1)),
+      "trial1" %in% names(x), nrow(x$trial1$resultCollect$resultHypParam), 1
+    )),
     iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
     fixed = ifelse(is_fixed, " (fixed)", ""),
     convergence = if (!is_fixed) paste(x$convergence$conv_msg, collapse = "\n  ") else "Fixed hyper-parameters",
@@ -180,10 +183,13 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 {clusters_info}
 ",
       nSols = length(x$allSolutions),
-      clusters_info = if ("clusters" %in% names(x))
+      clusters_info = if ("clusters" %in% names(x)) {
         glued(
           "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
-        ) else NULL
+        )
+      } else {
+        NULL
+      }
     ))
   }
 }
@@ -206,7 +212,6 @@ robyn_train <- function(InputCollect, hyper_collect,
                         add_penalty_factor = FALSE,
                         refresh = FALSE, seed = 123,
                         quiet = FALSE) {
-
   hyper_fixed <- hyper_collect$all_fixed
 
   if (hyper_fixed) {
@@ -307,7 +312,6 @@ robyn_mmm <- function(InputCollect,
                       refresh = FALSE,
                       seed = 123L,
                       quiet = FALSE) {
-
   if (reticulate::py_module_available("nevergrad")) {
     ng <- reticulate::import("nevergrad", delay_load = TRUE)
     if (is.integer(seed)) {
@@ -350,7 +354,7 @@ robyn_mmm <- function(InputCollect,
     dt_modRollWind <- copy(InputCollect$dt_modRollWind)
     refresh_steps <- InputCollect$refresh_steps
     rollingWindowLength <- InputCollect$rollingWindowLength
-    #paid_media_vars <- InputCollect$paid_media_vars
+    # paid_media_vars <- InputCollect$paid_media_vars
     paid_media_spends <- InputCollect$paid_media_spends
     organic_vars <- InputCollect$organic_vars
     context_vars <- InputCollect$context_vars
@@ -399,9 +403,11 @@ robyn_mmm <- function(InputCollect,
   ################################################
   #### Get lambda
   lambda_min_ratio <- 0.0001 # default  value from glmnet
-  lambdas <- lambda_seq(x = dt_mod[, !c("ds", "dep_var"), with = FALSE],
-                        y = dt_mod$dep_var,
-                        seq_len = 100, lambda_min_ratio)
+  lambdas <- lambda_seq(
+    x = dt_mod[, !c("ds", "dep_var"), with = FALSE],
+    y = dt_mod$dep_var,
+    seq_len = 100, lambda_min_ratio
+  )
   lambda_min_ratio
   lambda_max <- max(lambdas) * 0.1
   lambda_min <- lambda_max * lambda_min_ratio
@@ -642,8 +648,9 @@ robyn_mmm <- function(InputCollect,
 
           if (!is.null(calibration_input)) {
             liftCollect <- calibrate_mmm(
-              decompCollect = decompCollect, calibration_input = calibration_input,
-              paid_media_spends = paid_media_spends, dayInterval = InputCollect$dayInterval
+              calibration_input = calibration_input,
+              decompCollect = decompCollect,
+              dayInterval = InputCollect$dayInterval
             )
             mape <- liftCollect[, mean(mape_lift)]
           }
@@ -916,7 +923,8 @@ robyn_mmm <- function(InputCollect,
 #'   media_metric = "facebook_I",
 #'   metric_value = imps
 #' )$response
-#' response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
+#' response_per_1k_imps <- response_imps / imps * 1000
+#' response_per_1k_imps
 #'
 #' ## Example of getting organic media exposure response curves
 #' sendings <- 30000
@@ -925,7 +933,8 @@ robyn_mmm <- function(InputCollect,
 #'   media_metric = "newsletter",
 #'   metric_value = sendings
 #' )$response
-#' response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
+#' response_per_1k_send <- response_sending / sendings * 1000
+#' response_per_1k_send
 #'
 #' ## Get response for 80k for search_S from the third model refresh
 #'
@@ -947,7 +956,6 @@ robyn_mmm <- function(InputCollect,
 #'   dt_coef = OutputCollect$xDecompAgg,
 #'   InputCollect = InputCollect
 #' )
-#'
 #' }
 #' @export
 robyn_response <- function(robyn_object = NULL,
@@ -963,7 +971,6 @@ robyn_response <- function(robyn_object = NULL,
 
   ## Get input
   if (!is.null(robyn_object)) {
-
     if (!file.exists(robyn_object)) {
       stop("File does not exist or is somewhere else. Check: ", robyn_object)
     } else {
@@ -975,10 +982,12 @@ robyn_response <- function(robyn_object = NULL,
     select_build_all <- 0:(length(Robyn) - 1)
     if (is.null(select_build)) {
       select_build <- max(select_build_all)
-      if (!quiet & length(select_build_all) > 1) message(
-        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)),
-        " for the response function. Use parameter 'select_build' to specify which run to use"
-      )
+      if (!quiet & length(select_build_all) > 1) {
+        message(
+          "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)),
+          " for the response function. Use parameter 'select_build' to specify which run to use"
+        )
+      }
     }
 
     if (!(select_build %in% select_build_all) | length(select_build) != 1) {
@@ -1019,7 +1028,7 @@ robyn_response <- function(robyn_object = NULL,
   ## get media valu
   if (media_metric %in% paid_media_spends & length(media_metric) == 1) {
     metric_type <- "spend"
-  } else if (media_metric %in% exposure_vars & length(media_metric) == 1){
+  } else if (media_metric %in% exposure_vars & length(media_metric) == 1) {
     metric_type <- "exposure"
   } else if (media_metric %in% organic_vars & length(media_metric) == 1) {
     metric_type <- "organic"
@@ -1035,8 +1044,7 @@ robyn_response <- function(robyn_object = NULL,
 
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {
-
-    get_spend_name <- paid_media_spends[which(paid_media_vars==media_metric)]
+    get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
     expo_vec <- dt_input[, get(media_metric)]
     # use non-0 mean as marginal level if metric_value not provided
     if (is.null(metric_value)) {
@@ -1057,7 +1065,6 @@ robyn_response <- function(robyn_object = NULL,
     }
     hpm_name <- get_spend_name
   } else {
-
     media_vec <- dt_input[, get(media_metric)]
     # use non-0 means marginal level if spend not provided
     if (is.null(metric_value)) {
@@ -1102,14 +1109,21 @@ robyn_response <- function(robyn_object = NULL,
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
     geom_line(color = "steelblue") +
     geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
-    labs(title = paste("Saturation curve of", media_type, "media:", media_metric,
-                       ifelse(metric_type == "spend", "spend metric", "exposure metric")),
-         subtitle = sprintf(
-           "Response of %s @ %s",
-           formatNum(dt_point$output, signif = 4),
-           formatNum(dt_point$input, signif = 4)),
-         x = "Metric", y = "Response") +
-    theme_lares() + scale_x_abbr() + scale_y_abbr()
+    labs(
+      title = paste(
+        "Saturation curve of", media_type, "media:", media_metric,
+        ifelse(metric_type == "spend", "spend metric", "exposure metric")
+      ),
+      subtitle = sprintf(
+        "Response of %s @ %s",
+        formatNum(dt_point$output, signif = 4),
+        formatNum(dt_point$input, signif = 4)
+      ),
+      x = "Metric", y = "Response"
+    ) +
+    theme_lares() +
+    scale_x_abbr() +
+    scale_y_abbr()
 
   class(Response) <- unique(c("robyn_response", class(Response)))
   return(list(
@@ -1120,7 +1134,7 @@ robyn_response <- function(robyn_object = NULL,
 
 model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, refreshAddedStart) {
 
-  ## input for decomp
+  ## Input for decomp
   y <- dt_modSaturated$dep_var
   indepVar <- dt_modSaturated[, (setdiff(names(dt_modSaturated), "dep_var")), with = FALSE]
   x <- as.data.table(x)
@@ -1128,12 +1142,11 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   indepVarName <- names(indepVar)
   indepVarCat <- indepVarName[sapply(indepVar, is.factor)]
 
-  ## decomp x
+  ## Decomp x
   xDecomp <- data.table(mapply(function(regressor, coeff) {
     regressor * coeff
   }, regressor = x, coeff = coefs[-1]))
   xDecomp <- cbind(data.table(intercept = rep(intercept, nrow(xDecomp))), xDecomp)
-  # xDecompOut <- data.table(sapply(indepVarName, function(x) xDecomp[, rowSums(.SD,), .SDcols = str_which(names(xDecomp), x)]))
   xDecompOut <- cbind(data.table(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
   ## QA decomp
@@ -1143,7 +1156,7 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
     message("\n### attention for loop ", i, " : manual decomp is not matching linear model prediction. Deviation is ", mean(errorTerm / y) * 100, " % ### \n")
   }
 
-  ## output decomp
+  ## Output decomp
   y_hat.scaled <- rowSums(abs(xDecomp))
   xDecompOutPerc.scaled <- abs(xDecomp) / y_hat.scaled
   xDecompOut.scaled <- y_hat * xDecompOutPerc.scaled
@@ -1153,8 +1166,6 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   xDecompOutAggMeanNon0 <- sapply(xDecompOut[, c("intercept", indepVarName), with = FALSE], function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x != 0])))
   xDecompOutAggMeanNon0[is.nan(xDecompOutAggMeanNon0)] <- 0
   xDecompOutAggMeanNon0Perc <- xDecompOutAggMeanNon0 / sum(xDecompOutAggMeanNon0)
-  # xDecompOutAggPerc.scaled <- abs(xDecompOutAggPerc)/sum(abs(xDecompOutAggPerc))
-  # xDecompOutAgg.scaled <- sum(xDecompOutAgg)*xDecompOutAggPerc.scaled
 
   refreshAddedStartWhich <- which(xDecompOut$ds == refreshAddedStart)
   refreshAddedEnd <- max(xDecompOut$ds)
@@ -1184,55 +1195,48 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
     xDecompPercRF = xDecompOutAggPercRF,
     xDecompMeanNon0RF = xDecompOutAggMeanNon0RF,
     xDecompMeanNon0PercRF = xDecompOutAggMeanNon0PercRF
-    # ,xDecompAgg.scaled = xDecompOutAgg.scaled
-    # ,xDecompPerc.scaled = xDecompOutAggPerc.scaled
   ))
   decompOutAgg[, pos := xDecompAgg >= 0]
 
-  decompCollect <- list(xDecompVec = xDecompOut, xDecompVec.scaled = xDecompOut.scaled, xDecompAgg = decompOutAgg, coefsOutCat = coefsOutCat)
+  decompCollect <- list(
+    xDecompVec = xDecompOut, xDecompVec.scaled = xDecompOut.scaled,
+    xDecompAgg = decompOutAgg, coefsOutCat = coefsOutCat
+  )
 
   return(decompCollect)
-} ## decomp end
+}
 
 
-calibrate_mmm <- function(decompCollect, calibration_input, paid_media_spends, dayInterval) {
+calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
 
-  # check if any lift channel doesn't have media var
-  check_set_lift <- any(sapply(calibration_input$channel, function(x) {
-    any(str_detect(x, paid_media_spends))
-  }) == FALSE)
-  if (check_set_lift) {
-    stop("calibration_input channels must be from paid_media_spends")
-  }
-
-  ## prep lift input
+  ## Prep lift inputs
   getLiftMedia <- unique(calibration_input$channel)
   getDecompVec <- decompCollect$xDecompVec
-
-  ## loop all lift input
   liftCollect <- list()
-  for (m in 1:length(getLiftMedia)) { # loop per lift channel
 
+  # Loop per lift channel
+  for (m in seq_along(getLiftMedia)) {
     liftWhich <- str_which(calibration_input$channel, getLiftMedia[m])
-
     liftCollect2 <- list()
-    for (lw in 1:length(liftWhich)) { # loop per lift test per channel
 
-      ## get lift period subset
+    # Loop per lift test per channel
+    for (lw in seq_along(liftWhich)) {
+
+      ## Get lift period subset
       liftStart <- calibration_input[liftWhich[lw], liftStartDate]
       liftEnd <- calibration_input[liftWhich[lw], liftEndDate]
       liftPeriodVec <- getDecompVec[ds >= liftStart & ds <= liftEnd, c("ds", getLiftMedia[m]), with = FALSE]
       liftPeriodVecDependent <- getDecompVec[ds >= liftStart & ds <= liftEnd, c("ds", "y"), with = FALSE]
 
-      ## scale decomp
+      ## Scale decomp
       mmmDays <- nrow(liftPeriodVec) * dayInterval
       liftDays <- as.integer(liftEnd - liftStart + 1)
-      y_hatLift <- sum(unlist(getDecompVec[, -1])) # total pred sales
+      y_hatLift <- sum(unlist(getDecompVec[, -1])) # Total pred sales
       x_decompLift <- sum(liftPeriodVec[, 2])
       x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
       y_scaledLift <- liftPeriodVecDependent[, sum(y)] / mmmDays * liftDays
 
-      ## output
+      ## Output
       liftCollect2[[lw]] <- data.table(
         liftMedia = getLiftMedia[m],
         liftStart = liftStart,
@@ -1245,7 +1249,7 @@ calibrate_mmm <- function(decompCollect, calibration_input, paid_media_spends, d
     liftCollect[[m]] <- rbindlist(liftCollect2)
   }
 
-  ## get mape_lift
+  ## Get mape_lift -> Then MAPE = mean(mape_lift)
   liftCollect <- rbindlist(liftCollect)[, mape_lift := abs((decompAbsScaled - liftAbs) / liftAbs)]
   return(liftCollect)
 }
@@ -1317,7 +1321,9 @@ lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
   mysd <- function(y) sqrt(sum((y - mean(y))^2) / length(y))
   sx <- scale(x, scale = apply(x, 2, mysd))
   check_nan <- apply(sx, 2, function(sxj) all(is.nan(sxj)))
-  sx <- mapply(function(sxj, v) return(if(v) rep(0, length(sxj)) else sxj), sxj = as.data.frame(sx), v = check_nan)
+  sx <- mapply(function(sxj, v) {
+    return(if (v) rep(0, length(sxj)) else sxj)
+  }, sxj = as.data.frame(sx), v = check_nan)
   sx <- as.matrix(sx, ncol = ncol(x), nrow = nrow(x))
   # sy <- as.vector(scale(y, scale=mysd(y)))
   sy <- y
@@ -1408,8 +1414,9 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
 }
 
 init_msgs_run <- function(InputCollect, refresh, lambda_control, quiet = FALSE) {
-  if (!is.null(lambda_control))
+  if (!is.null(lambda_control)) {
     message("'lambda_control' deprecated in v3.6.0; lambda is now selected by hyperparameter optimisation")
+  }
   if (!quiet) {
     message(sprintf(
       "Input data has %s %ss in total: %s to %s",

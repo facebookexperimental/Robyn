@@ -97,7 +97,8 @@ response_imps <- robyn_response(
   media_metric = "facebook_I",
   metric_value = imps
 )$response
-response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
+response_per_1k_imps <- response_imps / imps * 1000
+response_per_1k_imps
 
 ## Example of getting organic media exposure response curves
 sendings <- 30000
@@ -106,7 +107,8 @@ response_sending <- robyn_response(
   media_metric = "newsletter",
   metric_value = sendings
 )$response
-response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
+response_per_1k_send <- response_sending / sendings * 1000
+response_per_1k_send
 
 ## Get response for 80k for search_S from the third model refresh
 
@@ -128,6 +130,5 @@ robyn_response(
   dt_coef = OutputCollect$xDecompAgg,
   InputCollect = InputCollect
 )
-
 }
 }

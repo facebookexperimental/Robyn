@@ -417,32 +417,45 @@ check_hyper_limits <- function(hyperparameters, hyper) {
   }
 }
 
-check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var, window_start, window_end) {
+check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
+                              window_start, window_end, paid_media_spends) {
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("calibration_input must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
+    if (!all(calibration_input$channel %in% paid_media_spends)) {
+      these <- unique(calibration_input$channel[which(!calibration_input$channel %in% paid_media_spends)])
+      stop("All channels from 'calibration_input' must be any of 'paid_media_spends'. Check: ", v2t(these))
+    }
     for (i in 1:nrow(calibration_input)) {
       temp <- calibration_input[i, ]
       if (temp$liftStartDate < as.Date(window_start) | temp$liftEndDate > as.Date(window_end)) {
-        stop(sprintf(paste(
-          "Your calibration's date range for %s between %s and %s is not within modeling window (%s to %s).",
-          "Please, remove this experiment from 'calibration_input'."),
-          temp$channel, temp$liftStartDate, temp$liftEndDate, window_start, window_end))
+        stop(sprintf(
+          paste(
+            "Your calibration's date range for %s between %s and %s is not within modeling window (%s to %s).",
+            "Please, remove this experiment from 'calibration_input'."
+          ),
+          temp$channel, temp$liftStartDate, temp$liftEndDate, window_start, window_end
+        ))
       }
     }
     if ("spend" %in% colnames(calibration_input)) {
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
-          pull(get(temp$channel)) %>% sum(.) %>% round(., 0)
+          pull(get(temp$channel)) %>%
+          sum(.) %>%
+          round(., 0)
         if (dt_input_spend > temp$spend * 1.1 | dt_input_spend < temp$spend * 0.9) {
-          warning(sprintf(paste(
-            "Your calibration's spend (%s) for %s between %s and %s does not match your dt_input spend (~%s).",
-            "Please, check again your dates or split your media inputs into separate media channels."),
+          warning(sprintf(
+            paste(
+              "Your calibration's spend (%s) for %s between %s and %s does not match your dt_input spend (~%s).",
+              "Please, check again your dates or split your media inputs into separate media channels."
+            ),
             formatNum(temp$spend, 0), temp$channel, temp$liftStartDate, temp$liftEndDate,
-            formatNum(dt_input_spend, 3, abbr = TRUE)))
+            formatNum(dt_input_spend, 3, abbr = TRUE)
+          ))
         }
       }
     }
@@ -450,10 +463,13 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$confidence < 0.8) {
-          warning(sprintf(paste(
-            "Your calibration's confidence for %s between %s and %s is lower than 80%%, thus low-confidence.",
-            "Consider getting rid of this experiment and running it again."),
-            temp$channel, temp$liftStartDate, temp$liftEndDate))
+          warning(sprintf(
+            paste(
+              "Your calibration's confidence for %s between %s and %s is lower than 80%%, thus low-confidence.",
+              "Consider getting rid of this experiment and running it again."
+            ),
+            temp$channel, temp$liftStartDate, temp$liftEndDate
+          ))
         }
       }
     }
@@ -461,10 +477,13 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$metric != dep_var) {
-          stop(sprintf(paste(
-            "Your calibration's metric for %s between %s and %s is not '%s'.",
-            "Please, remove this experiment from 'calibration_input'."),
-            temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var))
+          stop(sprintf(
+            paste(
+              "Your calibration's metric for %s between %s and %s is not '%s'.",
+              "Please, remove this experiment from 'calibration_input'."
+            ),
+            temp$channel, temp$liftStartDate, temp$liftEndDate, dep_var
+          ))
         }
       }
     }
@@ -688,12 +707,18 @@ check_run_inputs <- function(cores, iterations, trials, intercept_sign, nevergra
 check_daterange <- function(date_min, date_max, dates) {
   if (!is.null(date_min)) {
     if (length(date_min) > 1) stop("Set a single date for 'date_min' parameter")
-    if (date_min < min(dates)) warning(sprintf(
-      "Parameter 'date_min' not in your data's date range. Changed to '%s'", min(dates)))
+    if (date_min < min(dates)) {
+      warning(sprintf(
+        "Parameter 'date_min' not in your data's date range. Changed to '%s'", min(dates)
+      ))
+    }
   }
   if (!is.null(date_max)) {
     if (length(date_max) > 1) stop("Set a single date for 'date_max' parameter")
-    if (date_max > max(dates)) warning(sprintf(
-      "Parameter 'date_max' not in your data's date range. Changed to '%s'", max(dates)))
+    if (date_max > max(dates)) {
+      warning(sprintf(
+        "Parameter 'date_max' not in your data's date range. Changed to '%s'", max(dates)
+      ))
+    }
   }
 }

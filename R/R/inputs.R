@@ -246,7 +246,8 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
-      dt_input, date_var, calibration_input, dayInterval, dep_var, window_start, window_end)
+      dt_input, date_var, calibration_input, dayInterval, dep_var,
+      window_start, window_end, paid_media_spends)
 
     ## Not used variables
     unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
@@ -311,7 +312,8 @@ robyn_inputs <- function(dt_input = NULL,
       dayInterval = InputCollect$dayInterval,
       dep_var = InputCollect$dep_var,
       window_start = InputCollect$window_start,
-      window_end = InputCollect$window_end
+      window_end = InputCollect$window_end,
+      paid_media_spends = InputCollect$paid_media_spends
     )
     ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
@@ -678,11 +680,12 @@ robyn_engineering <- function(x, ...) {
 #' When \code{prophet_vars} in \code{robyn_inputs()} is specified, this
 #' function decomposes trend, season, holiday and weekday from the
 #' dependent variable.
+#'
+#' @inheritParams robyn_inputs
 #' @param dt_transform A data.frame with all model features.
-#' @param dt_holidays As in \code{robyn_inputs()}
-#' @param context_vars,paid_media_spends,intervalType,dayInterval
-#' As included in \code{InputCollect}
-#' @param prophet_country,prophet_vars,prophet_signs,factor_vars
+#' Must contain \code{ds} column for time variable values and
+#' \code{dep_var} column for dependent variable values.
+#' @param context_vars,paid_media_spends,intervalType,dayInterval,prophet_country,prophet_vars,prophet_signs,factor_vars
 #' As included in \code{InputCollect}
 #' @param custom_params List. Custom parameters passed to \code{prophet()}
 #' @return A list containing all prophet decomposition output.
