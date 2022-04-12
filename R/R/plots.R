@@ -37,24 +37,24 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       )
     }
 
-    ## Spend exposure model
-    if (any(InputCollect$exposure_selector)) {
-      all_plots[["pSpendExposure"]] <- pSpendExposure <- wrap_plots(
-        InputCollect$plotNLSCollect,
-        ncol = ifelse(length(InputCollect$plotNLSCollect) <= 3, length(InputCollect$plotNLSCollect), 3)
-      ) +
-        plot_annotation(
-          title = "Spend-exposure fitting with Michaelis-Menten model",
-          theme = theme(plot.title = element_text(hjust = 0.5))
-        )
-      if (export) ggsave(
-        paste0(OutputCollect$plot_folder, "spend_exposure_fitting.png"),
-        plot = pSpendExposure, dpi = 600, width = 12, limitsize = FALSE,
-        height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
-      )
-    } else {
-     # message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
-    }
+    # ## Spend exposure model
+    # if (any(InputCollect$exposure_selector)) {
+    #   all_plots[["pSpendExposure"]] <- pSpendExposure <- wrap_plots(
+    #     InputCollect$plotNLSCollect,
+    #     ncol = ifelse(length(InputCollect$plotNLSCollect) <= 3, length(InputCollect$plotNLSCollect), 3)
+    #   ) +
+    #     plot_annotation(
+    #       title = "Spend-exposure fitting with Michaelis-Menten model",
+    #       theme = theme(plot.title = element_text(hjust = 0.5))
+    #     )
+    #   if (export) ggsave(
+    #     paste0(OutputCollect$plot_folder, "spend_exposure_fitting.png"),
+    #     plot = pSpendExposure, dpi = 600, width = 12, limitsize = FALSE,
+    #     height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
+    #   )
+    # } else {
+    #  # message("No spend-exposure modelling needed. All media variables used for MMM are spend variables")
+    # }
 
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
