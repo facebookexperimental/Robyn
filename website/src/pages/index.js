@@ -117,14 +117,6 @@ function Home() {
             >
               Install Robyn
             </Link>
-            <Link
-              className={clsx(
-                'button button--outline button--secondary button--lg'
-              )}
-              to={useBaseUrl('docs/demo-R-script/')}
-            >
-              Get Started
-            </Link>
           </div>
         </div>
       </header>
