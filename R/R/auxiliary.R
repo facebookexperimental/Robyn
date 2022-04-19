@@ -3,24 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Includes function format_unit, get_rsq
-
-# Format unit
-format_unit <- function(x_in) {
-  x_out <- sapply(x_in, function(x) {
-    if (abs(x) >= 1000000000) {
-      x_out <- paste0(round(x / 1000000000, 1), " B")
-    } else if (abs(x) >= 1000000 & abs(x) < 1000000000) {
-      x_out <- paste0(round(x / 1000000, 1), " M")
-    } else if (abs(x) >= 1000 & abs(x) < 1000000) {
-      x_out <- paste0(round(x / 1000, 1), " K")
-    } else {
-      x_out <- round(x, 0)
-    }
-  }, simplify = TRUE)
-  return(x_out)
-}
-
 # Calculate R-squared
 get_rsq <- function(true, predicted, p = NULL, df.int = NULL) {
   sse <- sum((predicted - true)^2)
@@ -51,4 +33,25 @@ flatten_hyps <- function(x) {
   if (is.null(x)) return(x)
   temp <- sapply(x, function(x) sprintf("[%s]", paste(if(is.numeric(x)) signif(x, 6) else x, collapse = ", ")))
   paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
+}
+
+####################################################################
+#' Update Robyn Version
+#'
+#' Update Robyn version from
+#' \href{https://github.com/facebookexperimental/Robyn}{Github repository}
+#' for "dev" version or from CRAN (not yet submitted, but soon!).
+#'
+#' @param dev Boolean. Dev version? If not, CRAN version.
+#' @param ... Parameters to pass to \code{remotes::install_github}
+#' or \code{utils::install.packages}, depending on \code{dev} parameter.
+#' @export
+robyn_update <- function(dev = TRUE, ...) {
+  if (dev) {
+    try_require("remotes")
+    # options(timeout = 400)
+    install_github(repo = "facebookexperimental/Robyn/R", ...)
+  } else {
+    utils::install.packages("Robyn", ...)
+  }
 }
