@@ -8,14 +8,16 @@
 #'
 #' \code{robyn_converge()} consumes \code{robyn_run()} outputs
 #' and calculate convergence status and builds convergence plots.
-#' Convergence is calculated by default using the following criteria:
+#' Convergence is calculated by default using the following criteria
+#' (having kept the default parameters: sd_qtref = 3 and med_lowb = 2):
 #' \describe{
 #'   \item{Criteria #1:}{Last quantile's standard deviation < first 3
 #'   quantiles' mean standard deviation}
-#'   \item{Criteria #2:}{Last quantile's median < first quantile's
-#'   median - 3 * first 3 quantiles' mean standard deviation.}
+#'   \item{Criteria #2:}{Last quantile's absolute median < absolute first
+#'   quantile's absolute median - 2 * first 3 quantiles' mean standard
+#'   deviation}
 #' }
-#' Both criteria have to be satisfied to consider convergence.
+#' Both mentioned criteria have to be satisfied to consider MOO convergence.
 #'
 #' @param OutputModels List. Output from \code{robyn_run()}.
 #' @param n_cuts Integer. Default to 20 (5\% cuts each).
@@ -34,7 +36,7 @@
 #' )
 #' }
 #' @export
-robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3, ...) {
+robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...) {
 
   stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
@@ -64,9 +66,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
       include.lowest = TRUE, ordered_result = TRUE, dig.lab = 6
     ))
 
-  # Calculate sd and median on each cut to alert user on:
-  # 1) last quantile's sd < mean sd of default first 3 qt
-  # 2) last quantile's median < median of first qt - default 3 * mean sd of defualt first 3 qt
+  # Calculate standard deviations and absolute medians on each cut
   errors <- dt_objfunc_cvg %>%
     group_by(.data$error_type, .data$cuts) %>%
     summarise(
@@ -80,14 +80,14 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
       med_var_P = abs(round(100 * (.data$median - lag(.data$median)) / .data$median, 2))
     ) %>%
     group_by(.data$error_type) %>%
-    mutate(first_med = dplyr::first(.data$median),
-           first_med_avg = mean(.data$median[1:sd_qtref]),
-           last_med = dplyr::last(.data$median),
+    mutate(first_med = abs(dplyr::first(.data$median)),
+           first_med_avg = abs(mean(.data$median[1:sd_qtref])),
+           last_med = abs(dplyr::last(.data$median)),
            first_sd = dplyr::first(.data$std),
            first_sd_avg = mean(.data$std[1:sd_qtref]),
            last_sd = dplyr::last(.data$std))  %>%
-    mutate(med_thres = .data$first_med - med_lowb * .data$first_sd_avg,
-           flag_med = .data$median < .data$first_med - med_lowb * .data$first_sd_avg,
+    mutate(med_thres = abs(.data$first_med - med_lowb * .data$first_sd_avg),
+           flag_med = abs(.data$median) < .data$med_thres,
            flag_sd = .data$std < .data$first_sd_avg)
 
   conv_msg <- NULL
@@ -98,7 +98,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     greater <- ">" #intToUtf8(8814)
     temp <- glued(paste(
         "{error_type} {did}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_threh} &",
-        "med@qt.{quantile} {qtn_median} {symb_med} {med_threh} med@qt.1-{med_lowb}*sd"),
+        "|med@qt.{quantile}| {qtn_median} {symb_med} {med_threh}"),
         error_type = last.qt$error_type,
         did = ifelse(last.qt$flag_sd & last.qt$flag_med, "", "NOT "),
         sd = signif(last.qt$last_sd, 2),
@@ -107,8 +107,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
         quantile = n_cuts,
         qtn_median = signif(last.qt$last_med, 2),
         symb_med = ifelse(last.qt$flag_med, "<=", greater),
-        med_threh = signif(last.qt$med_thres, 2),
-        med_lowb = med_lowb
+        med_threh = signif(last.qt$med_thres, 2)
       )
     conv_msg <- c(conv_msg, temp)
   }
@@ -133,9 +132,9 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
   #   labs(colour = "Trial", x = "Iterations", y = NULL)
 
   subtitle <- sprintf(
-    "%s trial%s with %s iterations %s",
+    "%s trial%s with %s iterations%s using %s",
     max(df$trial), ifelse(max(df$trial) > 1, "s", ""), max(dt_objfunc_cvg$cuts),
-    ifelse(max(df$trial) > 1, "each", "")
+    ifelse(max(df$trial) > 1, " each", ""), OutputModels$nevergrad_algo
   )
 
   moo_distrb_plot <- dt_objfunc_cvg %>%
@@ -174,7 +173,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3
     theme_lares()
 
   if (calibrated) {
-    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape))
+    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape)) +
+      guides(alpha = "none")
   } else {
     moo_cloud_plot <- moo_cloud_plot + geom_point()
   }

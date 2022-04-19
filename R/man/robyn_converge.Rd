@@ -4,7 +4,7 @@
 \alias{robyn_converge}
 \title{Check Models Convergence}
 \usage{
-robyn_converge(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 3, ...)
+robyn_converge(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...)
 }
 \arguments{
 \item{OutputModels}{List. Output from \code{robyn_run()}.}
@@ -22,14 +22,16 @@ for median. (Criteria #2). Default to 3.}
 \description{
 \code{robyn_converge()} consumes \code{robyn_run()} outputs
 and calculate convergence status and builds convergence plots.
-Convergence is calculated by default using the following criteria:
+Convergence is calculated by default using the following criteria
+(having kept the default parameters: sd_qtref = 3 and med_lowb = 2):
 \describe{
   \item{Criteria #1:}{Last quantile's standard deviation < first 3
   quantiles' mean standard deviation}
-  \item{Criteria #2:}{Last quantile's median < first quantile's
-  median - 3 * first 3 quantiles' mean standard deviation.}
+  \item{Criteria #2:}{Last quantile's absolute median < absolute first
+  quantile's absolute median - 2 * first 3 quantiles' mean standard
+  deviation}
 }
-Both criteria have to be satisfied to consider convergence.
+Both mentioned criteria have to be satisfied to consider MOO convergence.
 }
 \examples{
 \dontrun{

@@ -7,7 +7,7 @@
 robyn_onepagers(
   InputCollect,
   OutputCollect,
-  selected = NULL,
+  select_model = NULL,
   quiet = FALSE,
   export = TRUE
 )
@@ -17,7 +17,7 @@ robyn_onepagers(
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
-\item{selected}{Character vector. Which models (by \code{solID}) do you
+\item{select_model}{Character vector. Which models (by \code{solID}) do you
 wish to plot the one-pagers and export? Default will take top
 \code{robyn_clusters()} results.}
 

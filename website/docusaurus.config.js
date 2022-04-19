@@ -117,8 +117,7 @@ module.exports = {
       {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          // Please change this to your repo.
-          editUrl: 'https://github.com/facebookexperimental/Robyn',
+          editUrl: 'https://github.com/facebookexperimental/Robyn/edit/main/website',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),

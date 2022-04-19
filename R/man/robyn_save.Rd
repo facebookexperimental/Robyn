@@ -48,18 +48,15 @@ Use \code{robyn_save()} to select and save as .RDS file the initial model.
 }
 \examples{
 \dontrun{
-## Get all model IDs in result from OutputCollect$allSolutions
-
-## Select one from above
+# Get model IDs from OutputCollect
 select_model <- "3_10_3"
 
-## Save the robyn object. Overwriting old object needs confirmation.
-robyn_object <- "~/Desktop/Robyn.RDS"
+# Save the results. Overwriting old object needs confirmation.
 robyn_save(
-  robyn_object = robyn_object,
-  select_model = select_model,
+  robyn_object = "~/Desktop/Robyn.RDS",
   InputCollect = InputCollect,
-  OutputCollect = OutputCollect
+  OutputCollect = OutputCollect,
+  select_model = select_model
 )
 }
 }

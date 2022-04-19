@@ -164,7 +164,7 @@ plot_saturation(plot = FALSE)
 # larger the gamma, the later the inflection point in the response curve.
 
 ## 4. Set individual hyperparameter bounds. They either contain two values e.g. c(0, 0.5),
-# or only one value, in which case you'd "fixed" that hyperparameter
+# or only one value, in which case you'd "fix" that hyperparameter.
 
 # Run hyper_limits() to check maximum upper and lower bounds by range
 # Example hyperparameters ranges for Geometric adstock
@@ -228,19 +228,23 @@ print(InputCollect)
 ## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
 ## As noted above, calibration channels need to be paid_media_spends name.
 ## ------------------------------------------------------------------------------------------ ##
-# dt_calibration <- data.frame(
-#   channel = c("facebook_S",  "tv_S", "facebook_S")
+# calibration_input <- data.frame(
 #   # channel name must in paid_media_vars
-#   , liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01"))
+#   channel = c("facebook_S",  "tv_S", "facebook_S"),
 #   # liftStartDate must be within input data range
-#   , liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20"))
+#   liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01")),
 #   # liftEndDate must be within input data range
-#   , liftAbs = c(400000, 300000, 200000) # Provided value must be
-#   # tested on same campaign level in model and same metric as dep_var_type
+#   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20")),
+#   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
+#   liftAbs = c(400000, 300000, 200000),
+#   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
+#   spend = c(421000, 7100, 240000),
+#   # Confidence: if frequentist experiment, you may use 1 - pvalue
+#   confidence = c(0.85, 0.8, 0.99),
+#   # KPI measured: must match your dep_var
+#   metric = c("revenue", "revenue", "revenue")
 # )
-#
-# InputCollect <- robyn_inputs(InputCollect = InputCollect
-#                              , calibration_input = dt_calibration)
+# InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
 
 
 ################################################################
@@ -332,7 +336,11 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
+<<<<<<< HEAD
 select_model <- "1_26_12" # select one from above
+=======
+select_model <- "1_92_12" # select one from above
+>>>>>>> main
 ExportedModel <- robyn_save(
   robyn_object = robyn_object # model object location and name
   , select_model = select_model # selected model ID
@@ -366,7 +374,7 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 )
 print(AllocatorCollect)
-AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
@@ -383,6 +391,7 @@ AllocatorCollect <- robyn_allocator(
 )
 print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -431,7 +440,10 @@ Robyn <- robyn_refresh(
 # report_media_transform_matrix.csv, all media transformation vectors
 # report_alldecomp_matrix.csv,all decomposition vectors of independent variables
 
+<<<<<<< HEAD
 # Export this refreshed model you wish to export
+=======
+>>>>>>> main
 last_refresh_num <- sum(grepl('listRefresh', names(Robyn))) + 1 # Pick any refresh.
   #Here's the final refresh using the model recommended by least combined normalized nrmse and decomp.rssd
 ExportedRefreshModel <- robyn_save(
@@ -455,8 +467,7 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 14 # Duration of expected_spend in days
 )
 print(AllocatorCollect)
-AllocatorCollect$plots
-AllocatorCollect$dt_optimOut
+# plot(AllocatorCollect)
 
 ################################################################
 #### Step 8: get marginal returns
@@ -497,7 +508,7 @@ Response2$plot
 (Response2$response - Response1$response)/(Spend2 - Spend1)
 
 ## Example of getting paid media exposure response curves
-imps <- 5000000
+imps <- 50000000
 response_imps <- robyn_response(
   robyn_object = robyn_object
   #, select_build = 1
@@ -520,8 +531,8 @@ response_sending$plot
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2022-02-21 11.29 rf11/pareto_hyperparameters.csv")
-select_model <- "1_51_11"
+dt_hyper_fixed <- data.table::fread("~/Desktop/2022-03-31 12.32 rf4/pareto_hyperparameters.csv")
+select_model <- "1_25_9"
 dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
 
 OutputCollectFixed <- robyn_run(
