@@ -31,8 +31,8 @@
 # $ roi_mean : Numeric. Pseudo-calc: roi_mean = mean_response / mean_spend.
 # $ roi_total : Numeric. Pseudo-calc: roi_total = xDecompAgg / total_spend.
 # $ cpa_total : Numeric. Pseudo-calc: cpa_total = total_spend / xDecompAgg
-# $ mean_response : Numeric. Response of mean_spend. Pseudo-calc: mean_response1 = beta1 * saturaeted(mean_spend1) Note the difference to xDecompMeanNon0.
-# $ next_unit_response : Numeric. Response of next unit spend from the level of mean_spend. Pseudo-calc: next_unit_response1 = beta1 * (saturaeted(mean_spend1 + 1) - saturaeted(mean_spend1))
+# $ mean_response : Numeric. Response of mean_spend. Pseudo-calc: mean_response1 = beta1 * saturated(mean_spend1) Note the difference to xDecompMeanNon0.
+# $ next_unit_response : Numeric. Response of next unit spend from the level of mean_spend. Pseudo-calc: next_unit_response1 = beta1 * (saturated(mean_spend1 + 1) - saturated(mean_spend1))
 
 #### pareto_hyperparameters.csv: Value of all hyperparameters of all pareto models. Number of column varies depending on input data
 

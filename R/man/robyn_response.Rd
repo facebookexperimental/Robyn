@@ -13,7 +13,8 @@ robyn_response(
   dt_hyppar = NULL,
   dt_coef = NULL,
   InputCollect = NULL,
-  OutputCollect = NULL
+  OutputCollect = NULL,
+  quiet = FALSE
 )
 }
 \arguments{
@@ -47,6 +48,8 @@ Required when \code{robyn_object} is not provided.}
 
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
+
+\item{quiet}{Boolean. Keep messages off?}
 }
 \description{
 \code{robyn_response()} returns the response for a given
@@ -94,7 +97,8 @@ response_imps <- robyn_response(
   media_metric = "facebook_I",
   metric_value = imps
 )$response
-response_per_1k_imps <- response_imps / imps * 1000; response_per_1k_imps
+response_per_1k_imps <- response_imps / imps * 1000
+response_per_1k_imps
 
 ## Example of getting organic media exposure response curves
 sendings <- 30000
@@ -103,7 +107,8 @@ response_sending <- robyn_response(
   media_metric = "newsletter",
   metric_value = sendings
 )$response
-response_per_1k_send <- response_sending / sendings * 1000; response_per_1k_send
+response_per_1k_send <- response_sending / sendings * 1000
+response_per_1k_send
 
 ## Get response for 80k for search_S from the third model refresh
 
@@ -125,6 +130,5 @@ robyn_response(
   dt_coef = OutputCollect$xDecompAgg,
   InputCollect = InputCollect
 )
-
 }
 }

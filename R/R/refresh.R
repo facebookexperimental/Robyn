@@ -12,18 +12,15 @@
 #' @return (Invisible) list with filename and summary.
 #' @examples
 #' \dontrun{
-#' ## Get all model IDs in result from OutputCollect$allSolutions
-#'
-#' ## Select one from above
+#' # Get model IDs from OutputCollect
 #' select_model <- "3_10_3"
 #'
-#' ## Save the robyn object. Overwriting old object needs confirmation.
-#' robyn_object <- "~/Desktop/Robyn.RDS"
+#' # Save the results. Overwriting old object needs confirmation.
 #' robyn_save(
-#'   robyn_object = robyn_object,
-#'   select_model = select_model,
+#'   robyn_object = "~/Desktop/Robyn.RDS",
 #'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect
+#'   OutputCollect = OutputCollect,
+#'   select_model = select_model
 #' )
 #' }
 #' @export
@@ -33,7 +30,7 @@ robyn_save <- function(robyn_object,
                        OutputCollect,
                        quiet = FALSE) {
   check_robyn_object(robyn_object)
-
+  if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
     stop(paste0("'select_model' must be one of these values: ", paste(
       OutputCollect$resultHypParam$solID,
@@ -102,28 +99,30 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' Build Refresh Model
 #'
 #' @description
-#' \code{robyn_refresh()} builds update models based on
+#' \code{robyn_refresh()} builds updated models based on
 #' the previously built models saved in the \code{Robyn.RDS} object specified
 #' in \code{robyn_object}. For example, when updating the initial build with 4
 #' weeks of new data, \code{robyn_refresh()} consumes the selected model of
-#' the initial build. it sets lower and upper bounds of hyperparameters for the
+#' the initial build, sets lower and upper bounds of hyperparameters for the
 #' new build around the selected hyperparameters of the previous build,
-#' stabilizes the effect of baseline variables across old and new builds and
+#' stabilizes the effect of baseline variables across old and new builds, and
 #' regulates the new effect share of media variables towards the latest
-#' spend level. It returns aggregated result with all previous builds for
-#' reporting purpose and produces reporting plots.
+#' spend level. It returns the aggregated results with all previous builds for
+#' reporting purposes and produces reporting plots.
 #'
 #' You must run \code{robyn_save()} to select and save an initial model first,
 #' before refreshing.
 #'
+#' \strong{When should \code{robyn_refresh()} NOT be used:}
 #' The \code{robyn_refresh()} function is suitable for
 #' updating within "reasonable periods". Two situations are considered better
-#' to rebuild model:
-#' \describe{
-#'   \item{1. Most data is new}{If initial model has 100 weeks and 80 weeks
-#'   new data is added in refresh, it might be better to rebuild the model}
-#'   \item{2. New variables are added}{}
-#' }
+#' to rebuild model instead of refreshing:
+#'
+#' 1. Most data is new: If initial model was trained with 100 weeks worth of
+#' data but we add +50 weeks of new data.
+#'
+#' 2. New variables are added: If initial model had less variables than the ones
+#' we want to start using on new refresh model.
 #'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
@@ -218,6 +217,17 @@ robyn_refresh <- function(robyn_object,
         collapse = ",", ". Please rerun model."
       ))
     }
+
+    ## Check rule of thumb: 50% of data shouldn't be new
+    original_periods <- nrow(Robyn$listInit$InputCollect$dt_modRollWind)
+    new_periods <- nrow(filter(
+      dt_input, get(Robyn$listInit$InputCollect$date_var) > Robyn$listInit$InputCollect$window_end))
+    it <- Robyn$listInit$InputCollect$intervalType
+    if (new_periods > 0.5 * (original_periods + new_periods))
+      warning(sprintf(paste(
+        "We recommend re-building a model rather than refreshing this one.",
+        "More than 50%% of your refresh data (%s %ss) is new data (%s %ss)"),
+        original_periods + new_periods, it, new_periods, it))
 
     ## Get previous data
     if (refreshCounter == 1) {
