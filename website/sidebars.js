@@ -12,9 +12,6 @@ module.exports = {
     {
       type: 'category',
       label: 'How-to guide',
-      link: {
-        type: 'generated-index',
-      },
       collapsed: false,
       items: [
       'quick-start',
