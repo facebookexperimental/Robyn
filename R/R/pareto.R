@@ -267,34 +267,33 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       dt_scurvePlotMean[, solID := sid]
 
       # Exposure response curve
-      if (!identical(InputCollect$paid_media_vars, InputCollect$exposure_vars)) {
-        exposure_which <- which(InputCollect$paid_media_vars %in% InputCollect$exposure_vars)
-        spends_to_fit <- InputCollect$paid_media_spends[exposure_which]
-        nls_lm_selector <- InputCollect$exposure_selector[exposure_which]
-        dt_expoCurvePlot <- dt_scurvePlot[channel %in% spends_to_fit]
-        dt_expoCurvePlot[, exposure_pred := 0]
-        for (s in seq_along(spends_to_fit)) {
-          get_med <- InputCollect$exposure_vars[s]
-          if (nls_lm_selector[s]) {
-            Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
-            Km <- InputCollect$modNLSCollect[channel == get_med, Km]
-            # Vmax * get_spend/(Km + get_spend)
-            dt_expoCurvePlot[channel == spends_to_fit[s]
-                             , ':='(exposure_pred = mic_men(x = spend, Vmax = Vmax, Km = Km)
-                                    ,channel = get_med)]
-          } else {
-            coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
-            dt_expoCurvePlot[channel == spends_to_fit[s]
-                             , ':='(exposure_pred = spend * coef_lm
-                                    , channel = get_med)]
-          }
-        }
-      } else {
-        dt_expoCurvePlot <- NULL
-      }
-      plot4data <- list(dt_scurvePlot = dt_scurvePlot,
-                        dt_scurvePlotMean = dt_scurvePlotMean,
-                        dt_expoCurvePlot = dt_expoCurvePlot)
+      # if (!identical(InputCollect$paid_media_vars, InputCollect$exposure_vars)) {
+      #   exposure_which <- which(InputCollect$paid_media_vars %in% InputCollect$exposure_vars)
+      #   spends_to_fit <- InputCollect$paid_media_spends[exposure_which]
+      #   nls_lm_selector <- InputCollect$exposure_selector[exposure_which]
+      #   dt_expoCurvePlot <- dt_scurvePlot[channel %in% spends_to_fit]
+      #   dt_expoCurvePlot[, exposure_pred := 0]
+      #   for (s in seq_along(spends_to_fit)) {
+      #     get_med <- InputCollect$exposure_vars[s]
+      #     if (nls_lm_selector[s]) {
+      #       Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
+      #       Km <- InputCollect$modNLSCollect[channel == get_med, Km]
+      #       # Vmax * get_spend/(Km + get_spend)
+      #       dt_expoCurvePlot[channel == spends_to_fit[s]
+      #                        , ':='(exposure_pred = mic_men(x = spend, Vmax = Vmax, Km = Km)
+      #                               ,channel = get_med)]
+      #     } else {
+      #       coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
+      #       dt_expoCurvePlot[channel == spends_to_fit[s]
+      #                        , ':='(exposure_pred = spend * coef_lm
+      #                               , channel = get_med)]
+      #     }
+      #   }
+      # } else {
+      #   dt_expoCurvePlot <- NULL
+      # }
+       plot4data <- list(dt_scurvePlot = dt_scurvePlot,
+                         dt_scurvePlotMean = dt_scurvePlotMean)
 
       ## 5. Fitted vs actual
       if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {

@@ -8,22 +8,25 @@
  */
 
 module.exports = {
-  someSidebar: {
-    'How-to guide': ['quick-start', 'demo-R-script', 'step-by-step-videos'],
-    'Robyn at a glance':['robyn-at-a-glance', 'example-plots'],
-    'Analysts guide to MMM':['analysts-guide-to-MMM'],
-    Features: [
-      'ridge-regression',
-      'variable-transformations',
-      'facebook-prophet',
-      'automated-hyperparameter-selection-optimization',
-      'calibration',
-      'outputs-diagnostics',
-      'window',
-      'refresh',
-      'organic-media'
-    ],
-    'Getting help and contributing':['contributing'],
-    'About Robyn': ['about'],
-  },
+  someSidebar:[
+    {
+      type: 'category',
+      label: 'How-to guide',
+      link: {
+        type: 'generated-index',
+      },
+      collapsed: false,
+      items: [
+      'quick-start',
+      'additional-materials',
+      ],
+    },
+    'analysts-guide-to-MMM',
+    'features',
+    'implementation',
+    'features2',
+    'releases',
+    'contributing',
+    'about',
+    ]
 };
