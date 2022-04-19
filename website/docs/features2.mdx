@@ -1,17 +1,16 @@
 ---
-id: features2
+id: features
 title: Features
 ---
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
+An in-depth discussion of both the implementation and technical underpinnings of Robyn follows - 
+
 ## Inputs
 
 The function `robyn_inputs()` captures all of the non-hyperparameter inputs for the model-building process. Here we break down some of the underlying concepts
 
-### Paid Media Variables
-
-** Note - As of v3.6.1 - Robyn no longer uses exposure metrics for modeling purposes, defaulting to spend metrics only for precision purposes**
 
 ```
 InputCollect <- robyn_inputs(
@@ -20,38 +19,54 @@ InputCollect <- robyn_inputs(
   ,date_var = "DATE" # date format must be "2020-01-01"
   ,dep_var = "revenue" # there should be only one dependent variable
   ,dep_var_type = "revenue" # "revenue" or "conversion"
-  ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday" & "holiday"
-  ,prophet_country = "DE"# input one country. dt_prophet_holidays includes 59 countries by default
   ,context_vars = c("competitor_sales_B", "events") # e.g. competitors, discount, unemployment etc
-  ,paid_media_spends = c("tv_S","ooh_S",	"print_S"	,"facebook_S", "search_S") # mandatory input
-  ,paid_media_vars = c("tv_S", "ooh_S"	,	"print_S"	,"facebook_I" ,"search_clicks_P") # mandatory.
-  # paid_media_vars must have same order as paid_media_spends. Use media exposure metrics like
-  # impressions, GRP etc. If not applicable, use spend instead.
+  ,paid_media_spends = c("tv_S","ooh_S","print_S","facebook_S", "search_S")
+  ,paid_media_vars = c("tv_S", "ooh_S,"print_S","facebook_I","search_clicks_P") 
   ,organic_vars = c("newsletter") # marketing activity without media spend
   ,factor_vars = c("events") # specify which variables in context_vars or organic_vars are factorial
   ,window_start = "2016-11-23"
   ,window_end = "2018-08-22"
+  ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday" & "holiday"
+  ,prophet_country = "DE"# input one country. dt_prophet_holidays includes 59 countries by default
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
 )
 ```
 
-## Ridge Regression
+### Paid Media Variables
 
-In order to address multicollinearity among many regressors and prevent
-overfitting we apply a regularization technique to reduce variance at the cost
-of introducing some bias. This approach tends to improve the predictive
-performance of MMMs. The most common regularization, and the one we are using in
-this code is Ridge regression. The mathematical notation for Ridge regression
-is:
+** Note - As of v3.6.1 - Robyn no longer uses exposure metrics for modeling purposes, defaulting to spend metrics only for precision purposes**
 
-<img alt="Ridge Regression Formula" src={useBaseUrl('img/Ridge.png')} />
+Refer to the [Data Collection](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-collection) section of the Analyst's Guide to MMM for a detailed discussion on best practices for selecting your paid media variables.
 
-If we go a bit deeper into the actual components we will be using within the model specification,
-besides the lambda penalization term above, we can identify the following formula:
+Ensure that the paid media data is complete and accurate before proceeding. We will talk more about the variable transformations paid media variables will be subject to in the Variable Transformation section.
 
-<img alt="Ridge Regression Formula" src={useBaseUrl('img/model_specification.png')} />
+For paid media variables, we currently require that users designate both `paid_media_vars` and `paid_media_spends`. These lists should be of the same length, and the elements in the same positions in each list should correspond (e.g. if element 2 in paid_media_vars is your tv variable, then element 2 in paid_media_spends should be your spend that corresponds to that tv data)
+
+### Organic Variables
+
+Robyn enables users to specify `organic_vars` to model marketing activities without direct spend. Typically, this may include newsletter, push notification, social media posts, among other efforts. Moreover, organic variables are expected to have similar carryover (adstock) and saturating behavior as paid media variables. The respective transformation techniques such as geometric or Weibull transformation for adstock; or Hill transformation for saturation, are also applied to organic variables. More on these transformations in the following section - 
 
 ---
+
+#### Examples of typical organic variables
+- Reach / Impressions on blog posts
+- Impressions on organic & unpaid social media
+- SEO improvements
+- Email campaigns
+- Reach on UGC
+
+Below a chart showing the different types of organic variables that could be modeled
+
+<img alt="organic media" src={useBaseUrl('/img/organic-media.png')} />
+
+---
+
+### Contextual Variables
+
+All contextual variables must be specified as elements in `context_vars`. For a detailed discussion on potential contextual variables to include in your model, see the [Data Collection](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-collection) section of the Analyst's guide to MMM.
+
+---
+
 
 ## Variable Transformations
 
@@ -70,11 +85,12 @@ the understanding of decay effects and how this can be used in campaign
 planning. It reflects the theory that the effects of advertising can lag and
 decay following initial exposure. In other words, not all effects of advertising
 are felt immediately—memory builds and people sometimes delay action—and this
-awareness diminishes as time passes.
+awareness diminishes as time passes. When thinking about what makes sense for adstocks, think about how they relate to each other. In other words, think about how you would expect adstock curves to look for channels in different funnel stages and whether or not they meet those hypotheses.
 
 There are two adstock techniques you may choose from the code:
 
-1. Geometric: Traditionally the exponential decay function is used and
+#### Geometric:
+   Traditionally the exponential decay function is used and
    controlled by theta, the decay parameter. For example, an ad-stock of theta =
    0.75 means that 75% of the impressions in Period 1 were brought to Period 2.
    Mathematically the traditional exponential adstock decay effect is defined
@@ -82,12 +98,48 @@ There are two adstock techniques you may choose from the code:
 
 <img alt="Geometric Formula" src={useBaseUrl('img/geometric.png')} />
 
+  Some rule of thumb estimates we have found from historically building weekly-level models are that  TV has tended to have adstock between 0.3 - 0.8, OOH/Print/Radio has had 0.1-0.4, and Digital has had 0.0 - 0.3. This is anecdotal advice so please use your best judgement when building your own models.
+
+<img alt="Example Geometric Adstocks" src={useBaseUrl('img/adstockintro.png')} />
 
 
-2. Weibull: Weibull survival function (Weibull distribution) provides much more
+#### Weibull: 
+   Weibull survival function (Weibull distribution) provides much more
    flexibility in the shape and scale of the distribution. The formula is
    defined as: <img alt="Weibull Formula" src={useBaseUrl('img/weibull.png')} />
+   Whereas a geometric adstock has one hyperparameter (theta) weibull adstocks have two hyperparameters (shape and scale or t and j in the formula). This allows Weibull adstocks to be more flexible in how they model the carryover effect, as you can see by the example plots below. This flexibility does come at a cost of added computational complexity as adding any additional hyper parameters will, but it can be worth it given the speed of Robyn's computation, especially if you suspect that a certain channel does not have a simple geometric shape.
 
+<img alt="Example Weibull Adstocks" src={useBaseUrl('img/weibulladstocks.png')} />
+
+ **Weibull CDF adstock:** The Cumulative Distribution Function of Weibull has two parmeters
+, shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
+decay rate. The shape parameter controls the shape of the decay curve. Recommended
+bound is c(0.0001, 2). The larger the shape, the more S-shape. The smaller, the more
+L-shape. Scale controls the inflexion point of the decay curve. We recommend very
+conservative bounce of c(0, 0.1), because scale increases the adstock half-life greatly.
+
+**Weibull PDF adstock:** The Probability Density Function of the Weibull also has two
+parameters, shape & scale, and also has flexible decay rate as Weibull CDF. The
+difference is that Weibull PDF offers lagged effect. When shape > 2, the curve peaks
+after x = 0 and has NULL slope at x = 0, enabling lagged effect and sharper increase and
+decrease of adstock, while the scale parameter indicates the limit of the relative
+position of the peak at x axis; when 1 < shape < 2, the curve peaks after x = 0 and has
+infinite positive slope at x = 0, enabling lagged effect and slower increase and decrease
+of adstock, while scale has the same effect as above; when shape = 1, the curve peaks at
+x = 0 and reduces to exponential decay, while scale controls the inflexion point; when
+0 < shape < 1, the curve peaks at x = 0 and has increasing decay, while scale controls
+the inflexion point. When all possible shapes are relevant, we recommend c(0.0001, 10)
+as bounds for shape; when only strong lagged effect is of interest, we recommend
+c(2.0001, 10) as bound for shape. In all cases, we recommend conservative bound of
+c(0, 0.1) for scale. Due to the great flexibility of Weibull PDF, meaning more freedom
+in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
+to converge.
+
+
+**Implementation of adstocking is done in a few steps**
+1. In `InputCollect` set `adstock` equal to the distribution you plan to use (geometric, weibull_cdf, weibull_pdf)
+2. Run `hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)` to identify the hyperparameters that will need to be set up correctly in order to begin the modeling process. All paid and organic media variables will have hyper parameters that need to be set up.
+3. Set ranges for each hyper parameter
 ---
 
 ### Diminishing returns
@@ -106,7 +158,7 @@ or a power transformation (x^alpha). In the case of a power transformation, the
 modeler tests the different variables (different levels of parameter x) for the
 highest significance of the variable in the model and the highest significance
 of the equation overall. However, the most common approach is to use the
-flexible S-curve transformation:
+flexible S-curve (Hill) transformation:
 
 <img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns2.png')}
 />
@@ -117,24 +169,16 @@ the S-curve, specifically the shape and the inflection points:
 <img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns3.png')}
 />
 
----
+To understand these charts, on the x axis we have spend, and on the y-axis we have response. So as the spend rises, the response changes and depending on the curve we understand what the marginal response is. These curves are extremely useful in the end stages of MMM where we seek to understand how we can more optimally allocate budgets between all of our media channels.
 
-## Organic Media
+Hill function for saturation: The Hill function is a two-parametric function in Robyn with
+alpha and gamma. Alpha controls the shape of the curve between exponential and s-shape.
+Recommended bound is c(0.5, 3). The larger the alpha, the more S-shape. The smaller, the
+more C-shape. Gamma controls the inflection point. Recommended range is c(0.3, 1). The
+larger the gamma, the later the inflection point in the response curve.
 
-Robyn enables users to specify `organic_vars` to model marketing activities without direct spend. Typically, this may include newsletter, push notification, social media posts, among other efforts. Moreover, organic variables are expected to have similar carryover (adstock) and saturating behavior as paid media variables. The respective transformation techniques such as geometric or Weibull transformation for adstock; or Hill transformation for saturation, are also applied to organic variables.
-
----
-
-### Examples of typical organic variables
-- Reach / Impressions on blog posts
-- Impressions on organic & unpaid social media
-- SEO improvements
-- Email shots
-- Reach on UGC
-
-Below a chart showing the different types of organic variables that could be modeled
-
-<img alt="organic media" src={useBaseUrl('/img/organic-media.png')} />
+**Implementation in Robyn is all done in hyper parameter setting**
+1. Ensure you have a alpha and gamma hyper parameter for each paid media variable with a range specified
 
 ---
 
@@ -148,7 +192,7 @@ Below a chart showing the different types of organic variables that could be mod
 time-series by decomposing the effect of trend, seasonality and holiday
 components in the response variable (Sales, conversions, etc.).
 
-**Prophet** is a Facebook original procedure for **forecasting time
+**Prophet** is a Meta original procedure for **forecasting time
 series** data, based on a model where **non-linear trends** are fit with yearly,
 weekly, and daily seasonality, plus holiday effects. It works best with time
 series that have strong seasonal effects and several seasons of historical data.
@@ -163,6 +207,26 @@ Robyn uses Prophet to also decompose categorical variables as an extra regressor
 For technical details of decomposition, please refer to Prophet's documentation [here](https://facebook.github.io/prophet/docs/trend_changepoints.html).
 
 <img alt="prophet 2" src={useBaseUrl('/img/prophet2.png')} />
+
+---
+
+## Ridge Regression
+
+In order to address multicollinearity among many regressors and prevent
+overfitting we apply a regularization technique to reduce variance at the cost
+of introducing some bias. This approach tends to improve the predictive
+performance of MMMs. The most common regularization, and the one we are using in
+this code is Ridge regression. The mathematical notation for Ridge regression
+is:
+
+<img alt="Ridge Regression Formula" src={useBaseUrl('img/Ridge.png')} />
+
+If we go a bit deeper into the actual components we will be using within the model specification,
+besides the lambda penalization term above, we can identify the following formula:
+
+<img alt="Ridge Regression Formula" src={useBaseUrl('img/model_specification.png')} />
+
+Ridge regression has an additional benefit of being relatively easy to interpret compared to other more complex techniques. As you can see in the formula, the hyperparameters that we set for each variable are used in this equation. As you'll see in the following section, we use automated hyper parameter optimization in order to ensure we get the best fitting ridge regression model.
 
 ---
 
@@ -181,10 +245,30 @@ The two axes (NRMSE on x and DECOMP.RSSD on y) are the two objective functions t
 As the iteration increases, a trend down the lower-left corner of the coordinate can be clearly observed.
 This is a proof of Nevergrad's ability to drive the model result towards an optimal direction.
 
-<img alt="pareto chart" src={useBaseUrl('/img/pareto2.png')} />
+<img alt="pareto chart" src={useBaseUrl('/img/pareto_front.png')} />
 
 The premise of an **evolutionary algorithm** is that of natural selection. In an evolutionary algorithm you may have a set of iterations where some combinations of coefficients that will be explored by the model will survive and proliferate, while unfit models will die off and not contribute to the gene pool of further generations, much like in natural selection.
 In robyn, we recommend a minimum of 2000 iterations where each of these will provide feedback to its upcoming generation, and therefore guide the model towards the optimal coefficient values for alphas, gammas and thetas. We also recommend a minimum of 5 trials which are a set of independent initiations of the model that will each of them have the number of iterations you set under ‘set_iter’ object. E.g. 2000 iterations on set_iter x 5 trials = 10000 different iterations and possible model solutions.
+
+In Robyn, we consider the model to be converged ** UNDER REVISION ** when:
+
+Criteria #1:
+Last quantile's standard deviation < first 3 quantiles' mean standard deviation
+
+Criteria #2:
+Last quantile's absolute median < absolute first quantile's absolute median - 2 * first 3 quantiles' mean standard deviation
+
+The quantiles are ordered by the iterations of the model, so if we ran 1000 iterations, the first 200 iterations would make up the first quantile. These two criteria represent an effort to demonstrate that both the standard deviation and the mean for both NRMSE and DECOMP.RSSD have improved relative to where they began, and they are not as variable.
+
+After the modeling is complete, you can run:
+
+`OutputModels$convergence$moo_distrb_plot`
+
+`OutputModels$convergence$moo_cloud_plot`
+
+To investigate the convergence of your multi-objective optimization. See below for examples of these graphs.
+<img alt="moo distrb plot" src={useBaseUrl('img/moo_distrb_plot.png')} />
+<img alt="moo cloud plot" src={useBaseUrl('img/moo_cloud_plot.png')} />
 
 ---
 
@@ -204,54 +288,95 @@ which can help guide the model towards a specific range of incremental values.
 The figure illustrates the calibration process for one MMM candidate model.
 [**Facebook’s Nevergrad gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/) allows us to include the **MAPE(cal,fb)** as a third optimization score besides Normalized Root Mean Square Error (**NRMSE**) and **decomp.RSSD** ratio (Please refer to the automated hyperparameter selection and optimization for further details) providing a set of **Pareto optimal model solutions** that minimize and converge to a set of Pareto optimal model candidates. This calibration method can be applied to other media channels which run experiments, the more channels that are calibrated, the more accurate the MMM model.
 
+**Implementation of calibration is as follows**
+
+1. Create a data file corresponding to your experimental results - here is an example
+
+```
+dt_calibration <- data.frame(
+  channel = c("facebook_S",  "tv_S", "facebook_S")
+ 	  #channel name must in paid_media_vars
+  , liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01"))
+  	 #liftStartDate must be within input data range
+  , liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20"))
+  	 #liftEndDate must be within input data range
+  , liftAbs = c(400000, 300000, 200000) # Provided value must be
+  	 #tested on same campaign level in model and same metric as dep_var_type
+)
+```
+
+2. Set `calibration_input <- dt_calibration` (or whatever you name your calibration data frame) within InputCollect
+
+3. Increase your iteration count by at least 1000 to account for needing to optimize 3 objective functions (NRMSE, Decomp.RSSD, MAPE.lift) rather than 2 (NRMSE, Decomp.RSSD)
+
+4. Run model
+
+---
+
 ## Outputs & Diagnostics
 
 The MMM code will automatically generate a set of plots under the folder you specify on the ‘model_output_collect’ object. Each of these plots represents one of the optimal model solutions as a result of the multi-objective optimization Pareto optimal process mentioned in the **‘Automated hyperparameter selection and optimization’** section. Please find below an example of the model output:
 
-<img alt="ModelResults1 chart" src={useBaseUrl('/img/ModelResults1.png')} />
+<img alt="ModelResults1 chart" src={useBaseUrl('/img/modelresults2.png')} />
 
 As you may observe we have 6 different charts above:
-1. **Response decomposition waterfall by predictor:** This chart reflects the percentage of each of the variables effect (Baseline and Media variables + intercept) on the response variable. E.g. If season effect says it's 40.5% that means that 40.5% of the total sales can be attributed to seasonality.
+1. **Response decomposition waterfall by predictor:** This chart reflects the percentage of each of the variables effect (Baseline and Media variables + intercept) on the response variable. E.g. If newsletter effect says it's 9.6% that means that 9.6% of the total sales can be attributed to newsletter activations.
+
+	Tip: Intercept, and Prophet vars like trend can constitute a large portion of your decomp. This makes sense if your brand is established, as it is basically saying that you would still have a large baseline of sales without paid media spend.
+
 2. **Share of spend vs. share of effect:** This plot reflects the comparison of the total effect each channel had by means of the decomposition of the coefficients into the response variable divided by the total effect. As well as, the total spend (cost or investment) each channel had and its relative share over total marketing spend. We also plot the return on investment (ROI) each channel had which can give you an idea over the most profitable channels.
-3. **Average adstock decay rate:** This chart represents, on average, what is the percentage decay rate each channel had. The higher the decay rate, the longer the effect in time for that specific channel media exposure.
+
+	Tip: Decomp.RSSD is one of the objective functions we minimize which corresponds to the distance between share of spend and share of effect. So in essence we do not want to see extreme distances between share of spend and share of effect because it does not make realistic business sense to optimize to. Consider this when comparing model solutions.
+
+3. **Average adstock decay rate:** This chart represents, on average, what is the percentage decay rate each channel had. The higher the decay rate, the longer the effect in time for that specific channel media exposure. This is a simple calculation for Geometric adstocks, with average adstock decay rate = theta. For Weibull adstocks this calculation is a bit more complicated.
+
+	Tip: It can be useful to look at the adstock rates in comparison to each other. For example, how do your upper funnel channel adstocks compare to your lower funnel channel adstocks. There are some logical conclusions to make about upper funnel having longer adstocks than lower funnel, so keep an eye out for cases where it doesn't seem to be the case. This isn't a hard and fast rule, but can be a way to differentiate between solutions.
+
 4. **Actual vs. predicted response:** This plot shows the actual data for the response variable E.g sales, and how the modeled predicted data for that response variable is capturing the real curve. We aim for models that can capture most of the variance from the actual data and therefore the R-squared is closer to 1 while NRMSE is low.
+
+	Tip: Look for specific periods where the model is predicting worse/better. For example, if one notices the model is predicting noticeably worse around certain periods related to promotions periods, it may be a good way to identify a contextual variable that should be included in the model
+
 5. **Response curves and mean spend by channel:** These are the diminishing returns response curves from hill function. They represent how saturated a channel is and therefore, may suggest potential budget reallocation strategies. The faster the curves reach to an inflection point and to a horizontal/flat slope, the quicker they will saturate with each extra ($) spent.
+
+	Tip: You can use the `robyn_response` function in a loop to recreate these response curves. For example, creating a loop around an execution like this:
+	```
+	Spend1 <- 60000
+	Response1 <- robyn_response(
+  	robyn_object = robyn_object
+  	#, select_build = 1 # 2 means the second refresh model. 0 means the initial model
+  	, media_metric = "search_S"
+  	, metric_value = Spend1)
+	Response1$response/Spend1 # ROI for search 80k
+	```
+
 6. **Fitted vs. residual:** This chart shows the relationship between fitted and residual values. A residual value is a measure of how much a regression line vertically misses a data point.  A residual plot is typically used to find problems with a regression. Some data sets are not good candidates for regression, such as points at widely varying distances from the line. If the points in a residual plot are randomly dispersed around the horizontal axis, a linear regression model is appropriate for the data; otherwise, a nonlinear model is more appropriate.
 
-Once you have analyzed the optimal model results plots and have chosen your model, you may introduce the model unique ID from the results in the previous section. E.g setting modID = "1_22_3" could be an example of a selected model from the list of best models in 'model_output_collect$allSolutions' results object. Once you run the budget allocator, results will be plotted and saved under the same folder where the model plots had been saved. The result would look like the following:
+### Model Solution Clustering
 
-<img alt="budget allocator chart" src={useBaseUrl('/img/budgerAllocator1.png')} />
+Rather than exploring all Pareto-optimal solutions (of which there could be dozens), we use clustering to find similar solutions and encourage users to explore those solutions as the most distinct, best solutions. The process for the clustering is as follows:
+
+1. Using the pool of models on Pareto fronts obtained, we run k-means clustering using (normalized) ROI data on each (paid) media variable
+2. When `k = "auto"` (which is the default), we calculate the WSS (Within Group Sum of Squares) on k-means clustering using k = 1 to k = 20 to find the "best automatic k". We pick the one k whose WSS reduction doesn't change more than 5% from the previous k. You could also override this by setting k manually (on `robyn_run(..., cluster = TRUE)`, `robyn_outputs(..., clusters = TRUE)`, or `robyn_clusters()`).
+3. After we have run k-means on all Pareto front models, using the defined k, we pick those "best models" that have the lowest normalized combined errors (NRMSE, DECOM.RSSD, and MAPE if calibrated was used).
+
+When you run robyn_clusters() you'll get a list of results: the data used to calculate the clusters with each model's cluster-ID, and some visualizations on WSS-k selection, ROI per media on winner models, and correlations of ROI by cluster to understand each cluster's content models better. See below for example output on clustering selection.
+
+<img alt="Pareto clusters WSS" src={useBaseUrl('img/pareto_clusters_wss.png')} />
+
+<img alt="Pareto cluster details" src={useBaseUrl('img/pareto_clusters_detail.png')} />
+
+---
+
+### Budget Allocation
+
+Once you have analyzed the optimal model results plots and have chosen your model, you may introduce the model unique ID from the results in the previous section. E.g setting select_model = "1_92_12" could be an example of a selected model from the list of best models in 'OutputCollect$allSolutions' results object. Once you run the budget allocator, results will be plotted and saved under the same folder where the model plots had been saved. The result would look like the following:
+
+<img alt="budget allocator chart" src={useBaseUrl('/img/optimizer_new.png')} />
 
 You may encounter three charts as in the example above:
 1. **Initial vs. optimized budget allocation:** This channel shows the original spend share vs. the new optimized recommended one. If optimized share is greater than original, this would mean you will need to proportionally increase budgets for that channel according to the difference between both shares. And you would reduce budgets in the case spend share would be greater than optimized share.
 2. **Initial vs. optimized mean response:** Similar to the chart above, we have initial and optimized shares, but this time over the total expected response E.g. Sales. The optimized response is the total increase in sales that we are expecting you to have if you switch budgets following the chart we explained above, increasing those with better share for optimized spend and decreasing spend for those with lower optimized spend than the initial.
 3. **Response curve and mean spend by channel:** These again are the diminishing returns response curves from hill function. They represent how saturated a channel is and therefore, may suggest potential budget reallocation strategies. The faster the curves reach to an inflection point and to a horizontal/flat slope, the quicker they will saturate with each extra ($) spent. The initial mean spend is represented by a circle and the optimized one by the triangle.
-
----
-
-## Modeling Window
-
----
- MMM models are built based on past data. Thus, one of the main requirements when building an MMM model is to be able to select the right dates from the historical data history that represent well both, the current business and the marketing investment situation. The advantage of a rolling window is that you may still use the full data history (E.g. 2 years) on your data for trend, seasonality and holiday effects to be modeled, while at the same time, defining a specific range (E.g. 6 months) for media, organic and contextual variables that better represents your current business and marketing scenario. You may specify a window_start and window_end dates within the robyn_inputs() function to define a modeling period as a subset of the total available data for media and other variables.
-
-```
- InputCollect <- robyn_inputs(
-...
-   ,window_start = "2016-11-23"
-   ,window_end = "2018-08-22"
-...
- )
-```
----
-
-- **`window_start`** A character. Set the start date of the modelling period. The window start will determine the start date of the data period within your dataset you will be using to specifically regress the effects of media, organic and context variables on your dependent variable. We recommend using a full “dt_input” dataset with a minimum of 1 year of history, as it will be used in full for the model calculation of trend, seasonality and holidays effects. Whereas the window period will determine how much of the full data set will be used for media, organic and context variables. E.g. Uploading and using 2 years of data in “dt_input” but determining window_start and window_end as the last 6 months which reflect better the current business and/or marketing investment reality for budget decision making.
-- **`window_end`** A character. Set the end date of the modelling period. Recommended to have a ratio of (independent variable : parameters) data points of 1:10. The window end will determine the end date of the data period within your dataset you will be using to specifically regress the effects of media, organic and context variables on your dependent variable. We recommend using a full “dt_input” dataset with a minimum of 1 year of history, as it will be used in full for the model calculation of trend, seasonality and holidays effects. Whereas the window period will determine how much of the full data set will be used for media, organic and context variables. E.g. Uploading and using 2 years of data in “dt_input” but determining window_start and window_end as the last 6 months which reflect better the current business and/or marketing investment reality for budget decision making.
-
----
-
-You may look at the example below with most of 2017 and 2018 as the window that will be taken into consideration for media, organic and contextual variables modeling.
-
-<img alt="pareto chart 2" src={useBaseUrl('/img/refresh-window.png')} />
 
 ---
 
@@ -286,40 +411,6 @@ For example, when updating the initial build with 4 weeks of new data, `robyn_re
 What Robyn does, is to set lower and upper bounds of hyperparameters for the new build around the selected hyperparameters of the previous build,
 stabilizes the effect of baseline variables across old and new builds and regulates the new effect share of media variables towards the latest spend level.
 It returns aggregated results with all previous builds for reporting purposes and produces reporting plots.
-
----
-#### `robyn_refresh()` usage
-```
-robyn_refresh(
-  robyn_object,
-  dt_input = dt_input,
-  dt_holidays = dt_holidays,
-  refresh_steps = 4,
-  refresh_mode = "manual",
-  refresh_iters = 1000,
-  refresh_trials = 3,
-  plot_pareto = TRUE
-)
-```
----
-#### `robyn_refresh()` arguments
-
-- **`robyn_object`**
-A character. Path of the `Robyn.RData` object that contains all previous modeling information.
-- **`dt_input`**
-A data.frame. It should include all previous data and newly added data for the refresh.
-- **`dt_holidays`**
-A data.frame. Raw input holiday data. Load standard Prophet holidays using `data("dt_prophet_holidays")`.
-- **`refresh_steps`**
-An integer. It controls how many time units the refresh model build will move forward. For example, `refresh_steps = 4` on weekly data means the `InputCollect$window_start` & `InputCollect$window_end` will move forward 4 weeks.
-- **`refresh_mode`**
-A character. Options are "auto" and "manual". In auto mode, the `robyn_refresh()` function builds refresh models following given `refresh_steps` repeatedly until there is no more data available. In manual mode, the `robyn_refresh()` moves forward the `refresh_steps` only once.
-- **`refresh_iters`**
-An integer. The number of iterations per refresh. The rule of thumb is, the more new data added, the more iterations needed.
-- **`refresh_trials`**
-An integer. The number of trials per refresh. Defaults to 5 trials.
-- **`plot_pareto`**
-A logical value. Set it to FALSE to deactivate plotting and saving model onepagers, commonly used when testing models.
 
 ---
 
