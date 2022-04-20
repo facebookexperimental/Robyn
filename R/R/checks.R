@@ -422,7 +422,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
-      stop("calibration_input must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
+      stop("Input 'calibration_input' must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
+    }
+    if (!is.numeric(calibration_input$liftAbs) | any(is.na(calibration_input$liftAbs))) {
+      stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
     if (!all(calibration_input$channel %in% paid_media_spends)) {
       these <- unique(calibration_input$channel[which(!calibration_input$channel %in% paid_media_spends)])
