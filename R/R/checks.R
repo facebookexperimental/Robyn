@@ -647,15 +647,18 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
-  if (length(channel_constr_up) != 1) {
-    if (length(channel_constr_low) != length(paid_media_spends) |
-      length(channel_constr_up) != length(paid_media_spends)) {
-      stop(paste(
-        "Inputs 'channel_constr_low' & 'channel_constr_up' have to contain either only 1",
-        "value or have same length as 'InputCollect$paid_media_spends'"
-      ))
-    }
-  }
+
+  if (length(channel_constr_low) != 1 & length(channel_constr_low) != length(paid_media_spends))
+    stop(paste(
+      "Input 'channel_constr_low' have to contain either only 1",
+      "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
+    ))
+  if (length(channel_constr_up) != 1 & length(channel_constr_up) != length(paid_media_spends))
+    stop(paste(
+      "Input 'channel_constr_up' have to contain either only 1",
+      "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
+    ))
+
   if ("max_response_expected_spend" %in% scenario) {
     if (any(is.null(expected_spend), is.null(expected_spend_days))) {
       stop("When scenario = 'max_response_expected_spend', expected_spend and expected_spend_days must be provided")
@@ -664,6 +667,14 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   opts <- c("eq", "ineq")
   if (!(constr_mode %in% opts)) {
     stop("Input 'constr_mode' must be one of: ", paste(opts, collapse = ", "))
+  }
+}
+
+check_metric_value <- function(metric_value) {
+  if (!is.null(metric_value)) {
+    if (length(metric_value) != 1) stop("Input 'metric_value' must be a valid numerical value")
+    if (!is.numeric(metric_value)) stop("Input 'metric_value' must be a numerical value")
+    if (metric_value <= 0) stop("Input 'metric_value' must be a positive value")
   }
 }
 

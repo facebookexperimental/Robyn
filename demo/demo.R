@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.6.1    ######################
+####################         Facebook MMM Open Source - Robyn 3.6.2    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -366,8 +366,9 @@ AllocatorCollect <- robyn_allocator(
   , OutputCollect = OutputCollect
   , select_model = select_model
   , scenario = "max_historical_response"
-  , channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7)
+  , channel_constr_low = 0.7,
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
+  , export = TRUE
 )
 print(AllocatorCollect)
 # plot(AllocatorCollect)
@@ -384,6 +385,7 @@ AllocatorCollect <- robyn_allocator(
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
   , expected_spend = 1000000 # Total spend to be simulated
   , expected_spend_days = 7 # Duration of expected_spend in days
+  , export = TRUE
 )
 print(AllocatorCollect)
 AllocatorCollect$dt_optimOut
@@ -393,19 +395,27 @@ AllocatorCollect$dt_optimOut
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
 
 ## QA optimal response
+
+# Pick any media variable
+select_media <- "search_S"
+# For paid_media_spends set metric_value as your optimal spend
+metric_value <- AllocatorCollect$dt_optimOut[channels == select_media, optmSpendUnit]
+# # For paid_media_vars and organic_vars, manually pick a value
+# metric_value <- 10000
+
 if (TRUE) {
-  cat("QA if results from robyn_allocator and robyn_response agree: ")
-  select_media <- "search_S"
-  optimal_spend <- AllocatorCollect$dt_optimOut[channels == select_media, optmSpendUnit]
   optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels == select_media, optmResponseUnit]
   optimal_response <- robyn_response(
     robyn_object = robyn_object,
     select_build = 0,
     media_metric = select_media,
-    metric_value = optimal_spend)
-  cat(round(optimal_response_allocator) == round(optimal_response$response), "( ")
+    metric_value = metric_value)
   plot(optimal_response$plot)
-  cat(optimal_response$response, "==", optimal_response_allocator, ")\n")
+  if (length(optimal_response_allocator) > 0) {
+    cat("QA if results from robyn_allocator and robyn_response agree: ")
+    cat(round(optimal_response_allocator) == round(optimal_response$response), "( ")
+    cat(optimal_response$response, "==", optimal_response_allocator, ")\n")
+  }
 }
 
 ################################################################

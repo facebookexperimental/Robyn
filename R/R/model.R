@@ -1010,22 +1010,25 @@ robyn_response <- function(robyn_object = NULL,
   }
 
   ## Prep environment
-  dt_input <- InputCollect$dt_input
-  startRW <- InputCollect$rollingWindowStartWhich
-  endRW <- InputCollect$rollingWindowEndWhich
-  adstock <- InputCollect$adstock
-  allSolutions <- unique(dt_hyppar$solID)
-  spendExpoMod <- InputCollect$modNLSCollect
-  paid_media_vars <- InputCollect$paid_media_vars
-  paid_media_spends <- InputCollect$paid_media_spends
-  exposure_vars <- InputCollect$exposure_vars
-  organic_vars <- InputCollect$organic_vars
-
-  if (!(select_model %in% allSolutions)) {
-    stop(paste0("'select_model' must be one of these values: ", paste(allSolutions, collapse = ", ")))
+  if (TRUE) {
+    dt_input <- InputCollect$dt_input
+    startRW <- InputCollect$rollingWindowStartWhich
+    endRW <- InputCollect$rollingWindowEndWhich
+    adstock <- InputCollect$adstock
+    allSolutions <- unique(dt_hyppar$solID)
+    spendExpoMod <- InputCollect$modNLSCollect
+    paid_media_vars <- InputCollect$paid_media_vars
+    paid_media_spends <- InputCollect$paid_media_spends
+    exposure_vars <- InputCollect$exposure_vars
+    organic_vars <- InputCollect$organic_vars
   }
 
-  ## get media valu
+  if (!(select_model %in% allSolutions)) {
+    stop(paste0("Input 'select_model' must be one of these values: ",
+                paste(allSolutions, collapse = ", ")))
+  }
+
+  ## Get media values
   if (media_metric %in% paid_media_spends & length(media_metric) == 1) {
     metric_type <- "spend"
   } else if (media_metric %in% exposure_vars & length(media_metric) == 1) {
@@ -1033,14 +1036,16 @@ robyn_response <- function(robyn_object = NULL,
   } else if (media_metric %in% organic_vars & length(media_metric) == 1) {
     metric_type <- "organic"
   } else {
-    stop("'media_metric' must be one value from paid_media_spends, paid_media_vars or organic_vars")
+    stop(paste("Input 'media_metric' must be any media variables from",
+               "paid_media_spends (spend), paid_media_vars (exposure),",
+               "or organic_vars (organic):",
+               paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
+               paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
+               paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
+    ))
   }
 
-  if (!is.null(metric_value)) {
-    if (length(metric_value) != 1 | metric_value <= 0 | !is.numeric(metric_value)) {
-      stop("'metric_value' must be a positive number")
-    }
-  }
+  check_metric_value(metric_value)
 
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {

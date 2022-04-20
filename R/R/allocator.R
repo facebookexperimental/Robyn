@@ -144,6 +144,10 @@ robyn_allocator <- function(robyn_object = NULL,
   # Channels contrains
   # channel_constr_low <- rep(0.8, length(paid_media_spends))
   # channel_constr_up <- rep(1.2, length(paid_media_spends))
+  if (length(channel_constr_low) == 1)
+    channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
+  if (length(channel_constr_up) == 1)
+    channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
   names(channel_constr_low) <- paid_media_spends
   names(channel_constr_up) <- paid_media_spends
   channel_constr_low <- channel_constr_low[media_order]
@@ -163,7 +167,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Filter and sort all variables by name that is essential for the apply function later
   if (!all(coefSelectorSorted)) {
-    chn_coef0 <- setdiff(mediaVarSorted, mediaSpendSorted[coefSelectorSorted])
+    chn_coef0 <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
     message("Excluded in optimiser because their coefficients are 0: ", paste(chn_coef0, collapse = ", "))
   } else chn_coef0 <- "None"
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
