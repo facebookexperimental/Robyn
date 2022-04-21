@@ -8,7 +8,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 ---
 ## 1. Downloading the latest R version
 
-It is necessary to have the [**R 4.0.5 version (or higher)**](https://www.r-project.org/) installed in order to be able to run this code. R is a free software environment for statistical computing and graphics. It compiles and runs on a wide variety of UNIX platforms, Windows and MacOS. To
+It is necessary to have the [**R 4.0.0 version (or higher)**](https://www.r-project.org/) installed in order to be able to run this code. R is a free software environment for statistical computing and graphics. It compiles and runs on a wide variety of UNIX platforms, Windows and MacOS. To
 [download R.](https://cran.r-project.org/mirrors.html), please choose your
 preferred [CRAN mirror.](https://cran.r-project.org/mirrors.html). **Please make sure you have restarted your R session once you have installed the latest R version.**
 
@@ -42,6 +42,8 @@ conda_install("r-reticulate", "nevergrad", pip=TRUE)
 use_condaenv("r-reticulate")
 ```
 
+If it's taking too long to download, you have a slow or unstable internet connection, and have issues while installing the package, try setting `options(timeout=400)`
+
 In case nevergrad still cannot be imported after installation, please locate your python file and run this line using your path:
 ```
 use_python("~/Library/r-miniconda/envs/r-reticulate/bin/python")
@@ -53,7 +55,5 @@ For Windows, if you get openssl error, please see instructions [here](https://st
 
 Open the [demo.R](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R) script in the inst folder as a quick start guide that aims to cover most common use-cases.
 The demo will allow you to test the package using a simulated dataset.
-
-<img alt="inst folder" src={useBaseUrl('/img/inst_folder.png')} />
 
 ---
