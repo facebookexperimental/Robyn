@@ -361,22 +361,22 @@ OutputCollect$xDecompAgg[solID == select_model & !is.na(mean_spend)
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the
 # same historical spend level and what is the spend mix?"
-AllocatorCollect <- robyn_allocator(
+AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect
   , OutputCollect = OutputCollect
   , select_model = select_model
   , scenario = "max_historical_response"
-  , channel_constr_low = 0.7,
+  , channel_constr_low = 0.7
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
   , export = TRUE
 )
-print(AllocatorCollect)
-# plot(AllocatorCollect)
+print(AllocatorCollect1)
+# plot(AllocatorCollect1)
 
 # Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
 # total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
 # is the optimum spend share.
-AllocatorCollect <- robyn_allocator(
+AllocatorCollect2 <- robyn_allocator(
   InputCollect = InputCollect
   , OutputCollect = OutputCollect
   , select_model = select_model
@@ -387,9 +387,9 @@ AllocatorCollect <- robyn_allocator(
   , expected_spend_days = 7 # Duration of expected_spend in days
   , export = TRUE
 )
-print(AllocatorCollect)
-AllocatorCollect$dt_optimOut
-# plot(AllocatorCollect)
+print(AllocatorCollect2)
+AllocatorCollect2$dt_optimOut
+# plot(AllocatorCollect2)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

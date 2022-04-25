@@ -125,13 +125,13 @@ robyn_allocator <- function(robyn_object = NULL,
   if (TRUE) {
     dt_mod <- InputCollect$dt_mod
     paid_media_vars <- InputCollect$paid_media_vars
-    media_order <- order(paid_media_vars)
     paid_media_spends <- InputCollect$paid_media_spends
-    mediaVarSorted <- paid_media_vars[media_order]
-    mediaSpendSorted <- paid_media_spends[media_order]
     startRW <- InputCollect$rollingWindowStartWhich
     endRW <- InputCollect$rollingWindowEndWhich
     adstock <- InputCollect$adstock
+    media_order <- order(paid_media_spends)
+    mediaVarSorted <- paid_media_vars[media_order]
+    mediaSpendSorted <- paid_media_spends[media_order]
   }
 
   ## Check inputs and parameters
