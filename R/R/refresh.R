@@ -189,6 +189,7 @@ robyn_refresh <- function(robyn_object,
                           refresh_iters = 1000,
                           refresh_trials = 3,
                           plot_pareto = TRUE,
+                          version_prompt = FALSE,
                           ...) {
   refreshControl <- TRUE
   while (refreshControl) {
@@ -362,12 +363,21 @@ robyn_refresh <- function(robyn_object,
     # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
     OutputCollectRF$resultHypParam[, error_dis := sqrt(.min_max_norm(nrmse)^2 +
                                                          .min_max_norm(decomp.rssd)^2)] # min error distance selection
-    selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
-    OutputCollectRF$selectID <- selectID
-    message(
-      "Selected model ID: ", selectID, " for refresh model nr.",
-      refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
-    )
+    if (version_prompt) {
+      selectID <- readline('Input model version to use for the refresh: ')
+      OutputCollectRF$selectID <- selectID
+      message(
+        "Selected model ID: ", selectID, " for refresh model nr.",
+        refreshCounter, " based on your input\n"
+      )
+    } else {
+      selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
+      OutputCollectRF$selectID <- selectID
+      message(
+        "Selected model ID: ", selectID, " for refresh model nr.",
+        refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
+      )
+    }
 
     OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]
     OutputCollectRF$xDecompAgg[, bestModRF := solID == selectID]
