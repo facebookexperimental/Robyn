@@ -145,6 +145,10 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' still needs to be investigated.
 #' @param refresh_trials Integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
+#' @param version_prompt Logical. If FALSE, the model refresh version will be
+#' selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
+#' If TRUE, a prompt will be presented to the user to select one of the refreshed
+#' models (one-pagers and pareto csv files will already be generated).
 #' @param ... Additional parameters to overwrite original custom parameters
 #' passed into initial model.
 #' @return List. The Robyn object, class \code{robyn_refresh}.
