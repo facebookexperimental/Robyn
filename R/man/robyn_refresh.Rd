@@ -15,6 +15,7 @@ robyn_refresh(
   refresh_iters = 1000,
   refresh_trials = 3,
   plot_pareto = TRUE,
+  version_prompt = FALSE,
   ...
 )
 
@@ -54,6 +55,11 @@ More reliable recommendation still needs to be investigated.}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
+
+\item{version_prompt}{Logical. If FALSE, the model refresh version will be
+selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
+If TRUE, a prompt will be presented to the user to select one of the refreshed
+models (one-pagers and pareto csv files will already be generated).}
 
 \item{...}{Additional parameters to overwrite original custom parameters
 passed into initial model.}

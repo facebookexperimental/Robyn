@@ -145,6 +145,10 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' still needs to be investigated.
 #' @param refresh_trials Integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
+#' @param version_prompt Logical. If FALSE, the model refresh version will be
+#' selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
+#' If TRUE, a prompt will be presented to the user to select one of the refreshed
+#' models (one-pagers and pareto csv files will already be generated).
 #' @param ... Additional parameters to overwrite original custom parameters
 #' passed into initial model.
 #' @return List. The Robyn object, class \code{robyn_refresh}.
@@ -189,6 +193,7 @@ robyn_refresh <- function(robyn_object,
                           refresh_iters = 1000,
                           refresh_trials = 3,
                           plot_pareto = TRUE,
+                          version_prompt = FALSE,
                           ...) {
   refreshControl <- TRUE
   while (refreshControl) {
@@ -362,12 +367,21 @@ robyn_refresh <- function(robyn_object,
     # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
     OutputCollectRF$resultHypParam[, error_dis := sqrt(.min_max_norm(nrmse)^2 +
                                                          .min_max_norm(decomp.rssd)^2)] # min error distance selection
-    selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
-    OutputCollectRF$selectID <- selectID
-    message(
-      "Selected model ID: ", selectID, " for refresh model nr.",
-      refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
-    )
+    if (version_prompt) {
+      selectID <- readline('Input model version to use for the refresh: ')
+      OutputCollectRF$selectID <- selectID
+      message(
+        "Selected model ID: ", selectID, " for refresh model nr.",
+        refreshCounter, " based on your input\n"
+      )
+    } else {
+      selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
+      OutputCollectRF$selectID <- selectID
+      message(
+        "Selected model ID: ", selectID, " for refresh model nr.",
+        refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
+      )
+    }
 
     OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]
     OutputCollectRF$xDecompAgg[, bestModRF := solID == selectID]
