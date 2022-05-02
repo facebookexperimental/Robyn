@@ -23,7 +23,7 @@ const features = [
       <>
         <ul>
           <li>Automated hyperparameter optimization with evolutionary algorithms from Facebook's AI library <a href="https://facebookresearch.github.io/nevergrad">Nevergrad</a></li>
-          <li>Ridge regression with cross-validation to regularize multi-collinearity and prevent overfitting</li>
+          <li>Ridge regression in order to regularize multi-collinearity and prevent overfitting</li>
           <li>Facebook's <a href="https://facebook.github.io/prophet/">Prophet</a> library to automatically decompose the trend, seasonality and holidays patterns</li>
         </ul>
       </>
@@ -116,14 +116,6 @@ function Home() {
               to={useBaseUrl('docs/quick-start/')}
             >
               Install Robyn
-            </Link>
-            <Link
-              className={clsx(
-                'button button--outline button--secondary button--lg'
-              )}
-              to={useBaseUrl('docs/demo-R-script/')}
-            >
-              Get Started
             </Link>
           </div>
         </div>

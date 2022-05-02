@@ -541,80 +541,71 @@ robyn_engineering <- function(x, ...) {
   ################################################################
   #### model exposure metric from spend
 
-  mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
-    colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
-
-  exposure_selector <- paid_media_spends != paid_media_vars
-  names(exposure_selector) <- paid_media_vars
-
-  if (any(exposure_selector)) {
-    modNLSCollect <- list()
-    yhatCollect <- list()
-    plotNLSCollect <- list()
-    modelType_media_vars <- NULL
-
-    for (i in 1:InputCollect$mediaVarCount) {
-      if (exposure_selector[i]) {
-
-        # run models (NLS and/or LM)
-        dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
-        results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
-        modelType_media_vars <- c(modelType_media_vars, results$type)
-        # compare NLS & LM, takes LM if NLS fits worse
-        mod <- results$res
-        exposure_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
-        # data to create plot
-        dt_plotNLS <- data.table(
-          channel = paid_media_vars[i],
-          yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
-          yhatLM = results$yhatLM,
-          y = results$data$exposure,
-          x = results$data$spend
-        )
-        dt_plotNLS <- melt.data.table(
-          dt_plotNLS,
-          id.vars = c("channel", "y", "x"),
-          variable.name = "models", value.name = "yhat"
-        )
-        dt_plotNLS[, models := str_remove(tolower(models), "yhat")]
-        # create plot
-        models_plot <- ggplot(
-          dt_plotNLS, aes(x = .data$x, y = .data$y, color = .data$models)
-        ) +
-          geom_point() +
-          geom_line(aes(y = .data$yhat, x = .data$x, color = .data$models)) +
-          labs(
-            caption = paste0(
-              "y=", paid_media_vars[i], ", x=", paid_media_spends[i],
-              "\nnls: aic=", round(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 0),
-              ", rsq=", round(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 4),
-              "\nlm: aic= ", round(AIC(results$modLM), 0), ", rsq=", round(mod$rsq_lm, 4)
-            ),
-            title = "Models fit comparison",
-            x = "Spend", y = "Exposure", color = "Model"
-          ) +
-          theme_minimal() +
-          theme(legend.position = "top", legend.justification = "left")
-
-        # Save results into modNLSCollect. plotNLSCollect, yhatCollect
-        modNLSCollect[[paid_media_vars[i]]] <- mod
-        plotNLSCollect[[paid_media_vars[i]]] <- models_plot
-        yhatCollect[[paid_media_vars[i]]] <- dt_plotNLS
-      }
-    }
-    # Message user when and with which channels Michaelis-Menten was not viable
-    no_mich_men <- paid_media_spends[modelType_media_vars == "lm"]
-    if (length(no_mich_men) > 0)
-      message(sprintf(
-        "Michaelis-Menten fitting for %s out of range. Used lm instead for these media channels",
-        v2t(no_mich_men, and = "and")))
-    # Gather loop results
-    modNLSCollect <- rbindlist(modNLSCollect)
-    yhatNLSCollect <- rbindlist(yhatCollect)
-    yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
-  } else {
+  # mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
+  #   colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
+  #
+  # exposure_selector <- paid_media_spends != paid_media_vars
+  # names(exposure_selector) <- paid_media_vars
+  #
+  # if (any(exposure_selector)) {
+  #   modNLSCollect <- list()
+  #   yhatCollect <- list()
+  #   plotNLSCollect <- list()
+  #
+  #   for (i in 1:InputCollect$mediaVarCount) {
+  #     if (exposure_selector[i]) {
+  #
+  #       # run models (NLS and/or LM)
+  #       dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
+  #       results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
+  #       # compare NLS & LM, takes LM if NLS fits worse
+  #       mod <- results$res
+  #       exposure_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
+  #       # data to create plot
+  #       dt_plotNLS <- data.table(
+  #         channel = paid_media_vars[i],
+  #         yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
+  #         yhatLM = results$yhatLM,
+  #         y = results$data$exposure,
+  #         x = results$data$spend
+  #       )
+  #       dt_plotNLS <- melt.data.table(dt_plotNLS,
+  #                                     id.vars = c("channel", "y", "x"),
+  #                                     variable.name = "models", value.name = "yhat"
+  #       )
+  #       dt_plotNLS[, models := str_remove(tolower(models), "yhat")]
+  #       # create plot
+  #       models_plot <- ggplot(
+  #         dt_plotNLS, aes(x = .data$x, y = .data$y, color = .data$models)
+  #       ) +
+  #         geom_point() +
+  #         geom_line(aes(y = .data$yhat, x = .data$x, color = .data$models)) +
+  #         labs(
+  #           caption = paste0(
+  #             "y=", paid_media_vars[i], ", x=", paid_media_spends[i],
+  #             "\nnls: aic=", round(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 0),
+  #             ", rsq=", round(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 4),
+  #             "\nlm: aic= ", round(AIC(results$modLM), 0), ", rsq=", round(mod$rsq_lm, 4)
+  #           ),
+  #           title = "Models fit comparison",
+  #           x = "Spend", y = "Exposure", color = "Model"
+  #         ) +
+  #         theme_minimal() +
+  #         theme(legend.position = "top", legend.justification = "left")
+  #
+  #       # save results into modNLSCollect. plotNLSCollect, yhatCollect
+  #       modNLSCollect[[paid_media_vars[i]]] <- mod
+  #       plotNLSCollect[[paid_media_vars[i]]] <- models_plot
+  #       yhatCollect[[paid_media_vars[i]]] <- dt_plotNLS
+  #     }
+  #   }
+  #
+  #   modNLSCollect <- rbindlist(modNLSCollect)
+  #   yhatNLSCollect <- rbindlist(yhatCollect)
+  #   yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
+  # } else {
     modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
-  }
+  # }
 
   # getSpendSum <- colSums(subset(dt_input, select = paid_media_spends), na.rm = TRUE)
   # getSpendSum <- data.frame(rn = paid_media_vars, spend = getSpendSum, row.names = NULL)
@@ -668,8 +659,8 @@ robyn_engineering <- function(x, ...) {
   InputCollect[["modNLSCollect"]] <- modNLSCollect
   InputCollect[["plotNLSCollect"]] <- plotNLSCollect
   InputCollect[["yhatNLSCollect"]] <- yhatNLSCollect
-  InputCollect[["exposure_selector"]] <- exposure_selector
-  InputCollect[["mediaCostFactor"]] <- mediaCostFactor
+  #InputCollect[["exposure_selector"]] <- exposure_selector
+  #InputCollect[["mediaCostFactor"]] <- mediaCostFactor
   return(InputCollect)
 }
 
@@ -754,6 +745,91 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   }
 
   return(dt_transform)
+}
+
+fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_vars) {#   if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns"
+  colnames(dt_spendModInput) <- c("spend", "exposure")
+
+  # remove spend == 0 to avoid DIV/0 error
+  # dt_spendModInput$spend[dt_spendModInput$spend == 0] <- 0.01
+  # # adapt exposure with avg when spend == 0
+  # dt_spendModInput$exposure <- ifelse(
+  #   dt_spendModInput$exposure == 0, dt_spendModInput$spend / mediaCostFactor,
+  #   dt_spendModInput$exposure
+  # )
+
+  # Model 1: Michaelis-Menten model Vmax * spend/(Km + spend)
+  tryCatch(
+    {
+      nlsStartVal <- list(
+        Vmax = dt_spendModInput[, max(exposure)],
+        Km = dt_spendModInput[, max(exposure) / 2]
+      )
+
+      modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
+                      data = dt_spendModInput,
+                      start = nlsStartVal,
+                      control = nls.control(warnOnly = TRUE)
+      )
+      yhatNLS <- predict(modNLS)
+      modNLSSum <- summary(modNLS)
+      rsq_nls <- get_rsq(true = dt_spendModInput$exposure, predicted = yhatNLS)
+
+      # # QA nls model prediction: check
+      # yhatNLSQA <- modNLSSum$coefficients[1,1] * dt_spendModInput$spend / (modNLSSum$coefficients[2,1] + dt_spendModInput$spend) #exposure = v  * spend / (k + spend)
+      # identical(yhatNLS, yhatNLSQA)
+    },
+    error = function(cond) {
+      message("Michaelis-Menten fitting for ", paid_media_vars, " out of range. Using lm instead")
+      modNLS <- yhatNLS <- modNLSSum <- rsq_nls <- NULL
+    },
+    warning = function(cond) {
+      message("Michaelis-Menten fitting for ", paid_media_vars, " out of range. Using lm instead")
+      modNLS <- yhatNLS <- modNLSSum <- rsq_nls <- NULL
+    },
+    finally = {
+      if (!exists("modNLS")) modNLS <- yhatNLS <- modNLSSum <- rsq_nls <- NULL
+    }
+  )
+
+  # build lm comparison model
+  modLM <- lm(exposure ~ spend - 1, data = dt_spendModInput)
+  yhatLM <- predict(modLM)
+  modLMSum <- summary(modLM)
+  rsq_lm <- modLMSum$adj.r.squared
+  if (is.na(rsq_lm)) {
+    stop("Please check if ", paid_media_vars, " contains only 0s")
+  }
+  if (max(rsq_lm, rsq_nls) < 0.7) {
+    warning(paste(
+      "Spend-exposure fitting for", paid_media_vars,
+      "has rsq = ", max(rsq_lm, rsq_nls),
+      "To increase the fit, try splitting the variable.",
+      "Otherwise consider using spend instead."
+    ))
+  }
+
+  output <- list(
+    res = data.table(
+      channel = paid_media_vars,
+      Vmax = if (!is.null(modNLS)) modNLSSum$coefficients[1, 1] else NA,
+      Km = if (!is.null(modNLS)) modNLSSum$coefficients[2, 1] else NA,
+      aic_nls = if (!is.null(modNLS)) AIC(modNLS) else NA,
+      aic_lm = AIC(modLM),
+      bic_nls = if (!is.null(modNLS)) BIC(modNLS) else NA,
+      bic_lm = BIC(modLM),
+      rsq_nls = if (!is.null(modNLS)) rsq_nls else 0,
+      rsq_lm = rsq_lm,
+      coef_lm = coef(modLMSum)[1]
+    ),
+    yhatNLS = yhatNLS,
+    modNLS = modNLS,
+    yhatLM = yhatLM,
+    modLM = modLM,
+    data = dt_spendModInput
+  )
+
+  return(output)
 }
 
 ####################################################################
@@ -844,7 +920,6 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   )
   return(output)
 }
-
 
 ####################################################################
 #' Detect and set date variable interval

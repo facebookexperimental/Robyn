@@ -1,0 +1,41 @@
+---
+id: releases
+title: Releases
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+## 3.6.2 
+31-3-2022
+Allocation and plot improvements, new warnings, bugs fixed
+
+Relevant changes on v3.6.2:
+- **Viz**: removed redundant information on plots and standardized styles and contents on all visualizations.
+- **Feat**: new `date_min` and `date_max` parameters on `robyn_allocator()` to pick specific date range to consider mean spend values ([user request](https://www.facebook.com/groups/robynmmm/permalink/1072870463481086)).
+- **Feat**: new `plot` methods for `robyn_allocator()` and `robyn_save()` outputs, and `print` method for `robyn_inputs()` with and without hyperparameters.
+- **Feat**: provide recommendations on calibration inputs depending on the experiments' confidence, spending, and KPI measured (#307).
+- **Feat**: warn and avoid weekly trend input when data granularity is larger than "week".
+- **Fix**: issues on several `robyn_allocator()` specific cases (#349, #344, #345), especially when some coefficients were 0.
+- **Fix**: bug with Weibull adstock scenario (#353).
+- **Docs**: fixed some typos, updated, and standardized internal documentation. 
+
+---
+
+## 3.6.0 
+22-2-2022
+
+What's New in v3.6.0
+
+- New **hyperparameter "lambda"** finds MOO-optimal lambda and thus removes the need of manual lambda selection.
+- New optional **hyperparameter `penalty.factor`** that further extends hyperparameter spaces and thus potentially better fit.
+- New **optimisation convergence rules & plots** for each objective function showing if set iterations have converged or not (NRMSE, DECOMP.RSSD, and MAPE if calibrated)
+- Improved **response function** now also returns the response for exposure metrics (response on imps, GRP, newsletter sendings, etc) and plots. Note that argument names and output class has changed. See updated `demo.R` for more details.
+- More **budget allocation stability** by defaulting fitting media variables from `paid_media_vars` to `paid_media_spends`. Spend exposure fitting with Michaelis Menten function will only serve `robyn_response()` function output and plotting. `robyn_allocator()` now only relies on direct spend - response transformation.
+- Default **beta coefficient signs**: positive for paid & organic media and unconstrained for the rest. Users can still set signs manually.
+- New **print methods** for `robyn_inputs()`, `robyn_run()`, `robyn_outputs()`, and `robyn_allocator()` outputs to enable visibility on each step's results and objects content.
+
+---
+
+
+
+

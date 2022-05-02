@@ -144,11 +144,11 @@ For the independent variables, this will depend on the type of activity:
 
   Historically it was best practice to collect and model data for paid activity only, as this would produce more actionable results (given that it is difficult to control organic activity).
   However with more options to interact with consumers with organic content (e.g. branded content on Facebook), there could be good reasons to include it in the model. Robyn allows for the modeling of organic activity.
-  More details on how to include it are [here](https://facebookexperimental.github.io/Robyn/docs/organic-media).
+  More details on how to include it are [here](https://facebookexperimental.github.io/Robyn/docs/features#organic-variables).
 
 - Non-media marketing activity (e.g. promotions, discounts): Commonly used metrics include time-series pricing data or the use of dummy variables to indicate promotions. If it is required to measure each type of promotion separately (e.g. buy one get one free vs. gift with purchase), ensure separate dummy variables are created for each promotion.
 - Seasonality and holidays: External factors that have a big impact on the dependent variable, such as seasonality and holidays, should be included in the model. There are two options for including this in the model:
-  - [Prophet](https://facebook.github.io/prophet/) is a Meta open source code for forecasting time series data, and has been included in the Robyn code to decompose the time series data into trends, seasonality and holidays. As Prophet automatically calculates the impact of seasonality and holidays, this is a good option for non-experts - more details on Prophet are available in the [Feature Engineering](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#feature-engineering) section.
+  - [Prophet](https://facebook.github.io/eatures#meta-prophet) is a Meta open source code for forecasting time series data, and has been included in the Robyn code to decompose the time series data into trends, seasonality and holidays. As Prophet automatically calculates the impact of seasonality and holidays, this is a good option for non-experts - more details on Prophet are available in the [Feature Engineering](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#feature-engineering) section.
   - Alternatively, you can collect data for seasonality and holidays using external data sources. This will depend on how seasonality impacts your business - for example, businesses that experience fluctuation:
       - Throughout the seasons (e.g. summer vs. winter), temperature is commonly used. For key periods or specific events (e.g. Christmas, government policy change that impacts sales), dummy variables are commonly used. Similar to above, ensure separate dummy variables are created if it is required to measure each specific event separately.
 - Macroeconomic factors: While this will depend on how these factors impact your business, commonly used metrics and data sets include GDP growth, unemployment, inflation.
@@ -268,7 +268,7 @@ Ultimately at the end of the data review process, we want to feel confident that
 
 ## Modeling Phase
 
-If you have successfully collected and reviewed the data required for modeling based on the guide from previous sections, congratulations! You can assume that you are approximately halfway through your Robyn journey. While data collection and review is one of the most important but time consuming steps, using Robyn means that you can now benefit from its core features without developing them by yourself. Robyn provides end-to-end scripts for modeling, which can be taken as a whole or in part to empower other MMM projects. If your data inputs are ready to go and in the [required template](https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData) and you follow the [step by step guide](https://facebookexperimental.github.io/Robyn/docs/demo-R-script), you can complete the modeling phase.
+If you have successfully collected and reviewed the data required for modeling based on the guide from previous sections, congratulations! You can assume that you are approximately halfway through your Robyn journey. While data collection and review is one of the most important but time consuming steps, using Robyn means that you can now benefit from its core features without developing them by yourself. Robyn provides end-to-end scripts for modeling, which can be taken as a whole or in part to empower other MMM projects. If your data inputs are ready to go and in the [required template](https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData) and you follow the [step by step demo script](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R), you can complete the modeling phase.
 While Robyn aims to increase automation and minimize human bias, it does not mean that it can successfully run without any intervention. Rather, analysts still need to play a very important role by fine-tuning parameters, executing different modeling techniques, and interpreting results to develop actionable recommendations that will improve marketing practices. Therefore, in this section, we will cover analyst considerations and caveats when running Marketing Mix Modeling with Robyn.
 
 ### Feature Engineering
@@ -307,7 +307,7 @@ As MMM models are built on historical data, an important consideration is select
   - The advantage of a rolling window is that you may still use the full data history (e.g. 4 years) to more accurately determine the trend, seasonality and holiday effects.
   - Alternatively, defining a specific range (e.g. 18 months) for media, organic and contextual variables can be a better option as it more accurately reflects your current business and marketing scenarios.
 
-Fortunately you can achieve this balance with the [model window](https://facebookexperimental.github.io/Robyn/docs/window) feature in Robyn. For example, with Robyn's integrated dataset of 208 weeks, users can set the ‘modeling period’ to a subset of available data (e.g. 100 weeks), while the trend/seasonality/holiday variables are still derived from the entire 208 weeks, which improves the accuracy for time-series decomposition.
+Fortunately you can achieve this balance with the [model window](https://facebookexperimental.github.io/Robyn/docs/features#continuous-reporting) feature in Robyn. For example, with Robyn's integrated dataset of 208 weeks, users can set the ‘modeling period’ to a subset of available data (e.g. 100 weeks), while the trend/seasonality/holiday variables are still derived from the entire 208 weeks, which improves the accuracy for time-series decomposition.
 
 When it comes to choosing a modeling window, this is not a simple question to answer. This will vary depending on each business and dataset - see below for some general considerations to help with choosing:
   - <em>Business context</em>
@@ -356,7 +356,7 @@ Part of MMM’s appeal is that it is grounded in key marketing principles, such 
   - Adstock: This technique is very useful for a better and more accurate representation of the real carryover effect of marketing campaigns. Moreover, it helps us understand the decay effects and how this can be used in campaign planning. Adstock reflects the theory that the effects of advertising can lag and decay following an initial exposure. In other words, not all effects of advertising are felt immediately - memory builds and people sometimes delay action until following weeks, where this awareness diminishes over time.
   - Saturation: The theory of saturation entails that each additional unit of advertising exposure increases the response, but at a declining rate. This is a key marketing principle that is reflected in MMM and Robyn as a variable transformation.
 
-You can find more technical details on both of these [here](https://facebookexperimental.github.io/Robyn/docs/variable-transformations), including the underlying equations.
+You can find more technical details on both of these [here](https://facebookexperimental.github.io/Robyn/docs/features#variable-transformations), including the underlying equations.
 It is important that you understand the meaning of each hyperparameter correctly before fine-tuning and adjusting it - if unsure, you can simply use our recommended settings as described below.
 
 <em>Adstock</em>
@@ -416,7 +416,7 @@ Once you finish setting the parameters in feature engineering, it is now time to
 
 MMM uses regression modeling, which aims to derive an equation that describes the dependent variable. The model aims to assign a coefficient to each independent variable, where only the variables that are statistically significant stay in the model.
 
-In very simple terms, the following model shows how the KPI is affected by changes in all the factors you have data for (you can find a more detailed equation for the Robyn model [here](https://facebookexperimental.github.io/Robyn/docs/ridge-regression/)):
+In very simple terms, the following model shows how the KPI is affected by changes in all the factors you have data for (you can find a more detailed equation for the Robyn model [here](https://facebookexperimental.github.io/Robyn/docs/features#ridge-regression/)):
 
 KPIt = β0 + β1x1 +  β2x2 + β3x3 + β4x4 + … + βnxn
 
@@ -426,7 +426,7 @@ KPIt = β0 + β1x1 +  β2x2 + β3x3 + β4x4 + … + βnxn
 
 Overfitting and multicollinearity are commonly addressed issues in regression analysis. Overfitting the model will take away from it’s predictive powers as you are taking away the flexibility with the model. On the other hand, not having enough variables and underfitting can lead to improper reads into certain channels. In order to address multicollinearity among many regressors and prevent overfitting we apply a regularization technique to reduce variance at the cost of introducing some bias. This approach tends to improve the predictive performance of MMMs.
 
-The most common regularization and the one used in Robyn is Ridge regression - for more details on the mathematics behind it, see this [page](https://facebookexperimental.github.io/Robyn/docs/ridge-regression). In Robyn, Ridge regression is automatically built in and there are fortunately not many settings that you need to configure - however, if keen to configure further, refer to the tip below.
+The most common regularization and the one used in Robyn is Ridge regression - for more details on the mathematics behind it, see this [page](https://facebookexperimental.github.io/Robyn/docs/features#ridge-regression). In Robyn, Ridge regression is automatically built in and there are fortunately not many settings that you need to configure - however, if keen to configure further, refer to the tip below.
 
 **<em>Pro-tip: control the amount of penalty in Ridge regression</em>**
 
@@ -451,7 +451,7 @@ The chart below elaborates how Nevergrad eliminates the majority of "bad models"
 
 <img alt="paretooptimalresults" src={useBaseUrl('/img/paretooptimalresults.png')} />
 
-At the end of the modeling process, Robyn will generate a series of models as initial outputs based on the NRMSE & DECOMP.RSSD function. After reviewing charts and considering the user’s business knowledge and requirement, a final model should be selected by the user to continue with the next steps. You can find more information on how to interpret outputs [here](https://facebookexperimental.github.io/Robyn/docs/outputs-diagnostics/).
+At the end of the modeling process, Robyn will generate a series of models as initial outputs based on the NRMSE & DECOMP.RSSD function. After reviewing charts and considering the user’s business knowledge and requirement, a final model should be selected by the user to continue with the next steps. You can find more information on how to interpret outputs [here](https://facebookexperimental.github.io/Robyn/docs/features#outputs--diagnostics).
 
 <em>What are the best practices to select the final model among all Pareto-optimum output?</em>
 Instead of automatically picking the best model, we have decided to allow users to choose the final model using pareto optimal outputs. The reasons behind this decision are two-fold:
