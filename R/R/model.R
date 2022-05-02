@@ -1045,7 +1045,7 @@ robyn_response <- function(robyn_object = NULL,
     ))
   }
 
-  check_metric_value(metric_value)
+  check_metric_value(metric_value, media_metric)
 
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {

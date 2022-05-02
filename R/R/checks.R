@@ -673,11 +673,14 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   }
 }
 
-check_metric_value <- function(metric_value) {
+check_metric_value <- function(metric_value, media_metric) {
   if (!is.null(metric_value)) {
-    if (length(metric_value) != 1) stop("Input 'metric_value' must be a valid numerical value")
-    if (!is.numeric(metric_value)) stop("Input 'metric_value' must be a numerical value")
-    if (metric_value <= 0) stop("Input 'metric_value' must be a positive value")
+    if (length(metric_value) != 1) stop(sprintf(
+      "Input 'metric_value' for %s must be a valid numerical value", media_metric))
+    if (!is.numeric(metric_value)) stop(sprintf(
+      "Input 'metric_value' for %s must be a numerical value", media_metric))
+    if (metric_value <= 0) stop(sprintf(
+      "Input 'metric_value' for %s must be a positive value", media_metric))
   }
 }
 

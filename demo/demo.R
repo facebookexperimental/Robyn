@@ -399,12 +399,13 @@ AllocatorCollect2$dt_optimOut
 # Pick any media variable
 select_media <- "search_S"
 # For paid_media_spends set metric_value as your optimal spend
-metric_value <- AllocatorCollect$dt_optimOut[channels == select_media, optmSpendUnit]
+metric_value <- AllocatorCollect1$dt_optimOut[channels == select_media, optmSpendUnit]
 # # For paid_media_vars and organic_vars, manually pick a value
 # metric_value <- 10000
 
 if (TRUE) {
-  optimal_response_allocator <- AllocatorCollect$dt_optimOut[channels == select_media, optmResponseUnit]
+  optimal_response_allocator <- AllocatorCollect1$dt_optimOut[
+    channels == select_media, optmResponseUnit]
   optimal_response <- robyn_response(
     robyn_object = robyn_object,
     select_build = 0,
