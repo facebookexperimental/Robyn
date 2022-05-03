@@ -280,7 +280,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect # feed in all model specification
   #, cores = NULL # default
   #, add_penalty_factor = FALSE # Untested feature. Use with caution.
-  , iterations = 200 # recommended for the dummy dataset
+  , iterations = 2000 # recommended for the dummy dataset
   , trials = 5 # recommended for the dummy dataset
   , outputs = FALSE # outputs = FALSE disables direct model output
 )
@@ -336,16 +336,12 @@ print(OutputCollect)
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 
 print(OutputCollect)
-<<<<<<< HEAD
-select_model <- "1_26_12" # select one from above
-=======
-select_model <- "1_92_12" # select one from above
->>>>>>> main
+select_model <- "1_55_15" # select one from above
 ExportedModel <- robyn_save(
   robyn_object = robyn_object # model object location and name
   , select_model = select_model # selected model ID
-  , InputCollect = Robyn$listRefresh1$InputCollect # all model input
-  , OutputCollect = Robyn$listRefresh1$OutputCollect # all model output
+  , InputCollect = InputCollect
+  , OutputCollect = OutputCollect
 )
 print(ExportedModel)
 # plot(ExportedModel)
@@ -373,6 +369,8 @@ AllocatorCollect1 <- robyn_allocator(
   , channel_constr_low = 0.7
   , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
   , export = TRUE
+  , date_min = "2016-11-21"
+  , date_max = "2018-08-20"
 )
 print(AllocatorCollect1)
 # plot(AllocatorCollect1)
@@ -399,8 +397,7 @@ AllocatorCollect2$dt_optimOut
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
 
 ## QA optimal response
-
-# Pick any media variable
+# Pick any media variable: InputCollect$all_media
 select_media <- "search_S"
 # For paid_media_spends set metric_value as your optimal spend
 metric_value <- AllocatorCollect1$dt_optimOut[channels == select_media, optmSpendUnit]
@@ -440,9 +437,9 @@ Robyn <- robyn_refresh(
   , dt_holidays = dt_prophet_holidays
   , refresh_steps = 1
   , refresh_mode = "manual"
-  , refresh_iters = 100 # 1k is estimation. Use refresh_mode = "manual" to try out.
+  , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
   , refresh_trials = 3
-  , clusters = F
+  , clusters = FALSE
 )
 
 ## Besides plots: there're 4 csv output saved in the folder for further usage

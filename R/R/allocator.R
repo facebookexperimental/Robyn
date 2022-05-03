@@ -203,15 +203,15 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendTotal <- sum(histSpendB)
   histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
   histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
-  histSpendUnitTotal <- sum(histSpendUnit)
+  histSpendUnit[is.nan(histSpendUnit)] <- 0
+  histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
   histSpendShare <- histSpendUnit / histSpendUnitTotal
 
   # Response values based on date range -> mean spend
-  histResponseUnitModel <- NULL
+  noSpendMedia <- histResponseUnitModel <- NULL
   for (i in seq_along(mediaSpendSortedFiltered)) {
-    histResponseUnitModel <- c(
-      histResponseUnitModel,
-      robyn_response(
+    if (histSpendUnit[i] > 0) {
+      val <- robyn_response(
         robyn_object = robyn_object,
         select_build = select_build,
         mediaSpendSortedFiltered[i],
@@ -223,9 +223,15 @@ robyn_allocator <- function(robyn_object = NULL,
         OutputCollect = OutputCollect,
         quiet = quiet
       )$response
-    )
+    } else {
+      val <- 0
+      noSpendMedia <- c(noSpendMedia, mediaSpendSortedFiltered[i])
+    }
+    histResponseUnitModel <- c(histResponseUnitModel, val)
   }
   names(histResponseUnitModel) <- mediaSpendSortedFiltered
+  if (!is.null(noSpendMedia) & !quiet)
+    message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
 
   ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {
@@ -237,14 +243,10 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Gather all values that will be used internally on optim (nloptr)
   eval_list <- list(
-    # mm_lm_coefs = mm_lm_coefs,
     coefsFiltered = coefsFiltered,
     alphas = alphas,
     gammaTrans = gammaTrans,
     mediaSpendSortedFiltered = mediaSpendSortedFiltered,
-    # exposure_selectorSortedFiltered = exposure_selectorSortedFiltered,
-    # vmaxVec = vmaxVec,
-    # kmVec = kmVec,
     expSpendUnitTotal = expSpendUnitTotal
   )
   # So we can implicitly use these values within eval_f()
@@ -340,6 +342,7 @@ robyn_allocator <- function(robyn_object = NULL,
     expected_spend = expected_spend,
     expected_spend_days = expected_spend_days,
     skipped = chn_coef0,
+    no_spend = noSpendMedia,
     ui = if (ui) plots else NULL
   )
 
@@ -352,11 +355,12 @@ robyn_allocator <- function(robyn_object = NULL,
 #' @param x \code{robyn_allocator()} output.
 #' @export
 print.robyn_allocator <- function(x, ...) {
+  temp <- x$dt_optimOut[!is.nan(x$dt_optimOut$optmRoiUnit),]
   print(glued(
     "
 Model ID: {x$dt_optimOut$solID[1]}
 Scenario: {scenario}
-Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')}
+Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')} {no_spend}
 Relative Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
@@ -368,6 +372,7 @@ Allocation Summary:
       x$scenario == "max_historical_response",
       "Maximum Historical Response",
       "Maximum Response with Expected Spend"),
+    no_spend = ifelse(!is.null(x$no_spend), paste('| (spend = 0):', v2t(x$no_spend, quotes = FALSE)), ''),
     spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
@@ -383,16 +388,16 @@ Allocation Summary:
   Mean Spend Share (avg): %s%% -> Optimized = %s%%
   Mean Response: %s -> Optimized = %s
   Mean Spend (per time unit): %s -> Optimized = %s [Delta = %s%%]",
-      x$dt_optimOut$channels,
-      100 * x$dt_optimOut$constr_low - 100,
-      100 * x$dt_optimOut$constr_up - 100,
-      signif(100 * x$dt_optimOut$initSpendShare, 3),
-      signif(100 * x$dt_optimOut$optmSpendShareUnit, 3),
-      formatNum(x$dt_optimOut$initResponseUnit, 0),
-      formatNum(x$dt_optimOut$optmResponseUnit, 0),
-      formatNum(x$dt_optimOut$initSpendUnit, 3, abbr = TRUE),
-      formatNum(x$dt_optimOut$optmSpendUnit, 3, abbr = TRUE),
-      formatNum(100 * x$dt_optimOut$optmSpendUnitDelta, signif = 2)
+      temp$channels,
+      100 * temp$constr_low - 100,
+      100 * temp$constr_up - 100,
+      signif(100 * temp$initSpendShare, 3),
+      signif(100 * temp$optmSpendShareUnit, 3),
+      formatNum(temp$initResponseUnit, 0),
+      formatNum(temp$optmResponseUnit, 0),
+      formatNum(temp$initSpendUnit, 3, abbr = TRUE),
+      formatNum(temp$optmSpendUnit, 3, abbr = TRUE),
+      formatNum(100 * temp$optmSpendUnitDelta, signif = 2)
     ), collapse = "\n  ")
   ))
 }

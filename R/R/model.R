@@ -1045,6 +1045,7 @@ robyn_response <- function(robyn_object = NULL,
     ))
   }
 
+  if (is.nan(metric_value)) metric_value <- NULL
   check_metric_value(metric_value, media_metric)
 
   ## Transform exposure to spend when necessary
