@@ -62,10 +62,9 @@ helping you understand hill/alpha/gamma transformation}
 }
 
 \examples{
-\dontrun{
-# Having InputCollect as robyn_inputs() output
-# Define hyper_names for geometric adstock
-hyper_names(adstock = "geometric", all_media = InputCollect$all_media)
+\donttest{
+media <- c("facebook_S", "print_S", "tv_S")
+hyper_names(adstock = "geometric", all_media = media)
 
 hyperparameters <- list(
   facebook_S_alphas = c(0.5, 3), # example bounds for alpha
@@ -76,20 +75,11 @@ hyperparameters <- list(
   print_S_thetas = c(0.1, 0.4),
   tv_S_alphas = c(0.5, 3),
   tv_S_gammas = c(0.3, 1),
-  tv_S_thetas = c(0.3, 0.8),
-  search_S_alphas = c(0.5, 3),
-  search_S_gammas = c(0.3, 1),
-  search_S_thetas = c(0, 0.3),
-  ooh_S_alphas = c(0.5, 3),
-  ooh_S_gammas = c(0.3, 1),
-  ooh_S_thetas = c(0.1, 0.4),
-  newsletter_alphas = c(0.5, 3),
-  newsletter_gammas = c(0.3, 1),
-  newsletter_thetas = c(0.1, 0.4)
+  tv_S_thetas = c(0.3, 0.8)
 )
 
 # Define hyper_names for weibull adstock
-hyper_names(adstock = "weibull", all_media = InputCollect$all_media)
+hyper_names(adstock = "weibull", all_media = media)
 
 hyperparameters <- list(
   facebook_S_alphas = c(0.5, 3), # example bounds for alpha
@@ -103,19 +93,7 @@ hyperparameters <- list(
   tv_S_alphas = c(0.5, 3),
   tv_S_gammas = c(0.3, 1),
   tv_S_shapes = c(0.0001, 2),
-  tv_S_scales = c(0, 0.1),
-  search_S_alphas = c(0.5, 3),
-  search_S_gammas = c(0.3, 1),
-  search_S_shapes = c(0.0001, 2),
-  search_S_scales = c(0, 0.1),
-  ooh_S_alphas = c(0.5, 3),
-  ooh_S_gammas = c(0.3, 1),
-  ooh_S_shapes = c(0.0001, 2),
-  ooh_S_scales = c(0, 0.1),
-  newsletter_alphas = c(0.5, 3),
-  newsletter_gammas = c(0.3, 1),
-  newsletter_shapes = c(0.0001, 2),
-  newsletter_scales = c(0, 0.1)
+  tv_S_scales = c(0, 0.1)
 )
 }
 }

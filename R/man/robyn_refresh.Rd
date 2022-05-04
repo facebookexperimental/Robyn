@@ -99,11 +99,11 @@ we want to start using on new refresh model.
 }
 \examples{
 \dontrun{
-# Set the Robyn object path
+# Set the (pre-trained and exported) Robyn object path
 robyn_object <- "~/Desktop/Robyn.RDS"
-
-# Load new data
+# Load dummy data
 data("dt_simulated_weekly")
+# Load holidays data
 data("dt_prophet_holidays")
 
 # Run \code{robyn_refresh()} with 13 weeks cadance in auto mode

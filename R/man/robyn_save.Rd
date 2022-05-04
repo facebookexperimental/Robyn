@@ -41,24 +41,8 @@ Required when \code{robyn_object} is not provided.}
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
-(Invisible) list with filename and summary.
-
-List. Informative model elements. Class: \code{robyn_save}.
+(Invisible) list with filename and summary. Class: \code{robyn_save}.
 }
 \description{
 Use \code{robyn_save()} to select and save as .RDS file the initial model.
-}
-\examples{
-\dontrun{
-# Get model IDs from OutputCollect
-select_model <- "3_10_3"
-
-# Save the results. Overwriting old object needs confirmation.
-robyn_save(
-  robyn_object = "~/Desktop/Robyn.RDS",
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model
-)
-}
 }

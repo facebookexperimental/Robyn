@@ -13,3 +13,6 @@ Dataframe. Contains upper and lower bounds for each hyperparameter.
 Reference data.frame that shows the upper and lower bounds valid
 for each hyperparameter.
 }
+\examples{
+hyper_limits()
+}

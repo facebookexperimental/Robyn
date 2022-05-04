@@ -53,6 +53,10 @@
 #' @return A list object containing allocator result.
 #' @examples
 #' \dontrun{
+#' # Having InputCollect and OutputCollect results
+#' # Set your exported model location
+#' robyn_object <- "~/Desktop/MyRobyn.RDS"
+#'
 #' # Check media summary for selected model from the simulated data
 #' select_model <- "3_10_3"
 #' OutputCollect$xDecompAgg[

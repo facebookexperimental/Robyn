@@ -28,8 +28,9 @@
 #' @param ... Additional parameters
 #' @examples
 #' \dontrun{
-#' OutputModels <- robyn_converge(
-#'   OutputModels = OutputModels,
+#' # Having OutputModels results
+#' robyn_converge(
+#'   OutputModels,
 #'   n_cuts = 10,
 #'   sd_qtref = 3,
 #'   med_lowb = 3

@@ -9,21 +9,7 @@
 #' Use \code{robyn_save()} to select and save as .RDS file the initial model.
 #'
 #' @inheritParams robyn_allocator
-#' @return (Invisible) list with filename and summary.
-#' @examples
-#' \dontrun{
-#' # Get model IDs from OutputCollect
-#' select_model <- "3_10_3"
-#'
-#' # Save the results. Overwriting old object needs confirmation.
-#' robyn_save(
-#'   robyn_object = "~/Desktop/Robyn.RDS",
-#'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect,
-#'   select_model = select_model
-#' )
-#' }
-#' @return List. Informative model elements. Class: \code{robyn_save}.
+#' @return (Invisible) list with filename and summary. Class: \code{robyn_save}.
 #' @export
 robyn_save <- function(robyn_object,
                        select_model,
@@ -155,11 +141,11 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' @return List. The Robyn object, class \code{robyn_refresh}.
 #' @examples
 #' \dontrun{
-#' # Set the Robyn object path
+#' # Set the (pre-trained and exported) Robyn object path
 #' robyn_object <- "~/Desktop/Robyn.RDS"
-#'
-#' # Load new data
+#' # Load dummy data
 #' data("dt_simulated_weekly")
+#' # Load holidays data
 #' data("dt_prophet_holidays")
 #'
 #' # Run \code{robyn_refresh()} with 13 weeks cadance in auto mode

@@ -24,10 +24,12 @@
 #' @author Bernardo Lares (bernardolares@@fb.com)
 #' @examples
 #' \dontrun{
-#' cls <- robyn_clusters(input = OutputCollect,
-#'                       all_media = InputCollect$all_media,
-#'                       k = 3, limit = 2,
-#'                       weights = c(1, 1, 1.5))
+#' # Having InputCollect and OutputCollect results
+#' cls <- robyn_clusters(
+#'   input = OutputCollect,
+#'   all_media = InputCollect$all_media,
+#'   k = 3, limit = 2,
+#'   weights = c(1, 1, 1.5))
 #' }
 #' @return List. Clustering results as labeled data.frames and plots.
 #' @export
