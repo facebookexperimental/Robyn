@@ -6,11 +6,12 @@ Authors@R: c(
     person("Gufeng", "Zhou", , "gufeng@fb.com", c("aut")),
     person("Leonel", "Sentana", , "leonelsentana@fb.com", c("aut")),
     person("Igor", "Skokan", , "igorskokan@fb.com", c("aut")),
-    person("Bernardo", "Lares", , "bernardolares@fb.com", c("cre","aut")))
+    person("Bernardo", "Lares", , "bernardolares@fb.com", c("cre","aut")),
+    person("Meta Platforms, Inc.", role = c("cph", "fnd")))
 Maintainer: Bernardo Lares <bernardolares@fb.com>
 Description: Semi-Automated Marketing Mix Modeling (MMM) aiming to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocation and diminishing returns curves and allows ground-truth calibration to account for causation.
 Depends:
-    R (>= 4.0)
+    R (>= 4.0.0)
 Imports:
     data.table,
     doParallel,
@@ -44,4 +45,3 @@ RoxygenNote: 7.1.2
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-Config/testthat/edition: 3
