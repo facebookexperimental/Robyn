@@ -25,6 +25,9 @@ wish to plot the one-pagers and export? Default will take top
 
 \item{export}{Boolean. Export outcomes into local files?}
 }
+\value{
+Invisible list with \code{patchwork} plot(s).
+}
 \description{
 Generate and Export Robyn One-Pager Plots
 }

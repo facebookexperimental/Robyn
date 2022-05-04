@@ -35,6 +35,7 @@
 #'   med_lowb = 3
 #' )
 #' }
+#' @return List. Plots and MOO convergence results.
 #' @export
 robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...) {
 

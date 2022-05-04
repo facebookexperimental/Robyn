@@ -13,6 +13,9 @@ Accepts "geometric", "weibull_cdf" or "weibull_pdf"}
 \item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}
 }
+\value{
+Character vector. Names of hyper-parameters that should be defined.
+}
 \description{
 Output all hyperparameter names and help specifying the list of
 hyperparameters that is inserted into \code{robyn_inputs(hyperparameters = ...)}

@@ -16,7 +16,7 @@ exposure and spend metrics.}
 \item{paid_media_var}{Character. Paid media variable.}
 }
 \value{
-A list containing the all spend-exposure model results.
+List. Containing the all spend-exposure model results.
 }
 \description{
 This function is called in \code{robyn_engineering()}. It uses

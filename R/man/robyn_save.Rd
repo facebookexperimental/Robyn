@@ -42,6 +42,8 @@ Required when \code{robyn_object} is not provided.}
 }
 \value{
 (Invisible) list with filename and summary.
+
+List. Informative model elements. Class: \code{robyn_save}.
 }
 \description{
 Use \code{robyn_save()} to select and save as .RDS file the initial model.

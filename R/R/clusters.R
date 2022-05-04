@@ -29,6 +29,7 @@
 #'                       k = 3, limit = 2,
 #'                       weights = c(1, 1, 1.5))
 #' }
+#' @return List. Clustering results as labeled data.frames and plots.
 #' @export
 robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",

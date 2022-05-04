@@ -7,6 +7,7 @@
 #' Generate and Export Robyn Plots
 #'
 #' @rdname robyn_outputs
+#' @return Invisible list with \code{ggplot} plots.
 #' @export
 robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
   check_class("robyn_outputs", OutputCollect)
@@ -205,6 +206,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 #'
 #' @inheritParams robyn_outputs
 #' @inheritParams robyn_csv
+#' @return Invisible list with \code{patchwork} plot(s).
 #' @export
 robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, quiet = FALSE, export = TRUE) {
   check_class("robyn_outputs", OutputCollect)

@@ -49,6 +49,7 @@
 #'   outputs = FALSE
 #' )
 #' }
+#' @return List. Contains all trained models. Class: \code{robyn_models}.
 #' @export
 robyn_run <- function(InputCollect,
                       dt_hyper_fixed = NULL,
@@ -204,6 +205,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 #' @inheritParams robyn_run
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
+#' @return List. Iteration results to include in \code{robyn_run()} results.
 #' @export
 robyn_train <- function(InputCollect, hyper_collect,
                         cores, iterations, trials,
@@ -299,6 +301,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
 #' @param iterations Integer. Number of iterations to run.
+#' @return List. MMM results with hyperparameters values.
 #' @export
 robyn_mmm <- function(InputCollect,
                       hyper_collect,
@@ -957,6 +960,7 @@ robyn_mmm <- function(InputCollect,
 #'   InputCollect = InputCollect
 #' )
 #' }
+#' @return List. Response value and plot. Class: \code{robyn_response}.
 #' @export
 robyn_response <- function(robyn_object = NULL,
                            select_build = NULL,

@@ -22,6 +22,9 @@
 #' @param Km Numeric. The Michaelis constant.
 #' @param reverse Boolean. Input media spend when \code{reverse = FALSE}.
 #' Input media exposure metrics (impression, clicks, GRPs etc.) when \code{reverse = TRUE}.
+#' @examples
+#' mic_men(x = 5:10, Vmax = 5, Km = 0.5)
+#' @return Numeric values. Transformed values.
 #' @export
 mic_men <- function(x, Vmax, Km, reverse = FALSE) {
   if (!reverse) {
@@ -48,6 +51,7 @@ mic_men <- function(x, Vmax, Km, reverse = FALSE) {
 #' Radio c(0.1, 0.4), digital c(0, 0.3).
 #' @examples
 #' adstock_geometric(rep(100, 5), theta = 0.5)
+#' @return Numeric values. Transformed values.
 #' @rdname adstocks
 #' @export
 adstock_geometric <- function(x, theta) {
@@ -162,6 +166,7 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
 #' Hill-transformed value of the x_marginal input.
 #' @examples
 #' saturation_hill(c(100, 150, 170, 190, 200), alpha = 3, gamma = 0.5)
+#' @return Numeric values. Transformed values.
 #' @export
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
   gammaTrans <- round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)

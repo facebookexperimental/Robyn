@@ -12,6 +12,9 @@ robyn_update(dev = TRUE, ...)
 \item{...}{Parameters to pass to \code{remotes::install_github}
 or \code{utils::install.packages}, depending on \code{dev} parameter.}
 }
+\value{
+Invisible \code{NULL}.
+}
 \description{
 Update Robyn version from
 \href{https://github.com/facebookexperimental/Robyn}{Github repository}

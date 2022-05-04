@@ -40,6 +40,9 @@ Pass any of: \code{c("PCA", "tSNE", "all", "none")}.}
 
 \item{...}{Additional parameters passed to \code{lares::clusterKmeans()}.}
 }
+\value{
+List. Clustering results as labeled data.frames and plots.
+}
 \description{
 \code{robyn_clusters()} uses output from \code{robyn_run()},
 to reduce the number of models and help the user pick up the best (lowest

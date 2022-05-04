@@ -548,7 +548,7 @@ check_filedir <- function(plot_folder) {
   }
   if (!dir.exists(plot_folder)) {
     plot_folder <- getwd()
-    message("Provided 'plot_folder' doesn't exist. Using default 'plot_folder = getwd()': ", plot_folder)
+    message("Provided 'plot_folder' doesn't exist. Using current working directory: ", plot_folder)
   }
   return(plot_folder)
 }

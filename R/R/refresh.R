@@ -23,6 +23,7 @@
 #'   select_model = select_model
 #' )
 #' }
+#' @return List. Informative model elements. Class: \code{robyn_save}.
 #' @export
 robyn_save <- function(robyn_object,
                        select_model,
@@ -183,6 +184,7 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #'   refresh_trials = 5
 #' )
 #' }
+#' @return List. Same as \code{robyn_run()} but with refreshed models.
 #' @export
 robyn_refresh <- function(robyn_object,
                           plot_folder_sub = NULL,

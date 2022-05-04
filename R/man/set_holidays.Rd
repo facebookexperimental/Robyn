@@ -15,7 +15,7 @@ set_holidays(dt_transform, dt_holidays, intervalType)
 \code{c("day","week","month")}}
 }
 \value{
-A list containing the all spend-exposure model results.
+List. Containing the all spend-exposure model results.
 }
 \description{
 Robyn only accepts daily, weekly and monthly data. This function

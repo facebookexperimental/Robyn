@@ -58,6 +58,9 @@ more iterations to converge.}
 
 \item{quiet}{Boolean. Keep messages off?}
 }
+\value{
+List. Iteration results to include in \code{robyn_run()} results.
+}
 \description{
 \code{robyn_train()} consumes output from \code{robyn_input()}
 and runs the \code{robyn_mmm()} on each trial.

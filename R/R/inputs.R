@@ -475,6 +475,7 @@ Adstock: {x$adstock}
 #'   newsletter_scales = c(0, 0.1)
 #' )
 #' }
+#' @return Character vector. Names of hyper-parameters that should be defined.
 #' @export
 hyper_names <- function(adstock, all_media) {
   adstock <- check_adstock(adstock)
@@ -494,6 +495,7 @@ hyper_names <- function(adstock, all_media) {
 #' Reference data.frame that shows the upper and lower bounds valid
 #' for each hyperparameter.
 #'
+#' @return Dataframe. Contains upper and lower bounds for each hyperparameter.
 #' @export
 hyper_limits <- function() {
   data.frame(
@@ -848,7 +850,7 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
 #' @param mediaCostFactor Numeric vector. The ratio between raw media
 #' exposure and spend metrics.
 #' @param paid_media_var Character. Paid media variable.
-#' @return A list containing the all spend-exposure model results.
+#' @return List. Containing the all spend-exposure model results.
 fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var) {
   if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns")
   colnames(dt_spendModInput) <- c("spend", "exposure")
@@ -931,7 +933,7 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
 #' @param dt_holidays A data.frame. Raw input holiday data.
 #' @param intervalType A character. Accepts one of the values:
 #' \code{c("day","week","month")}
-#' @return A list containing the all spend-exposure model results.
+#' @return List. Containing the all spend-exposure model results.
 set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   opts <- c("day", "week", "month")
   if (!intervalType %in% opts) {

@@ -19,6 +19,9 @@ for median. (Criteria #2). Default to 3.}
 
 \item{...}{Additional parameters}
 }
+\value{
+List. Plots and MOO convergence results.
+}
 \description{
 \code{robyn_converge()} consumes \code{robyn_run()} outputs
 and calculate convergence status and builds convergence plots.

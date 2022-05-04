@@ -53,6 +53,9 @@ It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{quiet}{Boolean. Keep messages off?}
 }
+\value{
+List. MMM results with hyperparameters values.
+}
 \description{
 \code{robyn_mmm()} function activates Nevergrad to generate samples of
 hyperparameters, conducts media transformation within each loop, fits the

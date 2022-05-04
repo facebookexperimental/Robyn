@@ -96,6 +96,8 @@ total spends. Default will consider all dates within window. Length must be 1.}
 }
 \value{
 A list object containing allocator result.
+
+List. Contains optimized allocation results and plots.
 }
 \description{
 \code{robyn_allocator()} function returns a new split of media

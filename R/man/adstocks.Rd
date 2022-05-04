@@ -34,6 +34,9 @@ effect.}
 
 \item{plot}{Boolean. Do you wish to return the plot?}
 }
+\value{
+Numeric values. Transformed values.
+}
 \description{
 \code{adstock_geometric()} for Geometric Adstocking is the classic one-parametric
 adstock function.

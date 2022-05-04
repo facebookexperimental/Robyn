@@ -51,6 +51,9 @@ Required when \code{robyn_object} is not provided.}
 
 \item{quiet}{Boolean. Keep messages off?}
 }
+\value{
+List. Response value and plot. Class: \code{robyn_response}.
+}
 \description{
 \code{robyn_response()} returns the response for a given
 spend level of a given \code{paid_media_vars} from a selected model

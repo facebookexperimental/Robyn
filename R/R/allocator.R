@@ -86,6 +86,7 @@
 #'   expected_spend_days = 90
 #' )
 #' }
+#' @return List. Contains optimized allocation results and plots.
 #' @export
 robyn_allocator <- function(robyn_object = NULL,
                             select_build = 0,

@@ -68,6 +68,8 @@ passed into initial model.}
 }
 \value{
 List. The Robyn object, class \code{robyn_refresh}.
+
+List. Same as \code{robyn_run()} but with refreshed models.
 }
 \description{
 \code{robyn_refresh()} builds updated models based on
