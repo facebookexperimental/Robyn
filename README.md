@@ -23,8 +23,8 @@
   
   * Install Robyn latest package version:
 ```{r}
-## CRAN VERSION: TBA
-# install.packages("Robyn")
+## CRAN VERSION
+install.packages("Robyn")
 
 ## DEV VERSION
 # If you don't have remotes installed yet, first run: install.packages("remotes")
