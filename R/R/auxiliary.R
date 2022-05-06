@@ -45,6 +45,7 @@ flatten_hyps <- function(x) {
 #' @param dev Boolean. Dev version? If not, CRAN version.
 #' @param ... Parameters to pass to \code{remotes::install_github}
 #' or \code{utils::install.packages}, depending on \code{dev} parameter.
+#' @return Invisible \code{NULL}.
 #' @export
 robyn_update <- function(dev = TRUE, ...) {
   if (dev) {

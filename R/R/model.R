@@ -40,15 +40,16 @@
 #' and iterations modeled.
 #' @examples
 #' \dontrun{
+#' # Having InputCollect results
 #' OutputCollect <- robyn_run(
 #'   InputCollect = InputCollect,
-#'   # cores = NULL,
-#'   # add_penalty_factor = TRUE,
-#'   iterations = 2000,
-#'   trials = 2,
+#'   cores = 2,
+#'   iterations = 200,
+#'   trials = 1,
 #'   outputs = FALSE
 #' )
 #' }
+#' @return List. Contains all trained models. Class: \code{robyn_models}.
 #' @export
 robyn_run <- function(InputCollect,
                       dt_hyper_fixed = NULL,
@@ -204,6 +205,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 #' @inheritParams robyn_run
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
+#' @return List. Iteration results to include in \code{robyn_run()} results.
 #' @export
 robyn_train <- function(InputCollect, hyper_collect,
                         cores, iterations, trials,
@@ -299,6 +301,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
 #' @param iterations Integer. Number of iterations to run.
+#' @return List. MMM results with hyperparameters values.
 #' @export
 robyn_mmm <- function(InputCollect,
                       hyper_collect,
@@ -884,21 +887,21 @@ robyn_mmm <- function(InputCollect,
 #' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
 #' @examples
 #' \dontrun{
-#' ## Get marginal response (mResponse) and marginal ROI (mROI) for
-#' ## the next 1k on 80k for search_S, when provided the saved
-#' ## robyn_object by the robyn_save() function.
+#' # Having InputCollect and OutputCollect results OR robyn_object
+#' # Set your exported model location
+#' robyn_object <- "~/Desktop/MyRobyn.RDS"
 #'
-#' # Get response for 80k
+#' # Get marginal response (mResponse) and marginal ROI (mROI) for
+#' # the next 1k on 80k for search_S, when provided the saved
+#' # robyn_object by the robyn_save() function.
 #' spend1 <- 80000
 #' Response1 <- robyn_response(
 #'   robyn_object = robyn_object,
 #'   media_metric = "search_S",
 #'   metric_value = spend1
 #' )$response
-#'
 #' # Get ROI for 80k
 #' Response1 / spend1 # ROI for search 80k
-#'
 #' # Get response for 81k
 #' spend2 <- spend1 + 1000
 #' Response2 <- robyn_response(
@@ -906,17 +909,14 @@ robyn_mmm <- function(InputCollect,
 #'   media_metric = "search_S",
 #'   metric_value = spend2
 #' )$response
-#'
 #' # Get ROI for 81k
 #' Response2 / spend2 # ROI for search 81k
-#'
 #' # Get marginal response (mResponse) for the next 1k on 80k
 #' Response2 - Response1
-#'
 #' # Get marginal ROI (mROI) for the next 1k on 80k
 #' (Response2 - Response1) / (spend2 - spend1)
 #'
-#' ## Example of getting paid media exposure response curves
+#' # Example of getting paid media exposure response curves
 #' imps <- 1000000
 #' response_imps <- robyn_response(
 #'   robyn_object = robyn_object,
@@ -926,7 +926,7 @@ robyn_mmm <- function(InputCollect,
 #' response_per_1k_imps <- response_imps / imps * 1000
 #' response_per_1k_imps
 #'
-#' ## Example of getting organic media exposure response curves
+#' # Example of getting organic media exposure response curves
 #' sendings <- 30000
 #' response_sending <- robyn_response(
 #'   robyn_object = robyn_object,
@@ -936,8 +936,7 @@ robyn_mmm <- function(InputCollect,
 #' response_per_1k_send <- response_sending / sendings * 1000
 #' response_per_1k_send
 #'
-#' ## Get response for 80k for search_S from the third model refresh
-#'
+#' # Get response for 80k for search_S from the third model refresh
 #' robyn_response(
 #'   robyn_object = robyn_object,
 #'   select_build = 3,
@@ -945,9 +944,8 @@ robyn_mmm <- function(InputCollect,
 #'   metric_value = 80000
 #' )
 #'
-#' ## Get response for 80k for search_S from the a certain model SolID
-#' ## in the current model output in the global environment
-#'
+#' # Get response for 80k for search_S from the a certain model SolID
+#' # in the current model output in the global environment
 #' robyn_response(
 #'   media_metric = "search_S",
 #'   metric_value = 80000,
@@ -957,6 +955,7 @@ robyn_mmm <- function(InputCollect,
 #'   InputCollect = InputCollect
 #' )
 #' }
+#' @return List. Response value and plot. Class: \code{robyn_response}.
 #' @export
 robyn_response <- function(robyn_object = NULL,
                            select_build = NULL,
@@ -1045,6 +1044,7 @@ robyn_response <- function(robyn_object = NULL,
     ))
   }
 
+  if (is.nan(metric_value)) metric_value <- NULL
   check_metric_value(metric_value, media_metric)
 
   ## Transform exposure to spend when necessary

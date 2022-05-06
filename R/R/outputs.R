@@ -40,14 +40,14 @@
 robyn_outputs <- function(InputCollect, OutputModels,
                           pareto_fronts = 3,
                           calibration_constraint = 0.1,
-                          plot_folder = getwd(), plot_folder_sub = NULL,
+                          plot_folder = NULL, plot_folder_sub = NULL,
                           plot_pareto = TRUE,
                           csv_out = "pareto",
                           clusters = TRUE,
                           select_model = "clusters",
                           ui = FALSE, export = TRUE,
                           quiet = FALSE, ...) {
-
+  if (is.null(plot_folder)) plot_folder <- getwd()
   check_robyn_object(plot_folder)
   plot_folder <- check_filedir(plot_folder)
 
@@ -180,6 +180,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 #'
 #' @param OutputCollect \code{robyn_run(..., export = FALSE)} output.
 #' @rdname robyn_outputs
+#' @return Invisible \code{NULL}.
 #' @export
 robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
   if (export) {

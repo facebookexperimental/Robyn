@@ -40,6 +40,9 @@ Pass any of: \code{c("PCA", "tSNE", "all", "none")}.}
 
 \item{...}{Additional parameters passed to \code{lares::clusterKmeans()}.}
 }
+\value{
+List. Clustering results as labeled data.frames and plots.
+}
 \description{
 \code{robyn_clusters()} uses output from \code{robyn_run()},
 to reduce the number of models and help the user pick up the best (lowest
@@ -47,10 +50,12 @@ combined error) of the most different kinds (clusters) of models.
 }
 \examples{
 \dontrun{
-cls <- robyn_clusters(input = OutputCollect,
-                      all_media = InputCollect$all_media,
-                      k = 3, limit = 2,
-                      weights = c(1, 1, 1.5))
+# Having InputCollect and OutputCollect results
+cls <- robyn_clusters(
+  input = OutputCollect,
+  all_media = InputCollect$all_media,
+  k = 3, limit = 2,
+  weights = c(1, 1, 1.5))
 }
 }
 \author{

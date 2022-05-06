@@ -12,7 +12,7 @@ robyn_outputs(
   OutputModels,
   pareto_fronts = 3,
   calibration_constraint = 0.1,
-  plot_folder = getwd(),
+  plot_folder = NULL,
   plot_folder_sub = NULL,
   plot_pareto = TRUE,
   csv_out = "pareto",
@@ -75,6 +75,10 @@ wish to plot the one-pagers and export? Default will take top
 \value{
 (Invisible) list. Class: \code{robyn_outputs}. Contains processed
 results based on \code{robyn_run()} results.
+
+Invisible \code{NULL}.
+
+Invisible list with \code{ggplot} plots.
 }
 \description{
 Pack \code{robyn_plots()}, \code{robyn_csv()}, and \code{robyn_clusters()}

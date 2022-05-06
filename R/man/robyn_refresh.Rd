@@ -68,6 +68,8 @@ passed into initial model.}
 }
 \value{
 List. The Robyn object, class \code{robyn_refresh}.
+
+List. Same as \code{robyn_run()} but with refreshed models.
 }
 \description{
 \code{robyn_refresh()} builds updated models based on
@@ -97,11 +99,11 @@ we want to start using on new refresh model.
 }
 \examples{
 \dontrun{
-# Set the Robyn object path
+# Set the (pre-trained and exported) Robyn object path
 robyn_object <- "~/Desktop/Robyn.RDS"
-
-# Load new data
+# Load dummy data
 data("dt_simulated_weekly")
+# Load holidays data
 data("dt_prophet_holidays")
 
 # Run \code{robyn_refresh()} with 13 weeks cadance in auto mode

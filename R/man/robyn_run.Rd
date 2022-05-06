@@ -71,6 +71,8 @@ there are \code{context_vars} with large positive values.}
 \value{
 List. Class: \code{robyn_models}. Contains the results of all trials
 and iterations modeled.
+
+List. Contains all trained models. Class: \code{robyn_models}.
 }
 \description{
 \code{robyn_run()} consumes \code{robyn_input()} outputs,
@@ -78,12 +80,12 @@ runs \code{robyn_mmm()}, and collects all modeling results.
 }
 \examples{
 \dontrun{
+# Having InputCollect results
 OutputCollect <- robyn_run(
   InputCollect = InputCollect,
-  # cores = NULL,
-  # add_penalty_factor = TRUE,
-  iterations = 2000,
-  trials = 2,
+  cores = 2,
+  iterations = 200,
+  trials = 1,
   outputs = FALSE
 )
 }

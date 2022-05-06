@@ -18,11 +18,17 @@ GRPs, etc.) when \code{reverse = TRUE}.}
 \item{reverse}{Boolean. Input media spend when \code{reverse = FALSE}.
 Input media exposure metrics (impression, clicks, GRPs etc.) when \code{reverse = TRUE}.}
 }
+\value{
+Numeric values. Transformed values.
+}
 \description{
 The Michaelis-Menten \code{mic_men()} function is used to fit the spend
 exposure relationship for paid media variables, when exposure metrics like
 impressions, clicks or GRPs are provided in \code{paid_media_vars} instead
 of spend metric.
+}
+\examples{
+mic_men(x = 5:10, Vmax = 5, Km = 0.5)
 }
 \seealso{
 Other Transformations: 

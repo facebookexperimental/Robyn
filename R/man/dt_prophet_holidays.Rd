@@ -18,6 +18,8 @@ data(dt_prophet_holidays)
 }
 \value{
 data.table
+
+Dataframe. Contains \code{prophet}'s default holidays by country.
 }
 \description{
 Describe the dataset. When using own holidays, please keep the

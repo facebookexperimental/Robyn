@@ -23,6 +23,9 @@ Hill-transformed value of the x_marginal input.}
 
 \item{plot}{Boolean. Do you wish to return the plot?}
 }
+\value{
+Numeric values. Transformed values.
+}
 \description{
 \code{saturation_hill} is a two-parametric version of the Hill
 function that allows the saturation curve to flip between S and C shape.

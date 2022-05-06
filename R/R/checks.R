@@ -548,7 +548,7 @@ check_filedir <- function(plot_folder) {
   }
   if (!dir.exists(plot_folder)) {
     plot_folder <- getwd()
-    message("Provided 'plot_folder' doesn't exist. Using default 'plot_folder = getwd()': ", plot_folder)
+    message("Provided 'plot_folder' doesn't exist. Using current working directory: ", plot_folder)
   }
   return(plot_folder)
 }
@@ -676,11 +676,11 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
 check_metric_value <- function(metric_value, media_metric) {
   if (!is.null(metric_value)) {
     if (length(metric_value) != 1) stop(sprintf(
-      "Input 'metric_value' for %s must be a valid numerical value", media_metric))
+      "Input 'metric_value' for %s (%s) must be a valid numerical value", media_metric, metric_value))
     if (!is.numeric(metric_value)) stop(sprintf(
-      "Input 'metric_value' for %s must be a numerical value", media_metric))
+      "Input 'metric_value' for %s (%s) must be a numerical value", media_metric, metric_value))
     if (metric_value <= 0) stop(sprintf(
-      "Input 'metric_value' for %s must be a positive value", media_metric))
+      "Input 'metric_value' for %s (%s) must be a positive value", media_metric, metric_value))
   }
 }
 

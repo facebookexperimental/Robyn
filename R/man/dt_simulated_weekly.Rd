@@ -19,6 +19,8 @@ data(dt_simulated_weekly)
 }
 \value{
 data.table
+
+Dataframe. Contains simulated dummy dataset to test and run demo.
 }
 \description{
 Describe the dataset. Input time series should be daily, weekly or monthly.

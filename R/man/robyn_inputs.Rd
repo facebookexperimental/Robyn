@@ -176,13 +176,12 @@ metrics in case exposure metrics are used in \code{paid_media_vars}.
 }
 
 \examples{
+\donttest{
 # Load simulated input data
 data("dt_simulated_weekly")
-
 # Load standard prophet holidays
 data("dt_prophet_holidays")
 
-\dontrun{
 InputCollect <- robyn_inputs(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,

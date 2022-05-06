@@ -23,6 +23,7 @@
 #' @examples
 #' data(dt_simulated_weekly)
 #' head(dt_simulated_weekly)
+#' @return Dataframe. Contains simulated dummy dataset to test and run demo.
 "dt_simulated_weekly"
 
 # dt_input <- fread('data/de_simulated_data.csv')
@@ -48,4 +49,5 @@
 #' @examples
 #' data(dt_prophet_holidays)
 #' head(dt_prophet_holidays)
+#' @return Dataframe. Contains \code{prophet}'s default holidays by country.
 "dt_prophet_holidays"
