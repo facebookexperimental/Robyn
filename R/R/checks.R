@@ -10,9 +10,14 @@ opts_pnd <- c("positive", "negative", "default")
 check_nas <- function(df) {
   if (sum(is.na(df)) > 0) {
     name <- deparse(substitute(df))
-    stop(paste(
-      "Dataset", name, "has missing values.",
-      "These values must be removed or fixed for the model to properly run"
+    naPositions <- which(is.na(df), arr.ind=TRUE)
+    formattedPositions <- paste(apply(t(naPositions), 2, function(pos) {
+      paste0(" - row=", pos[1], ", col=", pos[2])
+    }), collapse="\n")
+    stop(paste0(
+      "Dataset ", name, " has missing values. ",
+      "These values must be removed or fixed for the model to properly run:\n",
+      formattedPositions
     ))
   }
 }
