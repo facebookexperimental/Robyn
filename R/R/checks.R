@@ -222,7 +222,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
     })
     stop(
       paste(names(check_media_val)[check_media_val], collapse = ", "),
-      "contains negative values. Media must be >=0"
+      " contains negative values. Media must be >=0"
     )
   }
   return(invisible(list(
