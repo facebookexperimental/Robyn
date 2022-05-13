@@ -67,13 +67,14 @@ spend allocation of a given future spend level for a given period?"}
 \item{expected_spend_days}{Integer. The duration of the future spend volume in
 \code{expected_spend}. Only applies when \code{scenario = "max_response_expected_spend"}.}
 
-\item{channel_constr_low, channel_constr_up}{Numeric vector. The lower and upper bounds
-for each paid media variable when maximizing total media response. \code{channel_constr_low
-= 0.7} means minimum spend of the variable is 70% of historical average. Lower bound must
-be >=0.01. \code{channel_constr_up = 1.5} means maximum spend of the variable is 150% of
-historical average. Upper bound must be >= lower bound. Both must have same length and order
-as \code{paid_media_spends}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
-new level is way higher than historical level.}
+\item{channel_constr_low, channel_constr_up}{Numeric vectors. The lower and upper bounds
+for each paid media variable when maximizing total media response. For example,
+\code{channel_constr_low = 0.7} means minimum spend of the variable is 70% of historical
+average, using non-zero spend values, within \code{date_min} and \code{date_max} date range.
+Both constrains must be length 1 (same for all values) OR same length and order as
+\code{paid_media_spends}. It's not recommended to 'exaggerate' upper bounds, especially
+if the new level is way higher than historical level. Lower bound must be >=0.01,
+and upper bound should be < 5.}
 
 \item{maxeval}{Integer. The maximum iteration of the global optimization algorithm.
 Defaults to 100000.}
@@ -81,8 +82,9 @@ Defaults to 100000.}
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
 
-\item{date_min, date_max}{Character. Date range to calculate mean (of non-zero spends) and
-total spends. Default will consider all dates within window. Length must be 1.}
+\item{date_min, date_max}{Character/Date. Date range to calculate mean (of non-zero
+spends) and total spends. Default will consider all dates within modeled window.
+Length must be 1 for both parameters.}
 
 \item{export}{Boolean. Export outcomes into local files?}
 
