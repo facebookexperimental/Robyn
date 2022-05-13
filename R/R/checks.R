@@ -10,9 +10,12 @@ opts_pnd <- c("positive", "negative", "default")
 check_nas <- function(df) {
   if (sum(is.na(df)) > 0) {
     name <- deparse(substitute(df))
-    stop(paste(
-      "Dataset", name, "has missing values.",
-      "These values must be removed or fixed for the model to properly run"
+    naVals <- lares::missingness(df)
+    strs <- sprintf("%s (%s | %s%%)", naVals$variable, naVals$missing, naVals$missingness)
+    stop(paste0(
+      "Dataset ", name, " has missing values. ",
+      "These values must be removed or fixed for Robyn to properly work.\n  Missing values: ",
+      paste(strs, collapse = ", ")
     ))
   }
 }
@@ -217,7 +220,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
     })
     stop(
       paste(names(check_media_val)[check_media_val], collapse = ", "),
-      "contains negative values. Media must be >=0"
+      " contains negative values. Media must be >=0"
     )
   }
   return(invisible(list(
