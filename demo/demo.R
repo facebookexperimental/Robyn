@@ -86,7 +86,7 @@ InputCollect <- robyn_inputs(
   ,dt_holidays = dt_prophet_holidays
   ,date_var = "DATE" # date format must be "2020-01-01"
   ,dep_var = "revenue" # there should be only one dependent variable
-  ,dep_var_type = "revenue" # "revenue" or "conversion"
+  ,dep_var_type = "revenue" # "revenue" (ROI) or "conversion" (CPA)
   ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday" & "holiday"
   ,prophet_country = "DE"# input one country. dt_prophet_holidays includes 59 countries by default
   ,context_vars = c("competitor_sales_B", "events") # e.g. competitors, discount, unemployment etc

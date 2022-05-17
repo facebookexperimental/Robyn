@@ -33,11 +33,13 @@
 #' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}
 #' @param date_var Character. Name of date variable. Daily, weekly
-#' and monthly data supported. Weekly requires weekstart of Monday or Sunday.
-#' date_var must have format "2020-01-01". Default to automatic date detection.
+#' and monthly data supported. Weekly requires week-start of Monday or Sunday.
+#' \code{date_var} must have format "2020-01-01" (YYY-MM-DD).
+#' Default to automatic date detection.
 #' @param dep_var Character. Name of dependent variable. Only one allowed
 #' @param dep_var_type Character. Type of dependent variable
-#' as "revenue" or "conversion". Only one allowed and case sensitive.
+#' as "revenue" or "conversion". Will be used to calculate ROI or CPI,
+#' respectively. Only one allowed and case sensitive.
 #' @param paid_media_spends Character vector. When using exposure level
 #' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
 #' corresponding spends for ROAS calculation. For spend metrics in
@@ -64,10 +66,10 @@
 #' push-notifications, social media posts etc. Compared to paid_media_vars
 #' organic_vars are often  marketing activities without clear spends.
 #' @param organic_signs Character vector. Choose any of
-#' \code{c("default", "positive", "negative")}. Control
+#' "default", "positive", "negative". Control
 #' the signs of coefficients for organic_signs. Must have same
 #' order and same length as \code{organic_vars}. By default it's
-#' set to 'positive'.
+#' set to "positive".
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor.
 #' @param prophet_vars Character vector. Include any of "trend",
@@ -75,15 +77,15 @@
 #' to use all for daily data and "trend", "season", "holiday" for
 #' weekly and above cadence.
 #' @param prophet_signs Character vector. Choose any of
-#' \code{c("default", "positive", "negative")}. Control
+#' "default", "positive", "negative". Control
 #' the signs of coefficients for prophet variables. Must have same
 #' order and same length as \code{prophet_vars}. By default it's
-#' set to 'defualt'.
+#' set to "default".
 #' @param prophet_country Character. Only one country allowed once.
 #' Including national holidays for 59 countries, whose list can
 #' be found loading \code{data("dt_prophet_holidays")}.
-#' @param adstock Character. Choose any of \code{c("geometric", "weibull_cdf",
-#' "weibull_pdf")}. Weibull adtock is a two-parametric function and thus more
+#' @param adstock Character. Choose any of "geometric", "weibull_cdf",
+#' "weibull_pdf". Weibull adstock is a two-parametric function and thus more
 #' flexible, but takes longer time than the traditional geometric one-parametric
 #' function. CDF, or cumulative density function of the Weibull function allows
 #' changing decay rate over time in both C and S shape, while the peak value will
