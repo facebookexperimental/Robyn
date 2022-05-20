@@ -356,7 +356,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           theme_lares(legend = "none", grid = "Xx") +
           labs(
             title = paste0("Weibull Adstock ", wb_type, ": Flexible Decay Rate Over Time"),
-            y = sprintf("Time unit [%ss]", InputCollect$intervalType), x = NULL
+            x = sprintf("Time unit [%ss]", InputCollect$intervalType), y = NULL
           )
       }
 

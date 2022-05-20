@@ -350,8 +350,8 @@ Input Table Columns ({ncol(x$dt_input)}):
   Paid Media Spend: {paste(x$paid_media_spends, collapse = ', ')}
   Context: {paste(x$context_vars, collapse = ', ')}
   Organic: {paste(x$organic_vars, collapse = ', ')}
-  Prophet (Auto-generated): {paste(x$prophet_vars, collapse = ', ')} on {x$prophet_country}
-  Unused: {paste(x$unused_vars, collapse = ', ')}
+  Prophet (Auto-generated): {prophet}
+  Unused variables: {unused}
 
 Date Range: {range}
 Model Window: {windows} ({x$rollingWindowEndWhich - x$rollingWindowStartWhich + 1} {x$intervalType}s)
@@ -364,6 +364,10 @@ Adstock: {x$adstock}
     range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
+    prophet = if (!is.null(x$prophet_vars))
+      sprintf("%s on %s", paste(x$prophet_vars, collapse = ', '), x$prophet_country) else "\033[0;31mDeactivated\033[0m",
+    unused = if (length(x$unused_vars) > 0)
+      paste(x$unused_vars, collapse = ', ') else "None",
     hyps = if (!is.null(x$hyperparameters)) glued(
       "Hyper-parameters for media transformations:\n{flatten_hyps(x$hyperparameters)}") else
         paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
