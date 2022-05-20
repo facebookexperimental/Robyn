@@ -33,6 +33,8 @@ robyn_save <- function(robyn_object,
       , .(rn, coef,mean_spend, mean_response, roi_mean
           , total_spend, total_response = xDecompAgg, roi_total)],
     plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE))
+  if (InputCollect$dep_var_type == "conversion")
+    colnames(output$summary) <- gsub("roi_", "cpa_", colnames(output$summary))
   class(output) <- c("robyn_save", class(output))
 
   if (file.exists(robyn_object)) {

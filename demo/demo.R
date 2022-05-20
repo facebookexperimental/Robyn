@@ -334,7 +334,6 @@ print(OutputCollect)
 #### Step 4: Select and save the initial model
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
-
 print(OutputCollect)
 select_model <- "1_55_15" # select one from above
 ExportedModel <- robyn_save(
@@ -353,10 +352,7 @@ print(ExportedModel)
 ## Don't interpret budget allocation result if selected model above doesn't meet business expectation.
 
 # Check media summary for selected model
-OutputCollect$xDecompAgg[solID == select_model & !is.na(mean_spend)
-                         , .(rn, coef,mean_spend, mean_response, roi_mean
-                             , total_spend, total_response=xDecompAgg, roi_total, solID)]
-# OR: print(ExportedModel)
+print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the

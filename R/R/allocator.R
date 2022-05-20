@@ -302,6 +302,7 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Collect output
   dt_optimOut <- data.table(
     solID = select_model,
+    dep_var_type = InputCollect$dep_var_type,
     channels = mediaSpendSortedFiltered,
     date_min = date_min,
     date_max = date_max,
@@ -339,7 +340,12 @@ robyn_allocator <- function(robyn_object = NULL,
   plots <- allocation_plots(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export, quiet)
 
   ## Export results into CSV
-  if (export) fwrite(dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
+  if (export) {
+    export_dt_optimOut <- dt_optimOut
+    if (InputCollect$dep_var_type == "conversion")
+      colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
+    fwrite(export_dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
+  }
 
   output <- list(
     dt_optimOut = dt_optimOut,
@@ -367,6 +373,7 @@ print.robyn_allocator <- function(x, ...) {
     "
 Model ID: {x$dt_optimOut$solID[1]}
 Scenario: {scenario}
+Dep. Variable Type: {temp$dep_var_type[1]}
 Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')} {no_spend}
 Relative Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%

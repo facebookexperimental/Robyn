@@ -171,6 +171,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       dt_ridges[, trial := as.factor(trial)]
       plot_vars <- dt_ridges[, unique(variables)]
       plot_n <- ceiling(length(plot_vars) / 6)
+      metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       for (pl in 1:plot_n) {
         loop_vars <- na.omit(plot_vars[(1:6) + 6 * (pl - 1)])
         dt_ridges_loop <- dt_ridges[variables %in% loop_vars, ]
@@ -183,12 +184,12 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           guides(fill = "none", linetype = "none") +
           theme_lares() +
           labs(
-            x = "Total ROAS by Channel", y = NULL,
-            title = "ROAS Distribution over Iteration Buckets"
+            x = paste(metric, "by Channel"), y = NULL,
+            title = paste(metric, "Distribution over Iteration Buckets")
           )
         if (export) {
           suppressMessages(ggsave(
-            paste0(OutputCollect$plot_folder, "roas_convergence", pl, ".png"),
+            paste0(OutputCollect$plot_folder, metric, "_convergence", pl, ".png"),
             plot = pRidges, dpi = 600, width = 12, limitsize = FALSE,
             height = ceiling(length(loop_vars) / 3) * 6
           ))

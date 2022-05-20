@@ -45,11 +45,11 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
       path <- input$plot_folder
     } else path <- paste0(getwd(), "/")
     # Pareto and ROI data
-    rois <- input$xDecompAgg
-    df <- .prepare_roi(rois, all_media = all_media)
+    xDecompAgg <- input$xDecompAgg
+    df <- .prepare_df(xDecompAgg, all_media = all_media)
   } else {
     if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) & is.data.frame(input)) {
-      df <- .prepare_roi(input, all_media)
+      df <- .prepare_df(input, all_media)
     } else {
       stop(paste(
         "You must run robyn_outputs(..., clusters = TRUE) or",
@@ -100,7 +100,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     # Within Groups Sum of Squares Plot
     wss = cls$nclusters_plot,
     # Grouped correlations per cluster
-    corrs = cls$correlations + labs(title = "ROI Top Correlations by Cluster", subtitle = NULL),
+    corrs = cls$correlations + labs(title = "Top Correlations by Cluster", subtitle = NULL),
     # Mean ROI per cluster
     clusters_means = cls$means,
     # Dim reduction clusters
@@ -147,7 +147,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 #        x = "(Un-normalized) ROI", y = NULL)
 
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
-.prepare_roi <- function(x, all_media) {
+.prepare_df <- function(x, all_media) {
   check_opts(all_media, unique(x$rn))
   rois <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
     tidyr::spread(key = .data$rn, value = .data$roi_total)
@@ -231,8 +231,8 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     geom_col() +
     coord_flip() +
     labs(
-      title = paste("ROIs on Top Performing Models"),
-      x = NULL, y = "ROI per Media"
+      title = paste("Top Performing Models"),
+      x = NULL, y = "Mean metric per media"
     ) +
     theme_lares()
 }
