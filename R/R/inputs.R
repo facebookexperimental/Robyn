@@ -177,7 +177,7 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
     dt_input <- as.data.table(dt_input)
-    dt_holidays <- as.data.table(dt_holidays)
+    if (!is.null(dt_holidays)) dt_holidays <- as.data.table(dt_holidays)
 
     ## Check for NA values
     check_nas(dt_input)
@@ -200,6 +200,8 @@ robyn_inputs <- function(dt_input = NULL,
     check_depvar(dt_input, dep_var, dep_var_type)
 
     ## Check prophet
+    if (is.null(dt_holidays) | is.null(prophet_vars))
+      dt_holidays <- prophet_vars <- prophet_country <- prophet_signs <- NULL
     prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
 
     ## Check baseline variables (and maybe transform context_signs)

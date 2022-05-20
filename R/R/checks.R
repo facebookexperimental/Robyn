@@ -135,9 +135,7 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
 }
 
 check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval) {
-  if (is.null(prophet_vars)) {
-    prophet_signs <- NULL
-    prophet_country <- NULL
+  if (is.null(dt_holidays) | is.null(prophet_vars)) {
     return(invisible(NULL))
   } else {
     opts <- c("trend", "season", "weekday", "holiday")
