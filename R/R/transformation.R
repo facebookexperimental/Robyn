@@ -215,11 +215,11 @@ plot_adstock <- function(plot = TRUE) {
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
       geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
       labs(
-        title = "Geometric adstock (fixed decay rate)",
+        title = "Geometric Adstock\n(fixed decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",
-        x = "time unit",
+        x = "Time unit",
         y = "Media decay accumulated"
-      )
+      ) + theme_lares(pal = 2)
 
     ## plot weibull
     weibullCollect <- list()
@@ -252,11 +252,11 @@ plot_adstock <- function(plot = TRUE) {
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
       geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
       labs(
-        title = "Weibull adstock CDF vs PDF (flexible decay rate)",
+        title = "Weibull Adstock CDF vs PDF\n(flexible decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",
-        x = "time unit",
+        x = "Time unit",
         y = "Media decay accumulated"
-      )
+      ) + theme_lares(pal = 2)
     return(wrap_plots(A = p1, B = p2, design = "ABB"))
   }
 }
@@ -279,7 +279,7 @@ plot_saturation <- function(plot = TRUE) {
     alphaSamp <- c(0.1, 0.5, 1, 2, 3)
     gammaSamp <- c(0.1, 0.3, 0.5, 0.7, 0.9)
 
-    ## plot alphas
+    ## Plot alphas
     hillAlphaCollect <- list()
     for (i in 1:length(alphaSamp)) {
       hillAlphaCollect[[i]] <- data.table(
@@ -295,9 +295,9 @@ plot_saturation <- function(plot = TRUE) {
       labs(
         title = "Cost response with hill function",
         subtitle = "Alpha changes while gamma = 0.5"
-      )
+      ) + theme_lares(pal = 2)
 
-    ## plot gammas
+    ## Plot gammas
     hillGammaCollect <- list()
     for (i in 1:length(gammaSamp)) {
       hillGammaCollect[[i]] <- data.table(
@@ -313,7 +313,7 @@ plot_saturation <- function(plot = TRUE) {
       labs(
         title = "Cost response with hill function",
         subtitle = "Gamma changes while alpha = 2"
-      )
+      ) + theme_lares(pal = 2)
 
     return(p1 + p2)
   }

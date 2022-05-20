@@ -342,7 +342,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           scale_y_percent(limit = c(0, 1)) +
           labs(
             title = "Geometric Adstock: Fixed Decay Rate Over Time",
-            y = NULL, x = NULL
+            y = sprintf("Thetas [by %s]", InputCollect$intervalType), x = NULL
           )
       }
       if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
@@ -356,7 +356,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           theme_lares(legend = "none", grid = "Xx") +
           labs(
             title = paste0("Weibull Adstock ", wb_type, ": Flexible Decay Rate Over Time"),
-            x = "Time Unit", y = NULL
+            x = sprintf("Time unit [%ss]", InputCollect$intervalType), y = NULL
           )
       }
 
