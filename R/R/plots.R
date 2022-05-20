@@ -318,6 +318,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           ), stat = "identity") +
           scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
           scale_y_percent() +
+          scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" =  "#E5586E")) +
           theme_lares(legend = "top") +
           geom_text(mapping = aes(
             label = paste0(formatNum(xDecompAgg, abbr = TRUE), "\n", round(xDecompPerc * 100, 1), "%"),
