@@ -1215,8 +1215,8 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
 calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
 
   ## Prep lift inputs
-  getLiftMedia <- unique(calibration_input$channel)
   getDecompVec <- decompCollect$xDecompVec
+  getLiftMedia <- unique(calibration_input$channel)
   liftCollect <- list()
 
   # Loop per lift channel
@@ -1228,10 +1228,11 @@ calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
     for (lw in seq_along(liftWhich)) {
 
       ## Get lift period subset
-      liftStart <- calibration_input[liftWhich[lw], liftStartDate]
-      liftEnd <- calibration_input[liftWhich[lw], liftEndDate]
-      liftPeriodVec <- getDecompVec[ds >= liftStart & ds <= liftEnd, c("ds", getLiftMedia[m]), with = FALSE]
-      liftPeriodVecDependent <- getDecompVec[ds >= liftStart & ds <= liftEnd, c("ds", "y"), with = FALSE]
+      liftStart <- calibration_input$liftStartDate[liftWhich[lw]]
+      liftEnd <- calibration_input$liftEndDate[liftWhich[lw]]
+      df <- filter(getDecompVec, .data$ds >= liftStart, .data$ds <= liftEnd)
+      liftPeriodVec <- select(df, .data$ds, getLiftMedia[m])
+      liftPeriodVecDependent <- select(df, .data$ds, .data$y)
 
       ## Scale decomp
       mmmDays <- nrow(liftPeriodVec) * dayInterval

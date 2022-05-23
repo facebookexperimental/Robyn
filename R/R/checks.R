@@ -419,7 +419,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 }
 
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
-                              window_start, window_end, paid_media_spends) {
+                              window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
     calibration_input <- as.data.table(calibration_input)
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
@@ -428,9 +428,11 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     if (!is.numeric(calibration_input$liftAbs) | any(is.na(calibration_input$liftAbs))) {
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
-    if (!all(calibration_input$channel %in% paid_media_spends)) {
-      these <- unique(calibration_input$channel[which(!calibration_input$channel %in% paid_media_spends)])
-      stop("All channels from 'calibration_input' must be any of 'paid_media_spends'. Check: ", v2t(these))
+    all_media <- c(paid_media_spends, organic_vars)
+    if (!all(calibration_input$channel %in% all_media)) {
+      these <- unique(calibration_input$channel[which(!calibration_input$channel %in% all_media)])
+      stop(sprintf("All channels from 'calibration_input' must be any of: %s.\n  Check: %s",
+                   v2t(all_media), v2t(these)))
     }
     for (i in 1:nrow(calibration_input)) {
       temp <- calibration_input[i, ]
@@ -447,6 +449,7 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     if ("spend" %in% colnames(calibration_input)) {
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
+        if (temp$channel %in% organic_vars) next
         dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
           pull(get(temp$channel)) %>%
           sum(.) %>%

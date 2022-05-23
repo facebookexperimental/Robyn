@@ -222,11 +222,11 @@ print(InputCollect)
 # 10k$ spend is tested against a hold-out for channel A, then input the incremental
 # return as point-estimate as the example below.
 # 3. The point-estimate has to always match the spend in the variable. For example, if
-# channel A usually has 100k$ weekly spend and the experimental holdout is 70%, input
-# the point-estimate for the 30k$, not the 70k$.
+# channel A usually has $100K weekly spend and the experimental holdout is 70%, input
+# the point-estimate for the $30K, not the $70K.
 
-## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
-## As noted above, calibration channels need to be paid_media_spends name.
+## -------------------------------- NOTE v3.6.4 CHANGE !!! ---------------------------------- ##
+## Calibration channels need to be paid_media_spends or organic_vars name.
 ## ------------------------------------------------------------------------------------------ ##
 # calibration_input <- data.frame(
 #   # channel name must in paid_media_vars

@@ -112,6 +112,7 @@
 #' @param calibration_input data.frame. Optional. Provide experimental results to
 #' calibrate. Your input should include the following values for each experiment:
 #' channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
+#' You can calibrate any spend or organic variable with a well designed experiment.
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
@@ -250,7 +251,7 @@ robyn_inputs <- function(dt_input = NULL,
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
-      window_start, window_end, paid_media_spends)
+      window_start, window_end, paid_media_spends, organic_vars)
 
     ## Not used variables
     unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
@@ -316,7 +317,8 @@ robyn_inputs <- function(dt_input = NULL,
       dep_var = InputCollect$dep_var,
       window_start = InputCollect$window_start,
       window_end = InputCollect$window_end,
-      paid_media_spends = InputCollect$paid_media_spends
+      paid_media_spends = InputCollect$paid_media_spends,
+      organic_vars = InputCollect$organic_vars
     )
     ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input

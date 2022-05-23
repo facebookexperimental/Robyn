@@ -137,6 +137,7 @@ used for media, organic and context variables.}
 \item{calibration_input}{data.frame. Optional. Provide experimental results to
 calibrate. Your input should include the following values for each experiment:
 channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
+You can calibrate any spend or organic variable with a well designed experiment.
 Check "Guide for calibration source" section.}
 
 \item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when
