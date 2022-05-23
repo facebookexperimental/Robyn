@@ -411,7 +411,6 @@ robyn_mmm <- function(InputCollect,
     y = dt_mod$dep_var,
     seq_len = 100, lambda_min_ratio
   )
-  lambda_min_ratio
   lambda_max <- max(lambdas) * 0.1
   lambda_min <- lambda_max * lambda_min_ratio
 
@@ -637,7 +636,8 @@ robyn_mmm <- function(InputCollect,
           mod_out <- model_refit(x_train, y_train, lambda = lambda_scaled, lower.limits, upper.limits, intercept_sign)
 
           decompCollect <- model_decomp(
-            coefs = mod_out$coefs, dt_modSaturated = dt_modSaturated,
+            coefs = mod_out$coefs,
+            dt_modSaturated = dt_modSaturated,
             x = x_train, y_pred = mod_out$y_pred, i = i,
             dt_modRollWind = dt_modRollWind,
             refreshAddedStart = refreshAddedStart
@@ -1144,7 +1144,8 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   indepVar <- dt_modSaturated[, (setdiff(names(dt_modSaturated), "dep_var")), with = FALSE]
   x <- as.data.table(x)
   intercept <- coefs[1]
-  indepVarName <- names(indepVar)
+  indepVarName <- indepVarName[sapply(indepVar, function(x) !is.factor(x))]
+  indepVarName <- indepVarName[!is.na(indepVarName)]
   indepVarCat <- indepVarName[sapply(indepVar, is.factor)]
 
   ## Decomp x
@@ -1153,13 +1154,6 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   }, regressor = x, coeff = coefs[-1]))
   xDecomp <- cbind(data.table(intercept = rep(intercept, nrow(xDecomp))), xDecomp)
   xDecompOut <- cbind(data.table(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
-
-  ## QA decomp
-  y_hat <- rowSums(xDecomp)
-  errorTerm <- y_hat - y_pred
-  if (prod(round(y_pred) == round(y_hat)) == 0) {
-    message("\n### attention for loop ", i, " : manual decomp is not matching linear model prediction. Deviation is ", mean(errorTerm / y) * 100, " % ### \n")
-  }
 
   ## Output decomp
   y_hat.scaled <- rowSums(abs(xDecomp))
@@ -1191,16 +1185,19 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   }]
   coefsOut <- coefsOut[, .(coef = mean(s0)), by = rn]
 
-  decompOutAgg <- cbind(coefsOut, data.table(
-    xDecompAgg = xDecompOutAgg,
-    xDecompPerc = xDecompOutAggPerc,
-    xDecompMeanNon0 = xDecompOutAggMeanNon0,
-    xDecompMeanNon0Perc = xDecompOutAggMeanNon0Perc,
-    xDecompAggRF = xDecompOutAggRF,
-    xDecompPercRF = xDecompOutAggPercRF,
-    xDecompMeanNon0RF = xDecompOutAggMeanNon0RF,
-    xDecompMeanNon0PercRF = xDecompOutAggMeanNon0PercRF
-  ))
+  decompOutAgg <- data.table(left_join(
+    coefsOut,
+    data.frame(
+      rn = names(xDecompOutAgg),
+      xDecompAgg = xDecompOutAgg,
+      xDecompPerc = xDecompOutAggPerc,
+      xDecompMeanNon0 = xDecompOutAggMeanNon0,
+      xDecompMeanNon0Perc = xDecompOutAggMeanNon0Perc,
+      xDecompAggRF = xDecompOutAggRF,
+      xDecompPercRF = xDecompOutAggPercRF,
+      xDecompMeanNon0RF = xDecompOutAggMeanNon0RF,
+      xDecompMeanNon0PercRF = xDecompOutAggMeanNon0PercRF
+    ), by = "rn"))
   decompOutAgg[, pos := xDecompAgg >= 0]
 
   decompCollect <- list(
@@ -1275,14 +1272,14 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
 
   df.int <- 1
 
-  ## drop intercept if negative and intercept_sign == "non_negative"
-  if (intercept_sign == "non_negative" & coef(mod)[1] < 0) {
+  ## Drop intercept if negative and intercept_sign == "non_negative"
+  if (intercept_sign == "non_negative" & mod$a0 < 0) {
     mod <- glmnet(
       x_train,
       y_train,
       family = "gaussian",
-      alpha = 0 # 0 for ridge regression
-      , lambda = lambda,
+      alpha = 0, # 0 for ridge regression
+      lambda = lambda,
       lower.limits = lower.limits,
       upper.limits = upper.limits,
       intercept = FALSE
@@ -1291,28 +1288,15 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
   } # ; plot(mod); print(mod)
 
   y_trainPred <- predict(mod, s = lambda, newx = x_train)
-  rsq_train <- get_rsq(true = y_train, predicted = y_trainPred, p = ncol(x_train), df.int = df.int)
-  rsq_train
-
-  # y_testPred <- predict(mod, s = lambda, newx = x_test)
-  # rsq_test <- get_rsq(true = y_test, predicted = y_testPred); rsq_test
-
-  # mape_mod<- mean(abs((y_test - y_testPred)/y_test)* 100); mape_mod
+  rsq_train <- get_rsq(true = y_train, predicted = y_trainPred,
+                       p = ncol(x_train), df.int = df.int)
   coefs <- as.matrix(coef(mod))
-  # y_pred <- c(y_trainPred, y_testPred)
-
-  # mean(y_train) sd(y_train)
   nrmse_train <- sqrt(mean((y_train - y_trainPred)^2)) / (max(y_train) - min(y_train))
-  # nrmse_test <- sqrt(mean(sum((y_test - y_testPred)^2))) /
-  # (max(y_test) - min(y_test)) # mean(y_test) sd(y_test)
 
   mod_out <- list(
-    rsq_train = rsq_train
-    # ,rsq_test = rsq_test
-    , nrmse_train = nrmse_train
-    # ,nrmse_test = nrmse_test
-    # ,mape_mod = mape_mod
-    , coefs = coefs,
+    rsq_train = rsq_train,
+    nrmse_train = nrmse_train,
+    coefs = coefs,
     y_pred = y_trainPred,
     mod = mod,
     df.int = df.int
@@ -1325,15 +1309,15 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
 # y = y_train (dep_var) vector
 lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
   mysd <- function(y) sqrt(sum((y - mean(y))^2) / length(y))
+  x <- dplyr::mutate_if(x, function(x) !is.numeric(x), function(x) 1)
   sx <- scale(x, scale = apply(x, 2, mysd))
   check_nan <- apply(sx, 2, function(sxj) all(is.nan(sxj)))
   sx <- mapply(function(sxj, v) {
     return(if (v) rep(0, length(sxj)) else sxj)
   }, sxj = as.data.frame(sx), v = check_nan)
   sx <- as.matrix(sx, ncol = ncol(x), nrow = nrow(x))
-  # sy <- as.vector(scale(y, scale=mysd(y)))
   sy <- y
-  # 0.001 is the default smalles alpha value of glmnet for ridge (alpha = 0)
+  # 0.001 is the default smallest alpha value of glmnet for ridge (alpha = 0)
   lambda_max <- max(abs(colSums(sx * sy))) / (0.001 * nrow(x))
   lambda_max_log <- log(lambda_max)
   log_step <- (log(lambda_max) - log(lambda_max * lambda_min_ratio)) / (seq_len - 1)
