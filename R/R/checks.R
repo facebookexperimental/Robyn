@@ -8,14 +8,22 @@
 opts_pnd <- c("positive", "negative", "default")
 
 check_nas <- function(df) {
+  name <- deparse(substitute(df))
   if (sum(is.na(df)) > 0) {
-    name <- deparse(substitute(df))
     naVals <- lares::missingness(df)
     strs <- sprintf("%s (%s | %s%%)", naVals$variable, naVals$missing, naVals$missingness)
     stop(paste0(
-      "Dataset ", name, " has missing values. ",
+      "Dataset ", name, " contains missing (NA) values. ",
       "These values must be removed or fixed for Robyn to properly work.\n  Missing values: ",
       paste(strs, collapse = ", ")
+    ))
+  }
+  have_inf <- sapply(df, function(x) sum(is.infinite(x)))
+  if (any(have_inf > 0)) {
+    stop(paste0(
+      "Dataset ", name, " contains Inf values. ",
+      "These values must be removed or fixed for Robyn to properly work.\n  Check: ",
+      paste(names(which(have_inf > 0)), collapse = ", ")
     ))
   }
 }
@@ -38,16 +46,6 @@ check_varnames <- function(dt_input, dt_holidays,
       vars <- c("ds", "country") # holiday?
     }
     df <- dfs[[i]]
-    # COMMENTED: each check_xvar() will give a better clue
-    # # Not present names
-    # cols <- c(colnames(df), "auto")
-    # if (!all(vars %in% cols)) {
-    #   these <- vars[!vars %in% cols]
-    #   stop(paste(
-    #     "You have set variables that are not present in your", table_name, "dataframe.",
-    #     "Check:", paste(these, collapse = ", ")
-    #   ))
-    # }
     # Duplicate names
     vars <- vars[vars != "auto"]
     if (length(vars) != length(unique(vars))) {
@@ -82,11 +80,8 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (inputLen != inputLenUnique) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
-  if (any(is.na(date_var_idate))) {
+  if (any(is.na(date_var_idate) | is.infinite(x))) {
     stop("Dates in 'date_var' must have format '2020-12-31'")
-  }
-  if (any(apply(dt_input, 2, function(x) any(is.na(x) | is.infinite(x))))) {
-    stop("'dt_input' has NA or Inf. Please clean data before you proceed")
   }
   dt_input <- dt_input[order(date_var_idate)]
   dayInterval <- as.integer(difftime(
