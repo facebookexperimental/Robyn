@@ -80,7 +80,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (inputLen != inputLenUnique) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
-  if (any(is.na(date_var_idate) | is.infinite(x))) {
+  if (any(is.na(date_var_idate) | is.infinite(date_var_idate))) {
     stop("Dates in 'date_var' must have format '2020-12-31'")
   }
   dt_input <- dt_input[order(date_var_idate)]
