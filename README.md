@@ -5,8 +5,7 @@
 ## Introduction
 
   * **What is Robyn**: Robyn is an experimental, semi-automated and open-sourced Marketing Mix Modeling (MMM) package from Meta 
-  Marketing Science. It uses various machine learning techniques (Ridge regression with cross validation, multi-objective evolutionary 
-  algorithm for hyperparameter optimisation, time-series decomposition for trend & season, gradient-based optimisation for budget allocation
+  Marketing Science. It uses various machine learning techniques (Ridge regression, multi-objective evolutionary algorithm for hyperparameter optimization, time-series decomposition for trend & season, gradient-based optimization for budget allocation
   etc.) to define media channel efficiency and effectivity, explore adstock rates and saturation curves. It's built for granular datasets 
   with many independent variables and therefore especially suitable for digital and direct response advertisers with rich data sources. 
   
