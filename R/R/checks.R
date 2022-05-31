@@ -440,6 +440,15 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
           temp$channel, temp$liftStartDate, temp$liftEndDate, window_start, window_end
         ))
       }
+      if (temp$liftStartDate >= temp$liftEndDate) {
+        stop(sprintf(
+          paste(
+            "Your calibration's date range for %s between %s and %s should respect liftStartDate < liftEndDate.",
+            "Please, correct this experiment from 'calibration_input'."
+          ),
+          temp$channel, temp$liftStartDate, temp$liftEndDate
+        ))
+      }
     }
     if ("spend" %in% colnames(calibration_input)) {
       for (i in 1:nrow(calibration_input)) {
@@ -556,14 +565,14 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
   if (!is.null(calibration_input)) {
     total_iters <- iterations * trials
     if (calibration_constraint < 0.01 || calibration_constraint > 0.1) {
-      message("calibration_constraint must be >=0.01 and <=0.1. Changed to default value: 0.1")
+      message("Input 'calibration_constraint' must be >= 0.01 and <= 0.1. Changed to default: 0.1")
       calibration_constraint <- 0.1
     }
     models_lower <- 500
     if (total_iters * calibration_constraint < models_lower) {
       warning(sprintf(
         paste(
-          "calibration_constraint set for top %s%% calibrated models.",
+          "Input 'calibration_constraint' set for top %s%% calibrated models.",
           "%s models left for pareto-optimal selection. Minimum suggested: %s"
         ),
         calibration_constraint * 100,
