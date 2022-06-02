@@ -46,13 +46,21 @@ check_varnames <- function(dt_input, dt_holidays,
       vars <- c("ds", "country") # holiday?
     }
     df <- dfs[[i]]
-    # Duplicate names
     vars <- vars[vars != "auto"]
+    # Duplicate names
     if (length(vars) != length(unique(vars))) {
       these <- names(table(vars)[table(vars) > 1])
       stop(paste(
         "You have duplicated variable names for", table_name, "in different parameters.",
         "Check:", paste(these, collapse = ", ")
+      ))
+    }
+    # Names with spaces
+    with_space <- grepl(" ", vars)
+    if (sum(with_space) > 0) {
+      stop(paste(
+        "You have invalid variable names on", table_name, "with spaces.\n  ",
+        "Please fix columns:", v2t(vars[with_space])
       ))
     }
   }
