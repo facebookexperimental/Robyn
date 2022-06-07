@@ -13,11 +13,11 @@
 
 
 ## Describe issue
-Describe your issue and provide error message 
+Describe your issue and provide warnings and error messages.
 
 ## Provide dummy data & model configuration
 Issues are often related to custom input data that is difficult to debug without. If necessary, please modify your data to mask real values and share a dataset that is able to reproduce the issue. Please also share your model configuration.
 
 ## Environment & Robyn version
-R version (R --version)
-Please make sure you're using the latest Robyn version
+R version (Please, check and share: `sessionInfo()` or `R.version$version.string`)
+Make sure you're using the latest Robyn version before you post an issue. Check and share version: `packageVersion("Robyn")`
