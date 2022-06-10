@@ -575,7 +575,7 @@ These metrics are usually compared between other media channels over every repor
 
 MMMs can produce a lot of outputs, which can often lead to the questions “how can I use all the results to make business decisions?” or “how can I allocate my media budgets based on the multiple results such as volume contribution, ROI, and response curve?” Indeed, finding an optimal budget allocation based on MMM outputs can be challenging. Fortunately, Robyn offers a built-in budget allocator function which uses all the model results to simulate and predict different budget allocations, which in turn enables actionable decision making.
 
-Note that the budget allocator function in Robyn still requires further validation, so please use it with caution. If the selected model doesn’t meet business expectations, avoid using budget allocator results.
+Even though the code has been thoroughly reviewed by Meta and the Robyn community, we don't guarantee that using Budget Allocator as well as any Robyn's functions will meet business expectations on predicted response's accuracy. Please consider validating outputs before the implementation.
 
 For every selected model result, the **`robyn_allocator()`** function can be applied to get the optimal budget mix that maximizes the response. There are two scenarios to which you can optimise for:
 - <em>Maximum historical response</em>: Assuming the same historical spend, this simulates the optimal budget allocation that will maximise response or effectiveness;

@@ -50,7 +50,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
     temp <- OutModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)
     df <- rbind(df, temp)
   }
-  calibrated <- sum(df$mape) > 0
+  calibrated <- isTRUE(sum(df$mape) > 0)
 
   # Calculate deciles
   dt_objfunc_cvg <- tidyr::gather(df, "error_type", "value", any_of(c("nrmse", "decomp.rssd", "mape"))) %>%
@@ -175,7 +175,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
     theme_lares()
 
   if (calibrated) {
-    moo_cloud_plot <- moo_cloud_plot + geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape)) +
+    moo_cloud_plot <- moo_cloud_plot +
+      geom_point(data = df, aes(size = .data$mape, alpha = 1 - .data$mape)) +
       guides(alpha = "none")
   } else {
     moo_cloud_plot <- moo_cloud_plot + geom_point()

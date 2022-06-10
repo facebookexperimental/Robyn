@@ -343,7 +343,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           ) +
           scale_y_percent(limit = c(0, 1)) +
           labs(
-            title = "Geometric Adstock: Fixed Decay Rate Over Time",
+            title = "Geometric Adstock: Fixed Rate Over Time",
             y = sprintf("Thetas [by %s]", InputCollect$intervalType), x = NULL
           )
       }
@@ -357,7 +357,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
           theme_lares(legend = "none", grid = "Xx") +
           labs(
-            title = paste0("Weibull Adstock ", wb_type, ": Flexible Decay Rate Over Time"),
+            title = paste("Weibull", wb_type, "Adstock: Flexible Rate Over Time"),
             x = sprintf("Time unit [%ss]", InputCollect$intervalType), y = NULL
           )
       }
@@ -472,7 +472,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   # 1. Response comparison plot
   plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
     mutate(channels = as.factor(.data$channels))
-  names(plotDT_resp) <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
+  names(plotDT_resp) <- c("channel", "Initial Mean Response", "Optimised Mean Response")
   plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
   outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
