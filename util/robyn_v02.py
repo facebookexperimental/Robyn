@@ -153,7 +153,7 @@ try:
         , dep_var="revenue"
         # there should be only one dependent variable
         , dep_var_type="revenue"
-        # # "revenue" or "conversion"
+        # # "revenue" or "conversion"ss
 
         , prophet_vars=["trend", "season", "holiday"]
         # # "trend","season", "weekday", "holiday"
