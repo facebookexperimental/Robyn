@@ -1,0 +1,20 @@
+#### --------- Build docker on mac ---------
+
+## place the Dockerfile in a local folder, e.g. /Users/leonelsentana/Documents/GitHub/Robyn/R/docker
+
+## command line: build container on local
+cd /Users/leonelsentana/Documents/GitHub/Robyn/R/docker
+docker build -t facebook/robyn .
+
+## command line: push container to docker hub
+docker login
+docker push facebook/robyn
+
+#### --------- Run docker ---------
+
+## Install docker first and register https://docs.docker.com/get-docker/
+## command line: run Robyn on docker
+docker pull facebook/robyn
+docker run --name robyn_container -e USER=guest -e PASSWORD=guest --rm -p 8787:8787 facebook/robyn
+
+## open browser and visit http://localhost:8787/, then login use guest as username and password
