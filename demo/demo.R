@@ -64,7 +64,7 @@ head(dt_simulated_weekly)
 
 ## Check holidays from Prophet
 # 59 countries included. If your country is not included, please manually add it.
-# Tipp: any events can be added into this table, school break, events etc.
+# Tip: any events can be added into this table, school break, events etc.
 data("dt_prophet_holidays")
 head(dt_prophet_holidays)
 
