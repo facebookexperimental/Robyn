@@ -159,7 +159,7 @@ try:
         # # "trend","season", "weekday", "holiday"
         # # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
 
-        , prophet_signs=["default", "default", "default"]
+        #, prophet_signs=["default", "default", "default"]
         # # c("default", "positive", and "negative").
         # # Recommend as default.Must be same length as prophet_vars
         , prophet_country="DE"
@@ -170,21 +170,21 @@ try:
         # # typically competitors, price &
 
         # # promotion, temperature, unemployment rate etc
-        ,context_signs=["default", "default"]
+        #,context_signs=["default", "default"]
         # # c("default", " positive", and "negative"),
         # # control the signs of coefficients for baseline variables
 
-        ,paid_media_vars=["tv_S", "ooh_S","print_S","facebook_I","search_clicks_P"]
+        ,paid_media_vars=["tv_S","ooh_S","print_S","facebook_I","search_clicks_P"] #"ooh_S","print_S","facebook_I","search_clicks_P"
         #,paid_media_vars = [3, 4, 5, 6, 7]
         # # c("tv_S", "ooh_S", "print_S", "facebook_I", "facebook_S","search_clicks_P", "search_S")
         # # we recommend to use media exposure metrics like impressions, GRP etc for the model.
         # # If not applicable, use spend instead
 
-        , paid_media_signs=["positive", "positive", "positive", "positive", "positive"]
+        #, paid_media_signs=["positive"] # "positive", "positive", "positive", "positive"
         # # c("default", "positive", and "negative"). must have same length as paid_media_vars.
         # # Controls the signs of coefficients for media variables
 
-       , paid_media_spends=["tv_S","ooh_S","print_S","facebook_S", "search_S"]
+       , paid_media_spends=["tv_S","ooh_S","print_S","facebook_S", "search_S"]#"ooh_S","print_S","facebook_S", "search_S"
         #,paid_media_spends=[3,4,5,10,8]
         # # spends must have same order and same length as paid_media_vars
 
