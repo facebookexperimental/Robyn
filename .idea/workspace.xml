@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="760fee05-493f-4f06-8aa2-7553a0a3a5c7" name="Changes" comment="added logger and fixed previous date issue, currently a data table error">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/util/robyn_v02.py" beforeDir="false" afterPath="$PROJECT_DIR$/util/robyn_v02.py" afterDir="false" />
-    </list>
+    <list default="true" id="760fee05-493f-4f06-8aa2-7553a0a3a5c7" name="Changes" comment="added logger and fixed previous date issue, currently a data table error" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -99,7 +96,7 @@
       <updated>1644832127727</updated>
       <workItem from="1654872029058" duration="1417000" />
       <workItem from="1655383344101" duration="2313000" />
-      <workItem from="1655838459088" duration="1346000" />
+      <workItem from="1655838459088" duration="1637000" />
     </task>
     <task id="LOCAL-00001" summary="Updated with master branch.  Created new Robyn file">
       <created>1644849354057</created>
@@ -108,7 +105,14 @@
       <option name="project" value="LOCAL" />
       <updated>1644849354057</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="added logger and fixed previous date issue, currently a data table error">
+      <created>1655840109521</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1655840109523</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
