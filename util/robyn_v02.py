@@ -108,6 +108,7 @@ try:
 
     df_simulated = pd.read_csv(sim_week_path)  # import as pandas data frame
     df_simulated['DATE'] = pd.to_datetime(df_simulated['DATE']).dt.strftime("%y-%m-%d")
+    print(df_simulated.head())
     del df_simulated['row_num']
     with localconverter(ro.default_converter + pandas2ri.converter):
       r_df_simulated = ro.conversion.py2rpy(df_simulated)
@@ -136,7 +137,10 @@ try:
 
     # Run ?robyn_inputs to check parameter definition
     # TODO
+    robyn.plot_adstock(plot=True)
+    robyn.plot_saturation(plot = True)
 
+    robyn.check_nas(df=df_simulated)
     hh= robyn.robyn_inputs(
         # dt_input=df_simulated
         # , dt_holidays=df_prophet
@@ -229,7 +233,7 @@ try:
     ###
 
     logger.info('SUCCESS')
-    robyn.plot_adstock(plot=False)
+    robyn.plot_adstock(plot=True)
 
 except :
     logger.exception("ERROR DUE TO")
