@@ -182,7 +182,7 @@ try:
         #,paid_media_vars = [3, 4, 5, 6, 7]
         # # c("tv_S", "ooh_S", "print_S", "facebook_I", "facebook_S","search_clicks_P", "search_S")
         # # we recommend to use media exposure metrics like impressions, GRP etc for the model.
-        # # If not applicable, use spend instead
+        # # If not applicable, use spend instead###
 
         #, paid_media_signs=["positive"] # "positive", "positive", "positive", "positive"
         # # c("default", "positive", and "negative"). must have same length as paid_media_vars.
