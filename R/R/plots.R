@@ -93,6 +93,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       resultHypParam <- copy(temp_all$resultHypParam)
       if (!is.null(InputCollect$calibration_input)) {
         resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
+        # show blue dots on top of grey dots
+        resultHypParam <- resultHypParam[order(!is.na(robynPareto))]
       }
 
       calibrated <- !is.null(InputCollect$calibration_input)

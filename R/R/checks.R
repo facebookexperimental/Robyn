@@ -653,8 +653,8 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
       paste(dt_hyppar$solID, collapse = ", ")
     )
   }
-  if (any(channel_constr_low < 0.01)) {
-    stop("Inputs 'channel_constr_low' must be >= 0.01")
+  if (any(channel_constr_low < 0)) {
+    stop("Inputs 'channel_constr_low' must be >= 0")
   }
   if (any(channel_constr_up < channel_constr_low)) {
     stop("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
