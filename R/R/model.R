@@ -411,7 +411,6 @@ robyn_mmm <- function(InputCollect,
     y = dt_mod$dep_var,
     seq_len = 100, lambda_min_ratio
   )
-  lambda_min_ratio
   lambda_max <- max(lambdas) * 0.1
   lambda_min <- lambda_max * lambda_min_ratio
 
@@ -445,7 +444,7 @@ robyn_mmm <- function(InputCollect,
   ## Prepare loop
   resultCollectNG <- list()
   cnt <- 0
-  if (hyper_fixed == FALSE & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
+  if (!hyper_fixed & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
   # Create cluster before big for-loop to minimize overhead for parallel back-end registering
   if (check_parallel() & !hyper_fixed) {
     registerDoParallel(cores)
@@ -563,7 +562,11 @@ robyn_mmm <- function(InputCollect,
 
           ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
           y_train <- dt_train$dep_var
-          x_train <- model.matrix(dep_var ~ ., dt_train)[, -1]
+          if (length(which(grepl('^[0-9]', dt_train))) > 1) {
+            x_train <- model.matrix(dep_var ~ ., dt_train)[, -1]
+          } else {
+            x_train <- as.matrix(dt_train[, -1])
+          }
 
           ## Define and set sign control
           dt_sign <- dt_modSaturated[, !"dep_var"] # names(dt_sign)
@@ -637,8 +640,11 @@ robyn_mmm <- function(InputCollect,
           mod_out <- model_refit(x_train, y_train, lambda = lambda_scaled, lower.limits, upper.limits, intercept_sign)
 
           decompCollect <- model_decomp(
-            coefs = mod_out$coefs, dt_modSaturated = dt_modSaturated,
-            x = x_train, y_pred = mod_out$y_pred, i = i,
+            coefs = mod_out$coefs,
+            dt_modSaturated = dt_modSaturated,
+            x = x_train,
+            y_pred = mod_out$y_pred,
+            i = i,
             dt_modRollWind = dt_modRollWind,
             refreshAddedStart = refreshAddedStart
           )
@@ -1155,14 +1161,14 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   xDecompOut <- cbind(data.table(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
   ## QA decomp
-  y_hat <- rowSums(xDecomp)
+  y_hat <- rowSums(xDecomp, na.rm = TRUE)
   errorTerm <- y_hat - y_pred
   if (prod(round(y_pred) == round(y_hat)) == 0) {
     message("\n### attention for loop ", i, " : manual decomp is not matching linear model prediction. Deviation is ", mean(errorTerm / y) * 100, " % ### \n")
   }
 
   ## Output decomp
-  y_hat.scaled <- rowSums(abs(xDecomp))
+  y_hat.scaled <- rowSums(abs(xDecomp), na.rm = TRUE)
   xDecompOutPerc.scaled <- abs(xDecomp) / y_hat.scaled
   xDecompOut.scaled <- y_hat * xDecompOutPerc.scaled
 

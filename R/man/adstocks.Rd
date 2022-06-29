@@ -78,8 +78,6 @@ Run \code{plot_adstock()} to see the difference visually.
 adstock_geometric(rep(100, 5), theta = 0.5)
 adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "CDF")
 adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
-
-plot_adstock()
 }
 \seealso{
 Other Transformations: 

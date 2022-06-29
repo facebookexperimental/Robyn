@@ -183,9 +183,6 @@ saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
 #' Adstocking Help Plot
 #'
 #' @param plot Boolean. Do you wish to return the plot?
-#' @examples
-#'
-#' plot_adstock()
 #' @rdname adstocks
 #' @export
 plot_adstock <- function(plot = TRUE) {
@@ -268,9 +265,6 @@ plot_adstock <- function(plot = TRUE) {
 #' Produce example plots for the Hill saturation curve.
 #'
 #' @inheritParams plot_adstock
-#' @examples
-#'
-#' plot_saturation()
 #' @rdname saturation_hill
 #' @export
 plot_saturation <- function(plot = TRUE) {

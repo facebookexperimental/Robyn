@@ -188,6 +188,10 @@ robyn_refresh <- function(robyn_object,
   refreshControl <- TRUE
   while (refreshControl) {
 
+    ## Check for NA values
+    check_nas(dt_input)
+    check_nas(dt_holidays)
+
     ## Load initial model
     if (!exists("robyn_object")) stop("Must speficy robyn_object")
     check_robyn_object(robyn_object)
@@ -255,12 +259,14 @@ robyn_refresh <- function(robyn_object,
     }
 
     ## Load new data
-    dt_input <- as.data.table(dt_input)
-    date_input <- check_datevar(dt_input, InputCollectRF$date_var)
-    dt_input <- date_input$dt_input # sort date by ascending
-    dt_holidays <- as.data.table(dt_holidays)
-    InputCollectRF$dt_input <- dt_input
-    InputCollectRF$dt_holidays <- dt_holidays
+    if (TRUE) {
+      dt_input <- as.data.table(dt_input)
+      date_input <- check_datevar(dt_input, InputCollectRF$date_var)
+      dt_input <- date_input$dt_input # sort date by ascending
+      dt_holidays <- as.data.table(dt_holidays)
+      InputCollectRF$dt_input <- dt_input
+      InputCollectRF$dt_holidays <- dt_holidays
+    }
 
     #### Update refresh model parameters
 
