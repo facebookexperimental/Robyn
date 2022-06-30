@@ -89,7 +89,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
   # Select top models by minimum (weighted) distance to zero
   top_sols <- .clusters_df(cls$df, weights) %>%
-    mutate(error = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
+    mutate(error = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^(1 / 2)) %>%
     .crit_proc(limit)
 
   output <- list(
@@ -166,7 +166,8 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
 .clusters_df <- function(df, balance = rep(1, 3)) {
   stopifnot(length(balance) == 3)
-  balance <- balance / sum(balance)
+  # normalize balance to smallest value ==> 1.0s
+  balance <- balance / min(balance)
   crit_df <- df %>%
     # Force normalized values so they can be comparable
     mutate(
@@ -176,9 +177,9 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     ) %>%
     # Balance to give more or less importance to each error
     mutate(
-      nrmse = balance[1] / .data$nrmse,
-      decomp.rssd = balance[2] / .data$decomp.rssd,
-      mape = balance[3] / .data$mape
+      nrmse = .data$nrmse / balance[1],
+      decomp.rssd = .data$decomp.rssd / balance[2],
+      mape = .data$mape / balance[3]
     ) %>%
     replace(., is.na(.), 0) %>%
     group_by(.data$cluster)
@@ -186,7 +187,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 }
 
 .crit_proc <- function(df, limit) {
-  arrange(df, .data$cluster, desc(.data$error)) %>%
+  arrange(df, .data$cluster, .data$error) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())
