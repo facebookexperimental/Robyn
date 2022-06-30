@@ -293,15 +293,21 @@ The figure illustrates the calibration process for one MMM candidate model.
 1. Create a data file corresponding to your experimental results - here is an example
 
 ```
-dt_calibration <- data.frame(
-  channel = c("facebook_S",  "tv_S", "facebook_S")
- 	  #channel name must in paid_media_vars
-  , liftStartDate = as.Date(c("2018-05-01", "2017-11-27", "2018-07-01"))
-  	 #liftStartDate must be within input data range
-  , liftEndDate = as.Date(c("2018-06-10", "2017-12-03", "2018-07-20"))
-  	 #liftEndDate must be within input data range
-  , liftAbs = c(400000, 300000, 200000) # Provided value must be
-  	 #tested on same campaign level in model and same metric as dep_var_type
+calibration_input <- data.frame(
+  # channel name must in paid_media_vars
+  channel = c("facebook_S",  "tv_S", "facebook_S"),
+  # liftStartDate must be within input data range
+  liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01")),
+  # liftEndDate must be within input data range
+  liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20")),
+  # Provided value must be tested on same campaign level in model and same metric as dep_var_type
+  liftAbs = c(400000, 300000, 200000),
+  # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
+  spend = c(421000, 7100, 240000),
+  # Confidence: if frequentist experiment, you may use 1 - pvalue
+  confidence = c(0.85, 0.8, 0.99),
+  # KPI measured: must match your dep_var
+  metric = c("revenue", "revenue", "revenue")
 )
 ```
 
