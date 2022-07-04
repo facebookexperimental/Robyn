@@ -214,9 +214,13 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (spendVarCount != mediaVarCount) {
     stop("'paid_media_spends' must have same length as 'paid_media_vars'")
   }
-  if (any(dt_input[, unique(c(paid_media_vars, paid_media_spends)), with = FALSE] < 0)) {
+  #if (any(dt_input[, unique(c(paid_media_vars, paid_media_spends)), with = FALSE] < 0)) {
+  get_cols <- any(as.data.frame(dt_input)[, unique(c(paid_media_vars, paid_media_spends))]<0)
+  if (get_cols) {
     check_media_names <- unique(c(paid_media_vars, paid_media_spends))
-    check_media_val <- sapply(dt_input[, check_media_names, with = FALSE], function(X) {
+    df_check <- as.data.frame(dt_input)[, check_media_names]
+    #check_media_val <- sapply(dt_input[, check_media_names, with = FALSE], function(X) {
+    check_media_val <- sapply(df_check, function(X) {
       any(X < 0)
     })
     stop(

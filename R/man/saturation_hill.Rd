@@ -34,8 +34,6 @@ Produce example plots for the Hill saturation curve.
 }
 \examples{
 saturation_hill(c(100, 150, 170, 190, 200), alpha = 3, gamma = 0.5)
-
-plot_saturation()
 }
 \seealso{
 Other Transformations: 
