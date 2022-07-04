@@ -110,6 +110,14 @@ module.exports = {
       // Please do not remove the credits, help to publicize Docusaurus :)
       copyright: `Copyright © ${new Date().getFullYear()} Facebook, Inc. Built with Docusaurus.`,
     },
+    googleAnalytics: {
+      trackingID: 'G-TMZK4YFDGL',
+      anonymizeIP: true,
+    },
+    gtag: {
+      trackingID: 'G-TMZK4YFDGL',
+      anonymizeIP: true,
+    },
   },
   presets: [
     [
@@ -121,14 +129,6 @@ module.exports = {
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
-        },
-        googleAnalytics: {
-          trackingID: 'G-TMZK4YFDGL',
-          anonymizeIP: true,
-        },
-        gtag: {
-          trackingID: 'G-TMZK4YFDGL',
-          anonymizeIP: true,
         },
       },
     ],
