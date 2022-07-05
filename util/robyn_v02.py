@@ -179,7 +179,7 @@ try:
         # # c("default", " positive", and "negative"),
         # # control the signs of coefficients for baseline variables
 
-        ,paid_media_vars=["tv_S"] #"ooh_S","print_S","facebook_I","search_clicks_P"
+        ,paid_media_vars=["tv_S"] #"ooh_S","print_S","facebook_I","search_clicks_P" ##
         #,paid_media_vars = [3, 4, 5, 6, 7] #### paid_media_vars=["tv_S","ooh_S","print_S","facebook_I","search_clicks_P"]
         # # c("tv_S", "ooh_S", "print_S", "facebook_I", "facebook_S","search_clicks_P", "search_S")
         # # we recommend to use media exposure metrics like impressions, GRP etc for the model.
