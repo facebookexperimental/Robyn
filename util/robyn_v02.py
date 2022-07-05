@@ -55,7 +55,7 @@ try:
         #robyn = importr('Robyn')
         d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
         robyn = importr('Robyn', robject_translations=d,
-                              lib_loc="/Users/sinandjevdet/opt/miniconda3/envs/env_r41_p37/lib/R/library")
+                              lib_loc="/Users/sinandjevdet/opt/miniconda3/envs/env_r41_new_p37/lib/R/library")
 
     except:
         logger.exception("ERROR")
@@ -137,8 +137,6 @@ try:
 
     # Run ?robyn_inputs to check parameter definition
     # TODO
-    robyn.plot_adstock(plot=True)
-    robyn.plot_saturation(plot = True)
 
     robyn.check_nas(df=df_simulated)
     hh= robyn.robyn_inputs(
@@ -160,6 +158,9 @@ try:
         # # "revenue" or "conversion"ss
 
         , prophet_vars=["trend", "season", "holiday"]
+
+
+
         # # "trend","season", "weekday", "holiday"
         # # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
 
@@ -178,8 +179,8 @@ try:
         # # c("default", " positive", and "negative"),
         # # control the signs of coefficients for baseline variables
 
-        ,paid_media_vars=["tv_S","ooh_S","print_S","facebook_I","search_clicks_P"] #"ooh_S","print_S","facebook_I","search_clicks_P"
-        #,paid_media_vars = [3, 4, 5, 6, 7]
+        ,paid_media_vars=["tv_S"] #"ooh_S","print_S","facebook_I","search_clicks_P"
+        #,paid_media_vars = [3, 4, 5, 6, 7] #### paid_media_vars=["tv_S","ooh_S","print_S","facebook_I","search_clicks_P"]
         # # c("tv_S", "ooh_S", "print_S", "facebook_I", "facebook_S","search_clicks_P", "search_S")
         # # we recommend to use media exposure metrics like impressions, GRP etc for the model.
         # # If not applicable, use spend instead###
@@ -188,8 +189,8 @@ try:
         # # c("default", "positive", and "negative"). must have same length as paid_media_vars.
         # # Controls the signs of coefficients for media variables
 
-       , paid_media_spends=["tv_S","ooh_S","print_S","facebook_S", "search_S"]#"ooh_S","print_S","facebook_S", "search_S"
-        #,paid_media_spends=[3,4,5,10,8]
+       , paid_media_spends=["tv_S"]#"ooh_S","print_S","facebook_S", "search_S"
+        #,paid_media_spends=[3,4,5,10,8] ####  paid_media_spends=["tv_S","ooh_S","print_S","facebook_S", "search_S"]
         # # spends must have same order and same length as paid_media_vars
 
         , organic_vars=["newsletter"]
@@ -234,6 +235,9 @@ try:
 
     logger.info('SUCCESS')
     robyn.plot_adstock(plot=True)
+    robyn.plot_adstock(plot=True)
+    robyn.plot_saturation(plot = True)
+
 
 except :
     logger.exception("ERROR DUE TO")
