@@ -1,5 +1,6 @@
 import sys
 import pathlib
+#from git import Repo
 
 #LOGGING
 import logging as logger
@@ -85,8 +86,16 @@ try:
     # robjects.r['import']('sys')  # Gives an error
     # base.Sys_getenv(R_FUTURE_FORK_ENABLE="true")
     # Sys.setenv(R_FUTURE_FORK_ENABLE="true")
+    ########################################################################################################################
+
+    # CHECK ROBYN VERSION/BRANCH
+
+    #TODO set path of repo
+    repo = Repo('Users/sinandjevdet/Robyn')
 
     ########################################################################################################################
+
+
     # READ IN DATA
 
     # Check simulated dataset or load your own dataset
@@ -164,7 +173,7 @@ try:
         # # "trend","season", "weekday", "holiday"
         # # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
 
-        #, prophet_signs=["default", "default", "default"]
+        #, prophet_signs=["default", "default", "default"] ##
         # # c("default", "positive", and "negative").
         # # Recommend as default.Must be same length as prophet_vars
         , prophet_country="DE"
