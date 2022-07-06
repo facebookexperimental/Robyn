@@ -4,8 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="760fee05-493f-4f06-8aa2-7553a0a3a5c7" name="Changes" comment="added logger and fixed previous date issue, currently a data table error">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="760fee05-493f-4f06-8aa2-7553a0a3a5c7" name="Changes" comment="added logger, fixed previous date issue, currently error at robyn_inputs">
       <change beforePath="$PROJECT_DIR$/util/robyn_v02.py" beforeDir="false" afterPath="$PROJECT_DIR$/util/robyn_v02.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -106,7 +105,7 @@
       <workItem from="1656509957469" duration="2865000" />
       <workItem from="1656592161005" duration="22000" />
       <workItem from="1656945211990" duration="2144000" />
-      <workItem from="1656953449766" duration="21872000" />
+      <workItem from="1656953449766" duration="22281000" />
     </task>
     <task id="LOCAL-00001" summary="Updated with master branch.  Created new Robyn file">
       <created>1644849354057</created>
@@ -157,7 +156,14 @@
       <option name="project" value="LOCAL" />
       <updated>1657010750850</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="added logger, fixed previous date issue, currently error at robyn_inputs">
+      <created>1657111422740</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1657111422741</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -189,7 +195,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Updated with master branch.  Created new Robyn file" />
     <MESSAGE value="added logger and fixed previous date issue, currently a data table error" />
-    <option name="LAST_COMMIT_MESSAGE" value="added logger and fixed previous date issue, currently a data table error" />
+    <MESSAGE value="added logger, fixed previous date issue, currently error at robyn_inputs" />
+    <option name="LAST_COMMIT_MESSAGE" value="added logger, fixed previous date issue, currently error at robyn_inputs" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

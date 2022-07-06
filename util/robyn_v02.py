@@ -154,7 +154,7 @@ try:
         # dt_input=r['dt_simulated_weekly']
         # , dt_holidays=r['dt_prophet_holidays']
         dt_input=r_df_simulated
-        , dt_holidays=r_df_prophet
+        , dt_holidays=r_df_prophet ##
 
         # set variables
         # date format must be "2020-01-01"
