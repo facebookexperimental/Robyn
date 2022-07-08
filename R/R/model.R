@@ -1227,7 +1227,7 @@ calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
 
   # Loop per lift channel
   for (m in seq_along(getLiftMedia)) {
-    liftWhich <- str_which(calibration_input$channel, getLiftMedia[m])
+    liftWhich <- which(calibration_input$channel == getLiftMedia[m])
     liftCollect2 <- list()
 
     # Loop per lift test per channel
