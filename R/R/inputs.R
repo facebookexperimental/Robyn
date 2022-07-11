@@ -233,13 +233,15 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-    dt_input <- windows$dt_input
-    window_start <- windows$window_start
-    rollingWindowStartWhich <- windows$rollingWindowStartWhich
-    refreshAddedStart <- windows$refreshAddedStart
-    window_end <- windows$window_end
-    rollingWindowEndWhich <- windows$rollingWindowEndWhich
-    rollingWindowLength <- windows$rollingWindowLength
+    if (TRUE) {
+      dt_input <- windows$dt_input
+      window_start <- windows$window_start
+      rollingWindowStartWhich <- windows$rollingWindowStartWhich
+      refreshAddedStart <- windows$refreshAddedStart
+      window_end <- windows$window_end
+      rollingWindowEndWhich <- windows$rollingWindowEndWhich
+      rollingWindowLength <- windows$rollingWindowLength
+    }
 
     ## Check adstock
     adstock <- check_adstock(adstock)

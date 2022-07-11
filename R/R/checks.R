@@ -293,8 +293,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     as.Date(window_start),
     units = "days"
   )))
-  if (!(as.Date(window_start) %in% dates_vec)) {
-    window_start <- dt_input[rollingWindowStartWhich, date_var]
+  if (!window_start %in% dates_vec) {
+    window_start <- dt_input[rollingWindowStartWhich, date_var][[1]]
     message("'window_start' is adapted to the closest date contained in input data: ", window_start)
   }
   refreshAddedStart <- window_start
@@ -330,7 +330,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
       "\nRecommendation: adapt InputCollect$window_start, remove or combine these channels"
     )
   }
-  invisible(return(list(
+  output <- list(
     dt_input = dt_input,
     window_start = window_start,
     rollingWindowStartWhich = rollingWindowStartWhich,
@@ -338,7 +338,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     window_end = window_end,
     rollingWindowEndWhich = rollingWindowEndWhich,
     rollingWindowLength = rollingWindowLength
-  )))
+  )
+  return(invisible(output))
 }
 
 check_adstock <- function(adstock) {
