@@ -79,22 +79,19 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
-  dt_input <- as.data.table(dt_input)
-  dt_input <- dt_input[order(get(date_var))]
-  date_var_idate <- as.IDate(dt_input[, get(date_var)])
-  dt_input[, (date_var) := date_var_idate]
-  inputLen <- length(date_var_idate)
-  inputLenUnique <- length(unique(date_var_idate))
-  if (inputLen != inputLenUnique) {
+  dt_input <- as.data.frame(dt_input) %>%
+    arrange(get(date_var)) %>%
+    mutate_at(all_of(date_var), as.Date)
+  date_var_dates <- dt_input[, date_var]
+  if (any(table(date_var_dates) > 1)) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
-  if (any(is.na(date_var_idate) | is.infinite(date_var_idate))) {
-    stop("Dates in 'date_var' must have format '2020-12-31'")
+  if (any(is.na(date_var_dates) | is.infinite(date_var_dates))) {
+    stop("Dates in 'date_var' must have format '2020-12-31' and can't contain NA nor Inf values")
   }
-  dt_input <- dt_input[order(date_var_idate)]
   dayInterval <- as.integer(difftime(
-    date_var_idate[2],
-    date_var_idate[1],
+    date_var_dates[2],
+    date_var_dates[1],
     units = "days"
   ))
   intervalType <- if (dayInterval == 1) {
@@ -108,12 +105,13 @@ check_datevar <- function(dt_input, date_var = "auto") {
   } else {
     stop(paste(date_var, "data has to be daily, weekly or monthly"))
   }
-  invisible(return(list(
+  output <- list(
     date_var = date_var,
     dayInterval = dayInterval,
     intervalType = intervalType,
     dt_input = dt_input
-  )))
+  )
+  invisible(return(output))
 }
 
 check_depvar <- function(dt_input, dep_var, dep_var_type) {
@@ -126,7 +124,7 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
   if (length(dep_var) > 1) {
     stop("Must provide only 1 dependent variable name for 'dep_var'")
   }
-  if (!(is.numeric(dt_input[, get(dep_var)]) | is.integer(dt_input[, get(dep_var)]))) {
+  if (!(is.numeric(dt_input[, dep_var]) | is.integer(dt_input[, dep_var]))) {
     stop("'dep_var' must be a numeric or integer variable")
   }
   if (is.null(dep_var_type)) {
@@ -166,7 +164,7 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     if (length(prophet_signs) != length(prophet_vars)) {
       stop("'prophet_signs' must have same length as 'prophet_vars'")
     }
-    return(prophet_signs)
+    return(invisible(prophet_signs))
   }
 }
 
@@ -281,47 +279,48 @@ check_datadim <- function(dt_input, all_ind_vars, rel = 10) {
 
 check_windows <- function(dt_input, date_var, all_media, window_start, window_end) {
   if (is.null(window_start)) {
-    window_start <- min(as.character(dt_input[, get(date_var)]))
+    window_start <- min(as.character(dt_input[, date_var]))
   } else if (is.na(as.Date(window_start, "%Y-%m-%d"))) {
     stop("'window_start' must have format '2020-12-31'")
-  } else if (window_start < min(as.character(dt_input[, get(date_var)]))) {
-    window_start <- min(as.character(dt_input[, get(date_var)]))
+  } else if (window_start < min(as.character(dt_input[, date_var]))) {
+    window_start <- min(as.character(dt_input[, date_var]))
     message("'window_start' is smaller than the earliest date in input data. It's set to the earliest date")
-  } else if (window_start > max(as.character(dt_input[, get(date_var)]))) {
+  } else if (window_start > max(as.character(dt_input[, date_var]))) {
     stop("'window_start' can't be larger than the the latest date in input data")
   }
 
   rollingWindowStartWhich <- which.min(abs(difftime(
-    as.Date(dt_input[, get(date_var)]),
+    as.Date(dt_input[, date_var]),
     as.Date(window_start),
     units = "days"
   )))
-  if (!(as.Date(window_start) %in% dt_input[, get(date_var)])) {
-    window_start <- dt_input[rollingWindowStartWhich, get(date_var)]
+  if (!(as.Date(window_start) %in% dt_input[, date_var])) {
+    window_start <- dt_input[rollingWindowStartWhich, date_var]
     message("'window_start' is adapted to the closest date contained in input data: ", window_start)
   }
   refreshAddedStart <- window_start
 
   if (is.null(window_end)) {
-    window_end <- max(as.character(dt_input[, get(date_var)]))
+    window_end <- max(as.character(dt_input[, date_var]))
   } else if (is.na(as.Date(window_end, "%Y-%m-%d"))) {
     stop("'window_end' must have format '2020-12-31'")
-  } else if (window_end > max(as.character(dt_input[, get(date_var)]))) {
-    window_end <- max(as.character(dt_input[, get(date_var)]))
+  } else if (window_end > max(as.character(dt_input[, date_var]))) {
+    window_end <- max(as.character(dt_input[, date_var]))
     message("'window_end' is larger than the latest date in input data. It's set to the latest date")
   } else if (window_end < window_start) {
-    window_end <- max(as.character(dt_input[, get(date_var)]))
+    window_end <- max(as.character(dt_input[, date_var]))
     message("'window_end' must be >= 'window_start.' It's set to latest date in input data")
   }
 
-  rollingWindowEndWhich <- which.min(abs(difftime(as.Date(dt_input[, get(date_var)]), as.Date(window_end), units = "days")))
-  if (!(as.Date(window_end) %in% dt_input[, get(date_var)])) {
-    window_end <- dt_input[rollingWindowEndWhich, get(date_var)]
+  rollingWindowEndWhich <- which.min(abs(difftime(as.Date(dt_input[, date_var]), as.Date(window_end), units = "days")))
+  if (!(as.Date(window_end) %in% dt_input[, date_var])) {
+    window_end <- dt_input[rollingWindowEndWhich, date_var]
     message("'window_end' is adapted to the closest date contained in input data: ", window_end)
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
 
-  dt_init <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, all_media, with = FALSE]
+  dt_init <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, all_media]
+
   init_all0 <- colSums(dt_init) == 0
   if (any(init_all0)) {
     stop(
@@ -710,7 +709,7 @@ check_legacy_input <- function(InputCollect,
                                cores = NULL, iterations = NULL, trials = NULL,
                                intercept_sign = NULL, nevergrad_algo = NULL) {
   if (!any(LEGACY_PARAMS %in% names(InputCollect))) {
-    return(InputCollect)
+    return(invisible(InputCollect))
   } # Legacy check
   # Warn the user these InputCollect params will be (are) deprecated
   legacyValues <- InputCollect[LEGACY_PARAMS]
@@ -728,7 +727,7 @@ check_legacy_input <- function(InputCollect,
   if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
   if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
   attr(InputCollect, "deprecated_params") <- TRUE
-  return(InputCollect)
+  return(invisible(InputCollect))
 }
 
 check_run_inputs <- function(cores, iterations, trials, intercept_sign, nevergrad_algo) {

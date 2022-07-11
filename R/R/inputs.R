@@ -177,8 +177,8 @@ robyn_inputs <- function(dt_input = NULL,
 
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
-    dt_input <- as.data.table(dt_input)
-    if (!is.null(dt_holidays)) dt_holidays <- as.data.table(dt_holidays)
+    dt_input <- as.data.frame(dt_input)
+    if (!is.null(dt_holidays)) dt_holidays <- as.data.frame(dt_holidays)
 
     ## Check for NA values
     check_nas(dt_input)
@@ -192,7 +192,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
-    dt_input <- date_input$dt_input # sort date by ascending
+    dt_input <- date_input$dt_input # sorted date by ascending
     date_var <- date_input$date_var # when date_var = "auto"
     dayInterval <- date_input$dayInterval
     intervalType <- date_input$intervalType
@@ -510,7 +510,7 @@ hyper_limits <- function() {
 robyn_engineering <- function(x, ...) {
   InputCollect <- x
   check_InputCollect(InputCollect)
-  dt_input <- InputCollect$dt_input
+  dt_input <- as.data.frame(InputCollect$dt_input)
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   factor_vars <- InputCollect$factor_vars
@@ -606,7 +606,7 @@ robyn_engineering <- function(x, ...) {
 
   ## transform all factor variables
   if (length(factor_vars) > 0) {
-    dt_transform[, (factor_vars) := lapply(.SD, as.factor), .SDcols = factor_vars]
+    dt_transform <- mutate_at(dt_transform, factor_vars, as.factor)
   }
 
   ################################################################
@@ -623,7 +623,7 @@ robyn_engineering <- function(x, ...) {
                names(as.list(args(robyn_refresh))))),
       c("", "..."))
     prophet_custom_args <- setdiff(names(custom_params), robyn_args)
-    if (length(prophet_custom_args)>0)
+    if (length(prophet_custom_args) > 0)
       message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
     dt_transform <- prophet_decomp(
       dt_transform,
@@ -676,19 +676,17 @@ prophet_decomp <- function(dt_transform, dt_holidays,
                            factor_vars, context_vars, paid_media_spends,
                            intervalType, dayInterval, custom_params) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
-  recurrence <- subset(dt_transform, select = c("ds", "dep_var"))
-  colnames(recurrence)[2] <- "y"
-
+  recurrence <- select(dt_transform, .data$ds, .data$dep_var) %>% rename("y" = "dep_var")
   holidays <- set_holidays(dt_transform, dt_holidays, intervalType)
-  use_trend <- any(str_detect("trend", prophet_vars))
-  use_holiday <- any(str_detect("holiday", prophet_vars))
-  use_season <- any(c(str_detect("season", prophet_vars), "yearly.seasonality" %in% names(custom_params)))
-  use_weekday <- any(c(str_detect("weekday", prophet_vars), "weekly.seasonality" %in% names(custom_params)))
+  use_trend <- "trend" %in% prophet_vars
+  use_holiday <- "holiday" %in% prophet_vars
+  use_season <- "season" %in% prophet_vars | "yearly.seasonality" %in% prophet_vars
+  use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_spends)))
 
   prophet_params <- list(
-    holidays = if (use_holiday) holidays[country == prophet_country] else NULL,
+    holidays = if (use_holiday) holidays[holidays$country == prophet_country, ] else NULL,
     yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
                                 custom_params[["yearly.seasonality"]],
                                 use_season),
@@ -701,21 +699,17 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
-    dt_ohe <- as.data.table(model.matrix(y ~ ., dt_regressors[, c("y", factor_vars), with = FALSE]))[, -1]
+    dt_ohe <- dt_regressors %>% select(all_of(factor_vars)) %>% ohse()
     ohe_names <- names(dt_ohe)
     for (addreg in ohe_names) modelRecurrence <- add_regressor(modelRecurrence, addreg)
-    dt_ohe <- cbind(dt_regressors[, !factor_vars, with = FALSE], dt_ohe)
+    dt_ohe <- select(dt_regressors, -all_of(factor_vars)) %>% bind_cols(dt_ohe)
     mod_ohe <- fit.prophet(modelRecurrence, dt_ohe)
     dt_forecastRegressor <- predict(mod_ohe, dt_ohe)
-    forecastRecurrence <- dt_forecastRegressor[, str_detect(
-      names(dt_forecastRegressor), "_lower$|_upper$",
-      negate = TRUE
-    ), with = FALSE]
+    forecastRecurrence <- select(dt_forecastRegressor, -contains("_lower"), -contains("_upper"))
     for (aggreg in factor_vars) {
-      oheRegNames <- na.omit(str_extract(names(forecastRecurrence), paste0("^", aggreg, ".*")))
-      forecastRecurrence[, (aggreg) := rowSums(.SD), .SDcols = oheRegNames]
-      get_reg <- forecastRecurrence[, get(aggreg)]
-      dt_transform[, (aggreg) := scale(get_reg, center = min(get_reg), scale = FALSE)]
+      oheRegNames <- grep(paste0("^", aggreg, ".*"), names(forecastRecurrence), value = TRUE)
+      get_reg <- rowSums(select(forecastRecurrence, all_of(oheRegNames)))
+      dt_transform[, aggreg] <- scale(get_reg, center = min(get_reg), scale = FALSE)
     }
   } else {
     mod <- fit.prophet(modelRecurrence, dt_regressors)
@@ -936,19 +930,22 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   if (intervalType == "week") {
     weekStartInput <- lubridate::wday(dt_transform$ds[1], week_start = 1)
     if (!weekStartInput %in% c(1, 7)) stop("Week start has to be Monday or Sunday")
-    dt_holidays$dsWeekStart <- floor_date(dt_holidays$ds, unit = "week", week_start = weekStartInput)
-    holidays <- dt_holidays[, .(ds = dsWeekStart, holiday, country, year)]
-    holidays <- holidays[, lapply(.SD, paste0, collapse = "#"), by = c("ds", "country", "year"), .SDcols = "holiday"]
+    holidays <- dt_holidays %>%
+      mutate(ds = floor_date(.data$ds, unit = "week", week_start = weekStartInput)) %>%
+      select(.data$ds, .data$holiday, .data$country, .data$year) %>%
+      group_by(.data$ds, .data$country, .data$year) %>%
+      summarise(holiday = paste(.data$holiday, collapse = ", "))
   }
 
   if (intervalType == "month") {
-    monthStartInput <- all(day(dt_transform[, ds]) == 1)
-    if (!monthStartInput) {
+    if (!all(day(dt_transform[, ds]) == 1)) {
       stop("Monthly data should have first day of month as datestampe, e.g.'2020-01-01'")
     }
-    dt_holidays[, dsMonthStart := cut(as.Date(ds), intervalType)]
-    holidays <- dt_holidays[, .(ds = dsMonthStart, holiday, country, year)]
-    holidays <- holidays[, lapply(.SD, paste0, collapse = "#"), by = c("ds", "country", "year"), .SDcols = "holiday"]
+    holidays <- dt_holidays %>%
+      mutate(ds = cut(as.Date(.data$ds), intervalType)) %>%
+      select(.data$ds, .data$holiday, .data$country, .data$year) %>%
+      group_by(.data$ds, .data$country, .data$year) %>%
+      tally()
   }
 
   return(holidays)

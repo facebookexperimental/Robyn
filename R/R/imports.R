@@ -24,12 +24,13 @@
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
 #' group_by lag left_join mutate n pull rename row_number select slice summarise summarise_all ungroup
+#' all_of bind_cols mutate_at tally
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
-#' @importFrom lares check_opts clusterKmeans formatNum freqs glued removenacols theme_lares `%>%`
-#' scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t
+#' @importFrom lares check_opts clusterKmeans formatNum freqs glued ohse removenacols
+#' theme_lares `%>%` scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t
 #' @importFrom lubridate is.Date day floor_date
 #' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
