@@ -86,7 +86,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (any(table(date_var_dates) > 1)) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
-  if (any(is.na(date_var_dates) | is.infinite(date_var_dates))) {
+  if (any(c(is.na(date_var_dates) | is.infinite(date_var_dates)))) {
     stop("Dates in 'date_var' must have format '2020-12-31' and can't contain NA nor Inf values")
   }
   dayInterval <- as.integer(difftime(
@@ -109,7 +109,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
     date_var = date_var,
     dayInterval = dayInterval,
     intervalType = intervalType,
-    dt_input = dt_input
+    dt_input = as_tibble(dt_input)
   )
   invisible(return(output))
 }
@@ -124,7 +124,7 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
   if (length(dep_var) > 1) {
     stop("Must provide only 1 dependent variable name for 'dep_var'")
   }
-  if (!(is.numeric(dt_input[, dep_var]) | is.integer(dt_input[, dep_var]))) {
+  if (!(is.numeric(dt_input[, dep_var][[1]]) | is.integer(dt_input[, dep_var][[1]]))) {
     stop("'dep_var' must be a numeric or integer variable")
   }
   if (is.null(dep_var_type)) {
@@ -278,42 +278,45 @@ check_datadim <- function(dt_input, all_ind_vars, rel = 10) {
 }
 
 check_windows <- function(dt_input, date_var, all_media, window_start, window_end) {
+
+  dates_vec <- as.Date(dt_input[, date_var][[1]])
+
   if (is.null(window_start)) {
-    window_start <- min(as.character(dt_input[, date_var]))
+    window_start <- min(dates_vec)
   } else if (is.na(as.Date(window_start, "%Y-%m-%d"))) {
     stop("'window_start' must have format '2020-12-31'")
-  } else if (window_start < min(as.character(dt_input[, date_var]))) {
-    window_start <- min(as.character(dt_input[, date_var]))
+  } else if (window_start < min(dates_vec)) {
+    window_start <- min(dates_vec)
     message("'window_start' is smaller than the earliest date in input data. It's set to the earliest date")
-  } else if (window_start > max(as.character(dt_input[, date_var]))) {
+  } else if (window_start > max(dates_vec)) {
     stop("'window_start' can't be larger than the the latest date in input data")
   }
 
   rollingWindowStartWhich <- which.min(abs(difftime(
-    as.Date(dt_input[, date_var]),
+    dates_vec,
     as.Date(window_start),
     units = "days"
   )))
-  if (!(as.Date(window_start) %in% dt_input[, date_var])) {
+  if (!(as.Date(window_start) %in% dates_vec)) {
     window_start <- dt_input[rollingWindowStartWhich, date_var]
     message("'window_start' is adapted to the closest date contained in input data: ", window_start)
   }
   refreshAddedStart <- window_start
 
   if (is.null(window_end)) {
-    window_end <- max(as.character(dt_input[, date_var]))
+    window_end <- max(dates_vec)
   } else if (is.na(as.Date(window_end, "%Y-%m-%d"))) {
     stop("'window_end' must have format '2020-12-31'")
-  } else if (window_end > max(as.character(dt_input[, date_var]))) {
-    window_end <- max(as.character(dt_input[, date_var]))
+  } else if (window_end > max(dates_vec)) {
+    window_end <- max(dates_vec)
     message("'window_end' is larger than the latest date in input data. It's set to the latest date")
   } else if (window_end < window_start) {
-    window_end <- max(as.character(dt_input[, date_var]))
+    window_end <- max(dates_vec)
     message("'window_end' must be >= 'window_start.' It's set to latest date in input data")
   }
 
-  rollingWindowEndWhich <- which.min(abs(difftime(as.Date(dt_input[, date_var]), as.Date(window_end), units = "days")))
-  if (!(as.Date(window_end) %in% dt_input[, date_var])) {
+  rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, as.Date(window_end), units = "days")))
+  if (!(as.Date(window_end) %in% dates_vec)) {
     window_end <- dt_input[rollingWindowEndWhich, date_var]
     message("'window_end' is adapted to the closest date contained in input data: ", window_end)
   }

@@ -177,8 +177,8 @@ robyn_inputs <- function(dt_input = NULL,
 
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
-    dt_input <- as.data.frame(dt_input)
-    if (!is.null(dt_holidays)) dt_holidays <- as.data.frame(dt_holidays)
+    dt_input <- as_tibble(dt_input)
+    if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
     ## Check for NA values
     check_nas(dt_input)
@@ -510,7 +510,7 @@ hyper_limits <- function() {
 robyn_engineering <- function(x, ...) {
   InputCollect <- x
   check_InputCollect(InputCollect)
-  dt_input <- as.data.frame(InputCollect$dt_input)
+  dt_input <- InputCollect$dt_input
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   factor_vars <- InputCollect$factor_vars
