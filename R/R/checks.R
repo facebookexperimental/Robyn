@@ -313,7 +313,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 
   rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, as.Date(window_end), units = "days")))
   if (!(as.Date(window_end) %in% dates_vec)) {
-    window_end <- dt_input[rollingWindowEndWhich, date_var]
+    window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
     message("'window_end' is adapted to the closest date contained in input data: ", window_end)
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
@@ -324,8 +324,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
   if (any(init_all0)) {
     stop(
       "These media channels contains only 0 within training period ",
-      dt_input[rollingWindowStartWhich, get(date_var)], " to ",
-      dt_input[rollingWindowEndWhich, get(date_var)], ": ",
+      dt_input[rollingWindowStartWhich, date_var][[1]], " to ",
+      dt_input[rollingWindowEndWhich, date_var][[1]], ": ",
       paste(names(dt_init)[init_all0], collapse = ", "),
       "\nRecommendation: adapt InputCollect$window_start, remove or combine these channels"
     )
