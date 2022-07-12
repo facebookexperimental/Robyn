@@ -6,8 +6,14 @@
 \usage{
 robyn_train(
   InputCollect,
+  hyper_collect,
+  cores,
+  iterations,
+  trials,
+  intercept_sign,
+  nevergrad_algo,
   dt_hyper_fixed = NULL,
-  lambda_control = 1,
+  add_penalty_factor = FALSE,
   refresh = FALSE,
   seed = 123,
   quiet = FALSE
@@ -17,11 +23,34 @@ robyn_train(
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 
+\item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
+\code{InputCollect$hyperparameters}.}
+
+\item{cores}{Integer. Default to \code{parallel::detectCores()} (max cores).}
+
+\item{iterations}{Integer. Recommended 2000 for default when using
+\code{nevergrad_algo = "TwoPointsDE"}.}
+
+\item{trials}{Integer. Recommended 5 for default
+\code{nevergrad_algo = "TwoPointsDE"}.}
+
+\item{intercept_sign}{Character. Choose one of "non_negative" (default) or
+"unconstrained". By default, if intercept is negative, Robyn will drop intercept
+and refit the model. Consider changing intercept_sign to "unconstrained" when
+there are \code{context_vars} with large positive values.}
+
+\item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
+\code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
+"DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
+"cGA", "RandomSearch")}.}
+
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
-\item{lambda_control}{Numeric. From 0-1. Tunes ridge lambda between
-lambda.min and lambda.1se.}
+\item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
+glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
+this feature might add too much hyperparameter space and probably requires
+more iterations to converge.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
@@ -29,16 +58,10 @@ lambda.min and lambda.1se.}
 
 \item{quiet}{Boolean. Keep messages off?}
 }
+\value{
+List. Iteration results to include in \code{robyn_run()} results.
+}
 \description{
-The \code{robyn_train()} function consumes output from \code{robyn_input()}
+\code{robyn_train()} consumes output from \code{robyn_input()}
 and runs the \code{robyn_mmm()} on each trial.
-}
-\examples{
-\dontrun{
-OutputCollect <- robyn_train(
-  InputCollect = InputCollect,
-  dt_hyper_fixed = NULL,
-  seed = 0
-)
-}
 }

@@ -34,7 +34,11 @@ Required when \code{robyn_object} is not provided.}
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
 
+\item{quiet}{Boolean. Keep messages off?}
+
 \item{x}{\code{robyn_save()} output.}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
 (Invisible) list with filename and summary. Class: \code{robyn_save}.

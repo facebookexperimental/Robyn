@@ -2,11 +2,13 @@
 % Please edit documentation in R/allocator.R
 \name{robyn_allocator}
 \alias{robyn_allocator}
-\title{Robyn budget allocator}
+\alias{print.robyn_allocator}
+\alias{plot.robyn_allocator}
+\title{Budget Allocator}
 \usage{
 robyn_allocator(
   robyn_object = NULL,
-  select_build = NULL,
+  select_build = 0,
   InputCollect = NULL,
   OutputCollect = NULL,
   select_model = NULL,
@@ -18,15 +20,23 @@ robyn_allocator(
   channel_constr_up = 2,
   maxeval = 1e+05,
   constr_mode = "eq",
+  date_min = NULL,
+  date_max = NULL,
+  export = TRUE,
+  quiet = FALSE,
   ui = FALSE
 )
+
+\method{print}{robyn_allocator}(x, ...)
+
+\method{plot}{robyn_allocator}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
 
-\item{select_build}{Integer. Default to the latest model build. \code{select_buil = 0}
-selects the initial model. \code{select_buil = 1} selects the first refresh model.}
+\item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
+selects the initial model. \code{select_build = 1} selects the first refresh model.}
 
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
@@ -57,13 +67,14 @@ spend allocation of a given future spend level for a given period?"}
 \item{expected_spend_days}{Integer. The duration of the future spend volume in
 \code{expected_spend}. Only applies when \code{scenario = "max_response_expected_spend"}.}
 
-\item{channel_constr_low, channel_constr_up}{Numeric vector. The lower and upper bounds
-for each paid media variable when maximizing total media response. \code{channel_constr_low
-= 0.7} means minimum spend of the variable is 70% of historical average. Lower bound must
-be >=0.01. \code{channel_constr_up = 1.5} means maximum spend of the variable is 150% of
-historical average. Upper bound must be >= lower bound. Both must have same length and order
-as \code{paid_media_vars}. nIt's ot recommended to 'exaggerate' upper bounds, esp. if the
-new level is way higher than historical level.}
+\item{channel_constr_low, channel_constr_up}{Numeric vectors. The lower and upper bounds
+for each paid media variable when maximizing total media response. For example,
+\code{channel_constr_low = 0.7} means minimum spend of the variable is 70% of historical
+average, using non-zero spend values, within \code{date_min} and \code{date_max} date range.
+Both constrains must be length 1 (same for all values) OR same length and order as
+\code{paid_media_spends}. It's not recommended to 'exaggerate' upper bounds, especially
+if the new level is way higher than historical level. Lower bound must be >=0.01,
+and upper bound should be < 5.}
 
 \item{maxeval}{Integer. The maximum iteration of the global optimization algorithm.
 Defaults to 100000.}
@@ -71,17 +82,35 @@ Defaults to 100000.}
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
 
+\item{date_min, date_max}{Character/Date. Date range to calculate mean (of non-zero
+spends) and total spends. Default will consider all dates within modeled window.
+Length must be 1 for both parameters.}
+
+\item{export}{Boolean. Export outcomes into local files?}
+
+\item{quiet}{Boolean. Keep messages off?}
+
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
+
+\item{x}{\code{robyn_allocator()} output.}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
 A list object containing allocator result.
+
+List. Contains optimized allocation results and plots.
 }
 \description{
-The \code{robyn_allocator()} function returns a new split of media
+\code{robyn_allocator()} function returns a new split of media
 variable spends that maximizes the total media response.
 }
 \examples{
 \dontrun{
+# Having InputCollect and OutputCollect results
+# Set your exported model location
+robyn_object <- "~/Desktop/MyRobyn.RDS"
+
 # Check media summary for selected model from the simulated data
 select_model <- "3_10_3"
 OutputCollect$xDecompAgg[
