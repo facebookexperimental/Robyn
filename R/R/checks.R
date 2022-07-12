@@ -349,10 +349,10 @@ check_adstock <- function(adstock) {
 
 check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
                                   paid_media_spends = NULL, organic_vars = NULL,
-                                  exposure_vars = NULL, quiet = FALSE) {
-  if (is.null(hyperparameters) & !quiet) {
+                                  exposure_vars = NULL) {
+  if (is.null(hyperparameters)) {
     message(paste(
-      "Input 'hyperparameters' not provided yet. To include them, run",
+      "'hyperparameters' are not provided yet. To include them, run",
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
@@ -366,26 +366,22 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
-        "Input 'hyperparameters' contains following wrong names: ",
+        "'hyperparameters' contains following wrong names: ",
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
-    total <- length(get_hyp_names)
-    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org))
-    if (total != total_in) {
-      stop(sprintf(paste(
-        "%s hyperparameter values are required, and %s were provided.",
-        "\n Use hyper_names() function to help you with the correct hyperparameters names."),
-        total, total_in))
+    if (length(get_hyp_names) != length(c(ref_hyp_name_spend, ref_hyp_name_org))) {
+      stop("there're missing or too many hyperparameters. run
+      hyper_names(adstock, all_media) to get all hyperparameters names")
     }
-    # Old workflow: replace exposure with spend hyperparameters
+    # old workflow: replace exposure with spend hyperparameters
     if (any(get_hyp_names %in% ref_hyp_name_expo)) {
       get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
       get_hyp_names[get_expo_pos] <- ref_all_media[get_expo_pos]
       names(hyperparameters_ordered) <- get_hyp_names
     }
     if (!identical(get_hyp_names, ref_all_media)) {
-      stop("Input 'hyperparameters' must contain: ", paste(ref_all_media, collapse = ", "))
+      stop("'hyperparameters' must be: ", paste(ref_all_media, collapse = ", "))
     }
 
     check_hyper_limits(hyperparameters_ordered, "thetas")
