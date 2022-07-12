@@ -7,7 +7,7 @@
 robyn_onepagers(
   InputCollect,
   OutputCollect,
-  selected = NULL,
+  select_model = NULL,
   quiet = FALSE,
   export = TRUE
 )
@@ -17,9 +17,16 @@ robyn_onepagers(
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
+\item{select_model}{Character vector. Which models (by \code{solID}) do you
+wish to plot the one-pagers and export? Default will take top
+\code{robyn_clusters()} results.}
+
 \item{quiet}{Boolean. Keep messages off?}
 
 \item{export}{Boolean. Export outcomes into local files?}
+}
+\value{
+Invisible list with \code{patchwork} plot(s).
 }
 \description{
 Generate and Export Robyn One-Pager Plots

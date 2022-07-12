@@ -37,9 +37,17 @@ dt_hyper_fixed = NULL
 seed = 123
 outputs = FALSE
 quiet = FALSE
+add_penalty_factor = FALSE
+cores = 6
+iterations = 200
+trials = 1
+intercept_sign = "non_negative"
+nevergrad_algo = "TwoPointsDE"
 
 ## debug robyn_train
 args(robyn_train)
+hyper_collect = hyps
+add_penalty_factor = FALSE
 dt_hyper_fixed = NULL
 lambda_control = 1
 refresh = FALSE
@@ -50,11 +58,11 @@ quiet = FALSE
 ## debug robyn_mmm
 args(robyn_mmm)
 #InputCollect
-hyper_collect = InputCollect$hyperparameters
+hyper_collect = hyps
+add_penalty_factor = FALSE
 iterations = InputCollect$iterations
 lambda.n = 100
 lambda_control = 1
-lambda_fixed = NULL
 refresh = FALSE
 seed = 123L
 quiet = FALSE
@@ -82,20 +90,21 @@ args(robyn_pareto)
 args(robyn_response)
 robyn_object = NULL
 select_build = NULL
-paid_media_spend = decompSpendDistPar$rn[4]
+media_metric = decompSpendDistPar$rn[4]
 select_model = decompSpendDistPar[4, solID]
-spend = decompSpendDistPar[4, mean_spend]
+metric_value = decompSpendDistPar[4, mean_spend]
 dt_hyppar = resultHypParamPar
 dt_coef = xDecompAggPar
 
 
 ## debug robyn_refresh
+args(robyn_refresh)
 # robyn_object
 plot_folder_sub = NULL
-dt_input = dt_input
+dt_input = dt_simulated_weekly
 dt_holidays = dt_prophet_holidays
 refresh_steps = 14
-refresh_mode = "auto" # "auto", "manual"
+refresh_mode = "manual" # "auto", "manual"
 refresh_iters = 100
 refresh_trials = 2
 plot_pareto = TRUE
@@ -142,9 +151,17 @@ maxeval = 100000
 constr_mode = "eq"
 ui = FALSE
 
-
-
-
+## debug robyn_refresh
+args(robyn_refresh)
+#robyn_object
+plot_folder_sub = NULL
+dt_input = dt_simulated_weekly
+dt_holidays = dt_prophet_holidays
+refresh_steps = 4
+refresh_mode = "manual"
+refresh_iters = 1000
+refresh_trials = 1
+plot_pareto = TRUE
 
 ## debug robyn_clusters
 args(robyn_clusters)
@@ -156,5 +173,4 @@ weights = rep(1, 3)
 dim_red = "PCA"
 quiet = FALSE
 export = FALSE
-
 
