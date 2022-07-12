@@ -427,7 +427,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
                               window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
-    calibration_input <- as.data.table(calibration_input)
+    calibration_input <- as_tibble(calibration_input)
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("Input 'calibration_input' must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
@@ -467,7 +467,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$channel %in% organic_vars) next
-        dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
+        dt_input_spend <- filter(
+          dt_input, get(date_var) >= temp$liftStartDate,
+          get(date_var) <= temp$liftEndDate
+        ) %>%
           pull(get(temp$channel)) %>%
           sum(.) %>%
           round(., 0)
