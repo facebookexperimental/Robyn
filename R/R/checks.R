@@ -80,7 +80,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
   dt_input <- as.data.frame(dt_input) %>%
-    arrange(get(date_var)) %>%
+    arrange(vars(date_var)) %>%
     mutate_at(all_of(date_var), as.Date)
   date_var_dates <- dt_input[, date_var]
   if (any(table(date_var_dates) > 1)) {
