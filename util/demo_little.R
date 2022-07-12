@@ -123,14 +123,14 @@ InputCollect <- robyn_inputs(
   ,adstock = "geometric" # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
   # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
   # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-  ,iterations = 2000  # number of allowed iterations per trial. For the simulated dataset with 11 independent
+  ,iterations = 2  # number of allowed iterations per trial. For the simulated dataset with 11 independent
   # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
   # The larger the dataset, the more iterations required to reach convergence.
 
   ,intercept_sign = "non_negative" # intercept_sign input must be any of: non_negative, unconstrained
   ,nevergrad_algo = "TwoPointsDE" # recommended algorithm for Nevergrad, the gradient-free
   # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-  ,trials = 5 # number of allowed trials. 5 is recommended without calibration,
+  ,trials = 2 # number of allowed trials. 5 is recommended without calibration,
   # 10 with calibration.
 
   # Time estimation: with geometric adstock, 2000 iterations * 5 trials
@@ -197,6 +197,7 @@ plot_saturation(plot = FALSE)
 # Run ?hyper_names to check parameter definition
 # Run hyper_limits() to check valid upper and lower bounds by range
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+
 
 # Example hyperparameters for Geometric adstock
 hyperparameters <- list(

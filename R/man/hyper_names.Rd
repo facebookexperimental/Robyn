@@ -13,9 +13,6 @@ Accepts "geometric", "weibull_cdf" or "weibull_pdf"}
 \item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}
 }
-\value{
-Character vector. Names of hyper-parameters that should be defined.
-}
 \description{
 Output all hyperparameter names and help specifying the list of
 hyperparameters that is inserted into \code{robyn_inputs(hyperparameters = ...)}
@@ -62,38 +59,62 @@ helping you understand hill/alpha/gamma transformation}
 }
 
 \examples{
-\donttest{
-media <- c("facebook_S", "print_S", "tv_S")
-hyper_names(adstock = "geometric", all_media = media)
+\dontrun{
+# Having InputCollect as robyn_inputs() output
+# Define hyper_names for geometric adstock
+hyper_names(adstock = "geometric", all_media = InputCollect$all_media)
 
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3), # example bounds for alpha
-  facebook_S_gammas = c(0.3, 1), # example bounds for gamma
-  facebook_S_thetas = c(0, 0.3), # example bounds for theta
-  print_S_alphas = c(0.5, 3),
+  facebook_I_alphas = c(0.5, 3) # example bounds for alpha
+  , facebook_I_gammas = c(0.3, 1) # example bounds for gamma
+  , facebook_I_thetas = c(0, 0.3) # example bounds for theta
+
+  , print_S_alphas = c(0.5, 3),
   print_S_gammas = c(0.3, 1),
   print_S_thetas = c(0.1, 0.4),
   tv_S_alphas = c(0.5, 3),
   tv_S_gammas = c(0.3, 1),
-  tv_S_thetas = c(0.3, 0.8)
+  tv_S_thetas = c(0.3, 0.8),
+  search_clicks_P_alphas = c(0.5, 3),
+  search_clicks_P_gammas = c(0.3, 1),
+  search_clicks_P_thetas = c(0, 0.3),
+  ooh_S_alphas = c(0.5, 3),
+  ooh_S_gammas = c(0.3, 1),
+  ooh_S_thetas = c(0.1, 0.4),
+  newsletter_alphas = c(0.5, 3),
+  newsletter_gammas = c(0.3, 1),
+  newsletter_thetas = c(0.1, 0.4)
 )
 
 # Define hyper_names for weibull adstock
-hyper_names(adstock = "weibull", all_media = media)
+hyper_names(adstock = "weibull", all_media = InputCollect$all_media)
 
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3), # example bounds for alpha
-  facebook_S_gammas = c(0.3, 1), # example bounds for gamma
-  facebook_S_shapes = c(0.0001, 2), # example bounds for shape
-  facebook_S_scales = c(0, 0.1), # example bounds for scale
-  print_S_alphas = c(0.5, 3),
+  facebook_I_alphas = c(0.5, 3) # example bounds for alpha
+  , facebook_I_gammas = c(0.3, 1) # example bounds for gamma
+  , facebook_I_shapes = c(0.0001, 2) # example bounds for shape
+  , facebook_I_scales = c(0, 0.1) # example bounds for scale
+
+  , print_S_alphas = c(0.5, 3),
   print_S_gammas = c(0.3, 1),
   print_S_shapes = c(0.0001, 2),
   print_S_scales = c(0, 0.1),
   tv_S_alphas = c(0.5, 3),
   tv_S_gammas = c(0.3, 1),
   tv_S_shapes = c(0.0001, 2),
-  tv_S_scales = c(0, 0.1)
+  tv_S_scales = c(0, 0.1),
+  search_clicks_P_alphas = c(0.5, 3),
+  search_clicks_P_gammas = c(0.3, 1),
+  search_clicks_P_shapes = c(0.0001, 2),
+  search_clicks_P_scales = c(0, 0.1),
+  ooh_S_alphas = c(0.5, 3),
+  ooh_S_gammas = c(0.3, 1),
+  ooh_S_shapes = c(0.0001, 2),
+  ooh_S_scales = c(0, 0.1),
+  newsletter_alphas = c(0.5, 3),
+  newsletter_gammas = c(0.3, 1),
+  newsletter_shapes = c(0.0001, 2),
+  newsletter_scales = c(0, 0.1)
 )
 }
 }

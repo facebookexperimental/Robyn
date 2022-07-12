@@ -1,6 +1,9 @@
 # Project Robyn - Continuous & Semi-Automated MMM <img src='man/figures/logo.png' align="right" height="139px" />
 ### The Open Source Marketing Mix Model Package from Facebook Marketing Science
 
+[![CRAN\_Status\_Badge](https://www.r-pkg.org/badges/version/Robyn)](https://cran.r-project.org/package=Robyn) [![website](https://img.shields.io/badge/site-Robyn-blue.svg)](https://facebookexperimental.github.io/Robyn/) [![facebook](https://img.shields.io/badge/group-Facebook-blue.svg)](https://www.facebook.com/groups/robynmmm/)
+----
+
 ## R Quick Start
   
   * Install Robyn latest package version:

@@ -4,19 +4,19 @@
 \alias{fit_spend_exposure}
 \title{Fit a nonlinear model for media spend and exposure}
 \usage{
-fit_spend_exposure(dt_spendModInput, mediaCostFactor, paid_media_var)
+fit_spend_exposure(dt_spendModInput, mediaCostFactor, paid_media_vars)
 }
 \arguments{
-\item{dt_spendModInput}{data.frame. Containing channel spends and
-exposure data.}
+\item{dt_spendModInput}{A data.frame with channel spends and exposure
+data}
 
-\item{mediaCostFactor}{Numeric vector. The ratio between raw media
+\item{mediaCostFactor}{A numeric vector. The ratio between raw media
 exposure and spend metrics.}
 
-\item{paid_media_var}{Character. Paid media variable.}
+\item{paid_media_vars}{A character vector. All paid media variables.}
 }
 \value{
-List. Containing the all spend-exposure model results.
+A list containing the all spend-exposure model results.
 }
 \description{
 This function is called in \code{robyn_engineering()}. It uses
