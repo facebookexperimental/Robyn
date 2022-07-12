@@ -349,15 +349,14 @@ robyn_mmm <- function(InputCollect,
 
   ## Get environment for parallel backend
   if (TRUE) {
-    dt_mod <- copy(InputCollect$dt_mod)
+    dt_mod <- InputCollect$dt_mod
     xDecompAggPrev <- InputCollect$xDecompAggPrev
     rollingWindowStartWhich <- InputCollect$rollingWindowStartWhich
     rollingWindowEndWhich <- InputCollect$rollingWindowEndWhich
     refreshAddedStart <- InputCollect$refreshAddedStart
-    dt_modRollWind <- copy(InputCollect$dt_modRollWind)
+    dt_modRollWind <- InputCollect$dt_modRollWind
     refresh_steps <- InputCollect$refresh_steps
     rollingWindowLength <- InputCollect$rollingWindowLength
-    # paid_media_vars <- InputCollect$paid_media_vars
     paid_media_spends <- InputCollect$paid_media_spends
     organic_vars <- InputCollect$organic_vars
     context_vars <- InputCollect$context_vars
@@ -379,35 +378,33 @@ robyn_mmm <- function(InputCollect,
   #### Get spend share
 
   dt_inputTrain <- InputCollect$dt_input[rollingWindowStartWhich:rollingWindowEndWhich,]
-  dt_spendShare <- dt_inputTrain[, .(
+  temp <- select(dt_inputTrain, all_of(paid_media_spends))
+  dt_spendShare <- data.frame(
     rn = paid_media_spends,
-    total_spend = sapply(.SD, sum),
-    mean_spend = sapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0])))
-  ), .SDcols = paid_media_spends]
-  dt_spendShare[, ":="(spend_share = total_spend / sum(total_spend))]
+    total_spend = unlist(summarise_all(temp, sum)),
+    mean_spend = unlist(summarise_all(temp, function(x)
+      ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))))) %>%
+    mutate(spend_share = .data$total_spend / sum(.data$total_spend))
 
   # When not refreshing, dt_spendShareRF = dt_spendShare
   refreshAddedStartWhich <- which(dt_modRollWind$ds == refreshAddedStart)
-  dt_spendShareRF <- dt_inputTrain[
-    refreshAddedStartWhich:rollingWindowLength,
-    .(
-      rn = paid_media_spends,
-      total_spend = sapply(.SD, sum),
-      mean_spend = sapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0])))
-    ),
-    .SDcols = paid_media_spends
-  ]
-  dt_spendShareRF[, ":="(spend_share = total_spend / sum(total_spend))]
-  dt_spendShare[, ":="(total_spend_refresh = dt_spendShareRF$total_spend,
-    mean_spend_refresh = dt_spendShareRF$mean_spend,
-    spend_share_refresh = dt_spendShareRF$spend_share)]
+  temp <- select(dt_inputTrain, all_of(paid_media_spends)) %>%
+    slice(refreshAddedStartWhich:rollingWindowLength)
+  dt_spendShareRF <- data.frame(
+    rn = paid_media_spends,
+    total_spend = unlist(summarise_all(temp, sum)),
+    mean_spend = unlist(summarise_all(temp, function(x)
+      ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))))) %>%
+    mutate(spend_share = .data$total_spend / sum(.data$total_spend))
 
+  # Join both dataframes into a single one
+  dt_spendShare <- left_join(dt_spendShare, dt_spendShareRF, "rn", suffix = c("", "_refresh"))
 
   ################################################
   #### Get lambda
   lambda_min_ratio <- 0.0001 # default  value from glmnet
   lambdas <- lambda_seq(
-    x = dt_mod[, !c("ds", "dep_var"), with = FALSE],
+    x = select(dt_mod, -.data$ds, -.data$dep_var),
     y = dt_mod$dep_var,
     seq_len = 100, lambda_min_ratio
   )
