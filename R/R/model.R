@@ -378,7 +378,7 @@ robyn_mmm <- function(InputCollect,
   ################################################
   #### Get spend share
 
-  dt_inputTrain <- InputCollect$dt_input[rollingWindowStartWhich:rollingWindowEndWhich]
+  dt_inputTrain <- InputCollect$dt_input[rollingWindowStartWhich:rollingWindowEndWhich,]
   dt_spendShare <- dt_inputTrain[, .(
     rn = paid_media_spends,
     total_spend = sapply(.SD, sum),
@@ -1357,7 +1357,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   hypParamSamName <- c(hypParamSamName, "lambda")
 
   # Add penalty factor hyper-parameters names
-  for_penalty <- names(InputCollect$dt_mod[, -c("ds", "dep_var")])
+  for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
   if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
   # Check hyper_fixed condition
