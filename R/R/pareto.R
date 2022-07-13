@@ -51,11 +51,14 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
     mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
     left_join(select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
 
-  if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
-  pareto_fronts_vec <- 1:pareto_fronts
-  decompSpendDistPar <- decompSpendDist[decompSpendDist$robynPareto %in% pareto_fronts_vec, ]
-  resultHypParamPar <- resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ]
-  xDecompAggPar <- xDecompAgg[xDecompAgg$robynPareto %in% pareto_fronts_vec, ]
+  # Prepare parallel loop
+  if (TRUE) {
+    if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+    pareto_fronts_vec <- 1:pareto_fronts
+    decompSpendDistPar <- decompSpendDist[decompSpendDist$robynPareto %in% pareto_fronts_vec, ]
+    resultHypParamPar <- resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ]
+    xDecompAggPar <- xDecompAgg[xDecompAgg$robynPareto %in% pareto_fronts_vec, ]
+  }
 
   resp_collect <- foreach(
     respN = seq_along(decompSpendDistPar$rn), .combine = rbind) %dorng% {
@@ -76,20 +79,22 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       return(dt_resp)
     }
   stopImplicitCluster(); registerDoSEQ(); getDoParWorkers()
-  setkey(decompSpendDist, solID, rn)
-  setkey(resp_collect, solID, rn)
-  decompSpendDist <- merge(decompSpendDist, resp_collect, all.x=TRUE)
-  decompSpendDist[, ":="(
-    roi_mean = mean_response / mean_spend,
-    roi_total = xDecompAgg / total_spend,
-    cpa_mean = mean_spend / mean_response,
-    cpa_total = total_spend / xDecompAgg
-  )]
-  setkey(xDecompAgg, solID, rn)
-  setkey(decompSpendDist, solID, rn)
-  xDecompAgg <- merge(xDecompAgg, decompSpendDist[, .(
-    rn, solID, total_spend, mean_spend, spend_share, effect_share, roi_mean, roi_total, cpa_total)],
-    all.x = TRUE)
+
+  decompSpendDist <- left_join(
+    decompSpendDist,
+    resp_collect, by = c("solID", "rn")) %>%
+    mutate(
+      roi_mean = .data$mean_response / .data$mean_spend,
+      roi_total = .data$xDecompAgg / .data$total_spend,
+      cpa_mean = .data$mean_spend / .data$mean_response,
+      cpa_total = .data$total_spend / .data$xDecompAgg
+    )
+
+  xDecompAgg <- left_join(
+    xDecompAgg,
+    select(decompSpendDist, .data$rn, .data$solID, .data$total_spend, .data$mean_spend,
+           .data$spend_share, .data$effect_share, .data$roi_mean, .data$roi_total, .data$cpa_total),
+    by = c("solID", "rn"))
 
   # Pareto loop (no plots)
   mediaVecCollect <- list()
@@ -99,11 +104,13 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   for (pf in pareto_fronts_vec) {
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
-    uniqueSol <- plotMediaShare[, unique(solID)]
-    plotWaterfall <- xDecompAgg[robynPareto == pf]
-    dt_mod <- copy(InputCollect$dt_mod)
-    dt_modRollWind <- copy(InputCollect$dt_modRollWind)
+    plotMediaShare <- filter(xDecompAgg,
+                             .data$robynPareto == pf,
+                             .data$rn %in% InputCollect$paid_media_spends)
+    uniqueSol <- unique(plotMediaShare$solID)
+    plotWaterfall <- xDecompAgg[xDecompAgg$robynPareto == pf, ]
+    dt_mod <- InputCollect$dt_mod
+    dt_modRollWind <- InputCollect$dt_modRollWind
 
     for (sid in uniqueSol) {
     # parallelResult <- foreach(sid = uniqueSol) %dorng% {
@@ -111,61 +118,69 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       # Calculations for pareto AND pareto plots
 
       ## 1. Spend x effect share comparison
-      plotMediaShareLoop <- plotMediaShare[solID == sid]
-      suppressWarnings(plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_train"), measure.vars = c("spend_share", "effect_share", "roi_total", "cpa_total")))
-      plotMediaShareLoop[, rn := factor(rn, levels = sort(InputCollect$paid_media_spends))]
-      plotMediaShareLoopBar <- plotMediaShareLoop[variable %in% c("spend_share", "effect_share")]
-      plotMediaShareLoopLine <- plotMediaShareLoop[variable == ifelse(InputCollect$dep_var_type == "conversion", "cpa_total", "roi_total")]
+      temp <- plotMediaShare[plotMediaShare$solID == sid, ] %>%
+        tidyr::gather("variable", "value",
+                    c("spend_share", "effect_share", "roi_total", "cpa_total")) %>%
+        select(c("rn", "nrmse", "decomp.rssd", "rsq_train", "variable", "value")) %>%
+        mutate(rn = factor(.data$rn, levels = sort(InputCollect$paid_media_spends)))
+      plotMediaShareLoopBar <- filter(temp, .data$variable %in% c("spend_share", "effect_share"))
+      plotMediaShareLoopLine <- filter(temp, .data$variable == ifelse(
+        InputCollect$dep_var_type == "conversion", "cpa_total", "roi_total"))
       line_rm_inf <- !is.infinite(plotMediaShareLoopLine$value)
-      ySecScale <- max(plotMediaShareLoopLine$value[line_rm_inf]) / max(plotMediaShareLoopBar$value) * 1.1
+      ySecScale <- max(plotMediaShareLoopLine$value[line_rm_inf]) /
+        max(plotMediaShareLoopBar$value) * 1.1
       plot1data <- list(plotMediaShareLoopBar = plotMediaShareLoopBar,
                         plotMediaShareLoopLine = plotMediaShareLoopLine,
                         ySecScale = ySecScale)
 
       ## 2. Waterfall
-      plotWaterfallLoop <- plotWaterfall[solID == sid][order(xDecompPerc)]
-      plotWaterfallLoop[, end := cumsum(xDecompPerc)]
-      plotWaterfallLoop[, end := 1 - end]
-      plotWaterfallLoop[, ":="(start = shift(end, fill = 1, type = "lag"),
-                               id = 1:nrow(plotWaterfallLoop),
-                               rn = as.factor(rn),
-                               sign = as.factor(ifelse(xDecompPerc >= 0, "pos", "neg")))]
+      plotWaterfallLoop <- plotWaterfall %>%
+        filter(.data$solID == sid) %>%
+        arrange(.data$xDecompPerc) %>%
+        mutate(end = 1 - cumsum(.data$xDecompPerc),
+               start = lag(.data$end),
+               start = ifelse(is.na(.data$start), 1, .data$start),
+               id = row_number(),
+               rn = as.factor(.data$rn),
+               sign = as.factor(ifelse(.data$xDecompPerc >= 0, "Positive", "Negative"))) %>%
+        select(.data$id, .data$rn, .data$xDecompAgg, .data$start, .data$end, .data$sign)
       plot2data <- list(plotWaterfallLoop = plotWaterfallLoop)
 
       ## 3. Adstock rate
       dt_geometric <- weibullCollect <- wb_type <- NULL
-      resultHypParamLoop <- resultHypParam[solID == sid]
+      resultHypParamLoop <- resultHypParam[resultHypParam$solID == sid, ]
       get_hp_names <- !(names(InputCollect$hyperparameters) %like% "penalty_*")
       get_hp_names <- names(InputCollect$hyperparameters)[get_hp_names]
-      hypParam <- unlist(resultHypParamLoop[, get_hp_names, with = FALSE])
+      hypParam <- resultHypParamLoop[, get_hp_names]
       if (InputCollect$adstock == "geometric") {
-        hypParam_thetas <- hypParam[paste0(InputCollect$all_media, "_thetas")]
-        dt_geometric <- data.table(channels = InputCollect$all_media, thetas = hypParam_thetas)
+        hypParam_thetas <- unlist(hypParam[paste0(InputCollect$all_media, "_thetas")])
+        dt_geometric <- data.frame(channels = InputCollect$all_media, thetas = hypParam_thetas)
       }
       if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
-        shapeVec <- hypParam[paste0(InputCollect$all_media, "_shapes")]
-        scaleVec <- hypParam[paste0(InputCollect$all_media, "_scales")]
+        shapeVec <- unlist(hypParam[paste0(InputCollect$all_media, "_shapes")])
+        scaleVec <- unlist(hypParam[paste0(InputCollect$all_media, "_scales")])
         wb_type <- substr(InputCollect$adstock, 9, 11)
         weibullCollect <- list()
         n <- 1
         for (v1 in seq_along(InputCollect$all_media)) {
-          dt_weibull <- data.table(
+          dt_weibull <- data.frame(
             x = 1:InputCollect$rollingWindowLength,
-            decay_accumulated = adstock_weibull(1:InputCollect$rollingWindowLength
-                                                , shape = shapeVec[v1]
-                                                , scale = scaleVec[v1]
-                                                , type = wb_type)$thetaVecCum,
+            decay_accumulated = adstock_weibull(
+              1:InputCollect$rollingWindowLength,
+              shape = shapeVec[v1],
+              scale = scaleVec[v1],
+              type = wb_type)$thetaVecCum,
             type = wb_type,
             channel = InputCollect$all_media[v1]
-          )
-          dt_weibull[, halflife := which.min(abs(decay_accumulated - 0.5))]
-          max_non0 <- max(which(dt_weibull$decay_accumulated>0.001))
-          dt_weibull[, cut_time := floor(max_non0 + max_non0/3)]
+          ) %>%
+            mutate(halflife = which.min(abs(.data$decay_accumulated - 0.5)))
+          max_non0 <- max(which(dt_weibull$decay_accumulated > 0.001))
+          dt_weibull$cut_time <- floor(max_non0 + max_non0 / 3)
           weibullCollect[[n]] <- dt_weibull
-          n <- n+1
+          n <- n + 1
         }
-        weibullCollect <- rbindlist(weibullCollect)
-        weibullCollect <- weibullCollect[x <= max(weibullCollect$cut_time)]
+        weibullCollect <- bind_rows(weibullCollect)
+        weibullCollect <- filter(weibullCollect, .data$x <= max(weibullCollect$cut_time))
       }
       plot3data <- list(dt_geometric = dt_geometric,
                         weibullCollect = weibullCollect,

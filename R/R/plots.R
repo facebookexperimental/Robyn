@@ -311,19 +311,19 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 2. Waterfall
       plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop
-      plotWaterfallLoop$sign <- ifelse(plotWaterfallLoop$sign == "pos", "Positive", "Negative")
       p2 <- suppressWarnings(
-        ggplot(plotWaterfallLoop, aes(x = id, fill = sign)) +
+        ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
           geom_rect(aes(
-            x = rn, xmin = id - 0.45, xmax = id + 0.45,
-            ymin = end, ymax = start
+            x = .data$rn, xmin = .data$id - 0.45, xmax = .data$id + 0.45,
+            ymin = .data$end, ymax = .data$start
           ), stat = "identity") +
           scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
           scale_y_percent() +
           scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" =  "#E5586E")) +
           theme_lares(legend = "top") +
           geom_text(mapping = aes(
-            label = paste0(formatNum(xDecompAgg, abbr = TRUE), "\n", round(xDecompPerc * 100, 1), "%"),
+            label = paste0(formatNum(.data$xDecompAgg, abbr = TRUE),
+                           "\n", round(.data$xDecompPerc * 100, 1), "%"),
             y = rowSums(cbind(plotWaterfallLoop$end, plotWaterfallLoop$xDecompPerc / 2))
           ), fontface = "bold", lineheight = .7) +
           coord_flip() +

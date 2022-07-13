@@ -666,12 +666,14 @@ robyn_mmm <- function(InputCollect,
                       by = "rn") %>%
             mutate(effect_share = .data$xDecompPerc / sum(.data$xDecompPerc),
                    effect_share_refresh = .data$xDecompPercRF / sum(.data$xDecompPercRF))
-          dt_decompSpendDist <- left_join(decompCollect$xDecompAgg, dt_decompSpendDist, by = "rn")
-          dt_decompSpendDistFill <- filter(dt_decompSpendDist, !is.na(.data$effect_share))
+          dt_decompSpendDist <- left_join(
+            filter(decompCollect$xDecompAgg, .data$rn %in% paid_media_spends),
+            select(dt_decompSpendDist, .data$rn, contains("_spend"), contains("_share")),
+            by = "rn")
 
           # Calculate DECOMP.RSSD error
           if (!refresh) {
-            decomp.rssd <- sqrt(sum((dt_decompSpendDistFill$effect_share - dt_decompSpendDistFill$spend_share)^2))
+            decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
           } else {
             dt_decompRF <- as.data.table(decompCollect$xDecompAgg)[
               , .(rn, decomp_perc = xDecompPerc)][as.data.table(xDecompAggPrev)[
@@ -1000,9 +1002,9 @@ robyn_response <- function(robyn_object = NULL,
   } else if (media_metric %in% organic_vars & length(media_metric) == 1) {
     metric_type <- "organic"
   } else {
-    stop(paste("Input 'media_metric' must be any media variables from",
+    stop(paste("Invalid 'media_metric' input. It must be any media variable from",
                "paid_media_spends (spend), paid_media_vars (exposure),",
-               "or organic_vars (organic):",
+               "or organic_vars (organic); NOT:", media_metric,
                paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
                paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
                paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
@@ -1019,7 +1021,7 @@ robyn_response <- function(robyn_object = NULL,
     # use non-0 mean as marginal level if metric_value not provided
     if (is.null(metric_value)) {
       metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
-      if (!quiet) message("'metric_value' not provided. Using mean of ", media_metric, " instead")
+      if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
     }
 
     # fit spend to exposure
@@ -1039,7 +1041,7 @@ robyn_response <- function(robyn_object = NULL,
     # use non-0 means marginal level if spend not provided
     if (is.null(metric_value)) {
       metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
-      if (!quiet) message("'metric_value' not provided. Using mean of ", media_metric, " instead")
+      if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
     }
     hpm_name <- media_metric
   }
