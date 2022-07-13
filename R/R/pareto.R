@@ -143,7 +143,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
                id = row_number(),
                rn = as.factor(.data$rn),
                sign = as.factor(ifelse(.data$xDecompPerc >= 0, "Positive", "Negative"))) %>%
-        select(.data$id, .data$rn, .data$xDecompAgg, .data$start, .data$end, .data$sign)
+        select(.data$id, .data$rn, .data$coef, .data$xDecompAgg, .data$start, .data$end, .data$sign)
       plot2data <- list(plotWaterfallLoop = plotWaterfallLoop)
 
       ## 3. Adstock rate
@@ -187,8 +187,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
                         wb_type = toupper(wb_type))
 
       ## 4. Spend response curve
-      dt_transformPlot <- dt_mod[, c("ds", InputCollect$all_media), with = FALSE] # independent variables
-      dt_transformSpend <- cbind(dt_transformPlot[, .(ds)], InputCollect$dt_input[, c(InputCollect$paid_media_spends), with = FALSE]) # spends of indep vars
+      dt_transformPlot <- select(dt_mod, .data$ds, all_of(InputCollect$all_media)) # independent variables
+      dt_transformSpend <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_spends)]) # spends of indep vars
       dt_transformSpendMod <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
       # update non-spend variables
       # if (length(InputCollect$exposure_vars) > 0) {
@@ -197,39 +197,43 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       #     dt_transformSpendMod[, (expo) := InputCollect$yhatNLSCollect[channel == expo & models == sel_nls, yhat]]
       #   }
       # }
-      dt_transformAdstock <- copy(dt_transformPlot)
-      dt_transformSaturation <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+      dt_transformAdstock <- dt_transformPlot
+      dt_transformSaturation <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
       m_decayRate <- list()
       for (med in 1:length(InputCollect$all_media)) {
         med_select <- InputCollect$all_media[med]
-        m <- dt_transformPlot[, get(med_select)]
+        m <- dt_transformPlot[, med_select][[1]]
         # Adstocking
         if (InputCollect$adstock == "geometric") {
-          theta <- hypParam[paste0(InputCollect$all_media[med], "_thetas")]
+          theta <- hypParam[paste0(InputCollect$all_media[med], "_thetas")][[1]]
           x_list <- adstock_geometric(x = m, theta = theta)
         } else if (InputCollect$adstock == "weibull_cdf") {
-          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
-          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
+          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
+          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
           x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
         } else if (InputCollect$adstock == "weibull_pdf") {
-          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
-          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
+          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
+          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
           x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
         }
         m_adstocked <- x_list$x_decayed
-        dt_transformAdstock[, (med_select) := m_adstocked]
-        m_adstockedRollWind <- m_adstocked[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+        dt_transformAdstock[med_select] <- m_adstocked
+        m_adstockedRollWind <- m_adstocked[
+          InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
         ## Saturation
-        alpha <- hypParam[paste0(InputCollect$all_media[med], "_alphas")]
-        gamma <- hypParam[paste0(InputCollect$all_media[med], "_gammas")]
-        dt_transformSaturation[, (med_select) := saturation_hill(x = m_adstockedRollWind, alpha = alpha, gamma = gamma)]
+        alpha <- hypParam[paste0(InputCollect$all_media[med], "_alphas")][[1]]
+        gamma <- hypParam[paste0(InputCollect$all_media[med], "_gammas")][[1]]
+        dt_transformSaturation[med_select] <- saturation_hill(
+          x = m_adstockedRollWind, alpha = alpha, gamma = gamma)
       }
-      dt_transformSaturationDecomp <- copy(dt_transformSaturation)
+      dt_transformSaturationDecomp <- dt_transformSaturation
       for (i in 1:InputCollect$mediaVarCount) {
-        coef <- plotWaterfallLoop[rn == InputCollect$all_media[i], coef]
-        dt_transformSaturationDecomp[, (InputCollect$all_media[i]) := .SD * coef, .SDcols = InputCollect$all_media[i]]
+        coef <- plotWaterfallLoop$coef[plotWaterfallLoop$rn == InputCollect$all_media[i]]
+        dt_transformSaturationDecomp[InputCollect$all_media[i]] <- coef *
+          dt_transformSaturationDecomp[InputCollect$all_media[i]]
       }
-      dt_transformSaturationSpendReverse <- dt_transformAdstock[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+      dt_transformSaturationSpendReverse <- dt_transformAdstock[
+        InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
 
       ## Reverse MM fitting
       # dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
@@ -249,19 +253,27 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       # }
       # dt_transformSaturationSpendReverse <- dt_transformSaturationSpendReverse[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
 
-      dt_scurvePlot <- cbind(
-        melt.data.table(dt_transformSaturationDecomp[, c("ds", InputCollect$all_media), with = FALSE], id.vars = "ds", variable.name = "channel", value.name = "response"),
-        melt.data.table(dt_transformSaturationSpendReverse, id.vars = "ds", value.name = "spend")[, .(spend)]
-      )
-      # remove outlier introduced by MM nls fitting
-      dt_scurvePlot <- dt_scurvePlot[spend >= 0]
-      dt_scurvePlotMean <- dt_transformSpend[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, !"ds"][, lapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))), .SDcols = InputCollect$paid_media_spends]
-      dt_scurvePlotMean <- melt.data.table(dt_scurvePlotMean, measure.vars = InputCollect$paid_media_spends, value.name = "mean_spend", variable.name = "channel")
-      dt_scurvePlotMean[, ":="(mean_spend_scaled = 0, mean_response = 0, next_unit_response = 0)]
+      dt_scurvePlot <- tidyr::gather(
+        dt_transformSaturationDecomp, "channel", "response",
+        2:ncol(dt_transformSaturationDecomp)) %>%
+        mutate(spend = tidyr::gather(
+          dt_transformSaturationDecomp, "channel", "spend",
+          2:ncol(dt_transformSaturationDecomp))$spend)
+
+      # Remove outlier introduced by MM nls fitting
+      dt_scurvePlot <- dt_scurvePlot[dt_scurvePlot$spend >= 0, ]
+
+      dt_scurvePlotMean <- dt_transformSpend %>%
+        slice(InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich) %>%
+        select(-.data$ds) %>%
+        dplyr::summarise_all(function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))) %>%
+        tidyr::gather("channel", "mean_spend") %>%
+        mutate(mean_spend_scaled = 0, mean_response = 0, next_unit_response = 0)
+
       for (med in 1:InputCollect$mediaVarCount) {
         get_med <- InputCollect$paid_media_spends[med]
-        get_spend <- dt_scurvePlotMean[channel == get_med, mean_spend]
-        get_spend_mm <- get_spend
+        get_spend_mm <- get_spend <- dt_scurvePlotMean$mean_spend[dt_scurvePlotMean$channel == get_med]
+
         # if (get_med %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
         #   Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
         #   Km <- InputCollect$modNLSCollect[channel == get_med, Km]
@@ -273,19 +285,23 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         # } else {
         #   get_spend_mm <- get_spend
         # }
-        m <- dt_transformAdstock[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, get(get_med)]
-        # m <- m[m>0] # remove outlier introduced by MM nls fitting
-        alpha <- hypParam[which(paste0(get_med, "_alphas") == names(hypParam))]
-        gamma <- hypParam[which(paste0(get_med, "_gammas") == names(hypParam))]
+        m <- dt_transformAdstock[[get_med]][
+          InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+        # m <- m[m > 0] # remove outlier introduced by MM nls fitting
+        alpha <- hypParam[which(paste0(get_med, "_alphas") == names(hypParam))][[1]]
+        gamma <- hypParam[which(paste0(get_med, "_gammas") == names(hypParam))][[1]]
         get_response <- saturation_hill(x = m, alpha = alpha, gamma = gamma, x_marginal = get_spend_mm)
         get_response_marginal <- saturation_hill(x = m, alpha = alpha, gamma = gamma, x_marginal = get_spend_mm + 1)
 
-        coef <- plotWaterfallLoop[rn == get_med, coef]
-        dt_scurvePlotMean[channel == get_med, mean_spend_scaled := get_spend_mm]
-        dt_scurvePlotMean[channel == get_med, mean_response := get_response * coef]
-        dt_scurvePlotMean[channel == get_med, next_unit_response := get_response_marginal * coef - mean_response]
+        coef <- plotWaterfallLoop$coef[plotWaterfallLoop$rn == get_med]
+        dt_scurvePlotMean$mean_spend_scaled[
+          dt_scurvePlotMean$channel == get_med] <- get_spend_mm
+        dt_scurvePlotMean$mean_response[
+          dt_scurvePlotMean$channel == get_med] <- get_response * coef
+        dt_scurvePlotMean$next_unit_response[
+          dt_scurvePlotMean$channel == get_med] <- get_response_marginal * coef - (get_response * coef)
       }
-      dt_scurvePlotMean[, solID := sid]
+      dt_scurvePlotMean$solID <- sid
 
       # Exposure response curve
       # if (!identical(InputCollect$paid_media_vars, InputCollect$exposure_vars)) {
