@@ -192,7 +192,7 @@ try:
         , paid_media_spends=np.array(["tv_S"])  # "ooh_S","print_S","facebook_S", "search_S"
         # ,paid_media_spends=[3,4,5,10,8] ####  paid_media_spends=["tv_S","ooh_S","print_S","facebook_S", "search_S"]
         # # spends must have same order and same length as paid_media_vars
-        , organic_vars=["newsletter"]
+        , organic_vars=np.array(["newsletter"])
         # , organic_signs=["positive"]
         # # must have same length as organic_vars
         , factor_vars=["events"] #
@@ -223,7 +223,9 @@ try:
         # # Time estimation: with geometric adstock, 2000 iterations * 5 trials
         # # and 6 cores, it takes less than 1 hour. Both Weibull adstocks take up to twice as much time.
     )
-
+    #TODO run below
+    ###### ROBYN CHECK WINDOWS CALL ########
+    #robyn.check_windows(dt_input=r_df_simulated,date_var="DATE",all_media=[np.array(["tv_S"]),np.array(["newsletter"])],window_start="2016-11-21", window_end="2018-08-20")
 
 
     logger.info('SUCCESS')
