@@ -21,13 +21,14 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Prophet
     if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0 ||
       !is.null(InputCollect$factor_vars) && length(InputCollect$factor_vars) > 0) {
-      dt_plotProphet <- InputCollect$dt_mod[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars), with = FALSE]
-      dt_plotProphet <- suppressWarnings(melt.data.table(dt_plotProphet, id.vars = "ds"))
+      dt_plotProphet <- InputCollect$dt_mod %>%
+        select(c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars)) %>%
+        tidyr::gather("variable", "value", -.data$ds)
       all_plots[["pProphet"]] <- pProphet <- ggplot(
-        dt_plotProphet, aes(x = ds, y = value)
+        dt_plotProphet, aes(x = .data$ds, y = .data$value)
       ) +
         geom_line(color = "steelblue") +
-        facet_wrap(~variable, scales = "free", ncol = 1) +
+        facet_wrap(~.data$variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition") +
         xlab(NULL) + ylab(NULL) + theme_lares() + scale_y_abbr()
       if (export) {
@@ -60,13 +61,13 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
-      resultHypParam <- copy(temp_all$resultHypParam)
+      resultHypParam <- temp_all$resultHypParam
       hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated), "robynPareto")
       hpnames_updated <- str_replace(hpnames_updated, "lambda", "lambda_hp")
-      resultHypParam.melted <- melt.data.table(resultHypParam[, hpnames_updated, with = FALSE],
-        id.vars = c("robynPareto")
-      )
-      resultHypParam.melted <- resultHypParam.melted[variable == "lambda_hp", variable := "lambda"]
+      resultHypParam.melted <- resultHypParam %>%
+        select(all_of(hpnames_updated)) %>%
+        tidyr::gather("variable", "value", -.data$robynPareto) %>%
+        mutate(variable = ifelse(.data$variable == "lambda_hp", "lambda", .data$variable))
       all_plots[["pSamp"]] <- ggplot(
         resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)
       ) +
@@ -90,13 +91,13 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Pareto front
     if (length(temp_all) > 0) {
       pareto_fronts_vec <- 1:pareto_fronts
-      resultHypParam <- copy(temp_all$resultHypParam)
+      resultHypParam <- temp_all$resultHypParam
       if (!is.null(InputCollect$calibration_input)) {
-        resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
-        # show blue dots on top of grey dots
-        resultHypParam <- resultHypParam[order(!is.na(robynPareto))]
+        resultHypParam <- resultHypParam %>%
+          mutate(iterations = ifelse(is.na(.data$robynPareto), NA, iterations))
+        # Show blue dots on top of grey dots
+        resultHypParam <- resultHypParam[order(!is.na(resultHypParam$robynPareto)),]
       }
-
       calibrated <- !is.null(InputCollect$calibration_input)
       pParFront <- ggplot(resultHypParam, aes(
         x = .data$nrmse, y = .data$decomp.rssd, colour = .data$iterations
@@ -135,7 +136,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           pf_color <- "coral"
         }
         pParFront <- pParFront + geom_line(
-          data = resultHypParam[robynPareto == pfs],
+          data = resultHypParam[resultHypParam$robynPareto %in% pfs, ],
           aes(x = .data$nrmse, y = .data$decomp.rssd), colour = pf_color
         )
       }
@@ -151,32 +152,29 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
     ## Ridgeline model convergence
     if (length(temp_all) > 0) {
-      xDecompAgg <- copy(temp_all$xDecompAgg)
-      dt_ridges <- xDecompAgg[
-        rn %in% InputCollect$paid_media_spends,
-        .(
-          variables = rn,
-          roi_total,
-          iteration = (iterNG - 1) * OutputCollect$cores + iterPar,
-          trial
-        )
-      ][order(iteration, variables)]
+      xDecompAgg <- temp_all$xDecompAgg
+      dt_ridges <- xDecompAgg %>%
+        filter(.data$rn %in% InputCollect$paid_media_spends) %>%
+        mutate(iteration = (.data$iterNG - 1) * OutputCollect$cores + .data$iterPar) %>%
+        select(variables = .data$rn, .data$roi_total, .data$iteration, .data$trial) %>%
+        arrange(iteration, variables)
       bin_limits <- c(1, 20)
       qt_len <- ifelse(OutputCollect$iterations <= 100, 1,
         ifelse(OutputCollect$iterations > 2000, 20, ceiling(OutputCollect$iterations / 100))
       )
       set_qt <- floor(quantile(1:OutputCollect$iterations, seq(0, 1, length.out = qt_len + 1)))
       set_bin <- set_qt[-1]
-      dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
-      dt_ridges <- dt_ridges[!is.na(iter_bin)]
-      dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
-      dt_ridges[, trial := as.factor(trial)]
-      plot_vars <- dt_ridges[, unique(variables)]
+      dt_ridges <- dt_ridges %>%
+        mutate(iter_bin = cut(.data$iteration, breaks = set_qt, labels = set_bin)) %>%
+        filter(!is.na(.data$iter_bin)) %>%
+        mutate(iter_bin = factor(.data$iter_bin, levels = sort(set_bin, decreasing = TRUE)),
+               trial = as.factor(.data$trial))
+      plot_vars <- unique(dt_ridges$variables)
       plot_n <- ceiling(length(plot_vars) / 6)
       metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       for (pl in 1:plot_n) {
         loop_vars <- na.omit(plot_vars[(1:6) + 6 * (pl - 1)])
-        dt_ridges_loop <- dt_ridges[variables %in% loop_vars, ]
+        dt_ridges_loop <- dt_ridges[dt_ridges$variables %in% loop_vars, ]
         all_plots[[paste0("pRidges", pl)]] <- pRidges <- ggplot(
           dt_ridges_loop, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)
         ) +
@@ -213,14 +211,16 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 #' @export
 robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, quiet = FALSE, export = TRUE) {
   check_class("robyn_outputs", OutputCollect)
-  pareto_fronts <- OutputCollect$pareto_fronts
-  hyper_fixed <- OutputCollect$hyper_fixed
-  resultHypParam <- copy(OutputCollect$resultHypParam)
-  xDecompAgg <- copy(OutputCollect$xDecompAgg)
+  if (TRUE) {
+    pareto_fronts <- OutputCollect$pareto_fronts
+    hyper_fixed <- OutputCollect$hyper_fixed
+    resultHypParam <- OutputCollect$resultHypParam
+    xDecompAgg <- OutputCollect$xDecompAgg
+  }
   if (!is.null(select_model)) {
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
-    resultHypParam <- resultHypParam[solID %in% select_model]
-    xDecompAgg <- xDecompAgg[solID %in% select_model]
+    resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model,]
+    xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model,]
     if (!quiet) message(">> Generating only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
@@ -228,7 +228,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   if (check_parallel_plot()) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
-    count_mod_out <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
+    count_mod_out <- nrow(resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ])
   } else {
     pareto_fronts_vec <- 1
     count_mod_out <- nrow(resultHypParam)
@@ -243,24 +243,26 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }
 
-  if (!quiet & count_mod_out > 0) pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
+  if (!quiet & count_mod_out > 0)
+    pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
   temp <- OutputCollect$allPareto$plotDataCollect
   all_plots <- list()
   cnt <- 0
 
   for (pf in pareto_fronts_vec) { # pf = pareto_fronts_vec[1]
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
-    uniqueSol <- plotMediaShare[, unique(solID)]
+    plotMediaShare <- filter(xDecompAgg, .data$robynPareto == pf,
+                             .data$rn %in% InputCollect$paid_media_spends)
+    uniqueSol <- unique(plotMediaShare$solID)
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
     parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
-      plotMediaShareLoop <- plotMediaShare[solID == sid]
-      rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train), 4)]
-      nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse), 4)]
-      decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd), 4)]
-      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), plotMediaShareLoop[, round(unique(mape), 4)], NA)
-
+      plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
+      rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
+      nrmse_plot <- round(plotMediaShareLoop$nrmse[1], 4)
+      decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
+      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+                               round(plotMediaShareLoop$mape[1], 4), NA)
       errors <- paste0(
         "R2 train: ", rsq_train_plot,
         ", NRMSE = ", nrmse_plot,
@@ -462,13 +464,21 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   )
 
   # Calculate errors for subtitles
-  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[
-    solID == select_model & rn %in% InputCollect$paid_media_spends]
+  plotDT_scurveMeanResponse <- filter(
+    OutputCollect$xDecompAgg,
+    .data$solID == select_model,
+    .data$rn %in% InputCollect$paid_media_spends)
+
+  rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
+  nrmse_plot <- round(plotDT_scurveMeanResponse$nrmse[1], 4)
+  decomp_rssd_plot <- round(plotDT_scurveMeanResponse$decomp.rssd[1], 4)
+  mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+                           round(plotDT_scurveMeanResponse$mape[1], 4), NA)
   errors <- paste0(
-    "R2 train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
-    ", NRMSE = ", plotDT_scurveMeanResponse[, round(mean(nrmse), 4)],
-    ", DECOMP.RSSD = ", plotDT_scurveMeanResponse[, round(mean(decomp.rssd), 4)],
-    ", MAPE = ", plotDT_scurveMeanResponse[, round(mean(mape), 4)]
+    "R2 train: ", rsq_train_plot,
+    ", NRMSE = ", nrmse_plot,
+    ", DECOMP.RSSD = ", decomp_rssd_plot,
+    ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
   )
 
   # 1. Response comparison plot

@@ -329,49 +329,49 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       # } else {
       #   dt_expoCurvePlot <- NULL
       # }
-       plot4data <- list(dt_scurvePlot = dt_scurvePlot,
-                         dt_scurvePlotMean = dt_scurvePlotMean)
+      plot4data <- list(dt_scurvePlot = dt_scurvePlot,
+                        dt_scurvePlotMean = dt_scurvePlotMean)
 
       ## 5. Fitted vs actual
-      if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
-        dt_transformDecomp <- cbind(dt_modRollWind[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$context_vars), with = FALSE],
-                                    dt_transformSaturation[, InputCollect$all_media, with = FALSE])
-      } else {
-        dt_transformDecomp <- cbind(dt_modRollWind[, c("ds", "dep_var", InputCollect$context_vars), with = FALSE],
-                                    dt_transformSaturation[, InputCollect$all_media, with = FALSE])
-      }
       col_order <- c("ds", "dep_var", InputCollect$all_ind_vars)
-      setcolorder(dt_transformDecomp, neworder = col_order)
-      xDecompVec <- dcast.data.table(xDecompAgg[solID == sid, .(rn, coef, solID)], solID ~ rn, value.var = "coef")
-      if (!("(Intercept)" %in% names(xDecompVec))) xDecompVec[, "(Intercept)" := 0]
-      setcolorder(xDecompVec, neworder = c("solID", "(Intercept)", col_order[!(col_order %in% c("ds", "dep_var"))]))
+      dt_transformDecomp <- select(
+        dt_modRollWind, .data$ds, .data$dep_var,
+        any_of(c(InputCollect$prophet_vars, InputCollect$context_vars))) %>%
+        bind_cols(select(dt_transformSaturation, all_of(InputCollect$all_media))) %>%
+        select(all_of(col_order))
+      xDecompVec <- xDecompAgg %>%
+        filter(.data$solID == sid) %>%
+        select(.data$solID, .data$rn, .data$coef) %>%
+        tidyr::spread(.data$rn, .data$coef)
+      if (!("(Intercept)" %in% names(xDecompVec))) xDecompVec[["(Intercept)"]] <- 0
+      xDecompVec <- select(xDecompVec, c("solID", "(Intercept)", col_order[!(col_order %in% c("ds", "dep_var"))]))
       intercept <- xDecompVec$`(Intercept)`
-      xDecompVec <- data.table(mapply(
+      xDecompVec <- data.frame(mapply(
         function(scurved, coefs) scurved * coefs,
-        scurved = dt_transformDecomp[, !c("ds", "dep_var"), with = FALSE],
-        coefs = xDecompVec[, !c("solID", "(Intercept)")]
+        scurved = select(dt_transformDecomp, -.data$ds, -.data$dep_var),
+        coefs = select(xDecompVec, -.data$solID, -.data$`(Intercept)`)
       ))
-      xDecompVec[, intercept := intercept]
-      xDecompVec[, ":="(depVarHat = rowSums(xDecompVec), solID = sid)]
-      xDecompVec <- cbind(dt_transformDecomp[, .(ds, dep_var)], xDecompVec)
-      xDecompVecPlot <- xDecompVec[, .(ds, dep_var, depVarHat)]
-      setnames(xDecompVecPlot, old = c("ds", "dep_var", "depVarHat"), new = c("ds", "actual", "predicted"))
-      suppressWarnings(xDecompVecPlotMelted <- melt.data.table(xDecompVecPlot, id.vars = "ds"))
+      xDecompVec <- mutate(xDecompVec, intercept = intercept, depVarHat = rowSums(xDecompVec), solID = sid)
+      xDecompVec <- bind_cols(select(dt_transformDecomp, .data$ds, .data$dep_var), xDecompVec)
+      xDecompVecPlot <- select(xDecompVec, .data$ds, .data$dep_var, .data$depVarHat) %>%
+        rename("actual" = "dep_var", "predicted" = "depVarHat")
+      xDecompVecPlotMelted <- tidyr::gather(
+        xDecompVecPlot, key = "variable", value = "predicted", .data$actual) %>%
+        rename("value" = "predicted")
       plot5data <- list(xDecompVecPlotMelted = xDecompVecPlotMelted)
 
       ## 6. Diagnostic: fitted vs residual
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
       # Gather all results
-      mediaVecCollect <- bind_rows(mediaVecCollect, rbind(
-        dt_transformPlot[, ":="(type = "rawMedia", solID = sid)],
-        dt_transformSpend[, ":="(type = "rawSpend", solID = sid)],
-        dt_transformSpendMod[, ":="(type = "predictedExposure", solID = sid)],
-        dt_transformAdstock[, ":="(type = "adstockedMedia", solID = sid)],
-        dt_transformSaturation[, ":="(type = "saturatedMedia", solID = sid)],
-        dt_transformSaturationSpendReverse[, ":="(type = "saturatedSpendReversed", solID = sid)],
-        dt_transformSaturationDecomp[, ":="(type = "decompMedia", solID = sid)],
-        fill = TRUE))
+      mediaVecCollect <- bind_rows(list(
+        mutate(dt_transformPlot, type = "rawMedia", solID = sid),
+        mutate(dt_transformSpend, type = "rawSpend", solID = sid),
+        mutate(dt_transformSpendMod, type = "predictedExposure", solID = sid),
+        mutate(dt_transformAdstock, type = "adstockedMedia", solID = sid),
+        mutate(dt_transformSaturation, type = "saturatedMedia", solID = sid),
+        mutate(dt_transformSaturationSpendReverse, type = "saturatedSpendReversed", solID = sid),
+        mutate(dt_transformSaturationDecomp, type = "decompMedia", solID = sid)))
       xDecompVecCollect <- bind_rows(xDecompVecCollect, xDecompVec)
       meanResponseCollect <- bind_rows(meanResponseCollect, dt_scurvePlotMean)
       plotDataCollect[[sid]] <- list(
@@ -384,15 +384,16 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
     }
   } # end pareto front loop
 
-  setnames(meanResponseCollect, old = "channel", new = "rn")
-  setkey(meanResponseCollect, solID, rn)
-  xDecompAgg <- merge(xDecompAgg, meanResponseCollect[, .(rn, solID, mean_response, next_unit_response)], all.x = TRUE)
+  meanResponseCollect <- rename(meanResponseCollect, "rn" = "channel")
+  xDecompAgg <- left_join(xDecompAgg, select(
+    meanResponseCollect, rn, solID, mean_response, next_unit_response),
+    by = c("rn", "solID"))
 
   pareto_results <- list(
     resultHypParam = resultHypParam,
     xDecompAgg = xDecompAgg,
-    mediaVecCollect = as.data.table(mediaVecCollect),
-    xDecompVecCollect = as.data.table(xDecompVecCollect),
+    mediaVecCollect = mediaVecCollect,
+    xDecompVecCollect = xDecompVecCollect,
     plotDataCollect = plotDataCollect
   )
 
