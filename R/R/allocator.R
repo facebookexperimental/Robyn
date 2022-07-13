@@ -609,8 +609,8 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
     round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
   }, gamma = gammas, x = chnAdstocked)
   names(gammaTrans) <- names(gammas)
-  coefs <- dt_coef[, coef]
-  names(coefs) <- dt_coef[, rn]
+  coefs <- dt_coef$coef
+  names(coefs) <- dt_coef$rn
   coefsFiltered <- coefs[mediaSpendSortedFiltered]
   return(list(
     alphas = alphas,

@@ -367,7 +367,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
       # Gather all results
-      mediaVecCollect <- bind_rows(list(
+      mediaVecCollect <- bind_rows(mediaVecCollect, list(
         mutate(dt_transformPlot, type = "rawMedia", solID = sid),
         mutate(dt_transformSpend, type = "rawSpend", solID = sid),
         mutate(dt_transformSpendMod, type = "predictedExposure", solID = sid),

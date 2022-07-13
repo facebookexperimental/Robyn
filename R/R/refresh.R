@@ -28,10 +28,10 @@ robyn_save <- function(robyn_object,
   output <- list(
     robyn_object = robyn_object,
     select_model = select_model,
-    summary = OutputCollect$xDecompAgg[
-      solID == select_model & !is.na(mean_spend)
-      , .(rn, coef,mean_spend, mean_response, roi_mean
-          , total_spend, total_response = xDecompAgg, roi_total)],
+    summary = filter(OutputCollect$xDecompAgg,
+                     .data$solID == select_model, !is.na(.data$mean_spend)) %>%
+      select(channel = .data$rn, .data$coef, .data$mean_spend, .data$mean_response, .data$roi_mean,
+             .data$total_spend, total_response = .data$xDecompAgg, .data$roi_total),
     plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE))
   if (InputCollect$dep_var_type == "conversion")
     colnames(output$summary) <- gsub("roi_", "cpa_", colnames(output$summary))
@@ -47,10 +47,14 @@ robyn_save <- function(robyn_object,
     }
   }
 
-  OutputCollect$resultHypParam <- OutputCollect$resultHypParam[solID == select_model]
-  OutputCollect$xDecompAgg <- OutputCollect$xDecompAgg[solID == select_model]
-  OutputCollect$mediaVecCollect <- OutputCollect$mediaVecCollect[solID == select_model]
-  OutputCollect$xDecompVecCollect <- OutputCollect$xDecompVecCollect[solID == select_model]
+  OutputCollect$resultHypParam <- OutputCollect$resultHypParam[
+    OutputCollect$resultHypParam$solID == select_model, ]
+  OutputCollect$xDecompAgg <- OutputCollect$xDecompAgg[
+    OutputCollect$resultHypParam$solID == select_model, ]
+  OutputCollect$mediaVecCollect <- OutputCollect$mediaVecCollect[
+    OutputCollect$resultHypParam$solID == select_model, ]
+  OutputCollect$xDecompVecCollect <- OutputCollect$xDecompVecCollect[
+    OutputCollect$resultHypParam$solID == select_model, ]
   OutputCollect$selectID <- select_model
 
   InputCollect$refreshCounter <- 0

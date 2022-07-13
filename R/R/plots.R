@@ -461,13 +461,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   outputs <- list()
 
-  subtitle <- paste0(
-    "Total spend increase: ", dt_optimOut[
-      , round(mean(optmSpendUnitTotalDelta) * 100, 1)
-    ], "%",
-    "\nTotal response increase: ", dt_optimOut[
-      , round(mean(optmResponseUnitTotalLift) * 100, 1)
-    ], "% with optimised spend allocation"
+  subtitle <- sprintf(paste0(
+    "Total spend increase: %s%%",
+    "\nTotal response increase: %s%% with optimised spend allocation"),
+    round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
+    round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
 
   # Calculate errors for subtitles
@@ -492,10 +490,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
     mutate(channels = as.factor(.data$channels))
   names(plotDT_resp) <- c("channel", "Initial Mean Response", "Optimised Mean Response")
-  plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
+  plotDT_resp <- tidyr::gather(plotDT_resp, "variable", "response", -.data$channel)
   outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$response, fill = reorder(.data$variable, as.numeric(.data$variable)))) +
+    x = .data$response,
+    fill = reorder(.data$variable, as.numeric(as.factor(.data$variable))))) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$response, 0), hjust = -0.1),
@@ -513,7 +512,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   plotDT_share <- select(dt_optimOut, .data$channels, .data$initSpendShare, .data$optmSpendShareUnit) %>%
     mutate(channels = as.factor(.data$channels))
   names(plotDT_share) <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
-  plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
+  plotDT_share <- tidyr::gather(plotDT_share, "variable", "spend_share", -.data$channel)
   outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
     x = .data$spend_share, fill = .data$variable)) +
@@ -531,22 +530,26 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   ## 3. Response curves
-  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "saturatedSpendReversed"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
-  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "decompMedia"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
+  plotDT_saturation <- OutputCollect$mediaVecCollect %>%
+    filter(.data$solID == select_model, .data$type == "saturatedSpendReversed") %>%
+    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+    tidyr::gather("channel", "spend", -.data$ds)
+
+  plotDT_decomp <- OutputCollect$mediaVecCollect %>%
+    filter(.data$solID == select_model, .data$type == "decompMedia") %>%
+    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+    tidyr::gather("channel", "response", -.data$ds)
+
   plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
     filter(.data$spend >= 0) %>% as_tibble()
 
   dt_optimOutScurve <- rbind(
-    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(type = "Initial"),
-    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(type = "Optimised"),
-    use.names = FALSE
-  )
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Initial") %>% as.matrix,
+    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(x = "Optimised") %>% as.matrix()
+  ) %>% as.data.frame()
   colnames(dt_optimOutScurve) <- c("channels", "spend", "response", "type")
   dt_optimOutScurve <- dt_optimOutScurve %>%
+    mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
     group_by(.data$channels) %>%
     mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
            response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))
