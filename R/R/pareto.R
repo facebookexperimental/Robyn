@@ -143,7 +143,9 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
                id = row_number(),
                rn = as.factor(.data$rn),
                sign = as.factor(ifelse(.data$xDecompPerc >= 0, "Positive", "Negative"))) %>%
-        select(.data$id, .data$rn, .data$coef, .data$xDecompAgg, .data$start, .data$end, .data$sign)
+        select(.data$id, .data$rn, .data$coef,
+               .data$xDecompAgg, .data$xDecompPerc,
+               .data$start, .data$end, .data$sign)
       plot2data <- list(plotWaterfallLoop = plotWaterfallLoop)
 
       ## 3. Adstock rate
@@ -198,7 +200,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       #   }
       # }
       dt_transformAdstock <- dt_transformPlot
-      dt_transformSaturation <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
+      dt_transformSaturation <- dt_transformPlot[
+        InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
       m_decayRate <- list()
       for (med in 1:length(InputCollect$all_media)) {
         med_select <- InputCollect$all_media[med]

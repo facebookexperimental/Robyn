@@ -35,7 +35,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         ggsave(
           paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
           plot = pProphet, limitsize = FALSE,
-          dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
+          dpi = 600, width = 12, height = 3 * length(unique(dt_plotProphet$variable))
         )
       }
     }
@@ -326,7 +326,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           geom_text(mapping = aes(
             label = paste0(formatNum(.data$xDecompAgg, abbr = TRUE),
                            "\n", round(.data$xDecompPerc * 100, 1), "%"),
-            y = rowSums(cbind(plotWaterfallLoop$end, plotWaterfallLoop$xDecompPerc / 2))
+            y = rowSums(cbind(.data$end, .data$xDecompPerc / 2))
           ), fontface = "bold", lineheight = .7) +
           coord_flip() +
           labs(
@@ -369,7 +369,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       ## 4. Response curves
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
-      if (!"channel" %in% colnames(dt_scurvePlotMean)) dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
+      if (!"channel" %in% colnames(dt_scurvePlotMean))
+        dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
       p4 <- ggplot(
         dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends, ],
         aes(x = .data$spend, y = .data$response, color = .data$channel)
