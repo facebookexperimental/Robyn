@@ -161,15 +161,15 @@ robyn_allocator <- function(robyn_object = NULL,
   channel_constr_up <- channel_constr_up[media_order]
 
   # Hyper-parameters and results
-  dt_hyppar <- OutputCollect$resultHypParam[solID == select_model]
-  dt_bestCoef <- OutputCollect$xDecompAgg[solID == select_model & rn %in% paid_media_spends]
+  dt_hyppar <- filter(OutputCollect$resultHypParam, .data$solID == select_model)
+  dt_bestCoef <- filter(OutputCollect$xDecompAgg, .data$solID == select_model, .data$rn %in% paid_media_spends)
 
   ## Sort table and get filter for channels mmm coef reduced to 0
-  dt_coef <- dt_bestCoef[, .(rn, coef)]
+ dt_coef <- select(dt_bestCoef, .data$rn, .data$coef)
   get_rn_order <- order(dt_bestCoef$rn)
-  dt_coefSorted <- dt_coef[get_rn_order]
-  dt_bestCoef <- dt_bestCoef[get_rn_order]
-  coefSelectorSorted <- dt_coefSorted[, coef > 0]
+  dt_coefSorted <- dt_coef[get_rn_order, ]
+  dt_bestCoef <- dt_bestCoef[get_rn_order, ]
+  coefSelectorSorted <- dt_coefSorted$coef > 0
   names(coefSelectorSorted) <- dt_coefSorted$rn
 
   ## Filter and sort all variables by name that is essential for the apply function later
@@ -178,9 +178,9 @@ robyn_allocator <- function(robyn_object = NULL,
     message("Excluded in optimiser because their coefficients are 0: ", paste(chn_coef0, collapse = ", "))
   } else chn_coef0 <- "None"
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
-  dt_hyppar <- dt_hyppar[, .SD, .SDcols = hyper_names(adstock, mediaSpendSortedFiltered)]
-  setcolorder(dt_hyppar, sort(names(dt_hyppar)))
-  dt_bestCoef <- dt_bestCoef[rn %in% mediaSpendSortedFiltered]
+  dt_hyppar <- select(dt_hyppar, hyper_names(adstock, mediaSpendSortedFiltered)) %>%
+    select(sort(colnames(.)))
+  dt_bestCoef <- dt_bestCoef[dt_bestCoef$rn %in% mediaSpendSortedFiltered, ]
   channelConstrLowSorted <- channel_constr_low[mediaSpendSortedFiltered]
   channelConstrUpSorted <- channel_constr_up[mediaSpendSortedFiltered]
 
@@ -196,7 +196,7 @@ robyn_allocator <- function(robyn_object = NULL,
   coefsFiltered <- hills$coefsFiltered
 
   # Spend values based on date range set
-  dt_optimCost <- dt_mod %>% slice(startRW:endRW)
+  dt_optimCost <- slice(dt_mod, startRW:endRW)
   check_daterange(date_min, date_max, dt_optimCost$ds)
   if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
   if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
@@ -300,7 +300,7 @@ robyn_allocator <- function(robyn_object = NULL,
   )
 
   ## Collect output
-  dt_optimOut <- data.table(
+  dt_optimOut <- data.frame(
     solID = select_model,
     dep_var_type = InputCollect$dep_var_type,
     channels = mediaSpendSortedFiltered,
@@ -332,8 +332,8 @@ robyn_allocator <- function(robyn_object = NULL,
     optmResponseUnitTotal = sum(-eval_f(nlsMod$solution)[["objective.channel"]]),
     optmRoiUnit = -eval_f(nlsMod$solution)[["objective.channel"]] / nlsMod$solution,
     optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) - 1
-  )
-  dt_optimOut[, optmResponseUnitTotalLift := (optmResponseUnitTotal / initResponseUnitTotal) - 1]
+  ) %>%
+    mutate(optmResponseUnitTotalLift = (.data$optmResponseUnitTotal / .data$initResponseUnitTotal) - 1)
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Plot allocator results
@@ -582,25 +582,29 @@ eval_g_ineq <- function(X) {
   ))
 }
 
+
+
+
 get_adstock_params <- function(InputCollect, dt_hyppar) {
   if (InputCollect$adstock == "geometric") {
-    getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_thetas"))])
+    getAdstockHypPar <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_thetas"))))
   } else if (InputCollect$adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    getAdstockHypPar <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_shapes|.*_scales"))])
+    getAdstockHypPar <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_shapes|.*_scales"))))
   }
   return(getAdstockHypPar)
 }
 
 get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model) {
-  hillHypParVec <- unlist(dt_hyppar[, .SD, .SDcols = na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))])
+  hillHypParVec <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))))
   alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
   gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
-  chnAdstocked <- OutputCollect$mediaVecCollect[
-    type == "adstockedMedia" & solID == select_model, mediaSpendSortedFiltered,
-    with = FALSE
-  ][startRW:endRW]
+  chnAdstocked <- filter(OutputCollect$mediaVecCollect,
+                         .data$type == "adstockedMedia",
+                         .data$solID == select_model) %>%
+    select(all_of(mediaSpendSortedFiltered)) %>%
+    slice(startRW:endRW)
   gammaTrans <- mapply(function(gamma, x) {
     round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
   }, gamma = gammas, x = chnAdstocked)
