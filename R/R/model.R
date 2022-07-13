@@ -216,8 +216,6 @@ robyn_train <- function(InputCollect, hyper_collect,
   hyper_fixed <- hyper_collect$all_fixed
 
   if (hyper_fixed) {
-
-    ## Run robyn_mmm if using old model result tables
     OutputModels <- list()
     OutputModels[[1]] <- robyn_mmm(
       InputCollect = InputCollect,
@@ -791,33 +789,38 @@ robyn_mmm <- function(InputCollect,
   #####################################
   #### Final result collect
 
-  resultCollect <- list(
-    resultHypParam = rbindlist(lapply(resultCollectNG, function(x) {
-      rbindlist(lapply(x, function(y) y$resultHypParam))
-    }))[order(nrmse)],
-    xDecompVec = if (hyper_fixed == TRUE) {
-      rbindlist(lapply(resultCollectNG, function(x) {
-        rbindlist(lapply(x, function(y) y$xDecompVec))
-      }))[order(nrmse, ds)]
-    } else {
-      NULL
-    },
-    xDecompAgg = rbindlist(lapply(resultCollectNG, function(x) {
-      rbindlist(lapply(x, function(y) y$xDecompAgg))
-    }))[order(nrmse)],
-    liftCalibration = if (!is.null(calibration_input)) {
-      rbindlist(lapply(resultCollectNG, function(x) {
+  resultCollect <- list()
+
+  resultCollect[["resultHypParam"]] <- bind_rows(
+    lapply(resultCollectNG, function(x) {
+      bind_rows(lapply(x, function(y) y$resultHypParam))
+    })) %>% arrange(.data$nrmse) %>% as_tibble()
+
+  if (hyper_fixed)
+    resultCollect[["xDecompVec"]] <- bind_rows(
+      lapply(resultCollectNG, function(x) {
+        bind_rows(lapply(x, function(y) y$xDecompVec))
+      })) %>% arrange(.data$nrmse, .data$ds) %>% as_tibble()
+
+  resultCollect[["xDecompAgg"]] <- bind_rows(
+    lapply(resultCollectNG, function(x) {
+      bind_rows(lapply(x, function(y) y$xDecompAgg))
+    })) %>% arrange(.data$nrmse) %>% as_tibble()
+
+  if (!is.null(calibration_input))
+    resultCollect[["liftCalibration"]] <- bind_rows(
+      lapply(resultCollectNG, function(x) {
         rbindlist(lapply(x, function(y) y$liftCalibration))
-      }))[order(mape, liftMedia, liftStart)]
-    } else {
-      NULL
-    },
-    decompSpendDist = rbindlist(lapply(resultCollectNG, function(x) {
+      })) %>% arrange(.data$mape, .data$liftMedia, .data$liftStart) %>% as_tibble()
+
+  resultCollect[["decompSpendDist"]] <- bind_rows(
+    lapply(resultCollectNG, function(x) {
       rbindlist(lapply(x, function(y) y$decompSpendDist))
-    }))[order(nrmse)]
-  )
+    })) %>% arrange(.data$nrmse) %>% as_tibble()
+
   resultCollect$iter <- length(resultCollect$mape)
   resultCollect$elapsed.min <- sysTimeDopar[3] / 60
+
   # Adjust accumulated time
   resultCollect$resultHypParam <- resultCollect$resultHypParam %>%
     mutate(ElapsedAccum = .data$ElapsedAccum - min(.data$ElapsedAccum) +

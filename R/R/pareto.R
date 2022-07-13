@@ -7,33 +7,41 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
-  resultHypParam <- rbindlist(lapply(OutModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
-  resultHypParam[, iterations := (iterNG - 1) * OutputModels$cores + iterPar]
-  xDecompAgg <- rbindlist(lapply(OutModels, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
-  xDecompAgg[, iterations := (iterNG - 1) * OutputModels$cores + iterPar]
 
-  # Assign unique IDs using: trial + iterNG + iterPar
-  resultHypParam[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
-  xDecompAgg[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
-  xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_spends, .(coef0 = min(coef, na.rm = TRUE) == 0), by = "solID"]
+  resultHypParam <- bind_rows(lapply(OutModels, function(x)
+    mutate(x$resultCollect$resultHypParam, trial = x$trial))) %>%
+    mutate(iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+           solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
+
+  xDecompAgg <- bind_rows(lapply(OutModels, function(x)
+    mutate(x$resultCollect$xDecompAgg, trial = x$trial))) %>%
+    mutate(iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+           solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
+
+  xDecompAggCoef0 <- xDecompAgg %>%
+    filter(.data$rn %in% InputCollect$paid_media_spends) %>%
+    group_by(.data$solID) %>%
+    summarise(coef0 = min(.data$coef, na.rm = TRUE) == 0)
 
   if (!hyper_fixed) {
     mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint, na.rm = TRUE)
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90, na.rm = TRUE)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90, na.rm = TRUE)
-    resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
-    resultHypParam[, mape.qt10 := mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90]
+    resultHypParam <- left_join(resultHypParam, xDecompAggCoef0, by = "solID") %>%
+      mutate(mape.qt10 =
+               .data$mape <= mape_lift_quantile10 &
+               .data$nrmse <= nrmse_quantile90 &
+               .data$decomp.rssd <= decomprssd_quantile90)
 
-    resultHypParamPareto <- resultHypParam[mape.qt10 == TRUE]
+    resultHypParamPareto <- filter(resultHypParam, .data$mape.qt10 == TRUE)
     px <- rPref::low(resultHypParamPareto$nrmse) * rPref::low(resultHypParamPareto$decomp.rssd)
-    resultHypParamPareto <- rPref::psel(resultHypParamPareto, px, top = nrow(resultHypParamPareto))[order(iterNG, iterPar, nrmse)]
-    setnames(resultHypParamPareto, ".level", "robynPareto")
-
-    setkey(resultHypParam, solID)
-    setkey(resultHypParamPareto, solID)
-    resultHypParam <- merge(resultHypParam, resultHypParamPareto[, .(solID, robynPareto)], all.x = TRUE)
+    resultHypParamPareto <- rPref::psel(resultHypParamPareto, px, top = nrow(resultHypParamPareto)) %>%
+      arrange(.data$iterNG, .data$iterPar, .data$nrmse) %>%
+      rename("robynPareto" = ".level") %>%
+      select(.data$solID, .data$robynPareto)
+    resultHypParam <- left_join(resultHypParam, resultHypParamPareto, by = "solID")
   } else {
-    resultHypParam[, ":="(mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)]
+    resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
   }
 
   xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
