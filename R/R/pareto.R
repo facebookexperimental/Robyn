@@ -44,22 +44,19 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
     resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
   }
 
-  xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
-
-  decompSpendDist <- rbindlist(lapply(OutModels, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
-  decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
-  if (hyper_fixed == FALSE) {
-    decompSpendDist[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
-  } else {
-    xDecompAgg[, solID := unique(decompSpendDist$solID)]
-    resultHypParam[, solID := unique(decompSpendDist$solID)]
-  }
+  # Bind robynPareto results
+  xDecompAgg <- left_join(xDecompAgg, select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
+  decompSpendDist <- bind_rows(lapply(OutModels, function(x)
+    mutate(x$resultCollect$decompSpendDist, trial = x$trial))) %>%
+    mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
+    left_join(select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
 
   if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
   pareto_fronts_vec <- 1:pareto_fronts
-  decompSpendDistPar <- decompSpendDist[robynPareto %in% pareto_fronts_vec]
-  resultHypParamPar <- resultHypParam[robynPareto %in% pareto_fronts_vec]
-  xDecompAggPar <- xDecompAgg[robynPareto %in% pareto_fronts_vec]
+  decompSpendDistPar <- decompSpendDist[decompSpendDist$robynPareto %in% pareto_fronts_vec, ]
+  resultHypParamPar <- resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ]
+  xDecompAggPar <- xDecompAgg[xDecompAgg$robynPareto %in% pareto_fronts_vec, ]
+
   resp_collect <- foreach(
     respN = seq_along(decompSpendDistPar$rn), .combine = rbind) %dorng% {
       get_resp <- robyn_response(
@@ -72,9 +69,10 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         OutputCollect = OutputModels,
         quiet = quiet
         )$response
-      dt_resp <- data.table(mean_response = get_resp,
-                            rn = decompSpendDistPar$rn[respN],
-                            solID = decompSpendDistPar$solID[respN])
+      dt_resp <- data.frame(
+        mean_response = get_resp,
+        rn = decompSpendDistPar$rn[respN],
+        solID = decompSpendDistPar$solID[respN])
       return(dt_resp)
     }
   stopImplicitCluster(); registerDoSEQ(); getDoParWorkers()

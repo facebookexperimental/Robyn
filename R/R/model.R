@@ -1015,7 +1015,7 @@ robyn_response <- function(robyn_object = NULL,
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {
     get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
-    expo_vec <- dt_input[, get(media_metric)]
+    expo_vec <- dt_input[, media_metric][[1]]
     # use non-0 mean as marginal level if metric_value not provided
     if (is.null(metric_value)) {
       metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
@@ -1023,7 +1023,7 @@ robyn_response <- function(robyn_object = NULL,
     }
 
     # fit spend to exposure
-    spend_vec <- dt_input[, get(get_spend_name)]
+    spend_vec <- dt_input[, get_spend_name][[1]]
     nls_select <- spendExpoMod[channel == media_metric, rsq_nls > rsq_lm]
     if (nls_select) {
       Vmax <- spendExpoMod[channel == media_metric, Vmax]
@@ -1035,7 +1035,7 @@ robyn_response <- function(robyn_object = NULL,
     }
     hpm_name <- get_spend_name
   } else {
-    media_vec <- dt_input[, get(media_metric)]
+    media_vec <- dt_input[, media_metric][[1]]
     # use non-0 means marginal level if spend not provided
     if (is.null(metric_value)) {
       metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
@@ -1047,35 +1047,35 @@ robyn_response <- function(robyn_object = NULL,
 
   ## Adstocking
   if (adstock == "geometric") {
-    theta <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_thetas"))]
+    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]]
     x_list <- adstock_geometric(x = media_vec, theta = theta)
   } else if (adstock == "weibull_cdf") {
-    shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
-    scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
+    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
+    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
     x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "cdf")
   } else if (adstock == "weibull_pdf") {
-    shape <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_shapes"))]
-    scale <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_scales"))]
+    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
+    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
     x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "pdf")
   }
   m_adstocked <- x_list$x_decayed
 
   ## Saturation
   m_adstockedRW <- m_adstocked[startRW:endRW]
-  alpha <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_alphas"))]
-  gamma <- dt_hyppar[solID == select_model, get(paste0(hpm_name, "_gammas"))]
+  alpha <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]]
+  gamma <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]]
   Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
   m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
 
   ## Decomp
-  coeff <- dt_coef[solID == select_model & rn == hpm_name, coef]
+  coeff <- dt_coef[dt_coef$solID == select_model & dt_coef$rn == hpm_name, ][["coef"]]
   response_vec <- m_saturated * coeff
   Response <- as.numeric(Saturated * coeff)
 
   ## Plot optimal response
   media_type <- ifelse(metric_type == "organic", "organic", "paid")
-  dt_line <- data.table(metric = m_adstockedRW, response = response_vec, channel = media_metric)
-  dt_point <- data.table(input = metric_value, output = Response)
+  dt_line <- data.frame(metric = m_adstockedRW, response = response_vec, channel = media_metric)
+  dt_point <- data.frame(input = metric_value, output = Response)
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
     geom_line(color = "steelblue") +
     geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
