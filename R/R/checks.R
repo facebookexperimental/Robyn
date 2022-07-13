@@ -80,7 +80,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
   dt_input <- as.data.frame(dt_input) %>%
-    arrange(get(date_var)) %>%
+    arrange(vars(date_var)) %>%
     mutate_at(all_of(date_var), as.Date)
   date_var_dates <- dt_input[, date_var]
   if (any(table(date_var_dates) > 1)) {
@@ -313,7 +313,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 
   rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, as.Date(window_end), units = "days")))
   if (!(as.Date(window_end) %in% dates_vec)) {
-    window_end <- dt_input[rollingWindowEndWhich, date_var]
+    window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
     message("'window_end' is adapted to the closest date contained in input data: ", window_end)
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
@@ -324,8 +324,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
   if (any(init_all0)) {
     stop(
       "These media channels contains only 0 within training period ",
-      dt_input[rollingWindowStartWhich, get(date_var)], " to ",
-      dt_input[rollingWindowEndWhich, get(date_var)], ": ",
+      dt_input[rollingWindowStartWhich, date_var][[1]], " to ",
+      dt_input[rollingWindowEndWhich, date_var][[1]], ": ",
       paste(names(dt_init)[init_all0], collapse = ", "),
       "\nRecommendation: adapt InputCollect$window_start, remove or combine these channels"
     )
@@ -427,7 +427,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
                               window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
-    calibration_input <- as.data.table(calibration_input)
+    calibration_input <- as_tibble(calibration_input)
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("Input 'calibration_input' must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
@@ -467,7 +467,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
         if (temp$channel %in% organic_vars) next
-        dt_input_spend <- filter(dt_input, get(date_var) >= temp$liftStartDate, get(date_var) <= temp$liftEndDate) %>%
+        dt_input_spend <- filter(
+          dt_input, get(date_var) >= temp$liftStartDate,
+          get(date_var) <= temp$liftEndDate
+        ) %>%
           pull(get(temp$channel)) %>%
           sum(.) %>%
           round(., 0)

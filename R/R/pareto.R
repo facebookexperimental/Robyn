@@ -3,41 +3,50 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint) {
+robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint = 0.1, quiet = FALSE) {
 
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
-  resultHypParam <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$resultHypParam[, trial := x$trial]))
-  resultHypParam[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
-  xDecompAgg <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$xDecompAgg[, trial := x$trial]))
-  xDecompAgg[, iterations := (iterNG - 1) * InputCollect$cores + iterPar]
+  OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
 
-  # Assign unique IDs using: trial + iterNG + iterPar
-  resultHypParam[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
-  xDecompAgg[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
-  xDecompAggCoef0 <- xDecompAgg[rn %in% InputCollect$paid_media_vars, .(coef0 = min(coef) == 0), by = "solID"]
+  resultHypParam <- bind_rows(lapply(OutModels, function(x)
+    mutate(x$resultCollect$resultHypParam, trial = x$trial))) %>%
+    mutate(iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+           solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
+
+  xDecompAgg <- bind_rows(lapply(OutModels, function(x)
+    mutate(x$resultCollect$xDecompAgg, trial = x$trial))) %>%
+    mutate(iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+           solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
+
+  xDecompAggCoef0 <- xDecompAgg %>%
+    filter(.data$rn %in% InputCollect$paid_media_spends) %>%
+    group_by(.data$solID) %>%
+    summarise(coef0 = min(.data$coef, na.rm = TRUE) == 0)
 
   if (!hyper_fixed) {
     mape_lift_quantile10 <- quantile(resultHypParam$mape, probs = calibration_constraint, na.rm = TRUE)
     nrmse_quantile90 <- quantile(resultHypParam$nrmse, probs = 0.90, na.rm = TRUE)
     decomprssd_quantile90 <- quantile(resultHypParam$decomp.rssd, probs = 0.90, na.rm = TRUE)
-    resultHypParam <- resultHypParam[xDecompAggCoef0, on = "solID"]
-    resultHypParam[, mape.qt10 := mape <= mape_lift_quantile10 & nrmse <= nrmse_quantile90 & decomp.rssd <= decomprssd_quantile90]
+    resultHypParam <- left_join(resultHypParam, xDecompAggCoef0, by = "solID") %>%
+      mutate(mape.qt10 =
+               .data$mape <= mape_lift_quantile10 &
+               .data$nrmse <= nrmse_quantile90 &
+               .data$decomp.rssd <= decomprssd_quantile90)
 
-    resultHypParamPareto <- resultHypParam[mape.qt10 == TRUE]
+    resultHypParamPareto <- filter(resultHypParam, .data$mape.qt10 == TRUE)
     px <- rPref::low(resultHypParamPareto$nrmse) * rPref::low(resultHypParamPareto$decomp.rssd)
-    resultHypParamPareto <- rPref::psel(resultHypParamPareto, px, top = nrow(resultHypParamPareto))[order(iterNG, iterPar, nrmse)]
-    setnames(resultHypParamPareto, ".level", "robynPareto")
-
-    setkey(resultHypParam, solID)
-    setkey(resultHypParamPareto, solID)
-    resultHypParam <- merge(resultHypParam, resultHypParamPareto[, .(solID, robynPareto)], all.x = TRUE)
+    resultHypParamPareto <- rPref::psel(resultHypParamPareto, px, top = nrow(resultHypParamPareto)) %>%
+      arrange(.data$iterNG, .data$iterPar, .data$nrmse) %>%
+      rename("robynPareto" = ".level") %>%
+      select(.data$solID, .data$robynPareto)
+    resultHypParam <- left_join(resultHypParam, resultHypParamPareto, by = "solID")
   } else {
-    resultHypParam[, ":="(mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)]
+    resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
   }
 
   xDecompAgg <- xDecompAgg[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
 
-  decompSpendDist <- rbindlist(lapply(OutputModels, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
+  decompSpendDist <- rbindlist(lapply(OutModels, function(x) x$resultCollect$decompSpendDist[, trial := x$trial]))
   decompSpendDist <- decompSpendDist[resultHypParam, robynPareto := i.robynPareto, on = c("iterNG", "iterPar", "trial")]
   if (hyper_fixed == FALSE) {
     decompSpendDist[, solID := (paste(trial, iterNG, iterPar, sep = "_"))]
@@ -46,25 +55,26 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
     resultHypParam[, solID := unique(decompSpendDist$solID)]
   }
 
-  if (check_parallel()) registerDoParallel(InputCollect$cores) else registerDoSEQ()
+  if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
   pareto_fronts_vec <- 1:pareto_fronts
   decompSpendDistPar <- decompSpendDist[robynPareto %in% pareto_fronts_vec]
   resultHypParamPar <- resultHypParam[robynPareto %in% pareto_fronts_vec]
   xDecompAggPar <- xDecompAgg[robynPareto %in% pareto_fronts_vec]
   resp_collect <- foreach(
-    respN = seq_along(decompSpendDistPar$rn)
-    , .combine = rbind) %dorng% {
+    respN = seq_along(decompSpendDistPar$rn), .combine = rbind) %dorng% {
       get_resp <- robyn_response(
-        paid_media_var = decompSpendDistPar$rn[respN],
-        select_model = decompSpendDistPar[respN, solID],
-        spend = decompSpendDistPar[respN, mean_spend],
+        media_metric = decompSpendDistPar$rn[respN],
+        select_model = decompSpendDistPar$solID[respN],
+        metric_value = decompSpendDistPar$mean_spend[respN],
         dt_hyppar = resultHypParamPar,
         dt_coef = xDecompAggPar,
-        InputCollect = InputCollect
-      )
-      dt_resp <- data.table(mean_response = get_resp
-                            ,rn = decompSpendDistPar$rn[respN]
-                            ,solID = decompSpendDistPar$solID[respN])
+        InputCollect = InputCollect,
+        OutputCollect = OutputModels,
+        quiet = quiet
+        )$response
+      dt_resp <- data.table(mean_response = get_resp,
+                            rn = decompSpendDistPar$rn[respN],
+                            solID = decompSpendDistPar$solID[respN])
       return(dt_resp)
     }
   stopImplicitCluster(); registerDoSEQ(); getDoParWorkers()
@@ -91,7 +101,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   for (pf in pareto_fronts_vec) {
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_vars]
+    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
     uniqueSol <- plotMediaShare[, unique(solID)]
     plotWaterfall <- xDecompAgg[robynPareto == pf]
     dt_mod <- copy(InputCollect$dt_mod)
@@ -105,7 +115,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       ## 1. Spend x effect share comparison
       plotMediaShareLoop <- plotMediaShare[solID == sid]
       suppressWarnings(plotMediaShareLoop <- melt.data.table(plotMediaShareLoop, id.vars = c("rn", "nrmse", "decomp.rssd", "rsq_train"), measure.vars = c("spend_share", "effect_share", "roi_total", "cpa_total")))
-      plotMediaShareLoop[, rn := factor(rn, levels = sort(InputCollect$paid_media_vars))]
+      plotMediaShareLoop[, rn := factor(rn, levels = sort(InputCollect$paid_media_spends))]
       plotMediaShareLoopBar <- plotMediaShareLoop[variable %in% c("spend_share", "effect_share")]
       plotMediaShareLoopLine <- plotMediaShareLoop[variable == ifelse(InputCollect$dep_var_type == "conversion", "cpa_total", "roi_total")]
       line_rm_inf <- !is.infinite(plotMediaShareLoopLine$value)
@@ -127,7 +137,9 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       ## 3. Adstock rate
       dt_geometric <- weibullCollect <- wb_type <- NULL
       resultHypParamLoop <- resultHypParam[solID == sid]
-      hypParam <- unlist(resultHypParamLoop[, names(InputCollect$hyperparameters), with = FALSE])
+      get_hp_names <- !(names(InputCollect$hyperparameters) %like% "penalty_*")
+      get_hp_names <- names(InputCollect$hyperparameters)[get_hp_names]
+      hypParam <- unlist(resultHypParamLoop[, get_hp_names, with = FALSE])
       if (InputCollect$adstock == "geometric") {
         hypParam_thetas <- hypParam[paste0(InputCollect$all_media, "_thetas")]
         dt_geometric <- data.table(channels = InputCollect$all_media, thetas = hypParam_thetas)
@@ -161,18 +173,17 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
                         weibullCollect = weibullCollect,
                         wb_type = toupper(wb_type))
 
-      ## 4. Response curve
+      ## 4. Spend response curve
       dt_transformPlot <- dt_mod[, c("ds", InputCollect$all_media), with = FALSE] # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, .(ds)], InputCollect$dt_input[, c(InputCollect$paid_media_spends), with = FALSE]) # spends of indep vars
-      setnames(dt_transformSpend, names(dt_transformSpend), c("ds", InputCollect$paid_media_vars))
+      dt_transformSpendMod <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
       # update non-spend variables
-      dt_transformSpendMod <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, c("ds", InputCollect$paid_media_vars), with = FALSE]
-      if (length(InputCollect$exposureVarName) > 0) {
-        for (expo in InputCollect$exposureVarName) {
-          sel_nls <- ifelse(InputCollect$modNLSCollect[channel == expo, rsq_nls > rsq_lm], "nls", "lm")
-          dt_transformSpendMod[, (expo) := InputCollect$yhatNLSCollect[channel == expo & models == sel_nls, yhat]]
-        }
-      }
+      # if (length(InputCollect$exposure_vars) > 0) {
+      #   for (expo in InputCollect$exposure_vars) {
+      #     sel_nls <- ifelse(InputCollect$modNLSCollect[channel == expo, rsq_nls > rsq_lm], "nls", "lm")
+      #     dt_transformSpendMod[, (expo) := InputCollect$yhatNLSCollect[channel == expo & models == sel_nls, yhat]]
+      #   }
+      # }
       dt_transformAdstock <- copy(dt_transformPlot)
       dt_transformSaturation <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
       m_decayRate <- list()
@@ -186,11 +197,11 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         } else if (InputCollect$adstock == "weibull_cdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "cdf")
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
         } else if (InputCollect$adstock == "weibull_pdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, windlen = InputCollect$rollingWindowLength, type = "pdf")
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
         }
         m_adstocked <- x_list$x_decayed
         dt_transformAdstock[, (med_select) := m_adstocked]
@@ -205,45 +216,50 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         coef <- plotWaterfallLoop[rn == InputCollect$all_media[i], coef]
         dt_transformSaturationDecomp[, (InputCollect$all_media[i]) := .SD * coef, .SDcols = InputCollect$all_media[i]]
       }
-      dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
-      for (i in 1:InputCollect$mediaVarCount) {
-        chn <- InputCollect$paid_media_vars[i]
-        if (chn %in% InputCollect$paid_media_vars[InputCollect$costSelector]) {
-          # Get Michaelis Menten nls fitting param
-          get_chn <- dt_transformSaturationSpendReverse[, chn, with = FALSE]
-          Vmax <- InputCollect$modNLSCollect[channel == chn, Vmax]
-          Km <- InputCollect$modNLSCollect[channel == chn, Km]
-          # Reverse exposure to spend
-          dt_transformSaturationSpendReverse[, (chn) := mic_men(x = .SD, Vmax = Vmax, Km = Km, reverse = TRUE), .SDcols = chn] # .SD * Km / (Vmax - .SD) exposure to spend, reverse Michaelis Menthen: x = y*Km/(Vmax-y)
-        } else if (chn %in% InputCollect$exposureVarName) {
-          coef_lm <- InputCollect$modNLSCollect[channel == chn, coef_lm]
-          dt_transformSaturationSpendReverse[, (chn) := .SD / coef_lm, .SDcols = chn]
-        }
-      }
-      dt_transformSaturationSpendReverse <- dt_transformSaturationSpendReverse[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+      dt_transformSaturationSpendReverse <- dt_transformAdstock[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+
+      ## Reverse MM fitting
+      # dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
+      # for (i in 1:InputCollect$mediaVarCount) {
+      #   chn <- InputCollect$paid_media_vars[i]
+      #   if (chn %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
+      #     # Get Michaelis Menten nls fitting param
+      #     get_chn <- dt_transformSaturationSpendReverse[, chn, with = FALSE]
+      #     Vmax <- InputCollect$modNLSCollect[channel == chn, Vmax]
+      #     Km <- InputCollect$modNLSCollect[channel == chn, Km]
+      #     # Reverse exposure to spend
+      #     dt_transformSaturationSpendReverse[, (chn) := mic_men(x = .SD, Vmax = Vmax, Km = Km, reverse = TRUE), .SDcols = chn] # .SD * Km / (Vmax - .SD) exposure to spend, reverse Michaelis Menthen: x = y*Km/(Vmax-y)
+      #   } else if (chn %in% InputCollect$exposure_vars) {
+      #     coef_lm <- InputCollect$modNLSCollect[channel == chn, coef_lm]
+      #     dt_transformSaturationSpendReverse[, (chn) := .SD / coef_lm, .SDcols = chn]
+      #   }
+      # }
+      # dt_transformSaturationSpendReverse <- dt_transformSaturationSpendReverse[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
+
       dt_scurvePlot <- cbind(
         melt.data.table(dt_transformSaturationDecomp[, c("ds", InputCollect$all_media), with = FALSE], id.vars = "ds", variable.name = "channel", value.name = "response"),
         melt.data.table(dt_transformSaturationSpendReverse, id.vars = "ds", value.name = "spend")[, .(spend)]
       )
       # remove outlier introduced by MM nls fitting
       dt_scurvePlot <- dt_scurvePlot[spend >= 0]
-      dt_scurvePlotMean <- dt_transformSpend[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, !"ds"][, lapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))), .SDcols = InputCollect$paid_media_vars]
-      dt_scurvePlotMean <- melt.data.table(dt_scurvePlotMean, measure.vars = InputCollect$paid_media_vars, value.name = "mean_spend", variable.name = "channel")
+      dt_scurvePlotMean <- dt_transformSpend[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, !"ds"][, lapply(.SD, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))), .SDcols = InputCollect$paid_media_spends]
+      dt_scurvePlotMean <- melt.data.table(dt_scurvePlotMean, measure.vars = InputCollect$paid_media_spends, value.name = "mean_spend", variable.name = "channel")
       dt_scurvePlotMean[, ":="(mean_spend_scaled = 0, mean_response = 0, next_unit_response = 0)]
       for (med in 1:InputCollect$mediaVarCount) {
-        get_med <- InputCollect$paid_media_vars[med]
+        get_med <- InputCollect$paid_media_spends[med]
         get_spend <- dt_scurvePlotMean[channel == get_med, mean_spend]
-        if (get_med %in% InputCollect$paid_media_vars[InputCollect$costSelector]) {
-          Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
-          Km <- InputCollect$modNLSCollect[channel == get_med, Km]
-          # Vmax * get_spend/(Km + get_spend)
-          get_spend_mm <- mic_men(x = get_spend, Vmax = Vmax, Km = Km)
-        } else if (get_med %in% InputCollect$exposureVarName) {
-          coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
-          get_spend_mm <- get_spend * coef_lm
-        } else {
-          get_spend_mm <- get_spend
-        }
+        get_spend_mm <- get_spend
+        # if (get_med %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
+        #   Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
+        #   Km <- InputCollect$modNLSCollect[channel == get_med, Km]
+        #   # Vmax * get_spend/(Km + get_spend)
+        #   get_spend_mm <- mic_men(x = get_spend, Vmax = Vmax, Km = Km)
+        # } else if (get_med %in% InputCollect$exposure_vars) {
+        #   coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
+        #   get_spend_mm <- get_spend * coef_lm
+        # } else {
+        #   get_spend_mm <- get_spend
+        # }
         m <- dt_transformAdstock[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, get(get_med)]
         # m <- m[m>0] # remove outlier introduced by MM nls fitting
         alpha <- hypParam[which(paste0(get_med, "_alphas") == names(hypParam))]
@@ -257,8 +273,35 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         dt_scurvePlotMean[channel == get_med, next_unit_response := get_response_marginal * coef - mean_response]
       }
       dt_scurvePlotMean[, solID := sid]
-      plot4data <- list(dt_scurvePlot = dt_scurvePlot,
-                        dt_scurvePlotMean = dt_scurvePlotMean)
+
+      # Exposure response curve
+      # if (!identical(InputCollect$paid_media_vars, InputCollect$exposure_vars)) {
+      #   exposure_which <- which(InputCollect$paid_media_vars %in% InputCollect$exposure_vars)
+      #   spends_to_fit <- InputCollect$paid_media_spends[exposure_which]
+      #   nls_lm_selector <- InputCollect$exposure_selector[exposure_which]
+      #   dt_expoCurvePlot <- dt_scurvePlot[channel %in% spends_to_fit]
+      #   dt_expoCurvePlot[, exposure_pred := 0]
+      #   for (s in seq_along(spends_to_fit)) {
+      #     get_med <- InputCollect$exposure_vars[s]
+      #     if (nls_lm_selector[s]) {
+      #       Vmax <- InputCollect$modNLSCollect[channel == get_med, Vmax]
+      #       Km <- InputCollect$modNLSCollect[channel == get_med, Km]
+      #       # Vmax * get_spend/(Km + get_spend)
+      #       dt_expoCurvePlot[channel == spends_to_fit[s]
+      #                        , ':='(exposure_pred = mic_men(x = spend, Vmax = Vmax, Km = Km)
+      #                               ,channel = get_med)]
+      #     } else {
+      #       coef_lm <- InputCollect$modNLSCollect[channel == get_med, coef_lm]
+      #       dt_expoCurvePlot[channel == spends_to_fit[s]
+      #                        , ':='(exposure_pred = spend * coef_lm
+      #                               , channel = get_med)]
+      #     }
+      #   }
+      # } else {
+      #   dt_expoCurvePlot <- NULL
+      # }
+       plot4data <- list(dt_scurvePlot = dt_scurvePlot,
+                         dt_scurvePlotMean = dt_scurvePlotMean)
 
       ## 5. Fitted vs actual
       if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
