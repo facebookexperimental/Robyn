@@ -369,6 +369,12 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       ## 4. Response curves
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
+      trim_rate <- 1.3 # maybe enable as a parameter
+      if (trim_curves) {
+        dt_scurvePlot <- dt_scurvePlot %>%
+          filter(.data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
+                 .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate)
+      }
       if (!"channel" %in% colnames(dt_scurvePlotMean))
         dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
       p4 <- ggplot(
@@ -395,8 +401,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           title = "Response Curves and Mean Spends by Channel",
           x = "Spend", y = "Response", color = NULL
         ) +
-        scale_x_abbr() +
-        scale_y_abbr()
+        scale_y_abbr() +
+        scale_x_abbr()
 
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted

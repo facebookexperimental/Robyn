@@ -260,8 +260,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         dt_transformSaturationDecomp, "channel", "response",
         2:ncol(dt_transformSaturationDecomp)) %>%
         mutate(spend = tidyr::gather(
-          dt_transformSaturationDecomp, "channel", "spend",
-          2:ncol(dt_transformSaturationDecomp))$spend)
+          dt_transformSaturationSpendReverse, "channel", "spend",
+          2:ncol(dt_transformSaturationSpendReverse))$spend)
 
       # Remove outlier introduced by MM nls fitting
       dt_scurvePlot <- dt_scurvePlot[dt_scurvePlot$spend >= 0, ]
