@@ -764,7 +764,7 @@ robyn_mmm <- function(InputCollect,
           }
         } else {
           for (co in 1:iterPar) {
-            optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.collect[co], decomp.rssd.collect[co], mape.collect[co]))
+            optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.collect[co], decomp.rssd.collect[co], mape.lift.collect[co]))
           }
         }
       }
