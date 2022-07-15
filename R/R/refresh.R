@@ -250,10 +250,11 @@ robyn_refresh <- function(robyn_object,
       message(paste(">>> Loaded refresh model:", refreshCounter - 1))
 
       ## model selection from previous build
-      listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[bestModRF == TRUE]
-      listOutputPrev$xDecompAgg <- listOutputPrev$xDecompAgg[bestModRF == TRUE]
-      listOutputPrev$mediaVecCollect <- listOutputPrev$mediaVecCollect[bestModRF == TRUE]
-      listOutputPrev$xDecompVecCollect <- listOutputPrev$xDecompVecCollect[bestModRF == TRUE]
+      which_bestModRF <- which(listOutputPrev$resultHypParam$bestModRF == TRUE)
+      listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]
+      listOutputPrev$xDecompAgg <- listOutputPrev$xDecompAgg[which_bestModRF, ]
+      listOutputPrev$mediaVecCollect <- listOutputPrev$mediaVecCollect[which_bestModRF, ]
+      listOutputPrev$xDecompVecCollect <- listOutputPrev$xDecompVecCollect[which_bestModRF, ]
     }
 
     InputCollectRF$refreshCounter <- refreshCounter
@@ -264,10 +265,10 @@ robyn_refresh <- function(robyn_object,
 
     ## Load new data
     if (TRUE) {
-      dt_input <- as.data.table(dt_input)
+      date_input <- as.data.frame(date_input)
+      dt_holidays <- as.data.frame(dt_holidays)
       date_input <- check_datevar(dt_input, InputCollectRF$date_var)
       dt_input <- date_input$dt_input # sort date by ascending
-      dt_holidays <- as.data.table(dt_holidays)
       InputCollectRF$dt_input <- dt_input
       InputCollectRF$dt_holidays <- dt_holidays
     }
@@ -275,7 +276,7 @@ robyn_refresh <- function(robyn_object,
     #### Update refresh model parameters
 
     ## Refresh rolling window
-    totalDates <- as.Date(dt_input[, get(InputCollectRF$date_var)])
+    totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
     refreshStart <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
     refreshEnd <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
     InputCollectRF$refreshAddedStart <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval
@@ -313,7 +314,7 @@ robyn_refresh <- function(robyn_object,
     hypNames <- names(hyper_updated_prev)
     for (h in 1:length(hypNames)) {
       hn <- hypNames[h]
-      getHyp <- listOutputPrev$resultHypParam[, get(hn)]
+      getHyp <- listOutputPrev$resultHypParam[, hn][[1]]
       getDis <- initBoundsDis[hn]
       if (hn == "lambda") {
         lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
