@@ -4,6 +4,8 @@ import pathlib
 import numpy as np
 #LOGGING
 import logging as logger
+import rpy2.rlike.container as rlc
+
 
 logger.getLogger("robyn_v02 logger")
 logger.basicConfig(level=logger.DEBUG,
@@ -38,6 +40,7 @@ try:
 
     global LOCAL
     LOCAL = True
+    root = os.path.dirname(os.path.dirname(__file__))
 
     print(rpackages.isinstalled('Robyn'))
     pandas2ri.activate()  # Won't work unless activated
@@ -55,6 +58,12 @@ try:
     try:
         #robyn = importr('Robyn')
         d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
+
+        remotes = importr("remotes")
+        remotes.install_local(f"{root}/R")
+        #robyn = importr('Robyn', robject_translations=d,
+                        #lib_loc=os.path.join(root, "R"))
+
         robyn = importr('Robyn')
         #robyn = importr('Robyn', robject_translations=d,
                               #lib_loc="/Users/sinandjevdet/opt/miniconda3/envs/env_r41_new_p37/lib/R/library")
@@ -117,7 +126,7 @@ try:
         sim_week_path='util/data/simulated_weekly.csv'
 
     df_simulated = pd.read_csv(sim_week_path)  # import as pandas data frame
-    df_simulated['DATE'] = pd.to_datetime(df_simulated['DATE']).dt.strftime("%y-%m-%d")
+    df_simulated['DATE'] = pd.to_datetime(df_simulated['DATE']).dt.strftime("%Y-%m-%d")
     print(df_simulated.head())
     del df_simulated['row_num']
     with localconverter(ro.default_converter + pandas2ri.converter):
@@ -131,7 +140,7 @@ try:
     r['dt_prophet_holidays'].head()
 
     df_prophet = pd.read_csv(proph_hol_path)
-    df_prophet['ds'] = pd.to_datetime(df_prophet['ds']).dt.strftime("%y-%m-%d")
+    df_prophet['ds'] = pd.to_datetime(df_prophet['ds']).dt.strftime("%Y-%m-%d")
     with localconverter(ro.default_converter + pandas2ri.converter):
       r_df_prophet = ro.conversion.py2rpy(df_prophet)
 
@@ -150,82 +159,81 @@ try:
 
     robyn.check_nas(df=df_simulated)
 
+    input_collect= robyn.robyn_inputs(
 
-    robyn.robyn_inputs(
-        # dt_input=df_simulated
-        # , dt_holidays=df_prophet
-        # dt_input=r['dt_simulated_weekly']
-        # , dt_holidays=r['dt_prophet_holidays']
         dt_input=r_df_simulated
         , dt_holidays=r_df_prophet  ##
-        # set variables
-        # date format must be "2020-01-01"
         , date_var="DATE"
-        # date format must be "2020-01-01"
         , dep_var="revenue"
-        # there should be only one dependent variable
         , dep_var_type="revenue"
-        # # "revenue" or "conversion"ss
         , prophet_vars=["trend", "season", "holiday"]
-        # # "trend","season", "weekday", "holiday"
-        # # are provided and case-sensitive. Recommended to at least keep Trend & Holidays
-        # , prophet_signs=["default", "default", "default"] ##
-        # # c("default", "positive", and "negative").
-        # # Recommend as default.Must be same length as prophet_vars
         , prophet_country="DE"
-        # # only one country allowed once. Including national holidays
-        # # for 59 countries, whose list can be found on our github guide
         , context_vars=["competitor_sales_B", "events"]
-        # # typically competitors, price &
-        # # promotion, temperature, unemployment rate etc
-        # ,context_signs=["default", "default"]
-        # # c("default", " positive", and "negative"),
-        # # control the signs of coefficients for baseline variables
-        , paid_media_vars=np.array(["tv_S"])  # "ooh_S","print_S","facebook_I","search_clicks_P" ##
-        # ,paid_media_vars = [3, 4, 5, 6, 7] #### paid_media_vars=["tv_S","ooh_S","print_S","facebook_I","search_clicks_P"]
-        # # c("tv_S", "ooh_S", "print_S", "facebook_I", "facebook_S","search_clicks_P", "search_S")
-        # # we recommend to use media exposure metrics like impressions, GRP etc for the model.
-        # # If not applicable, use spend instead###
-        # , paid_media_signs=["positive"] # "positive", "positive", "positive", "positive"
-        # # c("default", "positive", and "negative"). must have same length as paid_media_vars.
-        # # Controls the signs of coefficients for media variables
-        , paid_media_spends=np.array(["tv_S"])  # "ooh_S","print_S","facebook_S", "search_S"
-        # ,paid_media_spends=[3,4,5,10,8] ####  paid_media_spends=["tv_S","ooh_S","print_S","facebook_S", "search_S"]
-        # # spends must have same order and same length as paid_media_vars
+        , paid_media_vars=np.array(["tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"])
+        # "ooh_S","print_S","facebook_I","search_clicks_P" ##
+        , paid_media_spends=np.array(["tv_S", "ooh_S", "print_S", "facebook_S", "search_S"])
+        # "ooh_S","print_S","facebook_S", "search_S"
         , organic_vars=np.array(["newsletter"])
-        # , organic_signs=["positive"]
-        # # must have same length as organic_vars
-        , factor_vars=["events"] #
-        # # specify which variables in context_vars and organic_vars are factorial
-        # # set model parameters
-        # # set cores for parallel computing
-        # , cores=6
-        # # I am using 6 cores from 8 on my local machine. Use future::availableCores() to find out cores
-        # # set rolling window start
+        , factor_vars=["events"]  #
         , window_start="2016-11-21"
         , window_end="2018-08-20"
-        # # set model core features
         , adstock="geometric"
-        # # geometric, weibull_cdf or weibull_pdf. Both weibull adstocks are more flexible
-        # # due to the changing decay rate over time, as opposed to the fixed decay rate for geometric. weibull_pdf
-        # # allows also lagging effect. Yet weibull adstocks are two-parametric and thus take longer to run.
-        # , iterations=2
-        # # number of allowed iterations per trial. For the simulated dataset with 11 independent
-        # # variables, 2000 is recommended for Geometric adstock, 4000 for weibull_cdf and 6000 for weibull_pdf.
-        # # The larger the dataset, the more iterations required to reach convergence.
-        # , intercept_sign="non_negative"
-        # # intercept_sign input must be any of: non_negative, unconstrained
-        # , nevergrad_algo="TwoPointsDE"
-        # # recommended algorithm for Nevergrad, the gradient-free
-        # # optimisation library https://facebookresearch.github.io/nevergrad/index.html
-        # , trials=2  # number of allowed trials. 5 is recommended without calibration,
-        # # 10 with calibration.
-        # # Time estimation: with geometric adstock, 2000 iterations * 5 trials
-        # # and 6 cores, it takes less than 1 hour. Both Weibull adstocks take up to twice as much time.
     )
     #TODO run below
     ###### ROBYN CHECK WINDOWS CALL ########
     #robyn.check_windows(dt_input=r_df_simulated,date_var="DATE",all_media=[np.array(["tv_S"]),np.array(["newsletter"])],window_start="2016-11-21", window_end="2018-08-20")
+    '''
+    hyper_params = pd.DataFrame(data=[[0.5, 3], [0.3, 1],
+                           [0, 0.3],[0.5, 3],
+                           [0.3, 1],[0.1, 0.4],
+                           [0.5, 3],[0.3, 1],
+                           [0.3, 0.8],[0.5, 3],
+                           [0.3, 1],[0, 0.3],
+                           [0.5, 3],[0.3, 1],
+                           [0.1, 0.4],[0.5, 3],
+                           [0.3, 1],[0.1, 0.4]],
+                columns=['facebook_S_alphas', 'facebook_S_gammas',
+                  'facebook_S_thetas','print_S_alphas',
+                  'print_S_gammas','print_S_thetas',
+                  'tv_S_alphas','tv_S_gammas',
+                  'tv_S_thetas','search_S_alphas',
+                  'search_S_gammas','search_S_thetas',
+                  'ooh_S_alphas','ooh_S_gammas',
+                  'ooh_S_thetas','newsletter_alphas',
+                  'newsletter_gammas','newsletter_thetas']) '''
+
+
+    param_names=['facebook_S_alphas', 'facebook_S_gammas',
+                                                      'facebook_S_thetas', 'print_S_alphas',
+                                                      'print_S_gammas', 'print_S_thetas',
+                                                      'tv_S_alphas', 'tv_S_gammas',
+                                                      'tv_S_thetas', 'search_S_alphas',
+                                                      'search_S_gammas', 'search_S_thetas',
+                                                      'ooh_S_alphas', 'ooh_S_gammas',
+                                                      'ooh_S_thetas', 'newsletter_alphas',
+                                                      'newsletter_gammas', 'newsletter_thetas']
+
+    param_vals=[[0.5, 3], [0.3, 1],
+                         [0, 0.3], [0.5, 3],
+                         [0.3, 1], [0.1, 0.4],
+                         [0.5, 3], [0.3, 1],
+                         [0.3, 0.8], [0.5, 3],
+                         [0.3, 1], [0, 0.3],
+                         [0.5, 3], [0.3, 1],
+                         [0.1, 0.4], [0.5, 3],
+                         [0.3, 1], [0.1, 0.4]]
+
+    param_dict={}
+    for e, p in enumerate(param_vals):
+        param_dict[param_names[e]]=np.array(p)
+
+    try:
+        hp = robjects.ListVector(param_dict)
+        robyn.robyn_inputs(InputCollect=input_collect, hyperparameters=hp)
+    except:
+        logger.exception("ERROR")
+
+
 
 
     logger.info('SUCCESS')
