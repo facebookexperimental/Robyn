@@ -370,7 +370,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
       trim_rate <- 1.3 # maybe enable as a parameter
-      if (trim_curves) {
+      if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
           filter(.data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
                  .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate)
