@@ -66,6 +66,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
     decompSpendDistPar <- decompSpendDist[decompSpendDist$robynPareto %in% pareto_fronts_vec, ]
     resultHypParamPar <- resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ]
     xDecompAggPar <- xDecompAgg[xDecompAgg$robynPareto %in% pareto_fronts_vec, ]
+    respN <- NULL
   }
 
   resp_collect <- foreach(
@@ -178,7 +179,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       ## 3. Adstock rate
       dt_geometric <- weibullCollect <- wb_type <- NULL
       resultHypParamLoop <- resultHypParam[resultHypParam$solID == sid, ]
-      get_hp_names <- !(names(InputCollect$hyperparameters) %like% "penalty_*")
+      get_hp_names <- !startsWith(names(InputCollect$hyperparameters), "penalty_")
       get_hp_names <- names(InputCollect$hyperparameters)[get_hp_names]
       hypParam <- resultHypParamLoop[, get_hp_names]
       if (InputCollect$adstock == "geometric") {
@@ -436,7 +437,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   meanResponseCollect <- rename(meanResponseCollect, "rn" = "channel")
   xDecompAgg <- left_join(xDecompAgg, select(
-    meanResponseCollect, rn, solID, mean_response, next_unit_response
+    .data$meanResponseCollect, .data$rn, .data$solID, .data$mean_response, .data$next_unit_response
   ),
   by = c("rn", "solID")
   )

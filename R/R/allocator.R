@@ -350,7 +350,7 @@ robyn_allocator <- function(robyn_object = NULL,
     if (InputCollect$dep_var_type == "conversion") {
       colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
     }
-    fwrite(export_dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
+    write.csv(export_dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
   }
 
   output <- list(

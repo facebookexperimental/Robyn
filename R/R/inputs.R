@@ -485,9 +485,9 @@ hyper_names <- function(adstock, all_media) {
   adstock <- check_adstock(adstock)
   global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
-    local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "thetas|alphas|gammas"]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("thetas|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
   } else if (adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "shapes|scales|alphas|gammas"]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("shapes|scales|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
   }
   return(local_name)
 }
@@ -869,8 +869,8 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   tryCatch(
     {
       nlsStartVal <- list(
-        Vmax = dt_spendModInput[, max(exposure)],
-        Km = dt_spendModInput[, max(exposure) / 2]
+        Vmax = max(dt_spendModInput$exposure),
+        Km = max(dt_spendModInput$exposure) / 2
       )
 
       modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
@@ -965,7 +965,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   }
 
   if (intervalType == "month") {
-    if (!all(day(dt_transform[, ds]) == 1)) {
+    if (!all(day(dt_transform$ds) == 1)) {
       stop("Monthly data should have first day of month as datestampe, e.g.'2020-01-01'")
     }
     holidays <- dt_holidays %>%

@@ -72,14 +72,16 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         tidyr::gather("variable", "value", -.data$robynPareto) %>%
         mutate(variable = ifelse(.data$variable == "lambda_hp", "lambda", .data$variable))
       all_plots[["pSamp"]] <- ggplot(
-        resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)
+        resultHypParam.melted,
+        aes(x = .data$value, y = .data$variable, color = .data$variable, fill = .data$variable)
       ) +
         geom_violin(alpha = .5, size = 0) +
         geom_point(size = 0.2) +
         theme_lares(legend = "none") +
         labs(
           title = "Hyperparameter Optimisation Sampling",
-          subtitle = paste0("Sample distribution", ", iterations = ", OutputCollect$iterations, " x ", OutputCollect$trials, " trial"),
+          subtitle = paste0("Sample distribution", ", iterations = ",
+                            OutputCollect$iterations, " x ", OutputCollect$trials, " trial"),
           x = "Hyperparameter space",
           y = NULL
         )
@@ -97,7 +99,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       resultHypParam <- temp_all$resultHypParam
       if (!is.null(InputCollect$calibration_input)) {
         resultHypParam <- resultHypParam %>%
-          mutate(iterations = ifelse(is.na(.data$robynPareto), NA, iterations))
+          mutate(iterations = ifelse(is.na(.data$robynPareto), NA, .data$iterations))
         # Show blue dots on top of grey dots
         resultHypParam <- resultHypParam[order(!is.na(resultHypParam$robynPareto)), ]
       }
@@ -160,7 +162,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         filter(.data$rn %in% InputCollect$paid_media_spends) %>%
         mutate(iteration = (.data$iterNG - 1) * OutputCollect$cores + .data$iterPar) %>%
         select(variables = .data$rn, .data$roi_total, .data$iteration, .data$trial) %>%
-        arrange(iteration, variables)
+        arrange(.data$iteration, .data$variables)
       bin_limits <- c(1, 20)
       qt_len <- ifelse(OutputCollect$iterations <= 100, 1,
         ifelse(OutputCollect$iterations > 2000, 20, ceiling(OutputCollect$iterations / 100))
@@ -181,7 +183,11 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         loop_vars <- na.omit(plot_vars[(1:6) + 6 * (pl - 1)])
         dt_ridges_loop <- dt_ridges[dt_ridges$variables %in% loop_vars, ]
         all_plots[[paste0("pRidges", pl)]] <- pRidges <- ggplot(
-          dt_ridges_loop, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)
+          dt_ridges_loop, aes(
+            x = .data$roi_total, y = .data$iter_bin,
+            fill = as.integer(.data$iter_bin),
+            linetype = .data$trial
+          )
         ) +
           scale_fill_distiller(palette = "GnBu") +
           geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
@@ -221,6 +227,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     hyper_fixed <- OutputCollect$hyper_fixed
     resultHypParam <- OutputCollect$resultHypParam
     xDecompAgg <- OutputCollect$xDecompAgg
+    sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
@@ -353,7 +360,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           geom_bar(stat = "identity", width = 0.5) +
           theme_lares(legend = "none", grid = "Xx") +
           coord_flip() +
-          geom_text(aes(label = formatNum(100 * thetas, 1, pos = "%")),
+          geom_text(aes(label = formatNum(100 * .data$thetas, 1, pos = "%")),
             hjust = -.1, position = position_dodge(width = 0.5), fontface = "bold"
           ) +
           scale_y_percent(limit = c(0, 1)) +
@@ -647,7 +654,8 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
       refreshStart = min(.data$ds),
       refreshEnd = max(.data$ds),
       duration = as.numeric(
-        (refreshEnd - refreshStart + InputCollectRF$dayInterval) / InputCollectRF$dayInterval
+        (.data$refreshEnd - .data$refreshStart + InputCollectRF$dayInterval) /
+          InputCollectRF$dayInterval
       )
     )
 
@@ -715,7 +723,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     mutate(perc = ifelse(.data$refreshCounter == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
     select(.data$rn, .data$perc, .data$refreshCounter) %>%
     group_by(.data$refreshCounter) %>%
-    summarise(variable = "baseline", percentage = sum(perc), roi_total = NA)
+    summarise(variable = "baseline", percentage = sum(.data$perc), roi_total = NA)
 
   xDecompAggReportPlot <- xDecompAggReport %>%
     filter(!.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
@@ -724,8 +732,8 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     bind_rows(xDecompAggReportPlotBase) %>%
     arrange(.data$refreshCounter, desc(.data$variable)) %>%
     mutate(refreshCounter = ifelse(
-      .data$refreshCounter == 0, "init.mod",
-      paste0("refresh", .data$refreshCounter)
+      .data$refreshCounter == 0, "Init.mod",
+      paste0("Refresh", .data$refreshCounter)
     ))
 
   ySecScale <- 0.75 * max(xDecompAggReportPlot$roi_total / xDecompAggReportPlot$percentage, na.rm = TRUE)

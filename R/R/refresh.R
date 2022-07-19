@@ -523,7 +523,7 @@ robyn_refresh <- function(robyn_object,
     saveRDS(Robyn, file = robyn_object)
 
     #### Reporting plots
-    plots <- refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export)
+    try(plots <- refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
 
     if (refreshLooper == 0) {
       refreshControl <- FALSE
@@ -538,7 +538,7 @@ robyn_refresh <- function(robyn_object,
   Robyn[["refresh_iters"]] <- refresh_iters
 
   class(Robyn) <- c("robyn_refresh", class(Robyn))
-  invisible(Robyn)
+  return(invisible(Robyn))
 }
 
 #' @rdname robyn_refresh

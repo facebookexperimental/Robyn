@@ -230,15 +230,17 @@ robyn_train <- function(InputCollect, hyper_collect,
     )
 
     OutputModels[[1]]$trial <- 1
-    OutputModels[[1]]$resultCollect$resultHypParam <- OutputModels[[1]]$resultCollect$resultHypParam[order(iterPar)]
+    OutputModels[[1]]$resultCollect$resultHypParam <- arrange(
+      OutputModels[[1]]$resultCollect$resultHypParam, .data$iterPar)
     dt_IDs <- data.frame(
       solID = dt_hyper_fixed$solID,
       iterPar = OutputModels[[1]]$resultCollect$resultHypParam$iterPar
     )
-    OutputModels[[1]]$resultCollect$resultHypParam[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    OutputModels[[1]]$resultCollect$xDecompAgg[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    OutputModels[[1]]$resultCollect$xDecompVec[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
-    OutputModels[[1]]$resultCollect$decompSpendDist[dt_IDs, on = .(iterPar), "solID" := .(i.solID)]
+    these <- c("resultHypParam", "xDecompAgg", "xDecompVec", "decompSpendDist")
+    for (tab in these) {
+      OutputModels[[1]]$resultCollect[[tab]] <- left_join(
+        OutputModels[[1]]$resultCollect[[tab]], dt_IDs, by = "iterPar")
+    }
   } else {
 
     ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
@@ -271,10 +273,16 @@ robyn_train <- function(InputCollect, hyper_collect,
       )
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
       if (check_coef0) {
-        num_coef0_mod <- model_output$resultCollect$decompSpendDist[decomp.rssd == Inf, uniqueN(paste0(iterNG, "_", iterPar))]
+        num_coef0_mod <- filter(model_output$resultCollect$decompSpendDist, is.infinite(.data$decomp.rssd)) %>%
+          distinct(.data$iterNG, .data$iterPar) %>% nrow()
         num_coef0_mod <- ifelse(num_coef0_mod > iterations, iterations, num_coef0_mod)
-        if (!quiet) message("This trial contains ", num_coef0_mod, " iterations with all 0 media coefficient. Please reconsider your media variable choice if the pareto choices are unreasonable.
-                  \nRecommendations are: \n1. increase hyperparameter ranges for 0-coef channels to give Robyn more freedom\n2. split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n3. increase trials to get more samples\n")
+        if (!quiet) message(paste(
+          "This trial contains", num_coef0_mod, "iterations with all media coefficient = 0.",
+          "Please reconsider your media variable choice if the pareto choices are unreasonable.",
+          "\n   Recommendations:",
+          "\n1. Increase hyperparameter ranges for 0-coef channels to give Robyn more freedom",
+          "\n2. Split media into sub-channels, and/or aggregate similar channels, and/or introduce other media",
+          "\n3. Increase trials to get more samples"))
       }
       model_output["trial"] <- ngt
       OutputModels[[ngt]] <- model_output
@@ -654,7 +662,7 @@ robyn_mmm <- function(InputCollect,
               decompCollect = decompCollect,
               dayInterval = InputCollect$dayInterval
             )
-            mape <- liftCollect[, mean(mape_lift)]
+            mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
           }
 
           #####################################
@@ -747,7 +755,8 @@ robyn_mmm <- function(InputCollect,
           if (hyper_fixed) {
             resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
               bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg[rn == "(Intercept)", xDecompAgg]) %>%
+              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+                decompCollect$xDecompAgg$rn == "(Intercept)"]) %>%
               bind_cols(data.frame(t(common[9:11])))
           }
 
@@ -847,7 +856,7 @@ robyn_mmm <- function(InputCollect,
   if (!is.null(calibration_input)) {
     resultCollect[["liftCalibration"]] <- bind_rows(
       lapply(resultCollectNG, function(x) {
-        rbindlist(lapply(x, function(y) y$liftCalibration))
+        bind_rows(lapply(x, function(y) y$liftCalibration))
       })
     ) %>%
       arrange(.data$mape, .data$liftMedia, .data$liftStart) %>%
@@ -856,7 +865,7 @@ robyn_mmm <- function(InputCollect,
 
   resultCollect[["decompSpendDist"]] <- bind_rows(
     lapply(resultCollectNG, function(x) {
-      rbindlist(lapply(x, function(y) y$decompSpendDist))
+      bind_rows(lapply(x, function(y) y$decompSpendDist))
     })
   ) %>%
     arrange(.data$nrmse) %>%
@@ -1061,26 +1070,26 @@ robyn_response <- function(robyn_object = NULL,
 
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {
-    get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
-    expo_vec <- dt_input[, media_metric][[1]]
-    # use non-0 mean as marginal level if metric_value not provided
-    if (is.null(metric_value)) {
-      metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
-      if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
-    }
-
-    # fit spend to exposure
-    spend_vec <- dt_input[, get_spend_name][[1]]
-    nls_select <- spendExpoMod[channel == media_metric, rsq_nls > rsq_lm]
-    if (nls_select) {
-      Vmax <- spendExpoMod[channel == media_metric, Vmax]
-      Km <- spendExpoMod[channel == media_metric, Km]
-      media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
-    } else {
-      coef_lm <- spendExpoMod[channel == media_metric, coef_lm]
-      media_vec <- spend_vec * coef_lm
-    }
-    hpm_name <- get_spend_name
+    # get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
+    # expo_vec <- dt_input[, media_metric][[1]]
+    # # use non-0 mean as marginal level if metric_value not provided
+    # if (is.null(metric_value)) {
+    #   metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
+    #   if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
+    # }
+    #
+    # # fit spend to exposure
+    # spend_vec <- dt_input[, get_spend_name][[1]]
+    # nls_select <- spendExpoMod[channel == media_metric, rsq_nls > rsq_lm]
+    # if (nls_select) {
+    #   Vmax <- spendExpoMod[channel == media_metric, Vmax]
+    #   Km <- spendExpoMod[channel == media_metric, Km]
+    #   media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
+    # } else {
+    #   coef_lm <- spendExpoMod[channel == media_metric, coef_lm]
+    #   media_vec <- spend_vec * coef_lm
+    # }
+    # hpm_name <- get_spend_name
   } else {
     media_vec <- dt_input[, media_metric][[1]]
     # use non-0 means marginal level if spend not provided
@@ -1261,23 +1270,24 @@ calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
       y_hatLift <- sum(unlist(getDecompVec[, -1])) # Total pred sales
       x_decompLift <- sum(liftPeriodVec[, 2])
       x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
-      y_scaledLift <- liftPeriodVecDependent[, sum(y)] / mmmDays * liftDays
+      y_scaledLift <- sum(liftPeriodVecDependent$y) / mmmDays * liftDays
 
       ## Output
       liftCollect2[[lw]] <- data.frame(
         liftMedia = getLiftMedia[m],
         liftStart = liftStart,
         liftEnd = liftEnd,
-        liftAbs = calibration_input[liftWhich[lw], liftAbs],
+        liftAbs = calibration_input$liftAbs[calibration_input$liftWhich[lw]],
         decompAbsScaled = x_decompLiftScaled,
         dependent = y_scaledLift
       )
     }
-    liftCollect[[m]] <- rbindlist(liftCollect2)
+    liftCollect[[m]] <- bind_rows(liftCollect2)
   }
 
   ## Get mape_lift -> Then MAPE = mean(mape_lift)
-  liftCollect <- rbindlist(liftCollect)[, mape_lift := abs((decompAbsScaled - liftAbs) / liftAbs)]
+  liftCollect <- bind_rows(liftCollect) %>%
+    mutate(mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs))
   return(liftCollect)
 }
 

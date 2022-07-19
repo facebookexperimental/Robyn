@@ -1,17 +1,10 @@
 #Sys.setenv(DOWNLOAD_STATIC_LIBV8=1)
 
-
-
 install.packages("remotes")
 
 install.packages("reticulate")
 
-install.packages("data.table")
-
-
-
 remotes::install_github("facebookexperimental/Robyn/R")
-
 
 
 library(reticulate)
@@ -43,42 +36,3 @@ reticulate::conda_install("r-reticulate", "nevergrad", pip=TRUE)
 #virtualenv_exists("r-reticulate")
 
 #sessionInfo()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

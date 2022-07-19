@@ -604,7 +604,7 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
   hyper_fixed <- !is.null(dt_hyper_fixed)
   if (hyper_fixed) {
     ## Run robyn_mmm if using old model result tables
-    dt_hyper_fixed <- as.data.table(dt_hyper_fixed)
+    dt_hyper_fixed <- as_tibble(dt_hyper_fixed)
     if (nrow(dt_hyper_fixed) != 1) {
       stop(paste(
         "Provide only 1 model / 1 row from OutputCollect$resultHypParam or",

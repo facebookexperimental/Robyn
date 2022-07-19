@@ -435,8 +435,8 @@ Robyn <- robyn_refresh(
   , refresh_steps = 1
   , refresh_mode = "manual"
   , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
-  , refresh_trials = 3
-  , clusters = FALSE
+  , refresh_trials = 2
+  , clusters = TRUE
 )
 
 ## Besides plots: there're 4 csv output saved in the folder for further usage

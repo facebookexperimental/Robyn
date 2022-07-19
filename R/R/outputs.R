@@ -199,16 +199,16 @@ robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
     check_class("robyn_outputs", OutputCollect)
     temp_all <- OutputCollect$allPareto
     if ("pareto" %in% csv_out) {
-      fwrite(OutputCollect$resultHypParam, paste0(OutputCollect$plot_folder, "pareto_hyperparameters.csv"))
-      fwrite(OutputCollect$xDecompAgg, paste0(OutputCollect$plot_folder, "pareto_aggregated.csv"))
+      write.csv(OutputCollect$resultHypParam, paste0(OutputCollect$plot_folder, "pareto_hyperparameters.csv"))
+      write.csv(OutputCollect$xDecompAgg, paste0(OutputCollect$plot_folder, "pareto_aggregated.csv"))
     }
     if ("all" %in% csv_out) {
-      fwrite(temp_all$resultHypParam, paste0(OutputCollect$plot_folder, "all_hyperparameters.csv"))
-      fwrite(temp_all$xDecompAgg, paste0(OutputCollect$plot_folder, "all_aggregated.csv"))
+      write.csv(temp_all$resultHypParam, paste0(OutputCollect$plot_folder, "all_hyperparameters.csv"))
+      write.csv(temp_all$xDecompAgg, paste0(OutputCollect$plot_folder, "all_aggregated.csv"))
     }
     if (!is.null(csv_out)) {
-      fwrite(OutputCollect$mediaVecCollect, paste0(OutputCollect$plot_folder, "pareto_media_transform_matrix.csv"))
-      fwrite(OutputCollect$xDecompVecCollect, paste0(OutputCollect$plot_folder, "pareto_alldecomp_matrix.csv"))
+      write.csv(OutputCollect$mediaVecCollect, paste0(OutputCollect$plot_folder, "pareto_media_transform_matrix.csv"))
+      write.csv(OutputCollect$xDecompVecCollect, paste0(OutputCollect$plot_folder, "pareto_alldecomp_matrix.csv"))
     }
   }
 }

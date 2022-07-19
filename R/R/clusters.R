@@ -125,7 +125,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   )
 
   if (export) {
-    fwrite(output$data, file = paste0(path, "pareto_clusters.csv"))
+    write.csv(output$data, file = paste0(path, "pareto_clusters.csv"))
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
     # ggsave(paste0(path, "pareto_clusters_corr.png"), plot = output$corrs, dpi = 500, width = 7, height = 5)
     db <- wrap_plots(output$plot_models_rois, output$plot_models_errors)
