@@ -231,7 +231,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 
     OutputModels[[1]]$trial <- 1
     OutputModels[[1]]$resultCollect$resultHypParam <- OutputModels[[1]]$resultCollect$resultHypParam[order(iterPar)]
-    dt_IDs <- data.table(
+    dt_IDs <- data.frame(
       solID = dt_hyper_fixed$solID,
       iterPar = OutputModels[[1]]$resultCollect$resultHypParam$iterPar
     )
@@ -472,19 +472,17 @@ robyn_mmm <- function(InputCollect,
               hypParamSamNG[hypNameLoop] <- hyppar_value
             }
           }
-          hypParamSamList[[co]] <- transpose(data.table(hypParamSamNG))
+          hypParamSamList[[co]] <- data.frame(t(hypParamSamNG))
         }
-        hypParamSamNG <- rbindlist(hypParamSamList)
-        hypParamSamNG <- setnames(hypParamSamNG, names(hypParamSamNG), hyper_bound_list_updated_name)
-        ## add fixed hyperparameters
+        hypParamSamNG <- bind_rows(hypParamSamList)
+        names(hypParamSamNG) <- hyper_bound_list_updated_name
+        ## Add fixed hyperparameters
         if (hyper_count_fixed != 0) {
-          hypParamSamNG <- cbind(hypParamSamNG, dt_hyper_fixed_mod)
-          hypParamSamNG <- setcolorder(hypParamSamNG, hypParamSamName)
+          hypParamSamNG <- cbind(hypParamSamNG, dt_hyper_fixed_mod) %>%
+            select(all_of(hypParamSamName))
         }
       } else {
-        hypParamSamNG <- setcolorder(dt_hyper_fixed_mod, hypParamSamName)
-        # hypParamSamNG <- dt_hyper_fixed_mod
-        # setnames(hypParamSamNG, names(hypParamSamNG), hypParamSamName)
+        hypParamSamNG <- select(dt_hyper_fixed_mod, all_of(hypParamSamName))
       }
 
       ## Parallel start
@@ -498,7 +496,7 @@ robyn_mmm <- function(InputCollect,
         foreach(i = 1:iterPar) %dorng% { # i = 1
           t1 <- Sys.time()
           #### Get hyperparameter sample
-          hypParamSam <- unlist(hypParamSamNG[i])
+          hypParamSam <- hypParamSamNG[i, ]
           #### Tranform media with hyperparameters
           dt_modAdstocked <- select(dt_mod, -.data$ds)
           mediaAdstocked <- list()
@@ -511,15 +509,15 @@ robyn_mmm <- function(InputCollect,
             adstock <- check_adstock(adstock)
             m <- dt_modAdstocked[, all_media[v]][[1]]
             if (adstock == "geometric") {
-              theta <- hypParamSam[paste0(all_media[v], "_thetas")]
+              theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]]
               x_list <- adstock_geometric(x = m, theta = theta)
             } else if (adstock == "weibull_cdf") {
-              shape <- hypParamSam[paste0(all_media[v], "_shapes")]
-              scale <- hypParamSam[paste0(all_media[v], "_scales")]
+              shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]]
+              scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]]
               x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
             } else if (adstock == "weibull_pdf") {
-              shape <- hypParamSam[paste0(all_media[v], "_shapes")]
-              scale <- hypParamSam[paste0(all_media[v], "_scales")]
+              shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]]
+              scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]]
               x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
             }
             m_adstocked <- x_list$x_decayed
@@ -536,8 +534,8 @@ robyn_mmm <- function(InputCollect,
             ################################################
             ## 2. Saturation (only window data)
             m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
-            alpha <- hypParamSam[paste0(all_media[v], "_alphas")]
-            gamma <- hypParamSam[paste0(all_media[v], "_gammas")]
+            alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]]
+            gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]]
             mediaSaturated[[v]] <- saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma)
             # plot(m_adstockedRollWind, mediaSaturated[[1]])
           }
@@ -605,7 +603,7 @@ robyn_mmm <- function(InputCollect,
           }
 
           if (add_penalty_factor) {
-            penalty.factor <- unlist(as.data.frame(hypParamSamNG)[i, grepl("penalty_", names(hypParamSamNG))])
+            penalty.factor <- unlist(hypParamSamNG[i, grepl("penalty_", names(hypParamSamNG))])
           } else {
             penalty.factor <- rep(1, ncol(x_train))
           }
@@ -691,18 +689,20 @@ robyn_mmm <- function(InputCollect,
           if (!refresh) {
             decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
           } else {
-            dt_decompRF <- as.data.table(decompCollect$xDecompAgg)[
-              , .(rn, decomp_perc = xDecompPerc)
-            ][as.data.table(xDecompAggPrev)[
-              , .(rn, decomp_perc_prev = xDecompPerc)
-            ], on = "rn"]
-            decomp.rssd.nonmedia <- dt_decompRF[
-              !(rn %in% paid_media_spends), sqrt(mean((decomp_perc - decomp_perc_prev)^2))
-            ]
-            decomp.rssd.media <- dt_decompSpendDist[
-              , sqrt(mean((effect_share_refresh - spend_share_refresh)^2))
-            ]
-            decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia / (1 - refresh_steps / rollingWindowLength)
+            # xDecompAggPrev is NULL?
+            dt_decompRF <- select(decompCollect$xDecompAgg, .data$rn, decomp_perc = .data$xDecompPerc) %>%
+              left_join(select(xDecompAggPrev, .data$rn, decomp_perc_prev = .data$xDecompPerc),
+                        by = "rn")
+            decomp.rssd.media <- dt_decompRF %>%
+              filter(.data$rn %in% paid_media_spends) %>%
+              summarise(rssd.media = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
+              pull(.data$rssd.media)
+            decomp.rssd.nonmedia <- dt_decompRF %>%
+              filter(!.data$rn %in% paid_media_spends) %>%
+              summarise(rssd.nonmedia = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
+              pull(.data$rssd.nonmedia)
+            decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia /
+              (1 - refresh_steps / rollingWindowLength)
           }
           # When all media in this iteration have 0 coefficients
           if (is.nan(decomp.rssd)) {
@@ -734,7 +734,7 @@ robyn_mmm <- function(InputCollect,
             df.int = df.int
           )
 
-          resultCollect[["resultHypParam"]] <- data.frame(t(hypParamSam)) %>%
+          resultCollect[["resultHypParam"]] <- data.frame(hypParamSam) %>%
             select(-.data$lambda) %>%
             bind_cols(data.frame(t(common[1:8]))) %>%
             mutate(
@@ -888,10 +888,10 @@ robyn_mmm <- function(InputCollect,
 #' @param media_metric A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param dt_hyppar A data.table. When \code{robyn_object} is not provided, use
+#' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
-#' @param dt_coef A data.table. When \code{robyn_object} is not provided, use
+#' @param dt_coef A data.frame. When \code{robyn_object} is not provided, use
 #' \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 #' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
 #' @examples
@@ -1264,7 +1264,7 @@ calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
       y_scaledLift <- liftPeriodVecDependent[, sum(y)] / mmmDays * liftDays
 
       ## Output
-      liftCollect2[[lw]] <- data.table(
+      liftCollect2[[lw]] <- data.frame(
         liftMedia = getLiftMedia[m],
         liftStart = liftStart,
         liftEnd = liftEnd,
@@ -1411,7 +1411,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
       names(hyper_list_all)[i] <- hypParamSamName[i]
     }
 
-    dt_hyper_fixed_mod <- data.table(sapply(hyper_bound_list_fixed, function(x) rep(x, cores)))
+    dt_hyper_fixed_mod <- data.frame(sapply(hyper_bound_list_fixed, function(x) rep(x, cores)))
   } else {
     hyper_bound_list_fixed <- list()
     for (i in 1:length(hypParamSamName)) {
@@ -1423,7 +1423,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
     hyper_bound_list_updated <- hyper_bound_list_fixed[which(sapply(hyper_bound_list_fixed, length) == 2)]
     cores <- 1
 
-    dt_hyper_fixed_mod <- as.data.table(matrix(hyper_bound_list_fixed, nrow = 1))
+    dt_hyper_fixed_mod <- data.frame(matrix(hyper_bound_list_fixed, nrow = 1))
     names(dt_hyper_fixed_mod) <- names(hyper_bound_list_fixed)
   }
 

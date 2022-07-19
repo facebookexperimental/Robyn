@@ -822,7 +822,7 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   }
 
   output <- list(
-    res = data.table(
+    res = data.frame(
       channel = paid_media_vars,
       Vmax = if (!is.null(modNLS)) modNLSSum$coefficients[1, 1] else NA,
       Km = if (!is.null(modNLS)) modNLSSum$coefficients[2, 1] else NA,
@@ -911,7 +911,7 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   }
 
   output <- list(
-    res = data.table(
+    res = data.frame(
       channel = paid_media_var,
       Vmax = if (!is.null(modNLS)) modNLSSum$coefficients[1, 1] else NA,
       Km = if (!is.null(modNLS)) modNLSSum$coefficients[2, 1] else NA,
