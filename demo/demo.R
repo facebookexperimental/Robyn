@@ -435,7 +435,7 @@ Robyn <- robyn_refresh(
   , refresh_steps = 1
   , refresh_mode = "manual"
   , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
-  , refresh_trials = 2
+  , refresh_trials = 3
   , clusters = TRUE
 )
 

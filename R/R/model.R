@@ -1070,26 +1070,25 @@ robyn_response <- function(robyn_object = NULL,
 
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {
-    # get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
-    # expo_vec <- dt_input[, media_metric][[1]]
-    # # use non-0 mean as marginal level if metric_value not provided
-    # if (is.null(metric_value)) {
-    #   metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
-    #   if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
-    # }
-    #
-    # # fit spend to exposure
-    # spend_vec <- dt_input[, get_spend_name][[1]]
-    # nls_select <- spendExpoMod[channel == media_metric, rsq_nls > rsq_lm]
-    # if (nls_select) {
-    #   Vmax <- spendExpoMod[channel == media_metric, Vmax]
-    #   Km <- spendExpoMod[channel == media_metric, Km]
-    #   media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
-    # } else {
-    #   coef_lm <- spendExpoMod[channel == media_metric, coef_lm]
-    #   media_vec <- spend_vec * coef_lm
-    # }
-    # hpm_name <- get_spend_name
+    get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
+    expo_vec <- dt_input[, media_metric][[1]]
+    # Use non-0 mean as marginal level if metric_value not provided
+    if (is.null(metric_value)) {
+      metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
+      if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
+    }
+    # Fit spend to exposure
+    spend_vec <- dt_input[, get_spend_name][[1]]
+    nls_select <- filter(spendExpoMod, .data$channel == media_metric, .data$rsq_nls > .data$rsq_lm)
+    if (nls_select) {
+      Vmax <- spendExpoMod$Vmax[spendExpoMod$channel == media_metric]
+      Km <- spendExpoMod$Km[spendExpoMod$channel == media_metric]
+      media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
+    } else {
+      coef_lm <- spendExpoMod$coef_lm[spendExpoMod$channel == media_metric]
+      media_vec <- spend_vec * coef_lm
+    }
+    hpm_name <- get_spend_name
   } else {
     media_vec <- dt_input[, media_metric][[1]]
     # use non-0 means marginal level if spend not provided
@@ -1099,7 +1098,6 @@ robyn_response <- function(robyn_object = NULL,
     }
     hpm_name <- media_metric
   }
-
 
   ## Adstocking
   if (adstock == "geometric") {

@@ -685,14 +685,15 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     geom_line(aes(x = .data$ds, y = .data$value, color = .data$variable)) +
     geom_rect(
       data = dt_refreshDates,
-      aes(xmin = .data$refreshStart, xmax = .data$refreshEnd, fill = .data$refreshCounter),
+      aes(xmin = .data$refreshStart, xmax = .data$refreshEnd,
+          fill = as.character(.data$refreshCounter)),
       ymin = -Inf, ymax = Inf, alpha = 0.2
     ) +
     theme(
       panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
       panel.background = element_blank(), # legend.position = c(0.1, 0.8),
       legend.background = element_rect(fill = alpha("white", 0.4)),
-    ) +
+    ) + theme_lares() +
     scale_fill_brewer(palette = "BuGn") +
     geom_text(data = dt_refreshDates, mapping = aes(
       x = .data$refreshStart, y = max(xDecompVecReportMelted$value),
@@ -700,14 +701,15 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
       angle = 270, hjust = -0.1, vjust = -0.2
     ), color = "gray40") +
     labs(
-      title = "Model refresh: actual vs. predicted response",
+      title = "Model Refresh: Actual vs. Predicted Response",
       subtitle = paste0(
-        "Assembled rsq: ", round(get_rsq(
-          true = xDecompVecReportPlot$dep_var, predicted = xDecompVecReportPlot$depVarHat
+        "Assembled R2: ", round(get_rsq(
+          true = xDecompVecReportPlot$dep_var,
+          predicted = xDecompVecReportPlot$depVarHat
         ), 2)
       ),
-      x = "date", y = "response"
-    )
+      x = "Date", y = "Response", fill = "Refresh", color = "Type"
+    ) + scale_y_abbr()
 
   if (export) {
     ggsave(
