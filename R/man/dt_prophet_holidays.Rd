@@ -5,7 +5,7 @@
 \alias{dt_prophet_holidays}
 \title{Robyn Dataset: Time series}
 \format{
-An object of class \code{"data.table"}
+An object of class \code{"data.frame"}
 \describe{
   \item{ds}{Date}
   \item{holiday}{Daily total revenue}
@@ -17,7 +17,7 @@ An object of class \code{"data.table"}
 data(dt_prophet_holidays)
 }
 \value{
-data.table
+data.frame
 
 Dataframe. Contains \code{prophet}'s default holidays by country.
 }

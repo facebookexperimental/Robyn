@@ -435,7 +435,7 @@ Robyn <- robyn_refresh(
   , refresh_steps = 1
   , refresh_mode = "manual"
   , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
-  , refresh_trials = 2
+  , refresh_trials = 3
   , clusters = TRUE
 )
 
@@ -533,15 +533,15 @@ response_sending$plot
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- data.table::fread("~/Desktop/2022-03-31 12.32 rf4/pareto_hyperparameters.csv")
+dt_hyper_fixed <- read.csv("~/Desktop/2022-07-19 14.26 rf1/pareto_hyperparameters.csv")
 select_model <- "1_25_9"
-dt_hyper_fixed <- dt_hyper_fixed[solID == select_model]
+dt_hyper_fixed <- dt_hyper_fixed[dt_hyper_fixed$solID == select_model,]
 
 OutputCollectFixed <- robyn_run(
   # InputCollect must be provided by robyn_inputs with same dataset and parameters as before
-  InputCollect = InputCollect
-  , plot_folder = robyn_object
-  , dt_hyper_fixed = dt_hyper_fixed)
+  InputCollect = InputCollect,
+  plot_folder = robyn_object,
+  dt_hyper_fixed = dt_hyper_fixed)
 
 # Save Robyn object for further refresh
 robyn_save(robyn_object = robyn_object

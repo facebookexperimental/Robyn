@@ -613,7 +613,7 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
     }
     hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
     hypParamSamName <- c(hypParamSamName, "lambda")
-    for_penalty <- names(InputCollect$dt_mod[, -c("ds", "dep_var")])
+    for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
     if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
     if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
