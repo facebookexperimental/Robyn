@@ -333,24 +333,25 @@ robyn_mmm <- function(InputCollect,
   ################################################
   #### Collect hyperparameters
 
-  hypParamSamName <- names(hyper_collect$hyper_list_all)
-  # Optimization hyper-parameters
-  hyper_bound_list_updated <- hyper_collect$hyper_bound_list_updated
-  hyper_bound_list_updated_name <- names(hyper_bound_list_updated)
-  hyper_count <- length(hyper_bound_list_updated_name)
-  # Fixed hyper-parameters
-  hyper_bound_list_fixed <- hyper_collect$hyper_bound_list_fixed
-  hyper_bound_list_fixed_name <- names(hyper_bound_list_fixed)
-  hyper_count_fixed <- length(hyper_bound_list_fixed_name)
-  dt_hyper_fixed_mod <- hyper_collect$dt_hyper_fixed_mod
-  hyper_fixed <- hyper_collect$all_fixed
-
-  # message(sprintf("> Hyper-parameters: optimizable (%s) + fixed (%s)", hyper_count, hyper_count_fixed))
+  if (TRUE) {
+    hypParamSamName <- names(hyper_collect$hyper_list_all)
+    # Optimization hyper-parameters
+    hyper_bound_list_updated <- hyper_collect$hyper_bound_list_updated
+    hyper_bound_list_updated_name <- names(hyper_bound_list_updated)
+    hyper_count <- length(hyper_bound_list_updated_name)
+    # Fixed hyper-parameters
+    hyper_bound_list_fixed <- hyper_collect$hyper_bound_list_fixed
+    hyper_bound_list_fixed_name <- names(hyper_bound_list_fixed)
+    hyper_count_fixed <- length(hyper_bound_list_fixed_name)
+    dt_hyper_fixed_mod <- hyper_collect$dt_hyper_fixed_mod
+    hyper_fixed <- hyper_collect$all_fixed
+  }
 
   ################################################
   #### Setup environment
 
-  if (is.null(InputCollect$dt_mod)) stop("Run InputCollect$dt_mod <- robyn_engineering() first to get the dt_mod")
+  if (is.null(InputCollect$dt_mod))
+    stop("Run InputCollect$dt_mod <- robyn_engineering() first to get the dt_mod")
 
   ## Get environment for parallel backend
   if (TRUE) {
@@ -658,8 +659,7 @@ robyn_mmm <- function(InputCollect,
 
           if (!is.null(calibration_input)) {
             liftCollect <- calibrate_mmm(
-              calibration_input = calibration_input,
-              decompCollect = decompCollect,
+              calibration_input, decompCollect,
               dayInterval = InputCollect$dayInterval
             )
             mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
@@ -1277,7 +1277,7 @@ calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
         liftMedia = getLiftMedia[m],
         liftStart = liftStart,
         liftEnd = liftEnd,
-        liftAbs = calibration_input$liftAbs[calibration_input$liftWhich[lw]],
+        liftAbs = calibration_input$liftAbs[liftWhich[lw]],
         decompAbsScaled = x_decompLiftScaled,
         dependent = y_scaledLift
       )

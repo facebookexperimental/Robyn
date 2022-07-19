@@ -284,7 +284,7 @@ robyn_refresh <- function(robyn_object,
 
     ## Load new data
     if (TRUE) {
-      date_input <- as.data.frame(date_input)
+      date_input <- as.data.frame(dt_input)
       dt_holidays <- as.data.frame(dt_holidays)
       date_input <- check_datevar(dt_input, InputCollectRF$date_var)
       dt_input <- date_input$dt_input # sort date by ascending

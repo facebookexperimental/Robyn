@@ -69,7 +69,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
       totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")
     ))
   }
-  pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet)
+  pareto_results <- robyn_pareto(
+    InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet)
   allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
   #####################################

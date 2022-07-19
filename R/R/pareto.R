@@ -437,7 +437,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   meanResponseCollect <- rename(meanResponseCollect, "rn" = "channel")
   xDecompAgg <- left_join(xDecompAgg, select(
-    .data$meanResponseCollect, .data$rn, .data$solID, .data$mean_response, .data$next_unit_response
+    meanResponseCollect, .data$rn, .data$solID, .data$mean_response, .data$next_unit_response
   ),
   by = c("rn", "solID")
   )
