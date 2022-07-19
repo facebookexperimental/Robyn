@@ -634,3 +634,155 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   return(invisible(outputs))
 }
+
+refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE) {
+  xDecompVecReport <- ReportCollect$xDecompVecReport
+  xDecompAggReport <- ReportCollect$xDecompAggReport
+  outputs <- list()
+
+  ## 1. Actual vs fitted
+  xDecompVecReportPlot <- xDecompVecReport %>%
+    group_by(.data$refreshCounter) %>%
+    mutate(
+      refreshStart = min(.data$ds),
+      refreshEnd = max(.data$ds),
+      duration = as.numeric(
+        (refreshEnd - refreshStart + InputCollectRF$dayInterval) / InputCollectRF$dayInterval
+      )
+    )
+
+  dt_refreshDates <- xDecompVecReportPlot %>%
+    mutate(refreshCounter = .data$refreshCounter) %>%
+    select(.data$refreshCounter, .data$refreshStart, .data$refreshEnd, .data$duration) %>%
+    distinct() %>%
+    mutate(label = ifelse(.data$refreshCounter == 0, sprintf(
+      "Initial: %s, %s %ss", .data$refreshStart, .data$duration, InputCollectRF$intervalType
+    ),
+    sprintf(
+      "Refresh #%s: ", .data$refreshCounter, .data$refreshStart,
+      .data$duration, InputCollectRF$intervalType
+    )
+    ))
+
+  xDecompVecReportMelted <- xDecompVecReportPlot %>%
+    select(.data$ds, .data$refreshStart, .data$refreshEnd, .data$refreshCounter,
+      actual = .data$dep_var, prediction = .data$depVarHat
+    ) %>%
+    tidyr::gather(
+      key = "variable", value = "value",
+      -c("ds", "refreshCounter", "refreshStart", "refreshEnd")
+    )
+
+  outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecReportMelted) +
+    geom_line(aes(x = .data$ds, y = .data$value, color = .data$variable)) +
+    geom_rect(
+      data = dt_refreshDates,
+      aes(xmin = .data$refreshStart, xmax = .data$refreshEnd, fill = .data$refreshCounter),
+      ymin = -Inf, ymax = Inf, alpha = 0.2
+    ) +
+    theme(
+      panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+      panel.background = element_blank(), # legend.position = c(0.1, 0.8),
+      legend.background = element_rect(fill = alpha("white", 0.4)),
+    ) +
+    scale_fill_brewer(palette = "BuGn") +
+    geom_text(data = dt_refreshDates, mapping = aes(
+      x = .data$refreshStart, y = max(xDecompVecReportMelted$value),
+      label = .data$label,
+      angle = 270, hjust = -0.1, vjust = -0.2
+    ), color = "gray40") +
+    labs(
+      title = "Model refresh: actual vs. predicted response",
+      subtitle = paste0(
+        "Assembled rsq: ", round(get_rsq(
+          true = xDecompVecReportPlot$dep_var, predicted = xDecompVecReportPlot$depVarHat
+        ), 2)
+      ),
+      x = "date", y = "response"
+    )
+
+  if (export) {
+    ggsave(
+      filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
+      plot = pFitRF,
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
+    )
+  }
+
+  ## 2. Stacked bar plot
+  xDecompAggReportPlotBase <- xDecompAggReport %>%
+    filter(.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
+    mutate(perc = ifelse(.data$refreshCounter == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
+    select(.data$rn, .data$perc, .data$refreshCounter) %>%
+    group_by(.data$refreshCounter) %>%
+    summarise(variable = "baseline", percentage = sum(perc), roi_total = NA)
+
+  xDecompAggReportPlot <- xDecompAggReport %>%
+    filter(!.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
+    mutate(percentage = ifelse(.data$refreshCounter == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
+    select(.data$refreshCounter, variable = .data$rn, .data$percentage, .data$roi_total) %>%
+    bind_rows(xDecompAggReportPlotBase) %>%
+    arrange(.data$refreshCounter, desc(.data$variable)) %>%
+    mutate(refreshCounter = ifelse(
+      .data$refreshCounter == 0, "init.mod",
+      paste0("refresh", .data$refreshCounter)
+    ))
+
+  ySecScale <- 0.75 * max(xDecompAggReportPlot$roi_total / xDecompAggReportPlot$percentage, na.rm = TRUE)
+  ymax <- 1.1 * max(c(xDecompAggReportPlot$roi_total / ySecScale, xDecompAggReportPlot$percentage), na.rm = TRUE)
+
+  outputs[["pBarRF"]] <- pBarRF <- ggplot(
+    xDecompAggReportPlot,
+    aes(x = .data$variable, y = .data$percentage, fill = .data$variable)
+  ) +
+    geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
+    facet_wrap(~ .data$refreshCounter, scales = "free") +
+    scale_fill_manual(values = robyn_palette()$fill) +
+    geom_text(aes(label = paste0(round(.data$percentage * 100, 1), "%")),
+      size = 3,
+      position = position_dodge(width = 0.9), hjust = -0.25
+    ) +
+    geom_point(
+      data = xDecompAggReportPlot,
+      aes(
+        x = .data$variable,
+        y = .data$roi_total / ySecScale,
+        color = .data$variable
+      ),
+      size = 4, shape = 17, na.rm = TRUE,
+    ) +
+    geom_text(
+      data = xDecompAggReportPlot,
+      aes(
+        label = round(.data$roi_total, 2),
+        x = .data$variable,
+        y = .data$roi_total / ySecScale
+      ),
+      size = 3, na.rm = TRUE, hjust = -0.4, fontface = "bold",
+      position = position_dodge(width = 0.9)
+    ) +
+    scale_color_manual(values = robyn_palette()$fill) +
+    scale_y_continuous(
+      sec.axis = sec_axis(~ . * ySecScale), breaks = seq(0, ymax, 0.2),
+      limits = c(0, ymax), name = "roi_total"
+    ) +
+    coord_flip() +
+    theme(legend.position = "none", axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+    labs(
+      title = "Model Refresh: Decomposition & Paid Media ROI",
+      subtitle = paste0(
+        "Baseline includes intercept and prophet vars: ",
+        paste(InputCollectRF$prophet_vars, collapse = ", ")
+      )
+    )
+
+  if (export) {
+    ggsave(
+      filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
+      plot = pBarRF,
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
+    )
+  }
+
+  return(invisible(outputs))
+}

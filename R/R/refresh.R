@@ -201,6 +201,7 @@ robyn_refresh <- function(robyn_object,
                           refresh_trials = 3,
                           plot_pareto = TRUE,
                           version_prompt = FALSE,
+                          export = TRUE,
                           ...) {
   refreshControl <- TRUE
   while (refreshControl) {
@@ -380,12 +381,12 @@ robyn_refresh <- function(robyn_object,
       ...
     )
 
-    ## select winner model for current refresh
+    ## Select winner model for current refresh
     # selectID <- OutputCollectRF$resultHypParam[which.min(decomp.rssd), solID] # min decomp.rssd selection
     # norm_nrmse <- .min_max_norm(OutputCollectRF$resultHypParam$nrmse)
     # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
-    OutputCollectRF$resultHypParam[, error_dis := sqrt(.min_max_norm(nrmse)^2 +
-      .min_max_norm(decomp.rssd)^2)] # min error distance selection
+    OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
+      mutate(error_dis = sqrt(.min_max_norm(.data$nrmse)^2 + .min_max_norm(.data$decomp.rssd)^2))
     if (version_prompt) {
       selectID <- readline("Input model version to use for the refresh: ")
       OutputCollectRF$selectID <- selectID
@@ -394,206 +395,116 @@ robyn_refresh <- function(robyn_object,
         refreshCounter, " based on your input\n"
       )
     } else {
-      selectID <- OutputCollectRF$resultHypParam[which.min(error_dis), solID]
+      selectID <- OutputCollectRF$resultHypParam$solID[which.min(OutputCollectRF$resultHypParam$error_dis)]
       OutputCollectRF$selectID <- selectID
       message(
-        "Selected model ID: ", selectID, " for refresh model nr.",
-        refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD\n"
+        "Selected model ID: ", selectID, " for refresh model #",
+        refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD"
       )
     }
 
-    OutputCollectRF$resultHypParam[, bestModRF := solID == selectID]
-    OutputCollectRF$xDecompAgg[, bestModRF := solID == selectID]
-    OutputCollectRF$mediaVecCollect[, bestModRF := solID == selectID]
-    OutputCollectRF$xDecompVecCollect[, bestModRF := solID == selectID]
+    # Add bestModRF column to multiple data.frames
+    these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
+    for (tb in these) {
+      OutputCollectRF[[tb]] <- mutate(
+        OutputCollectRF[[tb]],
+        bestModRF = .data$solID == selectID
+      )
+    }
 
-
-    #### result collect & save
+    #### Result collect & save
     if (refreshCounter == 1) {
-      listOutputPrev$resultHypParam[, ":="(error_dis = sqrt(nrmse^2 + decomp.rssd^2),
-        bestModRF = TRUE, refreshStatus = refreshCounter - 1)]
-      listOutputPrev$xDecompAgg[, ":="(bestModRF = TRUE, refreshStatus = refreshCounter - 1)]
-      listOutputPrev$mediaVecCollect[, ":="(bestModRF = TRUE, refreshStatus = refreshCounter - 1)]
-      listOutputPrev$xDecompVecCollect[, ":="(bestModRF = TRUE, refreshStatus = refreshCounter - 1)]
+      listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam %>%
+        mutate(error_dis = sqrt(.data$nrmse^2 + .data$decomp.rssd^2))
 
+      # Add bestModRF and refreshCounter column to multiple data.frames
+      these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
+      for (tb in these) {
+        listOutputPrev[[tb]] <- mutate(
+          listOutputPrev[[tb]],
+          bestModRF = TRUE, refreshCounter = refreshCounter - 1
+        )
+      }
 
-      resultHypParamReport <- rbind(
-        listOutputPrev$resultHypParam[bestModRF == TRUE],
-        OutputCollectRF$resultHypParam[bestModRF == TRUE][, refreshStatus := refreshCounter]
-      )
-      xDecompAggReport <- rbind(
-        listOutputPrev$xDecompAgg[bestModRF == TRUE],
-        OutputCollectRF$xDecompAgg[bestModRF == TRUE][, refreshStatus := refreshCounter]
-      )
-      mediaVecReport <- rbind(
-        listOutputPrev$mediaVecCollect[
-          bestModRF == TRUE & ds >= (refreshStart - InputCollectRF$dayInterval * refresh_steps) &
-            ds <= (refreshEnd - InputCollectRF$dayInterval * refresh_steps)
-        ][, ds := as.IDate(ds)],
-        OutputCollectRF$mediaVecCollect[
-          bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
-            ds <= refreshEnd
-        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
-      )
-      mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
-      xDecompVecReport <- rbind(
-        listOutputPrev$xDecompVecCollect[bestModRF == TRUE][, ds := as.IDate(ds)],
-        OutputCollectRF$xDecompVecCollect[
-          bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
-            ds <= refreshEnd
-        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
-      )
+      resultHypParamReport <- listOutputPrev$resultHypParam %>%
+        filter(.data$bestModRF == TRUE) %>%
+        bind_rows(
+          OutputCollectRF$resultHypParam %>%
+            filter(.data$bestModRF == TRUE)
+        )
+
+      xDecompAggReport <- listOutputPrev$xDecompAgg %>%
+        filter(.data$bestModRF == TRUE) %>%
+        bind_rows(
+          OutputCollectRF$xDecompAgg %>%
+            filter(.data$bestModRF == TRUE)
+        )
+
+      mediaVecReport <- listOutputPrev$mediaVecCollect %>%
+        filter(
+          .data$bestModRF == TRUE,
+          .data$ds >= (refreshStart - InputCollectRF$dayInterval * refresh_steps),
+          .data$ds <= (refreshEnd - InputCollectRF$dayInterval * refresh_steps)
+        ) %>%
+        bind_rows(
+          OutputCollectRF$mediaVecCollect %>%
+            filter(
+              .data$bestModRF == TRUE,
+              .data$ds >= InputCollectRF$refreshAddedStart,
+              .data$ds <= refreshEnd
+            )
+        ) %>%
+        arrange(.data$type, .data$ds, .data$refreshCounter)
+
+      xDecompVecReport <- listOutputPrev$xDecompVecCollect %>%
+        filter(.data$bestModRF == TRUE) %>%
+        bind_rows(
+          OutputCollectRF$xDecompVecCollect %>%
+            filter(
+              .data$bestModRF == TRUE,
+              .data$ds >= InputCollectRF$refreshAddedStart,
+              .data$ds <= refreshEnd
+            )
+        )
     } else {
-      resultHypParamReport <- rbind(
-        listReportPrev$resultHypParamReport,
-        OutputCollectRF$resultHypParam[bestModRF == TRUE][
-          , refreshStatus := refreshCounter
-        ]
-      )
-      xDecompAggReport <- rbind(
-        listReportPrev$xDecompAggReport,
-        OutputCollectRF$xDecompAgg[bestModRF == TRUE][
-          , refreshStatus := refreshCounter
-        ]
-      )
-      mediaVecReport <- rbind(
-        listReportPrev$mediaVecReport,
-        OutputCollectRF$mediaVecCollect[
-          bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
-            ds <= refreshEnd
-        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
-      )
-      mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
-      xDecompVecReport <- rbind(
-        listReportPrev$xDecompVecReport,
-        OutputCollectRF$xDecompVecCollect[
-          bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
-            ds <= refreshEnd
-        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
-      )
+      resultHypParamReport <- listReportPrev$resultHypParamReport %>%
+        bind_rows(
+          filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE)
+        )
+
+      xDecompAggReport <- listReportPrev$xDecompAggReport %>%
+        bind_rows(
+          filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE)
+        )
+
+      mediaVecReport <- listReportPrev$mediaVecReport %>%
+        bind_rows(
+          filter(
+            OutputCollectRF$mediaVecCollect,
+            .data$bestModRF == TRUE,
+            .data$ds >= InputCollectRF$refreshAddedStart,
+            .data$ds <= refreshEnd
+          )
+        ) %>%
+        arrange(.data$type, .data$ds, .data$refreshCounter)
+
+      xDecompVecReport <- listReportPrev$xDecompVecReport %>%
+        bind_rows(
+          filter(
+            OutputCollectRF$xDecompVecCollect,
+            .data$bestModRF == TRUE,
+            .data$ds >= InputCollectRF$refreshAddedStart,
+            .data$ds <= refreshEnd
+          )
+        )
     }
 
-    fwrite(resultHypParamReport, paste0(OutputCollectRF$plot_folder, "report_hyperparameters.csv"))
-    fwrite(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
-    fwrite(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
-    fwrite(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
-
-    #### Reporting plots
-    ## Actual vs fitted
-    xDecompVecReportPlot <- copy(xDecompVecReport)
-    xDecompVecReportPlot[, ":="(refreshStart = min(ds),
-      refreshEnd = max(ds)), by = "refreshStatus"]
-    xDecompVecReportPlot[, duration := as.numeric(
-      (refreshEnd - refreshStart + InputCollectRF$dayInterval) / InputCollectRF$dayInterval
-    )]
-    getRefreshStarts <- sort(unique(xDecompVecReportPlot$refreshStart))[-1]
-    dt_refreshDates <- unique(xDecompVecReportPlot[
-      , .(refreshStatus = as.factor(refreshStatus), refreshStart, refreshEnd, duration)
-    ])
-    dt_refreshDates[, label := ifelse(dt_refreshDates$refreshStatus == 0,
-      paste0(
-        "initial: ", dt_refreshDates$refreshStart, ", ",
-        dt_refreshDates$duration, InputCollectRF$intervalType, "s"
-      ),
-      paste0(
-        "refresh nr.", dt_refreshDates$refreshStatus, ": ", dt_refreshDates$refreshStart,
-        ", ", dt_refreshDates$duration, InputCollectRF$intervalType, "s"
-      )
-    )]
-
-    xDecompVecReportMelted <- melt.data.table(xDecompVecReportPlot[
-      , .(ds, refreshStart, refreshEnd, refreshStatus, actual = dep_var, predicted = depVarHat)
-    ],
-    id.vars = c("ds", "refreshStatus", "refreshStart", "refreshEnd")
-    )
-    pFitRF <- ggplot(data = xDecompVecReportMelted) +
-      geom_line(aes(x = ds, y = value, color = variable)) +
-      geom_rect(
-        data = dt_refreshDates, aes(xmin = refreshStart, xmax = refreshEnd, fill = refreshStatus),
-        ymin = -Inf, ymax = Inf, alpha = 0.2
-      ) +
-      theme(
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), # legend.position = c(0.1, 0.8),
-        legend.background = element_rect(fill = alpha("white", 0.4)),
-      ) +
-      scale_fill_brewer(palette = "BuGn") +
-      geom_text(data = dt_refreshDates, mapping = aes(
-        x = refreshStart, y = max(xDecompVecReportMelted$value), label = label,
-        angle = 270, hjust = -0.1, vjust = -0.2
-      ), color = "gray40") +
-      # geom_vline(xintercept = getRefreshStarts, linetype="dotted") +
-      labs(
-        title = "Model refresh: actual vs. predicted response",
-        subtitle = paste0(
-          "Assembled rsq: ", round(get_rsq(
-            true = xDecompVecReportPlot$dep_var, predicted = xDecompVecReportPlot$depVarHat
-          ), 2)
-          # ,"\nRefresh dates: ", paste(getRefreshStarts, collapse = ", ")
-        ),
-        x = "date", y = "response"
-      )
-    ggsave(
-      filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
-      plot = pFitRF,
-      dpi = 900, width = 12, height = 8, limitsize = FALSE
-    )
-
-    ## stacked bar plot
-
-    xDecompAggReportPlotBase <- xDecompAggReport[
-      rn %in% c(InputCollectRF$prophet_vars, "(Intercept)"),
-      .(rn, perc = ifelse(refreshStatus == 0, xDecompPerc, xDecompPercRF), refreshStatus)
-    ]
-    xDecompAggReportPlotBase <- xDecompAggReportPlotBase[
-      , .(variable = "baseline", percentage = sum(perc)),
-      by = refreshStatus
-    ][, roi_total := NA]
-    xDecompAggReportPlot <- xDecompAggReport[
-      !(rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")),
-      .(refreshStatus, variable = rn, percentage = ifelse(refreshStatus == 0, xDecompPerc, xDecompPercRF), roi_total)
-    ]
-    xDecompAggReportPlot <- rbind(xDecompAggReportPlot, xDecompAggReportPlotBase)[order(refreshStatus, -variable)]
-    xDecompAggReportPlot[, refreshStatus := ifelse(refreshStatus == 0, "init.mod", paste0("refresh", refreshStatus))]
-    ySecScale <- max(na.omit(xDecompAggReportPlot$roi_total)) / max(xDecompAggReportPlot$percentage) * 0.75
-    ymax <- max(c(na.omit(xDecompAggReportPlot$roi_total) / ySecScale, xDecompAggReportPlot$percentage)) * 1.1
-
-    pBarRF <- ggplot(data = xDecompAggReportPlot, mapping = aes(x = variable, y = percentage, fill = variable)) +
-      geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
-      facet_wrap(~refreshStatus, scales = "free") +
-      scale_fill_manual(values = robyn_palette()$fill) +
-      geom_text(aes(label = paste0(round(percentage * 100, 1), "%")),
-        size = 3,
-        position = position_dodge(width = 0.9), hjust = -0.25
-      ) +
-      geom_point(aes(x = variable, y = roi_total / ySecScale, color = variable),
-        size = 4, shape = 17, na.rm = TRUE,
-        data = xDecompAggReportPlot
-      ) +
-      geom_text(aes(label = round(roi_total, 2), x = variable, y = roi_total / ySecScale),
-        size = 3, na.rm = TRUE, hjust = -0.4, fontface = "bold",
-        position = position_dodge(width = 0.9),
-        data = xDecompAggReportPlot
-      ) +
-      scale_color_manual(values = robyn_palette()$fill) +
-      scale_y_continuous(
-        sec.axis = sec_axis(~ . * ySecScale), breaks = seq(0, ymax, 0.2),
-        limits = c(0, ymax), name = "roi_total"
-      ) +
-      coord_flip() +
-      theme(legend.position = "none", axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
-      labs(
-        title = "Model refresh: Decomposition & paid media ROI",
-        subtitle = paste0(
-          "baseline includes intercept and all prophet vars: ",
-          paste(InputCollectRF$prophet_vars, collapse = ", ")
-        )
-      )
-    ggsave(
-      filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
-      plot = pBarRF,
-      dpi = 900, width = 12, height = 8, limitsize = FALSE
-    )
+    if (export) {
+      write.csv(resultHypParamReport, paste0(OutputCollectRF$plot_folder, "report_hyperparameters.csv"))
+      write.csv(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
+      write.csv(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
+      write.csv(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
+    }
 
     #### Save result objects
     ReportCollect <- list(
@@ -603,15 +514,16 @@ robyn_refresh <- function(robyn_object,
       xDecompVecReport = xDecompVecReport
     )
 
-    listHolder <- list(
+    listNameUpdate <- paste0("listRefresh", refreshCounter)
+    Robyn[[listNameUpdate]] <- list(
       InputCollect = InputCollectRF,
       OutputCollect = OutputCollectRF,
       ReportCollect = ReportCollect
     )
-
-    listNameUpdate <- paste0("listRefresh", refreshCounter)
-    Robyn[[listNameUpdate]] <- listHolder
     saveRDS(Robyn, file = robyn_object)
+
+    #### Reporting plots
+    plots <- refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export)
 
     if (refreshLooper == 0) {
       refreshControl <- FALSE

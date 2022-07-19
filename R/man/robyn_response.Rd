@@ -35,11 +35,11 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
 
-\item{dt_hyppar}{A data.table. When \code{robyn_object} is not provided, use
+\item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 \code{select_model}, \code{dt_coef} and \code{InputCollect}.}
 
-\item{dt_coef}{A data.table. When \code{robyn_object} is not provided, use
+\item{dt_coef}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.}
 

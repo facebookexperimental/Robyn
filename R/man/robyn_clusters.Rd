@@ -55,7 +55,8 @@ cls <- robyn_clusters(
   input = OutputCollect,
   all_media = InputCollect$all_media,
   k = 3, limit = 2,
-  weights = c(1, 1, 1.5))
+  weights = c(1, 1, 1.5)
+)
 }
 }
 \author{

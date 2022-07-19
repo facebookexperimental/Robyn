@@ -16,6 +16,7 @@ robyn_refresh(
   refresh_trials = 3,
   plot_pareto = TRUE,
   version_prompt = FALSE,
+  export = TRUE,
   ...
 )
 
@@ -60,6 +61,8 @@ and saving model one-pagers. Used when testing models.}
 selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
 If TRUE, a prompt will be presented to the user to select one of the refreshed
 models (one-pagers and pareto csv files will already be generated).}
+
+\item{export}{Boolean. Export outcomes into local files?}
 
 \item{...}{Additional parameters to overwrite original custom parameters
 passed into initial model.}
