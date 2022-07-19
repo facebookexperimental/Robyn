@@ -185,10 +185,12 @@ robyn_inputs <- function(dt_input = NULL,
     check_nas(dt_holidays)
 
     ## Check vars names (duplicates and valid)
-    check_varnames(dt_input, dt_holidays,
-                   dep_var, date_var,
-                   context_vars, paid_media_spends,
-                   organic_vars)
+    check_varnames(
+      dt_input, dt_holidays,
+      dep_var, date_var,
+      context_vars, paid_media_spends,
+      organic_vars
+    )
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
@@ -201,8 +203,9 @@ robyn_inputs <- function(dt_input = NULL,
     check_depvar(dt_input, dep_var, dep_var_type)
 
     ## Check prophet
-    if (is.null(dt_holidays) | is.null(prophet_vars))
+    if (is.null(dt_holidays) | is.null(prophet_vars)) {
       dt_holidays <- prophet_vars <- prophet_country <- prophet_signs <- NULL
+    }
     prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
 
     ## Check baseline variables (and maybe transform context_signs)
@@ -248,16 +251,19 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check hyperparameters (if passed)
     hyperparameters <- check_hyperparameters(
-      hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars)
+      hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
+    )
 
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
-      window_start, window_end, paid_media_spends, organic_vars)
+      window_start, window_end, paid_media_spends, organic_vars
+    )
 
     ## Not used variables
     unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
-      dep_var, date_var, context_vars, paid_media_vars, paid_media_spends, organic_vars)]
+      dep_var, date_var, context_vars, paid_media_vars, paid_media_spends, organic_vars
+    )]
 
     ## Collect input
     InputCollect <- output <- list(
@@ -304,7 +310,6 @@ robyn_inputs <- function(dt_input = NULL,
       ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
       output <- robyn_engineering(InputCollect, ...)
     }
-
   } else {
     ### Use case 2: adding 'hyperparameters' and/or 'calibration_input' using robyn_inputs()
     # Check for legacy (deprecated) inputs
@@ -345,7 +350,7 @@ robyn_inputs <- function(dt_input = NULL,
 #' @aliases robyn_inputs
 #' @export
 print.robyn_inputs <- function(x, ...) {
-  mod_vars <- paste(setdiff(names(x$dt_mod), c('ds', 'dep_var')), collapse = ', ')
+  mod_vars <- paste(setdiff(names(x$dt_mod), c("ds", "dep_var")), collapse = ", ")
   print(glued(
     "
 Total Observations: {nrow(x$dt_input)} ({x$intervalType}s)
@@ -367,16 +372,26 @@ Custom parameters: {custom_params}
 Adstock: {x$adstock}
 {hyps}
 ",
-    range = paste(range(as.data.frame(x$dt_input)[,sapply(x$dt_input, is.Date)]), collapse = ":"),
+    range = paste(range(as.data.frame(x$dt_input)[, sapply(x$dt_input, is.Date)]), collapse = ":"),
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
-    prophet = if (!is.null(x$prophet_vars))
-      sprintf("%s on %s", paste(x$prophet_vars, collapse = ', '), x$prophet_country) else "\033[0;31mDeactivated\033[0m",
-    unused = if (length(x$unused_vars) > 0)
-      paste(x$unused_vars, collapse = ', ') else "None",
-    hyps = if (!is.null(x$hyperparameters)) glued(
-      "Hyper-parameters for media transformations:\n{flatten_hyps(x$hyperparameters)}") else
-        paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
+    prophet = if (!is.null(x$prophet_vars)) {
+      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "), x$prophet_country)
+    } else {
+      "\033[0;31mDeactivated\033[0m"
+    },
+    unused = if (length(x$unused_vars) > 0) {
+      paste(x$unused_vars, collapse = ", ")
+    } else {
+      "None"
+    },
+    hyps = if (!is.null(x$hyperparameters)) {
+      glued(
+        "Hyper-parameters for media transformations:\n{flatten_hyps(x$hyperparameters)}"
+      )
+    } else {
+      paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
+    }
     # lares::formatColoured("Not set yet", "red", cat = FALSE)
   ))
 }
@@ -471,7 +486,7 @@ hyper_names <- function(adstock, all_media) {
   global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
     local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "thetas|alphas|gammas"]), 1, paste, collapse = "_"))
-  } else if (adstock %in% c("weibull_cdf","weibull_pdf")) {
+  } else if (adstock %in% c("weibull_cdf", "weibull_pdf")) {
     local_name <- sort(apply(expand.grid(all_media, global_name[global_name %like% "shapes|scales|alphas|gammas"]), 1, paste, collapse = "_"))
   }
   return(local_name)
@@ -597,7 +612,7 @@ robyn_engineering <- function(x, ...) {
   #   yhatNLSCollect <- rbindlist(yhatCollect)
   #   yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
   # } else {
-    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
+  modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
   # }
 
   # getSpendSum <- colSums(subset(dt_input, select = paid_media_spends), na.rm = TRUE)
@@ -617,16 +632,22 @@ robyn_engineering <- function(x, ...) {
   if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0) {
     if (length(InputCollect[["custom_params"]]) > 0) {
       custom_params <- InputCollect[["custom_params"]]
-    } else custom_params <- list(...) # custom_params <- list()
+    } else {
+      custom_params <- list(...)
+    } # custom_params <- list()
     robyn_args <- setdiff(
-      unique(c(names(as.list(args(robyn_run))),
-               names(as.list(args(robyn_outputs))),
-               names(as.list(args(robyn_inputs))),
-               names(as.list(args(robyn_refresh))))),
-      c("", "..."))
+      unique(c(
+        names(as.list(args(robyn_run))),
+        names(as.list(args(robyn_outputs))),
+        names(as.list(args(robyn_inputs))),
+        names(as.list(args(robyn_refresh)))
+      )),
+      c("", "...")
+    )
     prophet_custom_args <- setdiff(names(custom_params), robyn_args)
-    if (length(prophet_custom_args) > 0)
+    if (length(prophet_custom_args) > 0) {
       message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
+    }
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -652,8 +673,8 @@ robyn_engineering <- function(x, ...) {
   InputCollect[["modNLSCollect"]] <- modNLSCollect
   InputCollect[["plotNLSCollect"]] <- plotNLSCollect
   InputCollect[["yhatNLSCollect"]] <- yhatNLSCollect
-  #InputCollect[["exposure_selector"]] <- exposure_selector
-  #InputCollect[["mediaCostFactor"]] <- mediaCostFactor
+  # InputCollect[["exposure_selector"]] <- exposure_selector
+  # InputCollect[["mediaCostFactor"]] <- mediaCostFactor
   return(InputCollect)
 }
 
@@ -690,18 +711,22 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   prophet_params <- list(
     holidays = if (use_holiday) holidays[holidays$country == prophet_country, ] else NULL,
     yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
-                                custom_params[["yearly.seasonality"]],
-                                use_season),
+      custom_params[["yearly.seasonality"]],
+      use_season
+    ),
     weekly.seasonality = ifelse("weekly.seasonality" %in% names(custom_params) & dayInterval <= 7,
-                                custom_params[["weekly.seasonality"]],
-                                use_weekday),
+      custom_params[["weekly.seasonality"]],
+      use_weekday
+    ),
     daily.seasonality = FALSE # No hourly models allowed
   )
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
-    dt_ohe <- dt_regressors %>% select(all_of(factor_vars)) %>% ohse()
+    dt_ohe <- dt_regressors %>%
+      select(all_of(factor_vars)) %>%
+      ohse()
     ohe_names <- names(dt_ohe)
     for (addreg in ohe_names) modelRecurrence <- add_regressor(modelRecurrence, addreg)
     dt_ohe <- select(dt_regressors, -all_of(factor_vars)) %>% bind_cols(dt_ohe)
@@ -734,7 +759,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   return(dt_transform)
 }
 
-fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_vars) {#   if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns"
+fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_vars) { #   if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns"
   colnames(dt_spendModInput) <- c("spend", "exposure")
 
   # remove spend == 0 to avoid DIV/0 error
@@ -754,9 +779,9 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
       )
 
       modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
-                      data = dt_spendModInput,
-                      start = nlsStartVal,
-                      control = nls.control(warnOnly = TRUE)
+        data = dt_spendModInput,
+        start = nlsStartVal,
+        control = nls.control(warnOnly = TRUE)
       )
       yhatNLS <- predict(modNLS)
       modNLSSum <- summary(modNLS)
@@ -849,9 +874,9 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
       )
 
       modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
-                      data = dt_spendModInput,
-                      start = nlsStartVal,
-                      control = nls.control(warnOnly = TRUE)
+        data = dt_spendModInput,
+        start = nlsStartVal,
+        control = nls.control(warnOnly = TRUE)
       )
       yhatNLS <- predict(modNLS)
       modNLSSum <- summary(modNLS)
@@ -936,7 +961,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
       mutate(ds = floor_date(.data$ds, unit = "week", week_start = weekStartInput)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
       group_by(.data$ds, .data$country, .data$year) %>%
-      summarise(holiday = paste(.data$holiday, collapse = ", "))
+      summarise(holiday = paste(.data$holiday, collapse = ", "), n = n())
   }
 
   if (intervalType == "month") {
@@ -947,7 +972,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
       mutate(ds = cut(as.Date(.data$ds), intervalType)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
       group_by(.data$ds, .data$country, .data$year) %>%
-      tally()
+      summarise(holiday = paste(.data$holiday, collapse = ", "), n = n())
   }
 
   return(holidays)

@@ -151,10 +151,12 @@ robyn_allocator <- function(robyn_object = NULL,
   # Channels contrains
   # channel_constr_low <- rep(0.8, length(paid_media_spends))
   # channel_constr_up <- rep(1.2, length(paid_media_spends))
-  if (length(channel_constr_low) == 1)
+  if (length(channel_constr_low) == 1) {
     channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
-  if (length(channel_constr_up) == 1)
+  }
+  if (length(channel_constr_up) == 1) {
     channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
+  }
   names(channel_constr_low) <- paid_media_spends
   names(channel_constr_up) <- paid_media_spends
   channel_constr_low <- channel_constr_low[media_order]
@@ -165,7 +167,7 @@ robyn_allocator <- function(robyn_object = NULL,
   dt_bestCoef <- filter(OutputCollect$xDecompAgg, .data$solID == select_model, .data$rn %in% paid_media_spends)
 
   ## Sort table and get filter for channels mmm coef reduced to 0
- dt_coef <- select(dt_bestCoef, .data$rn, .data$coef)
+  dt_coef <- select(dt_bestCoef, .data$rn, .data$coef)
   get_rn_order <- order(dt_bestCoef$rn)
   dt_coefSorted <- dt_coef[get_rn_order, ]
   dt_bestCoef <- dt_bestCoef[get_rn_order, ]
@@ -176,7 +178,9 @@ robyn_allocator <- function(robyn_object = NULL,
   if (!all(coefSelectorSorted)) {
     chn_coef0 <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
     message("Excluded in optimiser because their coefficients are 0: ", paste(chn_coef0, collapse = ", "))
-  } else chn_coef0 <- "None"
+  } else {
+    chn_coef0 <- "None"
+  }
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
   dt_hyppar <- select(dt_hyppar, hyper_names(adstock, mediaSpendSortedFiltered)) %>%
     select(sort(colnames(.)))
@@ -237,8 +241,9 @@ robyn_allocator <- function(robyn_object = NULL,
     histResponseUnitModel <- c(histResponseUnitModel, val)
   }
   names(histResponseUnitModel) <- mediaSpendSortedFiltered
-  if (!is.null(noSpendMedia) & !quiet)
+  if (!is.null(noSpendMedia) & !quiet) {
     message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
+  }
 
   ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {
@@ -342,8 +347,9 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Export results into CSV
   if (export) {
     export_dt_optimOut <- dt_optimOut
-    if (InputCollect$dep_var_type == "conversion")
+    if (InputCollect$dep_var_type == "conversion") {
       colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
+    }
     fwrite(export_dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
   }
 
@@ -368,7 +374,7 @@ robyn_allocator <- function(robyn_object = NULL,
 #' @param x \code{robyn_allocator()} output.
 #' @export
 print.robyn_allocator <- function(x, ...) {
-  temp <- x$dt_optimOut[!is.nan(x$dt_optimOut$optmRoiUnit),]
+  temp <- x$dt_optimOut[!is.nan(x$dt_optimOut$optmRoiUnit), ]
   print(glued(
     "
 Model ID: {x$dt_optimOut$solID[1]}
@@ -385,8 +391,9 @@ Allocation Summary:
     scenario = ifelse(
       x$scenario == "max_historical_response",
       "Maximum Historical Response",
-      "Maximum Response with Expected Spend"),
-    no_spend = ifelse(!is.null(x$no_spend), paste('| (spend = 0):', v2t(x$no_spend, quotes = FALSE)), ''),
+      "Maximum Response with Expected Spend"
+    ),
+    no_spend = ifelse(!is.null(x$no_spend), paste("| (spend = 0):", v2t(x$no_spend, quotes = FALSE)), ""),
     spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
@@ -394,7 +401,8 @@ Allocation Summary:
     ),
     scenario_plus = ifelse(
       x$scenario == "max_response_expected_spend",
-      sprintf(" in %s days", x$expected_spend_days), ""),
+      sprintf(" in %s days", x$expected_spend_days), ""
+    ),
     summary = paste(sprintf(
       "
 - %s:
@@ -600,9 +608,11 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
   gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
-  chnAdstocked <- filter(OutputCollect$mediaVecCollect,
-                         .data$type == "adstockedMedia",
-                         .data$solID == select_model) %>%
+  chnAdstocked <- filter(
+    OutputCollect$mediaVecCollect,
+    .data$type == "adstockedMedia",
+    .data$solID == select_model
+  ) %>%
     select(all_of(mediaSpendSortedFiltered)) %>%
     slice(startRW:endRW)
   gammaTrans <- mapply(function(gamma, x) {

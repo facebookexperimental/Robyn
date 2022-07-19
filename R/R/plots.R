@@ -28,9 +28,12 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         dt_plotProphet, aes(x = .data$ds, y = .data$value)
       ) +
         geom_line(color = "steelblue") +
-        facet_wrap(~.data$variable, scales = "free", ncol = 1) +
+        facet_wrap(~ .data$variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition") +
-        xlab(NULL) + ylab(NULL) + theme_lares() + scale_y_abbr()
+        xlab(NULL) +
+        ylab(NULL) +
+        theme_lares() +
+        scale_y_abbr()
       if (export) {
         ggsave(
           paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
@@ -96,7 +99,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         resultHypParam <- resultHypParam %>%
           mutate(iterations = ifelse(is.na(.data$robynPareto), NA, iterations))
         # Show blue dots on top of grey dots
-        resultHypParam <- resultHypParam[order(!is.na(resultHypParam$robynPareto)),]
+        resultHypParam <- resultHypParam[order(!is.na(resultHypParam$robynPareto)), ]
       }
       calibrated <- !is.null(InputCollect$calibration_input)
       pParFront <- ggplot(resultHypParam, aes(
@@ -167,8 +170,10 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       dt_ridges <- dt_ridges %>%
         mutate(iter_bin = cut(.data$iteration, breaks = set_qt, labels = set_bin)) %>%
         filter(!is.na(.data$iter_bin)) %>%
-        mutate(iter_bin = factor(.data$iter_bin, levels = sort(set_bin, decreasing = TRUE)),
-               trial = as.factor(.data$trial))
+        mutate(
+          iter_bin = factor(.data$iter_bin, levels = sort(set_bin, decreasing = TRUE)),
+          trial = as.factor(.data$trial)
+        )
       plot_vars <- unique(dt_ridges$variables)
       plot_n <- ceiling(length(plot_vars) / 6)
       metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
@@ -219,8 +224,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   }
   if (!is.null(select_model)) {
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
-    resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model,]
-    xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model,]
+    resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model, ]
+    xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model, ]
     if (!quiet) message(">> Generating only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
@@ -243,16 +248,19 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }
 
-  if (!quiet & count_mod_out > 0)
+  if (!quiet & count_mod_out > 0) {
     pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
+  }
   temp <- OutputCollect$allPareto$plotDataCollect
   all_plots <- list()
   cnt <- 0
 
   for (pf in pareto_fronts_vec) { # pf = pareto_fronts_vec[1]
 
-    plotMediaShare <- filter(xDecompAgg, .data$robynPareto == pf,
-                             .data$rn %in% InputCollect$paid_media_spends)
+    plotMediaShare <- filter(
+      xDecompAgg, .data$robynPareto == pf,
+      .data$rn %in% InputCollect$paid_media_spends
+    )
     uniqueSol <- unique(plotMediaShare$solID)
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
@@ -262,7 +270,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       nrmse_plot <- round(plotMediaShareLoop$nrmse[1], 4)
       decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
       mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
-                               round(plotMediaShareLoop$mape[1], 4), NA)
+        round(plotMediaShareLoop$mape[1], 4), NA
+      )
       errors <- paste0(
         "R2 train: ", rsq_train_plot,
         ", NRMSE = ", nrmse_plot,
@@ -321,11 +330,13 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           ), stat = "identity") +
           scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
           scale_y_percent() +
-          scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" =  "#E5586E")) +
+          scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" = "#E5586E")) +
           theme_lares(legend = "top") +
           geom_text(mapping = aes(
-            label = paste0(formatNum(.data$xDecompAgg, abbr = TRUE),
-                           "\n", round(.data$xDecompPerc * 100, 1), "%"),
+            label = paste0(
+              formatNum(.data$xDecompAgg, abbr = TRUE),
+              "\n", round(.data$xDecompPerc * 100, 1), "%"
+            ),
             y = rowSums(cbind(.data$end, .data$xDecompPerc / 2))
           ), fontface = "bold", lineheight = .7) +
           coord_flip() +
@@ -372,11 +383,14 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       trim_rate <- 1.3 # maybe enable as a parameter
       if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
-          filter(.data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
-                 .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate)
+          filter(
+            .data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
+            .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate
+          )
       }
-      if (!"channel" %in% colnames(dt_scurvePlotMean))
+      if (!"channel" %in% colnames(dt_scurvePlotMean)) {
         dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
+      }
       p4 <- ggplot(
         dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends, ],
         aes(x = .data$spend, y = .data$response, color = .data$channel)
@@ -458,12 +472,13 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 }
 
 allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
-
   outputs <- list()
 
-  subtitle <- sprintf(paste0(
-    "Total spend increase: %s%%",
-    "\nTotal response increase: %s%% with optimised spend allocation"),
+  subtitle <- sprintf(
+    paste0(
+      "Total spend increase: %s%%",
+      "\nTotal response increase: %s%% with optimised spend allocation"
+    ),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
@@ -472,13 +487,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   plotDT_scurveMeanResponse <- filter(
     OutputCollect$xDecompAgg,
     .data$solID == select_model,
-    .data$rn %in% InputCollect$paid_media_spends)
+    .data$rn %in% InputCollect$paid_media_spends
+  )
 
   rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
   nrmse_plot <- round(plotDT_scurveMeanResponse$nrmse[1], 4)
   decomp_rssd_plot <- round(plotDT_scurveMeanResponse$decomp.rssd[1], 4)
   mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
-                           round(plotDT_scurveMeanResponse$mape[1], 4), NA)
+    round(plotDT_scurveMeanResponse$mape[1], 4), NA
+  )
   errors <- paste0(
     "R2 train: ", rsq_train_plot,
     ", NRMSE = ", nrmse_plot,
@@ -494,7 +511,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
     x = .data$response,
-    fill = reorder(.data$variable, as.numeric(as.factor(.data$variable))))) +
+    fill = reorder(.data$variable, as.numeric(as.factor(.data$variable)))
+  )) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$response, 0), hjust = -0.1),
@@ -515,7 +533,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   plotDT_share <- tidyr::gather(plotDT_share, "variable", "spend_share", -.data$channel)
   outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$spend_share, fill = .data$variable)) +
+    x = .data$spend_share, fill = .data$variable
+  )) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
@@ -541,21 +560,25 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     tidyr::gather("channel", "response", -.data$ds)
 
   plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
-    filter(.data$spend >= 0) %>% as_tibble()
+    filter(.data$spend >= 0) %>%
+    as_tibble()
 
   dt_optimOutScurve <- rbind(
-    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Initial") %>% as.matrix,
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Initial") %>% as.matrix(),
     select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(x = "Optimised") %>% as.matrix()
   ) %>% as.data.frame()
   colnames(dt_optimOutScurve) <- c("channels", "spend", "response", "type")
   dt_optimOutScurve <- dt_optimOutScurve %>%
     mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
     group_by(.data$channels) %>%
-    mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
-           response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))
+    mutate(
+      spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
+      response_dif = dplyr::last(.data$response) - dplyr::first(.data$response)
+    )
 
   outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
-    x = .data$spend, y = .data$response, color = .data$channel)) +
+    x = .data$spend, y = .data$response, color = .data$channel
+  )) +
     geom_line() +
     geom_point(data = dt_optimOutScurve, aes(
       x = .data$spend, y = .data$response,
@@ -573,7 +596,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     theme(
       legend.position = c(0.87, 0.5),
       legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90"),
-      legend.spacing.y = unit(0.2, 'cm')
+      legend.spacing.y = unit(0.2, "cm")
     ) +
     labs(
       title = "Response Curve and Mean* Spend by Channel",

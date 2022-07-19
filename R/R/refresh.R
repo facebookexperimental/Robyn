@@ -28,19 +28,27 @@ robyn_save <- function(robyn_object,
   output <- list(
     robyn_object = robyn_object,
     select_model = select_model,
-    summary = filter(OutputCollect$xDecompAgg,
-                     .data$solID == select_model, !is.na(.data$mean_spend)) %>%
-      select(channel = .data$rn, .data$coef, .data$mean_spend, .data$mean_response, .data$roi_mean,
-             .data$total_spend, total_response = .data$xDecompAgg, .data$roi_total),
-    plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE))
-  if (InputCollect$dep_var_type == "conversion")
+    summary = filter(
+      OutputCollect$xDecompAgg,
+      .data$solID == select_model, !is.na(.data$mean_spend)
+    ) %>%
+      select(
+        channel = .data$rn, .data$coef, .data$mean_spend, .data$mean_response, .data$roi_mean,
+        .data$total_spend, total_response = .data$xDecompAgg, .data$roi_total
+      ),
+    plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE)
+  )
+  if (InputCollect$dep_var_type == "conversion") {
     colnames(output$summary) <- gsub("roi_", "cpa_", colnames(output$summary))
+  }
   class(output) <- c("robyn_save", class(output))
 
   if (file.exists(robyn_object)) {
     if (!quiet) {
       answer <- askYesNo(paste0(robyn_object, " already exists. Are you certain to overwrite it?"))
-    } else answer <- TRUE
+    } else {
+      answer <- TRUE
+    }
     if (answer == FALSE | is.na(answer)) {
       message("Stopped export to avoid overwriting")
       return(invisible(output))
@@ -48,13 +56,17 @@ robyn_save <- function(robyn_object,
   }
 
   OutputCollect$resultHypParam <- OutputCollect$resultHypParam[
-    OutputCollect$resultHypParam$solID == select_model, ]
+    OutputCollect$resultHypParam$solID == select_model,
+  ]
   OutputCollect$xDecompAgg <- OutputCollect$xDecompAgg[
-    OutputCollect$resultHypParam$solID == select_model, ]
+    OutputCollect$resultHypParam$solID == select_model,
+  ]
   OutputCollect$mediaVecCollect <- OutputCollect$mediaVecCollect[
-    OutputCollect$resultHypParam$solID == select_model, ]
+    OutputCollect$resultHypParam$solID == select_model,
+  ]
   OutputCollect$xDecompVecCollect <- OutputCollect$xDecompVecCollect[
-    OutputCollect$resultHypParam$solID == select_model, ]
+    OutputCollect$resultHypParam$solID == select_model,
+  ]
   OutputCollect$selectID <- select_model
 
   InputCollect$refreshCounter <- 0
@@ -77,7 +89,8 @@ print.robyn_save <- function(x, ...) {
   Exported model: {x$select_model}
 
   Media Summary for Selected Model:
-  "))
+  "
+  ))
   print(x$summary)
 }
 
@@ -224,13 +237,18 @@ robyn_refresh <- function(robyn_object,
     ## Check rule of thumb: 50% of data shouldn't be new
     original_periods <- nrow(Robyn$listInit$InputCollect$dt_modRollWind)
     new_periods <- nrow(filter(
-      dt_input, get(Robyn$listInit$InputCollect$date_var) > Robyn$listInit$InputCollect$window_end))
+      dt_input, get(Robyn$listInit$InputCollect$date_var) > Robyn$listInit$InputCollect$window_end
+    ))
     it <- Robyn$listInit$InputCollect$intervalType
-    if (new_periods > 0.5 * (original_periods + new_periods))
-      warning(sprintf(paste(
-        "We recommend re-building a model rather than refreshing this one.",
-        "More than 50%% of your refresh data (%s %ss) is new data (%s %ss)"),
-        original_periods + new_periods, it, new_periods, it))
+    if (new_periods > 0.5 * (original_periods + new_periods)) {
+      warning(sprintf(
+        paste(
+          "We recommend re-building a model rather than refreshing this one.",
+          "More than 50%% of your refresh data (%s %ss) is new data (%s %ss)"
+        ),
+        original_periods + new_periods, it, new_periods, it
+      ))
+    }
 
     ## Get previous data
     if (refreshCounter == 1) {
@@ -323,7 +341,7 @@ robyn_refresh <- function(robyn_object,
       }
       getRange <- initBounds[hn][[1]]
 
-      if (length(getRange)==2) {
+      if (length(getRange) == 2) {
         newLowB <- getHyp - getDis * newBoundsFreedom
         if (newLowB < getRange[1]) {
           newLowB <- getRange[1]
@@ -367,9 +385,9 @@ robyn_refresh <- function(robyn_object,
     # norm_nrmse <- .min_max_norm(OutputCollectRF$resultHypParam$nrmse)
     # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
     OutputCollectRF$resultHypParam[, error_dis := sqrt(.min_max_norm(nrmse)^2 +
-                                                         .min_max_norm(decomp.rssd)^2)] # min error distance selection
+      .min_max_norm(decomp.rssd)^2)] # min error distance selection
     if (version_prompt) {
-      selectID <- readline('Input model version to use for the refresh: ')
+      selectID <- readline("Input model version to use for the refresh: ")
       OutputCollectRF$selectID <- selectID
       message(
         "Selected model ID: ", selectID, " for refresh model nr.",
@@ -415,7 +433,7 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
+        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
@@ -423,23 +441,27 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
+        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
     } else {
       resultHypParamReport <- rbind(
         listReportPrev$resultHypParamReport,
         OutputCollectRF$resultHypParam[bestModRF == TRUE][
-          , refreshStatus := refreshCounter])
+          , refreshStatus := refreshCounter
+        ]
+      )
       xDecompAggReport <- rbind(
         listReportPrev$xDecompAggReport,
         OutputCollectRF$xDecompAgg[bestModRF == TRUE][
-          , refreshStatus := refreshCounter])
+          , refreshStatus := refreshCounter
+        ]
+      )
       mediaVecReport <- rbind(
         listReportPrev$mediaVecReport,
         OutputCollectRF$mediaVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
+        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
       mediaVecReport <- mediaVecReport[order(type, ds, refreshStatus)]
       xDecompVecReport <- rbind(
@@ -447,7 +469,7 @@ robyn_refresh <- function(robyn_object,
         OutputCollectRF$xDecompVecCollect[
           bestModRF == TRUE & ds >= InputCollectRF$refreshAddedStart &
             ds <= refreshEnd
-        ][, ':='(refreshStatus = refreshCounter, ds = as.IDate(ds))]
+        ][, ":="(refreshStatus = refreshCounter, ds = as.IDate(ds))]
       )
     }
 
@@ -625,8 +647,8 @@ Iterations: {x$refresh_iters}
 Models (IDs):
   {paste(top_models_plain, collapse = ', ')}
 ",
-    top_models_plain = sapply(seq_along(top_models), function(i)
-      paste(names(top_models), paste(top_models[,i], collapse = ', '), sep = ": "))
+    top_models_plain = sapply(seq_along(top_models), function(i) {
+      paste(names(top_models), paste(top_models[, i], collapse = ", "), sep = ": ")
+    })
   ))
 }
-

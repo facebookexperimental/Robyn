@@ -29,7 +29,8 @@
 #'   input = OutputCollect,
 #'   all_media = InputCollect$all_media,
 #'   k = 3, limit = 2,
-#'   weights = c(1, 1, 1.5))
+#'   weights = c(1, 1, 1.5)
+#' )
 #' }
 #' @return List. Clustering results as labeled data.frames and plots.
 #' @export
@@ -37,13 +38,14 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE,
                            ...) {
-
   if ("robyn_outputs" %in% class(input)) {
     if (is.null(all_media)) {
       aux <- colnames(input$mediaVecCollect)
       all_media <- aux[-c(1, which(aux == "type"):length(aux))]
       path <- input$plot_folder
-    } else path <- paste0(getwd(), "/")
+    } else {
+      path <- paste0(getwd(), "/")
+    }
     # Pareto and ROI data
     xDecompAgg <- input$xDecompAgg
     df <- .prepare_df(xDecompAgg, all_media = all_media)
@@ -65,22 +67,32 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   min_clusters <- 3
   limit_clusters <- min(nrow(df) - 1, 30)
   if ("auto" %in% k) {
-    cls <- tryCatch({
-      clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
-    }, error = function(err) {
-      message(paste("Couldn't automatically create clusters:", err))
-      return(NULL)
-    })
-    #if (is.null(cls)) return(NULL)
+    cls <- tryCatch(
+      {
+        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+      },
+      error = function(err) {
+        message(paste("Couldn't automatically create clusters:", err))
+        return(NULL)
+      }
+    )
+    # if (is.null(cls)) return(NULL)
     min_var <- 0.05
     k <- cls$nclusters %>%
-      mutate(pareto = .data$wss/.data$wss[1],
-             dif = lag(.data$pareto) - .data$pareto) %>%
-      filter(.data$dif > min_var) %>% pull(.data$n) %>% max(.)
+      mutate(
+        pareto = .data$wss / .data$wss[1],
+        dif = lag(.data$pareto) - .data$pareto
+      ) %>%
+      filter(.data$dif > min_var) %>%
+      pull(.data$n) %>%
+      max(.)
     if (k < min_clusters) k <- min_clusters
-    if (!quiet) message(sprintf(
-      ">> Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
-      k, min_var*100))
+    if (!quiet) {
+      message(sprintf(
+        ">> Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
+        k, min_var * 100
+      ))
+    }
   }
 
   # Build clusters
@@ -121,7 +133,6 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   }
 
   return(output)
-
 }
 
 # # Mean Media ROI by Cluster
@@ -218,7 +229,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 }
 
 .plot_topsols_rois <- function(df, top_sols, all_media, limit = 1) {
-  real_rois <- as.data.frame(df)[,-c(which(colnames(df) %in% c("mape","nrmse","decomp.rssd")))]
+  real_rois <- as.data.frame(df)[, -c(which(colnames(df) %in% c("mape", "nrmse", "decomp.rssd")))]
   colnames(real_rois) <- paste0("real_", colnames(real_rois))
   top_sols %>%
     left_join(real_rois, by = c("solID" = "real_solID")) %>%

@@ -39,7 +39,6 @@
 #' @return List. Plots and MOO convergence results.
 #' @export
 robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...) {
-
   stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
   # Gather all trials
@@ -82,35 +81,40 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
       med_var_P = abs(round(100 * (.data$median - lag(.data$median)) / .data$median, 2))
     ) %>%
     group_by(.data$error_type) %>%
-    mutate(first_med = abs(dplyr::first(.data$median)),
-           first_med_avg = abs(mean(.data$median[1:sd_qtref])),
-           last_med = abs(dplyr::last(.data$median)),
-           first_sd = dplyr::first(.data$std),
-           first_sd_avg = mean(.data$std[1:sd_qtref]),
-           last_sd = dplyr::last(.data$std))  %>%
-    mutate(med_thres = abs(.data$first_med - med_lowb * .data$first_sd_avg),
-           flag_med = abs(.data$median) < .data$med_thres,
-           flag_sd = .data$std < .data$first_sd_avg)
+    mutate(
+      first_med = abs(dplyr::first(.data$median)),
+      first_med_avg = abs(mean(.data$median[1:sd_qtref])),
+      last_med = abs(dplyr::last(.data$median)),
+      first_sd = dplyr::first(.data$std),
+      first_sd_avg = mean(.data$std[1:sd_qtref]),
+      last_sd = dplyr::last(.data$std)
+    ) %>%
+    mutate(
+      med_thres = abs(.data$first_med - med_lowb * .data$first_sd_avg),
+      flag_med = abs(.data$median) < .data$med_thres,
+      flag_sd = .data$std < .data$first_sd_avg
+    )
 
   conv_msg <- NULL
   for (obj_fun in unique(errors$error_type)) {
     temp.df <- filter(errors, .data$error_type == obj_fun) %>%
       mutate(median = signif(median, 2))
     last.qt <- tail(temp.df, 1)
-    greater <- ">" #intToUtf8(8814)
+    greater <- ">" # intToUtf8(8814)
     temp <- glued(paste(
-        "{error_type} {did}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_threh} &",
-        "|med@qt.{quantile}| {qtn_median} {symb_med} {med_threh}"),
-        error_type = last.qt$error_type,
-        did = ifelse(last.qt$flag_sd & last.qt$flag_med, "", "NOT "),
-        sd = signif(last.qt$last_sd, 2),
-        symb_sd = ifelse(last.qt$flag_sd, "<=", greater),
-        sd_threh = signif(last.qt$first_sd_avg, 2),
-        quantile = n_cuts,
-        qtn_median = signif(last.qt$last_med, 2),
-        symb_med = ifelse(last.qt$flag_med, "<=", greater),
-        med_threh = signif(last.qt$med_thres, 2)
-      )
+      "{error_type} {did}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_threh} &",
+      "|med@qt.{quantile}| {qtn_median} {symb_med} {med_threh}"
+    ),
+    error_type = last.qt$error_type,
+    did = ifelse(last.qt$flag_sd & last.qt$flag_med, "", "NOT "),
+    sd = signif(last.qt$last_sd, 2),
+    symb_sd = ifelse(last.qt$flag_sd, "<=", greater),
+    sd_threh = signif(last.qt$first_sd_avg, 2),
+    quantile = n_cuts,
+    qtn_median = signif(last.qt$last_med, 2),
+    symb_med = ifelse(last.qt$flag_med, "<=", greater),
+    med_threh = signif(last.qt$med_thres, 2)
+    )
     conv_msg <- c(conv_msg, temp)
   }
   message(paste(paste("-", conv_msg), collapse = "\n"))
@@ -158,7 +162,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
     )
 
   moo_cloud_plot <- ggplot(df, aes(
-    x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum)) +
+    x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum
+  )) +
     scale_colour_gradient(low = "skyblue", high = "navyblue") +
     labs(
       title = ifelse(!calibrated, "Multi-objective evolutionary performance",
