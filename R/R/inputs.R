@@ -178,7 +178,8 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
     dt_input <- as_tibble(dt_input)
-    if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
+    if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays) %>%
+        mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
 
     ## Check for NA values
     check_nas(dt_input)
