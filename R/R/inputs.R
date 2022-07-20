@@ -177,9 +177,9 @@ robyn_inputs <- function(dt_input = NULL,
 
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
+
     dt_input <- as_tibble(dt_input)
-    if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays) %>%
-        mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
+    if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
     ## Check for NA values
     check_nas(dt_input)
@@ -970,7 +970,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
       stop("Monthly data should have first day of month as datestampe, e.g.'2020-01-01'")
     }
     holidays <- dt_holidays %>%
-      mutate(ds = cut(as.Date(.data$ds), intervalType)) %>%
+      mutate(ds = cut(.data$ds, intervalType)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
       group_by(.data$ds, .data$country, .data$year) %>%
       summarise(holiday = paste(.data$holiday, collapse = ", "), n = n())

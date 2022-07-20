@@ -79,10 +79,9 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
-  dt_input <- as.data.frame(dt_input) %>%
-    arrange(vars(date_var)) %>%
-    mutate_at(all_of(date_var), as.Date)
-  date_var_dates <- dt_input[, date_var]
+  dt_input <- arrange(dt_input, vars(date_var))
+  dt_input[, date_var][[1]] <- as.Date(dt_input[, date_var][[1]], origin = "1970-01-01")
+  date_var_dates <- dt_input[, date_var][[1]]
   if (any(table(date_var_dates) > 1)) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
@@ -273,13 +272,13 @@ check_datadim <- function(dt_input, all_ind_vars, rel = 10) {
 }
 
 check_windows <- function(dt_input, date_var, all_media, window_start, window_end) {
-  dates_vec <- as.Date(dt_input[, date_var][[1]])
-  window_start <- as.Date(as.character(window_start))
-  window_end <- as.Date(as.character(window_end))
+  dates_vec <- as.Date(dt_input[, date_var][[1]], origin = "1970-01-01")
+  window_start <- as.Date(as.character(window_start), "%Y-%m-%d", origin = "1970-01-01")
+  window_end <- as.Date(as.character(window_end), "%Y-%m-%d", origin = "1970-01-01")
 
   if (is.null(window_start)) {
     window_start <- min(dates_vec)
-  } else if (is.na(as.Date(window_start, "%Y-%m-%d"))) {
+  } else if (is.na(window_start)) {
     stop("'window_start' must have format '2020-12-31'")
   } else if (window_start < min(dates_vec)) {
     window_start <- min(dates_vec)
@@ -290,7 +289,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 
   rollingWindowStartWhich <- which.min(abs(difftime(
     dates_vec,
-    as.Date(window_start),
+    window_start,
     units = "days"
   )))
   if (!window_start %in% dates_vec) {
@@ -301,7 +300,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 
   if (is.null(window_end)) {
     window_end <- max(dates_vec)
-  } else if (is.na(as.Date(window_end, "%Y-%m-%d"))) {
+  } else if (is.na(window_end)) {
     stop("'window_end' must have format '2020-12-31'")
   } else if (window_end > max(dates_vec)) {
     window_end <- max(dates_vec)
@@ -311,8 +310,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     message("'window_end' must be >= 'window_start.' It's set to latest date in input data")
   }
 
-  rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, as.Date(window_end), units = "days")))
-  if (!(as.Date(window_end) %in% dates_vec)) {
+  rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, window_end, units = "days")))
+  if (!(window_end %in% dates_vec)) {
     window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
     message("'window_end' is adapted to the closest date contained in input data: ", window_end)
   }
@@ -444,7 +443,7 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     }
     for (i in 1:nrow(calibration_input)) {
       temp <- calibration_input[i, ]
-      if (temp$liftStartDate < as.Date(window_start) | temp$liftEndDate > as.Date(window_end)) {
+      if (temp$liftStartDate < (window_start) | temp$liftEndDate > (window_end)) {
         stop(sprintf(
           paste(
             "Your calibration's date range for %s between %s and %s is not within modeling window (%s to %s).",
