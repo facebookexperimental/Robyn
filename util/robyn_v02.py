@@ -121,9 +121,17 @@ try:
             func=robjects.r(func_code)
             return func
 
+        def convert_to_listvector(self,data):
+            return robjects.ListVector(data)
+
+        def get_r_type(self):
+            rtype=self.set_custom_r_func('typeof')
+            return rtype
+
 
     rfuncs = RFuncs()
     find_pkg_func= rfuncs.set_custom_r_func(rfuncs.find_pkg_func['find_pkg'])
+
     logger.info(f"Robyn is in path: {find_pkg_func('Robyn')}")
 
     def get_r_package_version(pkg_name:str):
@@ -226,7 +234,7 @@ try:
         # "ooh_S","print_S","facebook_S", "search_S"
         , organic_vars=np.array(["newsletter"])
         , factor_vars=np.array(["events"])  #
-        , window_start="2016-11-21"# date(2016,11,21) #"2016-11-21"
+        , window_start= "2016-11-21"# date(2016,11,21) #"2016-11-21"
         , window_end= "2018-08-20"#date(2018,8,20)   #"2018-08-20"
         , adstock="geometric"
     )
@@ -303,9 +311,28 @@ try:
     calibration_input= robyn.check_calibration(dt_input=input_collect[0],date_var=input_collect[5],calibration_input=input_collect[4],
                                                dayInterval=input_collect[6],  dep_var=input_collect[8], window_start=input_collect[26],
                                                window_end=input_collect[28], paid_media_spends=input_collect[17], organic_vars=input_collect[20])
+    input_collect.rx2['hyperparameters'] = hp
+    logger.info("added check_hyperparameters")
+    hp_check=robyn.check_hyperparameters(hyperparameters=input_collect.rx2['hyperparameters'], adstock=input_collect[32],
+                                paid_media_spends=input_collect.rx2['paid_media_spends'],
+                                organic_vars=input_collect.rx2['organic_vars'],
+                                exposure_vars=input_collect.rx2['organic_vars'])
+    logger.info("DONE check_hyperparameters")
+
+    robyn.robyn_run(InputCollect=input_collect
+    , iterations = 2000  # recommended for the dummy dataset
+    , trials = 5  # recommended for the dummy dataset
+    , outputs = False
+    )
+
+
+
     robjects.ListVector(input_collect)[7][0] ="day"
-    robyn.check_hyperparameters(hyperparameters=hp2, adstock=input_collect[32])
-    input_collects = robyn.robyn_inputs(InputCollect=input_collect, hyperparameters=hp)
+    robyn.check_windows(dt_input=input_collect.rx2['dt_input'], date_var=input_collect.rx2['dt_input'].rx2['DATE'], window_start=input_collect.rx2['window_start'],
+                        window_end=input_collect[28], all_media=input_collect.rx2['all_media'])
+    input_collect.rx2['hyperparameters']
+
+    input_collects = robyn.robyn_inputs(InputCollect=input_collect, hyperparameters=hyperparameters)
 
     outputs=robyn.robyn_run(
           InputCollect = input_collect # feed in all model specification
