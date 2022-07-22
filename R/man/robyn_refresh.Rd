@@ -58,9 +58,9 @@ More reliable recommendation still needs to be investigated.}
 and saving model one-pagers. Used when testing models.}
 
 \item{version_prompt}{Logical. If FALSE, the model refresh version will be
-selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
-If TRUE, a prompt will be presented to the user to select one of the refreshed
-models (one-pagers and pareto csv files will already be generated).}
+selected based on the smallest combined error of normalized NRMSE, DECOMP.RSSD, MAPE.
+If \code{TRUE}, a prompt will be presented to the user to select one of the refreshed
+models (one-pagers and Pareto CSV files will already be generated).}
 
 \item{export}{Boolean. Export outcomes into local files?}
 

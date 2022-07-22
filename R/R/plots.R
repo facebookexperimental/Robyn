@@ -427,7 +427,6 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted
-      xDecompVecPlotMelted$variable <- stringr::str_to_title(xDecompVecPlotMelted$variable)
       xDecompVecPlotMelted$linetype <- ifelse(xDecompVecPlotMelted$variable == "Predicted", "solid", "dotted")
       p5 <- ggplot(xDecompVecPlotMelted, aes(x = .data$ds, y = .data$value, color = .data$variable)) +
         geom_path(aes(linetype = .data$linetype), size = 0.6) +

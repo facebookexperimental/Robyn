@@ -152,9 +152,9 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' @param refresh_trials Integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
 #' @param version_prompt Logical. If FALSE, the model refresh version will be
-#' selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
-#' If TRUE, a prompt will be presented to the user to select one of the refreshed
-#' models (one-pagers and pareto csv files will already be generated).
+#' selected based on the smallest combined error of normalized NRMSE, DECOMP.RSSD, MAPE.
+#' If \code{TRUE}, a prompt will be presented to the user to select one of the refreshed
+#' models (one-pagers and Pareto CSV files will already be generated).
 #' @param ... Additional parameters to overwrite original custom parameters
 #' passed into initial model.
 #' @return List. The Robyn object, class \code{robyn_refresh}.
@@ -392,7 +392,7 @@ robyn_refresh <- function(robyn_object,
       selectID <- readline("Input model version to use for the refresh: ")
       OutputCollectRF$selectID <- selectID
       message(
-        "Selected model ID: ", selectID, " for refresh model nr.",
+        "Selected model ID: ", selectID, " for refresh model #",
         refreshCounter, " based on your input\n"
       )
       if (selectID %in% OutputCollectRF$allSolutions)
@@ -403,7 +403,7 @@ robyn_refresh <- function(robyn_object,
       OutputCollectRF$selectID <- selectID
       message(
         "Selected model ID: ", selectID, " for refresh model #",
-        refreshCounter, " based on the smallest combined error of normalised NRMSE & DECOMP.RSSD"
+        refreshCounter, " based on the smallest combined error of normalised NRMSE, DECOMP.RSSD & MAPE"
       )
     }
 
