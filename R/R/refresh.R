@@ -386,7 +386,8 @@ robyn_refresh <- function(robyn_object,
     # norm_nrmse <- .min_max_norm(OutputCollectRF$resultHypParam$nrmse)
     # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
-      mutate(error_dis = sqrt(.min_max_norm(.data$nrmse)^2 + .min_max_norm(.data$decomp.rssd)^2))
+      mutate(error_dis = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
+      select(.data$solID, everything())
     if (version_prompt) {
       selectID <- readline("Input model version to use for the refresh: ")
       OutputCollectRF$selectID <- selectID
@@ -394,6 +395,9 @@ robyn_refresh <- function(robyn_object,
         "Selected model ID: ", selectID, " for refresh model nr.",
         refreshCounter, " based on your input\n"
       )
+      if (selectID %in% OutputCollectRF$allSolutions)
+        stop(sprintf("Selected model ID (%s) is not valid.\n  Choose any of: %s",
+                     selectID, v2t(OutputCollectRF$allSolutions)))
     } else {
       selectID <- OutputCollectRF$resultHypParam$solID[which.min(OutputCollectRF$resultHypParam$error_dis)]
       OutputCollectRF$selectID <- selectID
