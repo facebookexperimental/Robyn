@@ -426,8 +426,10 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         scale_x_abbr()
 
       ## 5. Fitted vs actual
-      xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted
-      xDecompVecPlotMelted$linetype <- ifelse(xDecompVecPlotMelted$variable == "Predicted", "solid", "dotted")
+      xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted %>%
+        mutate(linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
+               variable = stringr::str_to_title(.data$variable))
+      # rsq <- temp[[sid]]$plot5data$rsq
       p5 <- ggplot(xDecompVecPlotMelted, aes(x = .data$ds, y = .data$value, color = .data$variable)) +
         geom_path(aes(linetype = .data$linetype), size = 0.6) +
         theme_lares(legend = "top", pal = 2) +
@@ -435,6 +437,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         guides(linetype = "none") +
         labs(
           title = "Actual vs. Predicted Response",
+          # subtitle = paste("Train R2 =", round(rsq, 4)),
           x = "Date", y = "Response", color = NULL
         )
 

@@ -192,11 +192,11 @@ plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 #' @return List. Same as \code{robyn_run()} but with refreshed models.
 #' @export
 robyn_refresh <- function(robyn_object,
+                          dt_input = NULL,
+                          dt_holidays = NULL,
                           plot_folder_sub = NULL,
-                          dt_input = dt_input,
-                          dt_holidays = dt_holidays,
                           refresh_steps = 4,
-                          refresh_mode = "manual", # "auto", "manual"
+                          refresh_mode = "manual",
                           refresh_iters = 1000,
                           refresh_trials = 3,
                           plot_pareto = TRUE,
@@ -555,7 +555,9 @@ robyn_refresh <- function(robyn_object,
 #' @export
 print.robyn_refresh <- function(x, ...) {
   rf_list <- x[grep("Refresh", names(x), value = TRUE)]
-  top_models <- data.frame(sapply(rf_list, function(y) y$ReportCollect$resultHypParamReport$solID))
+  top_models <- sapply(rf_list, function(y) y$ReportCollect$resultHypParamReport$solID)
+  top_models <- top_models[[length(top_models)]]
+  top_models <- paste(top_models, sprintf("(%s)", 0:(length(top_models) - 1)))
   print(glued(
     "
 Refresh Models: {length(rf_list)}
@@ -565,10 +567,6 @@ Trials: {x$refresh_trials}
 Iterations: {x$refresh_iters}
 
 Models (IDs):
-  {paste(top_models_plain, collapse = ', ')}
-",
-    top_models_plain = sapply(seq_along(top_models), function(i) {
-      paste(names(top_models), paste(top_models[, i], collapse = ", "), sep = ": ")
-    })
-  ))
+  {paste(top_models, collapse = ', ')}
+"))
 }

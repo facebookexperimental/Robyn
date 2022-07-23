@@ -401,10 +401,11 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       xDecompVec <- mutate(xDecompVec, intercept = intercept, depVarHat = rowSums(xDecompVec), solID = sid)
       xDecompVec <- bind_cols(select(dt_transformDecomp, .data$ds, .data$dep_var), xDecompVec)
       xDecompVecPlot <- select(xDecompVec, .data$ds, .data$dep_var, .data$depVarHat) %>%
-        rename("Actual" = "dep_var", "Predicted" = "depVarHat")
+        rename("actual" = "dep_var", "predicted" = "depVarHat")
       xDecompVecPlotMelted <- tidyr::gather(
         xDecompVecPlot, key = "variable", value = "value", -.data$ds)
-      plot5data <- list(xDecompVecPlotMelted = xDecompVecPlotMelted)
+      rsq <- filter(xDecompAgg, .data$solID == sid) %>% pull(.data$rsq_train) %>% .[1]
+      plot5data <- list(xDecompVecPlotMelted = xDecompVecPlotMelted, rsq = rsq)
 
       ## 6. Diagnostic: fitted vs residual
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)

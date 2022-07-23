@@ -7,9 +7,9 @@
 \usage{
 robyn_refresh(
   robyn_object,
+  dt_input = NULL,
+  dt_holidays = NULL,
   plot_folder_sub = NULL,
-  dt_input = dt_input,
-  dt_holidays = dt_holidays,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000,
@@ -26,15 +26,15 @@ robyn_refresh(
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
 
-\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
-path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
-For example, plot_folder_sub = "sub_dir".}
-
 \item{dt_input}{data.frame. Should include all previous data and newly added
 data for the refresh.}
 
 \item{dt_holidays}{data.frame. Raw input holiday data. Load standard
 Prophet holidays using \code{data("dt_prophet_holidays")}.}
+
+\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
+path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+For example, plot_folder_sub = "sub_dir".}
 
 \item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data
