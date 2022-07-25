@@ -14,6 +14,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
       solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
     )
+  if (hyper_fixed) resultHypParam <- dplyr::mutate_all(resultHypParam, unlist)
 
   xDecompAgg <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)

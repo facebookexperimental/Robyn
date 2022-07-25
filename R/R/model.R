@@ -109,13 +109,15 @@ robyn_run <- function(InputCollect,
   attr(OutputModels, "hyper_fixed") <- hyper_collect$all_fixed
   attr(OutputModels, "refresh") <- refresh
 
-  OutputModels$cores <- cores
-  OutputModels$iterations <- iterations
-  OutputModels$trials <- trials
-  OutputModels$intercept_sign <- intercept_sign
-  OutputModels$nevergrad_algo <- nevergrad_algo
-  OutputModels$add_penalty_factor <- add_penalty_factor
-  OutputModels$hyper_updated <- hyper_collect$hyper_list_all
+  if (TRUE) {
+    OutputModels$cores <- cores
+    OutputModels$iterations <- iterations
+    OutputModels$trials <- trials
+    OutputModels$intercept_sign <- intercept_sign
+    OutputModels$nevergrad_algo <- nevergrad_algo
+    OutputModels$add_penalty_factor <- add_penalty_factor
+    OutputModels$hyper_updated <- hyper_collect$hyper_list_all
+  }
 
   if (!outputs) {
     output <- OutputModels
