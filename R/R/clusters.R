@@ -101,7 +101,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
   # Select top models by minimum (weighted) distance to zero
   top_sols <- .clusters_df(cls$df, weights) %>%
-    mutate(error_dis = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
+    mutate(error_score = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
     .crit_proc(limit)
 
   output <- list(
@@ -198,8 +198,9 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 }
 
 .crit_proc <- function(df, limit) {
-  arrange(df, .data$cluster, .data$error_dis) %>%
+  arrange(df, .data$cluster, .data$error_score) %>%
     group_by(.data$cluster) %>%
+    arrange(desc(.data$error_score)) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())

@@ -98,7 +98,7 @@ print.robyn_save <- function(x, ...) {
 #' @aliases robyn_save
 #' @param x \code{robyn_save()} output.
 #' @export
-plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
+plot.robyn_save <- function(x, ...) plot(x$refresh$plot[[1]], ...)
 
 
 ####################################################################
@@ -222,7 +222,7 @@ robyn_refresh <- function(robyn_object,
     }
 
     ## Count refresh
-    refreshCounter <- length(Robyn)
+    refreshCounter <- length(Robyn) - sum(grepl("refresh", names(Robyn)))
     objectCheck <- if (refreshCounter == 1) {
       c("listInit")
     } else {
@@ -267,7 +267,7 @@ robyn_refresh <- function(robyn_object,
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
       message(paste(">>> Loaded refresh model:", refreshCounter - 1))
       ## Model selection from previous build
-      which_bestModRF <- which.min(listOutputPrev$resultHypParam$error_dis)
+      which_bestModRF <- which.max(listOutputPrev$resultHypParam$error_score)[1]
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]
       listOutputPrev$xDecompAgg <- listOutputPrev$xDecompAgg[which_bestModRF, ]
       listOutputPrev$mediaVecCollect <- listOutputPrev$mediaVecCollect[which_bestModRF, ]
@@ -293,18 +293,20 @@ robyn_refresh <- function(robyn_object,
     #### Update refresh model parameters
 
     ## Refresh rolling window
-    totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
-    refreshStart <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
-    refreshEnd <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
-    InputCollectRF$refreshAddedStart <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval
-    InputCollectRF$window_start <- refreshStart
-    InputCollectRF$window_end <- refreshEnd
+    if (TRUE) {
+      totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
+      refreshStart <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
+      refreshEnd <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
+      InputCollectRF$refreshAddedStart <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval
+      InputCollectRF$window_start <- refreshStart
+      InputCollectRF$window_end <- refreshEnd
 
-    refreshStartWhich <- which.min(abs(difftime(totalDates, as.Date(refreshStart), units = "days")))
-    refreshEndWhich <- which.min(abs(difftime(totalDates, as.Date(refreshEnd), units = "days")))
-    InputCollectRF$rollingWindowStartWhich <- refreshStartWhich
-    InputCollectRF$rollingWindowEndWhich <- refreshEndWhich
-    InputCollectRF$rollingWindowLength <- refreshEndWhich - refreshStartWhich + 1
+      refreshStartWhich <- which.min(abs(difftime(totalDates, as.Date(refreshStart), units = "days")))
+      refreshEndWhich <- which.min(abs(difftime(totalDates, as.Date(refreshEnd), units = "days")))
+      InputCollectRF$rollingWindowStartWhich <- refreshStartWhich
+      InputCollectRF$rollingWindowEndWhich <- refreshEndWhich
+      InputCollectRF$rollingWindowLength <- refreshEndWhich - refreshStartWhich + 1
+    }
 
     if (refreshEnd > max(totalDates)) {
       stop("Not enough data for this refresh. Input data from date ", refreshEnd, " or later required")
@@ -363,8 +365,8 @@ robyn_refresh <- function(robyn_object,
     # Note that if custom prophet parameters were passed initially, will be used again unless changed in ...
     InputCollectRF <- robyn_engineering(InputCollectRF, ...)
 
-    ## refresh model with adjusted decomp.rssd
-
+    ## Refresh model with adjusted decomp.rssd
+    # OutputCollectRF <- Robyn$listRefresh1$OutputCollect
     OutputCollectRF <- robyn_run(
       InputCollect = InputCollectRF,
       plot_folder = objectPath,
@@ -374,21 +376,23 @@ robyn_refresh <- function(robyn_object,
       iterations = refresh_iters,
       trials = refresh_trials,
       refresh = TRUE,
+      outputs = TRUE,
       plot_pareto = plot_pareto,
       ...
     )
 
     ## Select winner model for current refresh
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
-      mutate(error_dis = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
+      mutate(error_score = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
       select(.data$solID, everything()) %>% ungroup() %>%
-      arrange(.data$error_dis)
+      arrange(desc(.data$error_score))
+    bestMod <- OutputCollectRF$resultHypParam$solID[1]
 
     # Pick best model (and don't crash if not valid)
     selectID <- NULL
     while (length(selectID) == 0) {
       if (version_prompt) {
-        OutputCollectRF$selectID <- selectID <- readline("Input model ID to use for the refresh: ")
+        selectID <- readline("Input model ID to use for the refresh: ")
         message(
           "Selected model ID: ", selectID, " for refresh model #",
           refreshCounter, " based on your input"
@@ -398,7 +402,7 @@ robyn_refresh <- function(robyn_object,
                           selectID, v2t(OutputCollectRF$allSolutions)))
         }
       } else {
-        OutputCollectRF$selectID <- selectID <- OutputCollectRF$resultHypParam %>%
+        selectID <- OutputCollectRF$resultHypParam %>%
           slice(1) %>% pull(.data$solID)
         message(
           "Selected model ID: ", selectID, " for refresh model #",
@@ -410,39 +414,39 @@ robyn_refresh <- function(robyn_object,
         selectID <- NULL
       }
     }
-
-    # Add bestModRF column to multiple data.frames
-    these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
-    for (tb in these) {
-      OutputCollectRF[[tb]] <- mutate(OutputCollectRF[[tb]], bestModRF = .data$solID == selectID)
-    }
+    OutputCollectRF$selectID <- selectID
 
     #### Result collect & save
-    if (refreshCounter == 1) {
-      listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam %>%
-        mutate(error_dis = sqrt(.data$nrmse^2 + .data$decomp.rssd^2))
 
-      # Add bestModRF and refreshCounter column to multiple data.frames
-      these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
+    # Add refreshCount column to multiple OutputCollectRF data.frames
+    these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
+    for (tb in these) {
+      OutputCollectRF[[tb]] <- OutputCollectRF[[tb]] %>%
+        mutate(refreshCount = refreshCounter - 1,
+               bestModRF = .data$solID %in% bestMod)
+    }
+
+    if (refreshCounter == 1) {
+
+      # Add bestModRF and refreshCount column to multiple listOutputPrev data.frames
       for (tb in these) {
         listOutputPrev[[tb]] <- mutate(
           listOutputPrev[[tb]],
-          bestModRF = TRUE, refreshCounter = refreshCounter - 1
+          bestModRF = TRUE,
+          refreshCount = refreshCounter
         )
       }
 
       resultHypParamReport <- listOutputPrev$resultHypParam %>%
         filter(.data$bestModRF == TRUE) %>%
         bind_rows(
-          OutputCollectRF$resultHypParam %>%
-            filter(.data$bestModRF == TRUE)
+          filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE)
         )
 
       xDecompAggReport <- listOutputPrev$xDecompAgg %>%
         filter(.data$bestModRF == TRUE) %>%
         bind_rows(
-          OutputCollectRF$xDecompAgg %>%
-            filter(.data$bestModRF == TRUE)
+          filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE)
         )
 
       mediaVecReport <- listOutputPrev$mediaVecCollect %>%
@@ -459,7 +463,7 @@ robyn_refresh <- function(robyn_object,
               .data$ds <= refreshEnd
             )
         ) %>%
-        arrange(.data$type, .data$ds, .data$refreshCounter)
+        arrange(.data$type, .data$ds, .data$refreshCount)
 
       xDecompVecReport <- listOutputPrev$xDecompVecCollect %>%
         filter(.data$bestModRF == TRUE) %>%
@@ -474,12 +478,14 @@ robyn_refresh <- function(robyn_object,
     } else {
       resultHypParamReport <- listReportPrev$resultHypParamReport %>%
         bind_rows(
-          filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE)
+          filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE) %>%
+            mutate(refreshCount = refreshCounter)
         )
 
       xDecompAggReport <- listReportPrev$xDecompAggReport %>%
         bind_rows(
-          filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE)
+          filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE) %>%
+            mutate(refreshCount = refreshCounter)
         )
 
       mediaVecReport <- listReportPrev$mediaVecReport %>%
@@ -489,9 +495,10 @@ robyn_refresh <- function(robyn_object,
             .data$bestModRF == TRUE,
             .data$ds >= InputCollectRF$refreshAddedStart,
             .data$ds <= refreshEnd
-          )
+          ) %>%
+            mutate(refreshCount = refreshCounter)
         ) %>%
-        arrange(.data$type, .data$ds, .data$refreshCounter)
+        arrange(.data$type, .data$ds, .data$refreshCount)
 
       xDecompVecReport <- listReportPrev$xDecompVecReport %>%
         bind_rows(
@@ -500,7 +507,8 @@ robyn_refresh <- function(robyn_object,
             .data$bestModRF == TRUE,
             .data$ds >= InputCollectRF$refreshAddedStart,
             .data$ds <= refreshEnd
-          )
+          ) %>%
+            mutate(refreshCount = refreshCounter)
         )
     }
 
@@ -511,12 +519,14 @@ robyn_refresh <- function(robyn_object,
       write.csv(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
     }
 
-    #### Save result objects
+    #### Result objects to export
     ReportCollect <- list(
       resultHypParamReport = resultHypParamReport,
       xDecompAggReport = xDecompAggReport,
       mediaVecReport = mediaVecReport,
-      xDecompVecReport = xDecompVecReport
+      xDecompVecReport = xDecompVecReport,
+      # Selected models (original + refresh IDs)
+      selectIDs = resultHypParamReport$solID
     )
 
     listNameUpdate <- paste0("listRefresh", refreshCounter)
@@ -525,11 +535,10 @@ robyn_refresh <- function(robyn_object,
       OutputCollect = OutputCollectRF,
       ReportCollect = ReportCollect
     )
-    saveRDS(Robyn, file = robyn_object)
 
     #### Reporting plots
     # InputCollectRF <- Robyn$listRefresh1$InputCollect
-    # OutputCollectRF <- Robyn$listRefresh1$OutputCollectRF
+    # OutputCollectRF <- Robyn$listRefresh1$OutputCollect
     # ReportCollect <- Robyn$listRefresh1$ReportCollect
     plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
 
@@ -540,13 +549,17 @@ robyn_refresh <- function(robyn_object,
   }
 
   # Save some parameters to print
-  Robyn[["refresh_steps"]] <- refresh_steps
-  Robyn[["refresh_mode"]] <- refresh_mode
-  Robyn[["refresh_trials"]] <- refresh_trials
-  Robyn[["refresh_iters"]] <- refresh_iters
-  Robyn[["refresh_plots"]] <- plots
+  Robyn[["refresh"]] <- list(
+    selectIDs = ReportCollect$selectIDs,
+    refresh_steps = refresh_steps,
+    refresh_mode = refresh_mode,
+    refresh_trials = refresh_trials,
+    refresh_iters = refresh_iters,
+    plots = plots)
 
   class(Robyn) <- c("robyn_refresh", class(Robyn))
+  # Save Robyn object locally
+  saveRDS(Robyn, file = robyn_object)
   return(invisible(Robyn))
 }
 
@@ -555,17 +568,15 @@ robyn_refresh <- function(robyn_object,
 #' @param x \code{robyn_refresh()} output.
 #' @export
 print.robyn_refresh <- function(x, ...) {
-  rf_list <- x[grep("Refresh", names(x), value = TRUE)]
-  top_models <- sapply(rf_list, function(y) y$ReportCollect$resultHypParamReport$solID)
-  top_models <- top_models[[length(top_models)]]
+  top_models <- x$refresh$selectIDs
   top_models <- paste(top_models, sprintf("(%s)", 0:(length(top_models) - 1)))
   print(glued(
     "
 Refresh Models: {length(rf_list)}
-Mode: {x$refresh_mode}
-Steps: {x$refresh_steps}
-Trials: {x$refresh_trials}
-Iterations: {x$refresh_iters}
+Mode: {x$refresh$refresh_mode}
+Steps: {x$refresh$refresh_steps}
+Trials: {x$refresh$refresh_trials}
+Iterations: {x$refresh$refresh_iters}
 
 Models (IDs):
   {paste(top_models, collapse = ', ')}
