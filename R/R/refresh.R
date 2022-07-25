@@ -379,16 +379,14 @@ robyn_refresh <- function(robyn_object,
     )
 
     ## Select winner model for current refresh
-    # selectID <- OutputCollectRF$resultHypParam[which.min(decomp.rssd), solID] # min decomp.rssd selection
-    # norm_nrmse <- .min_max_norm(OutputCollectRF$resultHypParam$nrmse)
-    # norm_rssd <- .min_max_norm(OutputCollectRF$resultHypParam$decomp.rssd)
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
       mutate(error_dis = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
-      select(.data$solID, everything())
+      select(.data$solID, everything()) %>% ungroup() %>%
+      arrange(.data$error_dis)
 
     # Pick best model (and don't crash if not valid)
-    selectID <- NULL
     while (length(selectID) == 0) {
+      selectID <- NULL
       if (version_prompt) {
         OutputCollectRF$selectID <- selectID <- readline("Input model ID to use for the refresh: ")
         message(
@@ -401,7 +399,7 @@ robyn_refresh <- function(robyn_object,
         }
       } else {
         OutputCollectRF$selectID <- selectID <- OutputCollectRF$resultHypParam %>%
-          arrange(.data$error_dis) %>% slice(1) %>% pull(.data$solID)
+          slice(1) %>% pull(.data$solID)
         message(
           "Selected model ID: ", selectID, " for refresh model #",
           refreshCounter, " based on the smallest combined normalised errors"
@@ -416,10 +414,7 @@ robyn_refresh <- function(robyn_object,
     # Add bestModRF column to multiple data.frames
     these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
     for (tb in these) {
-      OutputCollectRF[[tb]] <- mutate(
-        OutputCollectRF[[tb]],
-        bestModRF = .data$solID == selectID
-      )
+      OutputCollectRF[[tb]] <- mutate(OutputCollectRF[[tb]], bestModRF = .data$solID == selectID)
     }
 
     #### Result collect & save
