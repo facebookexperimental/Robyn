@@ -19,7 +19,7 @@ robyn_save <- function(robyn_object,
   check_robyn_object(robyn_object)
   if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
-    stop(paste0("'select_model' must be one of these values: ", paste(
+    stop(paste0("Input 'select_model' must be one of these values: ", paste(
       OutputCollect$resultHypParam$solID,
       collapse = ", "
     )))
@@ -267,7 +267,7 @@ robyn_refresh <- function(robyn_object,
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
       message(paste(">>> Loaded refresh model:", refreshCounter - 1))
       ## Model selection from previous build
-      which_bestModRF <- which(listOutputPrev$resultHypParam$bestModRF == TRUE)
+      which_bestModRF <- which.min(listOutputPrev$resultHypParam$error_dis)
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]
       listOutputPrev$xDecompAgg <- listOutputPrev$xDecompAgg[which_bestModRF, ]
       listOutputPrev$mediaVecCollect <- listOutputPrev$mediaVecCollect[which_bestModRF, ]
@@ -385,8 +385,8 @@ robyn_refresh <- function(robyn_object,
       arrange(.data$error_dis)
 
     # Pick best model (and don't crash if not valid)
+    selectID <- NULL
     while (length(selectID) == 0) {
-      selectID <- NULL
       if (version_prompt) {
         OutputCollectRF$selectID <- selectID <- readline("Input model ID to use for the refresh: ")
         message(

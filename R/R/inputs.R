@@ -182,7 +182,7 @@ robyn_inputs <- function(dt_input = NULL,
     #if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays) %>%
         #mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
-    
+
 
     ## Check for NA values
     check_nas(dt_input)
@@ -545,7 +545,7 @@ robyn_engineering <- function(x, ...) {
   dt_transform <- dt_input
   colnames(dt_transform)[colnames(dt_transform) == InputCollect$date_var] <- "ds"
   colnames(dt_transform)[colnames(dt_transform) == InputCollect$dep_var] <- "dep_var"
-  dt_transform <- dt_transform[order(dt_transform$ds), ]
+  dt_transform <- arrange(dt_transform, .data$ds)
 
   # dt_transformRollWind
   dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
