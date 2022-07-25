@@ -9,20 +9,20 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
 
   resultHypParam <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$resultHypParam, trial = x$trial)
-  })) %>%
-    mutate(
-      iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
-      solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
-    )
-  if (hyper_fixed) resultHypParam <- dplyr::mutate_all(resultHypParam, unlist)
+  }))
 
   xDecompAgg <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
-  })) %>%
-    mutate(
-      iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
-      solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
-    )
+  }))
+
+  if (!hyper_fixed) {
+    for (df in c("resultHypParam", "xDecompAgg")) {
+      assign(df, get(df) %>% mutate(
+        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+      ))
+    }
+  }
 
   xDecompAggCoef0 <- xDecompAgg %>%
     filter(.data$rn %in% InputCollect$paid_media_spends) %>%
@@ -56,8 +56,9 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
   xDecompAgg <- left_join(xDecompAgg, select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
   decompSpendDist <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$decompSpendDist, trial = x$trial)
-  })) %>%
-    mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
+  })) %>% {
+    if (!hyper_fixed) mutate(., solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) else .
+  } %>%
     left_join(select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
 
   # Prepare parallel loop

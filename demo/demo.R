@@ -236,7 +236,7 @@ print(InputCollect)
 #   # liftEndDate must be within input data range
 #   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31")),
 #   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
-#   liftAbs = c(400000, 300000, 200000, 2000),
+#   liftAbs = c(400000, 300000, 200000, 200),
 #   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
 #   spend = c(421000, 7100, 240000, 0),
 #   # Confidence: if frequentist experiment, you may use 1 - pvalue
@@ -438,7 +438,7 @@ Robyn <- robyn_refresh(
   , refresh_trials = 3
 )
 
-## Besides plots: there're 4 csv output saved in the folder for further usage
+## Besides plots: there are 4 CSV outputs saved in the folder for further usage
 # report_hyperparameters.csv, hyperparameters of all selected model for reporting
 # report_aggregated.csv, aggregated decomposition per independent variable
 # report_media_transform_matrix.csv, all media transformation vectors

@@ -169,7 +169,7 @@ print.robyn_models <- function(x, ...) {
     total_iters = sprintf("(%s real)", ifelse(
       "trial1" %in% names(x), nrow(x$trial1$resultCollect$resultHypParam), 1
     )),
-    iters = paste(tail(x$convergence$errors$cuts, 2), collapse = ":"),
+    iters = ifelse(is.null(x$convergence), 1, paste(tail(x$convergence$errors$cuts, 2), collapse = ":")),
     fixed = ifelse(is_fixed, " (fixed)", ""),
     convergence = if (!is_fixed) paste(x$convergence$conv_msg, collapse = "\n  ") else "Fixed hyper-parameters",
     hypers = flatten_hyps(x$hyper_updated)
@@ -752,7 +752,8 @@ robyn_mmm <- function(InputCollect,
               Elapsed = as.numeric(difftime(Sys.time(), t1, units = "secs")),
               ElapsedAccum = as.numeric(difftime(Sys.time(), t0, units = "secs"))
             ) %>%
-            bind_cols(data.frame(t(common[9:11])))
+            bind_cols(data.frame(t(common[9:11]))) %>%
+            dplyr::mutate_all(unlist)
 
           if (hyper_fixed) {
             resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
