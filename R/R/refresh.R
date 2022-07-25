@@ -265,10 +265,8 @@ robyn_refresh <- function(robyn_object,
       InputCollectRF <- Robyn[[listName]][["InputCollect"]]
       listOutputPrev <- Robyn[[listName]][["OutputCollect"]]
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
-
       message(paste(">>> Loaded refresh model:", refreshCounter - 1))
-
-      ## model selection from previous build
+      ## Model selection from previous build
       which_bestModRF <- which(listOutputPrev$resultHypParam$bestModRF == TRUE)
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]
       listOutputPrev$xDecompAgg <- listOutputPrev$xDecompAgg[which_bestModRF, ]
@@ -317,7 +315,7 @@ robyn_refresh <- function(robyn_object,
       refreshControl <- FALSE
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
-        InputCollectRF$dayInterval / refresh_steps)
+                               InputCollectRF$dayInterval / refresh_steps)
       message(paste(
         ">>> Refreshing model", refreshCounter, "in",
         refresh_mode, "mode.", refreshLooper, "more to go..."
@@ -375,7 +373,6 @@ robyn_refresh <- function(robyn_object,
       add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
       iterations = refresh_iters,
       trials = refresh_trials,
-      pareto_fronts = 3,
       refresh = TRUE,
       plot_pareto = plot_pareto,
       ...
@@ -388,23 +385,32 @@ robyn_refresh <- function(robyn_object,
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
       mutate(error_dis = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
       select(.data$solID, everything())
-    if (version_prompt) {
-      selectID <- readline("Input model version to use for the refresh: ")
-      OutputCollectRF$selectID <- selectID
-      message(
-        "Selected model ID: ", selectID, " for refresh model #",
-        refreshCounter, " based on your input\n"
-      )
-      if (selectID %in% OutputCollectRF$allSolutions)
-        stop(sprintf("Selected model ID (%s) is not valid.\n  Choose any of: %s",
-                     selectID, v2t(OutputCollectRF$allSolutions)))
-    } else {
-      selectID <- OutputCollectRF$resultHypParam$solID[which.min(OutputCollectRF$resultHypParam$error_dis)]
-      OutputCollectRF$selectID <- selectID
-      message(
-        "Selected model ID: ", selectID, " for refresh model #",
-        refreshCounter, " based on the smallest combined error of normalised NRMSE, DECOMP.RSSD & MAPE"
-      )
+
+    # Pick best model (and don't crash if not valid)
+    selectID <- NULL
+    while (length(selectID) == 0) {
+      if (version_prompt) {
+        OutputCollectRF$selectID <- selectID <- readline("Input model ID to use for the refresh: ")
+        message(
+          "Selected model ID: ", selectID, " for refresh model #",
+          refreshCounter, " based on your input"
+        )
+        if (!selectID %in% OutputCollectRF$allSolutions) {
+          message(sprintf("Selected model (%s) NOT valid.\n  Choose any of: %s",
+                          selectID, v2t(OutputCollectRF$allSolutions)))
+        }
+      } else {
+        OutputCollectRF$selectID <- selectID <- OutputCollectRF$resultHypParam %>%
+          arrange(.data$error_dis) %>% slice(1) %>% pull(.data$solID)
+        message(
+          "Selected model ID: ", selectID, " for refresh model #",
+          refreshCounter, " based on the smallest combined normalised errors"
+        )
+      }
+      if (!isTRUE(selectID %in% OutputCollectRF$allSolutions)) {
+        version_prompt <- TRUE
+        selectID <- NULL
+      }
     }
 
     # Add bestModRF column to multiple data.frames

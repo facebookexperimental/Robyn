@@ -1035,12 +1035,12 @@ robyn_response <- function(robyn_object = NULL,
     startRW <- InputCollect$rollingWindowStartWhich
     endRW <- InputCollect$rollingWindowEndWhich
     adstock <- InputCollect$adstock
-    allSolutions <- unique(dt_hyppar$solID)
     spendExpoMod <- InputCollect$modNLSCollect
     paid_media_vars <- InputCollect$paid_media_vars
     paid_media_spends <- InputCollect$paid_media_spends
     exposure_vars <- InputCollect$exposure_vars
     organic_vars <- InputCollect$organic_vars
+    allSolutions <- unique(dt_hyppar$solID)
   }
 
   if (!(select_model %in% allSolutions)) {
