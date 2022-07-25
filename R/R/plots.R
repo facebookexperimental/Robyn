@@ -739,7 +739,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
       paste0("Refresh", .data$refreshCount)
     ))
 
-  ySecScale <- 0.75 * max(xDecompAggReportPlot$roi_total / xDecompAggReportPlot$percentage, na.rm = TRUE)
+  ySecScale <- 0.75 * max(xDecompAggReportPlot$roi_total / max(xDecompAggReportPlot$percentage), na.rm = TRUE)
   ymax <- 1.1 * max(c(xDecompAggReportPlot$roi_total / ySecScale, xDecompAggReportPlot$percentage), na.rm = TRUE)
 
   outputs[["pBarRF"]] <- pBarRF <- ggplot(
