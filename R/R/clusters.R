@@ -201,7 +201,6 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
 .crit_proc <- function(df, limit) {
   arrange(df, .data$cluster, desc(.data$error_score)) %>%
-    arrange(desc(.data$error_score)) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())
