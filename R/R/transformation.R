@@ -248,7 +248,8 @@ plot_adstock <- function(plot = TRUE) {
       facet_grid(.data$shape ~ .data$type) +
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
       geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"),
-                colour = "gray") +
+        colour = "gray"
+      ) +
       labs(
         title = "Weibull Adstock CDF vs PDF\n(Flexible decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",

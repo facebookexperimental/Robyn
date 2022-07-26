@@ -80,8 +80,10 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         theme_lares(legend = "none") +
         labs(
           title = "Hyperparameter Optimisation Sampling",
-          subtitle = paste0("Sample distribution", ", iterations = ",
-                            OutputCollect$iterations, " x ", OutputCollect$trials, " trial"),
+          subtitle = paste0(
+            "Sample distribution", ", iterations = ",
+            OutputCollect$iterations, " x ", OutputCollect$trials, " trial"
+          ),
           x = "Hyperparameter space",
           y = NULL
         )
@@ -427,8 +429,10 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted %>%
-        mutate(linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
-               variable = stringr::str_to_title(.data$variable))
+        mutate(
+          linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
+          variable = stringr::str_to_title(.data$variable)
+        )
       # rsq <- temp[[sid]]$plot5data$rsq
       p5 <- ggplot(xDecompVecPlotMelted, aes(x = .data$ds, y = .data$value, color = .data$variable)) +
         geom_path(aes(linetype = .data$linetype), size = 0.6) +
@@ -671,7 +675,8 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     sprintf(
       "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart,
       .data$duration, InputCollectRF$intervalType
-    )))
+    )
+    ))
 
   xDecompVecReportMelted <- xDecompVecReportPlot %>%
     select(.data$ds, .data$refreshStart, .data$refreshEnd, .data$refreshStatus,
@@ -686,15 +691,18 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     geom_line(aes(x = .data$ds, y = .data$value, color = .data$variable)) +
     geom_rect(
       data = dt_refreshDates,
-      aes(xmin = .data$refreshStart, xmax = .data$refreshEnd,
-          fill = as.character(.data$refreshStatus)),
+      aes(
+        xmin = .data$refreshStart, xmax = .data$refreshEnd,
+        fill = as.character(.data$refreshStatus)
+      ),
       ymin = -Inf, ymax = Inf, alpha = 0.2
     ) +
     theme(
       panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
       panel.background = element_blank(), # legend.position = c(0.1, 0.8),
       legend.background = element_rect(fill = alpha("white", 0.4)),
-    ) + theme_lares() +
+    ) +
+    theme_lares() +
     scale_fill_brewer(palette = "BuGn") +
     geom_text(data = dt_refreshDates, mapping = aes(
       x = .data$refreshStart, y = max(xDecompVecReportMelted$value),
@@ -710,7 +718,8 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
         ), 2)
       ),
       x = "Date", y = "Response", fill = "Refresh", color = "Type"
-    ) + scale_y_abbr()
+    ) +
+    scale_y_abbr()
 
   if (export) {
     ggsave(

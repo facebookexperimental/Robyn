@@ -170,7 +170,9 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 }
 
 .min_max_norm <- function(x, min = 0, max = 1) {
-  if (length(x) == 1) return(x) # return((max - min) / 2)
+  if (length(x) == 1) {
+    return(x)
+  } # return((max - min) / 2)
   a <- min(x, na.rm = TRUE)
   b <- max(x, na.rm = TRUE)
   (max - min) * (x - a) / (b - a) + min

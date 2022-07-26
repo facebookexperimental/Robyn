@@ -233,7 +233,8 @@ robyn_train <- function(InputCollect, hyper_collect,
 
     OutputModels[[1]]$trial <- 1
     OutputModels[[1]]$resultCollect$resultHypParam <- arrange(
-      OutputModels[[1]]$resultCollect$resultHypParam, .data$iterPar)
+      OutputModels[[1]]$resultCollect$resultHypParam, .data$iterPar
+    )
     dt_IDs <- data.frame(
       solID = dt_hyper_fixed$solID,
       iterPar = OutputModels[[1]]$resultCollect$resultHypParam$iterPar
@@ -241,7 +242,9 @@ robyn_train <- function(InputCollect, hyper_collect,
     these <- c("resultHypParam", "xDecompAgg", "xDecompVec", "decompSpendDist")
     for (tab in these) {
       OutputModels[[1]]$resultCollect[[tab]] <- left_join(
-        OutputModels[[1]]$resultCollect[[tab]], dt_IDs, by = "iterPar")
+        OutputModels[[1]]$resultCollect[[tab]], dt_IDs,
+        by = "iterPar"
+      )
     }
   } else {
 
@@ -276,15 +279,19 @@ robyn_train <- function(InputCollect, hyper_collect,
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
       if (check_coef0) {
         num_coef0_mod <- filter(model_output$resultCollect$decompSpendDist, is.infinite(.data$decomp.rssd)) %>%
-          distinct(.data$iterNG, .data$iterPar) %>% nrow()
+          distinct(.data$iterNG, .data$iterPar) %>%
+          nrow()
         num_coef0_mod <- ifelse(num_coef0_mod > iterations, iterations, num_coef0_mod)
-        if (!quiet) message(paste(
-          "This trial contains", num_coef0_mod, "iterations with all media coefficient = 0.",
-          "Please reconsider your media variable choice if the pareto choices are unreasonable.",
-          "\n   Recommendations:",
-          "\n1. Increase hyperparameter ranges for 0-coef channels to give Robyn more freedom",
-          "\n2. Split media into sub-channels, and/or aggregate similar channels, and/or introduce other media",
-          "\n3. Increase trials to get more samples"))
+        if (!quiet) {
+          message(paste(
+            "This trial contains", num_coef0_mod, "iterations with all media coefficient = 0.",
+            "Please reconsider your media variable choice if the pareto choices are unreasonable.",
+            "\n   Recommendations:",
+            "\n1. Increase hyperparameter ranges for 0-coef channels to give Robyn more freedom",
+            "\n2. Split media into sub-channels, and/or aggregate similar channels, and/or introduce other media",
+            "\n3. Increase trials to get more samples"
+          ))
+        }
       }
       model_output["trial"] <- ngt
       OutputModels[[ngt]] <- model_output
@@ -352,8 +359,9 @@ robyn_mmm <- function(InputCollect,
   ################################################
   #### Setup environment
 
-  if (is.null(InputCollect$dt_mod))
+  if (is.null(InputCollect$dt_mod)) {
     stop("Run InputCollect$dt_mod <- robyn_engineering() first to get the dt_mod")
+  }
 
   ## Get environment for parallel backend
   if (TRUE) {
@@ -702,7 +710,8 @@ robyn_mmm <- function(InputCollect,
             # xDecompAggPrev is NULL?
             dt_decompRF <- select(decompCollect$xDecompAgg, .data$rn, decomp_perc = .data$xDecompPerc) %>%
               left_join(select(xDecompAggPrev, .data$rn, decomp_perc_prev = .data$xDecompPerc),
-                        by = "rn")
+                by = "rn"
+              )
             decomp.rssd.media <- dt_decompRF %>%
               filter(.data$rn %in% paid_media_spends) %>%
               summarise(rssd.media = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
@@ -759,7 +768,8 @@ robyn_mmm <- function(InputCollect,
             resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
               bind_cols(data.frame(t(common[1:8]))) %>%
               mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"]) %>%
+                decompCollect$xDecompAgg$rn == "(Intercept)"
+              ]) %>%
               bind_cols(data.frame(t(common[9:11])))
           }
 

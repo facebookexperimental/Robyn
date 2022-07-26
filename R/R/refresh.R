@@ -229,9 +229,11 @@ robyn_refresh <- function(robyn_object,
       c("listInit", paste0("listRefresh", 1:(refreshCounter - 1)))
     }
     if (!all(objectCheck %in% names(Robyn))) {
-      stop("Saved Robyn object is corrupted. It should contain these elements:\n ",
-           paste(objectCheck, collapse = ", "),
-           ".\n Please, re run the model or fix it manually.")
+      stop(
+        "Saved Robyn object is corrupted. It should contain these elements:\n ",
+        paste(objectCheck, collapse = ", "),
+        ".\n Please, re run the model or fix it manually."
+      )
     }
 
     ## Check rule of thumb: 50% of data shouldn't be new
@@ -303,7 +305,7 @@ robyn_refresh <- function(robyn_object,
       refreshControl <- FALSE
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
-                               InputCollectRF$dayInterval / refresh_steps)
+        InputCollectRF$dayInterval / refresh_steps)
       message(paste(
         ">>> Refreshing model", refreshCounter, "in",
         refresh_mode, "mode.", refreshLooper, "more to go..."
@@ -314,7 +316,8 @@ robyn_refresh <- function(robyn_object,
     InputCollectRF$hyperparameters <- refresh_hyps(
       initBounds = Robyn$listInit$OutputCollect$hyper_updated,
       listOutputPrev, refresh_steps,
-      rollingWindowLength = InputCollectRF$rollingWindowLength)
+      rollingWindowLength = InputCollectRF$rollingWindowLength
+    )
 
     #### Update refresh model parameters
 
@@ -341,7 +344,8 @@ robyn_refresh <- function(robyn_object,
     ## Select winner model for current refresh
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
       mutate(error_score = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
-      select(.data$solID, everything()) %>% ungroup() %>%
+      select(.data$solID, everything()) %>%
+      ungroup() %>%
       arrange(desc(.data$error_score))
     bestMod <- OutputCollectRF$resultHypParam$solID[1]
 
@@ -355,12 +359,15 @@ robyn_refresh <- function(robyn_object,
           refreshCounter, " based on your input"
         )
         if (!selectID %in% OutputCollectRF$allSolutions) {
-          message(sprintf("Selected model (%s) NOT valid.\n  Choose any of: %s",
-                          selectID, v2t(OutputCollectRF$allSolutions)))
+          message(sprintf(
+            "Selected model (%s) NOT valid.\n  Choose any of: %s",
+            selectID, v2t(OutputCollectRF$allSolutions)
+          ))
         }
       } else {
         selectID <- OutputCollectRF$resultHypParam %>%
-          slice(1) %>% pull(.data$solID)
+          slice(1) %>%
+          pull(.data$solID)
         message(
           "Selected model ID: ", selectID, " for refresh model #",
           refreshCounter, " based on the smallest combined normalised errors"
@@ -379,8 +386,10 @@ robyn_refresh <- function(robyn_object,
     these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
     for (tb in these) {
       OutputCollectRF[[tb]] <- OutputCollectRF[[tb]] %>%
-        mutate(refreshStatus = refreshCounter,
-               bestModRF = .data$solID %in% bestMod)
+        mutate(
+          refreshStatus = refreshCounter,
+          bestModRF = .data$solID %in% bestMod
+        )
     }
 
     # Create bestModRF and refreshStatus columns to listOutputPrev data.frames
@@ -496,7 +505,8 @@ robyn_refresh <- function(robyn_object,
     refresh_mode = refresh_mode,
     refresh_trials = refresh_trials,
     refresh_iters = refresh_iters,
-    plots = plots)
+    plots = plots
+  )
 
   class(Robyn) <- c("robyn_refresh", class(Robyn))
   # Save Robyn object locally
@@ -523,7 +533,8 @@ Iterations: {x$refresh$refresh_iters}
 
 Models (IDs):
   {paste(top_models, collapse = ', ')}
-"))
+"
+  ))
 }
 
 refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength) {

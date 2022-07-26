@@ -56,9 +56,10 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
   xDecompAgg <- left_join(xDecompAgg, select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
   decompSpendDist <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$decompSpendDist, trial = x$trial)
-  })) %>% {
-    if (!hyper_fixed) mutate(., solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) else .
-  } %>%
+  })) %>%
+    {
+      if (!hyper_fixed) mutate(., solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) else .
+    } %>%
     left_join(select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
 
   # Prepare parallel loop
@@ -405,8 +406,12 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       xDecompVecPlot <- select(xDecompVec, .data$ds, .data$dep_var, .data$depVarHat) %>%
         rename("actual" = "dep_var", "predicted" = "depVarHat")
       xDecompVecPlotMelted <- tidyr::gather(
-        xDecompVecPlot, key = "variable", value = "value", -.data$ds)
-      rsq <- filter(xDecompAgg, .data$solID == sid) %>% pull(.data$rsq_train) %>% .[1]
+        xDecompVecPlot,
+        key = "variable", value = "value", -.data$ds
+      )
+      rsq <- filter(xDecompAgg, .data$solID == sid) %>%
+        pull(.data$rsq_train) %>%
+        .[1]
       plot5data <- list(xDecompVecPlotMelted = xDecompVecPlotMelted, rsq = rsq)
 
       ## 6. Diagnostic: fitted vs residual
