@@ -3,7 +3,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_constraint = 0.1, quiet = FALSE) {
+robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts,
+                         calibration_constraint = 0.1, quiet = FALSE) {
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
 
@@ -219,6 +220,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         weibullCollect <- bind_rows(weibullCollect)
         weibullCollect <- filter(weibullCollect, .data$x <= max(weibullCollect$cut_time))
       }
+
       plot3data <- list(
         dt_geometric = dt_geometric,
         weibullCollect = weibullCollect,
@@ -240,6 +242,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       dt_transformSaturation <- dt_transformPlot[
         InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich,
       ]
+
       m_decayRate <- list()
       for (med in 1:length(InputCollect$all_media)) {
         med_select <- InputCollect$all_media[med]
@@ -331,6 +334,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
         # } else {
         #   get_spend_mm <- get_spend
         # }
+
         m <- dt_transformAdstock[[get_med]][
           InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
         ]
@@ -379,6 +383,7 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
       # } else {
       #   dt_expoCurvePlot <- NULL
       # }
+
       plot4data <- list(
         dt_scurvePlot = dt_scurvePlot,
         dt_scurvePlotMean = dt_scurvePlotMean

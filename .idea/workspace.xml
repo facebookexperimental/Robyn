@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="AutoImportSettings">
-    <option name="autoReloadType" value="SELECTIVE" />
-  </component>
   <component name="ChangeListManager">
+<<<<<<< HEAD
     <list default="true" id="4f14c7d2-0571-4a7f-9419-536afec64679" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
+=======
+    <list default="true" id="760fee05-493f-4f06-8aa2-7553a0a3a5c7" name="Changes" comment="Updated with master branch.  Created new Robyn file" />
+>>>>>>> c3b1cf78deb17292292938490f977d88487a4c93
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -22,15 +23,28 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+<<<<<<< HEAD
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectId" id="2BwJoxbroh7TrvKwojbgAo8TiIA" />
+=======
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
+  </component>
+  <component name="ProjectId" id="2560FsheMXidfsSpJD2FVzIn7xl" />
+>>>>>>> c3b1cf78deb17292292938490f977d88487a4c93
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
+<<<<<<< HEAD
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
@@ -49,11 +63,20 @@
     &quot;settings.editor.splitter.proportion&quot;: &quot;0.27488583&quot;
   }
 }</component>
+=======
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="org.jetbrains.r.configuration.RSettingsProjectConfigurable" />
+  </component>
+>>>>>>> c3b1cf78deb17292292938490f977d88487a4c93
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/R/R" />
     </key>
   </component>
+<<<<<<< HEAD
   <component name="RunManager">
     <configuration name="env_r41_p37_new" type="PythonConfigurationType" factoryName="Python">
       <module name="Robyn" />
@@ -78,6 +101,8 @@
       <method v="2" />
     </configuration>
   </component>
+=======
+>>>>>>> c3b1cf78deb17292292938490f977d88487a4c93
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -85,6 +110,7 @@
       <created>1657811393298</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
+<<<<<<< HEAD
       <updated>1657811393298</updated>
       <workItem from="1657811400657" duration="762000" />
       <workItem from="1657812197295" duration="26605000" />
@@ -95,10 +121,19 @@
       <workItem from="1658850359181" duration="267000" />
       <workItem from="1658850694808" duration="2506000" />
     </task>
+=======
+      <updated>1644832127727</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Updated with master branch.  Created new Robyn file">
+      <created>1644849354057</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1644849354057</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
+>>>>>>> c3b1cf78deb17292292938490f977d88487a4c93
     <servers />
-  </component>
-  <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="3" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -110,7 +145,9 @@
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
+<<<<<<< HEAD
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
@@ -135,5 +172,10 @@
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Robyn$env_r41_p37.coverage" NAME="env_r41_p37 Coverage Results" MODIFIED="1658505426486" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/util" />
     <SUITE FILE_PATH="coverage/Robyn$env_r41_p37_new.coverage" NAME="env_r41_p37_new Coverage Results" MODIFIED="1658852936372" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/util" />
+=======
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Updated with master branch.  Created new Robyn file" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated with master branch.  Created new Robyn file" />
+>>>>>>> c3b1cf78deb17292292938490f977d88487a4c93
   </component>
 </project>

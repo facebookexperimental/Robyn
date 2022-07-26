@@ -590,9 +590,6 @@ eval_g_ineq <- function(X) {
   ))
 }
 
-
-
-
 get_adstock_params <- function(InputCollect, dt_hyppar) {
   if (InputCollect$adstock == "geometric") {
     getAdstockHypPar <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_thetas"))))

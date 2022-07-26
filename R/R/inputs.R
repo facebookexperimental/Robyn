@@ -185,10 +185,10 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check for NA valuesss
     check_nas(dt_input)
-    message(paste("robyn_inputs check_nas(dt_input) done:", collapse = ", ")))
+    message(paste("robyn_inputs check_nas(dt_input) done:", collapse = ", "))
 
     check_nas(dt_holidays)
-    message(paste("robyn_inputs check_nas(dt_holidays) done:", collapse = ", ")))
+    message(paste("robyn_inputs check_nas(dt_holidays) done:", collapse = ", "))
 
 
     ## Check vars names (duplicates and valid)
@@ -201,15 +201,15 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
-    message(paste("robyn_inputs check_datevar(dt_input, date_var) done:", collapse = ", ")))
+    message(paste("robyn_inputs check_datevar(dt_input, date_var) done:", collapse = ", "))
     dt_input <- date_input$dt_input # sorted date by ascending
-    message(paste("robyn_inputs dt_input <- date_input$dt_input done:", collapse = ", ")))
+    message(paste("robyn_inputs dt_input <- date_input$dt_input done:", collapse = ", "))
     date_var <- date_input$date_var # when date_var = "auto"
-    message(paste("robyn_inputs date_var done:", collapse = ", ")))
+    message(paste("robyn_inputs date_var done:", collapse = ", "))
     dayInterval <- date_input$dayInterval
-    message(paste("robyn_inputs dayInterval done:", collapse = ", ")))
+    message(paste("robyn_inputs dayInterval done:", collapse = ", "))
     intervalType <- date_input$intervalType
-    message(paste("robyn_inputs intervalType done:", collapse = ", ")))
+    message(paste("robyn_inputs intervalType done:", collapse = ", "))
 
     ## Check dependent var
     check_depvar(dt_input, dep_var, dep_var_type)
@@ -219,7 +219,7 @@ robyn_inputs <- function(dt_input = NULL,
       dt_holidays <- prophet_vars <- prophet_country <- prophet_signs <- NULL
     }
     prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
-    message(paste("robyn_inputs prophet_signs done:", collapse = ", ")))
+    message(paste("robyn_inputs prophet_signs done:", collapse = ", "))
 
     ## Check baseline variables (and maybe transform context_signs)
     context <- check_context(dt_input, context_vars, context_signs)
@@ -249,7 +249,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-    message(paste("robyn_inputs check_windows done:", collapse = ", ")))
+    message(paste("robyn_inputs check_windows done:", collapse = ", "))
 
     if (TRUE) {
       dt_input <- windows$dt_input
@@ -268,8 +268,7 @@ robyn_inputs <- function(dt_input = NULL,
     hyperparameters <- check_hyperparameters(
       hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
     )
-    message(paste("robyn_inputs check_hyperparameters done:", collapse = ", ")))
-
+    message(paste("robyn_inputs check_hyperparameters done:", collapse = ", "))
 
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
@@ -323,11 +322,11 @@ robyn_inputs <- function(dt_input = NULL,
     )
 
     if (!is.null(hyperparameters)) {
-
       ### Conditional output 1.2
       ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
       output <- robyn_engineering(InputCollect, ...)
     }
+
   } else {
     ### Use case 2: adding 'hyperparameters' and/or 'calibration_input' using robyn_inputs()
     # Check for legacy (deprecated) inputs
@@ -695,6 +694,7 @@ robyn_engineering <- function(x, ...) {
   InputCollect[["modNLSCollect"]] <- modNLSCollect
   InputCollect[["plotNLSCollect"]] <- plotNLSCollect
   InputCollect[["yhatNLSCollect"]] <- yhatNLSCollect
+
   # InputCollect[["exposure_selector"]] <- exposure_selector
   # InputCollect[["mediaCostFactor"]] <- mediaCostFactor
   return(InputCollect)
@@ -787,7 +787,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   return(dt_transform)
 }
 
-fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_vars) { #   if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns"
+fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_vars) {
   colnames(dt_spendModInput) <- c("spend", "exposure")
 
   # remove spend == 0 to avoid DIV/0 error

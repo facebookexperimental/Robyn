@@ -34,6 +34,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         ylab(NULL) +
         theme_lares() +
         scale_y_abbr()
+
       if (export) {
         ggsave(
           paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
@@ -288,6 +289,13 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
       )
 
+      errors <- paste0(
+        "R2 train: ", rsq_train_plot,
+        ", NRMSE = ", nrmse_plot,
+        ", DECOMP.RSSD = ", decomp_rssd_plot,
+        ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
+      )
+
       ## 1. Spend x effect share comparison
       plotMediaShareLoopBar <- temp[[sid]]$plot1data$plotMediaShareLoopBar
       plotMediaShareLoopLine <- temp[[sid]]$plot1data$plotMediaShareLoopLine
@@ -331,6 +339,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 2. Waterfall
       plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop
+      plotWaterfallLoop$sign <- ifelse(plotWaterfallLoop$sign == "pos", "Positive", "Negative")
       p2 <- suppressWarnings(
         ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
           geom_rect(aes(
@@ -484,7 +493,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   return(invisible(parallelResult[[1]]))
 }
 
-allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
+allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model,
+                             scenario, export = TRUE, quiet = FALSE) {
   outputs <- list()
 
   subtitle <- sprintf(
@@ -804,6 +814,5 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
   }
-
   return(invisible(outputs))
 }
