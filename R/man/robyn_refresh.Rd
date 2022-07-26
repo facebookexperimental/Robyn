@@ -3,6 +3,7 @@
 \name{robyn_refresh}
 \alias{robyn_refresh}
 \alias{print.robyn_refresh}
+\alias{plot.robyn_refresh}
 \title{Build Refresh Model}
 \usage{
 robyn_refresh(
@@ -21,6 +22,8 @@ robyn_refresh(
 )
 
 \method{print}{robyn_refresh}(x, ...)
+
+\method{plot}{robyn_refresh}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
