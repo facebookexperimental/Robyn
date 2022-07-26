@@ -185,7 +185,11 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check for NA valuesss
     check_nas(dt_input)
+    message(paste("robyn_inputs check_nas(dt_input) done:", collapse = ", ")))
+
     check_nas(dt_holidays)
+    message(paste("robyn_inputs check_nas(dt_holidays) done:", collapse = ", ")))
+
 
     ## Check vars names (duplicates and valid)
     check_varnames(
@@ -197,10 +201,15 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
+    message(paste("robyn_inputs check_datevar(dt_input, date_var) done:", collapse = ", ")))
     dt_input <- date_input$dt_input # sorted date by ascending
+    message(paste("robyn_inputs dt_input <- date_input$dt_input done:", collapse = ", ")))
     date_var <- date_input$date_var # when date_var = "auto"
+    message(paste("robyn_inputs date_var done:", collapse = ", ")))
     dayInterval <- date_input$dayInterval
+    message(paste("robyn_inputs dayInterval done:", collapse = ", ")))
     intervalType <- date_input$intervalType
+    message(paste("robyn_inputs intervalType done:", collapse = ", ")))
 
     ## Check dependent var
     check_depvar(dt_input, dep_var, dep_var_type)
@@ -210,6 +219,7 @@ robyn_inputs <- function(dt_input = NULL,
       dt_holidays <- prophet_vars <- prophet_country <- prophet_signs <- NULL
     }
     prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
+    message(paste("robyn_inputs prophet_signs done:", collapse = ", ")))
 
     ## Check baseline variables (and maybe transform context_signs)
     context <- check_context(dt_input, context_vars, context_signs)
@@ -239,6 +249,8 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
+    message(paste("robyn_inputs check_windows done:", collapse = ", ")))
+
     if (TRUE) {
       dt_input <- windows$dt_input
       window_start <- windows$window_start
@@ -256,6 +268,8 @@ robyn_inputs <- function(dt_input = NULL,
     hyperparameters <- check_hyperparameters(
       hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
     )
+    message(paste("robyn_inputs check_hyperparameters done:", collapse = ", ")))
+
 
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
@@ -309,6 +323,7 @@ robyn_inputs <- function(dt_input = NULL,
     )
 
     if (!is.null(hyperparameters)) {
+
       ### Conditional output 1.2
       ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
       output <- robyn_engineering(InputCollect, ...)
@@ -542,6 +557,7 @@ robyn_engineering <- function(x, ...) {
 
   # dt_transform
   dt_transform <- dt_input
+  message(paste("robyn_engineering dt_transform before merge:", paste(head(dt_transform,1), collapse = ", ")))
   colnames(dt_transform)[colnames(dt_transform) == InputCollect$date_var] <- "ds"
   colnames(dt_transform)[colnames(dt_transform) == InputCollect$dep_var] <- "dep_var"
   dt_transform <- arrange(dt_transform, .data$ds)
