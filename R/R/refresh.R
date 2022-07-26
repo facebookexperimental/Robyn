@@ -343,8 +343,7 @@ robyn_refresh <- function(robyn_object,
 
     ## Select winner model for current refresh
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
-      mutate(error_score = errors_scores(.)) %>%
-      arrange(desc(.data$error_score)) %>%
+      arrange(desc(.data$error_score), .data$solID) %>%
       select(.data$solID, everything()) %>%
       ungroup()
     bestMod <- OutputCollectRF$resultHypParam$solID[1]

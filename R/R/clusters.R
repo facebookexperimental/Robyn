@@ -135,20 +135,23 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
 errors_scores <- function(df, balance = rep(1, 3)) {
   stopifnot(length(balance) == 3)
-  stopifnot(all(c("nrmse", "decomp.rssd", "mape") %in% colnames(df)))
+  error_cols <- c("nrmse", "decomp.rssd", "mape")
+  stopifnot(all(error_cols %in% colnames(df)))
   balance <- balance / sum(balance)
   scores <- df %>%
+    select(all_of(error_cols)) %>%
     # Force normalized values so they can be comparable
     mutate(
       nrmse_n = .min_max_norm(.data$nrmse),
       decomp.rssd_n = .min_max_norm(.data$decomp.rssd),
       mape_n = .min_max_norm(.data$mape)
     ) %>%
+    replace(., is.na(.), 0) %>%
     # Balance to give more or less importance to each error
     mutate(
-      nrmse_w = balance[1] / .data$nrmse_n,
-      decomp.rssd_w = balance[2] / .data$decomp.rssd_n,
-      mape_w = balance[3] / .data$mape_n
+      nrmse_w = balance[1] * .data$nrmse_n,
+      decomp.rssd_w = balance[2] * .data$decomp.rssd_n,
+      mape_w = balance[3] * .data$mape_n
     ) %>%
     # Calculate error score
     mutate(error_score = (.data$nrmse_w^2 + .data$decomp.rssd_w^2 + .data$mape_w^2)^-(1 / 2)) %>%
@@ -204,7 +207,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     mutate(error_score = errors_scores(., balance)) %>%
     replace(., is.na(.), 0) %>%
     group_by(.data$cluster) %>%
-    arrange(.data$cluster, desc(.data$error_score)) %>%
+    arrange(.data$cluster, desc(.data$error_score), .data$solID) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())

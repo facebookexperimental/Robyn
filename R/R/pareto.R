@@ -52,6 +52,9 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts, calibration_
     resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
   }
 
+  # Calculate combined weighted error scores
+  resultHypParam$error_score <- errors_scores(resultHypParam)
+
   # Bind robynPareto results
   xDecompAgg <- left_join(xDecompAgg, select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
   decompSpendDist <- bind_rows(lapply(OutModels, function(x) {
