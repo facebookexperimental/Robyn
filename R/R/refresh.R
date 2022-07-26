@@ -541,7 +541,6 @@ Models (IDs):
 plot.robyn_refresh <- function(x, ...) plot((x$refresh$plots[[1]] / x$refresh$plots[[2]]), ...)
 
 refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength) {
-  initBounds <- Robyn$listInit$OutputCollect$hyper_updated
   initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
   newBoundsFreedom <- refresh_steps / rollingWindowLength
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")

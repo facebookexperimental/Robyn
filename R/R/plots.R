@@ -443,7 +443,10 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           variable = stringr::str_to_title(.data$variable)
         )
       # rsq <- temp[[sid]]$plot5data$rsq
-      p5 <- ggplot(xDecompVecPlotMelted, aes(x = .data$ds, y = .data$value, color = .data$variable)) +
+      p5 <- ggplot(
+        xDecompVecPlotMelted,
+        aes(x = .data$ds, y = .data$value, color = .data$variable)
+      ) +
         geom_path(aes(linetype = .data$linetype), size = 0.6) +
         theme_lares(legend = "top", pal = 2) +
         scale_y_abbr() +

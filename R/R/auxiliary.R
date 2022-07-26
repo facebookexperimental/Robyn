@@ -18,8 +18,10 @@ get_rsq <- function(true, predicted, p = NULL, df.int = NULL) {
 
 # Robyn colors
 robyn_palette <- function() {
-  pal <- c("#21130d","#351904","#543005","#8C510A","#BF812D","#DFC27D","#F6E8C3",
-           "#F5F5F5","#C7EAE5","#80CDC1","#35978F","#01665E","#043F43", "#04272D")
+  pal <- c(
+    "#21130d", "#351904", "#543005", "#8C510A", "#BF812D", "#DFC27D", "#F6E8C3",
+    "#F5F5F5", "#C7EAE5", "#80CDC1", "#35978F", "#01665E", "#043F43", "#04272D"
+  )
   repeated <- 4
   list(
     fill = rep(pal, repeated),

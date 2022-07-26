@@ -85,13 +85,12 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (any(table(date_var_dates) > 1)) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
-  if (any(is.na(date_var_idate) | is.infinite(date_var_idate))) {
-    stop("Dates in 'date_var' must have format '2020-12-31'")
+  if (any(c(is.na(date_var_dates) | is.infinite(date_var_dates)))) {
+    stop("Dates in 'date_var' must have format '2020-12-31' and can't contain NA nor Inf values")
   }
-  dt_input <- dt_input[order(date_var_idate)]
   dayInterval <- as.integer(difftime(
-    date_var_idate[2],
-    date_var_idate[1],
+    date_var_dates[2],
+    date_var_dates[1],
     units = "days"
   ))
   intervalType <- if (dayInterval == 1) {
@@ -105,12 +104,13 @@ check_datevar <- function(dt_input, date_var = "auto") {
   } else {
     stop(paste(date_var, "data has to be daily, weekly or monthly"))
   }
-  invisible(return(list(
+  output <- list(
     date_var = date_var,
     dayInterval = dayInterval,
     intervalType = intervalType,
-    dt_input = dt_input
-  )))
+    dt_input = as_tibble(dt_input)
+  )
+  invisible(return(output))
 }
 
 check_depvar <- function(dt_input, dep_var, dep_var_type) {
@@ -123,7 +123,7 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
   if (length(dep_var) > 1) {
     stop("Must provide only 1 dependent variable name for 'dep_var'")
   }
-  if (!(is.numeric(dt_input[, get(dep_var)]) | is.integer(dt_input[, get(dep_var)]))) {
+  if (!(is.numeric(dt_input[, dep_var][[1]]) | is.integer(dt_input[, dep_var][[1]]))) {
     stop("'dep_var' must be a numeric or integer variable")
   }
   if (is.null(dep_var_type)) {
@@ -163,7 +163,7 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     if (length(prophet_signs) != length(prophet_vars)) {
       stop("'prophet_signs' must have same length as 'prophet_vars'")
     }
-    return(prophet_signs)
+    return(invisible(prophet_signs))
   }
 }
 
@@ -200,7 +200,6 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   }
   if (is.null(paid_media_signs)) {
     paid_media_signs <- rep("positive", mediaVarCount)
-    # message("'paid_media_signs' were not provided. Using 'positive'")
   }
   if (!all(paid_media_signs %in% opts_pnd)) {
     stop("Allowed values for 'paid_media_signs' are: ", paste(opts_pnd, collapse = ", "))
@@ -211,11 +210,11 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (spendVarCount != mediaVarCount) {
     stop("'paid_media_spends' must have same length as 'paid_media_vars'")
   }
-  if (any(dt_input[, unique(c(paid_media_vars, paid_media_spends)), with = FALSE] < 0)) {
+  get_cols <- any(dt_input[, unique(c(paid_media_vars, paid_media_spends))] < 0)
+  if (get_cols) {
     check_media_names <- unique(c(paid_media_vars, paid_media_spends))
-    check_media_val <- sapply(dt_input[, check_media_names, with = FALSE], function(X) {
-      any(X < 0)
-    })
+    df_check <- dt_input[, check_media_names]
+    check_media_val <- sapply(df_check, function(x) any(x < 0))
     stop(
       paste(names(check_media_val)[check_media_val], collapse = ", "),
       " contains negative values. Media must be >=0"
@@ -281,10 +280,10 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     window_start <- min(dates_vec)
   } else if (is.na(window_start)) {
     stop("'window_start' must have format '2020-12-31'")
-  } else if (window_start < min(as.character(dt_input[, get(date_var)]))) {
-    window_start <- min(as.character(dt_input[, get(date_var)]))
+  } else if (window_start < min(dates_vec)) {
+    window_start <- min(dates_vec)
     message("'window_start' is smaller than the earliest date in input data. It's set to the earliest date")
-  } else if (window_start > max(as.character(dt_input[, get(date_var)]))) {
+  } else if (window_start > max(dates_vec)) {
     stop("'window_start' can't be larger than the the latest date in input data")
   }
 
@@ -293,8 +292,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     window_start,
     units = "days"
   )))
-  if (!(as.Date(window_start) %in% dt_input[, get(date_var)])) {
-    window_start <- dt_input[rollingWindowStartWhich, get(date_var)]
+  if (!window_start %in% dates_vec) {
+    window_start <- dt_input[rollingWindowStartWhich, date_var][[1]]
     message("'window_start' is adapted to the closest date contained in input data: ", window_start)
   }
   refreshAddedStart <- window_start
@@ -303,13 +302,14 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     window_end <- max(dates_vec)
   } else if (is.na(window_end)) {
     stop("'window_end' must have format '2020-12-31'")
-  } else if (window_end > max(as.character(dt_input[, get(date_var)]))) {
-    window_end <- max(as.character(dt_input[, get(date_var)]))
+  } else if (window_end > max(dates_vec)) {
+    window_end <- max(dates_vec)
     message("'window_end' is larger than the latest date in input data. It's set to the latest date")
   } else if (window_end < window_start) {
-    window_end <- max(as.character(dt_input[, get(date_var)]))
+    window_end <- max(dates_vec)
     message("'window_end' must be >= 'window_start.' It's set to latest date in input data")
   }
+
   rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, window_end, units = "days")))
   if (!(window_end %in% dates_vec)) {
     window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
@@ -317,7 +317,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
 
-  dt_init <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, all_media, with = FALSE]
+  dt_init <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, all_media]
+
   init_all0 <- colSums(dt_init) == 0
   if (any(init_all0)) {
     stop(
@@ -328,7 +329,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
       "\nRecommendation: adapt InputCollect$window_start, remove or combine these channels"
     )
   }
-  invisible(return(list(
+  output <- list(
     dt_input = dt_input,
     window_start = window_start,
     rollingWindowStartWhich = rollingWindowStartWhich,
@@ -336,7 +337,8 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     window_end = window_end,
     rollingWindowEndWhich = rollingWindowEndWhich,
     rollingWindowLength = rollingWindowLength
-  )))
+  )
+  return(invisible(output))
 }
 
 check_adstock <- function(adstock) {
@@ -349,10 +351,10 @@ check_adstock <- function(adstock) {
 
 check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
                                   paid_media_spends = NULL, organic_vars = NULL,
-                                  exposure_vars = NULL, quiet = FALSE) {
-  if (is.null(hyperparameters) & !quiet) {
+                                  exposure_vars = NULL) {
+  if (is.null(hyperparameters)) {
     message(paste(
-      "Input 'hyperparameters' not provided yet. To include them, run",
+      "'hyperparameters' are not provided yet. To include them, run",
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
@@ -366,26 +368,22 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
-        "Input 'hyperparameters' contains following wrong names: ",
+        "'hyperparameters' contains following wrong names: ",
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
-    total <- length(get_hyp_names)
-    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org))
-    if (total != total_in) {
-      stop(sprintf(paste(
-        "%s hyperparameter values are required, and %s were provided.",
-        "\n Use hyper_names() function to help you with the correct hyperparameters names."),
-        total, total_in))
+    if (length(get_hyp_names) != length(c(ref_hyp_name_spend, ref_hyp_name_org))) {
+      stop("there're missing or too many hyperparameters. run
+      hyper_names(adstock, all_media) to get all hyperparameters names")
     }
-    # Old workflow: replace exposure with spend hyperparameters
+    # old workflow: replace exposure with spend hyperparameters
     if (any(get_hyp_names %in% ref_hyp_name_expo)) {
       get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
       get_hyp_names[get_expo_pos] <- ref_all_media[get_expo_pos]
       names(hyperparameters_ordered) <- get_hyp_names
     }
     if (!identical(get_hyp_names, ref_all_media)) {
-      stop("Input 'hyperparameters' must contain: ", paste(ref_all_media, collapse = ", "))
+      stop("'hyperparameters' must be: ", paste(ref_all_media, collapse = ", "))
     }
 
     check_hyper_limits(hyperparameters_ordered, "thetas")
@@ -438,8 +436,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     all_media <- c(paid_media_spends, organic_vars)
     if (!all(calibration_input$channel %in% all_media)) {
       these <- unique(calibration_input$channel[which(!calibration_input$channel %in% all_media)])
-      stop(sprintf("All channels from 'calibration_input' must be any of: %s.\n  Check: %s",
-                   v2t(all_media), v2t(these)))
+      stop(sprintf(
+        "All channels from 'calibration_input' must be any of: %s.\n  Check: %s",
+        v2t(all_media), v2t(these)
+      ))
     }
     for (i in 1:nrow(calibration_input)) {
       temp <- calibration_input[i, ]
@@ -674,16 +674,18 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
 
-  if (length(channel_constr_low) != 1 & length(channel_constr_low) != length(paid_media_spends))
+  if (length(channel_constr_low) != 1 & length(channel_constr_low) != length(paid_media_spends)) {
     stop(paste(
       "Input 'channel_constr_low' have to contain either only 1",
       "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
     ))
-  if (length(channel_constr_up) != 1 & length(channel_constr_up) != length(paid_media_spends))
+  }
+  if (length(channel_constr_up) != 1 & length(channel_constr_up) != length(paid_media_spends)) {
     stop(paste(
       "Input 'channel_constr_up' have to contain either only 1",
       "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
     ))
+  }
 
   if ("max_response_expected_spend" %in% scenario) {
     if (any(is.null(expected_spend), is.null(expected_spend_days))) {
@@ -698,12 +700,21 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
 
 check_metric_value <- function(metric_value, media_metric) {
   if (!is.null(metric_value)) {
-    if (length(metric_value) != 1) stop(sprintf(
-      "Input 'metric_value' for %s (%s) must be a valid numerical value", media_metric, metric_value))
-    if (!is.numeric(metric_value)) stop(sprintf(
-      "Input 'metric_value' for %s (%s) must be a numerical value", media_metric, metric_value))
-    if (metric_value <= 0) stop(sprintf(
-      "Input 'metric_value' for %s (%s) must be a positive value", media_metric, metric_value))
+    if (length(metric_value) != 1) {
+      stop(sprintf(
+        "Input 'metric_value' for %s (%s) must be a valid numerical value", media_metric, metric_value
+      ))
+    }
+    if (!is.numeric(metric_value)) {
+      stop(sprintf(
+        "Input 'metric_value' for %s (%s) must be a numerical value", media_metric, metric_value
+      ))
+    }
+    if (metric_value <= 0) {
+      stop(sprintf(
+        "Input 'metric_value' for %s (%s) must be a positive value", media_metric, metric_value
+      ))
+    }
   }
 }
 
@@ -713,7 +724,7 @@ check_legacy_input <- function(InputCollect,
                                cores = NULL, iterations = NULL, trials = NULL,
                                intercept_sign = NULL, nevergrad_algo = NULL) {
   if (!any(LEGACY_PARAMS %in% names(InputCollect))) {
-    return(InputCollect)
+    return(invisible(InputCollect))
   } # Legacy check
   # Warn the user these InputCollect params will be (are) deprecated
   legacyValues <- InputCollect[LEGACY_PARAMS]
@@ -731,7 +742,7 @@ check_legacy_input <- function(InputCollect,
   if (!is.null(intercept_sign)) InputCollect$intercept_sign <- intercept_sign
   if (!is.null(nevergrad_algo)) InputCollect$nevergrad_algo <- nevergrad_algo
   attr(InputCollect, "deprecated_params") <- TRUE
-  return(InputCollect)
+  return(invisible(InputCollect))
 }
 
 check_run_inputs <- function(cores, iterations, trials, intercept_sign, nevergrad_algo) {

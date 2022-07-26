@@ -92,6 +92,7 @@ robyn_run <- function(InputCollect,
 
   #####################################
   #### Prepare hyper-parameters
+
   hyper_collect <- hyper_collector(InputCollect, InputCollect$hyperparameters, add_penalty_factor, dt_hyper_fixed, cores)
   InputCollect$hyper_updated <- hyper_collect$hyper_list_all
 
@@ -422,17 +423,6 @@ robyn_mmm <- function(InputCollect,
   lambda_min_ratio <- 0.0001 # default  value from glmnet
   lambdas <- lambda_seq(
     x = select(dt_mod, -.data$ds, -.data$dep_var),
-    y = dt_mod$dep_var,
-    seq_len = 100, lambda_min_ratio
-  )
-  lambda_max <- max(lambdas) * 0.1
-  lambda_min <- lambda_max * lambda_min_ratio
-
-  ################################################
-  #### Get lambda
-  lambda_min_ratio <- 0.0001 # default  value from glmnet
-  lambdas <- lambda_seq(
-    x = dt_mod[, !c("ds", "dep_var"), with = FALSE],
     y = dt_mod$dep_var,
     seq_len = 100, lambda_min_ratio
   )
@@ -1490,7 +1480,8 @@ init_msgs_run <- function(InputCollect, refresh, lambda_control, quiet = FALSE) 
     if (refresh) {
       message(sprintf(
         "Rolling window moving forward: %s %ss",
-        InputCollect$refresh_steps, InputCollect$intervalType))
+        InputCollect$refresh_steps, InputCollect$intervalType
+      ))
     }
   }
 }
