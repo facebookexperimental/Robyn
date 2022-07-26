@@ -336,17 +336,17 @@ robyn_refresh <- function(robyn_object,
       iterations = refresh_iters,
       trials = refresh_trials,
       refresh = TRUE,
-      outputs = TRUE, # this shouldn't be obligatory but for it to work for now
+      outputs = TRUE, # this shouldn't be obligatory, but needed for it to work for now
       plot_pareto = plot_pareto,
       ...
     )
 
     ## Select winner model for current refresh
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
-      mutate(error_score = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
+      mutate(error_score = errors_scores(.)) %>%
+      arrange(desc(.data$error_score)) %>%
       select(.data$solID, everything()) %>%
-      ungroup() %>%
-      arrange(desc(.data$error_score))
+      ungroup()
     bestMod <- OutputCollectRF$resultHypParam$solID[1]
 
     # Pick best model (and don't crash if not valid)
@@ -365,9 +365,7 @@ robyn_refresh <- function(robyn_object,
           ))
         }
       } else {
-        selectID <- OutputCollectRF$resultHypParam %>%
-          slice(1) %>%
-          pull(.data$solID)
+        selectID <- bestMod
         message(
           "Selected model ID: ", selectID, " for refresh model #",
           refreshCounter, " based on the smallest combined normalised errors"

@@ -1478,7 +1478,9 @@ init_msgs_run <- function(InputCollect, refresh, lambda_control, quiet = FALSE) 
       InputCollect$window_end
     ))
     if (refresh) {
-      message("Rolling window moving forward: ", InputCollect$refresh_steps, " ", InputCollect$intervalType)
+      message(sprintf(
+        "Rolling window moving forward: %s %ss",
+        InputCollect$refresh_steps, InputCollect$intervalType))
     }
   }
 }

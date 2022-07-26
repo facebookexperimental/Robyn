@@ -100,9 +100,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
 
   # Select top models by minimum (weighted) distance to zero
-  top_sols <- .clusters_df(cls$df, weights) %>%
-    mutate(error_score = (.data$nrmse^2 + .data$decomp.rssd^2 + .data$mape^2)^-(1 / 2)) %>%
-    .crit_proc(limit)
+  top_sols <- .clusters_df(cls$df, weights, limit)
 
   output <- list(
     # Data and parameters
@@ -133,6 +131,29 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   }
 
   return(output)
+}
+
+errors_scores <- function(df, balance = rep(1, 3)) {
+  stopifnot(length(balance) == 3)
+  stopifnot(all(c("nrmse", "decomp.rssd", "mape") %in% colnames(df)))
+  balance <- balance / sum(balance)
+  scores <- df %>%
+    # Force normalized values so they can be comparable
+    mutate(
+      nrmse_n = .min_max_norm(.data$nrmse),
+      decomp.rssd_n = .min_max_norm(.data$decomp.rssd),
+      mape_n = .min_max_norm(.data$mape)
+    ) %>%
+    # Balance to give more or less importance to each error
+    mutate(
+      nrmse_w = balance[1] / .data$nrmse_n,
+      decomp.rssd_w = balance[2] / .data$decomp.rssd_n,
+      mape_w = balance[3] / .data$mape_n
+    ) %>%
+    # Calculate error score
+    mutate(error_score = (.data$nrmse_w^2 + .data$decomp.rssd_w^2 + .data$mape_w^2)^-(1 / 2)) %>%
+    pull(.data$error_score)
+  return(scores)
 }
 
 # # Mean Media ROI by Cluster
@@ -178,29 +199,12 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   (max - min) * (x - a) / (b - a) + min
 }
 
-.clusters_df <- function(df, balance = rep(1, 3)) {
-  stopifnot(length(balance) == 3)
-  balance <- balance / sum(balance)
-  crit_df <- df %>%
-    # Force normalized values so they can be comparable
-    mutate(
-      nrmse = .min_max_norm(.data$nrmse),
-      decomp.rssd = .min_max_norm(.data$decomp.rssd),
-      mape = .min_max_norm(.data$mape)
-    ) %>%
-    # Balance to give more or less importance to each error
-    mutate(
-      nrmse = balance[1] / .data$nrmse,
-      decomp.rssd = balance[2] / .data$decomp.rssd,
-      mape = balance[3] / .data$mape
-    ) %>%
+.clusters_df <- function(df, balance = rep(1, 3), limit = 1) {
+  df %>%
+    mutate(error_score = errors_scores(., balance)) %>%
     replace(., is.na(.), 0) %>%
-    group_by(.data$cluster)
-  return(crit_df)
-}
-
-.crit_proc <- function(df, limit) {
-  arrange(df, .data$cluster, desc(.data$error_score)) %>%
+    group_by(.data$cluster) %>%
+    arrange(.data$cluster, desc(.data$error_score)) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())
