@@ -3,7 +3,7 @@
 
 ## App Quick Start
   
-  * Install `Robyn` latest package version. Follow the steps [here](https://github.com/facebookexperimental/Robyn/issues/309).
+  * Install `Robyn` latest package version. Follow the steps [here](https://github.com/facebookexperimental/Robyn/tree/main/R).
   
   * Install `RobynApp` package:
 ```{r}
