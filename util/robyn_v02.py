@@ -181,7 +181,9 @@ try:
         sim_week_path='util/data/simulated_weekly.csv'
 
     df_simulated = pd.read_csv(sim_week_path)  # import as pandas data frame
-    df_simulated['DATE'] = pd.to_datetime(df_simulated['DATE']).dt.strftime("%Y-%m-%d") #pd.to_datetime(df_simulated['DATE']).dt.strftime("%Y-%m-%d")
+    df_simulated['DATE'] = pd.to_datetime(df_simulated['DATE'],yearfirst=True,format="%Y-%m-%d").dt.date #pd.to_datetime(df_simulated['DATE']).dt.strftime("%Y-%m-%d")
+    r_date=base.as_Date(pd.to_datetime(df_simulated['DATE']).dt.strftime("%Y-%m-%d"))
+    df_simulated['DATE'] =r_date# df_simulated.DATE.astype(str) #r_date#base.format(r_date, format="%Y-%m-%d")
     #df_simulated=set_date(df_simulated)
     print(df_simulated.head())
     del df_simulated['row_num']
@@ -197,7 +199,9 @@ try:
 
     df_prophet = pd.read_csv(proph_hol_path)
     df_prophet['ds'] = pd.to_datetime(df_prophet['ds'],yearfirst=True,format="%Y-%m-%d").dt.date #pd.to_datetime(df_simulated['DATE']).dt.strftime("%Y-%m-%d")
-    df_prophet['holiday']=df_prophet.holiday.astype(str)
+    r_date_n = base.as_Date(pd.to_datetime(df_prophet['ds']).dt.strftime("%Y-%m-%d"))
+    df_prophet['ds'] = r_date_n#df_prophet.ds.astype(str) #r_date_n#base.format(r_date_n, format="%Y-%m-%d")
+    #df_prophet['holiday']=df_prophet.holiday.astype(str)
     del df_prophet[df_prophet.columns[0]]
     #df_prophet = set_date(df_prophet)
     with localconverter(ro.default_converter + pandas2ri.converter):
@@ -312,6 +316,10 @@ try:
                                                dayInterval=input_collect[6],  dep_var=input_collect[8], window_start=input_collect[26],
                                                window_end=input_collect[28], paid_media_spends=input_collect[17], organic_vars=input_collect[20])
     input_collect.rx2['hyperparameters'] = hp
+    try:
+        robyn.robyn_engineering(input_collect)
+    except:
+        logger.exception("error")
     logger.info("added check_hyperparameters")
     hp_check=robyn.check_hyperparameters(hyperparameters=input_collect.rx2['hyperparameters'], adstock=input_collect[32],
                                 paid_media_spends=input_collect.rx2['paid_media_spends'],
@@ -328,11 +336,14 @@ try:
 
 
     robjects.ListVector(input_collect)[7][0] ="day"
-    robyn.check_windows(dt_input=input_collect.rx2['dt_input'], date_var=input_collect.rx2['dt_input'].rx2['DATE'], window_start=input_collect.rx2['window_start'],
-                        window_end=input_collect[28], all_media=input_collect.rx2['all_media'])
-    input_collect.rx2['hyperparameters']
+    #robyn.check_windows(dt_input=input_collect.rx2['dt_input'], date_var=input_collect.rx2['dt_input'].rx2['DATE'], window_start=input_collect.rx2['window_start'],
+                       # window_end=input_collect[28], all_media=input_collect.rx2['all_media'])
+    #input_collect.rx2['hyperparameters']
 
-    input_collects = robyn.robyn_inputs(InputCollect=input_collect, hyperparameters=hyperparameters)
+    try:
+        input_collects = robyn.robyn_inputs(InputCollect=input_collect, hyperparameters=hp)
+    except:
+        logger.exception("ERROR")
 
     outputs=robyn.robyn_run(
           InputCollect = input_collect # feed in all model specification

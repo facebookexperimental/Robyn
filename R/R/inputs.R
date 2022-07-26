@@ -183,7 +183,7 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
 
-    ## Check for NA values
+    ## Check for NA valuesss
     check_nas(dt_input)
     check_nas(dt_holidays)
 
