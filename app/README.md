@@ -12,6 +12,11 @@
 remotes::install_github("facebookexperimental/Robyn/app")
 ```
 
+  * Load `RobynApp` UI by running:
+```{r}
+RobynApp::robyn_app()
+```
+
 ## License
 
 - Terms of Use - https://opensource.facebook.com/legal/terms 
