@@ -20,7 +20,5 @@ remotes::install_github("facebookexperimental/Robyn/app")
 ## Contact
 
 * kylegoldberg@fb.com, Kyle Goldberg, Marketing Science Partner
+* rblinder@fb.com, Rotem Blinder, Marketing Science Partner
 * bernardolares@fb.com, Bernardo Lares, Marketing Science Partner
-* gufeng@fb.com, Gufeng Zhou, Marketing Science Partner
-* leonelsentana@fb.com, Leonel Sentana, Marketing Science Partner
-* igorskokan@fb.com, Igor Skokan, Marketing Science Partner
