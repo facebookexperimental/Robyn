@@ -1,5 +1,5 @@
 # Project Robyn - Continuous & Semi-Automated MMM <img src='man/figures/logo.png' align="right" height="139px" />
-### The Open Source Marketing Mix Model Package from Facebook Marketing Science
+### The Open Source Marketing Mix Model Package from Meta Marketing Science
 
 ## R Quick Start
   
@@ -24,7 +24,7 @@ remotes::install_github("facebookexperimental/Robyn/R")
 
 ## License
 
-FB Robyn MMM R script is MIT licensed, as found in the LICENSE file.
+Meta's Robyn is MIT licensed, as found in the LICENSE file.
 
 - Terms of Use - https://opensource.facebook.com/legal/terms 
 - Privacy Policy - https://opensource.facebook.com/legal/privacy
