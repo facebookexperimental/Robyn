@@ -652,7 +652,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
 
   ## 1. Actual vs fitted
   xDecompVecReportPlot <- xDecompVecReport %>%
-    group_by(.data$refreshCount) %>%
+    group_by(.data$refreshStatus) %>%
     mutate(
       refreshStart = min(.data$ds),
       refreshEnd = max(.data$ds),
@@ -663,23 +663,23 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     )
 
   dt_refreshDates <- xDecompVecReportPlot %>%
-    select(.data$refreshCount, .data$refreshStart, .data$refreshEnd, .data$duration) %>%
+    select(.data$refreshStatus, .data$refreshStart, .data$refreshEnd, .data$duration) %>%
     distinct() %>%
-    mutate(label = ifelse(.data$refreshCount == 0, sprintf(
+    mutate(label = ifelse(.data$refreshStatus == 0, sprintf(
       "Initial: %s, %s %ss", .data$refreshStart, .data$duration, InputCollectRF$intervalType
     ),
     sprintf(
-      "Refresh #%s: %s, %s %ss", .data$refreshCount, .data$refreshStart,
+      "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart,
       .data$duration, InputCollectRF$intervalType
     )))
 
   xDecompVecReportMelted <- xDecompVecReportPlot %>%
-    select(.data$ds, .data$refreshStart, .data$refreshEnd, .data$refreshCount,
+    select(.data$ds, .data$refreshStart, .data$refreshEnd, .data$refreshStatus,
       actual = .data$dep_var, prediction = .data$depVarHat
     ) %>%
     tidyr::gather(
       key = "variable", value = "value",
-      -c("ds", "refreshCount", "refreshStart", "refreshEnd")
+      -c("ds", "refreshStatus", "refreshStart", "refreshEnd")
     )
 
   outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecReportMelted) +
@@ -687,7 +687,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     geom_rect(
       data = dt_refreshDates,
       aes(xmin = .data$refreshStart, xmax = .data$refreshEnd,
-          fill = as.character(.data$refreshCount)),
+          fill = as.character(.data$refreshStatus)),
       ymin = -Inf, ymax = Inf, alpha = 0.2
     ) +
     theme(
@@ -723,20 +723,20 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
   ## 2. Stacked bar plot
   xDecompAggReportPlotBase <- xDecompAggReport %>%
     filter(.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
-    mutate(perc = ifelse(.data$refreshCount == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
-    select(.data$rn, .data$perc, .data$refreshCount) %>%
-    group_by(.data$refreshCount) %>%
+    mutate(perc = ifelse(.data$refreshStatus == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
+    select(.data$rn, .data$perc, .data$refreshStatus) %>%
+    group_by(.data$refreshStatus) %>%
     summarise(variable = "baseline", percentage = sum(.data$perc), roi_total = NA)
 
   xDecompAggReportPlot <- xDecompAggReport %>%
     filter(!.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
-    mutate(percentage = ifelse(.data$refreshCount == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
-    select(.data$refreshCount, variable = .data$rn, .data$percentage, .data$roi_total) %>%
+    mutate(percentage = ifelse(.data$refreshStatus == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
+    select(.data$refreshStatus, variable = .data$rn, .data$percentage, .data$roi_total) %>%
     bind_rows(xDecompAggReportPlotBase) %>%
-    arrange(.data$refreshCount, desc(.data$variable)) %>%
-    mutate(refreshCount = ifelse(
-      .data$refreshCount == 0, "Init.mod",
-      paste0("Refresh", .data$refreshCount)
+    arrange(.data$refreshStatus, desc(.data$variable)) %>%
+    mutate(refreshStatus = ifelse(
+      .data$refreshStatus == 0, "Init.mod",
+      paste0("Refresh", .data$refreshStatus)
     ))
 
   ySecScale <- 0.75 * max(xDecompAggReportPlot$roi_total / max(xDecompAggReportPlot$percentage), na.rm = TRUE)
@@ -747,8 +747,8 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     aes(x = .data$variable, y = .data$percentage, fill = .data$variable)
   ) +
     geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
-    facet_wrap(~ .data$refreshCount, scales = "free") +
-    theme_lares() +
+    facet_wrap(~ .data$refreshStatus, scales = "free") +
+    theme_lares(grid = "X") +
     scale_fill_manual(values = robyn_palette()$fill) +
     geom_text(aes(label = paste0(round(.data$percentage * 100, 1), "%")),
       size = 3,

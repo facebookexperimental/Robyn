@@ -432,10 +432,10 @@ Robyn <- robyn_refresh(
   robyn_object = robyn_object
   , dt_input = dt_simulated_weekly
   , dt_holidays = dt_prophet_holidays
-  , refresh_steps = 6
+  , refresh_steps = 4
   , refresh_mode = "manual"
-  , refresh_iters = 200 # 1k is estimation. Use refresh_mode = "manual" to try out.
-  , refresh_trials = 1
+  , refresh_iters = 1000 # 1k is estimation. Use refresh_mode = "manual" to try out.
+  , refresh_trials = 5
 )
 
 ## Besides plots: there are 4 CSV outputs saved in the folder for further usage

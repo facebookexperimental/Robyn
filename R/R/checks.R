@@ -773,3 +773,20 @@ check_daterange <- function(date_min, date_max, dates) {
     }
   }
 }
+
+check_refresh_data <- function(Robyn, dt_input) {
+  original_periods <- nrow(Robyn$listInit$InputCollect$dt_modRollWind)
+  new_periods <- nrow(filter(
+    dt_input, get(Robyn$listInit$InputCollect$date_var) > Robyn$listInit$InputCollect$window_end
+  ))
+  it <- Robyn$listInit$InputCollect$intervalType
+  if (new_periods > 0.5 * (original_periods + new_periods)) {
+    warning(sprintf(
+      paste(
+        "We recommend re-building a model rather than refreshing this one.",
+        "More than 50%% of your refresh data (%s %ss) is new data (%s %ss)"
+      ),
+      original_periods + new_periods, it, new_periods, it
+    ))
+  }
+}

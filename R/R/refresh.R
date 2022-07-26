@@ -222,34 +222,20 @@ robyn_refresh <- function(robyn_object,
     }
 
     ## Count refresh
-    refreshCounter <- length(Robyn) - sum(grepl("refresh", names(Robyn)))
+    refreshCounter <- length(Robyn) - sum(names(Robyn) == "refresh")
     objectCheck <- if (refreshCounter == 1) {
       c("listInit")
     } else {
       c("listInit", paste0("listRefresh", 1:(refreshCounter - 1)))
     }
     if (!all(objectCheck %in% names(Robyn))) {
-      stop("Saved Robyn object is corrupted. It should contain ", paste(
-        objectCheck,
-        collapse = ",", ". Please rerun model."
-      ))
+      stop("Saved Robyn object is corrupted. It should contain these elements:\n ",
+           paste(objectCheck, collapse = ", "),
+           ".\n Please, re run the model or fix it manually.")
     }
 
     ## Check rule of thumb: 50% of data shouldn't be new
-    original_periods <- nrow(Robyn$listInit$InputCollect$dt_modRollWind)
-    new_periods <- nrow(filter(
-      dt_input, get(Robyn$listInit$InputCollect$date_var) > Robyn$listInit$InputCollect$window_end
-    ))
-    it <- Robyn$listInit$InputCollect$intervalType
-    if (new_periods > 0.5 * (original_periods + new_periods)) {
-      warning(sprintf(
-        paste(
-          "We recommend re-building a model rather than refreshing this one.",
-          "More than 50%% of your refresh data (%s %ss) is new data (%s %ss)"
-        ),
-        original_periods + new_periods, it, new_periods, it
-      ))
-    }
+    check_refresh_data(Robyn, dt_input)
 
     ## Get previous data
     if (refreshCounter == 1) {
@@ -325,39 +311,10 @@ robyn_refresh <- function(robyn_object,
     }
 
     ## Refresh hyperparameter bounds
-    initBounds <- Robyn$listInit$OutputCollect$hyper_updated
-    initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
-    newBoundsFreedom <- refresh_steps / InputCollectRF$rollingWindowLength
-
-    hyper_updated_prev <- listOutputPrev$hyper_updated
-    hypNames <- names(hyper_updated_prev)
-    for (h in 1:length(hypNames)) {
-      hn <- hypNames[h]
-      getHyp <- listOutputPrev$resultHypParam[, hn][[1]]
-      getDis <- initBoundsDis[hn]
-      if (hn == "lambda") {
-        lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
-        lambda_min <- lambda_max * 0.0001
-        getHyp <- getHyp / (lambda_max - lambda_min)
-      }
-      getRange <- initBounds[hn][[1]]
-
-      if (length(getRange) == 2) {
-        newLowB <- getHyp - getDis * newBoundsFreedom
-        if (newLowB < getRange[1]) {
-          newLowB <- getRange[1]
-        }
-        newUpB <- getHyp + getDis * newBoundsFreedom
-        if (newUpB > getRange[2]) {
-          newUpB <- getRange[2]
-        }
-        newBounds <- unname(c(newLowB, newUpB))
-        hyper_updated_prev[hn][[1]] <- newBounds
-      } else {
-        hyper_updated_prev[hn][[1]] <- getRange
-      }
-    }
-    InputCollectRF$hyperparameters <- hyper_updated_prev
+    InputCollectRF$hyperparameters <- refresh_hyps(
+      initBounds = Robyn$listInit$OutputCollect$hyper_updated,
+      listOutputPrev, refresh_steps,
+      rollingWindowLength = InputCollectRF$rollingWindowLength)
 
     #### Update refresh model parameters
 
@@ -376,7 +333,7 @@ robyn_refresh <- function(robyn_object,
       iterations = refresh_iters,
       trials = refresh_trials,
       refresh = TRUE,
-      outputs = TRUE,
+      outputs = TRUE, # this shouldn't be obligatory but for it to work for now
       plot_pareto = plot_pareto,
       ...
     )
@@ -418,40 +375,27 @@ robyn_refresh <- function(robyn_object,
 
     #### Result collect & save
 
-    # Add refreshCount column to multiple OutputCollectRF data.frames
+    # Add refreshStatus column to multiple OutputCollectRF data.frames
     these <- c("resultHypParam", "xDecompAgg", "mediaVecCollect", "xDecompVecCollect")
     for (tb in these) {
       OutputCollectRF[[tb]] <- OutputCollectRF[[tb]] %>%
-        mutate(refreshCount = refreshCounter - 1,
+        mutate(refreshStatus = refreshCounter,
                bestModRF = .data$solID %in% bestMod)
     }
 
+    # Create bestModRF and refreshStatus columns to listOutputPrev data.frames
     if (refreshCounter == 1) {
-
-      # Add bestModRF and refreshCount column to multiple listOutputPrev data.frames
       for (tb in these) {
         listOutputPrev[[tb]] <- mutate(
           listOutputPrev[[tb]],
           bestModRF = TRUE,
-          refreshCount = refreshCounter
+          refreshStatus = 0
         )
       }
-
-      resultHypParamReport <- listOutputPrev$resultHypParam %>%
-        filter(.data$bestModRF == TRUE) %>%
-        bind_rows(
-          filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE)
-        )
-
-      xDecompAggReport <- listOutputPrev$xDecompAgg %>%
-        filter(.data$bestModRF == TRUE) %>%
-        bind_rows(
-          filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE)
-        )
-
-      mediaVecReport <- listOutputPrev$mediaVecCollect %>%
+      listReportPrev <- listOutputPrev
+      names(listReportPrev) <- paste0(names(listReportPrev), "Report")
+      listReportPrev$mediaVecReport <- listOutputPrev$mediaVecCollect %>%
         filter(
-          .data$bestModRF == TRUE,
           .data$ds >= (refreshStart - InputCollectRF$dayInterval * refresh_steps),
           .data$ds <= (refreshEnd - InputCollectRF$dayInterval * refresh_steps)
         ) %>%
@@ -463,10 +407,8 @@ robyn_refresh <- function(robyn_object,
               .data$ds <= refreshEnd
             )
         ) %>%
-        arrange(.data$type, .data$ds, .data$refreshCount)
-
-      xDecompVecReport <- listOutputPrev$xDecompVecCollect %>%
-        filter(.data$bestModRF == TRUE) %>%
+        arrange(.data$type, .data$ds, .data$refreshStatus)
+      listReportPrev$xDecompVecReport <- listOutputPrev$xDecompVecCollect %>%
         bind_rows(
           OutputCollectRF$xDecompVecCollect %>%
             filter(
@@ -475,49 +417,42 @@ robyn_refresh <- function(robyn_object,
               .data$ds <= refreshEnd
             )
         )
-    } else {
-      resultHypParamReport <- listReportPrev$resultHypParamReport %>%
-        bind_rows(
-          filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE) %>%
-            mutate(refreshCount = refreshCounter)
-        )
+    }
 
-      xDecompAggReport <- listReportPrev$xDecompAggReport %>%
-        bind_rows(
-          filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE) %>%
-            mutate(refreshCount = refreshCounter)
-        )
+    resultHypParamReport <- listReportPrev$resultHypParamReport %>%
+      bind_rows(
+        filter(OutputCollectRF$resultHypParam, .data$bestModRF == TRUE)
+      ) %>%
+      mutate(refreshStatus = row_number() - 1)
 
-      mediaVecReport <- listReportPrev$mediaVecReport %>%
-        bind_rows(
-          filter(
-            OutputCollectRF$mediaVecCollect,
-            .data$bestModRF == TRUE,
-            .data$ds >= InputCollectRF$refreshAddedStart,
-            .data$ds <= refreshEnd
-          ) %>%
-            mutate(refreshCount = refreshCounter)
+    xDecompAggReport <- listReportPrev$xDecompAggReport %>%
+      bind_rows(
+        filter(OutputCollectRF$xDecompAgg, .data$bestModRF == TRUE) %>%
+          mutate(refreshStatus = refreshCounter)
+      )
+
+    mediaVecReport <- listReportPrev$mediaVecReport %>%
+      bind_rows(
+        filter(
+          OutputCollectRF$mediaVecCollect,
+          .data$bestModRF == TRUE,
+          .data$ds >= InputCollectRF$refreshAddedStart,
+          .data$ds <= refreshEnd
         ) %>%
-        arrange(.data$type, .data$ds, .data$refreshCount)
+          mutate(refreshStatus = refreshCounter)
+      ) %>%
+      arrange(.data$type, .data$ds, .data$refreshStatus)
 
-      xDecompVecReport <- listReportPrev$xDecompVecReport %>%
-        bind_rows(
-          filter(
-            OutputCollectRF$xDecompVecCollect,
-            .data$bestModRF == TRUE,
-            .data$ds >= InputCollectRF$refreshAddedStart,
-            .data$ds <= refreshEnd
-          ) %>%
-            mutate(refreshCount = refreshCounter)
-        )
-    }
-
-    if (export) {
-      write.csv(resultHypParamReport, paste0(OutputCollectRF$plot_folder, "report_hyperparameters.csv"))
-      write.csv(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
-      write.csv(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
-      write.csv(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
-    }
+    xDecompVecReport <- listReportPrev$xDecompVecReport %>%
+      bind_rows(
+        filter(
+          OutputCollectRF$xDecompVecCollect,
+          .data$bestModRF == TRUE,
+          .data$ds >= InputCollectRF$refreshAddedStart,
+          .data$ds <= refreshEnd
+        ) %>%
+          mutate(refreshStatus = refreshCounter)
+      )
 
     #### Result objects to export
     ReportCollect <- list(
@@ -528,7 +463,6 @@ robyn_refresh <- function(robyn_object,
       # Selected models (original + refresh IDs)
       selectIDs = resultHypParamReport$solID
     )
-
     listNameUpdate <- paste0("listRefresh", refreshCounter)
     Robyn[[listNameUpdate]] <- list(
       InputCollect = InputCollectRF,
@@ -541,6 +475,13 @@ robyn_refresh <- function(robyn_object,
     # OutputCollectRF <- Robyn$listRefresh1$OutputCollect
     # ReportCollect <- Robyn$listRefresh1$ReportCollect
     plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
+
+    if (export) {
+      write.csv(resultHypParamReport, paste0(OutputCollectRF$plot_folder, "report_hyperparameters.csv"))
+      write.csv(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
+      write.csv(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
+      write.csv(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
+    }
 
     if (refreshLooper == 0) {
       refreshControl <- FALSE
@@ -559,7 +500,9 @@ robyn_refresh <- function(robyn_object,
 
   class(Robyn) <- c("robyn_refresh", class(Robyn))
   # Save Robyn object locally
+  Robyn <- Robyn[order(names(Robyn))]
   saveRDS(Robyn, file = robyn_object)
+  class(Robyn) <- c("robyn_refresh", class(Robyn))
   return(invisible(Robyn))
 }
 
@@ -572,7 +515,7 @@ print.robyn_refresh <- function(x, ...) {
   top_models <- paste(top_models, sprintf("(%s)", 0:(length(top_models) - 1)))
   print(glued(
     "
-Refresh Models: {length(rf_list)}
+Refresh Models: {length(top_models)}
 Mode: {x$refresh$refresh_mode}
 Steps: {x$refresh$refresh_steps}
 Trials: {x$refresh$refresh_trials}
@@ -581,4 +524,39 @@ Iterations: {x$refresh$refresh_iters}
 Models (IDs):
   {paste(top_models, collapse = ', ')}
 "))
+}
+
+refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength) {
+  initBounds <- Robyn$listInit$OutputCollect$hyper_updated
+  initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
+  newBoundsFreedom <- refresh_steps / rollingWindowLength
+  message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
+  hyper_updated_prev <- listOutputPrev$hyper_updated
+  hypNames <- names(hyper_updated_prev)
+  for (h in 1:length(hypNames)) {
+    hn <- hypNames[h]
+    getHyp <- listOutputPrev$resultHypParam[, hn][[1]]
+    getDis <- initBoundsDis[hn]
+    if (hn == "lambda") {
+      lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
+      lambda_min <- lambda_max * 0.0001
+      getHyp <- getHyp / (lambda_max - lambda_min)
+    }
+    getRange <- initBounds[hn][[1]]
+    if (length(getRange) == 2) {
+      newLowB <- getHyp - getDis * newBoundsFreedom
+      if (newLowB < getRange[1]) {
+        newLowB <- getRange[1]
+      }
+      newUpB <- getHyp + getDis * newBoundsFreedom
+      if (newUpB > getRange[2]) {
+        newUpB <- getRange[2]
+      }
+      newBounds <- unname(c(newLowB, newUpB))
+      hyper_updated_prev[hn][[1]] <- newBounds
+    } else {
+      hyper_updated_prev[hn][[1]] <- getRange
+    }
+  }
+  return(hyper_updated_prev)
 }
