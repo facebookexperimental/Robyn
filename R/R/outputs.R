@@ -56,16 +56,22 @@ robyn_outputs <- function(InputCollect, OutputModels,
     calibration_constraint,
     OutputModels$iterations,
     OutputModels$trials,
-    InputCollect$calibration_input)
+    InputCollect$calibration_input
+  )
 
   #####################################
   #### Run robyn_pareto on OutputModels
 
   totalModels <- OutputModels$iterations * OutputModels$trials
-  if (!isTRUE(attr(OutputModels, "hyper_fixed"))) message(sprintf(
-    ">>> Running Pareto calculations for %s models on %s front%s...",
-    totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")))
-  pareto_results <- robyn_pareto(InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet)
+  if (!isTRUE(attr(OutputModels, "hyper_fixed"))) {
+    message(sprintf(
+      ">>> Running Pareto calculations for %s models on %s front%s...",
+      totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")
+    ))
+  }
+  pareto_results <- robyn_pareto(
+    InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet
+  )
   allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
 
   #####################################
@@ -80,14 +86,16 @@ robyn_outputs <- function(InputCollect, OutputModels,
   plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
 
   # Auxiliary list with all results (wasn't previously exported but needed for robyn_outputs())
-  allPareto <- list(resultHypParam = pareto_results$resultHypParam,
-                    xDecompAgg = pareto_results$xDecompAgg,
-                    plotDataCollect = pareto_results$plotDataCollect)
+  allPareto <- list(
+    resultHypParam = pareto_results$resultHypParam,
+    xDecompAgg = pareto_results$xDecompAgg,
+    plotDataCollect = pareto_results$plotDataCollect
+  )
 
   # Final results object
   OutputCollect <- list(
-    resultHypParam = pareto_results$resultHypParam[solID %in% allSolutions],
-    xDecompAgg = pareto_results$xDecompAgg[solID %in% allSolutions],
+    resultHypParam = filter(pareto_results$resultHypParam, .data$solID %in% allSolutions),
+    xDecompAgg = filter(pareto_results$xDecompAgg, .data$solID %in% allSolutions),
     mediaVecCollect = pareto_results$mediaVecCollect,
     xDecompVecCollect = pareto_results$xDecompVecCollect,
     OutputModels = OutputModels,
@@ -109,48 +117,51 @@ robyn_outputs <- function(InputCollect, OutputModels,
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 
   if (export) {
+    tryCatch(
+      {
+        if (!quiet) message(paste0(">>> Collecting ", length(allSolutions), " pareto-optimum results into: ", OutputCollect$plot_folder))
 
-    tryCatch({
+        if (csv_out %in% c("all", "pareto")) {
+          if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
+          robyn_csv(OutputCollect, csv_out, export = export)
+        }
 
-      if (!quiet) message(paste0(">>> Collecting ", length(allSolutions)," pareto-optimum results into: ", OutputCollect$plot_folder))
+        if (!quiet) message(">> Exporting general plots into directory...")
+        all_plots <- robyn_plots(InputCollect, OutputCollect, export = export)
 
-      if (csv_out %in% c("all", "pareto")) {
-        if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
-        robyn_csv(OutputCollect, csv_out, export = export)
+        if (clusters) {
+          if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
+          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...))
+        }
+
+        if (plot_pareto) {
+          if (!quiet) {
+            message(sprintf(
+              ">>> Exporting %sone-pagers into directory...", ifelse(!OutputCollect$hyper_fixed, "pareto ", "")
+            ))
+          }
+          select_model <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else select_model
+          pareto_onepagers <- robyn_onepagers(
+            InputCollect, OutputCollect,
+            select_model = select_model,
+            quiet = quiet,
+            export = export
+          )
+        }
+
+        # For internal use -> UI Code
+        if (ui & plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers
+        OutputCollect[["UI"]] <- if (ui) list(pParFront = all_plots[["pParFront"]]) else NULL
+      },
+      error = function(err) {
+        message(paste("Failed exporting results, but returned model results anyways:\n", err))
       }
-
-      if (!quiet) message(">> Exporting general plots into directory...")
-      all_plots <- robyn_plots(InputCollect, OutputCollect, export = export)
-
-      if (clusters) {
-        if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-        try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...))
-      }
-
-      if (plot_pareto) {
-        if (!quiet) message(sprintf(
-          ">>> Exporting %sone-pagers into directory...", ifelse(!OutputCollect$hyper_fixed, "pareto ", "")))
-        select_model <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else select_model
-        pareto_onepagers <- robyn_onepagers(
-          InputCollect, OutputCollect,
-          select_model = select_model,
-          quiet = quiet,
-          export = export)
-      }
-
-      # For internal use -> UI Code
-      if (ui & plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers
-      OutputCollect[["UI"]] <- if (ui) list(pParFront = all_plots[["pParFront"]]) else NULL
-
-    }, error = function(err) {
-      message(paste("Failed exporting results, but returned model results anyways:\n", err))
-    })
+    )
   }
 
   if (!is.null(OutputModels$hyper_updated)) OutputCollect$hyper_updated <- OutputModels$hyper_updated
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
   return(invisible(OutputCollect))
-
 }
 
 #' @rdname robyn_outputs
@@ -167,10 +178,13 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 {clusters_info}
 ",
     nSols = length(x$allSolutions),
-    clusters_info = if ("clusters" %in% names(x))
+    clusters_info = if ("clusters" %in% names(x)) {
       glued(
         "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
-      ) else NULL
+      )
+    } else {
+      NULL
+    }
   ))
 }
 
@@ -187,16 +201,16 @@ robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
     check_class("robyn_outputs", OutputCollect)
     temp_all <- OutputCollect$allPareto
     if ("pareto" %in% csv_out) {
-      fwrite(OutputCollect$resultHypParam, paste0(OutputCollect$plot_folder, "pareto_hyperparameters.csv"))
-      fwrite(OutputCollect$xDecompAgg, paste0(OutputCollect$plot_folder, "pareto_aggregated.csv"))
+      write.csv(OutputCollect$resultHypParam, paste0(OutputCollect$plot_folder, "pareto_hyperparameters.csv"))
+      write.csv(OutputCollect$xDecompAgg, paste0(OutputCollect$plot_folder, "pareto_aggregated.csv"))
     }
     if ("all" %in% csv_out) {
-      fwrite(temp_all$resultHypParam, paste0(OutputCollect$plot_folder, "all_hyperparameters.csv"))
-      fwrite(temp_all$xDecompAgg, paste0(OutputCollect$plot_folder, "all_aggregated.csv"))
+      write.csv(temp_all$resultHypParam, paste0(OutputCollect$plot_folder, "all_hyperparameters.csv"))
+      write.csv(temp_all$xDecompAgg, paste0(OutputCollect$plot_folder, "all_aggregated.csv"))
     }
     if (!is.null(csv_out)) {
-      fwrite(OutputCollect$mediaVecCollect, paste0(OutputCollect$plot_folder, "pareto_media_transform_matrix.csv"))
-      fwrite(OutputCollect$xDecompVecCollect, paste0(OutputCollect$plot_folder, "pareto_alldecomp_matrix.csv"))
+      write.csv(OutputCollect$mediaVecCollect, paste0(OutputCollect$plot_folder, "pareto_media_transform_matrix.csv"))
+      write.csv(OutputCollect$xDecompVecCollect, paste0(OutputCollect$plot_folder, "pareto_alldecomp_matrix.csv"))
     }
   }
 }

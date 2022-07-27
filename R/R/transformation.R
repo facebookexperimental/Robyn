@@ -28,7 +28,7 @@
 #' @export
 mic_men <- function(x, Vmax, Km, reverse = FALSE) {
   if (!reverse) {
-    mm_out <- exposure <- Vmax * x / (Km + x)
+    mm_out <- Vmax * x / (Km + x)
   } else {
     mm_out <- spend <- x * Km / (Vmax - x)
   }
@@ -141,7 +141,7 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
 
   x_decayed <- mapply(function(x_val, x_pos) {
     x.vec <- c(rep(0, x_pos - 1), rep(x_val, windlen - x_pos + 1))
-    thetaVecCumLag <- shift(thetaVecCum, x_pos - 1, fill = 0)
+    thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
     x.prod <- x.vec * thetaVecCumLag
     return(x.prod)
   }, x_val = x, x_pos = x_bin)
@@ -169,11 +169,11 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
 #' @return Numeric values. Transformed values.
 #' @export
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
-  gammaTrans <- round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
+  inflexion <- c(range(x) %*% c(1 - gamma, gamma)) # linear interpolation by dot product
   if (is.null(x_marginal)) {
-    x_scurve <- x**alpha / (x**alpha + gammaTrans**alpha) # plot(x_scurve) summary(x_scurve)
+    x_scurve <- x**alpha / (x**alpha + inflexion**alpha) # plot(x_scurve) summary(x_scurve)
   } else {
-    x_scurve <- x_marginal**alpha / (x_marginal**alpha + gammaTrans**alpha)
+    x_scurve <- x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
   }
   return(x_scurve)
 }
@@ -196,29 +196,30 @@ plot_adstock <- function(plot = TRUE) {
       for (t in 2:100) {
         thetaVecCum[t] <- thetaVecCum[t - 1] * thetaVec[v]
       }
-      dt_geom <- data.table(
+      dt_geom <- data.frame(
         x = 1:100,
         decay_accumulated = thetaVecCum,
         theta = thetaVec[v]
       )
-      dt_geom[, halflife := which.min(abs(decay_accumulated - 0.5))]
+      dt_geom$halflife <- which.min(abs(dt_geom$decay_accumulated - 0.5))
       geomCollect[[v]] <- dt_geom
     }
-    geomCollect <- rbindlist(geomCollect)
-    geomCollect[, theta_halflife := paste(theta, halflife, sep = "_")]
+    geomCollect <- bind_rows(geomCollect)
+    geomCollect$theta_halflife <- paste(geomCollect$theta, geomCollect$halflife, sep = "_")
 
-    p1 <- ggplot(geomCollect, aes(x = x, y = decay_accumulated)) +
-      geom_line(aes(color = theta_halflife)) +
+    p1 <- ggplot(geomCollect, aes(x = .data$x, y = .data$decay_accumulated)) +
+      geom_line(aes(color = .data$theta_halflife)) +
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
-      geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
+      geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
       labs(
-        title = "Geometric Adstock\n(fixed decay rate)",
+        title = "Geometric Adstock\n(Fixed decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",
         x = "Time unit",
         y = "Media decay accumulated"
-      ) + theme_lares(pal = 2)
+      ) +
+      theme_lares(pal = 2)
 
-    ## plot weibull
+    ## Plot weibull
     weibullCollect <- list()
     shapeVec <- c(0.5, 1, 2, 9)
     scaleVec <- c(0.01, 0.05, 0.1, 0.15, 0.2, 0.5)
@@ -227,33 +228,35 @@ plot_adstock <- function(plot = TRUE) {
     for (t in seq_along(types)) {
       for (v1 in seq_along(shapeVec)) {
         for (v2 in seq_along(scaleVec)) {
-          dt_weibull <- data.table(
+          dt_weibull <- data.frame(
             x = 1:100,
             decay_accumulated = adstock_weibull(1:100, shape = shapeVec[v1], scale = scaleVec[v2], type = tolower(types[t]))$thetaVecCum,
             shape = paste0("shape=", shapeVec[v1]),
             scale = as.factor(scaleVec[v2]),
             type = types[t]
           )
-          dt_weibull[, halflife := which.min(abs(decay_accumulated - 0.5))]
+          dt_weibull$halflife <- which.min(abs(dt_weibull$decay_accumulated - 0.5))
           weibullCollect[[n]] <- dt_weibull
           n <- n + 1
         }
       }
     }
+    weibullCollect <- bind_rows(weibullCollect)
 
-    weibullCollect <- rbindlist(weibullCollect)
-    # weibullCollect[, scale_halflife := paste(scale, halflife, sep = "_")]
-    p2 <- ggplot(weibullCollect, aes(x = x, y = decay_accumulated)) +
-      geom_line(aes(color = scale)) +
-      facet_grid(shape ~ type) +
+    p2 <- ggplot(weibullCollect, aes(x = .data$x, y = .data$decay_accumulated)) +
+      geom_line(aes(color = .data$scale)) +
+      facet_grid(.data$shape ~ .data$type) +
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
-      geom_text(aes(x = max(x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
+      geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"),
+        colour = "gray"
+      ) +
       labs(
-        title = "Weibull Adstock CDF vs PDF\n(flexible decay rate)",
+        title = "Weibull Adstock CDF vs PDF\n(Flexible decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",
         x = "Time unit",
         y = "Media decay accumulated"
-      ) + theme_lares(pal = 2)
+      ) +
+      theme_lares(pal = 2)
     return(wrap_plots(A = p1, B = p2, design = "ABB"))
   }
 }
@@ -276,38 +279,40 @@ plot_saturation <- function(plot = TRUE) {
     ## Plot alphas
     hillAlphaCollect <- list()
     for (i in 1:length(alphaSamp)) {
-      hillAlphaCollect[[i]] <- data.table(
+      hillAlphaCollect[[i]] <- data.frame(
         x = xSample,
         y = xSample**alphaSamp[i] / (xSample**alphaSamp[i] + (0.5 * 100)**alphaSamp[i]),
         alpha = alphaSamp[i]
       )
     }
-    hillAlphaCollect <- rbindlist(hillAlphaCollect)
-    hillAlphaCollect[, alpha := as.factor(alpha)]
-    p1 <- ggplot(hillAlphaCollect, aes(x = x, y = y, color = alpha)) +
+    hillAlphaCollect <- bind_rows(hillAlphaCollect)
+    hillAlphaCollect$alpha <- as.factor(hillAlphaCollect$alpha)
+    p1 <- ggplot(hillAlphaCollect, aes(x = .data$x, y = .data$y, color = .data$alpha)) +
       geom_line() +
       labs(
         title = "Cost response with hill function",
         subtitle = "Alpha changes while gamma = 0.5"
-      ) + theme_lares(pal = 2)
+      ) +
+      theme_lares(pal = 2)
 
     ## Plot gammas
     hillGammaCollect <- list()
     for (i in 1:length(gammaSamp)) {
-      hillGammaCollect[[i]] <- data.table(
+      hillGammaCollect[[i]] <- data.frame(
         x = xSample,
         y = xSample**2 / (xSample**2 + (gammaSamp[i] * 100)**2),
         gamma = gammaSamp[i]
       )
     }
-    hillGammaCollect <- rbindlist(hillGammaCollect)
-    hillGammaCollect[, gamma := as.factor(gamma)]
-    p2 <- ggplot(hillGammaCollect, aes(x = x, y = y, color = gamma)) +
+    hillGammaCollect <- bind_rows(hillGammaCollect)
+    hillGammaCollect$gamma <- as.factor(hillGammaCollect$gamma)
+    p2 <- ggplot(hillGammaCollect, aes(x = .data$x, y = .data$y, color = .data$gamma)) +
       geom_line() +
       labs(
         title = "Cost response with hill function",
         subtitle = "Gamma changes while alpha = 2"
-      ) + theme_lares(pal = 2)
+      ) +
+      theme_lares(pal = 2)
 
     return(p1 + p2)
   }

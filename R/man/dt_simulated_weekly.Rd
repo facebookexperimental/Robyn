@@ -5,7 +5,7 @@
 \alias{dt_simulated_weekly}
 \title{Robyn Dataset: Time series}
 \format{
-An object of class \code{"c"}
+An object of class \code{"data.frame"}
 \describe{
   \item{DATE}{Date}
   \item{revenue}{Daily total revenue}
@@ -18,7 +18,7 @@ An object of class \code{"c"}
 data(dt_simulated_weekly)
 }
 \value{
-data.table
+data.frame
 
 Dataframe. Contains simulated dummy dataset to test and run demo.
 }

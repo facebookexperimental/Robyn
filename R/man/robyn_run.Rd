@@ -11,7 +11,7 @@ robyn_run(
   add_penalty_factor = FALSE,
   refresh = FALSE,
   seed = 123L,
-  outputs = TRUE,
+  outputs = FALSE,
   quiet = FALSE,
   cores = NULL,
   trials = NULL,
