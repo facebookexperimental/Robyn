@@ -185,11 +185,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check for NA valuesss
     check_nas(dt_input)
-    message(paste("robyn_inputs check_nas(dt_input) done:", collapse = ", "))
-
     check_nas(dt_holidays)
-    message(paste("robyn_inputs check_nas(dt_holidays) done:", collapse = ", "))
-
 
     ## Check vars names (duplicates and valid)
     check_varnames(
@@ -201,15 +197,10 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
-    message(paste("robyn_inputs check_datevar(dt_input, date_var) done:", collapse = ", "))
     dt_input <- date_input$dt_input # sorted date by ascending
-    message(paste("robyn_inputs dt_input <- date_input$dt_input done:", collapse = ", "))
     date_var <- date_input$date_var # when date_var = "auto"
-    message(paste("robyn_inputs date_var done:", collapse = ", "))
     dayInterval <- date_input$dayInterval
-    message(paste("robyn_inputs dayInterval done:", collapse = ", "))
     intervalType <- date_input$intervalType
-    message(paste("robyn_inputs intervalType done:", collapse = ", "))
 
     ## Check dependent var
     check_depvar(dt_input, dep_var, dep_var_type)
@@ -219,7 +210,6 @@ robyn_inputs <- function(dt_input = NULL,
       dt_holidays <- prophet_vars <- prophet_country <- prophet_signs <- NULL
     }
     prophet_signs <- check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
-    message(paste("robyn_inputs prophet_signs done:", collapse = ", "))
 
     ## Check baseline variables (and maybe transform context_signs)
     context <- check_context(dt_input, context_vars, context_signs)
@@ -249,7 +239,6 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-    message(paste("robyn_inputs check_windows done:", collapse = ", "))
 
     if (TRUE) {
       dt_input <- windows$dt_input
@@ -268,7 +257,6 @@ robyn_inputs <- function(dt_input = NULL,
     hyperparameters <- check_hyperparameters(
       hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
     )
-    message(paste("robyn_inputs check_hyperparameters done:", collapse = ", "))
 
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
@@ -555,12 +543,9 @@ robyn_engineering <- function(x, ...) {
 
   # dt_transform
   dt_transform <- dt_input
-  message(paste("robyn_engineering dt_transform before merge:", paste(head(dt_transform, 1), collapse = ", ")))
   colnames(dt_transform)[colnames(dt_transform) == InputCollect$date_var] <- "ds"
   colnames(dt_transform)[colnames(dt_transform) == InputCollect$dep_var] <- "dep_var"
   dt_transform <- arrange(dt_transform, .data$ds)
-  message(paste("robyn_engineering dt_transform:", paste(head(dt_transform, 2), collapse = ", ")))
-
 
   # dt_transformRollWind
   dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
@@ -643,7 +628,6 @@ robyn_engineering <- function(x, ...) {
   ## transform all factor variables
   if (length(factor_vars) > 0) {
     dt_transform <- mutate_at(dt_transform, factor_vars, as.factor)
-    message(paste("robyn_engineering mute_at(dt_transform):", paste(head(dt_transform, 2), collapse = ", ")))
   }
 
   ################################################################
@@ -668,6 +652,7 @@ robyn_engineering <- function(x, ...) {
     if (length(prophet_custom_args) > 0) {
       message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
     }
+
     dt_transform <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
@@ -728,7 +713,6 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_spends)))
-  message(paste("prophet_decomp dt_regressors:", paste(dt_regressors, collapse = ", ")))
 
   prophet_params <- list(
     holidays = if (use_holiday) holidays[holidays$country == prophet_country, ] else NULL,
@@ -743,9 +727,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     daily.seasonality = FALSE # No hourly models allowed
   )
   prophet_params <- append(prophet_params, custom_params)
-  message(paste("prophet_decomp prophet_params:", paste(head(prophet_params, 1), collapse = ", ")))
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
-  message(paste("prophet_decomp modelRecurrence  <- do.call(prophet, as.list(prophet_params)):", paste(head(modelRecurrence, 1), collapse = ", ")))
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- dt_regressors %>%
@@ -754,11 +736,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     ohe_names <- names(dt_ohe)
     for (addreg in ohe_names) modelRecurrence <- add_regressor(modelRecurrence, addreg)
     dt_ohe <- select(dt_regressors, -all_of(factor_vars)) %>% bind_cols(dt_ohe)
-    message(paste("prophet_decomp select(dt_regressors, -all_of(factor_vars)) %>% bind_cols(dt_ohe):", paste(head(dt_ohe, 1), collapse = ", ")))
     mod_ohe <- fit.prophet(modelRecurrence, dt_ohe)
-    message(paste("prophet_decomp fit.prophet(modelRecurrence, dt_ohe):", paste(head(mod_ohe, 1), collapse = ", ")))
     dt_forecastRegressor <- predict(mod_ohe, dt_ohe)
-    message(paste("prophet_decomp dt_forecastRegressor:", paste(head(dt_forecastRegressor, 1), collapse = ", ")))
     forecastRecurrence <- select(dt_forecastRegressor, -contains("_lower"), -contains("_upper"))
     for (aggreg in factor_vars) {
       oheRegNames <- grep(paste0("^", aggreg, ".*"), names(forecastRecurrence), value = TRUE)
