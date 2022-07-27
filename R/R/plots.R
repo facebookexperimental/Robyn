@@ -21,20 +21,25 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Prophet
     if (!is.null(InputCollect$prophet_vars) && length(InputCollect$prophet_vars) > 0 ||
       !is.null(InputCollect$factor_vars) && length(InputCollect$factor_vars) > 0) {
-      dt_plotProphet <- InputCollect$dt_mod[, c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars), with = FALSE]
-      dt_plotProphet <- suppressWarnings(melt.data.table(dt_plotProphet, id.vars = "ds"))
+      dt_plotProphet <- InputCollect$dt_mod %>%
+        select(c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars)) %>%
+        tidyr::gather("variable", "value", -.data$ds)
       all_plots[["pProphet"]] <- pProphet <- ggplot(
-        dt_plotProphet, aes(x = ds, y = value)
+        dt_plotProphet, aes(x = .data$ds, y = .data$value)
       ) +
         geom_line(color = "steelblue") +
-        facet_wrap(~variable, scales = "free", ncol = 1) +
+        facet_wrap(~ .data$variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition") +
-        xlab(NULL) + ylab(NULL) + theme_lares() + scale_y_abbr()
+        xlab(NULL) +
+        ylab(NULL) +
+        theme_lares() +
+        scale_y_abbr()
+
       if (export) {
         ggsave(
           paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
           plot = pProphet, limitsize = FALSE,
-          dpi = 600, width = 12, height = 3 * length(levels(dt_plotProphet$variable))
+          dpi = 600, width = 12, height = 3 * length(unique(dt_plotProphet$variable))
         )
       }
     }
@@ -60,22 +65,26 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
-      resultHypParam <- copy(temp_all$resultHypParam)
+      resultHypParam <- temp_all$resultHypParam
       hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated), "robynPareto")
       hpnames_updated <- str_replace(hpnames_updated, "lambda", "lambda_hp")
-      resultHypParam.melted <- melt.data.table(resultHypParam[, hpnames_updated, with = FALSE],
-        id.vars = c("robynPareto")
-      )
-      resultHypParam.melted <- resultHypParam.melted[variable == "lambda_hp", variable := "lambda"]
+      resultHypParam.melted <- resultHypParam %>%
+        select(all_of(hpnames_updated)) %>%
+        tidyr::gather("variable", "value", -.data$robynPareto) %>%
+        mutate(variable = ifelse(.data$variable == "lambda_hp", "lambda", .data$variable))
       all_plots[["pSamp"]] <- ggplot(
-        resultHypParam.melted, aes(x = value, y = variable, color = variable, fill = variable)
+        resultHypParam.melted,
+        aes(x = .data$value, y = .data$variable, color = .data$variable, fill = .data$variable)
       ) +
         geom_violin(alpha = .5, size = 0) +
         geom_point(size = 0.2) +
         theme_lares(legend = "none") +
         labs(
           title = "Hyperparameter Optimisation Sampling",
-          subtitle = paste0("Sample distribution", ", iterations = ", OutputCollect$iterations, " x ", OutputCollect$trials, " trial"),
+          subtitle = paste0(
+            "Sample distribution", ", iterations = ",
+            OutputCollect$iterations, " x ", OutputCollect$trials, " trial"
+          ),
           x = "Hyperparameter space",
           y = NULL
         )
@@ -90,13 +99,13 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
     ## Pareto front
     if (length(temp_all) > 0) {
       pareto_fronts_vec <- 1:pareto_fronts
-      resultHypParam <- copy(temp_all$resultHypParam)
+      resultHypParam <- temp_all$resultHypParam
       if (!is.null(InputCollect$calibration_input)) {
-        resultHypParam[, iterations := ifelse(is.na(robynPareto), NA, iterations)]
-        # show blue dots on top of grey dots
-        resultHypParam <- resultHypParam[order(!is.na(robynPareto))]
+        resultHypParam <- resultHypParam %>%
+          mutate(iterations = ifelse(is.na(.data$robynPareto), NA, .data$iterations))
+        # Show blue dots on top of grey dots
+        resultHypParam <- resultHypParam[order(!is.na(resultHypParam$robynPareto)), ]
       }
-
       calibrated <- !is.null(InputCollect$calibration_input)
       pParFront <- ggplot(resultHypParam, aes(
         x = .data$nrmse, y = .data$decomp.rssd, colour = .data$iterations
@@ -135,7 +144,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           pf_color <- "coral"
         }
         pParFront <- pParFront + geom_line(
-          data = resultHypParam[robynPareto == pfs],
+          data = resultHypParam[resultHypParam$robynPareto %in% pfs, ],
           aes(x = .data$nrmse, y = .data$decomp.rssd), colour = pf_color
         )
       }
@@ -151,34 +160,37 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 
     ## Ridgeline model convergence
     if (length(temp_all) > 0) {
-      xDecompAgg <- copy(temp_all$xDecompAgg)
-      dt_ridges <- xDecompAgg[
-        rn %in% InputCollect$paid_media_spends,
-        .(
-          variables = rn,
-          roi_total,
-          iteration = (iterNG - 1) * OutputCollect$cores + iterPar,
-          trial
-        )
-      ][order(iteration, variables)]
+      xDecompAgg <- temp_all$xDecompAgg
+      dt_ridges <- xDecompAgg %>%
+        filter(.data$rn %in% InputCollect$paid_media_spends) %>%
+        mutate(iteration = (.data$iterNG - 1) * OutputCollect$cores + .data$iterPar) %>%
+        select(variables = .data$rn, .data$roi_total, .data$iteration, .data$trial) %>%
+        arrange(.data$iteration, .data$variables)
       bin_limits <- c(1, 20)
       qt_len <- ifelse(OutputCollect$iterations <= 100, 1,
         ifelse(OutputCollect$iterations > 2000, 20, ceiling(OutputCollect$iterations / 100))
       )
       set_qt <- floor(quantile(1:OutputCollect$iterations, seq(0, 1, length.out = qt_len + 1)))
       set_bin <- set_qt[-1]
-      dt_ridges[, iter_bin := cut(dt_ridges$iteration, breaks = set_qt, labels = set_bin)]
-      dt_ridges <- dt_ridges[!is.na(iter_bin)]
-      dt_ridges[, iter_bin := factor(iter_bin, levels = sort(set_bin, decreasing = TRUE))]
-      dt_ridges[, trial := as.factor(trial)]
-      plot_vars <- dt_ridges[, unique(variables)]
+      dt_ridges <- dt_ridges %>%
+        mutate(iter_bin = cut(.data$iteration, breaks = set_qt, labels = set_bin)) %>%
+        filter(!is.na(.data$iter_bin)) %>%
+        mutate(
+          iter_bin = factor(.data$iter_bin, levels = sort(set_bin, decreasing = TRUE)),
+          trial = as.factor(.data$trial)
+        )
+      plot_vars <- unique(dt_ridges$variables)
       plot_n <- ceiling(length(plot_vars) / 6)
       metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       for (pl in 1:plot_n) {
         loop_vars <- na.omit(plot_vars[(1:6) + 6 * (pl - 1)])
-        dt_ridges_loop <- dt_ridges[variables %in% loop_vars, ]
+        dt_ridges_loop <- dt_ridges[dt_ridges$variables %in% loop_vars, ]
         all_plots[[paste0("pRidges", pl)]] <- pRidges <- ggplot(
-          dt_ridges_loop, aes(x = roi_total, y = iter_bin, fill = as.integer(iter_bin), linetype = trial)
+          dt_ridges_loop, aes(
+            x = .data$roi_total, y = .data$iter_bin,
+            fill = as.integer(.data$iter_bin),
+            linetype = .data$trial
+          )
         ) +
           scale_fill_distiller(palette = "GnBu") +
           geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
@@ -213,14 +225,17 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 #' @export
 robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, quiet = FALSE, export = TRUE) {
   check_class("robyn_outputs", OutputCollect)
-  pareto_fronts <- OutputCollect$pareto_fronts
-  hyper_fixed <- OutputCollect$hyper_fixed
-  resultHypParam <- copy(OutputCollect$resultHypParam)
-  xDecompAgg <- copy(OutputCollect$xDecompAgg)
+  if (TRUE) {
+    pareto_fronts <- OutputCollect$pareto_fronts
+    hyper_fixed <- OutputCollect$hyper_fixed
+    resultHypParam <- OutputCollect$resultHypParam
+    xDecompAgg <- OutputCollect$xDecompAgg
+    sid <- NULL # for parallel loops
+  }
   if (!is.null(select_model)) {
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
-    resultHypParam <- resultHypParam[solID %in% select_model]
-    xDecompAgg <- xDecompAgg[solID %in% select_model]
+    resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model, ]
+    xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model, ]
     if (!quiet) message(">> Generating only cluster results one-pagers (", nrow(resultHypParam), ")...")
   }
 
@@ -228,7 +243,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   if (check_parallel_plot()) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
-    count_mod_out <- resultHypParam[robynPareto %in% pareto_fronts_vec, .N]
+    count_mod_out <- nrow(resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ])
   } else {
     pareto_fronts_vec <- 1
     count_mod_out <- nrow(resultHypParam)
@@ -243,23 +258,36 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
   }
 
-  if (!quiet & count_mod_out > 0) pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
+  if (!quiet & count_mod_out > 0) {
+    pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
+  }
   temp <- OutputCollect$allPareto$plotDataCollect
   all_plots <- list()
   cnt <- 0
 
   for (pf in pareto_fronts_vec) { # pf = pareto_fronts_vec[1]
 
-    plotMediaShare <- xDecompAgg[robynPareto == pf & rn %in% InputCollect$paid_media_spends]
-    uniqueSol <- plotMediaShare[, unique(solID)]
+    plotMediaShare <- filter(
+      xDecompAgg, .data$robynPareto == pf,
+      .data$rn %in% InputCollect$paid_media_spends
+    )
+    uniqueSol <- unique(plotMediaShare$solID)
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
     parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
-      plotMediaShareLoop <- plotMediaShare[solID == sid]
-      rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train), 4)]
-      nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse), 4)]
-      decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd), 4)]
-      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), plotMediaShareLoop[, round(unique(mape), 4)], NA)
+      plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
+      rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
+      nrmse_plot <- round(plotMediaShareLoop$nrmse[1], 4)
+      decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
+      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+        round(plotMediaShareLoop$mape[1], 4), NA
+      )
+      errors <- paste0(
+        "R2 train: ", rsq_train_plot,
+        ", NRMSE = ", nrmse_plot,
+        ", DECOMP.RSSD = ", decomp_rssd_plot,
+        ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
+      )
 
       errors <- paste0(
         "R2 train: ", rsq_train_plot,
@@ -313,18 +341,21 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop
       plotWaterfallLoop$sign <- ifelse(plotWaterfallLoop$sign == "pos", "Positive", "Negative")
       p2 <- suppressWarnings(
-        ggplot(plotWaterfallLoop, aes(x = id, fill = sign)) +
+        ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
           geom_rect(aes(
-            x = rn, xmin = id - 0.45, xmax = id + 0.45,
-            ymin = end, ymax = start
+            x = .data$rn, xmin = .data$id - 0.45, xmax = .data$id + 0.45,
+            ymin = .data$end, ymax = .data$start
           ), stat = "identity") +
           scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
           scale_y_percent() +
-          scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" =  "#E5586E")) +
+          scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" = "#E5586E")) +
           theme_lares(legend = "top") +
           geom_text(mapping = aes(
-            label = paste0(formatNum(xDecompAgg, abbr = TRUE), "\n", round(xDecompPerc * 100, 1), "%"),
-            y = rowSums(cbind(plotWaterfallLoop$end, plotWaterfallLoop$xDecompPerc / 2))
+            label = paste0(
+              formatNum(.data$xDecompAgg, abbr = TRUE),
+              "\n", round(.data$xDecompPerc * 100, 1), "%"
+            ),
+            y = rowSums(cbind(.data$end, .data$xDecompPerc / 2))
           ), fontface = "bold", lineheight = .7) +
           coord_flip() +
           labs(
@@ -340,7 +371,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           geom_bar(stat = "identity", width = 0.5) +
           theme_lares(legend = "none", grid = "Xx") +
           coord_flip() +
-          geom_text(aes(label = formatNum(100 * thetas, 1, pos = "%")),
+          geom_text(aes(label = formatNum(100 * .data$thetas, 1, pos = "%")),
             hjust = -.1, position = position_dodge(width = 0.5), fontface = "bold"
           ) +
           scale_y_percent(limit = c(0, 1)) +
@@ -367,7 +398,17 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       ## 4. Response curves
       dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
-      if (!"channel" %in% colnames(dt_scurvePlotMean)) dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
+      trim_rate <- 1.3 # maybe enable as a parameter
+      if (trim_rate > 0) {
+        dt_scurvePlot <- dt_scurvePlot %>%
+          filter(
+            .data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
+            .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate
+          )
+      }
+      if (!"channel" %in% colnames(dt_scurvePlotMean)) {
+        dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
+      }
       p4 <- ggplot(
         dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends, ],
         aes(x = .data$spend, y = .data$response, color = .data$channel)
@@ -392,20 +433,27 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           title = "Response Curves and Mean Spends by Channel",
           x = "Spend", y = "Response", color = NULL
         ) +
-        scale_x_abbr() +
-        scale_y_abbr()
+        scale_y_abbr() +
+        scale_x_abbr()
 
       ## 5. Fitted vs actual
-      xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted
-      xDecompVecPlotMelted$variable <- stringr::str_to_title(xDecompVecPlotMelted$variable)
-      xDecompVecPlotMelted$linetype <- ifelse(xDecompVecPlotMelted$variable == "Predicted", "solid", "dotted")
-      p5 <- ggplot(xDecompVecPlotMelted, aes(x = .data$ds, y = .data$value, color = .data$variable)) +
+      xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted %>%
+        mutate(
+          linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
+          variable = stringr::str_to_title(.data$variable)
+        )
+      # rsq <- temp[[sid]]$plot5data$rsq
+      p5 <- ggplot(
+        xDecompVecPlotMelted,
+        aes(x = .data$ds, y = .data$value, color = .data$variable)
+      ) +
         geom_path(aes(linetype = .data$linetype), size = 0.6) +
         theme_lares(legend = "top", pal = 2) +
         scale_y_abbr() +
         guides(linetype = "none") +
         labs(
           title = "Actual vs. Predicted Response",
+          # subtitle = paste("Train R2 =", round(rsq, 4)),
           x = "Date", y = "Response", color = NULL
         )
 
@@ -448,37 +496,49 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   return(invisible(parallelResult[[1]]))
 }
 
-allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export = TRUE, quiet = FALSE) {
-
+allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model,
+                             scenario, export = TRUE, quiet = FALSE) {
   outputs <- list()
 
-  subtitle <- paste0(
-    "Total spend increase: ", dt_optimOut[
-      , round(mean(optmSpendUnitTotalDelta) * 100, 1)
-    ], "%",
-    "\nTotal response increase: ", dt_optimOut[
-      , round(mean(optmResponseUnitTotalLift) * 100, 1)
-    ], "% with optimised spend allocation"
+  subtitle <- sprintf(
+    paste0(
+      "Total spend increase: %s%%",
+      "\nTotal response increase: %s%% with optimised spend allocation"
+    ),
+    round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
+    round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
 
   # Calculate errors for subtitles
-  plotDT_scurveMeanResponse <- OutputCollect$xDecompAgg[
-    solID == select_model & rn %in% InputCollect$paid_media_spends]
+  plotDT_scurveMeanResponse <- filter(
+    OutputCollect$xDecompAgg,
+    .data$solID == select_model,
+    .data$rn %in% InputCollect$paid_media_spends
+  )
+
+  rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
+  nrmse_plot <- round(plotDT_scurveMeanResponse$nrmse[1], 4)
+  decomp_rssd_plot <- round(plotDT_scurveMeanResponse$decomp.rssd[1], 4)
+  mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+    round(plotDT_scurveMeanResponse$mape[1], 4), NA
+  )
   errors <- paste0(
-    "R2 train: ", plotDT_scurveMeanResponse[, round(mean(rsq_train), 4)],
-    ", NRMSE = ", plotDT_scurveMeanResponse[, round(mean(nrmse), 4)],
-    ", DECOMP.RSSD = ", plotDT_scurveMeanResponse[, round(mean(decomp.rssd), 4)],
-    ", MAPE = ", plotDT_scurveMeanResponse[, round(mean(mape), 4)]
+    "R2 train: ", rsq_train_plot,
+    ", NRMSE = ", nrmse_plot,
+    ", DECOMP.RSSD = ", decomp_rssd_plot,
+    ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
   )
 
   # 1. Response comparison plot
   plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
     mutate(channels = as.factor(.data$channels))
   names(plotDT_resp) <- c("channel", "Initial Mean Response", "Optimised Mean Response")
-  plotDT_resp <- suppressWarnings(melt.data.table(plotDT_resp, id.vars = "channel", value.name = "response"))
+  plotDT_resp <- tidyr::gather(plotDT_resp, "variable", "response", -.data$channel)
   outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$response, fill = reorder(.data$variable, as.numeric(.data$variable)))) +
+    x = .data$response,
+    fill = reorder(.data$variable, as.numeric(as.factor(.data$variable)))
+  )) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$response, 0), hjust = -0.1),
@@ -496,10 +556,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   plotDT_share <- select(dt_optimOut, .data$channels, .data$initSpendShare, .data$optmSpendShareUnit) %>%
     mutate(channels = as.factor(.data$channels))
   names(plotDT_share) <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
-  plotDT_share <- suppressWarnings(melt.data.table(plotDT_share, id.vars = "channel", value.name = "spend_share"))
+  plotDT_share <- tidyr::gather(plotDT_share, "variable", "spend_share", -.data$channel)
   outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
     y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$spend_share, fill = .data$variable)) +
+    x = .data$spend_share, fill = .data$variable
+  )) +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
     scale_fill_brewer(palette = 3) +
     geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
@@ -514,28 +575,36 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   ## 3. Response curves
-  plotDT_saturation <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "saturatedSpendReversed"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "spend", variable.name = "channel")
-  plotDT_decomp <- melt.data.table(OutputCollect$mediaVecCollect[
-    solID == select_model & type == "decompMedia"
-  ], id.vars = "ds", measure.vars = InputCollect$paid_media_spends, value.name = "response", variable.name = "channel")
+  plotDT_saturation <- OutputCollect$mediaVecCollect %>%
+    filter(.data$solID == select_model, .data$type == "saturatedSpendReversed") %>%
+    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+    tidyr::gather("channel", "spend", -.data$ds)
+
+  plotDT_decomp <- OutputCollect$mediaVecCollect %>%
+    filter(.data$solID == select_model, .data$type == "decompMedia") %>%
+    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+    tidyr::gather("channel", "response", -.data$ds)
+
   plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
-    filter(.data$spend >= 0) %>% as_tibble()
+    filter(.data$spend >= 0) %>%
+    as_tibble()
 
   dt_optimOutScurve <- rbind(
-    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(type = "Initial"),
-    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(type = "Optimised"),
-    use.names = FALSE
-  )
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Initial") %>% as.matrix(),
+    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(x = "Optimised") %>% as.matrix()
+  ) %>% as.data.frame()
   colnames(dt_optimOutScurve) <- c("channels", "spend", "response", "type")
   dt_optimOutScurve <- dt_optimOutScurve %>%
+    mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
     group_by(.data$channels) %>%
-    mutate(spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
-           response_dif = dplyr::last(.data$response) - dplyr::first(.data$response))
+    mutate(
+      spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
+      response_dif = dplyr::last(.data$response) - dplyr::first(.data$response)
+    )
 
   outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
-    x = .data$spend, y = .data$response, color = .data$channel)) +
+    x = .data$spend, y = .data$response, color = .data$channel
+  )) +
     geom_line() +
     geom_point(data = dt_optimOutScurve, aes(
       x = .data$spend, y = .data$response,
@@ -553,7 +622,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     theme(
       legend.position = c(0.87, 0.5),
       legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90"),
-      legend.spacing.y = unit(0.2, 'cm')
+      legend.spacing.y = unit(0.2, "cm")
     ) +
     labs(
       title = "Response Curve and Mean* Spend by Channel",
@@ -589,5 +658,164 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
   }
 
+  return(invisible(outputs))
+}
+
+refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE) {
+  selectID <- ReportCollect$selectIDs
+  xDecompVecReport <- filter(ReportCollect$xDecompVecReport, .data$solID %in% selectID)
+  xDecompAggReport <- filter(ReportCollect$xDecompAggReport, .data$solID %in% selectID)
+  outputs <- list()
+
+  ## 1. Actual vs fitted
+  xDecompVecReportPlot <- xDecompVecReport %>%
+    group_by(.data$refreshStatus) %>%
+    mutate(
+      refreshStart = min(.data$ds),
+      refreshEnd = max(.data$ds),
+      duration = as.numeric(
+        (.data$refreshEnd - .data$refreshStart + InputCollectRF$dayInterval) /
+          InputCollectRF$dayInterval
+      )
+    )
+
+  dt_refreshDates <- xDecompVecReportPlot %>%
+    select(.data$refreshStatus, .data$refreshStart, .data$refreshEnd, .data$duration) %>%
+    distinct() %>%
+    mutate(label = ifelse(.data$refreshStatus == 0, sprintf(
+      "Initial: %s, %s %ss", .data$refreshStart, .data$duration, InputCollectRF$intervalType
+    ),
+    sprintf(
+      "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart,
+      .data$duration, InputCollectRF$intervalType
+    )
+    ))
+
+  xDecompVecReportMelted <- xDecompVecReportPlot %>%
+    select(.data$ds, .data$refreshStart, .data$refreshEnd, .data$refreshStatus,
+      actual = .data$dep_var, prediction = .data$depVarHat
+    ) %>%
+    tidyr::gather(
+      key = "variable", value = "value",
+      -c("ds", "refreshStatus", "refreshStart", "refreshEnd")
+    )
+
+  outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecReportMelted) +
+    geom_line(aes(x = .data$ds, y = .data$value, color = .data$variable)) +
+    geom_rect(
+      data = dt_refreshDates,
+      aes(
+        xmin = .data$refreshStart, xmax = .data$refreshEnd,
+        fill = as.character(.data$refreshStatus)
+      ),
+      ymin = -Inf, ymax = Inf, alpha = 0.2
+    ) +
+    theme(
+      panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+      panel.background = element_blank(), # legend.position = c(0.1, 0.8),
+      legend.background = element_rect(fill = alpha("white", 0.4)),
+    ) +
+    theme_lares() +
+    scale_fill_brewer(palette = "BuGn") +
+    geom_text(data = dt_refreshDates, mapping = aes(
+      x = .data$refreshStart, y = max(xDecompVecReportMelted$value),
+      label = .data$label,
+      angle = 270, hjust = -0.1, vjust = -0.2
+    ), color = "gray40") +
+    labs(
+      title = "Model Refresh: Actual vs. Predicted Response",
+      subtitle = paste0(
+        "Assembled R2: ", round(get_rsq(
+          true = xDecompVecReportPlot$dep_var,
+          predicted = xDecompVecReportPlot$depVarHat
+        ), 2)
+      ),
+      x = "Date", y = "Response", fill = "Refresh", color = "Type"
+    ) +
+    scale_y_abbr()
+
+  if (export) {
+    ggsave(
+      filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
+      plot = pFitRF,
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
+    )
+  }
+
+  ## 2. Stacked bar plot
+  xDecompAggReportPlotBase <- xDecompAggReport %>%
+    filter(.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
+    mutate(perc = ifelse(.data$refreshStatus == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
+    select(.data$rn, .data$perc, .data$refreshStatus) %>%
+    group_by(.data$refreshStatus) %>%
+    summarise(variable = "baseline", percentage = sum(.data$perc), roi_total = NA)
+
+  xDecompAggReportPlot <- xDecompAggReport %>%
+    filter(!.data$rn %in% c(InputCollectRF$prophet_vars, "(Intercept)")) %>%
+    mutate(percentage = ifelse(.data$refreshStatus == 0, .data$xDecompPerc, .data$xDecompPercRF)) %>%
+    select(.data$refreshStatus, variable = .data$rn, .data$percentage, .data$roi_total) %>%
+    bind_rows(xDecompAggReportPlotBase) %>%
+    arrange(.data$refreshStatus, desc(.data$variable)) %>%
+    mutate(refreshStatus = ifelse(
+      .data$refreshStatus == 0, "Init.mod",
+      paste0("Refresh", .data$refreshStatus)
+    ))
+
+  ySecScale <- 0.75 * max(xDecompAggReportPlot$roi_total / max(xDecompAggReportPlot$percentage), na.rm = TRUE)
+  ymax <- 1.1 * max(c(xDecompAggReportPlot$roi_total / ySecScale, xDecompAggReportPlot$percentage), na.rm = TRUE)
+
+  outputs[["pBarRF"]] <- pBarRF <- ggplot(
+    xDecompAggReportPlot,
+    aes(x = .data$variable, y = .data$percentage, fill = .data$variable)
+  ) +
+    geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
+    facet_wrap(~ .data$refreshStatus, scales = "free") +
+    theme_lares(grid = "X") +
+    scale_fill_manual(values = robyn_palette()$fill) +
+    geom_text(aes(label = paste0(round(.data$percentage * 100, 1), "%")),
+      size = 3,
+      position = position_dodge(width = 0.9), hjust = -0.25
+    ) +
+    geom_point(
+      data = xDecompAggReportPlot,
+      aes(
+        x = .data$variable,
+        y = .data$roi_total / ySecScale,
+        color = .data$variable
+      ),
+      size = 4, shape = 17, na.rm = TRUE,
+    ) +
+    geom_text(
+      data = xDecompAggReportPlot,
+      aes(
+        label = round(.data$roi_total, 2),
+        x = .data$variable,
+        y = .data$roi_total / ySecScale
+      ),
+      size = 3, na.rm = TRUE, hjust = -0.4, fontface = "bold",
+      position = position_dodge(width = 0.9)
+    ) +
+    scale_color_manual(values = robyn_palette()$fill) +
+    scale_y_continuous(
+      sec.axis = sec_axis(~ . * ySecScale), breaks = seq(0, ymax, 0.2),
+      limits = c(0, ymax), name = "roi_total"
+    ) +
+    coord_flip() +
+    theme(legend.position = "none", axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+    labs(
+      title = "Model Refresh: Decomposition & Paid Media ROI",
+      subtitle = paste0(
+        "Baseline includes intercept and prophet vars: ",
+        paste(InputCollectRF$prophet_vars, collapse = ", ")
+      )
+    )
+
+  if (export) {
+    ggsave(
+      filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
+      plot = pBarRF,
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
+    )
+  }
   return(invisible(outputs))
 }

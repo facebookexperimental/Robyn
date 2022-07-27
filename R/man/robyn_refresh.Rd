@@ -3,37 +3,41 @@
 \name{robyn_refresh}
 \alias{robyn_refresh}
 \alias{print.robyn_refresh}
+\alias{plot.robyn_refresh}
 \title{Build Refresh Model}
 \usage{
 robyn_refresh(
   robyn_object,
+  dt_input = NULL,
+  dt_holidays = NULL,
   plot_folder_sub = NULL,
-  dt_input = dt_input,
-  dt_holidays = dt_holidays,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000,
   refresh_trials = 3,
   plot_pareto = TRUE,
   version_prompt = FALSE,
+  export = TRUE,
   ...
 )
 
 \method{print}{robyn_refresh}(x, ...)
+
+\method{plot}{robyn_refresh}(x, ...)
 }
 \arguments{
 \item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information.}
-
-\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
-path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
-For example, plot_folder_sub = "sub_dir".}
 
 \item{dt_input}{data.frame. Should include all previous data and newly added
 data for the refresh.}
 
 \item{dt_holidays}{data.frame. Raw input holiday data. Load standard
 Prophet holidays using \code{data("dt_prophet_holidays")}.}
+
+\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
+path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
+For example, plot_folder_sub = "sub_dir".}
 
 \item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data
@@ -57,9 +61,11 @@ More reliable recommendation still needs to be investigated.}
 and saving model one-pagers. Used when testing models.}
 
 \item{version_prompt}{Logical. If FALSE, the model refresh version will be
-selected based on the smallest combined error of normalised NRMSE & DECOMP.RSSD.
-If TRUE, a prompt will be presented to the user to select one of the refreshed
-models (one-pagers and pareto csv files will already be generated).}
+selected based on the smallest combined error of normalized NRMSE, DECOMP.RSSD, MAPE.
+If \code{TRUE}, a prompt will be presented to the user to select one of the refreshed
+models (one-pagers and Pareto CSV files will already be generated).}
+
+\item{export}{Boolean. Export outcomes into local files?}
 
 \item{...}{Additional parameters to overwrite original custom parameters
 passed into initial model.}

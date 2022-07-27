@@ -11,8 +11,8 @@
 #' @family Dataset
 #' @docType data
 #' @usage data(dt_simulated_weekly)
-#' @return data.table
-#' @format An object of class \code{"c"}
+#' @return data.frame
+#' @format An object of class \code{"data.frame"}
 #' \describe{
 #'   \item{DATE}{Date}
 #'   \item{revenue}{Daily total revenue}
@@ -28,6 +28,8 @@
 
 # dt_input <- fread('data/de_simulated_data.csv')
 # save(dt_input, file = "data/dt_input.RData", version = 2)
+# dt_simulated_weekly <- as_tibble(dt_simulated_weekly)
+# save(dt_simulated_weekly, file = "data/dt_simulated_weekly.RData", version = 2)
 
 ####################################################################
 #' Robyn Dataset: Time series
@@ -38,8 +40,8 @@
 #' @family Dataset
 #' @docType data
 #' @usage data(dt_prophet_holidays)
-#' @return data.table
-#' @format An object of class \code{"data.table"}
+#' @return data.frame
+#' @format An object of class \code{"data.frame"}
 #' \describe{
 #'   \item{ds}{Date}
 #'   \item{holiday}{Daily total revenue}
@@ -51,3 +53,6 @@
 #' head(dt_prophet_holidays)
 #' @return Dataframe. Contains \code{prophet}'s default holidays by country.
 "dt_prophet_holidays"
+
+# dt_prophet_holidays <- as_tibble(dt_prophet_holidays)
+# save(dt_prophet_holidays, file = "data/dt_prophet_holidays.RData", version = 2)
