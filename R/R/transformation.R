@@ -169,11 +169,11 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
 #' @return Numeric values. Transformed values.
 #' @export
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
-  gammaTrans <- round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
+  inflexion <- c(range(x) %*% c(1 - gamma, gamma)) # linear interpolation by dot product
   if (is.null(x_marginal)) {
-    x_scurve <- x**alpha / (x**alpha + gammaTrans**alpha) # plot(x_scurve) summary(x_scurve)
+    x_scurve <- x**alpha / (x**alpha + inflexion**alpha) # plot(x_scurve) summary(x_scurve)
   } else {
-    x_scurve <- x_marginal**alpha / (x_marginal**alpha + gammaTrans**alpha)
+    x_scurve <- x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
   }
   return(x_scurve)
 }
