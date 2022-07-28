@@ -4,105 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Export Robyn Model to Local File
-#'
-#' Use \code{robyn_save()} to select and save as .RDS file the initial model.
-#'
-#' @inheritParams robyn_allocator
-#' @return (Invisible) list with filename and summary. Class: \code{robyn_save}.
-#' @export
-robyn_save <- function(robyn_object,
-                       select_model,
-                       InputCollect,
-                       OutputCollect,
-                       quiet = FALSE) {
-  check_robyn_name(robyn_object)
-  if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
-  if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
-    stop(paste0("Input 'select_model' must be one of these values: ", paste(
-      OutputCollect$resultHypParam$solID,
-      collapse = ", "
-    )))
-  }
-
-  output <- list(
-    robyn_object = robyn_object,
-    select_model = select_model,
-    summary = filter(
-      OutputCollect$xDecompAgg,
-      .data$solID == select_model, !is.na(.data$mean_spend)
-    ) %>%
-      select(
-        channel = .data$rn, .data$coef, .data$mean_spend, .data$mean_response, .data$roi_mean,
-        .data$total_spend, total_response = .data$xDecompAgg, .data$roi_total
-      ),
-    plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE)
-  )
-  if (InputCollect$dep_var_type == "conversion") {
-    colnames(output$summary) <- gsub("roi_", "cpa_", colnames(output$summary))
-  }
-  class(output) <- c("robyn_save", class(output))
-
-  if (file.exists(robyn_object)) {
-    if (!quiet) {
-      answer <- askYesNo(paste0(robyn_object, " already exists. Are you certain to overwrite it?"))
-    } else {
-      answer <- TRUE
-    }
-    if (answer == FALSE | is.na(answer)) {
-      message("Stopped export to avoid overwriting")
-      return(invisible(output))
-    }
-  }
-
-  OutputCollect$resultHypParam <- OutputCollect$resultHypParam[
-    OutputCollect$resultHypParam$solID == select_model,
-  ]
-  OutputCollect$xDecompAgg <- OutputCollect$xDecompAgg[
-    OutputCollect$resultHypParam$solID == select_model,
-  ]
-  OutputCollect$mediaVecCollect <- OutputCollect$mediaVecCollect[
-    OutputCollect$resultHypParam$solID == select_model,
-  ]
-  OutputCollect$xDecompVecCollect <- OutputCollect$xDecompVecCollect[
-    OutputCollect$resultHypParam$solID == select_model,
-  ]
-  OutputCollect$selectID <- select_model
-
-  InputCollect$refreshCounter <- 0
-  listInit <- list(InputCollect = InputCollect, OutputCollect = OutputCollect)
-  Robyn <- list(listInit = listInit)
-
-  class(Robyn) <- c("robyn_exported", class(Robyn))
-  saveRDS(Robyn, file = robyn_object)
-  if (!quiet) message("Exported results: ", robyn_object)
-  return(invisible(output))
-}
-
-#' @rdname robyn_save
-#' @aliases robyn_save
-#' @param x \code{robyn_save()} output.
-#' @export
-print.robyn_save <- function(x, ...) {
-  print(glued(
-    "
-  Exported file: {x$robyn_object}
-  Exported model: {x$select_model}
-
-  Media Summary for Selected Model:
-  "
-  ))
-  print(x$summary)
-}
-
-#' @rdname robyn_save
-#' @aliases robyn_save
-#' @param x \code{robyn_save()} output.
-#' @export
-plot.robyn_save <- function(x, ...) plot(x$refresh$plot[[1]], ...)
-
-
-####################################################################
 #' Build Refresh Model
 #'
 #' @description
@@ -134,6 +35,7 @@ plot.robyn_save <- function(x, ...) plot(x$refresh$plot[[1]], ...)
 #' @inheritParams robyn_run
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
+#' @inheritParams robyn_inputs
 #' @param dt_input data.frame. Should include all previous data and newly added
 #' data for the refresh.
 #' @param dt_holidays data.frame. Raw input holiday data. Load standard
@@ -203,6 +105,7 @@ robyn_refresh <- function(robyn_object,
                           plot_pareto = TRUE,
                           version_prompt = FALSE,
                           export = TRUE,
+                          calibration_input = NULL,
                           ...) {
   refreshControl <- TRUE
   while (refreshControl) {
@@ -249,7 +152,6 @@ robyn_refresh <- function(robyn_object,
       InputCollectRF <- Robyn[[listName]][["InputCollect"]]
       listOutputPrev <- Robyn[[listName]][["OutputCollect"]]
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
-      message(paste(">>> Loaded refresh model:", refreshCounter - 1))
       ## Model selection from previous build
       which_bestModRF <- which.max(listOutputPrev$resultHypParam$error_score)[1]
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]
@@ -266,11 +168,11 @@ robyn_refresh <- function(robyn_object,
 
     ## Load new data
     if (TRUE) {
-      date_input <- as_tibble(as.data.frame(dt_input))
-      dt_holidays <- as_tibble(as.data.frame(dt_holidays))
+      dt_input <- as_tibble(as.data.frame(dt_input))
       date_input <- check_datevar(dt_input, InputCollectRF$date_var)
       dt_input <- date_input$dt_input # sort date by ascending
       InputCollectRF$dt_input <- dt_input
+      dt_holidays <- as_tibble(as.data.frame(dt_holidays))
       InputCollectRF$dt_holidays <- dt_holidays
     }
 
@@ -284,7 +186,6 @@ robyn_refresh <- function(robyn_object,
       InputCollectRF$refreshAddedStart <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval
       InputCollectRF$window_start <- refreshStart
       InputCollectRF$window_end <- refreshEnd
-
       refreshStartWhich <- which.min(abs(difftime(totalDates, as.Date(refreshStart), units = "days")))
       refreshEndWhich <- which.min(abs(difftime(totalDates, as.Date(refreshEnd), units = "days")))
       InputCollectRF$rollingWindowStartWhich <- refreshStartWhich
@@ -297,15 +198,35 @@ robyn_refresh <- function(robyn_object,
     }
     if (refresh_mode == "manual") {
       refreshLooper <- 1
-      message(paste(">>> Refreshing model", refreshCounter, "in", refresh_mode, "mode"))
+      message(sprintf(">>> Building refresh model #%s in %s mode", refreshCounter, refresh_mode))
       refreshControl <- FALSE
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
         InputCollectRF$dayInterval / refresh_steps)
-      message(paste(
-        ">>> Refreshing model", refreshCounter, "in",
-        refresh_mode, "mode.", refreshLooper, "more to go..."
-      ))
+      message(sprintf(">>> Building refresh model #%s in %s mode. %s more to go...",
+                      refreshCounter, refresh_mode, refreshLooper))
+    }
+
+    #### Update refresh model parameters
+
+    ## Calibration new data
+    if (!is.null(calibration_input)) {
+      calibration_input <- bind_rows(
+        InputCollectRF$calibration_input, calibration_input
+      ) %>% distinct()
+      ## Check calibration data
+      calibration_input <- check_calibration(
+        dt_input = InputCollectRF$dt_input,
+        date_var = InputCollectRF$date_var,
+        calibration_input = calibration_input,
+        dayInterval = InputCollectRF$dayInterval,
+        dep_var = InputCollectRF$dep_var,
+        window_start = InputCollectRF$window_start,
+        window_end = InputCollectRF$window_end,
+        paid_media_spends = InputCollectRF$paid_media_spends,
+        organic_vars = InputCollectRF$organic_vars
+      )
+      InputCollectRF$calibration_input <- calibration_input
     }
 
     ## Refresh hyperparameter bounds
@@ -315,10 +236,9 @@ robyn_refresh <- function(robyn_object,
       rollingWindowLength = InputCollectRF$rollingWindowLength
     )
 
-    #### Update refresh model parameters
-
     ## Feature engineering for refreshed data
-    # Note that if custom prophet parameters were passed initially, will be used again unless changed in ...
+    # Note that if custom prophet parameters were passed initially,
+    # will be used again unless changed in ...
     InputCollectRF <- robyn_engineering(InputCollectRF, ...)
 
     ## Refresh model with adjusted decomp.rssd

@@ -120,6 +120,7 @@ robyn_allocator <- function(robyn_object = NULL,
   if (!is.null(robyn_object)) {
     if ("robyn_exported" %in% class(robyn_object)) {
       imported <- robyn_object
+      robyn_object <- imported$robyn_object
     } else {
       imported <- robyn_load(robyn_object, select_build, quiet)
     }
