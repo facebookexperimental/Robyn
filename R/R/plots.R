@@ -339,7 +339,6 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 2. Waterfall
       plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop
-      plotWaterfallLoop$sign <- ifelse(plotWaterfallLoop$sign == "pos", "Positive", "Negative")
       p2 <- suppressWarnings(
         ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
           geom_rect(aes(
