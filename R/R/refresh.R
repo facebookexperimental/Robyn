@@ -144,7 +144,7 @@ robyn_refresh <- function(robyn_object,
       listOutputPrev <- Robyn$listInit$OutputCollect
       InputCollectRF$xDecompAggPrev <- listOutputPrev$xDecompAgg
       if (length(unique(Robyn$listInit$OutputCollect$resultHypParam$solID)) > 1) {
-        stop("Run robyn_save first to select one initial model")
+        stop("Run robyn_save() first to select and export an initial model")
       }
     } else {
       listName <- paste0("listRefresh", refreshCounter - 1)
@@ -152,6 +152,10 @@ robyn_refresh <- function(robyn_object,
       listOutputPrev <- Robyn[[listName]][["OutputCollect"]]
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
       ## Model selection from previous build
+      if (!"error_score" %in% names(listOutputPrev$resultHypParam)) {
+        listOutputPrev$resultHypParam <- as.data.frame(listOutputPrev$resultHypParam) %>%
+          mutate(error_score = errors_scores(.))
+      }
       which_bestModRF <- which.max(listOutputPrev$resultHypParam$error_score)[1]
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]
       listOutputPrev$xDecompAgg <- listOutputPrev$xDecompAgg[which_bestModRF, ]
@@ -461,12 +465,13 @@ refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindo
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
   hyper_updated_prev <- listOutputPrev$hyper_updated
   hypNames <- names(hyper_updated_prev)
+  resultHypParam <- as_tibble(listOutputPrev$resultHypParam)
   for (h in 1:length(hypNames)) {
     hn <- hypNames[h]
-    getHyp <- listOutputPrev$resultHypParam[, hn][[1]]
+    getHyp <- resultHypParam[, hn][[1]]
     getDis <- initBoundsDis[hn]
     if (hn == "lambda") {
-      lambda_max <- unique(listOutputPrev$resultHypParam$lambda_max)
+      lambda_max <- unique(resultHypParam$lambda_max)
       lambda_min <- lambda_max * 0.0001
       getHyp <- getHyp / (lambda_max - lambda_min)
     }
