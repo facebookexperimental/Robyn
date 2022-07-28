@@ -425,6 +425,17 @@ if (TRUE) {
 ## 2, new variables are added
 
 # Run ?robyn_refresh to check parameter definition
+
+calibration_input2 <- data.frame(
+  channel = c("tv_S"),
+  liftStartDate = as.Date(c("2022-07-07")),
+  liftEndDate = as.Date(c("2022-07-24")),
+  liftAbs = c(228),
+  spend = c(4068),
+  confidence = c(0.95),
+  metric = c("conversions")
+)
+
 Robyn <- robyn_refresh(
   robyn_object = robyn_object,
   dt_input = dt_simulated_weekly,
@@ -432,7 +443,8 @@ Robyn <- robyn_refresh(
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
-  refresh_trials = 5
+  refresh_trials = 5,
+  calibration_input = calibration_input2
 )
 
 ## Besides plots: there are 4 CSV outputs saved in the folder for further usage
