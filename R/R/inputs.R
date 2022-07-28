@@ -319,23 +319,11 @@ robyn_inputs <- function(dt_input = NULL,
     # Check for legacy (deprecated) inputs
     check_legacy_input(InputCollect)
 
-    ## Check calibration and iters/trials
-    calibration_input <- check_calibration(
-      dt_input = InputCollect$dt_input,
-      date_var = InputCollect$date_var,
-      calibration_input = calibration_input,
-      dayInterval = InputCollect$dayInterval,
-      dep_var = InputCollect$dep_var,
-      window_start = InputCollect$window_start,
-      window_end = InputCollect$window_end,
-      paid_media_spends = InputCollect$paid_media_spends,
-      organic_vars = InputCollect$organic_vars
-    )
     ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
     if (!is.null(hyperparameters)) InputCollect$hyperparameters <- hyperparameters
     if (is.null(InputCollect$hyperparameters) & is.null(hyperparameters)) {
-      stop("must provide hyperparameters in robyn_inputs()")
+      stop("Must provide hyperparameters in robyn_inputs()")
     } else {
       ### Conditional output 2.1
       ## 'hyperparameters' provided --> run robyn_engineering()
@@ -531,6 +519,20 @@ hyper_limits <- function() {
 robyn_engineering <- function(x, ...) {
   InputCollect <- x
   check_InputCollect(InputCollect)
+
+  ## Check calibration data
+  calibration_input <- check_calibration(
+    dt_input = InputCollect$dt_input,
+    date_var = InputCollect$date_var,
+    calibration_input = calibration_input,
+    dayInterval = InputCollect$dayInterval,
+    dep_var = InputCollect$dep_var,
+    window_start = InputCollect$window_start,
+    window_end = InputCollect$window_end,
+    paid_media_spends = InputCollect$paid_media_spends,
+    organic_vars = InputCollect$organic_vars
+  )
+
   dt_input <- InputCollect$dt_input
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends

@@ -18,6 +18,7 @@ robyn_refresh(
   plot_pareto = TRUE,
   version_prompt = FALSE,
   export = TRUE,
+  calibration_input = NULL,
   ...
 )
 
@@ -66,6 +67,12 @@ If \code{TRUE}, a prompt will be presented to the user to select one of the refr
 models (one-pagers and Pareto CSV files will already be generated).}
 
 \item{export}{Boolean. Export outcomes into local files?}
+
+\item{calibration_input}{data.frame. Optional. Provide experimental results to
+calibrate. Your input should include the following values for each experiment:
+channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
+You can calibrate any spend or organic variable with a well designed experiment.
+Check "Guide for calibration source" section.}
 
 \item{...}{Additional parameters to overwrite original custom parameters
 passed into initial model.}
