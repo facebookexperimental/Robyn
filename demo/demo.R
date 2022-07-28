@@ -441,12 +441,11 @@ Robyn <- robyn_refresh(
 # report_media_transform_matrix.csv, all media transformation vectors
 # report_alldecomp_matrix.csv,all decomposition vectors of independent variables
 
-# Export this refreshed model you wish to export
-last_refresh_num <- sum(grepl("listRefresh", names(Robyn))) + 1 # Pick any refresh.
-# Here's the final refresh using the model recommended by least combined normalized nrmse and decomp.rssd
+# Export the refreshed model you wish to export (1 es the original, 2 the first refresh, ...)
+last_refresh_num <- sum(grepl("listRefresh", names(Robyn))) + 1 # last one?
 ExportedRefreshModel <- robyn_save(
   robyn_object = robyn_object,
-  select_model = Robyn[[last_refresh_num]]$OutputCollect$selectID,
+  select_model = Robyn$refresh$selectIDs[last_refresh_num],
   InputCollect = Robyn[[last_refresh_num]]$InputCollect,
   OutputCollect = Robyn[[last_refresh_num]]$OutputCollect
 )

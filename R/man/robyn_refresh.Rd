@@ -26,8 +26,8 @@ robyn_refresh(
 \method{plot}{robyn_refresh}(x, ...)
 }
 \arguments{
-\item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
-that contains all previous modeling information.}
+\item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
+that contains all previous modeling information or the imported list.}
 
 \item{dt_input}{data.frame. Should include all previous data and newly added
 data for the refresh.}

@@ -11,8 +11,8 @@
 #'
 #' @inheritParams robyn_run
 #' @inheritParams robyn_outputs
-#' @param robyn_object Character. Path of the \code{Robyn.RDS} object
-#' that contains all previous modeling information.
+#' @param robyn_object Character or List. Path of the \code{Robyn.RDS} object
+#' that contains all previous modeling information or the imported list.
 #' @param select_build Integer. Default to the latest model build. \code{select_build = 0}
 #' selects the initial model. \code{select_build = 1} selects the first refresh model.
 #' @param InputCollect List. Contains all input parameters for the model.
@@ -118,7 +118,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Collect inputs
   if (!is.null(robyn_object)) {
-    imported <- robyn_import(robyn_object, select_build, quiet)
+    if ("robyn_exported" %in% class(robyn_object)) {
+      imported <- robyn_object
+    } else {
+      imported <- robyn_load(robyn_object, select_build, quiet)
+    }
     InputCollect <- imported$InputCollect
     OutputCollect <- imported$OutputCollect
     select_model <- imported$select_model
@@ -429,33 +433,6 @@ Allocation Summary:
 #' @param x \code{robyn_allocator()} output.
 #' @export
 plot.robyn_allocator <- function(x, ...) plot(x$plots$plots, ...)
-
-robyn_import <- function(robyn_object, select_build, quiet) {
-  if (!file.exists(robyn_object)) {
-    stop("File does not exist or is somewhere else. Check: ", robyn_object)
-  } else {
-    Robyn <- readRDS(robyn_object)
-    objectPath <- dirname(robyn_object)
-    objectName <- sub("'\\..*$", "", basename(robyn_object))
-  }
-  select_build_all <- 0:(length(Robyn) - 1)
-  if (is.null(select_build)) {
-    select_build <- max(select_build_all)
-    if (!quiet) {
-      message(
-        "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)), " for the response function"
-      )
-    }
-  }
-  if (!(select_build %in% select_build_all) | length(select_build) != 1) {
-    stop("Input 'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
-  }
-  listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
-  InputCollect <- Robyn[[listName]][["InputCollect"]]
-  OutputCollect <- Robyn[[listName]][["OutputCollect"]]
-  select_model <- OutputCollect$selectID
-  return(list(InputCollect = InputCollect, OutputCollect = OutputCollect, select_model = select_model))
-}
 
 eval_f <- function(X) {
 

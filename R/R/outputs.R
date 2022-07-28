@@ -48,7 +48,6 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           ui = FALSE, export = TRUE,
                           quiet = FALSE, ...) {
   if (is.null(plot_folder)) plot_folder <- getwd()
-  check_robyn_object(plot_folder)
   plot_folder <- check_filedir(plot_folder)
 
   # Check calibration constrains

@@ -673,8 +673,8 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
       refreshStart = min(.data$ds),
       refreshEnd = max(.data$ds),
       duration = as.numeric(
-        (.data$refreshEnd - .data$refreshStart + InputCollectRF$dayInterval) /
-          InputCollectRF$dayInterval
+        (as.integer(.data$refreshEnd) - as.integer(.data$refreshStart) +
+          InputCollectRF$dayInterval) / InputCollectRF$dayInterval
       )
     )
 

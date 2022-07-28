@@ -79,9 +79,11 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
-  dt_input <- arrange(dt_input, vars(date_var))
-  dt_input[, date_var][[1]] <- as.Date(dt_input[, date_var][[1]], origin = "1970-01-01")
-  date_var_dates <- dt_input[, date_var][[1]]
+  dt_input <- arrange(dt_input, vars(date_var)) %>% as.data.frame()
+  date_var_dates <- c(
+    as.Date(dt_input[, date_var][[1]], origin = "1970-01-01"),
+    as.Date(dt_input[, date_var][[2]], origin = "1970-01-01")
+  )
   if (any(table(date_var_dates) > 1)) {
     stop("Date variable has duplicated dates. Please clean data first")
   }
@@ -432,7 +434,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
                               window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
-    calibration_input <- as_tibble(calibration_input)
+    calibration_input <- as_tibble(as.data.frame(calibration_input))
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
       stop("Input 'calibration_input' must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
     }
@@ -559,13 +561,12 @@ check_InputCollect <- function(list) {
   }
 }
 
-check_robyn_object <- function(robyn_object) {
-  file_end <- substr(robyn_object, nchar(robyn_object) - 5, nchar(robyn_object))
-  if (file_end == ".RData") {
-    stop("robyn_object must has format .RDS, not .RData")
+check_robyn_name <- function(robyn_object) {
+  file_end <- lares::right(robyn_object, 4)
+  if (file_end != ".RDS") {
+    stop("Input 'robyn_object' must has format .RDS")
   }
 }
-
 
 check_filedir <- function(plot_folder) {
   file_end <- substr(plot_folder, nchar(plot_folder) - 3, nchar(plot_folder))

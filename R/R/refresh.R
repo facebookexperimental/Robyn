@@ -16,7 +16,7 @@ robyn_save <- function(robyn_object,
                        InputCollect,
                        OutputCollect,
                        quiet = FALSE) {
-  check_robyn_object(robyn_object)
+  check_robyn_name(robyn_object)
   if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
     stop(paste0("Input 'select_model' must be one of these values: ", paste(
@@ -70,9 +70,10 @@ robyn_save <- function(robyn_object,
   OutputCollect$selectID <- select_model
 
   InputCollect$refreshCounter <- 0
-  listInit <- list(OutputCollect = OutputCollect, InputCollect = InputCollect)
+  listInit <- list(InputCollect = InputCollect, OutputCollect = OutputCollect)
   Robyn <- list(listInit = listInit)
 
+  class(Robyn) <- c("robyn_exported", class(Robyn))
   saveRDS(Robyn, file = robyn_object)
   if (!quiet) message("Exported results: ", robyn_object)
   return(invisible(output))
@@ -211,15 +212,10 @@ robyn_refresh <- function(robyn_object,
     check_nas(dt_holidays)
 
     ## Load initial model
-    if (!exists("robyn_object")) stop("Must speficy robyn_object")
-    check_robyn_object(robyn_object)
-    if (!file.exists(robyn_object)) {
-      stop("File does not exist or is somewhere else. Check: ", robyn_object)
-    } else {
-      Robyn <- readRDS(robyn_object)
-      objectPath <- dirname(robyn_object)
-      objectName <- sub("'\\..*$", "", basename(robyn_object))
-    }
+    RobynImported <- robyn_load(robyn_object)
+    Robyn <- RobynImported$Robyn
+    objectPath <- RobynImported$objectPath
+    robyn_object <- RobynImported$robyn_object
 
     ## Count refresh
     refreshCounter <- length(Robyn) - sum(names(Robyn) == "refresh")
@@ -270,8 +266,8 @@ robyn_refresh <- function(robyn_object,
 
     ## Load new data
     if (TRUE) {
-      date_input <- as.data.frame(dt_input)
-      dt_holidays <- as.data.frame(dt_holidays)
+      date_input <- as_tibble(as.data.frame(dt_input))
+      dt_holidays <- as_tibble(as.data.frame(dt_holidays))
       date_input <- check_datevar(dt_input, InputCollectRF$date_var)
       dt_input <- date_input$dt_input # sort date by ascending
       InputCollectRF$dt_input <- dt_input

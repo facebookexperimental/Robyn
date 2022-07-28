@@ -18,8 +18,8 @@ robyn_response(
 )
 }
 \arguments{
-\item{robyn_object}{Character. Path of the \code{Robyn.RDS} object
-that contains all previous modeling information.}
+\item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
+that contains all previous modeling information or the imported list.}
 
 \item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
 selects the initial model. \code{select_build = 1} selects the first refresh model.}
