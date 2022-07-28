@@ -428,10 +428,10 @@ robyn_refresh <- function(robyn_object,
   )
 
   # Save Robyn object locally
+  message(">> Exporting results: ", robyn_object)
   Robyn <- Robyn[order(names(Robyn))]
   class(Robyn) <- c("robyn_refresh", class(Robyn))
   saveRDS(Robyn, file = robyn_object)
-  message("Exported results: ", robyn_object)
   return(invisible(Robyn))
 }
 

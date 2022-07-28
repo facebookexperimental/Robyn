@@ -23,7 +23,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       !is.null(InputCollect$factor_vars) && length(InputCollect$factor_vars) > 0) {
       dt_plotProphet <- InputCollect$dt_mod %>%
         select(c("ds", "dep_var", InputCollect$prophet_vars, InputCollect$factor_vars)) %>%
-        tidyr::gather("variable", "value", -.data$ds)
+        tidyr::gather("variable", "value", -.data$ds) %>%
+        mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
       all_plots[["pProphet"]] <- pProphet <- ggplot(
         dt_plotProphet, aes(x = .data$ds, y = .data$value)
       ) +
@@ -143,9 +144,11 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
         } else {
           pf_color <- "coral"
         }
-        pParFront <- pParFront + geom_line(
-          data = resultHypParam[resultHypParam$robynPareto %in% pfs, ],
-          aes(x = .data$nrmse, y = .data$decomp.rssd), colour = pf_color
+        temp <- resultHypParam[resultHypParam$robynPareto %in% pfs, ]
+        if (nrow(temp) > 1) pParFront <- pParFront + geom_line(
+          data = temp,
+          aes(x = .data$nrmse, y = .data$decomp.rssd),
+          colour = pf_color
         )
       }
       all_plots[["pParFront"]] <- pParFront
@@ -228,8 +231,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   if (TRUE) {
     pareto_fronts <- OutputCollect$pareto_fronts
     hyper_fixed <- OutputCollect$hyper_fixed
-    resultHypParam <- OutputCollect$resultHypParam
-    xDecompAgg <- OutputCollect$xDecompAgg
+    resultHypParam <- as_tibble(OutputCollect$resultHypParam)
+    xDecompAgg <- as_tibble(OutputCollect$xDecompAgg)
     sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
@@ -439,7 +442,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted %>%
         mutate(
           linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
-          variable = stringr::str_to_title(.data$variable)
+          variable = stringr::str_to_title(.data$variable),
+          ds = as.Date(.data$ds, origin = "1970-01-01")
         )
       # rsq <- temp[[sid]]$plot5data$rsq
       p5 <- ggplot(
@@ -661,9 +665,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 }
 
 refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE) {
-  selectID <- ReportCollect$selectIDs
+  selectID <- tail(ReportCollect$selectIDs, 1)
   if (is.null(selectID)) selectID <- tail(ReportCollect$resultHypParamReport$solID, 1)
-  message(">>> Plotting refresh results for model: ", v2t(selectID))
+  message(">> Plotting refresh results for model: ", v2t(selectID))
   xDecompVecReport <- filter(ReportCollect$xDecompVecReport, .data$solID %in% selectID)
   xDecompAggReport <- filter(ReportCollect$xDecompAggReport, .data$solID %in% selectID)
   outputs <- list()
