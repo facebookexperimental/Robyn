@@ -123,11 +123,11 @@ robyn_load <- function(robyn_object, select_build = NULL, quiet = FALSE) {
   }
   select_build_all <- 0:(length(Robyn) - 1)
   if (is.null(select_build)) {
-    select_build <- max(select_build_all) - 1
+    select_build <- max(select_build_all)
     if (!quiet) {
       message(
         ">>> Loaded Model: ",
-        ifelse(select_build == 0, "Initial model", paste0("Refresh model #", select_build))
+        ifelse(select_build == 1, "Initial model", paste0("Refresh model #", select_build - 1))
       )
     }
   }
