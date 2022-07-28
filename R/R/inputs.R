@@ -319,7 +319,6 @@ robyn_inputs <- function(dt_input = NULL,
     # Check for legacy (deprecated) inputs
     check_legacy_input(InputCollect)
 
-<<<<<<< HEAD
     ## Check calibration data
     calibration_input <- check_calibration(
       dt_input = InputCollect$dt_input,
@@ -333,8 +332,6 @@ robyn_inputs <- function(dt_input = NULL,
       organic_vars = InputCollect$organic_vars
     )
 
-=======
->>>>>>> 275cbee2609b8c4235ef4a6905b4837a0f9fa989
     ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
     if (!is.null(hyperparameters)) InputCollect$hyperparameters <- hyperparameters
