@@ -662,6 +662,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
 refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE) {
   selectID <- ReportCollect$selectIDs
+  if (is.null(selectID)) selectID <- tail(ReportCollect$resultHypParamReport$solID, 1)
+  message(">>> Plotting refresh results for model: ", v2t(selectID))
   xDecompVecReport <- filter(ReportCollect$xDecompVecReport, .data$solID %in% selectID)
   xDecompAggReport <- filter(ReportCollect$xDecompAggReport, .data$solID %in% selectID)
   outputs <- list()
@@ -767,12 +769,12 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     xDecompAggReportPlot,
     aes(x = .data$variable, y = .data$percentage, fill = .data$variable)
   ) +
-    geom_bar(alpha = 0.8, position = "dodge", stat = "identity") +
+    geom_bar(alpha = 0.8, position = "dodge", stat = "identity", na.rm = TRUE) +
     facet_wrap(~ .data$refreshStatus, scales = "free") +
     theme_lares(grid = "X") +
     scale_fill_manual(values = robyn_palette()$fill) +
     geom_text(aes(label = paste0(round(.data$percentage * 100, 1), "%")),
-      size = 3,
+      size = 3, na.rm = TRUE,
       position = position_dodge(width = 0.9), hjust = -0.25
     ) +
     geom_point(
@@ -797,7 +799,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
     scale_color_manual(values = robyn_palette()$fill) +
     scale_y_continuous(
       sec.axis = sec_axis(~ . * ySecScale), breaks = seq(0, ymax, 0.2),
-      limits = c(0, ymax), name = "roi_total"
+      limits = c(0, ymax), name = "Total ROI"
     ) +
     coord_flip() +
     theme(legend.position = "none", axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
