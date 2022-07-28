@@ -28,14 +28,13 @@ robyn_save <- function(robyn_object,
   output <- list(
     robyn_object = robyn_object,
     select_model = select_model,
-    summary = filter(
-      OutputCollect$xDecompAgg,
-      .data$solID == select_model, !is.na(.data$mean_spend)
-    ) %>%
+    summary = filter(OutputCollect$xDecompAgg,.data$solID == select_model) %>%
       select(
-        channel = .data$rn, .data$coef, .data$mean_spend, .data$mean_response, .data$roi_mean,
-        .data$total_spend, total_response = .data$xDecompAgg, .data$roi_total
-      ),
+        channel = .data$rn, .data$coef, total_response = .data$xDecompAgg,
+        .data$mean_spend, .data$mean_response, .data$roi_mean, .data$total_spend, .data$roi_total
+      ) %>%
+      dplyr::mutate_if(is.numeric, function(x) formatNum(x, abbr = TRUE)) %>%
+      replace(., . == "NA", '-'),
     plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE)
   )
   if (InputCollect$dep_var_type == "conversion") {
@@ -89,7 +88,7 @@ print.robyn_save <- function(x, ...) {
   Exported file: {x$robyn_object}
   Exported model: {x$select_model}
 
-  Media Summary for Selected Model:
+  Summary for Selected Model:
   "
   ))
   print(x$summary)
