@@ -356,10 +356,11 @@ robyn_refresh <- function(robyn_object,
           mutate(refreshStatus = refreshCounter)
       )
 
-    mediaVecReport <- listReportPrev$mediaVecReport %>%
+    mediaVecReport <- as_tibble(listReportPrev$mediaVecReport) %>%
       bind_rows(
         filter(
-          OutputCollectRF$mediaVecCollect,
+          mutate(OutputCollectRF$mediaVecCollect,
+                 ds = as.Date(.data$ds, origin = "1970-01-01")),
           .data$bestModRF == TRUE,
           .data$ds >= InputCollectRF$refreshAddedStart,
           .data$ds <= refreshEnd
@@ -371,7 +372,8 @@ robyn_refresh <- function(robyn_object,
     xDecompVecReport <- listReportPrev$xDecompVecReport %>%
       bind_rows(
         filter(
-          OutputCollectRF$xDecompVecCollect,
+          mutate(OutputCollectRF$xDecompVecCollect,
+                 ds = as.Date(.data$ds, origin = "1970-01-01")),
           .data$bestModRF == TRUE,
           .data$ds >= InputCollectRF$refreshAddedStart,
           .data$ds <= refreshEnd
