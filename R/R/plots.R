@@ -228,8 +228,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   if (TRUE) {
     pareto_fronts <- OutputCollect$pareto_fronts
     hyper_fixed <- OutputCollect$hyper_fixed
-    resultHypParam <- OutputCollect$resultHypParam
-    xDecompAgg <- OutputCollect$xDecompAgg
+    resultHypParam <- as_tibble(OutputCollect$resultHypParam)
+    xDecompAgg <- as_tibble(OutputCollect$xDecompAgg)
     sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
@@ -439,7 +439,8 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted %>%
         mutate(
           linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
-          variable = stringr::str_to_title(.data$variable)
+          variable = stringr::str_to_title(.data$variable),
+          ds = as.Date(.data$ds, origin = "1970-01-01")
         )
       # rsq <- temp[[sid]]$plot5data$rsq
       p5 <- ggplot(
@@ -661,7 +662,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 }
 
 refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE) {
-  selectID <- ReportCollect$selectIDs
+  selectID <- tail(ReportCollect$selectIDs, 1)
   if (is.null(selectID)) selectID <- tail(ReportCollect$resultHypParamReport$solID, 1)
   message(">>> Plotting refresh results for model: ", v2t(selectID))
   xDecompVecReport <- filter(ReportCollect$xDecompVecReport, .data$solID %in% selectID)

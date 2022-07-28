@@ -106,18 +106,18 @@ plot.robyn_save <- function(x, ...) plot(x$refresh$plot[[1]], ...)
 #' @return (Invisible) list with imported results
 #' @export
 robyn_load <- function(robyn_object, select_build = NULL, quiet = FALSE) {
-  if ("robyn_exported" %in% class(robyn_object)) {
+  if ("robyn_exported" %in% class(robyn_object) | is.list(robyn_object)) {
     Robyn <- robyn_object
     objectPath <- Robyn$listInit$OutputCollect$plot_folder
-    robyn_object <- paste0(objectPath, "Robyn_", Robyn$listInit$OutputCollect$selectID, ".RDS")
+    robyn_object <- paste0(objectPath, "/Robyn_", Robyn$listInit$OutputCollect$selectID, ".RDS")
+    if (!dir.exists(objectPath)) {
+      stop("Directory does not exist or is somewhere else. Check: ", objectPath)
+    }
   } else {
     if (!"character" %in% class(robyn_object)) {
       stop("Input 'robyn_object' must be a character input or 'robyn_exported' object")
     }
     check_robyn_name(robyn_object)
-    if (!file.exists(robyn_object)) {
-      stop("File does not exist or is somewhere else. Check: ", robyn_object)
-    }
     Robyn <- readRDS(robyn_object)
     objectPath <- dirname(robyn_object)
   }
