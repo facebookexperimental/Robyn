@@ -404,7 +404,7 @@ robyn_refresh <- function(robyn_object,
     plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
 
     if (export) {
-      message(paste(">> Exporting refresh CSVs into directory..."))
+      message(paste(">>> Exporting refresh CSVs into directory..."))
       write.csv(resultHypParamReport, paste0(OutputCollectRF$plot_folder, "report_hyperparameters.csv"))
       write.csv(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
       write.csv(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
