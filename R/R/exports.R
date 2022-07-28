@@ -127,7 +127,7 @@ robyn_load <- function(robyn_object, select_build = NULL, quiet = FALSE) {
     if (!quiet) {
       message(
         ">>> Loaded Model: ",
-        ifelse(select_build == 1, "Initial model", paste0("Refresh model #", select_build - 1))
+        ifelse(select_build == 0, "Initial model", paste0("Refresh model #", select_build - 1))
       )
     }
   }

@@ -143,7 +143,6 @@ robyn_refresh <- function(robyn_object,
       InputCollectRF <- Robyn$listInit$InputCollect
       listOutputPrev <- Robyn$listInit$OutputCollect
       InputCollectRF$xDecompAggPrev <- listOutputPrev$xDecompAgg
-      message(">>> Initial model loaded")
       if (length(unique(Robyn$listInit$OutputCollect$resultHypParam$solID)) > 1) {
         stop("Run robyn_save first to select one initial model")
       }
