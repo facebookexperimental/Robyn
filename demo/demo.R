@@ -529,8 +529,8 @@ response_sending$plot
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- read.csv("~/Desktop/2022-07-23 12.23 rf4/pareto_hyperparameters.csv")
-select_model <- "1_31_12"
+dt_hyper_fixed <- read.csv("~/Desktop/2022-07-29 09.47 init/pareto_hyperparameters.csv")
+select_model <- "1_27_3"
 dt_hyper_fixed <- dt_hyper_fixed[dt_hyper_fixed$solID == select_model, ]
 
 OutputCollectFixed <- robyn_run(
@@ -541,9 +541,9 @@ OutputCollectFixed <- robyn_run(
 )
 
 # Save Robyn object for further refresh
-robyn_save(
+ExportedModel <- robyn_save(
   robyn_object = robyn_object,
-  select_model = select_model,
   InputCollect = InputCollect,
   OutputCollect = OutputCollectFixed
 )
+print(ExportedModel)

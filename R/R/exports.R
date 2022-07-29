@@ -12,15 +12,15 @@
 #' @return (Invisible) list with filename and summary. Class: \code{robyn_save}.
 #' @export
 robyn_save <- function(robyn_object,
-                       select_model,
+                       select_model = NULL,
                        InputCollect,
                        OutputCollect,
                        quiet = FALSE) {
   check_robyn_name(robyn_object)
   if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
-  if (!(select_model %in% OutputCollect$resultHypParam$solID)) {
+  if (!select_model %in% OutputCollect$allSolutions) {
     stop(paste0("Input 'select_model' must be one of these values: ", paste(
-      OutputCollect$resultHypParam$solID,
+      OutputCollect$allSolutions,
       collapse = ", "
     )))
   }

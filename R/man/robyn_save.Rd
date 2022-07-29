@@ -9,7 +9,7 @@
 \usage{
 robyn_save(
   robyn_object,
-  select_model,
+  select_model = NULL,
   InputCollect,
   OutputCollect,
   quiet = FALSE

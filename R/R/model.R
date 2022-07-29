@@ -59,8 +59,8 @@ robyn_run <- function(InputCollect,
                       outputs = FALSE,
                       quiet = FALSE,
                       cores = NULL,
-                      trials = NULL,
-                      iterations = NULL,
+                      trials = 5,
+                      iterations = 2000,
                       nevergrad_algo = "TwoPointsDE",
                       intercept_sign = "non_negative",
                       lambda_control = NULL,
@@ -119,7 +119,7 @@ robyn_run <- function(InputCollect,
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
 
-  if (!outputs) {
+  if (!outputs & is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
     output <- robyn_outputs(InputCollect, OutputModels, ...)
@@ -127,8 +127,13 @@ robyn_run <- function(InputCollect,
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
-  # Check convergence
-  if (!hyper_collect$all_fixed) output[["convergence"]] <- robyn_converge(OutputModels, ...)
+  # Check convergence when more than 1 iteration
+  if (!hyper_collect$all_fixed) {
+    output[["convergence"]] <- robyn_converge(OutputModels, ...)
+  } else {
+    output[["selectID"]] <- OutputModels$trial1$resultCollect$resultHypParam$solID
+    if (!quiet) message("Successfully recreated model ID: ", output$selectID)
+  }
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyper_collect$hyper_list_all
@@ -246,6 +251,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         by = "iterPar"
       )
     }
+
   } else {
 
     ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
