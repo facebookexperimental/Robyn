@@ -25,16 +25,30 @@ robyn_save <- function(robyn_object,
     )))
   }
 
+  summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
+    select(variable = .data$rn, .data$coef, decomp = .data$xDecompPerc,
+           .data$total_spend, mean_non0_spend = .data$mean_spend)
+
+  hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
+  regex <- paste(paste0("_", hyps_name), collapse = "|")
+  hyps <- filter(OutputCollect$resultHypParam,.data$solID == select_model) %>%
+    select(contains(hyps_name)) %>%
+    tidyr::gather() %>%
+    tidyr::separate(.data$key, into = c("channel", "none"),
+                    sep = regex, remove = FALSE) %>%
+    mutate(hyperparameter = gsub("^.*_", "", .data$key)) %>%
+    select(.data$channel, .data$hyperparameter, .data$value) %>%
+    tidyr::spread(key = "hyperparameter", value = "value")
+
   output <- list(
     robyn_object = robyn_object,
     select_model = select_model,
-    summary = filter(OutputCollect$xDecompAgg,.data$solID == select_model) %>%
-      select(
-        channel = .data$rn, .data$coef, total_response = .data$xDecompAgg,
-        .data$mean_spend, .data$mean_response, .data$roi_mean, .data$total_spend, .data$roi_total
-      ) %>%
-      dplyr::mutate_if(is.numeric, function(x) formatNum(x, abbr = TRUE)) %>%
-      replace(., . == "NA", '-'),
+    summary = summary,
+    hyperparameters = hyps,
+    window = c(InputCollect$window_start, InputCollect$window_end),
+    periods = InputCollect$rollingWindowLength,
+    interval = InputCollect$intervalType,
+    adstock = InputCollect$adstock,
     plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE)
   )
   if (InputCollect$dep_var_type == "conversion") {
@@ -87,11 +101,19 @@ print.robyn_save <- function(x, ...) {
     "
   Exported file: {x$robyn_object}
   Exported model: {x$select_model}
+  Window: {x$window[1]} to {x$window[2]} ({x$periods} {x$interval}s)
 
-  Summary for Selected Model:
-  "
-  ))
-  print(x$summary)
+  Summary Values on Selected Model:"))
+
+  print(x$summary %>%
+          mutate(decomp = formatNum(100 * .data$decomp, pos = "%")) %>%
+          dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
+          replace(., . == "NA", '-'))
+
+  print(glued(
+    "\n\n  Hyper-parameters for channel transformations:\n    Adstock: {x$adstock}"))
+
+  print(x$hyperparameters)
 }
 
 #' @rdname robyn_save

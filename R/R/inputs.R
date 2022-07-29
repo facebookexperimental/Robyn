@@ -392,7 +392,7 @@ Adstock: {x$adstock}
     },
     hyps = if (!is.null(x$hyperparameters)) {
       glued(
-        "Hyper-parameters for media transformations:\n{flatten_hyps(x$hyperparameters)}"
+        "Hyper-parameters for channel transformations:\n{flatten_hyps(x$hyperparameters)}"
       )
     } else {
       paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
