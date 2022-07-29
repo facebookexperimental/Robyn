@@ -133,7 +133,7 @@ print.robyn_save <- function(x, ...) {
 #' @aliases robyn_save
 #' @param x \code{robyn_save()} output.
 #' @export
-plot.robyn_save <- function(x, ...) plot(x$refresh$plot[[1]], ...)
+plot.robyn_save <- function(x, ...) plot(x$plot[[1]], ...)
 
 #' @rdname robyn_save
 #' @aliases robyn_save

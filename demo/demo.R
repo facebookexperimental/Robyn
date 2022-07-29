@@ -329,7 +329,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_27_3" # select one from above
+select_model <- "1_29_11" # select one from above
 ExportedModel <- robyn_save(
   robyn_object = robyn_object, # model object location and name
   select_model = select_model, # selected model ID
@@ -529,8 +529,8 @@ response_sending$plot
 #### Optional: get old model results
 
 # Get old hyperparameters and select model
-dt_hyper_fixed <- read.csv("~/Desktop/2022-07-29 09.47 init/pareto_hyperparameters.csv")
-select_model <- "1_27_3"
+dt_hyper_fixed <- read.csv("~/Desktop/2022-07-29 15.17 init/pareto_hyperparameters.csv")
+select_model <- "1_29_11"
 dt_hyper_fixed <- dt_hyper_fixed[dt_hyper_fixed$solID == select_model, ]
 
 OutputCollectFixed <- robyn_run(
@@ -547,3 +547,4 @@ ExportedModel <- robyn_save(
   OutputCollect = OutputCollectFixed
 )
 print(ExportedModel)
+# plot(ExportedModel)

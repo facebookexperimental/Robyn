@@ -470,16 +470,21 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         labs(x = "Fitted", y = "Residual", title = "Fitted vs. Residual")
 
       ## Aggregate one-pager plots and export
-      onepagerTitle <- paste0("Model One-pager, on Pareto Front ", pf, ", ID: ", sid)
+      ver <- as.character(utils::packageVersion("Robyn"))
+      rver <- utils::sessionInfo()$R.version
+      onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
+      onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
       pg <- wrap_plots(p2, p5, p1, p4, p3, p6, ncol = 2) +
-        plot_annotation(title = onepagerTitle, subtitle = errors, theme = theme_lares(background = "white"))
+        plot_annotation(title = onepagerTitle, subtitle = errors,
+                        theme = theme_lares(background = "white"),
+                        caption = onepagerCaption)
       all_plots[[sid]] <- pg
 
       if (export) {
         ggsave(
           filename = paste0(OutputCollect$plot_folder, "/", sid, ".png"),
           plot = pg, limitsize = FALSE,
-          dpi = 400, width = 18, height = 18
+          dpi = 400, width = 17, height = 19
         )
       }
       if (check_parallel_plot() & !quiet & count_mod_out > 0) {
