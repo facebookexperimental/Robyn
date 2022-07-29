@@ -79,7 +79,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (is.null(date_var) | length(date_var) > 1 | !(date_var %in% names(dt_input))) {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
-  dt_input <- arrange(dt_input, vars(date_var)) %>% as.data.frame()
+  dt_input <- data.frame(arrange(dt_input, as.factor(!!as.symbol(date_var))))
   date_var_dates <- c(
     as.Date(dt_input[, date_var][[1]], origin = "1970-01-01"),
     as.Date(dt_input[, date_var][[2]], origin = "1970-01-01")
