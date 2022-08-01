@@ -128,17 +128,9 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
       thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
       thetaVecCum <- cumprod(thetaVec) # plot(thetaVecCum)
     } else if ("PDF" %in% toupper(type)) {
-      normalize <- function(x) {
-        if (diff(range(x)) == 0) {
-          return(c(1, rep(0, length(x) - 1)))
-        } else {
-          return((x - min(x)) / (max(x) - min(x)))
-        }
-      }
-      thetaVecCum <- normalize(dweibull(x_bin, shape = shape, scale = scaleTrans)) # plot(thetaVecCum)
+      thetaVecCum <- .normalize(dweibull(x_bin, shape = shape, scale = scaleTrans)) # plot(thetaVecCum)
     }
   }
-
   x_decayed <- mapply(function(x_val, x_pos) {
     x.vec <- c(rep(0, x_pos - 1), rep(x_val, windlen - x_pos + 1))
     thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
@@ -146,8 +138,15 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
     return(x.prod)
   }, x_val = x, x_pos = x_bin)
   x_decayed <- rowSums(x_decayed)
-
   return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+}
+
+.normalize <- function(x) {
+  if (diff(range(x)) == 0) {
+    return(c(1, rep(0, length(x) - 1)))
+  } else {
+    return((x - min(x)) / (max(x) - min(x)))
+  }
 }
 
 ####################################################################

@@ -85,7 +85,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
     as.Date(dt_input[, date_var][[2]], origin = "1970-01-01")
   )
   if (any(table(date_var_dates) > 1)) {
-    stop("Date variable has duplicated dates. Please clean data first")
+    stop("Date variable shouldn't have duplicated dates (panel data)")
   }
   if (any(c(is.na(date_var_dates) | is.infinite(date_var_dates)))) {
     stop("Dates in 'date_var' must have format '2020-12-31' and can't contain NA nor Inf values")

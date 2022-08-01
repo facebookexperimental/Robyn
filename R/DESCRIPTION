@@ -13,7 +13,6 @@ Description: Semi-Automated Marketing Mix Modeling (MMM) aiming to reduce human 
 Depends:
     R (>= 4.0.0)
 Imports:
-    data.table,
     doParallel,
     doRNG,
     dplyr,
