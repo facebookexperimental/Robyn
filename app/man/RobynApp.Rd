@@ -6,6 +6,8 @@
 \alias{RobynApp-package}
 \title{Robyn App}
 \description{
+\if{html}{\figure{logo.png}{options: align='right' alt='logo' width='120'}}
+
 Using Shiny on top of Robyn users are enabled to both learn Robyn in a more efficient way, as well as develop end-to-end preliminary models with limited flexibility. All features of Robyn are represented in some capacity in the UI, and it remains the best way for those with limited Marketing Mix Modeling and/or coding experience to familiarize themselves with Robyn & MMM.
 }
 \author{

@@ -61,8 +61,8 @@ server <- function(input, output, session) {
       file <- input$data_file
       ext <- tools::file_ext(file$datapath)
       validate(need(ext == "csv", "Please upload a csv file"))
-      mmm_data <- fread(file$datapath)
-      input_reactive$tbl <- fread(file$datapath)
+      mmm_data <- read.csv(file$datapath)
+      input_reactive$tbl <- read.csv(file$datapath)
       datatable(head(mmm_data, n = 5L),
         options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t")
       )
@@ -78,7 +78,7 @@ server <- function(input, output, session) {
       file <- input$data_file
       ext <- tools::file_ext(file$datapath)
       validate(need(ext == "csv", "Please upload a csv file"))
-      my_data <- fread(file$datapath)
+      my_data <- read.csv(file$datapath)
     }
   })
 
@@ -92,8 +92,8 @@ server <- function(input, output, session) {
       hol_file <- input$holiday_file
       hol_ext <- tools::file_ext(hol_file$datapath)
       validate(need(hol_ext == "csv", "Please upload a csv file"))
-      holiday_data <- fread(hol_file$datapath)
-      input_reactive$holiday_data <- fread(hol_file$datapath)
+      holiday_data <- read.csv(hol_file$datapath)
+      input_reactive$holiday_data <- read.csv(hol_file$datapath)
       datatable(head(holiday_data, n = 5L), options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
     } else {
       datatable(head(input_reactive$holiday_data, n = 5L), options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
@@ -437,7 +437,7 @@ server <- function(input, output, session) {
         (input_reactive$org_med_vars_in_cols == T) &
         (input_reactive$baseline_vars_in_cols == T)) {
         input_reactive$dt_input <- input_reactive$tbl
-        input_reactive$dt_input <- input_reactive$dt_input[, DATE := as.Date(get(isolate(input$date_var)), isolate(input$date_format_var))]
+        input_reactive$dt_input$DATE <- as.Date(get(isolate(input$date_var)), isolate(input$date_format_var))
         input_reactive$dt_input$DATE <- as.Date(gsub("00", "20", input_reactive$dt_input$DATE))
         input_reactive$dt_holidays <- isolate(input_reactive$holiday_data)
         input_reactive$dep_var <- isolate(input$dep_var)
@@ -535,18 +535,18 @@ server <- function(input, output, session) {
     no_rows <- length(eda_input$DATE) # Get number of rows in the input data
     nonNA_counts <- as.data.frame(lapply(eda_input, function(x){sum(!is.na(x))}))
     #nonNA_counts <- eda_input[, lapply(.SD, function(x) sum(!is.na(x))), .SDcols = names(eda_input)]
-    nonNA_counts_long <- nonNA_counts %>%
+    input_reactive$nonNA_counts_long <- nonNA_counts %>%
       pivot_longer(cols = everything(), names_to = "variable", values_to = "non_NA_count")
-    nonNA_counts_long <- as.data.frame(nonNA_counts_long)
-    nonNA_counts_long$pct_of_non_missing_data <- round(nonNA_counts_long$non_NA_count * 1.00 / no_rows, 2)
-    nonNA_counts_long$pct_of_non_missing_data_cat <- ifelse(nonNA_counts_long$pct_of_non_missing_data == 1, "Data is complete", "Has missing data")
+    input_reactive$nonNA_counts_long <- as.data.frame(input_reactive$nonNA_counts_long)
+    input_reactive$nonNA_counts_long$pct_of_non_missing_data <- round(input_reactive$nonNA_counts_long$non_NA_count * 1.00 / no_rows, 2)
+    input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat <- ifelse(input_reactive$nonNA_counts_long$pct_of_non_missing_data == 1, "Data is complete", "Has missing data")
 
     # Dynamic warning message based on pct of non-missing data:
     message_1_bad <- paste0(
       "<B>1. Percent of Non-Missing Data for Each Variable:</B>", "<br>",
       "Variable ",
-      ifelse(length(nonNA_counts_long[nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data",]) > 0,
-        paste(nonNA_counts_long[nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data",],sep = ','),
+      ifelse(length(input_reactive$nonNA_counts_long[input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data",]) > 0,
+        paste(input_reactive$nonNA_counts_long[input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data",],sep = ','),
         '(None)'),
       " has missing data. ",
       "", "The Robyn MMM model will not run properly on a dataset with missing data. Examine the variable(s) with missing data to see if the missing data can be added or imputed.
@@ -563,7 +563,7 @@ server <- function(input, output, session) {
     )
 
     # Decide which message to show:
-    message_1 <- ifelse(sum(nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data") >= 1,
+    message_1 <- ifelse(sum(input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data") >= 1,
       message_1_bad, message_1_good
     )
 
@@ -714,29 +714,23 @@ server <- function(input, output, session) {
     ##################################################################################
 
     # aggregate data to yearly sales by channel:
-    eda_input_media_spend_vars <- eda_input %>% select(DATE | all_of(input_reactive$paid_media_spends))
+    eda_input_media_spend_vars <- eda_input %>% select(get('DATE') | all_of(input_reactive$paid_media_spends))
     eda_input_media_spend_vars$year <- year(eda_input_media_spend_vars$DATE)
     yearly_media_spend <- eda_input_media_spend_vars %>%
-      select(colnames(subset(eda_input_media_spend_vars,select = -c(DATE))))%>%
+      select(colnames(subset(eda_input_media_spend_vars,select = -c(get('DATE'))))) %>%
       group_by(year) %>%
       summarize(across(everything(), sum))
 
     yearly_media_spend <- yearly_media_spend[order(yearly_media_spend$year),]
     yearly_media_spend$total_media_spend <- yearly_media_spend %>%
-      select(colnames(subset(yearly_media_spend,select = -c(year)))) %>%
+      select(colnames(subset(yearly_media_spend,select = -c(get('year'))))) %>%
       rowSums()
 
     yearly_media_spend_pct <- yearly_media_spend %>%
-      mutate_at(colnames(subset(yearly_media_spend,select = -c(year))), ~(./yearly_media_spend$total_media_spend))
+      mutate_at(colnames(subset(yearly_media_spend,select = -c(get('year')))), ~(./yearly_media_spend$total_media_spend))
 
-    colnames(yearly_media_spend_pct)[which(colnames(yearly_media_spend_pct) %in% colnames(subset(yearly_media_spend_pct,select=-c(year,total_media_spend))))] <-
-      lapply(colnames(subset(yearly_media_spend_pct, select = -c(year,total_media_spend))), function(x){paste0('pct_',x)})
-
-    # # calculate percent of total media spend for each channel
-    # yearly_media_spend[, paste0("pct_", names(eda_input_media_spend_vars)[-1])
-    # := lapply(.SD, function(x) x / total_media_spend),
-    # .SDcols = names(eda_input_media_spend_vars)[-1]
-    # ]
+    colnames(yearly_media_spend_pct)[which(colnames(yearly_media_spend_pct) %in% colnames(subset(yearly_media_spend_pct,select=-c(get('year'),get('total_media_spend')))))] <-
+      lapply(colnames(subset(yearly_media_spend_pct, select = -c(get('year'),get('total_media_spend')))), function(x){paste0('pct_',x)})
 
     # Only keep the pct_spend variables
     yearly_media_spend_pct <- yearly_media_spend_pct %>% select(year | starts_with("pct_"))
@@ -807,12 +801,12 @@ server <- function(input, output, session) {
     output$ggplot1 <- renderPlot(
       {
         ggplot(
-          nonNA_counts_long,
+          input_reactive$nonNA_counts_long,
           aes(
-            x = reorder(variable, -pct_of_non_missing_data),
-            y = pct_of_non_missing_data,
-            fill = pct_of_non_missing_data_cat,
-            label = scales::percent(pct_of_non_missing_data)
+            x = reorder(get('variable'), -get('pct_of_non_missing_data')),
+            y = get('pct_of_non_missing_data'),
+            fill = get('pct_of_non_missing_data_cat'),
+            label = scales::percent(get('pct_of_non_missing_data'))
           )
         ) +
           geom_col(width = 0.6) +
@@ -840,22 +834,22 @@ server <- function(input, output, session) {
 
     # 2.a count by year data, flag if pct_diff_vs_count_max is > 5%:
     input_reactive$tbl$year <- year(input_reactive$tbl$DATE)
-    year_counts <- input_reactive$tbl %>% count(year) %>% arrange(.,year)
-    colnames(year_counts)[2] <- 'count'
-    year_counts$count_max <- max(year_counts$count)
-    year_counts$pct_diff_vs_count_max <- (year_counts$count_max - year_counts$count) / year_counts$count_max
-    year_counts$flag <- ifelse(year_counts$pct_diff_vs_count_max >= 0.05, ">= 5%", "< 5%")
-    year_counts$year <- as.character(year_counts$year)
+    input_reactive$year_counts <- input_reactive$tbl %>% count(year) %>% arrange(get('.'),year)
+    colnames(input_reactive$year_counts)[2] <- 'count'
+    input_reactive$year_counts$count_max <- max(input_reactive$year_counts$count)
+    input_reactive$year_counts$pct_diff_vs_count_max <- (input_reactive$year_counts$count_max -  input_reactive$year_counts$count) / input_reactive$year_counts$count_max
+    input_reactive$year_counts$flag <- ifelse(input_reactive$year_counts$pct_diff_vs_count_max >= 0.05, ">= 5%", "< 5%")
+    input_reactive$year_counts$year <- as.character(input_reactive$year_counts$year)
 
     # 2a. Plot count by year:
     pal2 <- c(">= 5%" = "tomato2", "< 5%" = "#989898") # Set legend colors
     output$ggplot2a <- renderPlot({
       ggplot(
-        year_counts,
+        input_reactive$year_counts,
         aes(
           x = year,
           y = count,
-          fill = flag,
+          fill = get('flag'),
           label = count
         )
       ) +
@@ -880,20 +874,20 @@ server <- function(input, output, session) {
     # 2b. count by month data -- need to decide on flag criteria if need any
 
     input_reactive$tbl$month <- month(input_reactive$tbl$DATE)
-    month_counts <- input_reactive$tbl %>% count(month) %>% arrange(.,month)
-    colnames(month_counts)[2] <- 'count'
-    month_counts$count_max <- max(month_counts$count)
-    month_counts$pct_diff_vs_count_max <- (month_counts$count_max - month_counts$count) / month_counts$count_max
-    month_counts$month_abb <- month.abb[month_counts$month]
+    input_reactive$month_counts <- input_reactive$tbl %>% count(month) %>% arrange(get('.'),month)
+    colnames(input_reactive$month_counts)[2] <- 'count'
+    input_reactive$month_counts$count_max <- max(input_reactive$month_counts$count)
+    input_reactive$month_counts$pct_diff_vs_count_max <- (input_reactive$month_counts$count_max - input_reactive$month_counts$count) / input_reactive$month_counts$count_max
+    input_reactive$month_counts$month_abb <- month.abb[input_reactive$month_counts$month]
 
     # 2b. Plot count by month:
     xaxis_ticks_2b <- month.abb[seq(1, 12, 1)]
 
     output$ggplot2b <- renderPlot({
       ggplot(
-        month_counts,
+        input_reactive$month_counts,
         aes(
-          x = reorder(month_abb, month),
+          x = reorder(get('month_abb'), month),
           y = count,
           # fill=count,
           label = count
@@ -918,30 +912,30 @@ server <- function(input, output, session) {
     # 2c. count by week data, flag if count is smaller than max count per week
 
     input_reactive$tbl$week <- week(input_reactive$tbl$DATE)
-    week_counts <- input_reactive$tbl %>% count(week) %>% arrange(.,week)
-    colnames(week_counts)[2] <- 'count'
-    week_counts$count_max <- max(week_counts$count)
-    week_counts$pct_diff_vs_count_max <- (week_counts$count_max - week_counts$count) / week_counts$count_max
-    week_counts$week_char<- as.character(week_counts$week)
+    input_reactive$week_counts <- input_reactive$tbl %>% count(week) %>% arrange(get('.'),week)
+    colnames(input_reactive$week_counts)[2] <- 'count'
+    input_reactive$week_counts$count_max <- max(input_reactive$week_counts$count)
+    input_reactive$week_counts$pct_diff_vs_count_max <- (input_reactive$week_counts$count_max - input_reactive$week_counts$count) / input_reactive$week_counts$count_max
+    input_reactive$week_counts$week_char<- as.character(input_reactive$week_counts$week)
 
     # 2c. Plot count by week:
     pal3 <- c("Yes" = "tomato2", "No" = "#989898") # Set legend colors
     xaxis_ticks_2c <- as.character(seq(1, 53, 1))
 
     output$ggplot2c <- renderPlot({
-      ggplot(week_counts, aes(
-        x = reorder(week_char, week),
+      ggplot(input_reactive$week_counts, aes(
+        x = reorder(get('week_char'), get('week')),
         y = count,
         label = count,
-        color = flag
+        color = get('flag')
       )) +
         geom_point(
           size = 3
           # color="#989898"
         ) +
         geom_segment(aes(
-          x = reorder(week_char, week),
-          xend = reorder(week_char, week),
+          x = reorder(get('week_char'), get('week')),
+          xend = reorder(get('week_char'), get('week')),
           y = 0,
           yend = count
         )) +
@@ -966,15 +960,15 @@ server <- function(input, output, session) {
     # 2d. count by weekday data -- need to decide on flag criteria if need any
 
     input_reactive$tbl$weekday <- weekdays(input_reactive$tbl$DATE)
-    weekday_counts <- input_reactive$tbl %>% count(weekday) %>% arrange(.,weekday)
-    colnames(weekday_counts)[2] <- 'count'
-    weekday_counts$count_max <- max(weekday_counts$count)
-    weekday_counts$pct_diff_vs_count_max <- (weekday_counts$count_max - weekday_counts$count) / weekday_counts$count_max
+    input_reactive$weekday_counts <- input_reactive$tbl %>% count(get('weekday')) %>% arrange(get('.'),get('weekday'))
+    colnames(input_reactive$weekday_counts)[2] <- 'count'
+    input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
+    input_reactive$weekday_counts$pct_diff_vs_count_max <- (input_reactive$weekday_counts$count_max - input_reactive$weekday_counts$count) / input_reactive$weekday_counts$count_max
 
     # 2d. Plot count by weekday:
     output$ggplot2d <- renderPlot({
       ggplot(
-        weekday_counts,
+        input_reactive$weekday_counts,
         aes(
           x = weekdays,
           y = count,
@@ -1022,7 +1016,7 @@ server <- function(input, output, session) {
     output$ggplot3b <- renderPlot(
       {
         ggplot(corr_w_dep_var, aes(
-          x = reorder(term, desc(get(input_reactive$dep_var))),
+          x = reorder(get('term'), desc(get(input_reactive$dep_var))),
           y = get(input_reactive$dep_var),
           # fill = flag,
           label = round(get(input_reactive$dep_var), 2)
@@ -1051,9 +1045,9 @@ server <- function(input, output, session) {
         ggplot4_multiple_year <- ggplot(
           yearly_media_spend_pct_long,
           aes(
-            x = year, y = pct_of_total_media_spend,
-            fill = media,
-            label = scales::percent(pct_of_total_media_spend, accuracy = 1L)
+            x = year, y = get('pct_of_total_media_spend'),
+            fill = get('media'),
+            label = scales::percent(get('pct_of_total_media_spend'), accuracy = 1L)
           )
         ) +
           geom_area(alpha = 0.6, size = .5, colour = "white") +
@@ -1074,9 +1068,9 @@ server <- function(input, output, session) {
         ggplot4_single_year <- ggplot(
           yearly_media_spend_pct_long,
           aes(
-            x = as.character(year), y = pct_of_total_media_spend,
-            fill = media,
-            label = scales::percent(pct_of_total_media_spend, accuracy = 1L)
+            x = as.character(year), y = get('pct_of_total_media_spend'),
+            fill = get('media'),
+            label = scales::percent(get('pct_of_total_media_spend'), accuracy = 1L)
           )
         ) +
           geom_bar(position = "stack", stat = "identity") +
@@ -1123,8 +1117,8 @@ server <- function(input, output, session) {
     # Plot 5
     output$ggplot5 <- renderPlot(
       {
-        ggplot(eda_input[order(eda_input$DATE),], aes(x = (if (input$granularity == "weekly") week(DATE) else yday(DATE)))) +
-          geom_line(aes(y = get(input$var_to_plot), colour = as.factor(year(DATE)))) +
+        ggplot(eda_input[order(eda_input$DATE),], aes(x = (if (input$granularity == "weekly") week(get('DATE')) else yday(get('DATE'))))) +
+          geom_line(aes(y = get(input$var_to_plot), colour = as.factor(year(get('DATE'))))) +
           labs(
             title = paste("5. Trend of", input$var_to_plot, "by year"),
             subtitle = "Compare each year's trend against the rest to detect obvious data anomalies",
@@ -1134,9 +1128,9 @@ server <- function(input, output, session) {
           ) +
           theme(plot.title = element_text(size = 16, hjust = 0.5, colour = "blue", margin = margin(5, 0, 5, 0))) +
           theme(plot.subtitle = element_text(size = 14, hjust = 0.5, face = "italic", color = "firebrick")) +
-          gghighlight(year(DATE) >= min(year(DATE))) +
+          gghighlight(year(get('DATE')) >= min(year(get('DATE')))) +
           scale_x_continuous(breaks = (if (input$granularity == "weekly") seq(1, 53, 4) else seq(1, 366, 14))) +
-          facet_wrap(~ as.factor(year(DATE)))
+          facet_wrap(~ as.factor(year(get('DATE'))))
       },
       height = 600
     )
@@ -1451,8 +1445,8 @@ server <- function(input, output, session) {
       file <- input$calibration_file
       ext <- tools::file_ext(file$datapath)
       validate(need(ext == "csv", "Please upload a csv file for calibration with experiments"))
-      input_reactive$calib_data <- fread(file$datapath)
-      calib_data <- fread(file$datapath)
+      input_reactive$calib_data <- read.csv(file$datapath)
+      calib_data <- read.csv(file$datapath)
       datatable(calib_data, options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
     }
   })
@@ -1490,13 +1484,13 @@ server <- function(input, output, session) {
         names(vals) <- names_l
         input_reactive$hyp_paid <- c(input_reactive$hyp_paid, vals)
       })
-      if (length(organic_vars > 0)) {
+      if (length(input_reactive$organic_vars > 0)) {
         vals <- list()
         names_l <- list()
         lapply(1:length(input_reactive$organic_vars), function(i) {
           assign(paste0(input_reactive$organic_vars[i], "_alphas"), c(
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_alphas")]][1],
-            input[[paste0("medVar_", oinput_reactive$rganic_vars[i], "_alphas")]][2]
+            input[[paste0("medVar_", input_reactive$organic_vars[i], "_alphas")]][2]
           ))
           assign(paste0(input_reactive$organic_vars[i], "_gammas"), c(
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_gammas")]][1],
@@ -1522,7 +1516,7 @@ server <- function(input, output, session) {
           input_reactive$hyp_org <- c(input_reactive$hyp_org, vals)
         })
       }
-      input_reactive$hyperparameters <- c(hyp_paid, hyp_org)
+      input_reactive$hyperparameters <- c(input_reactive$hyp_paid, input_reactive$hyp_org)
     } else if (input$adstock_selection == "geometric") {
       vals <- list()
       names_l <- list()
@@ -1629,8 +1623,8 @@ server <- function(input, output, session) {
       if (isTRUE(isolate(input$enable_calibration)) & (is.null(isolate(input$calibration_file)) == FALSE) &
         (length(intersect(c("channel", "liftStartDate", "liftEndDate", "liftAbs"), colnames(input_reactive$calib_data))) == 4)) {
         input_reactive$dt_calibration <- input_reactive$calib_data
-        input_reactive$dt_calibration <- input_reactive$dt_calibration[, DATE := as.Date(get("liftStartDate"), isolate(input$calib_date_format_var))]
-        input_reactive$dt_calibration <- input_reactive$dt_calibration[, DATE := as.Date(get("liftEndDate"), isolate(input$calib_date_format_var))]
+        input_reactive$dt_calibration$liftStartDate <- as.Date(get("liftStartDate"), isolate(input$calib_date_format_var))
+        input_reactive$dt_calibration$liftEndDate <- as.Date(get("liftEndDate"), isolate(input$calib_date_format_var))
         input_reactive$dt_calibration$liftStartDate <- as.Date(gsub("00", "20", input_reactive$dt_calibration$liftStartDate))
         input_reactive$dt_calibration$liftEndDate <- as.Date(gsub("00", "20", input_reactive$dt_calibration$liftEndDate))
       }
@@ -1825,15 +1819,9 @@ server <- function(input, output, session) {
     plotWaterfallLoop <- plotWaterfall[order(plotWaterfall$xDecompPerc),]
     plotWaterfallLoop$end <- cumsum(plotWaterfallLoop$xDecompPerc)
     plotWaterfallLoop$end <- 1-plotWaterfallLoop$end
-    #plotWaterfallLoop[, end := cumsum(xDecompPerc)]
-    #plotWaterfallLoop[, end := 1 - end]
-    plotWaterfallLoop$start <- shift(plotWaterfallLoop$end,fill = 1, type = 'lag')
+    plotWaterfallLoop$start <- lag(plotWaterfallLoop$end,n = 1)
     plotWaterfallLoop$id <- 1:nrow(plotWaterfallLoop)
     plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0,'pos','neg'))
-    # plotWaterfallLoop[, ":="(start = shift(end, fill = 1, type = "lag"),
-    #   id = 1:nrow(plotWaterfallLoop),
-    #   rn = as.factor(rn),
-    #   sign = as.factor(ifelse(xDecompPerc >= 0, "pos", "neg")))]
 
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
@@ -1897,13 +1885,13 @@ server <- function(input, output, session) {
     plot2_tab$month <- floor_date(plot2_tab$ds, unit = "month")
     plot2_monthly <- plot2_tab %>%
       group_by(month) %>%
-      summarize(err = sum(abs(dep_var / depVarHat - 1)) / n())
+      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
     plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = T), ][1:10, ]
 
     plot2_tab$year <- floor_date(plot2_tab$ds, unit = "year")
     plot2_yearly <- plot2_tab %>%
       group_by(year) %>%
-      summarize(err = sum(abs(dep_var / depVarHat - 1)) / n())
+      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
     plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = T), ]
 
     plot2_message_1 <- paste("When considering the fit of your model, it can be useful to see how over time the model fit looks. For example,",
@@ -2232,7 +2220,7 @@ server <- function(input, output, session) {
       g
     })
     output$optimizer_tbl <- renderDataTable({
-      data.table(input_reactive$optim_result$dt_optimOut)
+      as.data.frame(input_reactive$optim_result$dt_optimOut)
     })
   })
   #################################### Refresh server functionality #######################################
@@ -2241,7 +2229,7 @@ server <- function(input, output, session) {
     file_r <- input$data_file_refresh
     ext_r <- tools::file_ext(file_r$datapath)
     validate(need(ext_r == "csv", "Please upload a csv file"))
-    input_reactive$refresh_data <- fread(file_r$datapath) # save dt_input as global var within server function
+    input_reactive$refresh_data <- read.csv(file_r$datapath) # save dt_input as global var within server function
     # mmm_data_colnames <- colnames(mmm_data)
     datatable(head(input_reactive$refresh_data, n = 5L),
       options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t")
@@ -2252,7 +2240,7 @@ server <- function(input, output, session) {
       file_r <- input$data_file_refresh
       ext_r <- tools::file_ext(file_r$datapath)
       validate(need(ext == "csv", "Please upload a csv file"))
-      input_reactive$my_data_r <- fread(file_r$datapath)
+      input_reactive$my_data_r <- read.csv(file_r$datapath)
     }
   })
 
@@ -2398,7 +2386,7 @@ server <- function(input, output, session) {
     hol_file_r <- input$holiday_file_refresh
     hol_ext_r <- tools::file_ext(hol_file_r$datapath)
     validate(need(hol_ext_r == "csv", "Please upload a csv file"))
-    input_reactive$holiday_data_r <- fread(hol_file_r$datapath) # reads in the file
+    input_reactive$holiday_data_r <- read.csv(hol_file_r$datapath) # reads in the file
     datatable(head(input_reactive$holiday_data_r, n = 5L), options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
   })
 
@@ -2484,9 +2472,9 @@ server <- function(input, output, session) {
   observeEvent(input$save_refresh_model, {
     # print(input_reactive$OutputCollect$listRefresh1$OutputCollect$resultHypParam$solID)
     print(input$refresh_plot)
-    if ((is.null(isolate(input$refresh_plot)) == F) & (input$refresh_plot %in% input_reactive$OutputCollect$listRefresh1$OutputCollect$resultHypParam$solID)) {
+    if ((is.null(isolate(input$refresh_plot)) == F) & (input$refresh_plot %in% input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID)) {
       robyn_object_refresh <- paste0(input$refresh_plots_folder, "/", gsub(":", ".", as.character(Sys.time())), "_solID_", input$refresh_plot, ".RDS")
-      robyn_save(robyn_object = robyn_object_refresh, select_model = input$refresh_plot, InputCollect = input_reactive$OutputCollect$listRefresh1$InputCollect, OutputCollect = input_reactive$OutputCollect$listRefresh1$OutputCollect)
+      robyn_save(robyn_object = robyn_object_refresh, select_model = input$refresh_plot, InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect, OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect)
       showModal(modalDialog(
         title = paste0("solID - ", input$refresh_plot, " saved successfully"),
         easyClose = TRUE,
@@ -2519,12 +2507,15 @@ server <- function(input, output, session) {
 
     # overall error messaging
 
-    plotMediaShareLoop <- input_reactive$OutputCollect$listRefresh1$OutputCollect$xDecompAgg[(solID == input$refresh_plot & rn %in% input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_vars), ]
+    plotMediaShareLoop <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg[
+      (input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot) &
+         (input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$rn %in%
+              input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_vars),]
 
-    rsq_train_plot <- plotMediaShareLoop[, round(unique(rsq_train), 4)]
-    nrmse_plot <- plotMediaShareLoop[, round(unique(nrmse), 4)]
-    decomp_rssd_plot <- plotMediaShareLoop[, round(unique(decomp.rssd), 4)]
-    mape_lift_plot <- plotMediaShareLoop[, round(unique(mape), 4)]
+    rsq_train_plot <- round(unique(plotMediaShareLoop$rsq_train),4)
+    nrmse_plot <- round(unique(plotMediaShareLoop$nrmse), 4)
+    decomp_rssd_plot <- round(unique(plotMediaShareLoop$decomp.rssd), 4)
+    mape_lift_plot <- round(unique(plotMediaShareLoop$mape), 4)
 
     gen_message <- paste(
       paste0("The first metric we use to determine the fit of the model is ", a("R-Squared value", href = "https://en.wikipedia.org/wiki/Coefficient_of_determination", target = "_blank")),
@@ -2539,25 +2530,24 @@ server <- function(input, output, session) {
       sep = "<br><br>"
     )
 
-    final_gen_message <- ifelse(mape_lift_plot != 0, paste(gen_message, calib_message, sep = "<br><br>"), gen_message)
+    input_reactive$final_gen_message <- ifelse(mape_lift_plot != 0, paste(gen_message, calib_message, sep = "<br><br>"), gen_message)
 
 
     # plot 1 messaging#
 
-    plotWaterfall <- input_reactive$OutputCollect$listRefresh1$OutputCollect$xDecompAgg[solID == input$refresh_plot, ]
+    plotWaterfall <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot, ]
 
-    plotWaterfallLoop <- plotWaterfall[solID == input$refresh_plot][order(xDecompPerc)]
-    plotWaterfallLoop[, end := cumsum(xDecompPerc)]
-    plotWaterfallLoop[, end := 1 - end]
-    plotWaterfallLoop[, ":="(start = shift(end, fill = 1, type = "lag"),
-      id = 1:nrow(plotWaterfallLoop),
-      rn = as.factor(rn),
-      sign = as.factor(ifelse(xDecompPerc >= 0, "pos", "neg")))]
+    plotWaterfallLoop <- plotWaterfall[order(plotWaterfall$xDecompPerc),]
+    plotWaterfallLoop$end <- cumsum(plotWaterfallLoop$xDecompPerc)
+    plotWaterfallLoop$end <- 1-plotWaterfallLoop$end
+    plotWaterfallLoop$start <- lag(plotWaterfallLoop$end,n = 1)
+    plotWaterfallLoop$id <- 1:nrow(plotWaterfallLoop)
+    plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0,'pos','neg'))
 
-    high_share <- plotWaterfallLoop[(xDecompMeanNon0Perc > 0.4 & rn %in% input_reactive$OutputCollect$listInit$InputCollect$context_vars), ]
-    low_share <- plotWaterfallLoop[abs(xDecompMeanNon0Perc) < 0.01, ]
-    negative <- plotWaterfallLoop[sign == "neg" & (rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == F), ]
-    paid_media_vars <- plotWaterfallLoop[is.na(total_spend) == F, ]
+    high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
+    low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
+    negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == F), ]
+    paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == F, ]
 
     generic_message <- "The first plot looks at the overall decomposition of the model. The larger the bar, the larger the proportion of the effect is explained by changes in that particular variable. For instance, if Facebook_I had a share of 25% of the effect, then we would say that on average, Facebook media is causing 25% of the dependent variable on a given time period. This will change of course when looking at different days and when considering baseline variables as well such as seasonality/trend."
 
@@ -2594,7 +2584,7 @@ server <- function(input, output, session) {
       sep = " "
     )
 
-    intercept_message <- ifelse(plotWaterfallLoop[rn == "(Intercept)", ]$xDecompMeanNon0Perc > 0.3,
+    intercept_message <- ifelse(plotWaterfallLoop[plotWaterfallLoop$rn == "(Intercept)", ]$xDecompMeanNon0Perc > 0.3,
       "<b>Consideration 5 - Large Intercept Effect</b>. - The Intercept is contributing a significant amount towards the dependent variable. Consider adding in additional baseline variables that may help better explain the variation in the dependent variable.",
       ""
     )
@@ -2604,11 +2594,11 @@ server <- function(input, output, session) {
     )
 
     plot1_message <- c(generic_message, high_share_message, low_share_message, negative_message, tot_paid_media_resp_message, intercept_message, no_consid_message)
-    plot1_message <- paste(plot1_message[which(plot1_message != "")], collapse = "<br><br>")
+    input_reactive$plot1_message <- paste(plot1_message[which(plot1_message != "")], collapse = "<br><br>")
 
     # Plot2_message
 
-    plot2_tab <- input_reactive$OutputCollect$listRefresh1$OutputCollect$xDecompVecCollect[solID == input$refresh_plot, ]
+    plot2_tab <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompVecCollect[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot, ]
     plot2_tab$error <- (plot2_tab$depVarHat / plot2_tab$dep_var) - 1
     plot2_tab$error_abs <- abs(plot2_tab$error)
     plot2_tab_top10 <- plot2_tab[order(plot2_tab$error_abs, decreasing = T), ][1:10, ]
@@ -2616,13 +2606,13 @@ server <- function(input, output, session) {
     plot2_tab$month <- floor_date(plot2_tab$ds, unit = "month")
     plot2_monthly <- plot2_tab %>%
       group_by(month) %>%
-      summarize(err = sum(abs(dep_var / depVarHat - 1)) / n())
+      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
     plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = T), ][1:10, ]
 
     plot2_tab$year <- floor_date(plot2_tab$ds, unit = "year")
     plot2_yearly <- plot2_tab %>%
       group_by(year) %>%
-      summarize(err = sum(abs(dep_var / depVarHat - 1)) / n())
+      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
     plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = T), ]
 
     plot2_message_1 <- paste("When considering the fit of your model, it can be useful to see how over time the model fit looks. For example,",
@@ -2648,7 +2638,7 @@ server <- function(input, output, session) {
       return(paste0(html_msg_1, html_msg_2, html_rows, html_msg_4))
     }
 
-    plot2_message_2 <- paste(plot2_message_1, "<b>Indv. Time Periods with the largest error</b>",
+    input_reactive$plot2_message_2 <- paste(plot2_message_1, "<b>Indv. Time Periods with the largest error</b>",
       tbl_html_funct_2col(plot2_tab_top10, c("ds", "error")),
       "<b>Months with the largest error</b>",
       tbl_html_funct_2col(plot2_monthly_top10, c("month", "err")),
@@ -2660,7 +2650,7 @@ server <- function(input, output, session) {
 
     # plot3_message
 
-    plot3_message_1 <- paste("In Robyn, one of the variables that is being minimized is decomp.rssd, which is a measure of how far apart the share of paid media spend, and share of paid media effect are. In other words, we want to optimize away from models that have highly disparate spend & effect shares because it does not make logical sense for the business to dramatically change their historical spend patterns.",
+    input_reactive$plot3_message_1 <- paste("In Robyn, one of the variables that is being minimized is decomp.rssd, which is a measure of how far apart the share of paid media spend, and share of paid media effect are. In other words, we want to optimize away from models that have highly disparate spend & effect shares because it does not make logical sense for the business to dramatically change their historical spend patterns.",
       "In this chart, we examine for each paid media variable the average share of spend and the average share of effect as well as the <b>ROI which is calculated as (mean effect / mean spend).</b>",
       "If your dependent variable is revenue, this is straightforward. On average, if you spend an additional dollar on the media channel in question, you would get ROI dollars back in revenue. If your dependent variable is more along the lines of conversions, the ROI value is not as straightforward. In this case, the ROI can be interpreted as the average number of conversions generated for an additional dollar spent on that channel. In this case, it would make most sense that the value is between 0 and 1.",
       "For channels where the proportion of spend is very low, it may be more likely that ROIs reported are less believable, since they may not hold up as well through extrapolation. Generally, extrapolation beyond a certain % increase is not very reliable, so if your channel had 2% of spend increasing to 10% of spend is a 500% increase which is quite hard to extrapolate in a believable way since there is likely little data at that level of spend.",
@@ -2676,8 +2666,8 @@ server <- function(input, output, session) {
       sep = "<br><br>"
     )
 
-    plot4_tbl_alphas <- input_reactive$OutputCollect$listRefresh1$OutputCollect$resultHypParam[solID == input$refresh_plot] %>% select(contains("alpha"))
-    plot4_tbl_gammas <- input_reactive$OutputCollect$listRefresh1$OutputCollect$resultHypParam[solID == input$refresh_plot] %>% select(contains("gamma"))
+    plot4_tbl_alphas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot] %>% select(contains("alpha"))
+    plot4_tbl_gammas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot] %>% select(contains("gamma"))
     plot4_alphas_message <- paste(
       paste0("In refresh_solID - ", input$refresh_plot, " we see that the paid media variables have the following <b>Alpha values</b>"),
       paste0(colnames(plot4_tbl_alphas), " - ", round(plot4_tbl_alphas, 3), collapse = "<br>"),
@@ -2693,18 +2683,18 @@ server <- function(input, output, session) {
       "One final point is to remember that the further you get from your historical mean spend, the higher the chance of performance that is different than what the response curves predict.",
       sep = "<br><br>"
     )
-    plot_4_final_message <- paste(plot4_message_1, plot4_alphas_message, plot4_gammas_message, plot4_message_2, sep = "<br><br>")
+    input_reactive$plot_4_final_message <- paste(plot4_message_1, plot4_alphas_message, plot4_gammas_message, plot4_message_2, sep = "<br><br>")
 
     # plot5_message
 
-    plot5_message_1 <- paste("In this plot we examine the adstock decay rates for each paid media channel. For a quick refresher, the adstock defines how much effect of media that occurs in time period X is carried over into time period X+1, since we know that not all impact from an advertisement has to occur on the day it is delivered.",
+    input_reactive$plot5_message_1 <- paste("In this plot we examine the adstock decay rates for each paid media channel. For a quick refresher, the adstock defines how much effect of media that occurs in time period X is carried over into time period X+1, since we know that not all impact from an advertisement has to occur on the day it is delivered.",
       "Much of the interpretation of this plot as well is determining whether or not these results make intuitive sense. For example, if results are showing that a channel carries over a very large amount of its effect, then that may something worth exploring further. Especially if that channel is one that we usually consider more lower funnel.",
       "What would be considered a high or low adstock will also change depending on the time granularity of your data, so be sure to consider that as well as you interpret these results.",
       sep = "<br><br>"
     )
 
     # plot6_message
-    plot6_message_1 <- paste("In this plot we examine in a way similar to plot 2 Actual vs. Predicted results a plot of the measure of the residuals for each prediction with the size of the prediction on the x-axis. Given that we would hope our predicted values have an error of 0, we would also hope that our errors when comparing predicted values against the actual values should be randomly distributed around 0. If we notice areas where the residuals have a clear trend, that is cause for concern about the validity of the model, and may be representative of heteroskedasticity which may speak to the believability of the fit of the model in certain periods as being better than others in a biased way. An example could be a period where sales and spend drastically increase, and afterwards the residuals are much larger representing unequal variance of the errors. Consider addressing this using additional baseline/non-media variables.",
+    input_reactive$plot6_message_1 <- paste("In this plot we examine in a way similar to plot 2 Actual vs. Predicted results a plot of the measure of the residuals for each prediction with the size of the prediction on the x-axis. Given that we would hope our predicted values have an error of 0, we would also hope that our errors when comparing predicted values against the actual values should be randomly distributed around 0. If we notice areas where the residuals have a clear trend, that is cause for concern about the validity of the model, and may be representative of heteroskedasticity which may speak to the believability of the fit of the model in certain periods as being better than others in a biased way. An example could be a period where sales and spend drastically increase, and afterwards the residuals are much larger representing unequal variance of the errors. Consider addressing this using additional baseline/non-media variables.",
       "If you do see that the band around the blue average line here does not include the value 0 for portion of your results, it may be worth further exploring those data points to see if there is some bias in the model. If it is only for a period or two, then it is likely not too bad, but if there is significant differences over time then it would be cause for concern.",
       sep = "<br><br>"
     )
@@ -2760,7 +2750,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_gen_popover, {
     showModal(modalDialog(
       title = paste0("Model Suitability Statistics Explanations and Recommendations for refresh_solID - ", input$plot),
-      HTML(final_gen_message),
+      HTML(input_reactive$final_gen_message),
       easyClose = T,
       footer = NULL
     ))
@@ -2769,7 +2759,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_plot_1_popover, {
     showModal(modalDialog(
       title = paste0("Considerations for the Decomposition of refresh_solID ", input$plot),
-      HTML(plot1_message),
+      HTML(input_reactive$plot1_message),
       easyClose = T,
       footer = NULL
     ))
@@ -2778,7 +2768,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_plot_2_popover, {
     showModal(modalDialog(
       title = "Considerations for interpreting Actual vs. Predicted Results",
-      HTML(plot2_message_2),
+      HTML(input_reactive$plot2_message_2),
       easyClose = T,
       footer = NULL
     ))
@@ -2787,7 +2777,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_plot_3_popover, {
     showModal(modalDialog(
       title = "Interpreting ROI and Share of Spend vs. Effect",
-      HTML(plot3_message_1),
+      HTML(input_reactive$plot3_message_1),
       easyClose = T,
       footer = NULL
     ))
@@ -2796,7 +2786,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_plot_4_popover, {
     showModal(modalDialog(
       title = paste0("Interpreting Response Curves of refresh_solID ", input$plot),
-      HTML(plot_4_final_message),
+      HTML(input_reactive$plot_4_final_message),
       easyClose = T,
       footer = NULL
     ))
@@ -2805,7 +2795,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_plot_5_popover, {
     showModal(modalDialog(
       title =  paste0("Interpreting Adstock Decay Rates of refresh_solID ", input$plot),
-      HTML(plot5_message_1),
+      HTML(input_reactive$plot5_message_1),
       easyClose = T,
       footer = NULL
     ))
@@ -2814,7 +2804,7 @@ server <- function(input, output, session) {
   observeEvent(input$ref_model_output_plot_6_popover, {
     showModal(modalDialog(
       title = paste0("Interpreting Fitted Vs. Residual Plots of refresh_solID ", input$plot),
-      HTML(plot6_message_1),
+      HTML(input_reactive$plot6_message_1),
       easyClose = T,
       footer = NULL
     ))
@@ -2919,9 +2909,9 @@ server <- function(input, output, session) {
   })
 
   output$ref_sliders <- renderUI({
-    lapply(1:length(input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends), function(i) {
-      sliderInput(paste0("medVar_", input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends[i]),
-        label = div(style = "font-size:12px", input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends[i]),
+    lapply(1:length(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
+      sliderInput(paste0("medVar_", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]),
+        label = div(style = "font-size:12px", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]),
         min = 0, max = 3, value = c(0.8, 1.2), step = 0.01
       )
     })
@@ -2929,17 +2919,17 @@ server <- function(input, output, session) {
 
   observeEvent(input$run_refresh_opt, {
     output$ref_optimizer_plot <- renderPlot({
-      channel_constr_low_list <- unlist(lapply(1:length(input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends), function(i) {
-        isolate(eval(parse(text = paste0("input$medVar_", input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends[i]))))[1]
+      channel_constr_low_list <- unlist(lapply(1:length(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
+        isolate(eval(parse(text = paste0("input$medVar_", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]))))[1]
       }))
-      channel_constr_up_list <- unlist(lapply(1:length(input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends), function(i) {
-        isolate(eval(parse(text = paste0("input$medVar_", input_reactive$OutputCollect$listRefresh1$InputCollect$paid_media_spends[i]))))[2]
+      channel_constr_up_list <- unlist(lapply(1:length(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
+        isolate(eval(parse(text = paste0("input$medVar_", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]))))[2]
       }))
       tryCatch(input_reactive$refresh_optim_result <-
         isolate(robyn_allocator(
           robyn_object = robyn_object_refresh,
-          InputCollect = input_reactive$OutputCollect$listRefresh1$InputCollect,
-          OutputCollect = input_reactive$OutputCollect$listRefresh1$OutputCollect # input one of the model IDs in OutputCollect$allSolutions to get optimisation result
+          InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect,
+          OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect # input one of the model IDs in OutputCollect$allSolutions to get optimisation result
           , select_model = isolate(input$refresh_solID),
           scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
           , expected_spend = isolate(input$ref_expected_spend_opt) # specify future spend volume. only applies when scenario = "max_response_expected_spend"
@@ -2962,7 +2952,7 @@ server <- function(input, output, session) {
       g
     })
     output$ref_optimizer_tbl <- renderDataTable({
-      data.table(input_reactive$refresh_optim_result$dt_optimOut)
+      as.data.frame(input_reactive$refresh_optim_result$dt_optimOut)
     })
   })
 }
