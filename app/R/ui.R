@@ -327,7 +327,6 @@ ui <- function() {
               br(),
               br(),
               uiOutput("plots_folder"),
-              # textInput('folder', label = div("Directory containing plots"), value = paste0(script_path,plot_folder_sub)),
               textInput("plot", label = div("solID"), value = ""),
               actionButton("load_charts", label = "Load Charts"),
               br(),
@@ -349,9 +348,6 @@ ui <- function() {
               br(),
               br(),
               uiOutput("model_output_expl_3"),
-              # br(),
-              # br(),
-              # dataTableOutput('model_summary_tbl', width = '1000'),
               br(),
               br(),
               uiOutput("load_selection_plot")
@@ -467,7 +463,6 @@ ui <- function() {
               actionButton("refresh_run", label = "Run Model Refresh")
             ),
             mainPanel(
-              # dataTableOutput('model_for_refresh_dto', width = '1000'),
               dataTableOutput("data_refresh_dto", width = "1000"),
               dataTableOutput("hol_refresh_dto", width = "1000"),
               br(),
@@ -491,7 +486,6 @@ ui <- function() {
               br(),
               br(),
               uiOutput("refresh_plots_folder"),
-              # textInput('refresh_folder', label = div("Directory containing refresh plots"), value = paste0(script_path)),
               textInput("refresh_plot", label = div("refresh_solID"), value = ""),
               actionButton("load_refresh_charts", label = "Load Refresh Charts"),
               br(),
@@ -558,8 +552,6 @@ ui <- function() {
           )
         )
       ),
-      # tabPanel(title = 'Response Curve Sandbox',
-      # )
     )
   )
 }

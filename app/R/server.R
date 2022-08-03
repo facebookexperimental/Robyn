@@ -183,11 +183,11 @@ server <- function(input, output, session) {
         "After we hit the Initialize Media & Baseline Variable Inputs button, a number of input fields will appear prompting you to input in the left box the action variable e.g. Impressions or Clicks, and in the right box the spend variable for the same channel",
         "The reason for needing both variables is due to the complex relationship between spend and a variable like impressions. ",
         "In many cases, these variables do not have a 1-1 relationship, and instead the relationship is better fit by a curve than by a straight line. ",
-        'Media activity: Data collected for media ideally should reflect how many “eyeballs” have seen or been exposed to the media (e.g. impressions, GRPs). Spends should also be collected in order to calculate Return On Investment, however it is best practice to use exposure metrics as direct inputs into the model, as this is a better representation than spends of how media activity has been consumed by consumers. For example, 1 dollar spent on TV might yield a different reach than 1 dollar spent on Facebook.',
+        'Media activity: Data collected for media ideally should reflect how many eyeballs have seen or been exposed to the media (e.g. impressions, GRPs). Spends should also be collected in order to calculate Return On Investment, however it is best practice to use exposure metrics as direct inputs into the model, as this is a better representation than spends of how media activity has been consumed by consumers. For example, 1 dollar spent on TV might yield a different reach than 1 dollar spent on Facebook.',
         'For digital activity, the most commonly used metrics are impressions. Avoid using clicks, as clicks do not account for view through conversions, and it is just as likely that someone can view an ad and convert.',
         'For TV and radio, the most commonly used metrics are Gross Rating Points (GRPs) or Target Audience Rating Points (TARPs).',
         'For print (e.g. newspapers or magazines), the most commonly used metrics are readership.',
-        'As mentioned above, aim to collect data that reflects “eyeballs” or impressions for all other channels.',
+        'As mentioned above, aim to collect data that reflects eyeballs or impressions for all other channels.',
         paste0("For more information about this step, see the ", a("step-by-step guide.", href = "https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide/#set_mediavarname-and-set_mediaspendname")),
         sep = "<br><br>"
       )),
@@ -363,8 +363,6 @@ server <- function(input, output, session) {
       }
       if (isolate(input$num_context) >= 1) {
         lapply(1:isolate(input$num_context), function(r) {
-          # context_vars <- c(context_vars, isolate(input[[paste0('baseline_var_name_',toString(r))]]))
-          # context_signs <- c(context_signs, isolate(input[[paste0('baseline_var_name_sign_',toString(r))]]))
           input_reactive$context_vars <- c(input_reactive$context_vars, isolate(input[[paste0("baseline_var_name_", toString(r))]]))
           input_reactive$context_signs <- c(input_reactive$context_signs, isolate(input[[paste0("baseline_var_name_sign_", toString(r))]]))
         })
@@ -714,7 +712,6 @@ server <- function(input, output, session) {
     ##################################################################################
 
     # aggregate data to yearly sales by channel:
-    #eda_input_media_spend_vars <- eda_input %>% select(get('eda_input$DATE') | all_of(input_reactive$paid_media_spends))
     eda_input_media_spend_vars <- eda_input[which(colnames(eda_input) %in% c('DATE',input_reactive$paid_media_spends)),]
     eda_input_media_spend_vars$year <- year(eda_input_media_spend_vars$DATE)
     yearly_media_spend <- eda_input_media_spend_vars %>%
@@ -892,7 +889,6 @@ server <- function(input, output, session) {
         aes(
           x = reorder(get('month_abb'), month),
           y = count,
-          # fill=count,
           label = count
         )
       ) +
@@ -903,7 +899,6 @@ server <- function(input, output, session) {
           x = "month",
           y = "number of observations",
           caption = paste0("Total number of observations from input data: ", length(input_reactive$tbl$DATE))
-          #  fill=paste0("Percent of","\n","non-missing data")
         ) +
         theme_bw(base_size = 12) +
         scale_x_discrete(limits = xaxis_ticks_2b) +
@@ -934,7 +929,6 @@ server <- function(input, output, session) {
       )) +
         geom_point(
           size = 3
-          # color="#989898"
         ) +
         geom_segment(aes(
           x = reorder(get('week_char'), get('week')),
@@ -942,7 +936,6 @@ server <- function(input, output, session) {
           y = 0,
           yend = count
         )) +
-        # color="#989898") +
         labs(
           title = "2c. Number of observations by week",
           subtitle = paste0("Examine the week(s) with unexpected fewer number of observations"),
@@ -963,7 +956,6 @@ server <- function(input, output, session) {
     # 2d. count by weekday data -- need to decide on flag criteria if need any
 
     input_reactive$tbl$weekday <- weekdays(input_reactive$tbl$DATE)
-    #input_reactive$weekday_counts <- input_reactive$tbl %>% count(get('weekday')) %>% arrange(get('.'),.by_group)
     input_reactive$weekday_counts <- input_reactive$tbl %>% count(input_reactive$tbl$weekday) %>% arrange(.by_group = T)
     colnames(input_reactive$weekday_counts)[2] <- 'count'
     input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
@@ -1008,7 +1000,6 @@ server <- function(input, output, session) {
           legend.title = "correlation",
           ggtheme = theme_bw
         ) +
-          # labs(subtitle = paste(strwrap("Examine the red circles to see if the high correlation is expected",40), collapse = "\n")) +
           theme(plot.title = element_text(size = 16, hjust = 0.5, colour = "blue")) +
           theme(plot.subtitle = element_text(size = 14, hjust = 0.5, face = "italic", color = "firebrick"))
       },
@@ -1016,17 +1007,14 @@ server <- function(input, output, session) {
     )
 
     # Plot 3b
-    # pal4 <- c(">= 0.8" = "tomato2", "< 0.8" = "#989898") # Set legend colors
     output$ggplot3b <- renderPlot(
       {
         ggplot(corr_w_dep_var, aes(
           x = reorder(get('term'), desc(get(input_reactive$dep_var))),
           y = get(input_reactive$dep_var),
-          # fill = flag,
           label = round(get(input_reactive$dep_var), 2)
         )) +
           geom_col(width = 0.6, fill = "#989898") +
-          # scale_fill_manual(values = pal4, limits = names(pal4)) +
           labs(
             title = "3b. Correlation with dependent variable",
             subtitle = paste0("Examine the variable(s) with high correlations with the dependent variable to see if they are expected or not"),
@@ -1683,8 +1671,6 @@ server <- function(input, output, session) {
       error = function(e) {
         showNotification(e$message, duration = NULL)
       }
-      # , warning = function(w){showNotification(w$message, duration = NULL)
-      #  }
       )
     })
 
@@ -1769,8 +1755,6 @@ server <- function(input, output, session) {
         error = function(e) {
           showNotification(e$message, duration = NULL)
         }
-        # , warning = function(w){showNotification(w$message, duration = NULL)
-        # }
       )
       showModal(modalDialog(
         title = paste0("solID - ", input$plot, " saved successfully"),
@@ -2104,12 +2088,6 @@ server <- function(input, output, session) {
       },
       deleteFile = FALSE
     )
-
-    # output$model_summary_tbl <- renderDataTable({
-    #   input_reactive$OutputCollect$xDecompAgg[solID == isolate(input$plot) & !is.na(mean_spend)
-    #                            , c(rn, coef,mean_spend, mean_response, roi_mean
-    #                                , total_spend, total_response=xDecompAgg, roi_total, solID)]
-    # })
   })
 
   #################################### optimizer tab server functionality #######################################
@@ -2210,8 +2188,6 @@ server <- function(input, output, session) {
       error = function(e) {
         showNotification(e$message, duration = NULL)
       }
-      # , warning = function(w){showNotification(w$message, duration = NULL)
-      # }
       )
 
       title <- paste0("Budget allocator optimum result for model ID ", isolate(input$solID))
@@ -2489,19 +2465,6 @@ server <- function(input, output, session) {
       ))
     }
   })
-
-  # observeEvent(input$robyn_refresh,{
-  #   output$pParFront <- renderPlot({
-  #     input_reactive$OutputCollect$listRefresh1$OutputCollect$UI$pParFront
-  #   })
-  #   output$ref_pareto_front_tbl <- renderDataTable({
-  #     dat <- input_reactive$OutputCollect$listRefresh1$OutputCollect$UI$pParFront$data[robynPareto <= 3,]
-  #     dat$rsq_train <- round(dat$rsq_train, digits = 4)
-  #     dat <- dat[order(-rsq_train),]
-  #     dat <- dat[,c('solID','rsq_train','nrmse','decomp.rssd')]
-  #     datatable(dat, rownames = F, options = list(scrollX = T, scrollY = 200, paging = F, sDom = 't'))
-  #   })
-  # })
 
   observeEvent(input$load_refresh_charts, {
     #### OUTPUT RECOMMENDATIONS MESSAGING ############
@@ -2823,15 +2786,7 @@ server <- function(input, output, session) {
       },
       deleteFile = FALSE
     )
-
-    # output$ref_model_summary_tbl <- renderDataTable({
-    #   input_reactive$OutputCollect$listInit$OutputCollect$xDecompAgg[solID == isolate(input$refresh_plot) & !is.na(mean_spend)
-    #                                                   , .(rn, coef,mean_spend, mean_response, roi_mean
-    #                                                       , total_spend, total_response=xDecompAgg, roi_total, solID)]
-    # })
   })
-
-  # existing_model_for_refresh_popover
 
   #################################### Refresh optimizer tab server functionality #######################################
   output$ref_optimizer_plot <- renderPlot({
@@ -2942,8 +2897,6 @@ server <- function(input, output, session) {
       error = function(e) {
         showNotification(e$message, duration = NULL)
       }
-      # , warning = function(w){showNotification(w$message, duration = NULL)
-      # }
       )
 
       title <- paste0("Budget allocator optimum result for model ID ", isolate(input$refresh_solID))
