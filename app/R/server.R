@@ -714,7 +714,8 @@ server <- function(input, output, session) {
     ##################################################################################
 
     # aggregate data to yearly sales by channel:
-    eda_input_media_spend_vars <- eda_input %>% select(get('DATE') | all_of(input_reactive$paid_media_spends))
+    #eda_input_media_spend_vars <- eda_input %>% select(get('eda_input$DATE') | all_of(input_reactive$paid_media_spends))
+    eda_input_media_spend_vars <- eda_input[which(colnames(eda_input) %in% c('DATE',input_reactive$paid_media_spends)),]
     eda_input_media_spend_vars$year <- year(eda_input_media_spend_vars$DATE)
     yearly_media_spend <- eda_input_media_spend_vars %>%
       select(colnames(subset(eda_input_media_spend_vars,select = -c(get('DATE'))))) %>%
@@ -739,7 +740,7 @@ server <- function(input, output, session) {
     yearly_media_spend_pct_long <- yearly_media_spend_pct %>%
       pivot_longer(!year, names_to = "media", values_to = "pct_of_total_media_spend")
     yearly_media_spend_pct_long <- as.data.frame(yearly_media_spend_pct_long)
-    yearly_media_spend_pct_long$media <- str_replace_all(yearly_media_spend_pct_long$media, 'pct_','')
+    yearly_media_spend_pct_long$media <- gsub('pct_','',yearly_media_spend_pct_long$media)
 
 
     # Prepare data for dynamic warning message based % of total media spend by channel:
@@ -747,11 +748,13 @@ server <- function(input, output, session) {
 
     idx_low_pct <- as.data.frame(which(yearly_media_spend_pct_matrix < 0.05, arr.ind = TRUE)) # get the indices for the matrix entries with value < 0.05
     pair_year_low_pct <- yearly_media_spend_pct_matrix[idx_low_pct$row, 1]
-    pair_channel_low_pct <- str_replace_all(colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col], c("pct_" = "", "_S" = ""))
+    pair_channel_low_pct <- gsub("pct_","",colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col])
+    pair_channel_low_pct <- gsub("_S","",colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col])
 
     idx_high_pct <- as.data.frame(which(yearly_media_spend_pct_matrix > 0.6 & yearly_media_spend_pct_matrix <= 1, arr.ind = TRUE)) # get the indices for the matrix entries with value >= 0.6
     pair_year_high_pct <- yearly_media_spend_pct_matrix[idx_high_pct$row, 1]
-    pair_channel_high_pct <- str_replace_all(colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col], c("pct_" = "", "_S" = ""))
+    pair_channel_high_pct <- gsub("_S","",colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col])
+    pair_channel_high_pct <- gsub("pct_","",colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col])
 
     # Get list of channels with low or high share of total media spend:
     low_pct_pairs <- function() {
@@ -806,7 +809,7 @@ server <- function(input, output, session) {
             x = reorder(get('variable'), -get('pct_of_non_missing_data')),
             y = get('pct_of_non_missing_data'),
             fill = get('pct_of_non_missing_data_cat'),
-            label = scales::percent(get('pct_of_non_missing_data'))
+            label = paste0(get('pct_of_non_missing_data')*100,'%')
           )
         ) +
           geom_col(width = 0.6) +
@@ -820,7 +823,7 @@ server <- function(input, output, session) {
           ) +
           theme_bw(base_size = 14) +
           scale_fill_manual(values = pal1, limits = names(pal1)) +
-          scale_y_continuous(position = "right", labels = scales::percent) +
+          scale_y_continuous(position = "right") +
           geom_text(hjust = 1.1, size = 3.6, colour = "white") +
           coord_flip() +
           theme(plot.title = element_text(size = 16, hjust = 0.5, color = "blue", margin = margin(5, 0, 5, 0))) +
@@ -960,7 +963,8 @@ server <- function(input, output, session) {
     # 2d. count by weekday data -- need to decide on flag criteria if need any
 
     input_reactive$tbl$weekday <- weekdays(input_reactive$tbl$DATE)
-    input_reactive$weekday_counts <- input_reactive$tbl %>% count(get('weekday')) %>% arrange(get('.'),get('weekday'))
+    #input_reactive$weekday_counts <- input_reactive$tbl %>% count(get('weekday')) %>% arrange(get('.'),.by_group)
+    input_reactive$weekday_counts <- input_reactive$tbl %>% count(input_reactive$tbl$weekday) %>% arrange(.by_group = T)
     colnames(input_reactive$weekday_counts)[2] <- 'count'
     input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
     input_reactive$weekday_counts$pct_diff_vs_count_max <- (input_reactive$weekday_counts$count_max - input_reactive$weekday_counts$count) / input_reactive$weekday_counts$count_max
@@ -1047,7 +1051,7 @@ server <- function(input, output, session) {
           aes(
             x = year, y = get('pct_of_total_media_spend'),
             fill = get('media'),
-            label = scales::percent(get('pct_of_total_media_spend'), accuracy = 1L)
+            label = paste0(round(get('pct_of_total_media_spend')*100,1),'%')
           )
         ) +
           geom_area(alpha = 0.6, size = .5, colour = "white") +
@@ -1060,7 +1064,6 @@ server <- function(input, output, session) {
           theme_bw(base_size = 12) +
           geom_text(size = 4, position = position_stack(vjust = 0.5), fontface = "bold") +
           scale_fill_viridis_d() +
-          scale_y_continuous(labels = scales::percent) +
           theme(plot.title = element_text(size = 16, hjust = 0.5, color = "blue", margin = margin(5, 0, 5, 0))) +
           # theme(plot.subtitle=element_text(size=14,  hjust=0.5, face="italic", color="firebrick")) +
           theme(legend.title = element_text(size = 12))
@@ -1070,7 +1073,7 @@ server <- function(input, output, session) {
           aes(
             x = as.character(year), y = get('pct_of_total_media_spend'),
             fill = get('media'),
-            label = scales::percent(get('pct_of_total_media_spend'), accuracy = 1L)
+            label = paste0(round(get('pct_of_total_media_spend')*100,1),'%')
           )
         ) +
           geom_bar(position = "stack", stat = "identity") +
@@ -1083,7 +1086,6 @@ server <- function(input, output, session) {
           theme_bw(base_size = 12) +
           geom_text(size = 4, position = position_stack(vjust = 0.5), fontface = "bold", color = "black") +
           scale_colour_viridis_d(option = "D") +
-          scale_y_continuous(labels = scales::percent) +
           theme(plot.title = element_text(size = 16, hjust = 0.5, color = "blue", margin = margin(5, 0, 5, 0))) +
           # theme(plot.subtitle=element_text(size=14,  hjust=0.5, face="italic", color="firebrick")) +
           theme(legend.title = element_text(size = 12))
@@ -1128,7 +1130,6 @@ server <- function(input, output, session) {
           ) +
           theme(plot.title = element_text(size = 16, hjust = 0.5, colour = "blue", margin = margin(5, 0, 5, 0))) +
           theme(plot.subtitle = element_text(size = 14, hjust = 0.5, face = "italic", color = "firebrick")) +
-          gghighlight(year(get('DATE')) >= min(year(get('DATE')))) +
           scale_x_continuous(breaks = (if (input$granularity == "weekly") seq(1, 53, 4) else seq(1, 366, 14))) +
           facet_wrap(~ as.factor(year(get('DATE'))))
       },

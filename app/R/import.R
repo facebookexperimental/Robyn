@@ -14,13 +14,11 @@
 #' distinct everything filter group_by lag left_join mutate mutate_at n pull row_number
 #' select slice starts_with summarize ungroup `%>%`
 #' @importFrom DT dataTableOutput renderDataTable datatable
-#' @importFrom gghighlight gghighlight
 #' @import ggplot2
 #' @importFrom ggcorrplot ggcorrplot
 #' @importFrom lubridate floor_date year month week yday
 #' @importFrom patchwork plot_annotation
 #' @import Robyn
-#' @import scales
 #' @importFrom shiny a actionButton br checkboxInput column dateInput div
 #' fileInput fluidPage fluidRow h2 h3 h4 headerPanel hr HTML htmlOutput icon
 #' isolate mainPanel modalDialog navbarMenu navbarPage nearPoints need numericInput
@@ -32,7 +30,6 @@
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyjs useShinyjs html runjs
 #' @importFrom stats coef cor end reorder
-#' @importFrom stringr str_replace_all
 #' @importFrom utils head packageDescription read.csv
 #' @importFrom tidyr pivot_longer
 "_PACKAGE"
