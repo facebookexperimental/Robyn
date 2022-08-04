@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.7.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.7.1    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -266,6 +266,13 @@ print(InputCollect)
 #   #,calibration_input = dt_calibration # as in 2a-4 above
 # )
 
+# #### Experimental 3.7.1: JSON export and import
+# robyn_json(InputCollect, dir = "~/Desktop")
+# InputCollect <- robyn_inputs(
+#   dt_input = dt_simulated_weekly,
+#   dt_holidays = dt_prophet_holidays,
+#   json_file = "~/Desktop/RobynModel-inputs.json")
+
 ################################################################
 #### Step 3: Build initial model
 
@@ -329,7 +336,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_29_11" # select one from above
+select_model <- "1_26_16" # select one from above
 ExportedModel <- robyn_save(
   robyn_object = robyn_object, # model object location and name
   select_model = select_model, # selected model ID
@@ -338,6 +345,9 @@ ExportedModel <- robyn_save(
 )
 print(ExportedModel)
 # plot(ExportedModel)
+
+#### Experimental 3.7.1: JSON export and import
+# robyn_json(InputCollect, OutputCollect, select_model, dir = "~/Desktop")
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -527,6 +537,13 @@ response_sending$plot
 
 ################################################################
 #### Optional: get old model results
+
+# #### Experimental 3.7.1: JSON export and import
+# OutputCollectFixed <- robyn_run(
+#   dt_input = dt_simulated_weekly,
+#   dt_holidays = dt_prophet_holidays,
+#   json_file = "~/Desktop/RobynModel-1_26_16.json",
+#   plot_folder = robyn_object)
 
 # Get old hyperparameters and select model
 dt_hyper_fixed <- read.csv("~/Desktop/2022-07-29 15.17 init/pareto_hyperparameters.csv")

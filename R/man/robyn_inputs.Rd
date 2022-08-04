@@ -27,6 +27,7 @@ robyn_inputs(
   window_start = NULL,
   window_end = NULL,
   calibration_input = NULL,
+  json_file = NULL,
   InputCollect = NULL,
   ...
 )
@@ -140,6 +141,9 @@ channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
 You can calibrate any spend or organic variable with a well designed experiment.
 Check "Guide for calibration source" section.}
 
+\item{json_file}{Character. JSON file to import previously exported inputs
+(needs \code{dt_input} and \code{dt_holidays} parameters too).}
+
 \item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when
 \code{hyperparameters} are not yet set.}
 
@@ -179,15 +183,10 @@ metrics in case exposure metrics are used in \code{paid_media_vars}.
 }
 
 \examples{
-\donttest{
-# Load simulated input data
-data("dt_simulated_weekly")
-# Load standard prophet holidays
-data("dt_prophet_holidays")
-
+# Using dummy simulated data
 InputCollect <- robyn_inputs(
-  dt_input = dt_simulated_weekly,
-  dt_holidays = dt_prophet_holidays,
+  dt_input = Robyn::dt_simulated_weekly,
+  dt_holidays = Robyn::dt_prophet_holidays,
   date_var = "DATE",
   dep_var = "revenue",
   dep_var_type = "revenue",
@@ -206,5 +205,4 @@ InputCollect <- robyn_inputs(
   calibration_input = NULL
 )
 print(InputCollect)
-}
 }

@@ -561,10 +561,14 @@ check_InputCollect <- function(list) {
   }
 }
 
-check_robyn_name <- function(robyn_object) {
-  file_end <- lares::right(robyn_object, 4)
-  if (file_end != ".RDS") {
-    stop("Input 'robyn_object' must has format .RDS")
+check_robyn_name <- function(robyn_object, quiet = FALSE) {
+  if (!is.null(robyn_object)) {
+    file_end <- lares::right(robyn_object, 4)
+    if (file_end != ".RDS") {
+      stop("Input 'robyn_object' must has format .RDS")
+    }
+  } else {
+    if (!quiet) message("Skipping export into RDS file")
   }
 }
 
@@ -795,5 +799,23 @@ check_refresh_data <- function(Robyn, dt_input) {
       ),
       original_periods + new_periods, it, new_periods, it
     ))
+  }
+}
+
+check_json_file <- function(json_file = NULL, step = 1, quiet = FALSE) {
+  if (!is.null(json_file)) {
+    if (lares::right(tolower(json_file), 4) != "json")
+      stop("JSON file must be a valid .json file")
+    if (!file.exists(json_file)) {
+      stop("JSON file can't be imported: ", json_file)
+    }
+    json <- read_json(json_file, simplifyVector = TRUE)
+    json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
+    if (!"InputCollect" %in% names(json) & step == 1)
+      stop("JSON file must contain InputCollect element")
+    if (!"ExportedModel" %in% names(json) & step == 2)
+      stop("JSON file must contain ExportedModel element")
+    if (!quiet) message("Imported JSON file succesfully...")
+    return(json)
   }
 }

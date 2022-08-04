@@ -51,8 +51,9 @@
 #' }
 #' @return List. Contains all trained models. Class: \code{robyn_models}.
 #' @export
-robyn_run <- function(InputCollect,
+robyn_run <- function(InputCollect = NULL,
                       dt_hyper_fixed = NULL,
+                      json_file = NULL,
                       add_penalty_factor = FALSE,
                       refresh = FALSE,
                       seed = 123L,
@@ -66,6 +67,19 @@ robyn_run <- function(InputCollect,
                       lambda_control = NULL,
                       ...) {
   t0 <- Sys.time()
+
+  ### Use previously exported model using json_file
+  # InputCollect <- robyn_inputs(json_file = json_file, dt_input = dt_input, dt_holidays = dt_holidays)
+  if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
+  if (!is.null(json_file)) {
+    json <- check_json_file(json_file, step = 2, quiet = TRUE)
+    dt_hyper_fixed <- json$ExportedModel$hyper_values
+    for (i in 1:length(json$ExportedModel)) {
+      assign(names(json$ExportedModel)[i], json$ExportedModel[[i]])
+    }
+    if (is.null(seed) | length(seed) == 0) seed <- 123L
+    dt_hyper_fixed$solID <- json$ExportedModel$select_model
+  }
 
   #####################################
   #### Set local environment
@@ -88,12 +102,15 @@ robyn_run <- function(InputCollect,
   if (hyps_fixed) trials <- iterations <- 1
   check_run_inputs(cores, iterations, trials, intercept_sign, nevergrad_algo)
   check_iteration(InputCollect$calibration_input, iterations, trials, hyps_fixed, refresh)
-  init_msgs_run(InputCollect, refresh, lambda_control, quiet)
+  init_msgs_run(InputCollect, refresh, lambda_control = NULL, quiet)
 
   #####################################
   #### Prepare hyper-parameters
 
-  hyper_collect <- hyper_collector(InputCollect, InputCollect$hyperparameters, add_penalty_factor, dt_hyper_fixed, cores)
+  hyper_collect <- hyper_collector(
+    InputCollect,
+    hyper_in = InputCollect$hyperparameters,
+    add_penalty_factor, dt_hyper_fixed, cores)
   InputCollect$hyper_updated <- hyper_collect$hyper_list_all
 
   #####################################
@@ -137,6 +154,7 @@ robyn_run <- function(InputCollect,
 
   # Save hyper-parameters list
   output[["hyper_updated"]] <- hyper_collect$hyper_list_all
+  output[["seed"]] <- seed
 
   # Report total timing
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)

@@ -27,6 +27,7 @@
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom glmnet cv.glmnet glmnet
+#' @importFrom jsonlite fromJSON toJSON write_json read_json
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued ohse removenacols
 #' theme_lares `%>%` scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t
 #' @importFrom lubridate is.Date day floor_date

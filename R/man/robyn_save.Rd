@@ -8,10 +8,10 @@
 \title{Export Robyn Model to Local File}
 \usage{
 robyn_save(
-  robyn_object,
-  select_model = NULL,
   InputCollect,
   OutputCollect,
+  robyn_object = NULL,
+  select_model = NULL,
   quiet = FALSE
 )
 
@@ -22,6 +22,12 @@ robyn_save(
 robyn_load(robyn_object, select_build = NULL, quiet = FALSE)
 }
 \arguments{
+\item{InputCollect}{List. Contains all input parameters for the model.
+Required when \code{robyn_object} is not provided.}
+
+\item{OutputCollect}{List. Containing all model result.
+Required when \code{robyn_object} is not provided.}
+
 \item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information or the imported list.}
 
@@ -30,12 +36,6 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{robyn_object} is not provided, \code{select_model} must be provided with
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
-
-\item{InputCollect}{List. Contains all input parameters for the model.
-Required when \code{robyn_object} is not provided.}
-
-\item{OutputCollect}{List. Containing all model result.
-Required when \code{robyn_object} is not provided.}
 
 \item{quiet}{Boolean. Keep messages off?}
 

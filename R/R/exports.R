@@ -11,12 +11,12 @@
 #' @inheritParams robyn_allocator
 #' @return (Invisible) list with filename and summary. Class: \code{robyn_save}.
 #' @export
-robyn_save <- function(robyn_object,
-                       select_model = NULL,
-                       InputCollect,
+robyn_save <- function(InputCollect,
                        OutputCollect,
+                       robyn_object = NULL,
+                       select_model = NULL,
                        quiet = FALSE) {
-  check_robyn_name(robyn_object)
+  check_robyn_name(robyn_object, quiet)
   if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!select_model %in% OutputCollect$allSolutions) {
     stop(paste0("Input 'select_model' must be one of these values: ", paste(
@@ -43,32 +43,46 @@ robyn_save <- function(robyn_object,
     select(.data$channel, .data$hyperparameter, .data$value) %>%
     tidyr::spread(key = "hyperparameter", value = "value")
 
+  hyper_values <- filter(OutputCollect$resultHypParam,.data$solID == select_model) %>%
+    select(contains(hyps_name), .data$lambda) %>%
+    select(order(colnames(.))) %>%
+    as.list()
+
+  values <- OutputCollect[!sapply(OutputCollect, is.list)]
+  values <- values[!names(values) %in% c("allSolutions", "hyper_fixed", "plot_folder")]
+
   output <- list(
     robyn_object = robyn_object,
     select_model = select_model,
     summary = summary,
     errors = errors,
-    hyperparameters = hyps,
+    hyper_df = hyps,
+    hyper_values = hyper_values,
+    hyper_updated = OutputCollect$hyper_updated,
     window = c(InputCollect$window_start, InputCollect$window_end),
     periods = InputCollect$rollingWindowLength,
     interval = InputCollect$intervalType,
     adstock = InputCollect$adstock,
-    plot = robyn_onepagers(InputCollect, OutputCollect, select_model, quiet = TRUE, export = FALSE)
+    plot = robyn_onepagers(InputCollect, OutputCollect,
+                           select_model, quiet = TRUE, export = FALSE)
   )
+  output <- append(output, values)
   if (InputCollect$dep_var_type == "conversion") {
     colnames(output$summary) <- gsub("roi_", "cpa_", colnames(output$summary))
   }
   class(output) <- c("robyn_save", class(output))
 
-  if (file.exists(robyn_object)) {
-    if (!quiet) {
-      answer <- askYesNo(paste0(robyn_object, " already exists. Are you certain to overwrite it?"))
-    } else {
-      answer <- TRUE
-    }
-    if (answer == FALSE | is.na(answer)) {
-      message("Stopped export to avoid overwriting")
-      return(invisible(output))
+  if (!is.null(robyn_object)) {
+    if (file.exists(robyn_object)) {
+      if (!quiet) {
+        answer <- askYesNo(paste0(robyn_object, " already exists. Are you certain to overwrite it?"))
+      } else {
+        answer <- TRUE
+      }
+      if (answer == FALSE | is.na(answer)) {
+        message("Stopped export to avoid overwriting")
+        return(invisible(output))
+      }
     }
   }
 
@@ -91,8 +105,10 @@ robyn_save <- function(robyn_object,
   Robyn <- list(listInit = listInit)
 
   class(Robyn) <- c("robyn_exported", class(Robyn))
-  saveRDS(Robyn, file = robyn_object)
-  if (!quiet) message("Exported results: ", robyn_object)
+  if (!is.null(robyn_object)) {
+    saveRDS(Robyn, file = robyn_object)
+    if (!quiet) message("Exported results: ", robyn_object)
+  }
   return(invisible(output))
 }
 
@@ -126,7 +142,7 @@ print.robyn_save <- function(x, ...) {
   print(glued(
     "\n\nHyper-parameters for channel transformations:\n    Adstock: {x$adstock}"))
 
-  print(x$hyperparameters)
+  print(x$hyper_df)
 }
 
 #' @rdname robyn_save
@@ -151,7 +167,7 @@ robyn_load <- function(robyn_object, select_build = NULL, quiet = FALSE) {
     if (!"character" %in% class(robyn_object)) {
       stop("Input 'robyn_object' must be a character input or 'robyn_exported' object")
     }
-    check_robyn_name(robyn_object)
+    check_robyn_name(robyn_object, quiet)
     Robyn <- readRDS(robyn_object)
     objectPath <- dirname(robyn_object)
   }

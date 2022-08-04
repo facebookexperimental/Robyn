@@ -116,17 +116,14 @@
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
+#' @param json_file Character. JSON file to import previously exported inputs
+#' (needs \code{dt_input} and \code{dt_holidays} parameters too).
 #' @param ... Additional parameters passed to \code{prophet} functions.
 #' @examples
-#' \donttest{
-#' # Load simulated input data
-#' data("dt_simulated_weekly")
-#' # Load standard prophet holidays
-#' data("dt_prophet_holidays")
-#'
+#' # Using dummy simulated data
 #' InputCollect <- robyn_inputs(
-#'   dt_input = dt_simulated_weekly,
-#'   dt_holidays = dt_prophet_holidays,
+#'   dt_input = Robyn::dt_simulated_weekly,
+#'   dt_holidays = Robyn::dt_prophet_holidays,
 #'   date_var = "DATE",
 #'   dep_var = "revenue",
 #'   dep_var_type = "revenue",
@@ -145,7 +142,6 @@
 #'   calibration_input = NULL
 #' )
 #' print(InputCollect)
-#' }
 #' @return List. Contains all input parameters and modified results
 #' using \code{Robyn:::robyn_engineering()}. This list is ready to be
 #' used on other functions like \code{robyn_run()} and \code{print()}.
@@ -172,8 +168,18 @@ robyn_inputs <- function(dt_input = NULL,
                          window_start = NULL,
                          window_end = NULL,
                          calibration_input = NULL,
+                         json_file = NULL,
                          InputCollect = NULL,
                          ...) {
+
+  ### Use case 3: running robyn_inputs() with json_file
+  if (!is.null(json_file)) {
+    json <- check_json_file(json_file, step = 1)
+    if (is.null(dt_input) | is.null(dt_holidays)) stop("Provide 'dt_input' and 'dt_holidays'")
+    for (i in 1:length(json$InputCollect)) {
+      assign(names(json$InputCollect)[i], json$InputCollect[[i]])
+    }
+  }
 
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
