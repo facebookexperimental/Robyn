@@ -624,9 +624,9 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
 
     if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
       stop(paste(
-        "dt_hyper_fixed is provided with wrong input.",
-        "Please provide the table OutputCollect$resultHypParam from previous runs or",
-        "pareto_hyperparameters.csv with desired model ID"
+        "Input 'dt_hyper_fixed' is invalid.",
+        "Please provide 'OutputCollect$resultHypParam' result from previous runs or",
+        "'pareto_hyperparameters.csv' data with desired model ID"
       ))
     }
   }
