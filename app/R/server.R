@@ -1444,6 +1444,7 @@ server <- function(input, output, session) {
   observeEvent(input$finalize_hyperparams, {
     input_reactive$hyp_org <- list()
     input_reactive$hyp_paid <- list()
+    input_reactive$hyperparameters <- list()
     if (input$adstock_selection == "weibull") {
       vals <- list()
       names_l <- list()
