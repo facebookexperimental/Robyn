@@ -16,6 +16,6 @@
 #' @param ... Additional parameters
 #' @author Kyle Goldberg (kylegoldberg@@fb.com)
 #' @export
-robyn_app <- function(...) {
+robyn_learn <- function(...) {
   shinyApp(ui(), server)
 }

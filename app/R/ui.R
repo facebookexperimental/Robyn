@@ -35,7 +35,7 @@ ui <- function() {
             align = "center",
             width = 12,
             headerPanel(
-              h3("Welcome to Robyn App - An Open-Source Marketing Mix Model Development UI where our goal is to democratize access to MMM and encouraging good marketing practices through data and science",
+              h3("Welcome to Robyn Learn - An Open-Source Marketing Mix Model Development UI where our goal is to democratize access to MMM and encouraging good marketing practices through data and science",
                 style = "font-weight: 500; line-height: 1.1;
                   color:blue;"
               )
@@ -260,7 +260,7 @@ ui <- function() {
                 ),
                 step = 1, min = 1, value = 10
               ),
-              textInput("dest_folder", label = "Folder where explanatory model plots will output", value = "script_path"),
+              uiOutput('dest_folder'),
               hr(style = "border-top: 1px solid #000000;"),
               checkboxInput("enable_calibration",
                 label = h4(

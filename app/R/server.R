@@ -63,6 +63,7 @@ server <- function(input, output, session) {
       validate(need(ext == "csv", "Please upload a csv file"))
       mmm_data <- read.csv(file$datapath)
       input_reactive$tbl <- read.csv(file$datapath)
+      input_reactive$data_path <- file$datapath
       datatable(head(mmm_data, n = 5L),
         options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t")
       )
@@ -1726,6 +1727,10 @@ server <- function(input, output, session) {
   observeEvent(input$initiate_tables, {
     output$pParFront <- renderPlot({
       input_reactive$OutputCollect$UI$pParFront
+    })
+    output$dest_folder <- renderUI({
+      textInput('dest_folder', label = 'Folder where explanatory model plots will output',
+                value = input_reactive$data_path)
     })
 
     output$plots_folder <- renderUI({
