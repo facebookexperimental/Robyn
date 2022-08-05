@@ -194,11 +194,19 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   mediaVarCount <- length(paid_media_vars)
   spendVarCount <- length(paid_media_spends)
 
-  if (!all(paid_media_vars %in% names(dt_input))) {
-    stop("Provided 'paid_media_vars' is not included in input data")
+  temp <- paid_media_vars %in% names(dt_input)
+  if (!all(temp)) {
+    stop(paste(
+      "Input 'paid_media_vars' not included in data. Check:",
+      v2t(paid_media_vars[!temp])
+    ))
   }
-  if (!all(paid_media_spends %in% names(dt_input))) {
-    stop("Provided 'paid_media_spends' is not included in input data")
+  temp <- paid_media_spends %in% names(dt_input)
+  if (!all(temp)) {
+    stop(paste(
+      "Input 'paid_media_spends' not included in data. Check:",
+      v2t(paid_media_spends[!temp])
+    ))
   }
   if (is.null(paid_media_signs)) {
     paid_media_signs <- rep("positive", mediaVarCount)
@@ -207,10 +215,10 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
     stop("Allowed values for 'paid_media_signs' are: ", paste(opts_pnd, collapse = ", "))
   }
   if (length(paid_media_signs) != length(paid_media_vars)) {
-    stop("'paid_media_signs' must have same length as 'paid_media_vars'")
+    stop("Input 'paid_media_signs' must have same length as 'paid_media_vars'")
   }
   if (spendVarCount != mediaVarCount) {
-    stop("'paid_media_spends' must have same length as 'paid_media_vars'")
+    stop("Input 'paid_media_spends' must have same length as 'paid_media_vars'")
   }
   get_cols <- any(dt_input[, unique(c(paid_media_vars, paid_media_spends))] < 0)
   if (get_cols) {
@@ -804,17 +812,20 @@ check_refresh_data <- function(Robyn, dt_input) {
 
 check_json_file <- function(json_file = NULL, step = 1, quiet = FALSE) {
   if (!is.null(json_file)) {
-    if (lares::right(tolower(json_file), 4) != "json")
+    if (lares::right(tolower(json_file), 4) != "json") {
       stop("JSON file must be a valid .json file")
+    }
     if (!file.exists(json_file)) {
       stop("JSON file can't be imported: ", json_file)
     }
     json <- read_json(json_file, simplifyVector = TRUE)
     json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
-    if (!"InputCollect" %in% names(json) & step == 1)
+    if (!"InputCollect" %in% names(json) & step == 1) {
       stop("JSON file must contain InputCollect element")
-    if (!"ExportedModel" %in% names(json) & step == 2)
+    }
+    if (!"ExportedModel" %in% names(json) & step == 2) {
       stop("JSON file must contain ExportedModel element")
+    }
     if (!quiet) message("Imported JSON file succesfully...")
     return(json)
   }
