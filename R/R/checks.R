@@ -241,8 +241,12 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
   if (is.null(organic_vars)) {
     return(invisible(NULL))
   }
-  if (!all(organic_vars %in% names(dt_input))) {
-    stop("Provided 'organic_vars' is not included in input data")
+  temp <- organic_vars %in% names(dt_input)
+  if (!all(temp)) {
+    stop(paste(
+      "Input 'organic_vars' not included in data. Check:",
+      v2t(organic_vars[!temp])
+    ))
   }
   if (!is.null(organic_vars) & is.null(organic_signs)) {
     organic_signs <- rep("positive", length(organic_vars))
@@ -252,7 +256,7 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
     stop("Allowed values for 'organic_signs' are: ", paste(opts_pnd, collapse = ", "))
   }
   if (length(organic_signs) != length(organic_vars)) {
-    stop("'organic_signs' must have same length as 'organic_vars'")
+    stop("Input 'organic_signs' must have same length as 'organic_vars'")
   }
   return(invisible(list(organic_signs = organic_signs)))
 }
@@ -260,14 +264,14 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
 check_factorvars <- function(factor_vars, context_vars, organic_vars) {
   if (!is.null(factor_vars)) {
     if (!all(factor_vars %in% c(context_vars, organic_vars))) {
-      stop("'factor_vars' must be any from 'context_vars' or 'organic_vars' inputs")
+      stop("Input 'factor_vars' must be any from 'context_vars' or 'organic_vars' inputs")
     }
   }
 }
 
 check_allvars <- function(all_ind_vars) {
   if (length(all_ind_vars) != length(unique(all_ind_vars))) {
-    stop("Input variables must have unique names")
+    stop("All input variables must have unique names")
   }
 }
 
