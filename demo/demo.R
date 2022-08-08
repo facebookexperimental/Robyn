@@ -71,7 +71,7 @@ head(dt_prophet_holidays)
 # Directory where you want to export results to (will create new folders)
 robyn_object <- "~/Desktop"
 
-# ## DEPRECATED: Set robyn_object. It must have extension .RDS. The object name can be different than Robyn:
+# ## DEPRECATED: It must have extension .RDS. The object name can be different than Robyn:
 # robyn_object <- "~/Desktop/MyRobyn.RDS"
 
 ################################################################
@@ -545,7 +545,7 @@ response_sending$plot
 # the main dataset and the holidays dataset, which are NOT stored in the JSON file.
 # These JSON files will be automatically created in most cases.
 # Manually created JSON file: robyn_write(InputCollect, OutputCollect, select_model)
-json_file <- "/Users/bernardolares/Desktop/Robyn_202208081321_init/Robyn_202208081343_rf1/Robyn_202208081403_rf1/RobynModel-1_6_1.json"
+json_file <- "~/Desktop/Robyn_202208081321_init/RobynModel-1_6_1.json"
 # json_data <- robyn_read(json_file) # Manual check on data stored
 
 InputCollectX <- robyn_inputs(
@@ -567,7 +567,7 @@ RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = InputCollectX$dt_input,
   dt_holidays = InputCollectX$dt_holidays,
-  refresh_steps = 4,
+  refresh_steps = 7,
   refresh_mode = "manual",
   refresh_iters = 100,
   refresh_trials = 1

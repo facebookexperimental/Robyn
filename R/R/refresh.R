@@ -124,6 +124,7 @@ robyn_refresh <- function(robyn_object = NULL,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
         json_file = json_file, quiet = TRUE, ...)
+      InputCollect$refreshDepth <- stringr::str_count(json$ExportedModel$plot_folder, "_rf") + 1
       OutputCollect = robyn_run(
         InputCollect = InputCollect,
         json_file = json_file,
@@ -131,7 +132,6 @@ robyn_refresh <- function(robyn_object = NULL,
       Robyn[["listInit"]] <- list(InputCollect = InputCollect, OutputCollect = OutputCollect)
       Robyn[["listInit"]]$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
       objectPath <- gsub("//", "/", json$ExportedModel$plot_folder)
-      # refreshCounter <- stringr::str_count(json$ExportedModel$plot_folder, "_rf") + 1
       refreshCounter <- 1
     }
     if (!is.null(robyn_object)) {
