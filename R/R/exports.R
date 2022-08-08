@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Export Robyn Model to Local File
+#' Export Robyn Model to Local File [DEPRECATED]
 #'
 #' Use \code{robyn_save()} to select and save as .RDS file the initial model.
 #'

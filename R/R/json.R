@@ -73,8 +73,8 @@ robyn_write <- function(InputCollect,
     select_model <- "inputs"
   }
 
-  if (lares::right(dir, 1) == "/") dir <- substr(dir, 1, nchar(dir) - 1)
   filename <- sprintf("%s/RobynModel-%s.json", dir, select_model)
+  filename <- gsub("//", "/", filename)
   write_json(ret, filename, pretty = TRUE)
   if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
   class(ret) <- c("robyn_write", class(ret))

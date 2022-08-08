@@ -5,7 +5,7 @@
 \alias{print.robyn_save}
 \alias{plot.robyn_save}
 \alias{robyn_load}
-\title{Export Robyn Model to Local File}
+\title{Export Robyn Model to Local File [DEPRECATED]}
 \usage{
 robyn_save(
   InputCollect,

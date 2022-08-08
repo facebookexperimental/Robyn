@@ -372,6 +372,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
+    hyperparameters <- hyperparameters[which(!names(hyperparameters) %in% "lambda")]
     hyperparameters_ordered <- hyperparameters[order(names(hyperparameters))]
     get_hyp_names <- names(hyperparameters_ordered)
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
@@ -575,9 +576,11 @@ check_InputCollect <- function(list) {
 
 check_robyn_name <- function(robyn_object, quiet = FALSE) {
   if (!is.null(robyn_object)) {
-    file_end <- lares::right(robyn_object, 4)
-    if (file_end != ".RDS") {
-      stop("Input 'robyn_object' must has format .RDS")
+    if (!dir.exists(robyn_object)) {
+      file_end <- lares::right(robyn_object, 4)
+      if (file_end != ".RDS") {
+        stop("Input 'robyn_object' must has format .RDS")
+      }
     }
   } else {
     if (!quiet) message("Skipping export into RDS file")

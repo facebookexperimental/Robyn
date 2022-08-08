@@ -7,10 +7,11 @@
 \title{Build Refresh Model}
 \usage{
 robyn_refresh(
-  robyn_object,
+  robyn_object = NULL,
   dt_input = NULL,
   dt_holidays = NULL,
   plot_folder_sub = NULL,
+  json_file = NULL,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000,
@@ -39,6 +40,9 @@ Prophet holidays using \code{data("dt_prophet_holidays")}.}
 \item{plot_folder_sub}{Character. Customize sub path to save plots. The total
 path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
 For example, plot_folder_sub = "sub_dir".}
+
+\item{json_file}{Character. JSON file to import previously exported inputs
+(needs \code{dt_input} and \code{dt_holidays} parameters too).}
 
 \item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data

@@ -68,8 +68,11 @@ head(dt_simulated_weekly)
 data("dt_prophet_holidays")
 head(dt_prophet_holidays)
 
-## Set robyn_object. It must have extension .RDS. The object name can be different than Robyn:
-robyn_object <- "~/Desktop/MyRobyn.RDS"
+# Directory where you want to export results to (will create new folders)
+robyn_object <- "~/Desktop"
+
+# ## DEPRECATED: Set robyn_object. It must have extension .RDS. The object name can be different than Robyn:
+# robyn_object <- "~/Desktop/MyRobyn.RDS"
 
 ################################################################
 #### Step 2a: For first time user: Model specification in 4 steps
@@ -313,24 +316,25 @@ print(OutputCollect)
 
 
 ################################################################
-#### Step 4: Select and save the initial model
+#### Step 4: Select and save the any model
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-
-select_model <- "1_26_16" # select one from above
-ExportedModel <- robyn_save(
-  robyn_object = robyn_object, # model object location and name
-  select_model = select_model, # selected model ID
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect
-)
-print(ExportedModel)
-# plot(ExportedModel)
+select_model <- "1_55_4" # select one from above
 
 #### Since 3.7.1: JSON export and import (faster and lighter)
-ExportedModelJSON <- robyn_write(InputCollect, OutputCollect, select_model)
-print(ExportedModelJSON)
+ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
+print(ExportedModel)
+
+# #### Deprecated on version 3.7.1 onwards (might work)
+# ExportedModelOld <- robyn_save(
+#   robyn_object = robyn_object, # model object location and name
+#   select_model = select_model, # selected model ID
+#   InputCollect = InputCollect,
+#   OutputCollect = OutputCollect
+# )
+# print(ExportedModelOld)
+# # plot(ExportedModelOld)
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -394,7 +398,9 @@ if (TRUE) {
     AllocatorCollect1$dt_optimOut$channels == select_media
   ]
   optimal_response <- robyn_response(
-    robyn_object = robyn_object,
+    InputCollect = InputCollect,
+    OutputCollect = OutputCollect,
+    select_model = select_model,
     select_build = 0,
     media_metric = select_media,
     metric_value = metric_value
@@ -408,25 +414,38 @@ if (TRUE) {
 }
 
 ################################################################
-#### Step 6: Model refresh based on selected model and saved Robyn.RDS object - Alpha
+#### Step 6: Model refresh based on selected model and saved results "Alpha" [v3.7.1]
 
-## NOTE: must run robyn_save to select and save an initial model first, before refreshing below
+## NOTE: must run robyn_write() to select and export any model first, before refreshing below.
 ## The robyn_refresh() function is suitable for updating within "reasonable periods"
 ## Two situations are considered better to rebuild model:
 ## 1, most data is new. If initial model has 100 weeks and 80 weeks new data is added in refresh,
 ## it might be better to rebuild the model
 ## 2, new variables are added
 
-# Run ?robyn_refresh to check parameter definition
-Robyn <- robyn_refresh(
-  robyn_object = robyn_object,
-  dt_input = dt_simulated_weekly,
-  dt_holidays = dt_prophet_holidays,
+# Provide a JSON file with your InputCollect and ExportedModel specifications
+json_file <- "~/Desktop/Robyn_202208081444_init/RobynModel-1_55_4.json"
+RobynRefresh <- robyn_refresh(
+  json_file = json_file,
+  dt_input = InputCollect$dt_input,
+  dt_holidays = InputCollect$dt_holidays,
   refresh_steps = 4,
   refresh_mode = "manual",
-  refresh_iters = 100, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
+
+# ##### DEPRECATED (before 3.7.1)
+# # Run ?robyn_refresh to check parameter definition
+# Robyn <- robyn_refresh(
+#   robyn_object = robyn_object,
+#   dt_input = dt_simulated_weekly,
+#   dt_holidays = dt_prophet_holidays,
+#   refresh_steps = 4,
+#   refresh_mode = "manual",
+#   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
+#   refresh_trials = 1
+# )
 
 ## Besides plots: there are 4 CSV outputs saved in the folder for further usage
 # report_hyperparameters.csv, hyperparameters of all selected model for reporting
@@ -519,13 +538,14 @@ response_sending$response / sendings * 1000
 response_sending$plot
 
 ################################################################
-#### Optional: recreate old models and replicate results
+#### Optional: recreate old models and replicate results [v3.7.1]
 
 # From an exported JSON file (which is created automatically when exporting a model)
 # we can re-create a previously trained model and outputs. Note: we need to provide
-# the original and the holidays dataset, which are NOT stored in the JSON file.
-# Manually created: robyn_write(InputCollect, OutputCollect, select_model)
-json_file <- "~/Desktop/Robyn_202208080929_init/RobynModel-1_26_16.json"
+# the main dataset and the holidays dataset, which are NOT stored in the JSON file.
+# These JSON files will be automatically created in most cases.
+# Manually created JSON file: robyn_write(InputCollect, OutputCollect, select_model)
+json_file <- "/Users/bernardolares/Desktop/Robyn_202208081321_init/Robyn_202208081343_rf1/Robyn_202208081403_rf1/RobynModel-1_6_1.json"
 # json_data <- robyn_read(json_file) # Manual check on data stored
 
 InputCollectX <- robyn_inputs(
@@ -542,3 +562,13 @@ myModel <- robyn_write(InputCollectX, OutputCollectX)
 print(myModel)
 myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX)
 myModelPlot
+
+RobynRefresh <- robyn_refresh(
+  json_file = json_file,
+  dt_input = InputCollectX$dt_input,
+  dt_holidays = InputCollectX$dt_holidays,
+  refresh_steps = 4,
+  refresh_mode = "manual",
+  refresh_iters = 100,
+  refresh_trials = 1
+)

@@ -76,14 +76,6 @@ robyn_outputs <- function(InputCollect, OutputModels,
   #####################################
   #### Gather the results into output object
 
-  # Set folder to save outputs
-  if (is.null(plot_folder_sub)) {
-    refresh <- attr(OutputModels, "refresh")
-    folder_var <- ifelse(!refresh, "init", paste0("rf", InputCollect$refreshCounter))
-    plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
-  }
-  plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
-
   # Auxiliary list with all results (wasn't previously exported but needed for robyn_outputs())
   allPareto <- list(
     resultHypParam = pareto_results$resultHypParam,
@@ -115,7 +107,18 @@ robyn_outputs <- function(InputCollect, OutputModels,
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 
+  # Set folder to save outputs
+  if (is.null(plot_folder_sub)) {
+    refresh <- attr(OutputModels, "refresh")
+    folder_var <- ifelse(!refresh, "init", "rf")
+    plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
+  }
+
+  plotPath <- paste0(plot_folder, "/", plot_folder_sub, "/")
+  OutputCollect$plot_folder <- gsub("//", "/", plotPath)
+
   if (export) {
+    dir.create(OutputCollect$plot_folder)
     tryCatch(
       {
         if (!quiet) message(paste0(">>> Collecting ", length(allSolutions), " pareto-optimum results into: ", OutputCollect$plot_folder))

@@ -174,7 +174,7 @@ robyn_inputs <- function(dt_input = NULL,
 
   ### Use case 3: running robyn_inputs() with json_file
   if (!is.null(json_file)) {
-    json <- robyn_read(json_file, step = 1)
+    json <- robyn_read(json_file, step = 1, ...)
     if (is.null(dt_input) | is.null(dt_holidays)) stop("Provide 'dt_input' and 'dt_holidays'")
     for (i in 1:length(json$InputCollect)) {
       assign(names(json$InputCollect)[i], json$InputCollect[[i]])

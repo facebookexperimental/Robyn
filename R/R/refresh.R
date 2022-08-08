@@ -94,10 +94,11 @@
 #' }
 #' @return List. Same as \code{robyn_run()} but with refreshed models.
 #' @export
-robyn_refresh <- function(robyn_object,
+robyn_refresh <- function(robyn_object = NULL,
                           dt_input = NULL,
                           dt_holidays = NULL,
                           plot_folder_sub = NULL,
+                          json_file = NULL,
                           refresh_steps = 4,
                           refresh_mode = "manual",
                           refresh_iters = 1000,
@@ -115,13 +116,32 @@ robyn_refresh <- function(robyn_object,
     check_nas(dt_holidays)
 
     ## Load initial model
-    RobynImported <- robyn_load(robyn_object)
-    Robyn <- RobynImported$Robyn
-    objectPath <- RobynImported$objectPath
-    robyn_object <- RobynImported$robyn_object
+    if (!is.null(json_file)) {
+      Robyn <- list()
+      json <- robyn_read(json_file, step = 2, quiet = TRUE)
+      message(">> Recreating model ", json$ExportedModel$select_model)
+      InputCollect = robyn_inputs(
+        dt_input = dt_input,
+        dt_holidays = dt_holidays,
+        json_file = json_file, quiet = TRUE, ...)
+      OutputCollect = robyn_run(
+        InputCollect = InputCollect,
+        json_file = json_file,
+        export = FALSE, quiet = TRUE, ...)
+      Robyn[["listInit"]] <- list(InputCollect = InputCollect, OutputCollect = OutputCollect)
+      Robyn[["listInit"]]$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
+      objectPath <- gsub("//", "/", json$ExportedModel$plot_folder)
+      # refreshCounter <- stringr::str_count(json$ExportedModel$plot_folder, "_rf") + 1
+      refreshCounter <- 1
+    }
+    if (!is.null(robyn_object)) {
+      RobynImported <- robyn_load(robyn_object)
+      Robyn <- RobynImported$Robyn
+      objectPath <- RobynImported$objectPath
+      robyn_object <- RobynImported$robyn_object
+      refreshCounter <- length(Robyn) - sum(names(Robyn) == "refresh")
+    }
 
-    ## Count refresh
-    refreshCounter <- length(Robyn) - sum(names(Robyn) == "refresh")
     objectCheck <- if (refreshCounter == 1) {
       c("listInit")
     } else {
@@ -144,7 +164,7 @@ robyn_refresh <- function(robyn_object,
       listOutputPrev <- Robyn$listInit$OutputCollect
       InputCollectRF$xDecompAggPrev <- listOutputPrev$xDecompAgg
       if (length(unique(Robyn$listInit$OutputCollect$resultHypParam$solID)) > 1) {
-        stop("Run robyn_save() first to select and export an initial model")
+        stop("Run robyn_write() first to select and export any Robyn model")
       }
     } else {
       listName <- paste0("listRefresh", refreshCounter - 1)
@@ -257,14 +277,15 @@ robyn_refresh <- function(robyn_object,
       iterations = refresh_iters,
       trials = refresh_trials,
       refresh = TRUE,
-      outputs = TRUE, # this shouldn't be obligatory, but needed for it to work for now
+      outputs = TRUE, # So we end up with OutputCollect instead of OutputModels
+      export = export,
       plot_pareto = plot_pareto,
       ...
     )
 
     ## Select winner model for current refresh
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
-      arrange(desc(.data$error_score), .data$solID) %>%
+      arrange(.data$solID, desc(.data$error_score)) %>%
       select(.data$solID, everything()) %>%
       ungroup()
     bestMod <- OutputCollectRF$resultHypParam$solID[1]
@@ -435,7 +456,11 @@ robyn_refresh <- function(robyn_object,
   message(">> Exporting results: ", robyn_object)
   Robyn <- Robyn[order(names(Robyn))]
   class(Robyn) <- c("robyn_refresh", class(Robyn))
-  saveRDS(Robyn, file = robyn_object)
+  if (is.null(json_file)) {
+    saveRDS(Robyn, file = robyn_object)
+  } else {
+    robyn_write(InputCollectRF, OutputCollectRF, select_model = selectID, ...)
+  }
   return(invisible(Robyn))
 }
 
