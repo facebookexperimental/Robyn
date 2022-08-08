@@ -99,6 +99,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             InputCollect = NULL,
                             OutputCollect = NULL,
                             select_model = NULL,
+                            json_file = NULL,
                             optim_algo = "SLSQP_AUGLAG",
                             scenario = "max_historical_response",
                             expected_spend = NULL,
@@ -111,13 +112,25 @@ robyn_allocator <- function(robyn_object = NULL,
                             date_max = NULL,
                             export = TRUE,
                             quiet = FALSE,
-                            ui = FALSE) {
+                            ui = FALSE,
+                            ...) {
 
   #####################################
   #### Set local environment
 
+  ### Use previously exported model using json_file
+  if (!is.null(json_file)) {
+    if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
+    if (is.null(OutputCollect)) {
+      OutputCollect <- robyn_run(
+        json_file = json_file, plot_folder = robyn_object, ...
+      )
+    }
+    if (is.null(select_model)) select_model <- OutputCollect$selectID
+  }
+
   ## Collect inputs
-  if (!is.null(robyn_object)) {
+  if (!is.null(robyn_object) & (is.null(InputCollect) & is.null(OutputCollect))) {
     if ("robyn_exported" %in% class(robyn_object)) {
       imported <- robyn_object
       robyn_object <- imported$robyn_object

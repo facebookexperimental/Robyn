@@ -80,7 +80,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   if (is.null(plot_folder_sub)) {
     refresh <- attr(OutputModels, "refresh")
     folder_var <- ifelse(!refresh, "init", paste0("rf", InputCollect$refreshCounter))
-    plot_folder_sub <- paste0(format(Sys.time(), "%Y-%m-%d %H.%M"), " ", folder_var)
+    plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
   }
   plotPath <- dir.create(file.path(plot_folder, plot_folder_sub))
 
@@ -97,22 +97,22 @@ robyn_outputs <- function(InputCollect, OutputModels,
     xDecompAgg = filter(pareto_results$xDecompAgg, .data$solID %in% allSolutions),
     mediaVecCollect = pareto_results$mediaVecCollect,
     xDecompVecCollect = pareto_results$xDecompVecCollect,
-    OutputModels = OutputModels,
     allSolutions = allSolutions,
     allPareto = allPareto,
     calibration_constraint = calibration_constraint,
+    OutputModels = OutputModels,
     cores = OutputModels$cores,
     iterations = OutputModels$iterations,
     trials = OutputModels$trials,
     intercept_sign = OutputModels$intercept_sign,
     nevergrad_algo = OutputModels$nevergrad_algo,
     add_penalty_factor = OutputModels$add_penalty_factor,
+    seed = OutputModels$seed,
     UI = NULL,
     pareto_fronts = pareto_fronts,
     hyper_fixed = attr(OutputModels, "hyper_fixed"),
     plot_folder = paste0(plot_folder, "/", plot_folder_sub, "/")
   )
-
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 
   if (export) {
@@ -147,6 +147,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
             export = export
           )
         }
+
+        robyn_write(InputCollect, dir = OutputCollect$plot_folder, quiet = quiet)
 
         # For internal use -> UI Code
         if (ui & plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers

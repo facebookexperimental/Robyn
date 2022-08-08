@@ -25,28 +25,28 @@ robyn_save <- function(InputCollect,
     )))
   }
 
+  # Export as JSON file
+  json <- robyn_write(InputCollect, OutputCollect, select_model)
+
   summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
-    select(variable = .data$rn, .data$coef, decomp = .data$xDecompPerc,
-           .data$total_spend, mean_non0_spend = .data$mean_spend)
+    select(
+      variable = .data$rn, .data$coef, decomp = .data$xDecompPerc,
+      .data$total_spend, mean_non0_spend = .data$mean_spend
+    )
 
-  errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
-    select(.data$rsq_train, .data$nrmse, .data$decomp.rssd, .data$mape)
-
+  # Nice and tidy table format for hyper-parameters
   hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
   regex <- paste(paste0("_", hyps_name), collapse = "|")
-  hyps <- filter(OutputCollect$resultHypParam,.data$solID == select_model) %>%
+  hyps <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
     select(contains(hyps_name)) %>%
     tidyr::gather() %>%
-    tidyr::separate(.data$key, into = c("channel", "none"),
-                    sep = regex, remove = FALSE) %>%
+    tidyr::separate(.data$key,
+      into = c("channel", "none"),
+      sep = regex, remove = FALSE
+    ) %>%
     mutate(hyperparameter = gsub("^.*_", "", .data$key)) %>%
     select(.data$channel, .data$hyperparameter, .data$value) %>%
     tidyr::spread(key = "hyperparameter", value = "value")
-
-  hyper_values <- filter(OutputCollect$resultHypParam,.data$solID == select_model) %>%
-    select(contains(hyps_name), .data$lambda) %>%
-    select(order(colnames(.))) %>%
-    as.list()
 
   values <- OutputCollect[!sapply(OutputCollect, is.list)]
   values <- values[!names(values) %in% c("allSolutions", "hyper_fixed", "plot_folder")]
@@ -55,16 +55,18 @@ robyn_save <- function(InputCollect,
     robyn_object = robyn_object,
     select_model = select_model,
     summary = summary,
-    errors = errors,
+    errors = json$ExportedModel$errors,
     hyper_df = hyps,
-    hyper_values = hyper_values,
+    hyper_values = json$ExportedModel$hyper_values,
     hyper_updated = OutputCollect$hyper_updated,
     window = c(InputCollect$window_start, InputCollect$window_end),
     periods = InputCollect$rollingWindowLength,
     interval = InputCollect$intervalType,
     adstock = InputCollect$adstock,
     plot = robyn_onepagers(InputCollect, OutputCollect,
-                           select_model, quiet = TRUE, export = FALSE)
+      select_model,
+      quiet = TRUE, export = FALSE
+    )
   )
   output <- append(output, values)
   if (InputCollect$dep_var_type == "conversion") {
@@ -121,7 +123,8 @@ print.robyn_save <- function(x, ...) {
     "
   Exported file: {x$robyn_object}
   Exported model: {x$select_model}
-  Window: {x$window[1]} to {x$window[2]} ({x$periods} {x$interval}s)"))
+  Window: {x$window[1]} to {x$window[2]} ({x$periods} {x$interval}s)"
+  ))
 
   print(glued(
     "\n\nModel's Performance and Errors:\n    {errors}",
@@ -130,19 +133,21 @@ print.robyn_save <- function(x, ...) {
       "| NRMSE =", signif(x$errors$nrmse, 4),
       "| DECOMP.RSSD =", signif(x$errors$decomp.rssd, 4),
       "| MAPE =", signif(x$errors$mape, 4)
-    )))
+    )
+  ))
 
   print(glued("\n\nSummary Values on Selected Model:"))
 
   print(x$summary %>%
-          mutate(decomp = formatNum(100 * .data$decomp, pos = "%")) %>%
-          dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
-          replace(., . == "NA", '-'))
+    mutate(decomp = formatNum(100 * .data$decomp, pos = "%")) %>%
+    dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
+    replace(., . == "NA", "-") %>% as.data.frame())
 
   print(glued(
-    "\n\nHyper-parameters for channel transformations:\n    Adstock: {x$adstock}"))
+    "\n\nHyper-parameters for channel transformations:\n    Adstock: {x$adstock}"
+  ))
 
-  print(x$hyper_df)
+  print(as.data.frame(x$hyper_df))
 }
 
 #' @rdname robyn_save

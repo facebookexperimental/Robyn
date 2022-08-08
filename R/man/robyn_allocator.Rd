@@ -12,6 +12,7 @@ robyn_allocator(
   InputCollect = NULL,
   OutputCollect = NULL,
   select_model = NULL,
+  json_file = NULL,
   optim_algo = "SLSQP_AUGLAG",
   scenario = "max_historical_response",
   expected_spend = NULL,
@@ -24,7 +25,8 @@ robyn_allocator(
   date_max = NULL,
   export = TRUE,
   quiet = FALSE,
-  ui = FALSE
+  ui = FALSE,
+  ...
 )
 
 \method{print}{robyn_allocator}(x, ...)
@@ -49,6 +51,9 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{robyn_object} is not provided, \code{select_model} must be provided with
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
+
+\item{json_file}{Character. JSON file to import previously exported inputs
+(needs \code{dt_input} and \code{dt_holidays} parameters too).}
 
 \item{optim_algo}{Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
 Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
@@ -92,9 +97,9 @@ Length must be 1 for both parameters.}
 
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 
-\item{x}{\code{robyn_allocator()} output.}
-
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
+
+\item{x}{\code{robyn_allocator()} output.}
 }
 \value{
 A list object containing allocator result.

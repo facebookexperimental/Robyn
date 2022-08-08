@@ -267,7 +267,7 @@ print(InputCollect)
 # )
 
 # #### Experimental 3.7.1: JSON export and import
-# robyn_json(InputCollect, dir = "~/Desktop")
+# robyn_write(InputCollect, dir = "~/Desktop")
 # InputCollect <- robyn_inputs(
 #   dt_input = dt_simulated_weekly,
 #   dt_holidays = dt_prophet_holidays,
@@ -304,25 +304,6 @@ OutputCollect <- robyn_outputs(
 )
 print(OutputCollect)
 
-## Run & output in one go
-# OutputCollect <- robyn_run(
-#   InputCollect = InputCollect
-#   #, cores = NULL
-#   , iterations = 200
-#   , trials = 2
-#   #, add_penalty_factor = FALSE
-#   , outputs = TRUE
-#   , pareto_fronts = 3
-#   , csv_out = "pareto"
-#   , clusters = TRUE
-#   , plot_pareto = TRUE
-#   , plot_folder = robyn_object
-# )
-# convergence <- robyn_converge(OutputModels)
-# convergence$moo_distrb_plot
-# convergence$moo_cloud_plot
-# print(OutputCollect)
-
 ## 4 csv files are exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
 # pareto_hyperparameters.csv, hyperparameters per Pareto output model
@@ -336,6 +317,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
+
 select_model <- "1_26_16" # select one from above
 ExportedModel <- robyn_save(
   robyn_object = robyn_object, # model object location and name
@@ -346,8 +328,9 @@ ExportedModel <- robyn_save(
 print(ExportedModel)
 # plot(ExportedModel)
 
-#### Experimental 3.7.1: JSON export and import
-# robyn_json(InputCollect, OutputCollect, select_model, dir = "~/Desktop")
+#### Since 3.7.1: JSON export and import (faster and lighter)
+ExportedModelJSON <- robyn_write(InputCollect, OutputCollect, select_model)
+print(ExportedModelJSON)
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -536,32 +519,26 @@ response_sending$response / sendings * 1000
 response_sending$plot
 
 ################################################################
-#### Optional: get old model results
+#### Optional: recreate old models and replicate results
 
-# #### Experimental 3.7.1: JSON export and import
-# OutputCollectFixed <- robyn_run(
-#   dt_input = dt_simulated_weekly,
-#   dt_holidays = dt_prophet_holidays,
-#   json_file = "~/Desktop/RobynModel-1_26_16.json",
-#   plot_folder = robyn_object)
+# From an exported JSON file (which is created automatically when exporting a model)
+# we can re-create a previously trained model and outputs. Note: we need to provide
+# the original and the holidays dataset, which are NOT stored in the JSON file.
+# Manually created: robyn_write(InputCollect, OutputCollect, select_model)
+json_file <- "~/Desktop/Robyn_202208080929_init/RobynModel-1_26_16.json"
+# json_data <- robyn_read(json_file) # Manual check on data stored
 
-# Get old hyperparameters and select model
-dt_hyper_fixed <- read.csv("~/Desktop/2022-07-29 15.17 init/pareto_hyperparameters.csv")
-select_model <- "1_29_11"
-dt_hyper_fixed <- dt_hyper_fixed[dt_hyper_fixed$solID == select_model, ]
+InputCollectX <- robyn_inputs(
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
+  json_file = json_file)
 
-OutputCollectFixed <- robyn_run(
-  # InputCollect must be provided by robyn_inputs with same dataset and parameters as before
-  InputCollect = InputCollect,
-  plot_folder = robyn_object,
-  dt_hyper_fixed = dt_hyper_fixed
-)
+OutputCollectX <- robyn_run(
+  InputCollect = InputCollectX,
+  json_file = json_file,
+  export = FALSE)
 
-# Save Robyn object for further refresh
-ExportedModel <- robyn_save(
-  robyn_object = robyn_object,
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollectFixed
-)
-print(ExportedModel)
-# plot(ExportedModel)
+myModel <- robyn_write(InputCollectX, OutputCollectX)
+print(myModel)
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX)
+myModelPlot

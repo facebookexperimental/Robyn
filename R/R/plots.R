@@ -145,11 +145,13 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
           pf_color <- "coral"
         }
         temp <- resultHypParam[resultHypParam$robynPareto %in% pfs, ]
-        if (nrow(temp) > 1) pParFront <- pParFront + geom_line(
-          data = temp,
-          aes(x = .data$nrmse, y = .data$decomp.rssd),
-          colour = pf_color
-        )
+        if (nrow(temp) > 1) {
+          pParFront <- pParFront + geom_line(
+            data = temp,
+            aes(x = .data$nrmse, y = .data$decomp.rssd),
+            colour = pf_color
+          )
+        }
       }
       all_plots[["pParFront"]] <- pParFront
       if (export) {
@@ -475,9 +477,11 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
       pg <- wrap_plots(p2, p5, p1, p4, p3, p6, ncol = 2) +
-        plot_annotation(title = onepagerTitle, subtitle = errors,
-                        theme = theme_lares(background = "white"),
-                        caption = onepagerCaption)
+        plot_annotation(
+          title = onepagerTitle, subtitle = errors,
+          theme = theme_lares(background = "white"),
+          caption = onepagerCaption
+        )
       all_plots[[sid]] <- pg
 
       if (export) {

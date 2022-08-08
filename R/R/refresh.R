@@ -206,8 +206,10 @@ robyn_refresh <- function(robyn_object,
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
         InputCollectRF$dayInterval / refresh_steps)
-      message(sprintf(">>> Building refresh model #%s in %s mode. %s more to go...",
-                      refreshCounter, refresh_mode, refreshLooper))
+      message(sprintf(
+        ">>> Building refresh model #%s in %s mode. %s more to go...",
+        refreshCounter, refresh_mode, refreshLooper
+      ))
     }
 
     #### Update refresh model parameters
@@ -360,7 +362,8 @@ robyn_refresh <- function(robyn_object,
       bind_rows(
         filter(
           mutate(OutputCollectRF$mediaVecCollect,
-                 ds = as.Date(.data$ds, origin = "1970-01-01")),
+            ds = as.Date(.data$ds, origin = "1970-01-01")
+          ),
           .data$bestModRF == TRUE,
           .data$ds >= InputCollectRF$refreshAddedStart,
           .data$ds <= refreshEnd
@@ -373,7 +376,8 @@ robyn_refresh <- function(robyn_object,
       bind_rows(
         filter(
           mutate(OutputCollectRF$xDecompVecCollect,
-                 ds = as.Date(.data$ds, origin = "1970-01-01")),
+            ds = as.Date(.data$ds, origin = "1970-01-01")
+          ),
           .data$bestModRF == TRUE,
           .data$ds >= InputCollectRF$refreshAddedStart,
           .data$ds <= refreshEnd

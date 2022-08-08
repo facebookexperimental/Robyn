@@ -72,7 +72,7 @@ robyn_run <- function(InputCollect = NULL,
   # InputCollect <- robyn_inputs(json_file = json_file, dt_input = dt_input, dt_holidays = dt_holidays)
   if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
   if (!is.null(json_file)) {
-    json <- check_json_file(json_file, step = 2, quiet = TRUE)
+    json <- robyn_read(json_file, step = 2, quiet = TRUE)
     dt_hyper_fixed <- json$ExportedModel$hyper_values
     for (i in 1:length(json$ExportedModel)) {
       assign(names(json$ExportedModel)[i], json$ExportedModel[[i]])
@@ -110,7 +110,8 @@ robyn_run <- function(InputCollect = NULL,
   hyper_collect <- hyper_collector(
     InputCollect,
     hyper_in = InputCollect$hyperparameters,
-    add_penalty_factor, dt_hyper_fixed, cores)
+    add_penalty_factor, dt_hyper_fixed, cores
+  )
   InputCollect$hyper_updated <- hyper_collect$hyper_list_all
 
   #####################################
@@ -269,7 +270,6 @@ robyn_train <- function(InputCollect, hyper_collect,
         by = "iterPar"
       )
     }
-
   } else {
 
     ## Run robyn_mmm on set_trials if hyperparameters are not all fixed

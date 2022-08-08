@@ -174,7 +174,7 @@ robyn_inputs <- function(dt_input = NULL,
 
   ### Use case 3: running robyn_inputs() with json_file
   if (!is.null(json_file)) {
-    json <- check_json_file(json_file, step = 1)
+    json <- robyn_read(json_file, step = 1)
     if (is.null(dt_input) | is.null(dt_holidays)) stop("Provide 'dt_input' and 'dt_holidays'")
     for (i in 1:length(json$InputCollect)) {
       assign(names(json$InputCollect)[i], json$InputCollect[[i]])
@@ -535,7 +535,8 @@ hyper_limits <- function() {
 # impressions for Facebook variables.
 #
 # @rdname robyn_inputs
-robyn_engineering <- function(x, ...) {
+robyn_engineering <- function(x, quiet = FALSE, ...) {
+  if (!quiet) message(">> Running feature engineering...")
   InputCollect <- x
   check_InputCollect(InputCollect)
   dt_input <- InputCollect$dt_input
