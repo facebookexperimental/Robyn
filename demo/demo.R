@@ -71,7 +71,7 @@ head(dt_prophet_holidays)
 # Directory where you want to export results to (will create new folders)
 robyn_object <- "~/Desktop"
 
-# ## DEPRECATED: It must have extension .RDS. The object name can be different than Robyn:
+### DEPRECATED: It must have extension .RDS. The object name can be different than Robyn:
 # robyn_object <- "~/Desktop/MyRobyn.RDS"
 
 ################################################################
@@ -427,15 +427,15 @@ if (TRUE) {
 json_file <- "~/Desktop/Robyn_202208081444_init/RobynModel-1_55_4.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
-  dt_input = InputCollect$dt_input,
-  dt_holidays = InputCollect$dt_holidays,
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
 
-# ##### DEPRECATED (before 3.7.1)
+###### DEPRECATED (<3.7.1)
 # # Run ?robyn_refresh to check parameter definition
 # Robyn <- robyn_refresh(
 #   robyn_object = robyn_object,
@@ -452,15 +452,6 @@ RobynRefresh <- robyn_refresh(
 # report_aggregated.csv, aggregated decomposition per independent variable
 # report_media_transform_matrix.csv, all media transformation vectors
 # report_alldecomp_matrix.csv,all decomposition vectors of independent variables
-
-# Export the refreshed model you wish to export (1 es the original, 2 the first refresh, ...)
-last_refresh_num <- sum(grepl("listRefresh", names(Robyn))) + 1 # last one?
-ExportedRefreshModel <- robyn_save(
-  robyn_object = robyn_object,
-  select_model = Robyn$refresh$selectIDs[last_refresh_num],
-  InputCollect = Robyn[[last_refresh_num]]$InputCollect,
-  OutputCollect = Robyn[[last_refresh_num]]$OutputCollect
-)
 
 ################################################################
 #### Step 7: Get budget allocation recommendation based on selected refresh runs
@@ -567,8 +558,8 @@ RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = InputCollectX$dt_input,
   dt_holidays = InputCollectX$dt_holidays,
-  refresh_steps = 7,
+  refresh_steps = 10,
   refresh_mode = "manual",
-  refresh_iters = 100,
+  refresh_iters = 500,
   refresh_trials = 1
 )
