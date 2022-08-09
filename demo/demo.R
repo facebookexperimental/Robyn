@@ -535,25 +535,45 @@ response_sending$plot
 # we can re-create a previously trained model and outputs. Note: we need to provide
 # the main dataset and the holidays dataset, which are NOT stored in the JSON file.
 # These JSON files will be automatically created in most cases.
-# Manually created JSON file: robyn_write(InputCollect, OutputCollect, select_model)
-json_file <- "~/Desktop/Robyn_202208081321_init/RobynModel-1_6_1.json"
-# json_data <- robyn_read(json_file) # Manual check on data stored
 
+############ WRITE ############
+# Manually create JSON file with inputs data only
+robyn_write(InputCollect, dir = "~/Desktop")
+
+# Manually create JSON file with inputs and specific model results
+robyn_write(InputCollect, OutputCollect, select_model)
+
+
+############ READ ############
+# Recreate `InputCollect` and `OutputCollect` objects
+# Pick any exported model (initial or refreshed)
+json_file <- "~/Desktop/Robyn_202208081321_init/RobynModel-1_6_1.json"
+
+# Optional: Manually read and check data stored in file
+json_data <- robyn_read(json_file)
+print(json_data)
+
+# Re-create InputCollect
 InputCollectX <- robyn_inputs(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   json_file = json_file)
 
+# Re-create OutputCollect
 OutputCollectX <- robyn_run(
   InputCollect = InputCollectX,
   json_file = json_file,
   export = FALSE)
 
+# Re-export model and check summary
 myModel <- robyn_write(InputCollectX, OutputCollectX)
 print(myModel)
+
+# Re-create one-pager
 myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX)
 myModelPlot
 
+# Refresh any imported model
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = InputCollectX$dt_input,

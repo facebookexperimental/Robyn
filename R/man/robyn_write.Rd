@@ -4,6 +4,7 @@
 \alias{robyn_write}
 \alias{print.robyn_write}
 \alias{robyn_read}
+\alias{print.robyn_read}
 \title{Import and Export Robyn JSON files}
 \usage{
 robyn_write(
@@ -17,6 +18,8 @@ robyn_write(
 \method{print}{robyn_write}(x, ...)
 
 robyn_read(json_file = NULL, step = 1, quiet = FALSE)
+
+\method{print}{robyn_read}(x, ...)
 }
 \arguments{
 \item{InputCollect}{\code{robyn_run()} outcomes.}
@@ -30,7 +33,7 @@ want to export into a JSON file?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{x}{\code{robyn_write()} output.}
+\item{x}{\code{robyn_read()} output.}
 
 \item{...}{Additional parameters passed to \code{robyn_clusters()}}
 

@@ -88,10 +88,10 @@ robyn_write <- function(InputCollect,
 #' @export
 print.robyn_write <- function(x, ...) {
   print(glued(
-    "
-  Exported directory: {x$ExportedModel$plot_folder}
-  Exported model: {x$ExportedModel$select_model}
-  Window: {start} to {end} ({periods} {type}s)",
+    "\n
+   Exported directory: {x$ExportedModel$plot_folder}
+   Exported model: {x$ExportedModel$select_model}
+   Window: {start} to {end} ({periods} {type}s)",
     start = x$InputCollect$window_start,
     end = x$InputCollect$window_end,
     periods = x$InputCollect$rollingWindowLength,
@@ -158,6 +158,58 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE) {
       stop("JSON file must contain ExportedModel element")
     }
     if (!quiet) message("Imported JSON file succesfully: ", json_file)
+    class(json) <- c("robyn_read", class(json))
     return(json)
   }
+}
+
+#' @rdname robyn_write
+#' @aliases robyn_write
+#' @param x \code{robyn_read()} output.
+#' @export
+print.robyn_read <- function(x, ...) {
+  a <- x$InputCollect
+  print(glued(
+    "
+############ InputCollect ############
+
+Date: {a$date_var}
+Dependent: {a$dep_var} [{a$dep_var_type}]
+Paid Media: {paste(a$paid_media_vars, collapse = ', ')}
+Paid Media Spend: {paste(a$paid_media_spends, collapse = ', ')}
+Context: {paste(a$context_vars, collapse = ', ')}
+Organic: {paste(a$organic_vars, collapse = ', ')}
+Prophet (Auto-generated): {prophet}
+Unused variables: {unused}
+Model Window: {windows} ({a$rollingWindowEndWhich - a$rollingWindowStartWhich + 1} {a$intervalType}s)
+With Calibration: {!is.null(a$calibration_input)}
+Custom parameters: {custom_params}
+
+Adstock: {a$adstock}
+{hyps}
+",
+    windows = paste(a$window_start, a$window_end, sep = ":"),
+    custom_params = if (length(a$custom_params) > 0) paste("\n", flatten_hyps(a$custom_params)) else "None",
+    prophet = if (!is.null(a$prophet_vars)) {
+      sprintf("%s on %s", paste(a$prophet_vars, collapse = ", "), a$prophet_country)
+    } else {
+      "\033[0;31mDeactivated\033[0m"
+    },
+    unused = if (length(a$unused_vars) > 0) {
+      paste(a$unused_vars, collapse = ", ")
+    } else {
+      "None"
+    },
+    hyps = glued(
+      "Hyper-parameters for channel transformations:\n{flatten_hyps(a$hyperparameters)}"
+    )
+  ))
+
+  if (!is.null(x$ExportedModel)) {
+    temp <- x
+    class(temp) <- "robyn_write"
+    print(glued("\n\n############ Exported Model ############"))
+    print(temp)
+  }
+  return(invisible(x))
 }
