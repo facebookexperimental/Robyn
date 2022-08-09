@@ -10,7 +10,8 @@
 #' outcomes on \code{robyn_run()} results. When \code{UI=TRUE}, enriched
 #' \code{OutputModels} results with additional plots and objects.
 #'
-#' @param InputCollect,OutputModels \code{robyn_run()} outcomes.
+#' @param InputCollect,OutputModels \code{robyn_inputs()} and \code{robyn_run()}
+#' outcomes.
 #' @param pareto_fronts Integer. Number of Pareto fronts for the output.
 #' \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
 #' \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.

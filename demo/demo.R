@@ -320,7 +320,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_55_4" # select one from above
+select_model <- "1_57_16" # select one from above
 
 #### Since 3.7.1: JSON export and import (faster and lighter)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -389,7 +389,7 @@ select_media <- "search_S"
 # For paid_media_spends set metric_value as your optimal spend
 metric_value <- AllocatorCollect1$dt_optimOut$optmSpendUnit[
   AllocatorCollect1$dt_optimOut$channels == select_media
-]
+]; metric_value
 # # For paid_media_vars and organic_vars, manually pick a value
 # metric_value <- 10000
 
@@ -423,8 +423,8 @@ if (TRUE) {
 ## it might be better to rebuild the model
 ## 2, new variables are added
 
-# Provide a JSON file with your InputCollect and ExportedModel specifications
-json_file <- "~/Desktop/Robyn_202208081444_init/RobynModel-1_55_4.json"
+# Provide JSON file with your InputCollect and ExportedModel specifications
+json_file <- "~/Desktop/Robyn_202208091323_init/RobynModel-1_57_16.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,

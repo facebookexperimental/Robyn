@@ -22,20 +22,20 @@ robyn_read(json_file = NULL, step = 1, quiet = FALSE)
 \method{print}{robyn_read}(x, ...)
 }
 \arguments{
-\item{InputCollect}{\code{robyn_run()} outcomes.}
+\item{InputCollect}{\code{robyn_inputs()} output.}
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
-\item{select_model}{Character. Which model (by \code{solID}) do you
-want to export into a JSON file?}
+\item{select_model}{Character. Which model ID do you want to export
+into the JSON file?}
 
 \item{dir}{Character. Existing directory to export JSON file to.}
 
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{x}{\code{robyn_read()} output.}
+\item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
 
-\item{...}{Additional parameters passed to \code{robyn_clusters()}}
+\item{...}{Additional parameters passed to plot methods.}
 
 \item{json_file}{Character. JSON file name to read and import as list.}
 

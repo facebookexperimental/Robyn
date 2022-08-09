@@ -10,9 +10,11 @@
 #' required to replicate a single Robyn model.
 #'
 #' @inheritParams robyn_outputs
-#' @param select_model Character. Which model (by \code{solID}) do you
-#' want to export into a JSON file?
+#' @param InputCollect \code{robyn_inputs()} output.
+#' @param select_model Character. Which model ID do you want to export
+#' into the JSON file?
 #' @param dir Character. Existing directory to export JSON file to.
+#' @param ... Additional parameters passed to plot methods.
 #' @examples
 #' \dontrun{
 #' InputCollectJSON <- robyn_inputs(
@@ -84,11 +86,11 @@ robyn_write <- function(InputCollect,
 
 #' @rdname robyn_write
 #' @aliases robyn_write
-#' @param x \code{robyn_write()} output.
+#' @param x \code{robyn_read()} or \code{robyn_write()} output.
 #' @export
 print.robyn_write <- function(x, ...) {
   print(glued(
-    "\n
+    "
    Exported directory: {x$ExportedModel$plot_folder}
    Exported model: {x$ExportedModel$select_model}
    Window: {start} to {end} ({periods} {type}s)",
@@ -165,7 +167,6 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE) {
 
 #' @rdname robyn_write
 #' @aliases robyn_write
-#' @param x \code{robyn_read()} output.
 #' @export
 print.robyn_read <- function(x, ...) {
   a <- x$InputCollect
@@ -208,7 +209,7 @@ Adstock: {a$adstock}
   if (!is.null(x$ExportedModel)) {
     temp <- x
     class(temp) <- "robyn_write"
-    print(glued("\n\n############ Exported Model ############"))
+    print(glued("\n\n############ Exported Model ############\n"))
     print(temp)
   }
   return(invisible(x))

@@ -125,6 +125,7 @@ robyn_refresh <- function(json_file = NULL,
         dt_holidays = dt_holidays,
         json_file = json_file, quiet = TRUE, ...)
       InputCollect$refreshDepth <- stringr::str_count(json$ExportedModel$plot_folder, "_rf") + 1
+      InputCollect$refreshSourceID <- json$ExportedModel$select_model
       OutputCollect = robyn_run(
         InputCollect = InputCollect,
         json_file = json_file,

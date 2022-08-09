@@ -13,7 +13,8 @@ robyn_onepagers(
 )
 }
 \arguments{
-\item{InputCollect}{\code{robyn_run()} outcomes.}
+\item{InputCollect}{\code{robyn_inputs()} and \code{robyn_run()}
+outcomes.}
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
