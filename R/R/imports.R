@@ -41,7 +41,7 @@
 #' @importFrom rPref low psel
 #' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control median sd
 #' predict pweibull dweibull quantile qunif reorder start setNames
-#' @importFrom stringr str_detect str_remove str_which str_extract str_replace
+#' @importFrom stringr str_count str_detect str_remove str_which str_extract str_replace
 #' @importFrom tidyr pivot_longer pivot_wider
 #' @importFrom utils askYesNo flush.console head setTxtProgressBar tail txtProgressBar write.csv
 "_PACKAGE"

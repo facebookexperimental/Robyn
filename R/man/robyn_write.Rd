@@ -22,7 +22,7 @@ robyn_read(json_file = NULL, step = 1, quiet = FALSE)
 
 \method{print}{robyn_read}(x, ...)
 
-robyn_recreate(json_file, ...)
+robyn_recreate(json_file, quiet = FALSE, ...)
 }
 \arguments{
 \item{InputCollect}{\code{robyn_inputs()} output.}

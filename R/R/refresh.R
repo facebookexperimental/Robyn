@@ -119,20 +119,17 @@ robyn_refresh <- function(json_file = NULL,
     if (!is.null(json_file)) {
       Robyn <- list()
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
-      message(">>> Recreating model ", json$ExportedModel$select_model)
-      InputCollect = robyn_inputs(
+      listInit <- robyn_recreate(
+        json_file = json_file,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
-        json_file = json_file, quiet = TRUE, ...)
-      InputCollect$refreshDepth <- stringr::str_count(json$ExportedModel$plot_folder, "_rf") + 1
-      InputCollect$refreshSourceID <- json$ExportedModel$select_model
-      OutputCollect = robyn_run(
-        InputCollect = InputCollect,
-        json_file = json_file,
-        export = FALSE, quiet = TRUE, ...)
-      Robyn[["listInit"]] <- list(InputCollect = InputCollect, OutputCollect = OutputCollect)
-      Robyn[["listInit"]]$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
-      objectPath <- gsub("//", "/", json$ExportedModel$plot_folder)
+        quiet = FALSE, ...)
+      listInit$InputCollect$refreshDepth <- str_count(json$ExportedModel$plot_folder, "_rf/") + 1
+      listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
+      listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
+      Robyn[["listInit"]] <- listInit
+      objectPath <- json$ExportedModel$plot_folder
+      # refreshDepth <- json$InputCollect$refreshDepth
       refreshCounter <- 1
     }
     if (!is.null(robyn_object)) {

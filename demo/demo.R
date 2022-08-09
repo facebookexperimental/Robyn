@@ -429,7 +429,7 @@ RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
-  refresh_steps = 4,
+  refresh_steps = 13,
   refresh_mode = "manual",
   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1

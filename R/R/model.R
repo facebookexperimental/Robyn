@@ -159,7 +159,7 @@ robyn_run <- function(InputCollect = NULL,
 
   # Report total timing
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
-  if (!quiet) message(paste("Total run time:", attr(output, "runTime"), "mins"))
+  if (!quiet & iterations > 1) message(paste("Total run time:", attr(output, "runTime"), "mins"))
 
   class(output) <- unique(c("robyn_models", class(output)))
   return(output)

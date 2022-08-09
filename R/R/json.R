@@ -218,16 +218,45 @@ Adstock: {a$adstock}
 #' @rdname robyn_write
 #' @aliases robyn_write
 #' @export
-robyn_recreate <- function(json_file, ...) {
+robyn_recreate <- function(json_file, quiet = FALSE, ...) {
+  json <- robyn_read(json_file, quiet = TRUE)
+  message(">>> Recreating model ", json$ExportedModel$select_model)
   InputCollect <- robyn_inputs(
     json_file = json_file,
+    quiet = quiet,
     ...)
   OutputCollect <- robyn_run(
     InputCollect = InputCollect,
     json_file = json_file,
     export = FALSE,
+    quiet = quiet,
     ...)
   return(invisible(list(
     InputCollect = InputCollect,
     OutputCollect = OutputCollect)))
+}
+
+# Import the whole chain any refresh model to init
+robyn_chain <- function(json_file) {
+  json_data <- robyn_read(json_file, quiet = TRUE)
+  plot_folder <- json_data$ExportedModel$plot_folder
+  temp <- stringr::str_split(plot_folder, "/")[[1]]
+  chain <- temp[startsWith(temp, "Robyn_")]
+  base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
+  chainData <- list()
+  for (i in rev(seq_along(chain))) {
+    if (i == length(chain)) {
+      json_new <- json_data
+    } else {
+      file <- paste0("RobynModel-", json_new$InputCollect$refreshSourceID, ".json")
+      filename <- paste(c(base_dir, chain[1:i], file), collapse = "/")
+      json_new <- robyn_read(filename, quiet = TRUE)
+    }
+    chainData[[json_new$ExportedModel$select_model]] <- json_new
+  }
+  chainData <- chainData[rev(seq_along(chain))]
+  dirs <- sapply(chainData, function(x) x$ExportedModel$plot_folder)
+  json_files <- paste0(dirs, "RobynModel-", names(dirs), ".json")
+  attr(chainData, "json_files") <- json_files
+  return(invisible(chainData))
 }
