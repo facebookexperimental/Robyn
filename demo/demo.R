@@ -565,6 +565,13 @@ OutputCollectX <- robyn_run(
   json_file = json_file,
   export = FALSE)
 
+# Or re-create both by simply using robyn_recreate()
+RobynRecreated <- robyn_recreate(
+  json_file = json_file,
+  dt_input = dt_input,
+  dt_holidays = dt_holidays,
+  quiet = FALSE)
+
 # Re-export model and check summary
 myModel <- robyn_write(InputCollectX, OutputCollectX)
 print(myModel)

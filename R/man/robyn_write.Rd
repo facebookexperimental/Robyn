@@ -5,6 +5,7 @@
 \alias{print.robyn_write}
 \alias{robyn_read}
 \alias{print.robyn_read}
+\alias{robyn_recreate}
 \title{Import and Export Robyn JSON files}
 \usage{
 robyn_write(
@@ -20,6 +21,8 @@ robyn_write(
 robyn_read(json_file = NULL, step = 1, quiet = FALSE)
 
 \method{print}{robyn_read}(x, ...)
+
+robyn_recreate(json_file, ...)
 }
 \arguments{
 \item{InputCollect}{\code{robyn_inputs()} output.}
@@ -35,7 +38,7 @@ into the JSON file?}
 
 \item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
 
-\item{...}{Additional parameters passed to plot methods.}
+\item{...}{Additional parameters.}
 
 \item{json_file}{Character. JSON file name to read and import as list.}
 

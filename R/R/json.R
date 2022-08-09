@@ -14,7 +14,7 @@
 #' @param select_model Character. Which model ID do you want to export
 #' into the JSON file?
 #' @param dir Character. Existing directory to export JSON file to.
-#' @param ... Additional parameters passed to plot methods.
+#' @param ... Additional parameters.
 #' @examples
 #' \dontrun{
 #' InputCollectJSON <- robyn_inputs(
@@ -213,4 +213,21 @@ Adstock: {a$adstock}
     print(temp)
   }
   return(invisible(x))
+}
+
+#' @rdname robyn_write
+#' @aliases robyn_write
+#' @export
+robyn_recreate <- function(json_file, ...) {
+  InputCollect <- robyn_inputs(
+    json_file = json_file,
+    ...)
+  OutputCollect <- robyn_run(
+    InputCollect = InputCollect,
+    json_file = json_file,
+    export = FALSE,
+    ...)
+  return(invisible(list(
+    InputCollect = InputCollect,
+    OutputCollect = OutputCollect)))
 }
