@@ -7,11 +7,11 @@
 \title{Build Refresh Model}
 \usage{
 robyn_refresh(
+  json_file = NULL,
   robyn_object = NULL,
   dt_input = NULL,
   dt_holidays = NULL,
   plot_folder_sub = NULL,
-  json_file = NULL,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000,
@@ -28,6 +28,9 @@ robyn_refresh(
 \method{plot}{robyn_refresh}(x, ...)
 }
 \arguments{
+\item{json_file}{Character. JSON file to import previously exported inputs
+(needs \code{dt_input} and \code{dt_holidays} parameters too).}
+
 \item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information or the imported list.}
 
@@ -40,9 +43,6 @@ Prophet holidays using \code{data("dt_prophet_holidays")}.}
 \item{plot_folder_sub}{Character. Customize sub path to save plots. The total
 path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
 For example, plot_folder_sub = "sub_dir".}
-
-\item{json_file}{Character. JSON file to import previously exported inputs
-(needs \code{dt_input} and \code{dt_holidays} parameters too).}
 
 \item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data
@@ -116,16 +116,15 @@ we want to start using on new refresh model.
 }
 \examples{
 \dontrun{
-# Set the (pre-trained and exported) Robyn object path
-robyn_object <- "~/Desktop/Robyn.RDS"
-# Load dummy data
+# Loading dummy data
 data("dt_simulated_weekly")
-# Load holidays data
 data("dt_prophet_holidays")
+# Set the (pre-trained and exported) Robyn model JSON file
+json_file <- "~/Robyn_202208081444_init/RobynModel-2_55_4.json
 
-# Run \code{robyn_refresh()} with 13 weeks cadance in auto mode
+# Run \code{robyn_refresh()} with 13 weeks cadence in auto mode
 Robyn <- robyn_refresh(
-  robyn_object = robyn_object,
+  json_file = json_file,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 13,
@@ -134,9 +133,10 @@ Robyn <- robyn_refresh(
   refresh_trials = 5
 )
 
-# Run \code{robyn_refresh()} with 4 weeks cadance in manual mode
+# Run \code{robyn_refresh()} with 4 weeks cadence in manual mode
+json_file2 <- "~/Robyn_202208081444_init/Robyn_202208090847_rf/RobynModel-1_2_3.json
 Robyn <- robyn_refresh(
-  robyn_object = robyn_object,
+  json_file = json_file2,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 4,

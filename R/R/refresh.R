@@ -63,16 +63,15 @@
 #' @return List. The Robyn object, class \code{robyn_refresh}.
 #' @examples
 #' \dontrun{
-#' # Set the (pre-trained and exported) Robyn object path
-#' robyn_object <- "~/Desktop/Robyn.RDS"
-#' # Load dummy data
+#' # Loading dummy data
 #' data("dt_simulated_weekly")
-#' # Load holidays data
 #' data("dt_prophet_holidays")
+#' # Set the (pre-trained and exported) Robyn model JSON file
+#' json_file <- "~/Robyn_202208081444_init/RobynModel-2_55_4.json
 #'
-#' # Run \code{robyn_refresh()} with 13 weeks cadance in auto mode
+#' # Run \code{robyn_refresh()} with 13 weeks cadence in auto mode
 #' Robyn <- robyn_refresh(
-#'   robyn_object = robyn_object,
+#'   json_file = json_file,
 #'   dt_input = dt_simulated_weekly,
 #'   dt_holidays = dt_prophet_holidays,
 #'   refresh_steps = 13,
@@ -81,9 +80,10 @@
 #'   refresh_trials = 5
 #' )
 #'
-#' # Run \code{robyn_refresh()} with 4 weeks cadance in manual mode
+#' # Run \code{robyn_refresh()} with 4 weeks cadence in manual mode
+#' json_file2 <- "~/Robyn_202208081444_init/Robyn_202208090847_rf/RobynModel-1_2_3.json
 #' Robyn <- robyn_refresh(
-#'   robyn_object = robyn_object,
+#'   json_file = json_file2,
 #'   dt_input = dt_simulated_weekly,
 #'   dt_holidays = dt_prophet_holidays,
 #'   refresh_steps = 4,
@@ -94,11 +94,11 @@
 #' }
 #' @return List. Same as \code{robyn_run()} but with refreshed models.
 #' @export
-robyn_refresh <- function(robyn_object = NULL,
+robyn_refresh <- function(json_file = NULL,
+                          robyn_object = NULL,
                           dt_input = NULL,
                           dt_holidays = NULL,
                           plot_folder_sub = NULL,
-                          json_file = NULL,
                           refresh_steps = 4,
                           refresh_mode = "manual",
                           refresh_iters = 1000,
@@ -119,7 +119,7 @@ robyn_refresh <- function(robyn_object = NULL,
     if (!is.null(json_file)) {
       Robyn <- list()
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
-      message(">> Recreating model ", json$ExportedModel$select_model)
+      message(">>> Recreating model ", json$ExportedModel$select_model)
       InputCollect = robyn_inputs(
         dt_input = dt_input,
         dt_holidays = dt_holidays,
