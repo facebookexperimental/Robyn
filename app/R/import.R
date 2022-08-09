@@ -4,10 +4,10 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Robyn App
+#' Robyn Learn
 #'
 #' @md
-#' @name RobynApp
+#' @name RobynLearn
 #' @docType package
 #' @importFrom corrr correlate focus
 #' @importFrom dplyr across any_of all_of arrange as_tibble bind_rows contains count desc

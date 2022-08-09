@@ -35,7 +35,7 @@ ui <- function() {
             align = "center",
             width = 12,
             headerPanel(
-              h3("Welcome to Robyn Learn - An Open-Source Marketing Mix Model Development UI where our goal is to democratize access to MMM and encouraging good marketing practices through data and science",
+              h3("Welcome to Robyn Learn - An Educational Open-Source Marketing Mix Model Development UI where our goal is to democratize access to MMM and encouraging good marketing practices through data and science",
                 style = "font-weight: 500; line-height: 1.1;
                   color:blue;"
               )

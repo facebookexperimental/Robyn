@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Robyn's Educational UI (RobynApp)
+#' Robyn's Educational UI (RobynLearn)
 #'
 #' Using Shiny on top of Robyn users are enabled to both learn Robyn
 #' in a more efficient way, as well as develop end-to-end preliminary
