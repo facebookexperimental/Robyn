@@ -258,5 +258,6 @@ robyn_chain <- function(json_file) {
   dirs <- sapply(chainData, function(x) x$ExportedModel$plot_folder)
   json_files <- paste0(dirs, "RobynModel-", names(dirs), ".json")
   attr(chainData, "json_files") <- json_files
+  attr(chainData, "chain") <- names(chainData)
   return(invisible(chainData))
 }

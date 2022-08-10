@@ -126,6 +126,8 @@ robyn_refresh <- function(json_file = NULL,
         quiet = FALSE, ...)
       listInit$InputCollect$refreshDepth <- str_count(json$ExportedModel$plot_folder, "_rf/") + 1
       listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
+      chainData <- robyn_chain(json_file)
+      listInit$InputCollect$refreshChain <- attr(chainData, "chain")
       listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
       Robyn[["listInit"]] <- listInit
       objectPath <- json$ExportedModel$plot_folder
