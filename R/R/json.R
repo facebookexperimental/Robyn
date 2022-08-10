@@ -153,24 +153,27 @@ print.robyn_write <- function(x, ...) {
 #' @export
 robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE) {
   if (!is.null(json_file)) {
-    if (lares::right(tolower(json_file), 4) != "json") {
-      stop("JSON file must be a valid .json file")
+    if (inherits(json_file, "character")) {
+      if (lares::right(tolower(json_file), 4) != "json") {
+        stop("JSON file must be a valid .json file")
+      }
+      if (!file.exists(json_file)) {
+        stop("JSON file can't be imported: ", json_file)
+      }
+      json <- read_json(json_file, simplifyVector = TRUE)
+      json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
+      if (!"InputCollect" %in% names(json) & step == 1) {
+        stop("JSON file must contain InputCollect element")
+      }
+      if (!"ExportedModel" %in% names(json) & step == 2) {
+        stop("JSON file must contain ExportedModel element")
+      }
+      if (!quiet) message("Imported JSON file succesfully: ", json_file)
+      class(json) <- c("robyn_read", class(json))
+      return(json)
     }
-    if (!file.exists(json_file)) {
-      stop("JSON file can't be imported: ", json_file)
-    }
-    json <- read_json(json_file, simplifyVector = TRUE)
-    json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
-    if (!"InputCollect" %in% names(json) & step == 1) {
-      stop("JSON file must contain InputCollect element")
-    }
-    if (!"ExportedModel" %in% names(json) & step == 2) {
-      stop("JSON file must contain ExportedModel element")
-    }
-    if (!quiet) message("Imported JSON file succesfully: ", json_file)
-    class(json) <- c("robyn_read", class(json))
-    return(json)
   }
+  return(json_file)
 }
 
 #' @rdname robyn_write

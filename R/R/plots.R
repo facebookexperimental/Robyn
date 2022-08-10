@@ -855,11 +855,11 @@ refresh_plots_json <- function(json_file, export = TRUE) {
     geom_col(aes(x = .data$decompPer)) +
     geom_text(aes(x = .data$decompPer,
                   label = formatNum(100 * .data$decompPer, signif = 2, pos = "%")),
-              na.rm = TRUE, hjust = -0.2, size = 2.6) +
+              na.rm = TRUE, hjust = -0.2, size = 2.8) +
     geom_point(aes(x = .data$performance), na.rm = TRUE, size = 2, colour = "#39638b") +
     geom_text(aes(x = .data$performance,
                   label = formatNum(.data$performance, 2)),
-              na.rm = TRUE, hjust = -0.4, size = 2.6, colour = "#39638b") +
+              na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b") +
     facet_wrap(. ~ .data$label, scales = "free") +
     scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
     labs(title = paste(
