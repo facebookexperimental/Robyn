@@ -124,15 +124,14 @@ robyn_refresh <- function(json_file = NULL,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
         quiet = FALSE, ...)
-      listInit$InputCollect$refreshDepth <- str_count(json$ExportedModel$plot_folder, "_rf/") + 1
       listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
       chainData <- robyn_chain(json_file)
       listInit$InputCollect$refreshChain <- attr(chainData, "chain")
+      listInit$InputCollect$refreshDepth <- length(attr(chainData, "chain"))
       listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
       Robyn[["listInit"]] <- listInit
       objectPath <- json$ExportedModel$plot_folder
-      # refreshDepth <- json$InputCollect$refreshDepth
-      refreshCounter <- 1
+      refreshCounter <- 1 # Dummy for now (legacy)
     }
     if (!is.null(robyn_object)) {
       RobynImported <- robyn_load(robyn_object)
@@ -426,7 +425,13 @@ robyn_refresh <- function(json_file = NULL,
     # InputCollectRF <- Robyn$listRefresh1$InputCollect
     # OutputCollectRF <- Robyn$listRefresh1$OutputCollect
     # ReportCollect <- Robyn$listRefresh1$ReportCollect
-    plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
+    if (!is.null(json_file)) {
+      json_temp <- robyn_write(InputCollectRF, OutputCollectRF, select_model = selectID, quiet = TRUE, ...)
+      file <- attr(json_temp, "json_file")
+      plots <- refresh_plots_json(file, export = export)
+    } else {
+      plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
+    }
 
     if (export) {
       message(paste(">>> Exporting refresh CSVs into directory..."))
@@ -453,10 +458,10 @@ robyn_refresh <- function(json_file = NULL,
   )
 
   # Save Robyn object locally
-  message(">> Exporting results: ", robyn_object)
   Robyn <- Robyn[order(names(Robyn))]
   class(Robyn) <- c("robyn_refresh", class(Robyn))
   if (is.null(json_file)) {
+    message(">> Exporting results: ", robyn_object)
     saveRDS(Robyn, file = robyn_object)
   } else {
     robyn_write(InputCollectRF, OutputCollectRF, select_model = selectID, ...)

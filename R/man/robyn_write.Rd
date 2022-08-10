@@ -13,6 +13,7 @@ robyn_write(
   OutputCollect = NULL,
   select_model = NULL,
   dir = OutputCollect$plot_folder,
+  export = TRUE,
   quiet = FALSE
 )
 
@@ -33,6 +34,8 @@ robyn_recreate(json_file, quiet = FALSE, ...)
 into the JSON file?}
 
 \item{dir}{Character. Existing directory to export JSON file to.}
+
+\item{export}{Boolean. Export outcomes into local files?}
 
 \item{quiet}{Boolean. Keep messages off?}
 

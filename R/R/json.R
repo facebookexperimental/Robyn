@@ -31,6 +31,7 @@ robyn_write <- function(InputCollect,
                         OutputCollect = NULL,
                         select_model = NULL,
                         dir = OutputCollect$plot_folder,
+                        export = TRUE,
                         quiet = FALSE) {
 
   # Checks
@@ -56,7 +57,11 @@ robyn_write <- function(InputCollect,
     outputs <- list()
     outputs$select_model <- select_model
     outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
-      select(variable = .data$rn, .data$coef, decomp = .data$xDecompPerc)
+      mutate(metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),
+             performance = ifelse(.data$metric == "ROI", .data$roi_total, .data$cpa_total)) %>%
+      select(variable = .data$rn, coef = .data$coef,
+             decompPer = .data$xDecompPerc, decompAgg = .data$xDecompAggRF,
+             .data$performance, .data$mean_response, .data$mean_spend)
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
       select(.data$rsq_train, .data$nrmse, .data$decomp.rssd, .data$mape)
     hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
@@ -77,9 +82,12 @@ robyn_write <- function(InputCollect,
 
   filename <- sprintf("%s/RobynModel-%s.json", dir, select_model)
   filename <- gsub("//", "/", filename)
-  write_json(ret, filename, pretty = TRUE)
-  if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
   class(ret) <- c("robyn_write", class(ret))
+  attr(ret, "json_file") <- filename
+  if (export) {
+    write_json(ret, filename, pretty = TRUE)
+    if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
+  }
   return(invisible(ret))
 }
 
@@ -113,7 +121,7 @@ print.robyn_write <- function(x, ...) {
   print(glued("\n\nSummary Values on Selected Model:"))
 
   print(x$ExportedModel$summary %>%
-    mutate(decomp = formatNum(100 * .data$decomp, pos = "%")) %>%
+    mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
     replace(., . == "NA", "-") %>% as.data.frame())
 

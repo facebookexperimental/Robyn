@@ -326,7 +326,7 @@ select_model <- "1_57_16" # select one from above
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
 print(ExportedModel)
 
-# #### Deprecated on version 3.7.1 onwards (might work)
+##### Deprecated on version <3.7.1 (might work)
 # ExportedModelOld <- robyn_save(
 #   robyn_object = robyn_object, # model object location and name
 #   select_model = select_model, # selected model ID
@@ -424,7 +424,7 @@ if (TRUE) {
 ## 2, new variables are added
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
-json_file <- "~/Desktop/Robyn_202208091323_init/RobynModel-1_57_16.json"
+json_file <- "~/Desktop/Robyn_202208100934_init/RobynModel-1_47_11.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,

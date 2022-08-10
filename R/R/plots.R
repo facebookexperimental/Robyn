@@ -833,3 +833,52 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
   }
   return(invisible(outputs))
 }
+
+refresh_plots_json <- function(json_file, export = TRUE) {
+  outputs <- list()
+  chainData <- robyn_chain(json_file)
+
+  ## 2. Stacked bar plot
+  df <- lapply(chainData, function(x) x$ExportedModel$summary) %>%
+    bind_rows(.id = "solID") %>% as_tibble() %>%
+    select(-.data$coef) %>%
+    mutate(solID = factor(.data$solID, levels = names(chainData)),
+           label = factor(
+             sprintf("%s [%s]", .data$solID, as.integer(.data$solID) - 1),
+             levels = sprintf("%s [%s]", names(chainData), 0:(length(chainData)-1))),
+           variable = ifelse(.data$variable %in% c(chainData[[1]]$InputCollect$prophet_vars, "(Intercept)"),
+                             "baseline", .data$variable)) %>%
+    group_by(.data$solID, .data$label, .data$variable) %>%
+    summarise_all(sum)
+
+  outputs[["pBarRF"]] <- pBarRF <- ggplot(df, aes(y = .data$variable)) +
+    geom_col(aes(x = .data$decompPer)) +
+    geom_text(aes(x = .data$decompPer,
+                  label = formatNum(100 * .data$decompPer, signif = 2, pos = "%")),
+              na.rm = TRUE, hjust = -0.2, size = 2.6) +
+    geom_point(aes(x = .data$performance), na.rm = TRUE, size = 2, colour = "#39638b") +
+    geom_text(aes(x = .data$performance,
+                  label = formatNum(.data$performance, 2)),
+              na.rm = TRUE, hjust = -0.4, size = 2.6, colour = "#39638b") +
+    facet_wrap(. ~ .data$label, scales = "free") +
+    scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
+    labs(title = paste(
+      "Model refresh: Decomposition & Paid Media",
+      ifelse(chainData[[1]]$InputCollect$dep_var_type == "revenue", "ROI", "CPA")),
+      subtitle = paste("Baseline includes intercept and all prophet vars:",
+                       v2t(chainData[[1]]$InputCollect$prophet_vars, quotes = FALSE)),
+      x = NULL, y = NULL) +
+    theme_lares(grid = "Y") +
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+  if (export) {
+    ggsave(
+      filename = paste0(chainData[[length(chainData)]]$ExportedModel$plot_folder, "report_decomposition.png"),
+      plot = pBarRF,
+      dpi = 900, width = 12, height = 8, limitsize = FALSE
+    )
+  }
+
+  return(invisible(outputs))
+
+}
