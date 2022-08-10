@@ -409,7 +409,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts,
         scurved = select(dt_transformDecomp, -.data$ds, -.data$dep_var),
         coefs = select(xDecompVec, -.data$solID, -.data$`(Intercept)`)
       ))
-      xDecompVec <- mutate(xDecompVec, intercept = intercept, depVarHat = rowSums(xDecompVec), solID = sid)
+      xDecompVec <- mutate(xDecompVec, intercept = intercept,
+                           depVarHat = rowSums(xDecompVec) + intercept, solID = sid)
       xDecompVec <- bind_cols(select(dt_transformDecomp, .data$ds, .data$dep_var), xDecompVec)
       xDecompVecPlot <- select(xDecompVec, .data$ds, .data$dep_var, .data$depVarHat) %>%
         rename("actual" = "dep_var", "predicted" = "depVarHat")
