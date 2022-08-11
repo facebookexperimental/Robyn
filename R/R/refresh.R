@@ -428,8 +428,8 @@ robyn_refresh <- function(json_file = NULL,
     if (!is.null(json_file)) {
       json_temp <- robyn_write(
         InputCollectRF, OutputCollectRF, select_model = selectID,
-        export = FALSE, quiet = TRUE, ...)
-      plots <- refresh_plots_json(json_temp, export = export)
+        export = TRUE, quiet = TRUE, ...)
+      plots <- refresh_plots_json(OutputCollectRF, json_file = attr(json_temp, "json_file"), export = export)
     } else {
       plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
     }

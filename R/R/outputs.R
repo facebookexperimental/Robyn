@@ -104,7 +104,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     UI = NULL,
     pareto_fronts = pareto_fronts,
     hyper_fixed = attr(OutputModels, "hyper_fixed"),
-    plot_folder = gsub("//","", paste0(plot_folder, "/", plot_folder_sub, "/"))
+    plot_folder = gsub("//", "", paste0(plot_folder, "/", plot_folder_sub, "/"))
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 

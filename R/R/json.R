@@ -57,11 +57,15 @@ robyn_write <- function(InputCollect,
     outputs <- list()
     outputs$select_model <- select_model
     outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
-      mutate(metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),
-             performance = ifelse(.data$metric == "ROI", .data$roi_total, .data$cpa_total)) %>%
-      select(variable = .data$rn, coef = .data$coef,
-             decompPer = .data$xDecompPerc, decompAgg = .data$xDecompAggRF,
-             .data$performance, .data$mean_response, .data$mean_spend)
+      mutate(
+        metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),
+        performance = ifelse(.data$metric == "ROI", .data$roi_total, .data$cpa_total)
+      ) %>%
+      select(
+        variable = .data$rn, coef = .data$coef,
+        decompPer = .data$xDecompPerc, decompAgg = .data$xDecompAggRF,
+        .data$performance, .data$mean_response, .data$mean_spend
+      )
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
       select(.data$rsq_train, .data$nrmse, .data$decomp.rssd, .data$mape)
     hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
@@ -235,16 +239,19 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
   InputCollect <- robyn_inputs(
     json_file = json_file,
     quiet = quiet,
-    ...)
+    ...
+  )
   OutputCollect <- robyn_run(
     InputCollect = InputCollect,
     json_file = json_file,
     export = FALSE,
     quiet = quiet,
-    ...)
+    ...
+  )
   return(invisible(list(
     InputCollect = InputCollect,
-    OutputCollect = OutputCollect)))
+    OutputCollect = OutputCollect
+  )))
 }
 
 # Import the whole chain any refresh model to init
