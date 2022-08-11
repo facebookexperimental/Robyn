@@ -614,6 +614,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       response_dif = dplyr::last(.data$response) - dplyr::first(.data$response)
     )
 
+  trim_rate <- 1.6 # maybe enable as a parameter
+  if (trim_rate > 0) {
+    plotDT_scurve <- plotDT_scurve %>%
+      filter(
+        .data$spend < max(dt_optimOutScurve$spend) * trim_rate,
+        .data$response < max(dt_optimOutScurve$response) * trim_rate
+      )
+  }
   outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
     x = .data$spend, y = .data$response, color = .data$channel
   )) +
