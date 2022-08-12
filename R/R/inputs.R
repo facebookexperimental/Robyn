@@ -721,12 +721,11 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   InputCollect[["dt_mod"]] <- dt_transform
   InputCollect[["dt_modRollWind"]] <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
   InputCollect[["dt_inputRollWind"]] <- dt_inputRollWind
-  InputCollect[["modNLSCollect"]] <- modNLSCollect
-  InputCollect[["plotNLSCollect"]] <- plotNLSCollect
-  InputCollect[["yhatNLSCollect"]] <- yhatNLSCollect
-
-  # InputCollect[["exposure_selector"]] <- exposure_selector
-  # InputCollect[["mediaCostFactor"]] <- mediaCostFactor
+  InputCollect[["modNLS"]] <- list(
+    results = modNLSCollect,
+    yhat = yhatNLSCollect,
+    plots = plotNLSCollect
+  )
   return(InputCollect)
 }
 

@@ -271,8 +271,8 @@ print(InputCollect)
 
 #### Check spend exposure fit if available
 if (length(InputCollect$exposure_vars) > 0) {
-  InputCollect$plotNLSCollect$facebook_I
-  InputCollect$plotNLSCollect$search_clicks_P
+  InputCollect$modNLS$plots$facebook_I
+  InputCollect$modNLS$plots$search_clicks_P
 }
 
 ##### Manually save and import InputCollect as JSON file
