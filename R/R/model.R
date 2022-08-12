@@ -69,9 +69,9 @@ robyn_run <- function(InputCollect = NULL,
   t0 <- Sys.time()
 
   ### Use previously exported model using json_file
-  # InputCollect <- robyn_inputs(json_file = json_file, dt_input = dt_input, dt_holidays = dt_holidays)
-  if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
   if (!is.null(json_file)) {
+    # InputCollect <- robyn_inputs(json_file = json_file, dt_input = dt_input, dt_holidays = dt_holidays)
+    if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
     json <- robyn_read(json_file, step = 2, quiet = TRUE)
     dt_hyper_fixed <- json$ExportedModel$hyper_values
     for (i in 1:length(json$ExportedModel)) {
@@ -1481,9 +1481,9 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   ))
 }
 
-init_msgs_run <- function(InputCollect, refresh, lambda_control, quiet = FALSE) {
+init_msgs_run <- function(InputCollect, refresh, lambda_control = NULL, quiet = FALSE) {
   if (!is.null(lambda_control)) {
-    message("'lambda_control' deprecated in v3.6.0; lambda is now selected by hyperparameter optimisation")
+    message("Input 'lambda_control' deprecated in v3.6.0; lambda is now selected by hyperparameter optimization")
   }
   if (!quiet) {
     message(sprintf(
@@ -1493,9 +1493,15 @@ init_msgs_run <- function(InputCollect, refresh, lambda_control, quiet = FALSE) 
       min(InputCollect$dt_mod$ds),
       max(InputCollect$dt_mod$ds)
     ))
+    depth <- ifelse(
+      "refreshDepth" %in% names(InputCollect),
+      InputCollect$refreshDepth,
+      ifelse("refreshCounter" %in% names(InputCollect),
+             InputCollect$refreshCounter, 0))
+    refresh <- as.integer(depth) > 0
     message(sprintf(
       "%s model is built on rolling window of %s %s: %s to %s",
-      ifelse(!refresh, "Initial", "Refresh"),
+      ifelse(!refresh, "Initial", paste0("Refresh #", depth)),
       InputCollect$rollingWindowLength,
       InputCollect$intervalType,
       InputCollect$window_start,
