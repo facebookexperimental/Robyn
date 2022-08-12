@@ -269,7 +269,7 @@ print(InputCollect)
 #   #,calibration_input = dt_calibration # as in 2a-4 above
 # )
 
-# #### Experimental 3.7.1: JSON export and import
+##### Manually save and import InputCollect as JSON file
 # robyn_write(InputCollect, dir = "~/Desktop")
 # InputCollect <- robyn_inputs(
 #   dt_input = dt_simulated_weekly,
@@ -326,7 +326,7 @@ select_model <- "1_57_16" # select one from above
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
 print(ExportedModel)
 
-##### Deprecated on version <3.7.1 (might work)
+###### DEPRECATED (<3.7.1) (might work)
 # ExportedModelOld <- robyn_save(
 #   robyn_object = robyn_object, # model object location and name
 #   select_model = select_model, # selected model ID
@@ -416,14 +416,15 @@ if (TRUE) {
 ################################################################
 #### Step 6: Model refresh based on selected model and saved results "Alpha" [v3.7.1]
 
-## NOTE: must run robyn_write() to select and export any model first, before refreshing below.
-## The robyn_refresh() function is suitable for updating within "reasonable periods"
+## Must run robyn_write() (manually or automatically) to export any model first, before refreshing.
+## The robyn_refresh() function is suitable for updating within "reasonable periods".
 ## Two situations are considered better to rebuild model:
-## 1, most data is new. If initial model has 100 weeks and 80 weeks new data is added in refresh,
-## it might be better to rebuild the model
-## 2, new variables are added
+## 1. most data is new. If initial model has 100 weeks and 80 weeks new data is added in refresh,
+## it might be better to rebuild the model. Rule of thumb: 50% of data or less can be new.
+## 2. new variables are added.
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
+# It can be any model, initial or a refresh model
 json_file <- "~/Desktop/Robyn_202208100934_init/RobynModel-1_47_11.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
@@ -435,7 +436,7 @@ RobynRefresh <- robyn_refresh(
   refresh_trials = 1
 )
 
-###### DEPRECATED (<3.7.1)
+###### DEPRECATED (<3.7.1) (might work)
 # # Run ?robyn_refresh to check parameter definition
 # Robyn <- robyn_refresh(
 #   robyn_object = robyn_object,
@@ -585,8 +586,8 @@ RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = InputCollectX$dt_input,
   dt_holidays = InputCollectX$dt_holidays,
-  refresh_steps = 10,
+  refresh_steps = 6,
   refresh_mode = "manual",
-  refresh_iters = 500,
+  refresh_iters = 1000,
   refresh_trials = 1
 )

@@ -111,7 +111,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
   # Set folder to save outputs
   if (is.null(plot_folder_sub)) {
     refresh <- attr(OutputModels, "refresh")
-    folder_var <- ifelse(!refresh, "init", "rf")
+    depth <- ifelse("refreshDepth" %in% names(InputCollect), InputCollect$refreshDepth, InputCollect$refreshCounter)
+    folder_var <- ifelse(!refresh, "init", paste0("rf", depth))
     plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
   }
 
