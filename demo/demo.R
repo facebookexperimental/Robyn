@@ -276,6 +276,12 @@ print(InputCollect)
 #   dt_holidays = dt_prophet_holidays,
 #   json_file = "~/Desktop/RobynModel-inputs.json")
 
+#### Check spend exposure fit if available
+if (length(InputCollect$exposure_vars)>0) {
+  InputCollect$plotNLSCollect$facebook_I
+  InputCollect$plotNLSCollect$search_clicks_P
+}
+
 ################################################################
 #### Step 3: Build initial model
 
@@ -284,8 +290,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 2000, # recommended for the dummy dataset
-  trials = 5, # recommended for the dummy dataset
+  iterations = 1000, # recommended for the dummy dataset
+  trials = 2, # recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
@@ -320,7 +326,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_57_16" # select one from above
+select_model <- "1_123_3" # select one from above
 
 #### Since 3.7.1: JSON export and import (faster and lighter)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -424,14 +430,25 @@ if (TRUE) {
 ## 2, new variables are added
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
-json_file <- "~/Desktop/Robyn_202208100934_init/RobynModel-1_47_11.json"
+json_file <- "/Users/gufengzhou/Desktop/Robyn_202208121601_init/RobynModel-1_123_3.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 13,
+  refresh_mode = "auto",
+  refresh_iters = 200, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_trials = 1
+)
+
+json_file_rf1 <- "/Users/gufengzhou/Desktop/Robyn_202208121601_init/Robyn_202208121604_rf/RobynModel-1_1_1.json"
+RobynRefresh <- robyn_refresh(
+  json_file = json_file_rf1,
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
+  refresh_steps = 4,
   refresh_mode = "manual",
-  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_iters = 200, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
 
