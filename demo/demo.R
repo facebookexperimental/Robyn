@@ -269,18 +269,18 @@ print(InputCollect)
 #   #,calibration_input = dt_calibration # as in 2a-4 above
 # )
 
+#### Check spend exposure fit if available
+if (length(InputCollect$exposure_vars) > 0) {
+  InputCollect$plotNLSCollect$facebook_I
+  InputCollect$plotNLSCollect$search_clicks_P
+}
+
 ##### Manually save and import InputCollect as JSON file
 # robyn_write(InputCollect, dir = "~/Desktop")
 # InputCollect <- robyn_inputs(
 #   dt_input = dt_simulated_weekly,
 #   dt_holidays = dt_prophet_holidays,
 #   json_file = "~/Desktop/RobynModel-inputs.json")
-
-#### Check spend exposure fit if available
-if (length(InputCollect$exposure_vars)>0) {
-  InputCollect$plotNLSCollect$facebook_I
-  InputCollect$plotNLSCollect$search_clicks_P
-}
 
 ################################################################
 #### Step 3: Build initial model
@@ -290,8 +290,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 1000, # recommended for the dummy dataset
-  trials = 2, # recommended for the dummy dataset
+  iterations = 2000, # recommended for the dummy dataset
+  trials = 5, # recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
@@ -437,19 +437,17 @@ RobynRefresh <- robyn_refresh(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 13,
-  refresh_mode = "auto",
-  refresh_iters = 200, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
 
-json_file_rf1 <- "/Users/gufengzhou/Desktop/Robyn_202208121601_init/Robyn_202208121604_rf/RobynModel-1_1_1.json"
+json_file_rf1 <- "~/Desktop/Robyn_202208121601_init/Robyn_202208121604_rf/RobynModel-1_1_1.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file_rf1,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 4,
-  refresh_mode = "manual",
-  refresh_iters = 200, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
 

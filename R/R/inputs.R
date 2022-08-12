@@ -565,10 +565,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
 
   ################################################################
-  #### model exposure metric from spend
-
-  mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
-    colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
+  #### Model exposure metric from spend
 
   exposure_selector <- paid_media_spends != paid_media_vars
   names(exposure_selector) <- paid_media_vars
@@ -577,17 +574,18 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     modNLSCollect <- list()
     yhatCollect <- list()
     plotNLSCollect <- list()
+    mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
+      colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
 
     for (i in 1:InputCollect$mediaVarCount) {
       if (exposure_selector[i]) {
-
-        # run models (NLS and/or LM)
+        # Run models (NLS and/or LM)
         dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
         results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
-        # compare NLS & LM, takes LM if NLS fits worse
+        # Compare NLS & LM, takes LM if NLS fits worse
         mod <- results$res
         exposure_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
-        # data to create plot
+        # Data to create plot
         dt_plotNLS <- data.frame(
           channel = paid_media_vars[i],
           yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
@@ -595,49 +593,85 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
           y = results$data$exposure,
           x = results$data$spend
         )
-        dt_plotNLS <- dt_plotNLS %>% pivot_longer(cols = c("yhatNLS", "yhatLM"),
-                              names_to = c("models"), values_to = "yhat"
-                              ) %>% mutate(models = str_remove(tolower(models), "yhat"))
-        # create plot
+        caption <- glued("
+          nls: AIC = {aic_nls} | R2 = {r2_nls}
+          lm: AIC = {aic_lm} | R2 = {r2_lm}",
+          aic_nls = signif(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 3),
+          r2_nls = signif(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 3),
+          aic_lm = signif(AIC(results$modLM), 3),
+          r2_lm = signif(mod$rsq_lm, 3)
+        )
+        dt_plotNLS <- dt_plotNLS %>%
+          pivot_longer(
+            cols = c("yhatNLS", "yhatLM"),
+            names_to = c("models"), values_to = "yhat"
+          ) %>%
+          mutate(models = str_remove(tolower(.data$models), "yhat"))
         models_plot <- ggplot(
           dt_plotNLS, aes(x = .data$x, y = .data$y, color = .data$models)
         ) +
           geom_point() +
           geom_line(aes(y = .data$yhat, x = .data$x, color = .data$models)) +
           labs(
-            caption = paste0(
-              "y=", paid_media_vars[i], ", x=", paid_media_spends[i],
-              "\nnls: aic=", round(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 0),
-              ", rsq=", round(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 4),
-              "\nlm: aic= ", round(AIC(results$modLM), 0), ", rsq=", round(mod$rsq_lm, 4)
-            ),
-            title = "Models fit comparison",
-            x = "Spend", y = "Exposure", color = "Model"
+            title = "Models Fit Comparison",
+            x = sprintf("Spend [%s]", paid_media_spends[i]),
+            y = sprintf("Exposure [%s]", paid_media_vars[i]),
+            caption = caption,
+            color = "Model"
           ) +
-          theme_minimal() +
-          theme(legend.position = "top", legend.justification = "left")
+          theme_lares(legend = "top") +
+          scale_x_abbr() +
+          scale_y_abbr()
 
-        # save results into modNLSCollect. plotNLSCollect, yhatCollect
+        # Save results into modNLSCollect. plotNLSCollect, yhatCollect
         modNLSCollect[[paid_media_vars[i]]] <- mod
         plotNLSCollect[[paid_media_vars[i]]] <- models_plot
         yhatCollect[[paid_media_vars[i]]] <- dt_plotNLS
       }
     }
-
     modNLSCollect <- bind_rows(modNLSCollect)
     yhatNLSCollect <- bind_rows(yhatCollect)
     yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
   } else {
-  modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
+    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
   }
 
-  # getSpendSum <- colSums(subset(dt_input, select = paid_media_spends), na.rm = TRUE)
-  # getSpendSum <- data.frame(rn = paid_media_vars, spend = getSpendSum, row.names = NULL)
+  # Give recommendations and show warnings
+  if (!is.null(modNLSCollect) & !quiet) {
+    threshold <- 0.80
+    final_print <- these <- NULL # TRUE if we accumulate a common message
+    metrics <- c("R2 (nls)", "R2 (lm)")
+    names(metrics) <- c("rsq_nls", "rsq_lm")
+    for (m in seq_along(metrics)) {
+      temp <- which(modNLSCollect[[names(metrics)[m]]] < threshold)
+      if (length(temp) > 0) {
+        warning(sprintf(
+          "%s: Exposure pattern for %s do%s NOT match %s spend pattern",
+          metrics[m],
+          v2t(modNLSCollect$channel[temp], and = "and"),
+          ifelse(length(temp) > 1, "", "es"),
+          ifelse(length(temp) > 1, "their", "its")
+        ))
+        final_print <- TRUE
+        these <- modNLSCollect$channel[temp]
+      }
+    }
+    if (isTRUE(final_print)) {
+      message(
+        paste(
+          "NOTE: potential improvement on splitting channels for better exposure fitting.",
+          "Threshold =", threshold,
+          "\n  Check: InputCollect$plotNLSCollect outputs"
+        ),
+        "\n  Check:", v2t(these)
+      )
+    }
+  }
 
   ################################################################
-  #### clean & aggregate data
+  #### Clean & aggregate data
 
-  ## transform all factor variables
+  ## Transform all factor variables
   if (length(factor_vars) > 0) {
     dt_transform <- mutate_at(dt_transform, factor_vars, as.factor)
   }
