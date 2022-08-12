@@ -48,7 +48,7 @@
 #' the \code{robyn_refresh()} function builds refresh models with given
 #' \code{refresh_steps} repeatedly until there's no more data available. I
 #' manual mode, the \code{robyn_refresh()} only moves forward \code{refresh_steps}
-#' only once.
+#' only once. "auto" mode has been deprecated when using \code{json_file} input.
 #' @param refresh_iters Integer. Iterations per refresh. Rule of thumb is, the
 #' more new data added, the more iterations needed. More reliable recommendation
 #' still needs to be investigated.
@@ -127,7 +127,7 @@ robyn_refresh <- function(json_file = NULL,
       listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
       chainData <- robyn_chain(json_file)
       listInit$InputCollect$refreshChain <- attr(chainData, "chain")
-      listInit$InputCollect$refreshDepth <- length(attr(chainData, "chain"))
+      listInit$InputCollect$refreshDepth <- refreshDepth <- length(attr(chainData, "chain"))
       listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
       Robyn[["listInit"]] <- listInit
       objectPath <- json$ExportedModel$plot_folder
@@ -139,7 +139,9 @@ robyn_refresh <- function(json_file = NULL,
       objectPath <- RobynImported$objectPath
       robyn_object <- RobynImported$robyn_object
       refreshCounter <- length(Robyn) - sum(names(Robyn) == "refresh")
+      refreshDepth <- NULL  # Dummy for now (legacy)
     }
+    depth <- ifelse(!is.null(refreshDepth), refreshDepth, refreshCounter)
 
     objectCheck <- if (refreshCounter == 1) {
       c("listInit")
@@ -218,16 +220,20 @@ robyn_refresh <- function(json_file = NULL,
     if (refreshEnd > max(totalDates)) {
       stop("Not enough data for this refresh. Input data from date ", refreshEnd, " or later required")
     }
+    if (!is.null(json_file) & refresh_mode == "auto") {
+      message("Input 'refresh_mode' = 'auto' has been deprecated. Changed to 'manual'")
+      refresh_mode <- "manual"
+    }
     if (refresh_mode == "manual") {
       refreshLooper <- 1
-      message(sprintf(">>> Building refresh model #%s in %s mode", refreshCounter, refresh_mode))
+      message(sprintf("\n>>> Building refresh model #%s in %s mode", depth, refresh_mode))
       refreshControl <- FALSE
     } else {
       refreshLooper <- floor(as.numeric(difftime(max(totalDates), refreshEnd, units = "days")) /
         InputCollectRF$dayInterval / refresh_steps)
       message(sprintf(
-        ">>> Building refresh model #%s in %s mode. %s more to go...",
-        refreshCounter, refresh_mode, refreshLooper
+        "\n>>> Building refresh model #%s in %s mode. %s more to go...",
+        depth, refresh_mode, refreshLooper
       ))
     }
 
@@ -296,7 +302,7 @@ robyn_refresh <- function(json_file = NULL,
         selectID <- readline("Input model ID to use for the refresh: ")
         message(
           "Selected model ID: ", selectID, " for refresh model #",
-          refreshCounter, " based on your input"
+          depth, " based on your input"
         )
         if (!selectID %in% OutputCollectRF$allSolutions) {
           message(sprintf(
@@ -308,7 +314,7 @@ robyn_refresh <- function(json_file = NULL,
         selectID <- bestMod
         message(
           "Selected model ID: ", selectID, " for refresh model #",
-          refreshCounter, " based on the smallest combined normalised errors"
+          depth, " based on the smallest combined normalised errors"
         )
       }
       if (!isTRUE(selectID %in% OutputCollectRF$allSolutions)) {

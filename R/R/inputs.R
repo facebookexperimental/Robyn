@@ -352,6 +352,12 @@ robyn_inputs <- function(dt_input = NULL,
       output <- robyn_engineering(InputCollect, ...)
     }
   }
+
+  if (!is.null(json_file)) {
+    pending <- which(!names(json$InputCollect) %in% output)
+    output <- append(output, json$InputCollect[pending])
+  }
+
   class(output) <- c("robyn_inputs", class(output))
   return(output)
 }
