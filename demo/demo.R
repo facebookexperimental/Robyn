@@ -596,8 +596,8 @@ RobynRecreated <- robyn_recreate(
   dt_holidays = dt_holidays,
   quiet = FALSE)
 
-# Re-export model and check summary
-myModel <- robyn_write(InputCollectX, OutputCollectX)
+# Re-export model and check summary (will get exported in your current working directory)
+myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
