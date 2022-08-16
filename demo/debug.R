@@ -27,6 +27,9 @@ nevergrad_algo = "TwoPointsDE"
 iterations = 100
 trials = 2
 calibration_input = NULL
+json_file = NULL
+#InputCollect = NULL
+#hyperparameters = NULL
 
 ## debug robyn_run
 args(robyn_run)

@@ -269,6 +269,12 @@ print(InputCollect)
 #   #,calibration_input = dt_calibration # as in 2a-4 above
 # )
 
+#### Check spend exposure fit if available
+if (length(InputCollect$exposure_vars) > 0) {
+  InputCollect$modNLS$plots$facebook_I
+  InputCollect$modNLS$plots$search_clicks_P
+}
+
 ##### Manually save and import InputCollect as JSON file
 # robyn_write(InputCollect, dir = "~/Desktop")
 # InputCollect <- robyn_inputs(
@@ -320,7 +326,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_57_16" # select one from above
+select_model <- "1_123_3" # select one from above
 
 #### Since 3.7.1: JSON export and import (faster and lighter)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -431,7 +437,16 @@ RobynRefresh <- robyn_refresh(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 13,
-  refresh_mode = "manual",
+  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_trials = 1
+)
+
+json_file_rf1 <- "~/Desktop/Robyn_202208121601_init/Robyn_202208121604_rf/RobynModel-1_1_1.json"
+RobynRefresh <- robyn_refresh(
+  json_file = json_file_rf1,
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
+  refresh_steps = 4,
   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
@@ -459,7 +474,9 @@ RobynRefresh <- robyn_refresh(
 
 # Run ?robyn_allocator to check parameter definition
 AllocatorCollect <- robyn_allocator(
-  robyn_object = robyn_object,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   scenario = "max_response_expected_spend",
   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
@@ -487,19 +504,21 @@ print(AllocatorCollect)
 # Get response for 80k from result saved in robyn_object
 Spend1 <- 60000
 Response1 <- robyn_response(
-  robyn_object = robyn_object,
-  # select_build = 1, # 2 means the second refresh model. 0 means the initial model
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "search_S",
   metric_value = Spend1
 )
 Response1$response / Spend1 # ROI for search 80k
 Response1$plot
 
-# Get response for 81k
-Spend2 <- Spend1 + 1000
+# Get response for +10%
+Spend2 <- Spend1 * 1.1
 Response2 <- robyn_response(
-  robyn_object = robyn_object,
-  # select_build = 1,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "search_S",
   metric_value = Spend2
 )
@@ -512,7 +531,9 @@ Response2$plot
 ## Example of getting paid media exposure response curves
 imps <- 50000000
 response_imps <- robyn_response(
-  robyn_object = robyn_object,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "facebook_I",
   metric_value = imps
 )
@@ -522,7 +543,9 @@ response_imps$plot
 ## Example of getting organic media exposure response curves
 sendings <- 30000
 response_sending <- robyn_response(
-  robyn_object = robyn_object,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "newsletter",
   metric_value = sendings
 )

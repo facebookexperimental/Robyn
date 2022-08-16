@@ -53,7 +53,7 @@ means the InputCollect$window_start & InputCollect$window_end move forward
 the \code{robyn_refresh()} function builds refresh models with given
 \code{refresh_steps} repeatedly until there's no more data available. I
 manual mode, the \code{robyn_refresh()} only moves forward \code{refresh_steps}
-only once.}
+only once. "auto" mode has been deprecated when using \code{json_file} input.}
 
 \item{refresh_iters}{Integer. Iterations per refresh. Rule of thumb is, the
 more new data added, the more iterations needed. More reliable recommendation

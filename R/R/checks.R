@@ -680,10 +680,10 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
                             channel_constr_low, channel_constr_up,
                             expected_spend, expected_spend_days, constr_mode) {
   dt_hyppar <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == select_model, ]
-  if (!(select_model %in% dt_hyppar$solID)) {
+  if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
       "Provided 'select_model' is not within the best results. Try any of: ",
-      paste(dt_hyppar$solID, collapse = ", ")
+      paste(OutputCollect$allSolutions, collapse = ", ")
     )
   }
   if (any(channel_constr_low < 0)) {
