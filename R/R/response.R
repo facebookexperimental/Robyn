@@ -196,6 +196,9 @@ robyn_response <- function(InputCollect = NULL,
     }
     # Fit spend to exposure
     spend_vec <- dt_input[, get_spend_name][[1]]
+    if (is.null(spendExpoMod)) {
+      stop("Can't calculate exposure to spend response. Please, recreate your InputCollect object")
+    }
     temp <- filter(spendExpoMod, .data$channel == media_metric)
     nls_select <- temp$rsq_nls > temp$rsq_lm
     if (nls_select) {
