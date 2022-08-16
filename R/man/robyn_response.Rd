@@ -38,7 +38,7 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
 
-\item{metric_value}{Numeric. Desired metric value to return a response for.}
+\item{metric_value}{Numeric. Vector of desired metric value to return a response for.}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
