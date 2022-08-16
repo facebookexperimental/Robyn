@@ -614,3 +614,11 @@ RobynRefresh <- robyn_refresh(
   refresh_iters = 1000,
   refresh_trials = 1
 )
+
+# Recreate response curves
+robyn_response(
+  InputCollect = InputCollectX,
+  OutputCollect = OutputCollectX,
+  media_metric = "newsletter",
+  metric_value = 50000
+)
