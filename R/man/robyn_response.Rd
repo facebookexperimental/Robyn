@@ -5,6 +5,8 @@
 \title{Response Function}
 \usage{
 robyn_response(
+  InputCollect = NULL,
+  OutputCollect = NULL,
   json_file = NULL,
   robyn_object = NULL,
   select_build = NULL,
@@ -13,13 +15,17 @@ robyn_response(
   metric_value = NULL,
   dt_hyppar = NULL,
   dt_coef = NULL,
-  InputCollect = NULL,
-  OutputCollect = NULL,
   quiet = FALSE,
   ...
 )
 }
 \arguments{
+\item{InputCollect}{List. Contains all input parameters for the model.
+Required when \code{robyn_object} is not provided.}
+
+\item{OutputCollect}{List. Containing all model result.
+Required when \code{robyn_object} is not provided.}
+
 \item{json_file}{Character. JSON file to import previously exported inputs
 (needs \code{dt_input} and \code{dt_holidays} parameters too).}
 
@@ -38,7 +44,7 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
 
-\item{metric_value}{Numeric. Vector of desired metric value to return a response for.}
+\item{metric_value}{Numeric. Desired metric value to return a response for.}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
@@ -47,12 +53,6 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \item{dt_coef}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.}
-
-\item{InputCollect}{List. Contains all input parameters for the model.
-Required when \code{robyn_object} is not provided.}
-
-\item{OutputCollect}{List. Containing all model result.
-Required when \code{robyn_object} is not provided.}
 
 \item{quiet}{Boolean. Keep messages off?}
 
@@ -112,12 +112,12 @@ response_per_1k_imps
 # Get response for 80k for search_S from the a certain model SolID
 # in the current model output in the global environment
 robyn_response(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
   media_metric = "search_S",
   metric_value = 80000,
-  select_model = "3_10_3",
   dt_hyppar = OutputCollect$resultHypParam,
-  dt_coef = OutputCollect$xDecompAgg,
-  InputCollect = InputCollect
+  dt_coef = OutputCollect$xDecompAgg
 )
 }
 }
