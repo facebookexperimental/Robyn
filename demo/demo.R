@@ -474,7 +474,9 @@ RobynRefresh <- robyn_refresh(
 
 # Run ?robyn_allocator to check parameter definition
 AllocatorCollect <- robyn_allocator(
-  robyn_object = robyn_object,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   scenario = "max_response_expected_spend",
   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
@@ -502,19 +504,21 @@ print(AllocatorCollect)
 # Get response for 80k from result saved in robyn_object
 Spend1 <- 60000
 Response1 <- robyn_response(
-  robyn_object = robyn_object,
-  # select_build = 1, # 2 means the second refresh model. 0 means the initial model
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "search_S",
   metric_value = Spend1
 )
 Response1$response / Spend1 # ROI for search 80k
 Response1$plot
 
-# Get response for 81k
-Spend2 <- Spend1 + 1000
+# Get response for +10%
+Spend2 <- Spend1 * 1.1
 Response2 <- robyn_response(
-  robyn_object = robyn_object,
-  # select_build = 1,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "search_S",
   metric_value = Spend2
 )
@@ -527,7 +531,9 @@ Response2$plot
 ## Example of getting paid media exposure response curves
 imps <- 50000000
 response_imps <- robyn_response(
-  robyn_object = robyn_object,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "facebook_I",
   metric_value = imps
 )
@@ -537,7 +543,9 @@ response_imps$plot
 ## Example of getting organic media exposure response curves
 sendings <- 30000
 response_sending <- robyn_response(
-  robyn_object = robyn_object,
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
   media_metric = "newsletter",
   metric_value = sendings
 )

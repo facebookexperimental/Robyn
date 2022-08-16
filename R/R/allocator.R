@@ -241,9 +241,10 @@ robyn_allocator <- function(robyn_object = NULL,
   for (i in seq_along(mediaSpendSortedFiltered)) {
     if (histSpendUnit[i] > 0) {
       val <- robyn_response(
+        json_file = json_file,
         robyn_object = robyn_object,
         select_build = select_build,
-        mediaSpendSortedFiltered[i],
+        media_metric = mediaSpendSortedFiltered[i],
         select_model = select_model,
         metric_value = histSpendUnit[i],
         dt_hyppar = OutputCollect$resultHypParam,
