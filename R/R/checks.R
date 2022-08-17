@@ -28,6 +28,16 @@ check_nas <- function(df) {
   }
 }
 
+check_novar <- function(dt_input) {
+  novar <- lares::zerovar(dt_input)
+  if (length(novar) > 0) {
+    stop(sprintf(
+      "There are %s column(s) with no-variance: %s. \nPlease, remove them to proceed",
+      length(novar), v2t(novar)
+    ))
+  }
+}
+
 check_varnames <- function(dt_input, dt_holidays,
                            dep_var, date_var,
                            context_vars, paid_media_spends,
@@ -287,18 +297,22 @@ check_datadim <- function(dt_input, all_ind_vars, rel = 10) {
 
 check_windows <- function(dt_input, date_var, all_media, window_start, window_end) {
   dates_vec <- as.Date(dt_input[, date_var][[1]], origin = "1970-01-01")
-  window_start <- as.Date(as.character(window_start), "%Y-%m-%d", origin = "1970-01-01")
-  window_end <- as.Date(as.character(window_end), "%Y-%m-%d", origin = "1970-01-01")
 
   if (is.null(window_start)) {
     window_start <- min(dates_vec)
-  } else if (is.na(window_start)) {
-    stop("'window_start' must have format '2020-12-31'")
-  } else if (window_start < min(dates_vec)) {
-    window_start <- min(dates_vec)
-    message("'window_start' is smaller than the earliest date in input data. It's set to the earliest date")
-  } else if (window_start > max(dates_vec)) {
-    stop("'window_start' can't be larger than the the latest date in input data")
+  } else {
+    window_start <- as.Date(as.character(window_start), "%Y-%m-%d", origin = "1970-01-01")
+    if (is.na(window_start)) {
+      stop(sprintf("Input 'window_start' must have date format, i.e. '%s'", Sys.Date()))
+    } else if (window_start < min(dates_vec)) {
+      window_start <- min(dates_vec)
+      message(paste(
+        "Input 'window_start' is smaller than the earliest date in input data.",
+        "It's automatically set to the earliest date:", window_start
+      ))
+    } else if (window_start > max(dates_vec)) {
+      stop("Input 'window_start' can't be larger than the the latest date in input data: ", max(dates_vec))
+    }
   }
 
   rollingWindowStartWhich <- which.min(abs(difftime(
@@ -308,26 +322,35 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
   )))
   if (!window_start %in% dates_vec) {
     window_start <- dt_input[rollingWindowStartWhich, date_var][[1]]
-    message("'window_start' is adapted to the closest date contained in input data: ", window_start)
+    message("Input 'window_start' is adapted to the closest date contained in input data: ", window_start)
   }
   refreshAddedStart <- window_start
 
   if (is.null(window_end)) {
     window_end <- max(dates_vec)
-  } else if (is.na(window_end)) {
-    stop("'window_end' must have format '2020-12-31'")
-  } else if (window_end > max(dates_vec)) {
-    window_end <- max(dates_vec)
-    message("'window_end' is larger than the latest date in input data. It's set to the latest date")
-  } else if (window_end < window_start) {
-    window_end <- max(dates_vec)
-    message("'window_end' must be >= 'window_start.' It's set to latest date in input data")
+  } else {
+    window_end <- as.Date(as.character(window_end), "%Y-%m-%d", origin = "1970-01-01")
+    if (is.na(window_end)) {
+      stop(sprintf("Input 'window_end' must have date format, i.e. '%s'", Sys.Date()))
+    } else if (window_end > max(dates_vec)) {
+      window_end <- max(dates_vec)
+      message(paste(
+        "Input 'window_end' is larger than the latest date in input data.",
+        "It's automatically set to the latest date:", window_end
+      ))
+    } else if (window_end < window_start) {
+      window_end <- max(dates_vec)
+      message(paste(
+        "Input 'window_end' must be >= 'window_start.",
+        "It's automatically set to the latest date:", window_end
+      ))
+    }
   }
 
   rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, window_end, units = "days")))
   if (!(window_end %in% dates_vec)) {
     window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
-    message("'window_end' is adapted to the closest date contained in input data: ", window_end)
+    message("Input 'window_end' is adapted to the closest date contained in input data: ", window_end)
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
 
@@ -731,7 +754,7 @@ check_metric_value <- function(metric_value, media_metric) {
         "Input 'metric_value' for %s (%s) must be a numerical value\n", media_metric, toString(metric_value)
       ))
     }
-    if (sum(metric_value <= 0) > 0 ) {
+    if (sum(metric_value <= 0) > 0) {
       stop(sprintf(
         "Input 'metric_value' for %s (%s) must be a positive value\n", media_metric, metric_value[metric_value <= 0]
       ))

@@ -188,8 +188,7 @@ robyn_inputs <- function(dt_input = NULL,
     # mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
-
-    ## Check for NA valuesss
+    ## Check for NA values
     check_nas(dt_input)
     check_nas(dt_holidays)
 
@@ -274,6 +273,9 @@ robyn_inputs <- function(dt_input = NULL,
     unused_vars <- colnames(dt_input)[!colnames(dt_input) %in% c(
       dep_var, date_var, context_vars, paid_media_vars, paid_media_spends, organic_vars
     )]
+
+    # Check for no-variance columns (after removing not-used)
+    check_novar(select(dt_input, -all_of(unused_vars)))
 
     ## Collect input
     InputCollect <- output <- list(
@@ -389,7 +391,7 @@ Custom parameters: {custom_params}
 Adstock: {x$adstock}
 {hyps}
 ",
-    range = paste(range(as.data.frame(x$dt_input)[, sapply(x$dt_input, is.Date)]), collapse = ":"),
+    range = paste(range(x$dt_input[, x$date_var][[1]]), collapse = ":"),
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
     prophet = if (!is.null(x$prophet_vars)) {
@@ -546,6 +548,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   InputCollect <- x
   check_InputCollect(InputCollect)
   dt_input <- InputCollect$dt_input
+  dt_input <- select(dt_input, -all_of(InputCollect$unused_vars))
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   factor_vars <- InputCollect$factor_vars
