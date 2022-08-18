@@ -616,7 +616,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
           geom_point() +
           geom_line(aes(y = .data$yhat, x = .data$x, color = .data$models)) +
           labs(
-            title = "Models Fit Comparison",
+            title = "Exposure-Spend Models Fit Comparison",
             x = sprintf("Spend [%s]", paid_media_spends[i]),
             y = sprintf("Exposure [%s]", paid_media_vars[i]),
             caption = caption,
@@ -649,10 +649,9 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       temp <- which(modNLSCollect[[names(metrics)[m]]] < threshold)
       if (length(temp) > 0) {
         warning(sprintf(
-          "%s: Exposure pattern for %s do%s NOT match %s spend pattern",
+          "%s: weak relationship for %s and %s spend",
           metrics[m],
           v2t(modNLSCollect$channel[temp], and = "and"),
-          ifelse(length(temp) > 1, "", "es"),
           ifelse(length(temp) > 1, "their", "its")
         ))
         final_print <- TRUE
@@ -663,10 +662,10 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       message(
         paste(
           "NOTE: potential improvement on splitting channels for better exposure fitting.",
-          "Threshold =", threshold,
+          "Threshold (Minimum R2) =", threshold,
           "\n  Check: InputCollect$plotNLSCollect outputs"
         ),
-        "\n  Check:", v2t(these)
+        "\n  Check data on: ", v2t(these)
       )
     }
   }
@@ -760,7 +759,9 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_season <- "season" %in% prophet_vars | "yearly.seasonality" %in% prophet_vars
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
-  dt_regressors <- cbind(recurrence, subset(dt_transform, select = c(context_vars, paid_media_spends)))
+  dt_regressors <- bind_cols(recurrence, select(
+    dt_transform, all_of(c(context_vars, paid_media_spends)))) %>%
+    mutate(ds = as.Date(.data$ds))
 
   prophet_params <- list(
     holidays = if (use_holiday) holidays[holidays$country == prophet_country, ] else NULL,
@@ -776,6 +777,9 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   )
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
+
+  # dt_regressors <<- dt_regressors
+  # modelRecurrence <<- modelRecurrence
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- dt_regressors %>%
