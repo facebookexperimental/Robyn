@@ -99,8 +99,8 @@ InputCollect <- robyn_inputs(
   # impressions, GRP etc. If not applicable, use spend instead.
   organic_vars = c("newsletter"), # marketing activity without media spend
   factor_vars = c("events"), # specify which variables in context_vars or organic_vars are factorial
-  window_start = "2016-11-23",
-  window_end = "2018-08-22",
+  window_start = "2016-11-21",
+  window_end = "2018-08-20",
   adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
 )
 print(InputCollect)
@@ -326,9 +326,9 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_123_3" # select one from above
+select_model <- "1_100_6" # Pick one of the models from OutputCollect to proceed
 
-#### Since 3.7.1: JSON export and import (faster and lighter)
+#### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
 print(ExportedModel)
 
@@ -431,7 +431,7 @@ if (TRUE) {
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
 # It can be any model, initial or a refresh model
-json_file <- "~/Desktop/Robyn_202208100934_init/RobynModel-1_47_11.json"
+json_file <- "~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,
@@ -441,15 +441,19 @@ RobynRefresh <- robyn_refresh(
   refresh_trials = 1
 )
 
-json_file_rf1 <- "~/Desktop/Robyn_202208121601_init/Robyn_202208121604_rf/RobynModel-1_1_1.json"
+json_file_rf1 <- "~/Desktop/Robyn_202208231837_init/Robyn_202208231841_rf1/RobynModel-1_12_5.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file_rf1,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
-  refresh_steps = 4,
+  refresh_steps = 7,
   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
   refresh_trials = 1
 )
+
+# InputCollect <- RobynRefresh$listRefresh1$InputCollect
+# OutputCollect <- RobynRefresh$listRefresh1$OutputCollect
+# select_model <- RobynRefresh$listRefresh1$OutputCollect$selectID
 
 ###### DEPRECATED (<3.7.1) (might work)
 # # Run ?robyn_refresh to check parameter definition
@@ -513,6 +517,15 @@ Response1 <- robyn_response(
 Response1$response / Spend1 # ROI for search 80k
 Response1$plot
 
+#### Or you can call a JSON file directly (a bit slower)
+# Response1 <- robyn_response(
+#   json_file = json_file,
+#   dt_input = dt_simulated_weekly,
+#   dt_holidays = dt_prophet_holidays,
+#   media_metric = "search_S",
+#   metric_value = Spend1
+# )
+
 # Get response for +10%
 Spend2 <- Spend1 * 1.1
 Response2 <- robyn_response(
@@ -571,7 +584,7 @@ robyn_write(InputCollect, OutputCollect, select_model)
 ############ READ ############
 # Recreate `InputCollect` and `OutputCollect` objects
 # Pick any exported model (initial or refreshed)
-json_file <- "~/Desktop/Robyn_202208081321_init/RobynModel-1_6_1.json"
+json_file <- "~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json"
 
 # Optional: Manually read and check data stored in file
 json_data <- robyn_read(json_file)
@@ -592,16 +605,18 @@ OutputCollectX <- robyn_run(
 # Or re-create both by simply using robyn_recreate()
 RobynRecreated <- robyn_recreate(
   json_file = json_file,
-  dt_input = dt_input,
-  dt_holidays = dt_holidays,
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
   quiet = FALSE)
+InputCollectX <- RobynRecreated$InputCollect
+OutputCollectX <- RobynRecreated$OutputCollect
 
 # Re-export model and check summary (will get exported in your current working directory)
 myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
-myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX)
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, export = FALSE)
 myModelPlot
 
 # Refresh any imported model
