@@ -67,7 +67,7 @@
 #' data("dt_simulated_weekly")
 #' data("dt_prophet_holidays")
 #' # Set the (pre-trained and exported) Robyn model JSON file
-#' json_file <- "~/Robyn_202208081444_init/RobynModel-2_55_4.json
+#' json_file <- "~/Robyn_202208081444_init/RobynModel-2_55_4.json"
 #'
 #' # Run \code{robyn_refresh()} with 13 weeks cadence in auto mode
 #' Robyn <- robyn_refresh(
@@ -81,7 +81,7 @@
 #' )
 #'
 #' # Run \code{robyn_refresh()} with 4 weeks cadence in manual mode
-#' json_file2 <- "~/Robyn_202208081444_init/Robyn_202208090847_rf/RobynModel-1_2_3.json
+#' json_file2 <- "~/Robyn_202208081444_init/Robyn_202208090847_rf/RobynModel-1_2_3.json"
 #' Robyn <- robyn_refresh(
 #'   json_file = json_file2,
 #'   dt_input = dt_simulated_weekly,

@@ -94,13 +94,15 @@ robyn_response <- function(InputCollect = NULL,
   ### Use previously exported model using json_file
   if (!is.null(json_file)) {
     if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
-    if (is.null(OutputCollect)) OutputCollect <- robyn_run(
-      InputCollect = InputCollect,
-      json_file = json_file,
-      export = FALSE,
-      quiet = quiet,
-      ...
-    )
+    if (is.null(OutputCollect)) {
+      OutputCollect <- robyn_run(
+        InputCollect = InputCollect,
+        json_file = json_file,
+        export = FALSE,
+        quiet = quiet,
+        ...
+      )
+    }
     if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
     if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
   } else {
@@ -140,8 +142,9 @@ robyn_response <- function(InputCollect = NULL,
     }
   }
 
-  if ("selectID" %in% names(OutputCollect))
+  if ("selectID" %in% names(OutputCollect)) {
     select_model <- OutputCollect$selectID
+  }
 
   ## Prep environment
   if (TRUE) {

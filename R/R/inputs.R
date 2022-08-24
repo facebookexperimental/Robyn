@@ -278,7 +278,7 @@ robyn_inputs <- function(dt_input = NULL,
     check_novar(select(dt_input, -all_of(unused_vars)))
 
     ## Collect input
-    InputCollect <- output <- list(
+    InputCollect <- list(
       dt_input = dt_input,
       dt_holidays = dt_holidays,
       dt_mod = NULL,
@@ -320,7 +320,7 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(hyperparameters)) {
       ### Conditional output 1.2
       ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
-      output <- robyn_engineering(InputCollect, ...)
+      InputCollect <- robyn_engineering(InputCollect, ...)
     }
   } else {
     ### Use case 2: adding 'hyperparameters' and/or 'calibration_input' using robyn_inputs()
@@ -351,17 +351,17 @@ robyn_inputs <- function(dt_input = NULL,
       ## Update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
       check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
-      output <- robyn_engineering(InputCollect, ...)
+      InputCollect <- robyn_engineering(InputCollect, ...)
     }
   }
 
   if (!is.null(json_file)) {
-    pending <- which(!names(json$InputCollect) %in% output)
-    output <- append(output, json$InputCollect[pending])
+    pending <- which(!names(json$InputCollect) %in% names(InputCollect))
+    InputCollect <- append(InputCollect, json$InputCollect[pending])
   }
 
-  class(output) <- c("robyn_inputs", class(output))
-  return(output)
+  class(InputCollect) <- c("robyn_inputs", class(InputCollect))
+  return(InputCollect)
 }
 
 #' @param x \code{robyn_inputs()} output.
@@ -760,7 +760,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- bind_cols(recurrence, select(
-    dt_transform, all_of(c(context_vars, paid_media_spends)))) %>%
+    dt_transform, all_of(c(context_vars, paid_media_spends))
+  )) %>%
     mutate(ds = as.Date(.data$ds))
 
   prophet_params <- list(

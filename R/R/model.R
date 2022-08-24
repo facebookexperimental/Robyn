@@ -1227,7 +1227,9 @@ init_msgs_run <- function(InputCollect, refresh, lambda_control = NULL, quiet = 
       "refreshDepth" %in% names(InputCollect),
       InputCollect$refreshDepth,
       ifelse("refreshCounter" %in% names(InputCollect),
-             InputCollect$refreshCounter, 0))
+        InputCollect$refreshCounter, 0
+      )
+    )
     refresh <- as.integer(depth) > 0
     message(sprintf(
       "%s model is built on rolling window of %s %s: %s to %s",

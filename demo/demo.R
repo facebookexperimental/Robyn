@@ -437,7 +437,7 @@ RobynRefresh <- robyn_refresh(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 13,
-  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_iters = 1000, # 1k is an estimation
   refresh_trials = 1
 )
 
@@ -447,7 +447,7 @@ RobynRefresh <- robyn_refresh(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   refresh_steps = 7,
-  refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
+  refresh_iters = 1000, # 1k is an estimation
   refresh_trials = 1
 )
 
