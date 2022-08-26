@@ -232,7 +232,7 @@ robyn_inputs <- function(dt_input = NULL,
     organic_signs <- organic$organic_signs
 
     ## Check factor_vars
-    check_factorvars(factor_vars, context_vars, organic_vars)
+    factor_vars <- check_factorvars(dt_input, factor_vars, context_vars, organic_vars)
 
     ## Check all vars
     all_media <- c(paid_media_spends, organic_vars)
@@ -785,7 +785,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- dt_regressors %>%
       select(all_of(factor_vars)) %>%
-      ohse()
+      ohse(drop = FALSE) %>%
+      select(-any_of(factor_vars))
     ohe_names <- names(dt_ohe)
     for (addreg in ohe_names) modelRecurrence <- add_regressor(modelRecurrence, addreg)
     dt_ohe <- select(dt_regressors, -all_of(factor_vars)) %>% bind_cols(dt_ohe)
