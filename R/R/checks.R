@@ -180,20 +180,23 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
 }
 
 check_context <- function(dt_input, context_vars, context_signs) {
-  if (!is.null(context_vars) & !is.null(context_signs)) {
-    if (!all(context_vars %in% names(dt_input))) {
-      stop("Provided 'context_vars' is not valid because it's not in your input data")
-    } else if (!all(context_signs %in% opts_pnd)) {
+  if (!is.null(context_vars)) {
+    if (is.null(context_signs)) context_signs <- rep("default", length(context_vars))
+    if (!all(context_signs %in% opts_pnd)) {
       stop("Allowed values for 'context_signs' are: ", paste(opts_pnd, collapse = ", "))
-    } else if (length(context_signs) != length(context_vars)) {
-      stop("'context_signs' must have same length as 'context_vars'")
     }
-  } else if (!is.null(context_vars) & is.null(context_signs)) {
-    context_signs <- rep("default", length(context_vars))
-  } else {
-    context_vars <- context_signs <- NULL
+    if (length(context_signs) != length(context_vars)) {
+      stop("Input 'context_signs' must have same length as 'context_vars'")
+    }
+    temp <- context_vars %in% names(dt_input)
+    if (!all(temp)) {
+      stop(paste(
+        "Input 'context_vars' not included in data. Check:",
+        v2t(context_vars[!temp])
+      ))
+    }
+    return(invisible(list(context_signs = context_signs)))
   }
-  return(invisible(list(context_signs = context_signs)))
 }
 
 check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_media_spends) {
@@ -356,7 +359,7 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 
   dt_init <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, all_media]
 
-  init_all0 <- colSums(dt_init) == 0
+  init_all0 <- dplyr::select_if(dt_init, is.numeric) %>% colSums(.) == 0
   if (any(init_all0)) {
     stop(
       "These media channels contains only 0 within training period ",
