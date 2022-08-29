@@ -429,7 +429,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
           "%s hyperparameter values are required, and %s were provided.",
           "\n Use hyper_names() function to help you with the correct hyperparameters names."
         ),
-        total, total_in
+        total_in, total
       ))
     }
     # Old workflow: replace exposure with spend hyperparameters
