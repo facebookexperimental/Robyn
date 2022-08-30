@@ -852,7 +852,7 @@ robyn_mmm <- function(InputCollect,
     },
     error = function(err) {
       if (!is.null(resultCollectNG)) {
-        msg <- "Error while running robyn_mmm(); providing TEMPORAL results"
+        msg <- "Error while running robyn_mmm(); providing PARTIAL results"
         warning(msg)
         message(paste(msg, err, sep = "\n"))
         sysTimeDopar <- rep(Sys.time() - t0, 3)
