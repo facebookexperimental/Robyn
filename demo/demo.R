@@ -98,7 +98,7 @@ InputCollect <- robyn_inputs(
   # paid_media_vars must have same order as paid_media_spends. Use media exposure metrics like
   # impressions, GRP etc. If not applicable, use spend instead.
   organic_vars = c("newsletter"), # marketing activity without media spend
-  factor_vars = c("events"), # specify which variables in context_vars or organic_vars are factorial
+  # factor_vars = c("events"), # force variables in context_vars or organic_vars to be categorical
   window_start = "2016-11-21",
   window_end = "2018-08-20",
   adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
