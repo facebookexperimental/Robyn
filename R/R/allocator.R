@@ -181,7 +181,7 @@ robyn_allocator <- function(robyn_object = NULL,
   channel_constr_up <- channel_constr_up[media_order]
 
   # Hyper-parameters and results
-  dt_hyppar <- filter(OutputCollect$resultHypParam, .data$solID == select_model)
+  dt_hyppar <- filter(OutputCollect$resultHypParam, solID == select_model)
   dt_bestCoef <- filter(OutputCollect$xDecompAgg, .data$solID == select_model, .data$rn %in% paid_media_spends)
 
   ## Sort table and get filter for channels mmm coef reduced to 0
@@ -616,4 +616,51 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
     gammaTrans = gammaTrans,
     coefsFiltered = coefsFiltered
   ))
+}
+
+get_hitsorical_response <- function(){
+
+}
+
+# eqfun
+eqfun <- function(x, channels) {
+  constr <- sum(x * init_spend)
+  return(constr)
+}
+
+# objective function
+obj_func <- function(x0, channels, robyn_object) {
+  obj <- -sum(robyn_response_all_channels(x0, channels, robyn_object))
+  return(obj)
+}
+
+robyn_response_all_channels <- function(ratios, channels, histSpendB,InputCollect, OutputCollect) {
+  return <- mapply(
+    function(metric_value, channel, ratio, InputCollect, OutputCollect) {
+      fit <- robyn_response(
+        InputCollect = InputCollect,
+        OutputCollect = OutputCollect,
+        media_metric = channel,
+        metric_value = metric_value * ratio,
+        quiet = T)
+      return(sum(fit$response_new))
+    }, metric_values, paid_media_spends, ratios,
+    MoreArgs = list(InputCollect = InputCollect, OutputCollect, OutputCollect))
+  return(return)
+}
+
+robyn_allocator_historical <- function(
+    new_budget, # new total budget to optimized
+    channels, # channels in 
+    lower_bound = channel_constr_low,
+    upper_bound = channel_constr_up,
+    x0
+  ) {
+  fit <- Rsolnp::solnp(
+    pars = x0, fun = obj_func, eqfun = eqfun, eqB = c(new_budget),
+    channels = channels,
+    LB = lower_bound,
+    UB = upper_bound,
+    control = list(delta = 1e-4, tol = 1e-6, nfuneval = 20))
+  return(fit)
 }
