@@ -360,6 +360,17 @@ robyn_inputs <- function(dt_input = NULL,
     InputCollect <- append(InputCollect, json$InputCollect[pending])
   }
 
+  # Save R and Robyn's versions
+  if (TRUE) {
+    ver <- as.character(utils::packageVersion("Robyn"))
+    rver <- utils::sessionInfo()$R.version
+    origin <- ifelse(is.null(utils::packageDescription("Robyn")$Repository), "dev", "stable")
+    InputCollect$version <- sprintf(
+      "Robyn (%s) v%s [R-%s.%s]",
+      origin, ver, rver$major, rver$minor
+    )
+  }
+
   class(InputCollect) <- c("robyn_inputs", class(InputCollect))
   return(InputCollect)
 }
