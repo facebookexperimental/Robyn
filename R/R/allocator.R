@@ -618,10 +618,6 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
   ))
 }
 
-get_hitsorical_response <- function(){
-
-}
-
 # eqfun
 eqfun <- function(x, channels) {
   constr <- sum(x * init_spend)
@@ -629,38 +625,91 @@ eqfun <- function(x, channels) {
 }
 
 # objective function
-obj_func <- function(x0, channels, robyn_object) {
-  obj <- -sum(robyn_response_all_channels(x0, channels, robyn_object))
+obj_func <- function(
+    x0, # initial value to optimize
+    channels,
+    InputCollect,
+    OutputCollect,
+    select_model,
+    date_min = NULL,
+    date_max = NULL) {
+  obj <- -sum(robyn_response_all_channels(
+    x0, channels, InputCollect, OutputCollect,
+    select_model, date_min = NULL, date_max = NULL))
   return(obj)
 }
 
-robyn_response_all_channels <- function(ratios, channels, histSpendB,InputCollect, OutputCollect) {
+robyn_response_all_channels <- function(
+    ratios, channels, InputCollect, OutputCollect,
+    select_model, date_min = NULL, date_max = NULL) {
+  dt_mod <- InputCollect$dt_mod
+  # take
+  adstocked_values <- get_adstock_value(
+    InputCollect, OutputCollect, select_model,
+    date_min = date_min, date_max = date_max)
+  print(adstocked_values)
   return <- mapply(
-    function(metric_value, channel, ratio, InputCollect, OutputCollect) {
+    function(channel, ratio) {
       fit <- robyn_response(
         InputCollect = InputCollect,
         OutputCollect = OutputCollect,
         media_metric = channel,
-        metric_value = metric_value * ratio,
+        metric_value = adstocked_values[, channel] * ratio,
+        select_model = select_model,
         quiet = T)
-      return(sum(fit$response_new))
-    }, metric_values, paid_media_spends, ratios,
-    MoreArgs = list(InputCollect = InputCollect, OutputCollect, OutputCollect))
+      return(sum(fit$response))
+    }, paid_media_spends, ratios)
   return(return)
 }
 
 robyn_allocator_historical <- function(
-    new_budget, # new total budget to optimized
-    channels, # channels in 
+    new_budget=NULL, # new total budget to optimized
+    channels, # channels in
     lower_bound = channel_constr_low,
     upper_bound = channel_constr_up,
-    x0
+    x0,
+    InputCollect,
+    OutputCollect,
+    select_model,
+    date_min = NULL,
+    date_max = NULL
   ) {
+  dt_mod <- InputCollect$dt_mod
+  init_spend <- mapply(sum, dt_mod[InputCollect$dt_mod$ds >= date_min &
+                       InputCollect$dt_mod$ds <= date_max, channels])
+  if (is.null(new_budget)) new_budget <- init_spend
+
   fit <- Rsolnp::solnp(
-    pars = x0, fun = obj_func, eqfun = eqfun, eqB = c(new_budget),
+    pars = x0,
+    fun = function(x0, channels){
+      obj <- -sum(robyn_response_all_channels(
+        x0, channels,
+        InputCollect, OutputCollect,
+        select_model, date_min = date_min, date_max = date_max))
+    },
+    eqfun = function(x, channels) {
+      constr <- sum(x * init_spend)
+      return(constr)
+    },
+
+    eqB = c(new_budget),
     channels = channels,
     LB = lower_bound,
     UB = upper_bound,
     control = list(delta = 1e-4, tol = 1e-6, nfuneval = 20))
   return(fit)
 }
+
+robyn_allocator_historical(
+  new_budget=NULL, # new total budget to optimized
+  channels, # channels in
+  lower_bound = channel_constr_low,
+  upper_bound = channel_constr_up,
+  x0 = c(1,1,1,1,1),
+  InputCollect,
+  OutputCollect,
+  select_model,
+  date_min,
+  date_max
+  )
+

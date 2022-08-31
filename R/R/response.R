@@ -185,7 +185,7 @@ robyn_response <- function(InputCollect = NULL,
     ))
   }
 
-  if (is.nan(metric_value)) metric_value <- NULL
+  if (any(is.nan(metric_value))) metric_value <- NULL
   check_metric_value(metric_value, media_metric)
 
   ## Transform exposure to spend when necessary
@@ -278,4 +278,43 @@ robyn_response <- function(InputCollect = NULL,
     response = Response,
     plot = p_res
   ))
+}
+
+get_adstock_value <- function(
+    InputCollect,
+    OutputCollect,
+    select_model,
+    date_min = NULL,
+    date_max = NULL) {
+
+  adstock <- InputCollect$adstock
+  paid_media_spends <- InputCollect$paid_media_spends
+  media_order <- order(paid_media_spends)
+  mediaSpendSorted <- paid_media_spends[media_order]
+  dt_hyppar <- filter(OutputCollect$resultHypParam, solID == select_model)
+
+  if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
+  if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
+  if (date_min < min(dt_optimCost$ds)) date_min <- min(dt_optimCost$ds)
+  if (date_max > max(dt_optimCost$ds)) date_max <- max(dt_optimCost$ds)
+  # spend in total period
+  histSpendB <- select(InputCollect$dt_mod, any_of(mediaSpendSorted))
+  getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)
+
+  if(adstock == "geometric") {
+    adstock_vec <- mapply(function(x, theta) {
+      return <- adstock_geometric(x, theta)
+      return(return$x_decayed)}
+      , histSpendB, getAdstockHypPar)}
+  else {
+    weibull_type <- if(adstock == "weibull_cdf") "CDF" else "PDF"
+    adstock_vec <- mapply(function(x, shape, scale) {
+      return <- adstock_weibull(x, shape, scale, weibull_type)
+      return(return$x_decayed)}
+      , histSpendB, getAdstockHypPar)
+  }
+  # adstock value
+  adstock_vec <- adstock_vec[InputCollect$dt_mod$ds >= date_min &
+                               InputCollect$dt_mod$ds <= date_max, ]
+  return(adstock_vec)
 }
