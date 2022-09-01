@@ -36,7 +36,9 @@ flatten_hyps <- function(x) {
   if (is.null(x)) {
     return(x)
   }
-  temp <- sapply(x, function(x) sprintf("[%s]", paste(if (is.numeric(x)) signif(x, 6) else x, collapse = ", ")))
+  temp <- sapply(x, function(x) {
+    sprintf("[%s]", paste(if (is.numeric(x)) signif(x, 6) else x, collapse = ", "))
+  })
   paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
 }
 
