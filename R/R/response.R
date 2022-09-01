@@ -6,75 +6,6 @@
 ####################################################################
 #' Response Function
 #'
-#' \code{robyn_response()} returns the response for a given
-#' spend level of a given \code{paid_media_vars} from a selected model
-#' result and selected model build (initial model, refresh model, etc.).
-#'
-#' @inheritParams robyn_allocator
-#' @param media_metric A character. Selected media variable for the response.
-#' Must be one value from paid_media_spends, paid_media_vars or organic_vars
-#' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
-#' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
-#' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
-#' @param dt_coef A data.frame. When \code{robyn_object} is not provided, use
-#' \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
-#' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
-#' @examples
-#' \dontrun{
-#' # Having InputCollect and OutputCollect objects
-#'
-#' # Get marginal response (mResponse) and marginal ROI (mROI) for
-#' # the next 1k on 80k for search_S
-#' spend1 <- 80000
-#' Response1 <- robyn_response(
-#'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect,
-#'   media_metric = "search_S",
-#'   metric_value = spend1
-#' )$response
-#' # Get ROI for 80k
-#' Response1 / spend1 # ROI for search 80k
-#'
-#' # Get response for 81k
-#' spend2 <- spend1 + 1000
-#' Response2 <- robyn_response(
-#'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect,
-#'   media_metric = "search_S",
-#'   metric_value = spend2
-#' )$response
-#'
-#' # Get ROI for 81k
-#' Response2 / spend2 # ROI for search 81k
-#' # Get marginal response (mResponse) for the next 1k on 80k
-#' Response2 - Response1
-#' # Get marginal ROI (mROI) for the next 1k on 80k
-#' (Response2 - Response1) / (spend2 - spend1)
-#'
-#' # Example of getting paid media exposure response curves
-#' imps <- 1000000
-#' response_imps <- robyn_response(
-#'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect,
-#'   media_metric = "facebook_I",
-#'   metric_value = imps
-#' )$response
-#' response_per_1k_imps <- response_imps / imps * 1000
-#' response_per_1k_imps
-#'
-#' # Get response for 80k for search_S from the a certain model SolID
-#' # in the current model output in the global environment
-#' robyn_response(
-#'   InputCollect = InputCollect,
-#'   OutputCollect = OutputCollect,
-#'   media_metric = "search_S",
-#'   metric_value = 80000,
-#'   dt_hyppar = OutputCollect$resultHypParam,
-#'   dt_coef = OutputCollect$xDecompAgg
-#' )
-#' }
-#' @return List. Response value and plot. Class: \code{robyn_response}.
 #' @export
 robyn_response <- function(InputCollect = NULL,
                            OutputCollect = NULL,
@@ -280,6 +211,28 @@ robyn_response <- function(InputCollect = NULL,
   ))
 }
 
+robyn_response_all_channels <- function(
+    ratios, channels, InputCollect, OutputCollect,
+    select_model, date_min = NULL, date_max = NULL) {
+  if (is.null(dt_mod)) dt_mod <- InputCollect$dt_mod
+  # take
+  adstocked_values <- get_adstock_value(
+    InputCollect, OutputCollect, select_model,
+    date_min = date_min, date_max = date_max)
+  return <- mapply(
+    function(channel, ratio) {
+      fit <- Robyn::robyn_response(
+        InputCollect = InputCollect,
+        OutputCollect = OutputCollect,
+        media_metric = channel,
+        metric_value = adstocked_values[, channel] * ratio,
+        select_model = select_model,
+        quiet = T)
+      return(sum(fit$response))
+    }, paid_media_spends, ratios)
+  return(return)
+}
+
 get_adstock_value <- function(
     InputCollect,
     OutputCollect,
@@ -318,3 +271,4 @@ get_adstock_value <- function(
                                InputCollect$dt_mod$ds <= date_max, ]
   return(adstock_vec)
 }
+

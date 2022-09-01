@@ -618,49 +618,69 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
   ))
 }
 
-####################################################################
-#' Budget Allocator
-#'
-#' \code{robyn_allocator()} function returns a new split of media
+#' \code{robyn_allocator_historical()} function returns a new split of media
 #' variable spends that maximizes the total media response.
 #'
-robyn_response_all_channels <- function(
-    ratios, channels, InputCollect, OutputCollect,
-    select_model, date_min = NULL, date_max = NULL) {
-  dt_mod <- InputCollect$dt_mod
-  # take
-  adstocked_values <- get_adstock_value(
-    InputCollect, OutputCollect, select_model,
-    date_min = date_min, date_max = date_max)
-  return <- mapply(
-    function(channel, ratio) {
-      fit <- Robyn::robyn_response(
-        InputCollect = InputCollect,
-        OutputCollect = OutputCollect,
-        media_metric = channel,
-        metric_value = adstocked_values[, channel] * ratio,
-        select_model = select_model,
-        quiet = T)
-      return(sum(fit$response))
-    }, paid_media_spends, ratios)
-  return(return)
-}
+#' @param InputCollect List. Contains all input parameters for the model.
+#' Required when \code{robyn_object} is not provided.
+#' @param OutputCollect List. Containing all model result.
+#' Required when \code{robyn_object} is not provided.
+#' @param select_model Character. A model \code{SolID}. When \code{robyn_object}
+#' is provided, \code{select_model} defaults to the already selected \code{SolID}. When
+#' \code{robyn_object} is not provided, \code{select_model} must be provided with
+#' \code{InputCollect} and \code{OutputCollect}, and must be one of
+#' \code{OutputCollect$allSolutions}.
+#' @param optim_algo Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
+#' Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
+#' short for "Methods of Moving Asymptotes". More details see the documentation of
+#' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
+#' @param scenario Character. Accepted options are: \code{"max_historical_response"} or
+#' \code{"max_response_expected_spend"}. \code{"max_historical_response"} simulates the scenario
+#' "what's the optimal media spend allocation given the same average spend level in history?",
+#' while \code{"max_response_expected_spend"} simulates the scenario "what's the optimal media
+#' spend allocation of a given future spend level for a given period?"
+#' @param expected_spend Numeric. The expected future spend volume. Only applies when
+#' \code{scenario = "max_response_expected_spend"}.
+#' @param expected_spend_days Integer. The duration of the future spend volume in
+#' \code{expected_spend}. Only applies when \code{scenario = "max_response_expected_spend"}.
+#' @param channel_constr_low,channel_constr_up Numeric vectors. The lower and upper bounds
+#' for each paid media variable when maximizing total media response. For example,
+#' \code{channel_constr_low = 0.7} means minimum spend of the variable is 70% of historical
+#' average, using non-zero spend values, within \code{date_min} and \code{date_max} date range.
+#' Both constrains must be length 1 (same for all values) OR same length and order as
+#' \code{paid_media_spends}. It's not recommended to 'exaggerate' upper bounds, especially
+#' if the new level is way higher than historical level. Lower bound must be >=0.01,
+#' and upper bound should be < 5.
+#' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
+#' Defaults to 100000.
+#' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
+#' indicating constraints with equality or inequality.
+#' @param date_min,date_max Character/Date. Date range to calculate mean (of non-zero
+#' spends) and total spends. Default will consider all dates within modeled window.
+#' Length must be 1 for both parameters.
+#' @return A list object containing allocator result.
 
 robyn_allocator_historical <- function(
     new_budget_ratio = 1, # new budget
     channels, # channels to
-    lower_bound = NULL, # lower band
-    upper_bound = NULL, # upper band
+    channel_constr_low = 1, # lower band
+    channel_constr_up = 1, # upper band
     InputCollect, # Input Collect
     OutputCollect, # OutputCollect
     select_model, # selected_model
     date_min = NULL, # starting date to optimize
     date_max = NULL # end date to optimize
-  ) {
+) {
+  if (length(channel_constr_low) == 1) {
+    channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
+  }
+  if (length(channel_constr_up) == 1) {
+    channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
+  }
+
   dt_mod <- InputCollect$dt_mod
   init_spend <- mapply(sum, dt_mod[InputCollect$dt_mod$ds >= date_min &
-                       InputCollect$dt_mod$ds <= date_max, channels])
-  new_budget <- new_budget_ratio * init_spend #
+                                     InputCollect$dt_mod$ds <= date_max, channels])
   x0 <- rep(1 * new_budget_ratio, length(channels)) # initial ratio
   fit <- Rsolnp::solnp(
     pars = x0,
@@ -673,37 +693,57 @@ robyn_allocator_historical <- function(
         select_model,
         date_min = date_min,
         date_max = date_max)
-        )
+      )
     },
     eqfun = function(x0, channels) {
       constr <- sum(x0 * init_spend)
       return(constr)
     },
-    eqB = c(new_budget),
+    eqB = c(sum(new_budget_ratio * init_spend)),
     channels = channels,
-    LB = lower_bound,
-    UB = upper_bound,
+    LB = channel_constr_low,
+    UB = channel_constr_up,
     control = list(delta = 1e-4, tol = 1e-6, nfuneval = 20))
-  return(fit)
+  optim_result <- fit$pars
+  names(optim_result) <- channels
+
+  init_return <- sum(robyn_response_all_channels(x0,
+                                                 channels,
+                                                 InputCollect,
+                                                 OutputCollect,
+                                                 select_model,
+                                                 date_min = date_min,
+                                                 date_max = date_max))
+
+  original_expected_return <- sum(robyn_response_all_channels(x0 * new_budget_ratio,
+                                                 channels,
+                                                 InputCollect,
+                                                 OutputCollect,
+                                                 select_model,
+                                                 date_min = date_min,
+                                                 date_max = date_max))
+  return <- list(fit = fit,
+                 optim_result = optim_result,
+                 expected_spend_total = init_spend * fit$pars,
+                 init_spend_total = init_spend,
+                 original_expected_spend_toal = init_spend * new_budget_ratio,
+                 expected_return = -tail(fit$values,1),
+                 init_return = init_return,
+                 original_expected_return = original_expected_return
+                 )
+  return(return)
 }
 
+
 robyn_allocator_historical(
-  new_budget=NULL, # new total budget to optimized
-  channels, # channels in
-  lower_bound = channel_constr_low,
-  upper_bound = channel_constr_up,
-  x0 = c(1,1,1,1,1),
-  InputCollect,
-  OutputCollect,
-  select_model,
-  date_min,
-  date_max
-  )
-
-
-
--sum(robyn_response_all_channels(
-  channel_constr_low, channels,
-  InputCollect, OutputCollect,
-  select_model, date_min = date_min, date_max = date_max))
+    new_budget_ratio = 0.6, # new budget
+    channels, # channels to
+    channel_constr_low = 0.5, # lower band
+    channel_constr_up = 1, # upper band
+    InputCollect, # Input Collect
+    OutputCollect, # OutputCollect
+    select_model, # selected_model
+    date_min = date_min, # starting date to optimize
+    date_max = date_max # end date to optimize
+)
 
