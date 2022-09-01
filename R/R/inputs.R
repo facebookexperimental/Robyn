@@ -148,7 +148,7 @@
 #' Class: \code{robyn_inputs}.
 #' @export
 robyn_inputs <- function(dt_input = NULL,
-                         dt_holidays = NULL,
+                         dt_holidays = Robyn::dt_prophet_holidays,
                          date_var = "auto",
                          dep_var = NULL,
                          dep_var_type = NULL,
