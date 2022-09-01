@@ -205,6 +205,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 ####################################################################
 #' Output results into local files: CSV files
 #'
+#' @param InputCollect \code{robyn_inputs()} output.
 #' @param OutputCollect \code{robyn_run(..., export = FALSE)} output.
 #' @rdname robyn_outputs
 #' @return Invisible \code{NULL}.
