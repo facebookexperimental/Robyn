@@ -26,8 +26,8 @@ Required when \code{robyn_object} is not provided.}
 \item{hyper_collect}{List. Containing hyperparameter bounds. Defaults to
 \code{InputCollect$hyperparameters}.}
 
-\item{cores}{Integer. Default to \code{parallel::detectCores()} (max cores).
-Set to 1 if you want to turn parallel computing off.}
+\item{cores}{Integer. Default to \code{parallel::detectCores() - 1} (all cores
+except one). Set to 1 if you want to turn parallel computing off.}
 
 \item{iterations}{Integer. Recommended 2000 for default when using
 \code{nevergrad_algo = "TwoPointsDE"}.}

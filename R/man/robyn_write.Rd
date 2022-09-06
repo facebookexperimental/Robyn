@@ -14,7 +14,8 @@ robyn_write(
   select_model = NULL,
   dir = OutputCollect$plot_folder,
   export = TRUE,
-  quiet = FALSE
+  quiet = FALSE,
+  ...
 )
 
 \method{print}{robyn_write}(x, ...)
@@ -39,9 +40,9 @@ into the JSON file?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
-
 \item{...}{Additional parameters.}
+
+\item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
 
 \item{json_file}{Character. JSON file name to read and import as list.}
 

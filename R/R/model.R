@@ -19,8 +19,8 @@
 #' this feature might add too much hyperparameter space and probably requires
 #' more iterations to converge.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
-#' @param cores Integer. Default to \code{parallel::detectCores()} (max cores).
-#' Set to 1 if you want to turn parallel computing off.
+#' @param cores Integer. Default to \code{parallel::detectCores() - 1} (all cores
+#' except one). Set to 1 if you want to turn parallel computing off.
 #' @param iterations Integer. Recommended 2000 for default when using
 #' \code{nevergrad_algo = "TwoPointsDE"}.
 #' @param trials Integer. Recommended 5 for default
@@ -100,7 +100,7 @@ robyn_run <- function(InputCollect = NULL,
 
   max_cores <- parallel::detectCores()
   if (is.null(cores)) {
-    cores <- max_cores
+    cores <- max_cores - 1 # It's recommended to always leave at least one core free
   } else if (cores > max_cores) {
     warning(sprintf("Max possible cores in your machine is %s (your input was %s)", max_cores, cores))
     cores <- max_cores
