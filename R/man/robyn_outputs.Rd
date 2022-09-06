@@ -72,6 +72,8 @@ wish to plot the one-pagers and export? Default will take top
 \item{x}{\code{robyn_outputs()} output.}
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
+
+\item{InputCollect}{\code{robyn_inputs()} output.}
 }
 \value{
 (Invisible) list. Class: \code{robyn_outputs}. Contains processed
