@@ -19,7 +19,7 @@ robyn_write(
 
 \method{print}{robyn_write}(x, ...)
 
-robyn_read(json_file = NULL, step = 1, quiet = FALSE)
+robyn_read(json_file = NULL, step = 1, quiet = FALSE, ...)
 
 \method{print}{robyn_read}(x, ...)
 
