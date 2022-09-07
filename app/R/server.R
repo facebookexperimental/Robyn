@@ -1363,7 +1363,7 @@ server <- function(input, output, session) {
           "Country\'s Alpha-2 Code ",
           tags$style(type = "text/css", "#q2 {vertical-align: top;}"),
           actionButton("country_popover", label = "", icon = icon("question"), style = "info", size = "extra-small")
-        ), value = "")
+        ), value = "DE")
       ))
     }
   })
