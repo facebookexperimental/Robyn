@@ -2,9 +2,9 @@
 % Please edit documentation in R/import.R
 \docType{package}
 \name{RobynLearn}
-\alias{RobynApp}
-\alias{RobynApp-package}
-\title{Robyn App}
+\alias{RobynLearn}
+\alias{RobynLearn-package}
+\title{Robyn Learn}
 \description{
 \if{html}{\figure{logo.png}{options: align='right' alt='logo' width='120'}}
 
@@ -20,6 +20,7 @@ Authors:
   \item Gufeng Zhou \email{gufeng@fb.com}
   \item Leonel Sentana \email{leonelsentana@fb.com}
   \item Igor Skokan \email{igorskokan@fb.com}
+  \item Ruiyao Li \email{ruiyaoli@fb.com}
 }
 
 Other contributors:

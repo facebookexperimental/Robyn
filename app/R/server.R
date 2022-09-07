@@ -423,6 +423,7 @@ server <- function(input, output, session) {
         (is.null(isolate(input$num_media)) == F) &
         (is.null(isolate(input$num_organic_media)) == F) &
         (is.null(isolate(input$num_context)) == F) &
+        (length(input_reactive$paid_media_vars) >= 2) &
         (length(input_reactive$paid_media_vars) == isolate(input$num_media)) &
         (length(input_reactive$paid_media_spends) == isolate(input$num_media)) &
         (length(input_reactive$organic_vars) == isolate(input$num_organic_media)) &
@@ -436,9 +437,11 @@ server <- function(input, output, session) {
         (input_reactive$org_med_vars_in_cols == T) &
         (input_reactive$baseline_vars_in_cols == T)) {
         input_reactive$dt_input <- input_reactive$tbl
-        input_reactive$dt_input$DATE <- as.Date(get(isolate(input$date_var)), isolate(input$date_format_var))
+        input_reactive$date_format <- input$date_format_var
+        input_reactive$dt_input$DATE <- as.Date(input_reactive$dt_input[,input$date_var], format = isolate(input$date_format_var))
         input_reactive$dt_input$DATE <- as.Date(gsub("00", "20", input_reactive$dt_input$DATE))
-        input_reactive$dt_holidays <- isolate(input_reactive$holiday_data)
+        input_reactive$holiday_data <- isolate(input_reactive$holiday_data)
+        input_reactive$holiday_data$ds <- as.Date(input_reactive$holiday_data$ds)
         input_reactive$dep_var <- isolate(input$dep_var)
         input_reactive$dep_var_type <- isolate(input$dep_var_type)
         input_reactive$date_var <- "DATE"
@@ -479,6 +482,9 @@ server <- function(input, output, session) {
         }
         if (length(input_reactive$context_vars) != isolate(input$num_context)) {
           error_message <- paste(error_message, "Missing Input for >=1 baseline variable column names", sep = "<br><br>")
+        }
+        if(length(input_reactive$paid_media_vars) < 2){
+          error_message <- paste(error_message, 'Robyn requires at least 2 paid media variables. Please add additional variables')
         }
         if (input_reactive$med_vars_impr_in_cols == F) {
           error_message <- paste(error_message, "At least 1 column name in the input media impression/click variable column names does not match the column names in the data. Remember they must be input case-sensitive.", sep = "<br><br>")
@@ -621,21 +627,23 @@ server <- function(input, output, session) {
     # Only select the media spend variables and numeric baseline vars for pair-wise correlation:
 
     a <- eda_input[, input_reactive$paid_media_spends]
-    b <- if (is.null(input_reactive$context_vars)) {
+    if (is.null(input_reactive$context_vars)) {
       c()
     } else {
-      eda_input[, (input_reactive$context_vars)]
+      a <- cbind(a,eda_input[, (input_reactive$context_vars)])
     }
-    c <- if (is.null(input_reactive$organic_vars)) {
+    if (is.null(input_reactive$organic_vars)) {
       c()
     } else {
-      eda_input[,(input_reactive$organic_vars)]
+      a <- cbind(a,eda_input[,(input_reactive$organic_vars)])
     }
 
-    dt_pw_corr <- cbind(a, b, c)
+    dt_pw_corr <- a
 
-    if (length(dt_pw_corr) > 1) {
-      dt_pw_corr_n <- dt_pw_corr[, sapply(dt_pw_corr, is.numeric)]
+      tryCatch(
+      dt_pw_corr_n <- dt_pw_corr[, sapply(dt_pw_corr, is.numeric)],
+      error = function(e){}
+      )
       corr <- round(cor(dt_pw_corr_n, use = "complete.obs"), 2) # calculate correlation matrix
 
       idx <- as.data.frame(which(abs(corr) >= 0.8, arr.ind = TRUE)) # get the indices for the matrix entries with abs(correlations) >=0.8
@@ -676,10 +684,8 @@ server <- function(input, output, session) {
       # Decide which message to show:
       message_3a <- ifelse(length(which(abs(corr) >= 0.8 & corr != 1)) >= 1, message_3a_bad, message_3a_good)
 
-      output$print_message_3a <- renderText(paste0(message_3a, "<br>", "<br>"))
-    } else {
       output$print_message_3a <- renderText(paste0("<B>3a. Correlation Between Independent Variables:</B><br>Only one independent variable, no correlation calculation possible"))
-    }
+
 
 
     ###############################################################################################
@@ -956,7 +962,7 @@ server <- function(input, output, session) {
 
     # 2d. count by weekday data -- need to decide on flag criteria if need any
 
-    input_reactive$tbl$weekday <- weekdays(input_reactive$tbl$DATE)
+    input_reactive$tbl$weekday <- weekdays(as.Date(input_reactive$tbl$DATE,format = input$date_format_var))
     input_reactive$weekday_counts <- input_reactive$tbl %>% count(input_reactive$tbl$weekday) %>% arrange(.by_group = T)
     colnames(input_reactive$weekday_counts)[2] <- 'count'
     input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
@@ -1646,9 +1652,10 @@ server <- function(input, output, session) {
       if (!dir.exists(paste0(input$dest_folder, "plots"))) {
         dir.create(file.path(paste0(input$dest_folder, "plots")))
       }
-      input_reactive$robyn_object <- paste0(input$dest_folder, "plots/Robyn.RDS")
+      input_reactive$robyn_object <- paste0(input$dest_folder, "/plots")
+      input_reactive$robyn_json <- paste0(input_reactive$robyn_object,'/robyn.json')
       tryCatch(input_reactive$InputCollect <- robyn_inputs(
-        dt_input = input_reactive$tbl,
+        dt_input = input_reactive$dt_input,
         dt_holidays = input_reactive$holiday_data,
         hyperparameters = input_reactive$hyperparameters,
         calibration_input = input_reactive$calib_data,
@@ -1682,14 +1689,14 @@ server <- function(input, output, session) {
         {
           shinyjs::html("model_gen_text", "")
           input_reactive$OutputCollect <- robyn_run(
-            InputCollect = input_reactive$InputCollect # feed in all model specification  # plots will be saved in the same folder as robyn_object
-            , plot_folder = input_reactive$robyn_object,
+            InputCollect = input_reactive$InputCollect,  # feed in all model specification  # plots will be saved in the same folder as robyn_object
             iterations = input_reactive$iterations,
             trials = input_reactive$trials,
             outputs = T,
             csv_out = "pareto",
             clusters = T,
-            ui = TRUE
+            ui = TRUE,
+            json_file =
           )
           showModal(modalDialog(
             title = "Models Generated Succesfully - Please proceed to the Model Selection Tab",
@@ -1729,13 +1736,9 @@ server <- function(input, output, session) {
     output$pParFront <- renderPlot({
       input_reactive$OutputCollect$UI$pParFront
     })
-    output$dest_folder <- renderUI({
-      textInput('dest_folder', label = 'Folder where explanatory model plots will output',
-                value = input_reactive$data_path)
-    })
 
     output$plots_folder <- renderUI({
-      textInput("folder", label = "Directory containing plots", value = ifelse(exists("input_reactive$OutputCollect$plot_folder"), get("input_reactive$OutputCollect$plot_folder"), "Input Folder of Existing Model Output"))
+      textInput("folder", label = "Directory containing plots", value = input_reactive$OutputCollect$plot_folder)
     })
 
 
@@ -1755,9 +1758,8 @@ server <- function(input, output, session) {
 
   observeEvent(input$save_model, {
     if ((is.null(isolate(input$plot)) == F) & (input$plot %in% input_reactive$OutputCollect$resultHypParam$solID)) {
-      robyn_object <- paste0("/", input$folder, "/", gsub(":", ".", as.character(Sys.time())), "_solID_", input$plot, ".Rds")
       tryCatch(
-        robyn_save(robyn_object = robyn_object, select_model = input$plot, InputCollect = input_reactive$InputCollect, OutputCollect = input_reactive$OutputCollect),
+        robyn_write(select_model = input$plot, InputCollect = input_reactive$InputCollect, OutputCollect = input_reactive$OutputCollect),
         error = function(e) {
           showNotification(e$message, duration = NULL)
         }
@@ -2375,11 +2377,11 @@ server <- function(input, output, session) {
 
   observeEvent(input$refresh_run, {
     # RDS path to data file
-    model_file_RDS <- input$existing_model_for_refresh
-    if (!exists("model_file_RDS")) stop("Must specify robyn_object")
+    model_file_json <- input$existing_model_for_refresh
+    if (!exists("model_file_json")) stop("Must specify robyn_object")
     # check_robyn_object(model_file_RDS)
-    if (!file.exists(model_file_RDS)) {
-      stop("File does not exist or is somewhere else. Check: ", model_file_RDS)
+    if (!file.exists(model_file_json)) {
+      stop("File does not exist or is somewhere else. Check: ", model_file_json)
     }
 
     input_reactive$time_steps <- input$refresh_steps
@@ -2387,7 +2389,8 @@ server <- function(input, output, session) {
     input_reactive$iterations_refresh <- input$refresh_iters
     input_reactive$trials_refresh <- input$refresh_trials
     input_reactive$plot_folder_refresh <- input$dest_folder_refresh
-    input_reactive$robyn_object_refresh <- model_file_RDS
+    input_reactive$robyn_object_refresh <- model_file_json
+    input_reactive$holiday_data_r$ds <- as.Date(input_reactive$holiday_data_r$ds)
 
     tryCatch(
       withCallingHandlers(
@@ -2403,7 +2406,7 @@ server <- function(input, output, session) {
             refresh_iters = input_reactive$iterations_refresh,
             refresh_trials = input_reactive$trials_refresh,
             plot_pareto = TRUE,
-            ui = TRUE
+            ui = T
           )
           showModal(modalDialog(
             title = "Models Generated Succesfully - Please proceed to the Model Selection Tab",
@@ -2425,13 +2428,13 @@ server <- function(input, output, session) {
   ################################### Refresh Model Selection tab server functionality ##################################
 
   observeEvent(input$refresh_load_models, {
-    input_reactive$refreshCounter <- length(input_reactive$OutputCollect) - 4
+    input_reactive$refreshCounter <- length(input_reactive$OutputCollect) - 1
     output$refresh_pParFront <- renderPlot({
       input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$UI$pParFront
     })
 
     output$refresh_plots_folder <- renderUI({
-      textInput("refresh_plots_folder", label = "Directory containing refresh plots", value = ifelse(exists("input_reactive$OutputCollect$refresh_plots_folder"), get("input_reactive$OutputCollect$refresh_plots_folder"), "Input Folder of Existing Model Output"))
+      textInput("refresh_plots_folder", label = "Directory containing refresh plots", value = input_reactive$OutputCollect$listRefresh1$OutputCollect$plot_folder)
     })
 
 
@@ -2568,7 +2571,8 @@ server <- function(input, output, session) {
 
     # Plot2_message
 
-    plot2_tab <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompVecCollect[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot, ]
+    plot2_tab <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompVecCollect[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompVecCollect$solID == input$refresh_plot, ]
+    plot2_tab$ds <- as.Date(plot2_tab$ds)
     plot2_tab$error <- (plot2_tab$depVarHat / plot2_tab$dep_var) - 1
     plot2_tab$error_abs <- abs(plot2_tab$error)
     plot2_tab_top10 <- plot2_tab[order(plot2_tab$error_abs, decreasing = T), ][1:10, ]
@@ -2636,8 +2640,8 @@ server <- function(input, output, session) {
       sep = "<br><br>"
     )
 
-    plot4_tbl_alphas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot] %>% select(contains("alpha"))
-    plot4_tbl_gammas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot] %>% select(contains("gamma"))
+    plot4_tbl_alphas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID == input$refresh_plot,] %>% select(contains("alpha"))
+    plot4_tbl_gammas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID == input$refresh_plot,] %>% select(contains("gamma"))
     plot4_alphas_message <- paste(
       paste0("In refresh_solID - ", input$refresh_plot, " we see that the paid media variables have the following <b>Alpha values</b>"),
       paste0(colnames(plot4_tbl_alphas), " - ", round(plot4_tbl_alphas, 3), collapse = "<br>"),
@@ -2889,11 +2893,10 @@ server <- function(input, output, session) {
       }))
       tryCatch(input_reactive$refresh_optim_result <-
         isolate(robyn_allocator(
-          robyn_object = robyn_object_refresh,
           InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect,
           OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect # input one of the model IDs in OutputCollect$allSolutions to get optimisation result
-          , select_model = isolate(input$refresh_solID),
-          scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
+          , select_model = isolate(input$ref_solID)
+          , scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
           , expected_spend = isolate(input$ref_expected_spend_opt) # specify future spend volume. only applies when scenario = "max_response_expected_spend"
           , expected_spend_days = isolate(input$ref_expected_days_opt) # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
           , channel_constr_low = c(channel_constr_low_list) # must be between 0.01-1 and has same length and order as paid_media_vars

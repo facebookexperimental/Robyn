@@ -19,11 +19,11 @@ ui <- function() {
       background-color: DFDFD6 !important;}")
     ),
     titlePanel(
-      splitLayout(HTML('<img src="https://facebookexperimental.github.io/Robyn/img/robyn_logo.png" alt="Logo" width = 50 height = 40> Robyn APP: Meta Open-Sourced MMM UI'),
+      splitLayout(HTML('<img src="https://facebookexperimental.github.io/Robyn/img/robyn_logo.png" alt="Logo" width = 50 height = 40> Robyn Learn: Meta Open-Sourced MMM UI'),
         textOutput("version"),
         cellWidths = c("80%", "20%")
       ),
-      windowTitle = "Robyn App"
+      windowTitle = "Robyn Learn"
     ),
     navbarPage(
       title = "",
@@ -399,13 +399,13 @@ ui <- function() {
             sidebarPanel(
               actionButton("existingModel", label = "Refreshing your Existing Model", style = "info"),
               textInput("existing_model_for_refresh", label = h4(
-                "Choose your previously Robyn object model path",
-                tags$style(type = "RDS", "#q2 {vertical-align: top;}"),
+                "Choose your previously Robyn object model path (should be json)",
+                tags$style(type = "json", "#q2 {vertical-align: top;}"),
                 actionButton("existing_model_for_refresh_popover",
                   label = "", icon = icon("question"),
                   style = "info", size = "extra-small"
                 )
-              ), value = paste("script_path", "plots/MyRobyn.RDS", sep = "")),
+              ), value = ''),
               fileInput("data_file_refresh",
                 label = h4(
                   "Choose CSV File containing data, with column names in first row ",
