@@ -9,14 +9,15 @@ ui <- function() {
     tags$head(
       # this changes the size of the popovers
       # need to use hyphen not underscore
-      tags$style(type = "text/css", ".shiny-notification {
+      tags$style(type = "text/css", HTML(".shiny-notification {
              position:fixed;
              top: calc(50%);
              left: calc(33%);
              font-size: 200%;
              }
              ", ".datepicker {z-index:99999 !important;}", ".navbar-default {
-      background-color: DFDFD6 !important;}")
+      background-color: DFDFD6 !important;}"
+                 ))
     ),
     titlePanel(
       splitLayout(HTML('<img src="https://facebookexperimental.github.io/Robyn/img/robyn_logo.png" alt="Logo" width = 50 height = 40> Robyn Learn: Meta Open-Sourced MMM UI'),
@@ -35,7 +36,7 @@ ui <- function() {
             align = "center",
             width = 12,
             headerPanel(
-              h3("Welcome to Robyn Learn - An Educational Open-Source Marketing Mix Model Development UI where our goal is to democratize access to MMM and encouraging good marketing practices through data and science",
+              h3("Welcome to Robyn Learn - An Educational Open-Source Marketing Mix Model Development UI where our goal is to promote education of Robyn, a tool aimed to democratize access to MMM and encouraging good marketing practices through data and science",
                 style = "font-weight: 500; line-height: 1.1;
                   color:blue;"
               )
@@ -56,6 +57,7 @@ ui <- function() {
             br(),
             br(),
             br(),
+            headerPanel(h3('Please zoom out your browser if buttons begin to overlap')),
             br(),
             br(),
             br(),

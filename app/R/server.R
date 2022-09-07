@@ -932,7 +932,7 @@ server <- function(input, output, session) {
         x = reorder(get('week_char'), get('week')),
         y = count,
         label = count,
-        color = get('flag')
+        color = get('week_char')
       )) +
         geom_point(
           size = 3
@@ -964,7 +964,7 @@ server <- function(input, output, session) {
 
     input_reactive$tbl$weekday <- weekdays(as.Date(input_reactive$tbl$DATE,format = input$date_format_var))
     input_reactive$weekday_counts <- input_reactive$tbl %>% count(input_reactive$tbl$weekday) %>% arrange(.by_group = T)
-    colnames(input_reactive$weekday_counts)[2] <- 'count'
+    colnames(input_reactive$weekday_counts)[1:2] <- c('weekday','count')
     input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
     input_reactive$weekday_counts$pct_diff_vs_count_max <- (input_reactive$weekday_counts$count_max - input_reactive$weekday_counts$count) / input_reactive$weekday_counts$count_max
 
@@ -973,7 +973,7 @@ server <- function(input, output, session) {
       ggplot(
         input_reactive$weekday_counts,
         aes(
-          x = weekdays,
+          x = weekday,
           y = count,
           # fill=count,
           label = count
