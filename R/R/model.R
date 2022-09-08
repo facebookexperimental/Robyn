@@ -493,12 +493,6 @@ robyn_mmm <- function(InputCollect,
   resultCollectNG <- list()
   cnt <- 0
   if (!hyper_fixed & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
-  # Create cluster before big for-loop to minimize overhead for parallel back-end registering
-  if (check_parallel() & !hyper_fixed) {
-    registerDoParallel(cores)
-  } else {
-    registerDoSEQ()
-  }
 
   sysTimeDopar <- tryCatch(
     {
@@ -833,6 +827,12 @@ robyn_mmm <- function(InputCollect,
             if (cores == 1) {
               for (i in 1:iterPar) doparFx(i)
             } else {
+              # Create cluster to minimize overhead for parallel back-end registering
+              if (check_parallel() & !hyper_fixed) {
+                registerDoParallel(cores)
+              } else {
+                registerDoSEQ()
+              }
               foreach(i = 1:iterPar) %dorng% doparFx(i)
             }
           )
