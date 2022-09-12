@@ -17,7 +17,8 @@ remotes::install_github("facebookexperimental/Robyn/app")
 
   * Load `RobynLearn` UI by running:
 ```{r}
-RobynLearn::robyn_learn()
+library("RobynLearn")
+robyn_learn()
 ```
 
 ## License
