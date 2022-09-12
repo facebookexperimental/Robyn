@@ -1275,7 +1275,7 @@ server <- function(input, output, session) {
 
   output$local_hyperparam_sliders_paid <- renderUI({
     lapply(1:length(input_reactive$paid_media_vars), function(i) {
-      if (input$adstock_selection == "weibull") {
+      if (input$adstock_selection == "weibull_cdf") {
         splitLayout(
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
             label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
@@ -1292,6 +1292,25 @@ server <- function(input, output, session) {
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_scales"),
             label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_scale")),
             min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
+          )
+        )
+      } else if (input$adstock_selection == "weibull_pdf") {
+        splitLayout(
+          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
+                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
+                      min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
+          ),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas"),
+                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_gammas")),
+                      min = 0, max = 3, value = c(0.3, 1), step = 0.01
+          ),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_shapes"),
+                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_shapes")),
+                      min = 0, max = 1, value = c(0.3, 1), step = 0.01
+          ),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_scales"),
+                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_scale")),
+                      min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
           )
         )
       } else if (input$adstock_selection == "geometric") {
@@ -1316,7 +1335,7 @@ server <- function(input, output, session) {
   output$local_hyperparam_sliders_organic <- renderUI({
     if (length(input_reactive$organic_vars) > 0) {
       lapply(1:length(input_reactive$organic_vars), function(i) {
-        if (input$adstock_selection == "weibull") {
+        if (input$adstock_selection == "weibull_cdf") {
           splitLayout(
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_alphas"),
               label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_alphas")),
@@ -1333,6 +1352,25 @@ server <- function(input, output, session) {
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_scales"),
               label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_scale")),
               min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
+            )
+          )
+        } else if (input$adstock_selection == "weibull_pdf") {
+          splitLayout(
+            sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_alphas"),
+                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_alphas")),
+                        min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
+            ),
+            sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_gammas"),
+                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_gammas")),
+                        min = 0, max = 3, value = c(0.3, 1), step = 0.01
+            ),
+            sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_shapes"),
+                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_shapes")),
+                        min = 0, max = 1, value = c(0.3, 1), step = 0.01
+            ),
+            sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_scales"),
+                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_scale")),
+                        min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
             )
           )
         } else if (input$adstock_selection == "geometric") {
@@ -1451,7 +1489,7 @@ server <- function(input, output, session) {
     input_reactive$hyp_org <- list()
     input_reactive$hyp_paid <- list()
     input_reactive$hyperparameters <- list()
-    if (input$adstock_selection == "weibull") {
+    if (input$adstock_selection %in% c("weibull_cdf",'weibull_pdf')) {
       vals <- list()
       names_l <- list()
       lapply(1:length(input_reactive$paid_media_vars), function(i) {

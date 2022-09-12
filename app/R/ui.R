@@ -242,7 +242,7 @@ ui <- function() {
                   tags$style(type = "text/css", "#q2 {vertical-align: top;}"),
                   actionButton("adstock_selection_popover", label = "", icon = icon("question"), style = "info", size = "extra-small")
                 ),
-                choices = c("geometric", "weibull"), selected = "geometric", selectize = F
+                choices = c("geometric", "weibull_cdf", 'weibull_pdf'), selected = "geometric", selectize = F
               ),
               uiOutput("model_window_min"),
               uiOutput("model_window_max"),
@@ -293,7 +293,7 @@ ui <- function() {
               width = 7,
               splitLayout(
                 cellWidths = c("40%", "20%", "20%"),
-                actionButton("finalize_inputs_popover", label = "Info on Finalizing your Inputs - The Last Step before Modeling", style = "info", size = "small"),
+                actionButton("finalize_inputs_popover", label = "Info on Finalizing your Inputs", style = "info", size = "small"),
                 actionButton("finalize_hyperparams", label = "Finalize All Model Inputs"),
                 actionButton("run_model", label = "Initiate ROBYN Modelling")
               ),
