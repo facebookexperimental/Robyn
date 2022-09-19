@@ -810,6 +810,12 @@ prophet_decomp <- function(dt_transform, dt_holidays,
       dt_transform[, aggreg] <- scale(get_reg, center = min(get_reg), scale = FALSE)
     }
   } else {
+    if (dayInterval == 1) {
+      warning("Currently, there's a known issue with prophet that will crash this use case.",
+              "\n Read more here: https://github.com/facebook/prophet/pull/2252")
+      # mod <<- mod
+      # dt_regressors <<- dt_regressors
+    }
     mod <- fit.prophet(modelRecurrence, dt_regressors)
     forecastRecurrence <- predict(mod, dt_regressors)
   }
