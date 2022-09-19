@@ -108,7 +108,7 @@ server <- function(input, output, session) {
         "Upload your dataset containing holiday data. If you do not have a separate file",
         ", in the github repository there is a file called holidays.csv that you can access ",
         "here containing holiday data going back and forward many years. Click ",
-        a("here.", href = "https://github.com/facebookexperimental/Robyn/blob/master/source/holidays.csv"),
+        a("here.", href = "https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData", target = '_blank'),
         " If you do have your own holiday file, ensure the formatting is the same as this file."
       )),
       easyClose = T,
@@ -121,11 +121,10 @@ server <- function(input, output, session) {
       title = "Choosing a CSV File for your holiday dataset",
       HTML(paste0(
         "Upload your dataset here. The file must be of .csv type, and should contain at least a column for a date variable, ",
-        "and an independent variable such as revenue or conversions. For an example of what this file could look like, see the de_simulated_data.csv ",
+        "and an independent variable such as revenue or conversions. For an example of what this file could look like, see the de_simulated_data.Rdata",
         "file in the ",
-        a("github repository. ", href = "https://github.com/facebookexperimental/Robyn/blob/master/source/de_simulated_data.csv", target = "_blank"),
-        "Additionally, for more detailed information on this step please refer to the ",
-        a("step by step guide.", href = "https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide#load-data", target = "_blank")
+        a("github repository. ", href = "https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_prophet_holidays.RData", target = "_blank"),
+        "Additionally, for more detailed information on this step please refer to the ? pop-ups on this tab. Please pre-load the sample data on the Getting Started tab if you want to explore the tool with that."
       )),
       easyClose = T,
       footer = NULL
