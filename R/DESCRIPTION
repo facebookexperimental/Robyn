@@ -30,7 +30,8 @@ Imports:
     reticulate,
     rPref,
     stringr,
-    tidyr
+    tidyr,
+    Rsolnp
 Suggests:
     shiny
 Config/reticulate:
@@ -41,7 +42,7 @@ Config/reticulate:
   )
 URL: https://github.com/facebookexperimental/Robyn, https://facebookexperimental.github.io/Robyn/
 BugReports: https://github.com/facebookexperimental/Robyn/issues
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.1
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

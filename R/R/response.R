@@ -214,7 +214,7 @@ robyn_response <- function(InputCollect = NULL,
 robyn_response_all_channels <- function(
     ratios, channels, InputCollect, OutputCollect,
     select_model, date_min = NULL, date_max = NULL) {
-  if (is.null(dt_mod)) dt_mod <- InputCollect$dt_mod
+  dt_mod <- InputCollect$dt_mod
   # take
   adstocked_values <- get_adstock_value(
     InputCollect, OutputCollect, select_model,
@@ -229,7 +229,7 @@ robyn_response_all_channels <- function(
         select_model = select_model,
         quiet = T)
       return(sum(fit$response))
-    }, paid_media_spends, ratios)
+    }, channels, ratios)
   return(return)
 }
 
@@ -246,10 +246,10 @@ get_adstock_value <- function(
   mediaSpendSorted <- paid_media_spends[media_order]
   dt_hyppar <- filter(OutputCollect$resultHypParam, solID == select_model)
 
-  if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
-  if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
-  if (date_min < min(dt_optimCost$ds)) date_min <- min(dt_optimCost$ds)
-  if (date_max > max(dt_optimCost$ds)) date_max <- max(dt_optimCost$ds)
+  if (is.null(date_min)) date_min <- min(InputCollect$dt_mod$ds)
+  if (is.null(date_max)) date_max <- max(InputCollect$dt_mod$ds)
+  if (date_min < min(InputCollect$dt_mod$ds)) date_min <- min(InputCollect$dt_mod$ds)
+  if (date_max > max(InputCollect$dt_mod$ds)) date_max <- max(InputCollect$dt_mod$ds)
   # spend in total period
   histSpendB <- select(InputCollect$dt_mod, any_of(mediaSpendSorted))
   getAdstockHypPar <- get_adstock_params(InputCollect, dt_hyppar)

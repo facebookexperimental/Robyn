@@ -630,19 +630,7 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
 #' \code{robyn_object} is not provided, \code{select_model} must be provided with
 #' \code{InputCollect} and \code{OutputCollect}, and must be one of
 #' \code{OutputCollect$allSolutions}.
-#' @param optim_algo Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
-#' Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
-#' short for "Methods of Moving Asymptotes". More details see the documentation of
-#' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
-#' @param scenario Character. Accepted options are: \code{"max_historical_response"} or
-#' \code{"max_response_expected_spend"}. \code{"max_historical_response"} simulates the scenario
-#' "what's the optimal media spend allocation given the same average spend level in history?",
-#' while \code{"max_response_expected_spend"} simulates the scenario "what's the optimal media
-#' spend allocation of a given future spend level for a given period?"
-#' @param expected_spend Numeric. The expected future spend volume. Only applies when
-#' \code{scenario = "max_response_expected_spend"}.
-#' @param expected_spend_days Integer. The duration of the future spend volume in
-#' \code{expected_spend}. Only applies when \code{scenario = "max_response_expected_spend"}.
+#' @param channels channels to optimize
 #' @param channel_constr_low,channel_constr_up Numeric vectors. The lower and upper bounds
 #' for each paid media variable when maximizing total media response. For example,
 #' \code{channel_constr_low = 0.7} means minimum spend of the variable is 70% of historical
@@ -651,18 +639,37 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
 #' \code{paid_media_spends}. It's not recommended to 'exaggerate' upper bounds, especially
 #' if the new level is way higher than historical level. Lower bound must be >=0.01,
 #' and upper bound should be < 5.
-#' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
-#' Defaults to 100000.
-#' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
-#' indicating constraints with equality or inequality.
+#' @param new_budget_ratio numeric. Value which you want to increase or decrease 
+#' from current budget. deafult 1
 #' @param date_min,date_max Character/Date. Date range to calculate mean (of non-zero
 #' spends) and total spends. Default will consider all dates within modeled window.
 #' Length must be 1 for both parameters.
+#' @examples
+#' \dontrun{robyn_allocator_historical(
+#' new_budget_ratio = 0.6, # new budget
+#' channels, # channels to optimize
+#' channel_constr_low = 0.5, # lower band
+#' channel_constr_up = 1, # upper band
+#' InputCollect, # Input Collect
+#' OutputCollect, # OutputCollect
+#' select_model, # selected_model
+#' date_min = date_min, # starting date to optimize
+#' date_max = date_max # end date to optimize
+#' )}
+
 #' @return A list object containing allocator result.
+#' fit: solnp output
+#' optim_result: optimized share
+#' expected_spend_total: optimized expected spend
+#' init_spend_total: initial spend 
+#' original_expected_spend_toal: expected spend with current spend share
+#' expected_return: optimized expected return
+#' init_return" initial return
+#' original_expected_return: expected return with current spend share
 
 robyn_allocator_historical <- function(
     new_budget_ratio = 1, # new budget
-    channels, # channels to
+    channels, # channels to optimize
     channel_constr_low = 1, # lower band
     channel_constr_up = 1, # upper band
     InputCollect, # Input Collect
@@ -672,25 +679,26 @@ robyn_allocator_historical <- function(
     date_max = NULL # end date to optimize
 ) {
   if (length(channel_constr_low) == 1) {
-    channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
+    channel_constr_low <- rep(channel_constr_low, length(channels))
   }
   if (length(channel_constr_up) == 1) {
-    channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
+    channel_constr_up <- rep(channel_constr_up, length(channels))
   }
-
   dt_mod <- InputCollect$dt_mod
-  init_spend <- mapply(sum, dt_mod[InputCollect$dt_mod$ds >= date_min &
-                                     InputCollect$dt_mod$ds <= date_max, channels])
+  if (is.null(date_min)) date_min <- min(dt_mod$ds)
+  if (is.null(date_max)) date_max <- max(dt_mod$ds)
+  init_spend <- mapply(sum, dt_mod[dt_mod$ds >= date_min &
+                                     dt_mod$ds <= date_max, channels])
   x0 <- rep(1 * new_budget_ratio, length(channels)) # initial ratio
-  fit <- Rsolnp::solnp(
+  fit <- solnp(
     pars = x0,
     fun = function(x0, channels) {
       obj <- -sum(robyn_response_all_channels(
-        x0,
-        channels,
-        InputCollect,
-        OutputCollect,
-        select_model,
+        ratios=x0,
+        channels = channels,
+        InputCollect = InputCollect,
+        OutputCollect = OutputCollect,
+        select_model = select_model,
         date_min = date_min,
         date_max = date_max)
       )
@@ -726,24 +734,10 @@ robyn_allocator_historical <- function(
                  optim_result = optim_result,
                  expected_spend_total = init_spend * fit$pars,
                  init_spend_total = init_spend,
-                 original_expected_spend_toal = init_spend * new_budget_ratio,
+                 original_expected_spend_total = init_spend * new_budget_ratio,
                  expected_return = -tail(fit$values,1),
                  init_return = init_return,
                  original_expected_return = original_expected_return
                  )
   return(return)
 }
-
-
-robyn_allocator_historical(
-    new_budget_ratio = 0.6, # new budget
-    channels, # channels to
-    channel_constr_low = 0.5, # lower band
-    channel_constr_up = 1, # upper band
-    InputCollect, # Input Collect
-    OutputCollect, # OutputCollect
-    select_model, # selected_model
-    date_min = date_min, # starting date to optimize
-    date_max = date_max # end date to optimize
-)
-

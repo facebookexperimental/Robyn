@@ -13,9 +13,6 @@ robyn_onepagers(
 )
 }
 \arguments{
-\item{InputCollect}{\code{robyn_inputs()} and \code{robyn_run()}
-outcomes.}
-
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
 \item{select_model}{Character vector. Which models (by \code{solID}) do you
