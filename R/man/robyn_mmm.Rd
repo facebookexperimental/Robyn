@@ -27,7 +27,8 @@ Required when \code{robyn_object} is not provided.}
 
 \item{iterations}{Integer. Number of iterations to run.}
 
-\item{cores}{Integer. Default to \code{parallel::detectCores()} (max cores).}
+\item{cores}{Integer. Default to \code{parallel::detectCores() - 1} (all cores
+except one). Set to 1 if you want to turn parallel computing off.}
 
 \item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",

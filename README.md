@@ -56,7 +56,7 @@ Work in progress. Expect a Python wrapper soon.
 
 ## License
 
-Meta Robyn MMM R script is MIT licensed, as found in the LICENSE file.
+Meta's Robyn is MIT licensed, as found in the LICENSE file.
 
 - Terms of Use - https://opensource.facebook.com/legal/terms 
 - Privacy Policy - https://opensource.facebook.com/legal/privacy

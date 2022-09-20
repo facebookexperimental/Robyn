@@ -277,10 +277,13 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
 check_factorvars <- function(dt_input, factor_vars, context_vars, organic_vars) {
   temp <- select(dt_input, all_of(c(context_vars, organic_vars)))
   are_not_numeric <- !sapply(temp, is.numeric)
-  if (any(are_not_numeric) & !all(are_not_numeric %in% factor_vars)) {
-    these <- are_not_numeric[!are_not_numeric %in% factor_vars]
-    message("Automatically set these variables as 'factor_vars': ", v2t(names(these)))
-    factor_vars <- c(factor_vars, names(these))
+  if (any(are_not_numeric)) {
+    these <- are_not_numeric[!names(are_not_numeric) %in% factor_vars]
+    these <- these[these]
+    if (length(these) > 0) {
+      message("Automatically set these variables as 'factor_vars': ", v2t(names(these)))
+      factor_vars <- c(factor_vars, names(these))
+    }
   }
   if (!is.null(factor_vars)) {
     if (!all(factor_vars %in% c(context_vars, organic_vars))) {

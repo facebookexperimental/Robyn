@@ -25,7 +25,7 @@ hyperparameters that is inserted into \code{robyn_inputs(hyperparameters = ...)}
  \enumerate{
    \item Get correct hyperparameter names:
    All variables in \code{paid_media_vars} or \code{organic_vars} require hyperprameters
-   and will be transformed by adstock & saturation. Difference between \code{organic_vars}
+   and will be transformed by adstock & saturation. Difference between \code{paid_media_vars}
    and \code{organic_vars} is that \code{paid_media_vars} has spend that
    needs to be specified in \code{paid_media_spends} specifically. Run \code{hyper_names()}
    to get correct hyperparameter names. All names in hyperparameters must

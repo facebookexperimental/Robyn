@@ -19,7 +19,8 @@
 #' this feature might add too much hyperparameter space and probably requires
 #' more iterations to converge.
 #' @param refresh Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.
-#' @param cores Integer. Default to \code{parallel::detectCores()} (max cores).
+#' @param cores Integer. Default to \code{parallel::detectCores() - 1} (all cores
+#' except one). Set to 1 if you want to turn parallel computing off.
 #' @param iterations Integer. Recommended 2000 for default when using
 #' \code{nevergrad_algo = "TwoPointsDE"}.
 #' @param trials Integer. Recommended 5 for default
@@ -97,7 +98,15 @@ robyn_run <- function(InputCollect = NULL,
     for (i in 1:length(InputCollect)) assign(names(InputCollect)[i], InputCollect[[i]])
   }
 
-  if (is.null(cores)) cores <- parallel::detectCores()
+  max_cores <- parallel::detectCores()
+  if (is.null(cores)) {
+    cores <- max_cores - 1 # It's recommended to always leave at least one core free
+  } else if (cores > max_cores) {
+    warning(sprintf("Max possible cores in your machine is %s (your input was %s)", max_cores, cores))
+    cores <- max_cores
+  }
+  if (cores == 0) cores <- 1
+
   hyps_fixed <- !is.null(dt_hyper_fixed)
   if (hyps_fixed) trials <- iterations <- 1
   check_run_inputs(cores, iterations, trials, intercept_sign, nevergrad_algo)
@@ -484,369 +493,388 @@ robyn_mmm <- function(InputCollect,
   resultCollectNG <- list()
   cnt <- 0
   if (!hyper_fixed & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
-  # Create cluster before big for-loop to minimize overhead for parallel back-end registering
-  if (check_parallel() & !hyper_fixed) {
-    registerDoParallel(cores)
-  } else {
-    registerDoSEQ()
-  }
 
-  sysTimeDopar <- system.time({
-    for (lng in 1:iterNG) { # lng = 1
-      nevergrad_hp <- list()
-      nevergrad_hp_val <- list()
-      hypParamSamList <- list()
-      hypParamSamNG <- c()
+  sysTimeDopar <- tryCatch(
+    {
+      system.time({
+        for (lng in 1:iterNG) { # lng = 1
+          nevergrad_hp <- list()
+          nevergrad_hp_val <- list()
+          hypParamSamList <- list()
+          hypParamSamNG <- c()
 
-      if (hyper_fixed == FALSE) {
-        # Setting initial seeds
-        for (co in 1:iterPar) { # co = 1
-          ## Get hyperparameter sample with ask (random)
-          nevergrad_hp[[co]] <- optimizer$ask()
-          nevergrad_hp_val[[co]] <- nevergrad_hp[[co]]$value
-          ## Scale sample to given bounds using uniform distribution
-          for (hypNameLoop in hyper_bound_list_updated_name) {
-            index <- which(hypNameLoop == hyper_bound_list_updated_name)
-            channelBound <- unlist(hyper_bound_list_updated[hypNameLoop])
-            hyppar_value <- nevergrad_hp_val[[co]][index]
-            if (length(channelBound) > 1) {
-              hypParamSamNG[hypNameLoop] <- qunif(hyppar_value, min(channelBound), max(channelBound))
-            } else {
-              hypParamSamNG[hypNameLoop] <- hyppar_value
-            }
-          }
-          hypParamSamList[[co]] <- data.frame(t(hypParamSamNG))
-        }
-        hypParamSamNG <- bind_rows(hypParamSamList)
-        names(hypParamSamNG) <- hyper_bound_list_updated_name
-        ## Add fixed hyperparameters
-        if (hyper_count_fixed != 0) {
-          hypParamSamNG <- cbind(hypParamSamNG, dt_hyper_fixed_mod) %>%
-            select(all_of(hypParamSamName))
-        }
-      } else {
-        hypParamSamNG <- select(dt_hyper_fixed_mod, all_of(hypParamSamName))
-      }
-
-      ## Parallel start
-
-      nrmse.collect <- c()
-      decomp.rssd.collect <- c()
-      best_mape <- Inf
-
-      doparCollect <- suppressPackageStartupMessages(
-        # for (i in 1:iterPar) {
-        foreach(i = 1:iterPar) %dorng% { # i = 1
-          t1 <- Sys.time()
-          #### Get hyperparameter sample
-          hypParamSam <- hypParamSamNG[i, ]
-          #### Tranform media with hyperparameters
-          dt_modAdstocked <- select(dt_mod, -.data$ds)
-          mediaAdstocked <- list()
-          mediaVecCum <- list()
-          mediaSaturated <- list()
-          adstock <- check_adstock(adstock)
-
-          for (v in 1:length(all_media)) {
-            ################################################
-            ## 1. Adstocking (whole data)
-            m <- dt_modAdstocked[, all_media[v]][[1]]
-            if (adstock == "geometric") {
-              theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
-              x_list <- adstock_geometric(x = m, theta = theta)
-            } else if (adstock == "weibull_cdf") {
-              shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
-              scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
-              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
-            } else if (adstock == "weibull_pdf") {
-              shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
-              scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
-              x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
-            }
-            m_adstocked <- x_list$x_decayed
-            mediaAdstocked[[v]] <- m_adstocked
-            mediaVecCum[[v]] <- x_list$thetaVecCum
-
-            # data.frame(id = rep(1:length(m), 2)) %>%
-            #   mutate(value = c(m, m_adstocked),
-            #          type = c(rep("raw", length(m)), rep("adstocked", length(m)))) %>%
-            #   filter(id < 100) %>%
-            #   ggplot(aes(x = id, y = value, colour = type)) +
-            #   geom_line()
-
-            ################################################
-            ## 2. Saturation (only window data)
-            m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
-            alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
-            gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
-            mediaSaturated[[v]] <- saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma)
-            # plot(m_adstockedRollWind, mediaSaturated[[1]])
-          }
-          names(mediaAdstocked) <- names(mediaVecCum) <- names(mediaSaturated) <- all_media
-          dt_modAdstocked <- dt_modAdstocked %>%
-            select(-all_of(all_media)) %>%
-            bind_cols(mediaAdstocked)
-          mediaVecCum <- bind_cols(mediaVecCum)
-          dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
-            select(-all_of(all_media)) %>%
-            bind_cols(mediaSaturated)
-
-          #####################################
-          #### Split and prepare data for modelling
-
-          dt_train <- dt_modSaturated
-
-          ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
-          y_train <- dt_train$dep_var
-          if (length(which(grepl("^[0-9]", dt_train))) > 1) {
-            x_train <- model.matrix(dep_var ~ ., dt_train)[, -1]
-          } else {
-            x_train <- as.matrix(dt_train[, -1])
-          }
-
-          ## Define and set sign control
-          dt_sign <- select(dt_modSaturated, -.data$dep_var)
-          x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
-          names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
-          check_factor <- sapply(dt_sign, is.factor)
-          lower.limits <- upper.limits <- c()
-          for (s in 1:length(check_factor)) {
-            if (check_factor[s] == TRUE) {
-              level.n <- length(levels(unlist(dt_sign[, s, with = FALSE])))
-              if (level.n <= 1) {
-                stop("All factor variables must have more than 1 level")
-              }
-              lower_vec <- if (x_sign[s] == "positive") {
-                rep(0, level.n - 1)
-              } else {
-                rep(-Inf, level.n - 1)
-              }
-              upper_vec <- if (x_sign[s] == "negative") {
-                rep(0, level.n - 1)
-              } else {
-                rep(Inf, level.n - 1)
-              }
-              lower.limits <- c(lower.limits, lower_vec)
-              upper.limits <- c(upper.limits, upper_vec)
-            } else {
-              lower.limits <- c(lower.limits, ifelse(x_sign[s] == "positive", 0, -Inf))
-              upper.limits <- c(upper.limits, ifelse(x_sign[s] == "negative", 0, Inf))
-            }
-          }
-
-          #####################################
-          #### Fit ridge regression with nevergrad's lambda
-          # lambdas <- lambda_seq(x_train, y_train, seq_len = 100, lambda_min_ratio = 0.0001)
-          # lambda_max <- max(lambdas)
-          lambda_hp <- unlist(hypParamSamNG$lambda[i])
           if (hyper_fixed == FALSE) {
-            lambda_scaled <- lambda_min + (lambda_max - lambda_min) * lambda_hp
+            # Setting initial seeds
+            for (co in 1:iterPar) { # co = 1
+              ## Get hyperparameter sample with ask (random)
+              nevergrad_hp[[co]] <- optimizer$ask()
+              nevergrad_hp_val[[co]] <- nevergrad_hp[[co]]$value
+              ## Scale sample to given bounds using uniform distribution
+              for (hypNameLoop in hyper_bound_list_updated_name) {
+                index <- which(hypNameLoop == hyper_bound_list_updated_name)
+                channelBound <- unlist(hyper_bound_list_updated[hypNameLoop])
+                hyppar_value <- nevergrad_hp_val[[co]][index]
+                if (length(channelBound) > 1) {
+                  hypParamSamNG[hypNameLoop] <- qunif(hyppar_value, min(channelBound), max(channelBound))
+                } else {
+                  hypParamSamNG[hypNameLoop] <- hyppar_value
+                }
+              }
+              hypParamSamList[[co]] <- data.frame(t(hypParamSamNG))
+            }
+            hypParamSamNG <- bind_rows(hypParamSamList)
+            names(hypParamSamNG) <- hyper_bound_list_updated_name
+            ## Add fixed hyperparameters
+            if (hyper_count_fixed != 0) {
+              hypParamSamNG <- cbind(hypParamSamNG, dt_hyper_fixed_mod) %>%
+                select(all_of(hypParamSamName))
+            }
           } else {
-            lambda_scaled <- lambda_hp
+            hypParamSamNG <- select(dt_hyper_fixed_mod, all_of(hypParamSamName))
           }
 
-          if (add_penalty_factor) {
-            penalty.factor <- unlist(hypParamSamNG[i, grepl("penalty_", names(hypParamSamNG))])
-          } else {
-            penalty.factor <- rep(1, ncol(x_train))
-          }
+          ## Parallel start
 
-          glm_mod <- glmnet(
-            x_train,
-            y_train,
-            family = "gaussian",
-            alpha = 0, # 0 for ridge regression
-            lambda = lambda_scaled,
-            lower.limits = lower.limits,
-            upper.limits = upper.limits,
-            type.measure = "mse",
-            penalty.factor = penalty.factor
-          ) # plot(glm_mod); coef(glm_mod)
+          nrmse.collect <- c()
+          decomp.rssd.collect <- c()
+          best_mape <- Inf
 
-          # # When we used CV instead of nevergrad
-          # lambda_range <- c(cvmod$lambda.min, cvmod$lambda.1se)
-          # lambda <- lambda_range[1] + (lambda_range[2]-lambda_range[1]) * lambda_control
+          doparFx <- function(i, ...) {
+            t1 <- Sys.time()
+            #### Get hyperparameter sample
+            hypParamSam <- hypParamSamNG[i, ]
+            #### Tranform media with hyperparameters
+            dt_modAdstocked <- select(dt_mod, -.data$ds)
+            mediaAdstocked <- list()
+            mediaVecCum <- list()
+            mediaSaturated <- list()
+            adstock <- check_adstock(adstock)
 
-          #####################################
-          #### Refit ridge regression with selected lambda from x-validation (intercept)
+            for (v in 1:length(all_media)) {
+              ################################################
+              ## 1. Adstocking (whole data)
+              m <- dt_modAdstocked[, all_media[v]][[1]]
+              if (adstock == "geometric") {
+                theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
+                x_list <- adstock_geometric(x = m, theta = theta)
+              } else if (adstock == "weibull_cdf") {
+                shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
+                scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
+                x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
+              } else if (adstock == "weibull_pdf") {
+                shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
+                scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
+                x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
+              }
+              m_adstocked <- x_list$x_decayed
+              mediaAdstocked[[v]] <- m_adstocked
+              mediaVecCum[[v]] <- x_list$thetaVecCum
 
-          ## If no lift calibration, refit using best lambda
-          mod_out <- model_refit(x_train, y_train,
-            lambda = lambda_scaled,
-            lower.limits, upper.limits, intercept_sign
-          )
-          decompCollect <- model_decomp(
-            coefs = mod_out$coefs,
-            dt_modSaturated = dt_modSaturated,
-            x = x_train,
-            y_pred = mod_out$y_pred,
-            i = i,
-            dt_modRollWind = dt_modRollWind,
-            refreshAddedStart = refreshAddedStart
-          )
-          nrmse <- mod_out$nrmse_train
-          mape <- 0
-          df.int <- mod_out$df.int
+              # data.frame(id = rep(1:length(m), 2)) %>%
+              #   mutate(value = c(m, m_adstocked),
+              #          type = c(rep("raw", length(m)), rep("adstocked", length(m)))) %>%
+              #   filter(id < 100) %>%
+              #   ggplot(aes(x = id, y = value, colour = type)) +
+              #   geom_line()
 
-          #####################################
-          #### get calibration mape
+              ################################################
+              ## 2. Saturation (only window data)
+              m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
+              alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
+              gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
+              mediaSaturated[[v]] <- saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma)
+              # plot(m_adstockedRollWind, mediaSaturated[[1]])
+            }
+            names(mediaAdstocked) <- names(mediaVecCum) <- names(mediaSaturated) <- all_media
+            dt_modAdstocked <- dt_modAdstocked %>%
+              select(-all_of(all_media)) %>%
+              bind_cols(mediaAdstocked)
+            mediaVecCum <- bind_cols(mediaVecCum)
+            dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
+              select(-all_of(all_media)) %>%
+              bind_cols(mediaSaturated)
 
-          if (!is.null(calibration_input)) {
-            liftCollect <- calibrate_mmm(
-              calibration_input, decompCollect,
-              dayInterval = InputCollect$dayInterval
+            #####################################
+            #### Split and prepare data for modelling
+
+            dt_train <- dt_modSaturated
+
+            ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
+            y_train <- dt_train$dep_var
+            if (length(which(grepl("^[0-9]", dt_train))) > 1) {
+              x_train <- model.matrix(dep_var ~ ., dt_train)[, -1]
+            } else {
+              x_train <- as.matrix(dt_train[, -1])
+            }
+
+            ## Define and set sign control
+            dt_sign <- select(dt_modSaturated, -.data$dep_var)
+            x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
+            names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
+            check_factor <- sapply(dt_sign, is.factor)
+            lower.limits <- upper.limits <- c()
+            for (s in 1:length(check_factor)) {
+              if (check_factor[s] == TRUE) {
+                level.n <- length(levels(unlist(dt_sign[, s, with = FALSE])))
+                if (level.n <= 1) {
+                  stop("All factor variables must have more than 1 level")
+                }
+                lower_vec <- if (x_sign[s] == "positive") {
+                  rep(0, level.n - 1)
+                } else {
+                  rep(-Inf, level.n - 1)
+                }
+                upper_vec <- if (x_sign[s] == "negative") {
+                  rep(0, level.n - 1)
+                } else {
+                  rep(Inf, level.n - 1)
+                }
+                lower.limits <- c(lower.limits, lower_vec)
+                upper.limits <- c(upper.limits, upper_vec)
+              } else {
+                lower.limits <- c(lower.limits, ifelse(x_sign[s] == "positive", 0, -Inf))
+                upper.limits <- c(upper.limits, ifelse(x_sign[s] == "negative", 0, Inf))
+              }
+            }
+
+            #####################################
+            #### Fit ridge regression with nevergrad's lambda
+            # lambdas <- lambda_seq(x_train, y_train, seq_len = 100, lambda_min_ratio = 0.0001)
+            # lambda_max <- max(lambdas)
+            lambda_hp <- unlist(hypParamSamNG$lambda[i])
+            if (hyper_fixed == FALSE) {
+              lambda_scaled <- lambda_min + (lambda_max - lambda_min) * lambda_hp
+            } else {
+              lambda_scaled <- lambda_hp
+            }
+
+            if (add_penalty_factor) {
+              penalty.factor <- unlist(hypParamSamNG[i, grepl("penalty_", names(hypParamSamNG))])
+            } else {
+              penalty.factor <- rep(1, ncol(x_train))
+            }
+
+            glm_mod <- glmnet(
+              x_train,
+              y_train,
+              family = "gaussian",
+              alpha = 0, # 0 for ridge regression
+              lambda = lambda_scaled,
+              lower.limits = lower.limits,
+              upper.limits = upper.limits,
+              type.measure = "mse",
+              penalty.factor = penalty.factor
+            ) # plot(glm_mod); coef(glm_mod)
+
+            # # When we used CV instead of nevergrad
+            # lambda_range <- c(cvmod$lambda.min, cvmod$lambda.1se)
+            # lambda <- lambda_range[1] + (lambda_range[2]-lambda_range[1]) * lambda_control
+
+            #####################################
+            #### Refit ridge regression with selected lambda from x-validation (intercept)
+
+            ## If no lift calibration, refit using best lambda
+            mod_out <- model_refit(x_train, y_train,
+              lambda = lambda_scaled,
+              lower.limits, upper.limits, intercept_sign
             )
-            mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
-          }
-
-          #####################################
-          #### Calculate multi-objectives for pareto optimality
-
-          ## DECOMP objective: sum of squared distance between decomp share and spend share to be minimized
-          dt_decompSpendDist <- decompCollect$xDecompAgg %>%
-            filter(.data$rn %in% paid_media_spends) %>%
-            select(
-              .data$rn, .data$xDecompAgg, .data$xDecompPerc, .data$xDecompMeanNon0Perc,
-              .data$xDecompMeanNon0, .data$xDecompPercRF, .data$xDecompMeanNon0PercRF,
-              .data$xDecompMeanNon0RF
-            ) %>%
-            left_join(select(
-              dt_spendShare,
-              .data$rn, .data$spend_share, .data$spend_share_refresh,
-              .data$mean_spend, .data$total_spend
-            ),
-            by = "rn"
-            ) %>%
-            mutate(
-              effect_share = .data$xDecompPerc / sum(.data$xDecompPerc),
-              effect_share_refresh = .data$xDecompPercRF / sum(.data$xDecompPercRF)
+            decompCollect <- model_decomp(
+              coefs = mod_out$coefs,
+              dt_modSaturated = dt_modSaturated,
+              x = x_train,
+              y_pred = mod_out$y_pred,
+              i = i,
+              dt_modRollWind = dt_modRollWind,
+              refreshAddedStart = refreshAddedStart
             )
-          dt_decompSpendDist <- left_join(
-            filter(decompCollect$xDecompAgg, .data$rn %in% paid_media_spends),
-            select(dt_decompSpendDist, .data$rn, contains("_spend"), contains("_share")),
-            by = "rn"
-          )
+            nrmse <- mod_out$nrmse_train
+            mape <- 0
+            df.int <- mod_out$df.int
 
-          # Calculate DECOMP.RSSD error
-          if (!refresh) {
-            decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
-          } else {
-            # xDecompAggPrev is NULL?
-            dt_decompRF <- select(decompCollect$xDecompAgg, .data$rn, decomp_perc = .data$xDecompPerc) %>%
-              left_join(select(xDecompAggPrev, .data$rn, decomp_perc_prev = .data$xDecompPerc),
-                by = "rn"
+            #####################################
+            #### get calibration mape
+
+            if (!is.null(calibration_input)) {
+              liftCollect <- calibrate_mmm(
+                calibration_input, decompCollect,
+                dayInterval = InputCollect$dayInterval
               )
-            decomp.rssd.media <- dt_decompRF %>%
+              mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
+            }
+
+            #####################################
+            #### Calculate multi-objectives for pareto optimality
+
+            ## DECOMP objective: sum of squared distance between decomp share and spend share to be minimized
+            dt_decompSpendDist <- decompCollect$xDecompAgg %>%
               filter(.data$rn %in% paid_media_spends) %>%
-              summarise(rssd.media = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
-              pull(.data$rssd.media)
-            decomp.rssd.nonmedia <- dt_decompRF %>%
-              filter(!.data$rn %in% paid_media_spends) %>%
-              summarise(rssd.nonmedia = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
-              pull(.data$rssd.nonmedia)
-            decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia /
-              (1 - refresh_steps / rollingWindowLength)
+              select(
+                .data$rn, .data$xDecompAgg, .data$xDecompPerc, .data$xDecompMeanNon0Perc,
+                .data$xDecompMeanNon0, .data$xDecompPercRF, .data$xDecompMeanNon0PercRF,
+                .data$xDecompMeanNon0RF
+              ) %>%
+              left_join(select(
+                dt_spendShare,
+                .data$rn, .data$spend_share, .data$spend_share_refresh,
+                .data$mean_spend, .data$total_spend
+              ),
+              by = "rn"
+              ) %>%
+              mutate(
+                effect_share = .data$xDecompPerc / sum(.data$xDecompPerc),
+                effect_share_refresh = .data$xDecompPercRF / sum(.data$xDecompPercRF)
+              )
+            dt_decompSpendDist <- left_join(
+              filter(decompCollect$xDecompAgg, .data$rn %in% paid_media_spends),
+              select(dt_decompSpendDist, .data$rn, contains("_spend"), contains("_share")),
+              by = "rn"
+            )
+
+            # Calculate DECOMP.RSSD error
+            if (!refresh) {
+              decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
+            } else {
+              # xDecompAggPrev is NULL?
+              dt_decompRF <- select(decompCollect$xDecompAgg, .data$rn, decomp_perc = .data$xDecompPerc) %>%
+                left_join(select(xDecompAggPrev, .data$rn, decomp_perc_prev = .data$xDecompPerc),
+                  by = "rn"
+                )
+              decomp.rssd.media <- dt_decompRF %>%
+                filter(.data$rn %in% paid_media_spends) %>%
+                summarise(rssd.media = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
+                pull(.data$rssd.media)
+              decomp.rssd.nonmedia <- dt_decompRF %>%
+                filter(!.data$rn %in% paid_media_spends) %>%
+                summarise(rssd.nonmedia = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
+                pull(.data$rssd.nonmedia)
+              decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia /
+                (1 - refresh_steps / rollingWindowLength)
+            }
+            # When all media in this iteration have 0 coefficients
+            if (is.nan(decomp.rssd)) {
+              decomp.rssd <- Inf
+              dt_decompSpendDist$effect_share <- 0
+            }
+
+            ## adstock objective: sum of squared infinite sum of decay to be minimised - deprecated
+            # dt_decaySum <- dt_mediaVecCum[,  .(rn = all_media, decaySum = sapply(.SD, sum)), .SDcols = all_media]
+            # adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
+
+            ## calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
+
+            #####################################
+            #### Collect output
+
+            resultCollect <- list()
+            common <- c(
+              rsq_train = mod_out$rsq_train,
+              nrmse = nrmse,
+              decomp.rssd = decomp.rssd,
+              mape = mape,
+              lambda = lambda_scaled,
+              lambda_hp = lambda_hp,
+              lambda_max = lambda_max,
+              lambda_min_ratio = lambda_min_ratio,
+              iterPar = i,
+              iterNG = lng,
+              df.int = df.int
+            )
+
+            resultCollect[["resultHypParam"]] <- data.frame(hypParamSam) %>%
+              select(-.data$lambda) %>%
+              bind_cols(data.frame(t(common[1:8]))) %>%
+              mutate(
+                pos = prod(decompCollect$xDecompAgg$pos),
+                Elapsed = as.numeric(difftime(Sys.time(), t1, units = "secs")),
+                ElapsedAccum = as.numeric(difftime(Sys.time(), t0, units = "secs"))
+              ) %>%
+              bind_cols(data.frame(t(common[9:11]))) %>%
+              dplyr::mutate_all(unlist)
+
+            if (hyper_fixed) {
+              resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
+                bind_cols(data.frame(t(common[1:8]))) %>%
+                mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+                  decompCollect$xDecompAgg$rn == "(Intercept)"
+                ]) %>%
+                bind_cols(data.frame(t(common[9:11])))
+            }
+
+            resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
+              bind_cols(data.frame(t(common)))
+
+            if (!is.null(calibration_input)) {
+              resultCollect[["liftCalibration"]] <- liftCollect %>%
+                bind_cols(data.frame(t(common)))
+            }
+
+            resultCollect[["decompSpendDist"]] <- dt_decompSpendDist %>%
+              bind_cols(data.frame(t(common)))
+
+            resultCollect <- append(resultCollect, as.list(common))
+
+            if (cnt == iterTotal) {
+              print(" === ")
+              print(paste0(
+                "Optimizer_name: ", optimizer_name, ";  Total_iterations: ",
+                cnt, ";   Best MAPE: ", min(best_mape, mape)
+              ))
+            }
+            return(resultCollect)
           }
-          # When all media in this iteration have 0 coefficients
-          if (is.nan(decomp.rssd)) {
-            decomp.rssd <- Inf
-            dt_decompSpendDist$effect_share <- 0
-          }
 
-          ## adstock objective: sum of squared infinite sum of decay to be minimised - deprecated
-          # dt_decaySum <- dt_mediaVecCum[,  .(rn = all_media, decaySum = sapply(.SD, sum)), .SDcols = all_media]
-          # adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
-
-          ## calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
-
-          #####################################
-          #### Collect output
-
-          resultCollect <- list()
-          common <- c(
-            rsq_train = mod_out$rsq_train,
-            nrmse = nrmse,
-            decomp.rssd = decomp.rssd,
-            mape = mape,
-            lambda = lambda_scaled,
-            lambda_hp = lambda_hp,
-            lambda_max = lambda_max,
-            lambda_min_ratio = lambda_min_ratio,
-            iterPar = i,
-            iterNG = lng,
-            df.int = df.int
+          doparCollect <- suppressPackageStartupMessages(
+            if (cores == 1) {
+              for (i in 1:iterPar) doparFx(i)
+            } else {
+              # Create cluster to minimize overhead for parallel back-end registering
+              if (check_parallel() & !hyper_fixed) {
+                registerDoParallel(cores)
+              } else {
+                registerDoSEQ()
+              }
+              foreach(i = 1:iterPar) %dorng% doparFx(i)
+            }
           )
 
-          resultCollect[["resultHypParam"]] <- data.frame(hypParamSam) %>%
-            select(-.data$lambda) %>%
-            bind_cols(data.frame(t(common[1:8]))) %>%
-            mutate(
-              pos = prod(decompCollect$xDecompAgg$pos),
-              Elapsed = as.numeric(difftime(Sys.time(), t1, units = "secs")),
-              ElapsedAccum = as.numeric(difftime(Sys.time(), t0, units = "secs"))
-            ) %>%
-            bind_cols(data.frame(t(common[9:11]))) %>%
-            dplyr::mutate_all(unlist)
+          nrmse.collect <- sapply(doparCollect, function(x) x$nrmse)
+          decomp.rssd.collect <- sapply(doparCollect, function(x) x$decomp.rssd)
+          mape.lift.collect <- sapply(doparCollect, function(x) x$mape)
 
-          if (hyper_fixed) {
-            resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
+          #####################################
+          #### Nevergrad tells objectives
+
+          if (!hyper_fixed) {
+            if (is.null(calibration_input)) {
+              for (co in 1:iterPar) {
+                optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.collect[co], decomp.rssd.collect[co]))
+              }
+            } else {
+              for (co in 1:iterPar) {
+                optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.collect[co], decomp.rssd.collect[co], mape.lift.collect[co]))
+              }
+            }
           }
 
-          resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
-            bind_cols(data.frame(t(common)))
-
-          if (!is.null(calibration_input)) {
-            resultCollect[["liftCalibration"]] <- liftCollect %>%
-              bind_cols(data.frame(t(common)))
+          resultCollectNG[[lng]] <- doparCollect
+          if (!quiet) {
+            cnt <- cnt + iterPar
+            if (!hyper_fixed) setTxtProgressBar(pb, cnt)
           }
-
-          resultCollect[["decompSpendDist"]] <- dt_decompSpendDist %>%
-            bind_cols(data.frame(t(common)))
-
-          resultCollect <- append(resultCollect, as.list(common))
-
-          if (cnt == iterTotal) {
-            print(" === ")
-            print(paste0(
-              "Optimizer_name: ", optimizer_name, ";  Total_iterations: ",
-              cnt, ";   Best MAPE: ", min(best_mape, mape)
-            ))
-          }
-          return(resultCollect)
-        }
-      ) # end foreach parallel
-
-      nrmse.collect <- sapply(doparCollect, function(x) x$nrmse)
-      decomp.rssd.collect <- sapply(doparCollect, function(x) x$decomp.rssd)
-      mape.lift.collect <- sapply(doparCollect, function(x) x$mape)
-
-      #####################################
-      #### Nevergrad tells objectives
-
-      if (!hyper_fixed) {
-        if (is.null(calibration_input)) {
-          for (co in 1:iterPar) {
-            optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.collect[co], decomp.rssd.collect[co]))
-          }
-        } else {
-          for (co in 1:iterPar) {
-            optimizer$tell(nevergrad_hp[[co]], tuple(nrmse.collect[co], decomp.rssd.collect[co], mape.lift.collect[co]))
-          }
-        }
+        } ## end NG loop
+      }) # end system.time
+    },
+    error = function(err) {
+      if (!is.null(resultCollectNG)) {
+        msg <- "Error while running robyn_mmm(); providing PARTIAL results"
+        warning(msg)
+        message(paste(msg, err, sep = "\n"))
+        sysTimeDopar <- rep(Sys.time() - t0, 3)
+      } else {
+        stop(err)
       }
-
-      resultCollectNG[[lng]] <- doparCollect
-      if (!quiet) {
-        cnt <- cnt + iterPar
-        if (!hyper_fixed) setTxtProgressBar(pb, cnt)
-      }
-    } ## end NG loop
-  }) # end system.time
+    }
+  )
 
   # stop cluster to avoid memory leaks
   stopImplicitCluster()
