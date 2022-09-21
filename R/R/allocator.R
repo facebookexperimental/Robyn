@@ -621,6 +621,12 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
 #' \code{robyn_allocator_historical()} function returns a new split of media
 #' variable spends that maximizes the total media response.
 #'
+#' @description 
+#' Using daily, weekly, and monthly granularity data, the optimization is 
+#' performed to set all costs used in the period are the same. If the cost of 
+#' channel Facebook is set at 120%, the optimization method would set the cost 
+#' of channel Facebook for the entire period at 120% for each level of granularity.
+#' This is helpful in determining annual budgets and other long term budgets
 #' @param InputCollect List. Contains all input parameters for the model.
 #' Required when \code{robyn_object} is not provided.
 #' @param OutputCollect List. Containing all model result.
@@ -687,15 +693,18 @@ robyn_allocator_historical <- function(
   dt_mod <- InputCollect$dt_mod
   if (is.null(date_min)) date_min <- min(dt_mod$ds)
   if (is.null(date_max)) date_max <- max(dt_mod$ds)
+  # get initial total spend of each channel
   init_spend <- mapply(sum, dt_mod[dt_mod$ds >= date_min &
                                      dt_mod$ds <= date_max, channels])
-  x0 <- rep(1 * new_budget_ratio, length(channels)) # initial ratio
+  # set initial ratio
+  x0 <- rep(1 * new_budget_ratio, length(channels))
+  # run solver to optimize spend based on historical data
   fit <- solnp(
-    pars = x0,
+    pars = x0, # initial value 
     fun = function(x0, channels) {
       obj <- -sum(robyn_response_all_channels(
-        ratios=x0,
-        channels = channels,
+        ratios=x0, # share spend to optimized
+        channels = channels, # channels 
         InputCollect = InputCollect,
         OutputCollect = OutputCollect,
         select_model = select_model,
@@ -703,26 +712,29 @@ robyn_allocator_historical <- function(
         date_max = date_max)
       )
     },
-    eqfun = function(x0, channels) {
+    # The equality constraint function returning the vector of evaluated equality constraints.
+    eqfun = function(x0, channels) {　
       constr <- sum(x0 * init_spend)
       return(constr)
     },
-    eqB = c(sum(new_budget_ratio * init_spend)),
+    eqB = c(sum(new_budget_ratio * init_spend)), # The equality constraints.
     channels = channels,
     LB = channel_constr_low,
     UB = channel_constr_up,
-    control = list(delta = 1e-4, tol = 1e-6, nfuneval = 20))
+    #  The control list of optimization parameters. 
+    control = list(delta = 1e-3, tol = 1e-6, nfuneval = 20))
   optim_result <- fit$pars
   names(optim_result) <- channels
 
-  init_return <- sum(robyn_response_all_channels(x0,
-                                                 channels,
-                                                 InputCollect,
-                                                 OutputCollect,
-                                                 select_model,
-                                                 date_min = date_min,
-                                                 date_max = date_max))
-
+  init_return <- sum(
+    robyn_response_all_channels(x0,
+                                channels,
+                                InputCollect,
+                                OutputCollect,
+                                select_model,
+                                date_min = date_min,
+                                date_max = date_max))
+  # expected return with original spend share 
   original_expected_return <- sum(robyn_response_all_channels(x0 * new_budget_ratio,
                                                  channels,
                                                  InputCollect,
@@ -735,7 +747,7 @@ robyn_allocator_historical <- function(
                  expected_spend_total = init_spend * fit$pars,
                  init_spend_total = init_spend,
                  original_expected_spend_total = init_spend * new_budget_ratio,
-                 expected_return = -tail(fit$values,1),
+                 expected_return = -tail(fit$values,1), # expected return
                  init_return = init_return,
                  original_expected_return = original_expected_return
                  )

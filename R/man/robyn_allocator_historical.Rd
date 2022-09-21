@@ -60,8 +60,12 @@ init_return" initial return
 original_expected_return: expected return with current spend share
 }
 \description{
-\code{robyn_allocator_historical()} function returns a new split of media
-variable spends that maximizes the total media response.
+Using daily, weekly, 
+and monthly granularity data, the optimization is performed to set all costs 
+used in the period are the same. If the cost of channel Facebook is set at 
+120\\%, the optimization method would set the cost of channel Facebook for the 
+entire period at 120\\% for each level of granularity. This is helpful in 
+determining annual budgets and other long term budgets
 }
 \examples{
 \dontrun{robyn_allocator_historical(

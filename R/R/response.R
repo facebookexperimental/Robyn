@@ -215,10 +215,11 @@ robyn_response_all_channels <- function(
     ratios, channels, InputCollect, OutputCollect,
     select_model, date_min = NULL, date_max = NULL) {
   dt_mod <- InputCollect$dt_mod
-  # take
+  # get adstocked values of certain period.
   adstocked_values <- get_adstock_value(
     InputCollect, OutputCollect, select_model,
     date_min = date_min, date_max = date_max)
+  # get adstocked values of the selected channels
   return <- mapply(
     function(channel, ratio) {
       fit <- Robyn::robyn_response(
@@ -233,6 +234,7 @@ robyn_response_all_channels <- function(
   return(return)
 }
 
+# get adscock value of cetain period
 get_adstock_value <- function(
     InputCollect,
     OutputCollect,
@@ -266,7 +268,7 @@ get_adstock_value <- function(
       return(return$x_decayed)}
       , histSpendB, getAdstockHypPar)
   }
-  # adstock value
+  # adstock value of total period.
   adstock_vec <- adstock_vec[InputCollect$dt_mod$ds >= date_min &
                                InputCollect$dt_mod$ds <= date_max, ]
   return(adstock_vec)
