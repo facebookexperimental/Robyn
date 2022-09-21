@@ -492,7 +492,7 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
     all_media <- c(paid_media_spends, organic_vars)
-    cal_media <- unique(stringr::str_split(calibration_input$channel, "\\+"))
+    cal_media <- unique(stringr::str_split(calibration_input$channel, "\\+|,|;|\\s"))
     if (!all(unlist(cal_media) %in% all_media)) {
       these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
       stop(sprintf(

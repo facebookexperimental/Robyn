@@ -693,10 +693,9 @@ robyn_mmm <- function(InputCollect,
 
             #####################################
             #### get calibration mape
-
             if (!is.null(calibration_input)) {
               liftCollect <- calibrate_mmm(
-                calibration_input, decompCollect,
+                calibration_input, decompCollect$xDecompVec,
                 dayInterval = InputCollect$dayInterval
               )
               mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
@@ -1034,17 +1033,15 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   return(decompCollect)
 }
 
-
-calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
+calibrate_mmm <- function(calibration_input, xDecompVec, dayInterval) {
 
   ## Prep lift inputs
-  getDecompVec <- decompCollect$xDecompVec
   getLiftMedia <- unique(calibration_input$channel)
   liftCollect <- list()
 
   # Loop per lift channel
   for (m in seq_along(getLiftMedia)) {
-    liftWhich <- str_which(calibration_input$channel, getLiftMedia[m])
+    liftWhich <- which(calibration_input$channel == getLiftMedia[m])
     liftCollect2 <- list()
 
     # Loop per lift test per channel
@@ -1053,15 +1050,16 @@ calibrate_mmm <- function(calibration_input, decompCollect, dayInterval) {
       ## Get lift period subset
       liftStart <- calibration_input$liftStartDate[liftWhich[lw]]
       liftEnd <- calibration_input$liftEndDate[liftWhich[lw]]
-      df <- filter(getDecompVec, .data$ds >= liftStart, .data$ds <= liftEnd)
-      liftPeriodVec <- select(df, .data$ds, getLiftMedia[m])
+      df <- filter(xDecompVec, .data$ds >= liftStart, .data$ds <= liftEnd)
+      cal_media <- unique(stringr::str_split(getLiftMedia[m], "\\+|,|;|\\s"))[[1]]
+      liftPeriodVec <- select(df, .data$ds, all_of(cal_media))
       liftPeriodVecDependent <- select(df, .data$ds, .data$y)
 
       ## Scale decomp
       mmmDays <- nrow(liftPeriodVec) * dayInterval
       liftDays <- as.integer(liftEnd - liftStart + 1)
-      y_hatLift <- sum(unlist(getDecompVec[, -1])) # Total pred sales
-      x_decompLift <- sum(liftPeriodVec[, 2])
+      y_hatLift <- sum(unlist(xDecompVec[, -1])) # Total pred sales
+      x_decompLift <- sum(liftPeriodVec[, 2:ncol(liftPeriodVec)])
       x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
       y_scaledLift <- sum(liftPeriodVecDependent$y) / mmmDays * liftDays
 
