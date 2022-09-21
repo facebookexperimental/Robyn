@@ -50,6 +50,14 @@ Length must be 1 for both parameters.}
 }
 \value{
 A list object containing allocator result.
+fit: solnp output
+optim_result: optimized share
+expected_spend_total: optimized expected spend
+init_spend_total: initial spend 
+original_expected_spend_toal: expected spend with current spend share
+expected_return: optimized expected return
+init_return" initial return
+original_expected_return: expected return with current spend share
 }
 \description{
 \code{robyn_allocator_historical()} function returns a new split of media
