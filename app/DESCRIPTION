@@ -1,0 +1,34 @@
+Package: RobynLearn
+Title: Interactive UI for Robyn Education & MMM Development
+Version: 1.0.0
+Authors@R: c(
+    person("Kyle", "Goldberg", , "kylegoldberg@fb.com", role = c("aut","cre")),
+    person("Rotem", "Blinder", , "rblinder@fb.com", role = c("aut")),
+    person("Bernardo", "Lares", , "bernardolares@fb.com", c("aut")),
+    person("Gufeng", "Zhou", , "gufeng@fb.com", c("aut")),
+    person("Leonel", "Sentana", , "leonelsentana@fb.com", c("aut")),
+    person("Igor", "Skokan", , "igorskokan@fb.com", c("aut")),
+    person("Ruiyao", "Li", , "ruiyaoli@fb.com", c("aut" )),
+    person("Meta Platforms, Inc.", role = c("cph", "fnd")))
+Maintainer: Kyle Goldberg <kylegoldberg@fb.com>
+Description: Using Shiny on top of Robyn users are enabled to both learn Robyn in a more efficient way, as well as develop end-to-end preliminary models with limited flexibility. All features of Robyn are represented in some capacity in the UI, and it remains the best way for those with limited Marketing Mix Modeling and/or coding experience to familiarize themselves with Robyn & MMM.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+Imports: 
+    corrr,
+    dplyr,
+    DT,
+    ggplot2,
+    ggcorrplot,
+    lubridate,
+    patchwork,
+    Robyn,
+    scales,
+    shiny,
+    shinycssloaders,
+    shinyjs,
+    stats,
+    tidyr,
+    utils,

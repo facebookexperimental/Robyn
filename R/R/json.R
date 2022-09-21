@@ -32,7 +32,7 @@ robyn_write <- function(InputCollect,
                         select_model = NULL,
                         dir = OutputCollect$plot_folder,
                         export = TRUE,
-                        quiet = FALSE) {
+                        quiet = FALSE, ...) {
 
   # Checks
   stopifnot(inherits(InputCollect, "robyn_inputs"))
@@ -156,7 +156,7 @@ print.robyn_write <- function(x, ...) {
 #' @param json_file Character. JSON file name to read and import as list.
 #' @param step Integer. 1 for import only and 2 for import and ouput.
 #' @export
-robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE) {
+robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
   if (!is.null(json_file)) {
     if (inherits(json_file, "character")) {
       if (lares::right(tolower(json_file), 4) != "json") {

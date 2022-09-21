@@ -48,7 +48,8 @@ more iterations to converge.}
 
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{cores}{Integer. Default to \code{parallel::detectCores()} (max cores).}
+\item{cores}{Integer. Default to \code{parallel::detectCores() - 1} (all cores
+except one). Set to 1 if you want to turn parallel computing off.}
 
 \item{trials}{Integer. Recommended 5 for default
 \code{nevergrad_algo = "TwoPointsDE"}.}

@@ -26,7 +26,7 @@ robyn_outputs(
 
 \method{print}{robyn_outputs}(x, ...)
 
-robyn_csv(OutputCollect, csv_out = NULL, export = TRUE)
+robyn_csv(InputCollect, OutputCollect, csv_out = NULL, export = TRUE)
 
 robyn_plots(InputCollect, OutputCollect, export = TRUE)
 }

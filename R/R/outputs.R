@@ -134,7 +134,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
         if (csv_out %in% c("all", "pareto")) {
           if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
-          robyn_csv(OutputCollect, csv_out, export = export)
+          robyn_csv(InputCollect, OutputCollect, csv_out, export = export)
         }
 
         if (!quiet) message(">> Exporting general plots into directory...")
@@ -209,7 +209,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 #' @rdname robyn_outputs
 #' @return Invisible \code{NULL}.
 #' @export
-robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
+robyn_csv <- function(InputCollect, OutputCollect, csv_out = NULL, export = TRUE) {
   if (export) {
     check_class("robyn_outputs", OutputCollect)
     temp_all <- OutputCollect$allPareto
@@ -222,6 +222,7 @@ robyn_csv <- function(OutputCollect, csv_out = NULL, export = TRUE) {
       write.csv(temp_all$xDecompAgg, paste0(OutputCollect$plot_folder, "all_aggregated.csv"))
     }
     if (!is.null(csv_out)) {
+      write.csv(InputCollect$dt_input, paste0(OutputCollect$plot_folder, "raw_data.csv"))
       write.csv(OutputCollect$mediaVecCollect, paste0(OutputCollect$plot_folder, "pareto_media_transform_matrix.csv"))
       write.csv(OutputCollect$xDecompVecCollect, paste0(OutputCollect$plot_folder, "pareto_alldecomp_matrix.csv"))
     }

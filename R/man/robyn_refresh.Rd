@@ -10,7 +10,7 @@ robyn_refresh(
   json_file = NULL,
   robyn_object = NULL,
   dt_input = NULL,
-  dt_holidays = NULL,
+  dt_holidays = Robyn::dt_prophet_holidays,
   plot_folder_sub = NULL,
   refresh_steps = 4,
   refresh_mode = "manual",
@@ -126,7 +126,7 @@ json_file <- "~/Robyn_202208081444_init/RobynModel-2_55_4.json"
 Robyn <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,
-  dt_holidays = dt_prophet_holidays,
+  dt_holidays = Robyn::dt_prophet_holidays,
   refresh_steps = 13,
   refresh_mode = "auto",
   refresh_iters = 200,
@@ -138,7 +138,7 @@ json_file2 <- "~/Robyn_202208081444_init/Robyn_202208090847_rf/RobynModel-1_2_3.
 Robyn <- robyn_refresh(
   json_file = json_file2,
   dt_input = dt_simulated_weekly,
-  dt_holidays = dt_prophet_holidays,
+  dt_holidays = Robyn::dt_prophet_holidays,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 200,

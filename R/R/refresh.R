@@ -73,7 +73,7 @@
 #' Robyn <- robyn_refresh(
 #'   json_file = json_file,
 #'   dt_input = dt_simulated_weekly,
-#'   dt_holidays = dt_prophet_holidays,
+#'   dt_holidays = Robyn::dt_prophet_holidays,
 #'   refresh_steps = 13,
 #'   refresh_mode = "auto",
 #'   refresh_iters = 200,
@@ -85,7 +85,7 @@
 #' Robyn <- robyn_refresh(
 #'   json_file = json_file2,
 #'   dt_input = dt_simulated_weekly,
-#'   dt_holidays = dt_prophet_holidays,
+#'   dt_holidays = Robyn::dt_prophet_holidays,
 #'   refresh_steps = 4,
 #'   refresh_mode = "manual",
 #'   refresh_iters = 200,
@@ -97,7 +97,7 @@
 robyn_refresh <- function(json_file = NULL,
                           robyn_object = NULL,
                           dt_input = NULL,
-                          dt_holidays = NULL,
+                          dt_holidays = Robyn::dt_prophet_holidays,
                           plot_folder_sub = NULL,
                           refresh_steps = 4,
                           refresh_mode = "manual",
@@ -123,7 +123,8 @@ robyn_refresh <- function(json_file = NULL,
         json_file = json_file,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
-        quiet = FALSE, ...)
+        quiet = FALSE, ...
+      )
       listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
       chainData <- robyn_chain(json_file)
       listInit$InputCollect$refreshChain <- attr(chainData, "chain")
@@ -139,7 +140,7 @@ robyn_refresh <- function(json_file = NULL,
       objectPath <- RobynImported$objectPath
       robyn_object <- RobynImported$robyn_object
       refreshCounter <- length(Robyn) - sum(names(Robyn) == "refresh")
-      refreshDepth <- NULL  # Dummy for now (legacy)
+      refreshDepth <- NULL # Dummy for now (legacy)
     }
     depth <- ifelse(!is.null(refreshDepth), refreshDepth, refreshCounter)
 
@@ -385,6 +386,7 @@ robyn_refresh <- function(json_file = NULL,
       )
 
     mediaVecReport <- as_tibble(listReportPrev$mediaVecReport) %>%
+      mutate(ds = as.Date(.data$ds, origin = "1970-01-01")) %>%
       bind_rows(
         filter(
           mutate(OutputCollectRF$mediaVecCollect,
@@ -399,6 +401,7 @@ robyn_refresh <- function(json_file = NULL,
       arrange(.data$type, .data$ds, .data$refreshStatus)
 
     xDecompVecReport <- listReportPrev$xDecompVecReport %>%
+      mutate(ds = as.Date(.data$ds, origin = "1970-01-01")) %>%
       bind_rows(
         filter(
           mutate(OutputCollectRF$xDecompVecCollect,
@@ -433,8 +436,10 @@ robyn_refresh <- function(json_file = NULL,
     # ReportCollect <- Robyn$listRefresh1$ReportCollect
     if (!is.null(json_file)) {
       json_temp <- robyn_write(
-        InputCollectRF, OutputCollectRF, select_model = selectID,
-        export = TRUE, quiet = TRUE, ...)
+        InputCollectRF, OutputCollectRF,
+        select_model = selectID,
+        export = TRUE, quiet = TRUE, ...
+      )
       plots <- refresh_plots_json(OutputCollectRF, json_file = attr(json_temp, "json_file"), export = export)
     } else {
       plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))

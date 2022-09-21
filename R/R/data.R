@@ -26,7 +26,7 @@
 #' @return Dataframe. Contains simulated dummy dataset to test and run demo.
 "dt_simulated_weekly"
 
-# dt_input <- fread('data/de_simulated_data.csv')
+# dt_input <- read.csv('data/de_simulated_data.csv')
 # save(dt_input, file = "data/dt_input.RData", version = 2)
 # dt_simulated_weekly <- as_tibble(dt_simulated_weekly)
 # save(dt_simulated_weekly, file = "data/dt_simulated_weekly.RData", version = 2)
