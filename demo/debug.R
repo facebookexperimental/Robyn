@@ -49,7 +49,7 @@ nevergrad_algo = "TwoPointsDE"
 
 ## debug robyn_train
 args(robyn_train)
-hyper_collect = hyps
+#hyper_collect
 add_penalty_factor = FALSE
 dt_hyper_fixed = NULL
 lambda_control = 1
@@ -61,7 +61,7 @@ quiet = FALSE
 ## debug robyn_mmm
 args(robyn_mmm)
 #InputCollect
-hyper_collect = hyps
+#hyper_collect
 add_penalty_factor = FALSE
 iterations = InputCollect$iterations
 lambda.n = 100
@@ -88,6 +88,22 @@ quiet = FALSE
 
 ## debug robyn_pareto
 args(robyn_pareto)
+
+#InputCollect
+#OutputModels
+pareto_fronts = 3
+calibration_constraint = 0.1
+quiet = FALSE
+
+## debug robyn_clusters
+input = OutputCollect
+all_media = NULL
+k = "auto"
+limit = 1
+weights = rep(1, 3)
+dim_red = "PCA"
+quiet = FALSE
+export = TRUE
 
 ## debug robyn_response
 args(robyn_response)

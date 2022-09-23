@@ -45,8 +45,9 @@ List. Clustering results as labeled data.frames and plots.
 }
 \description{
 \code{robyn_clusters()} uses output from \code{robyn_run()},
-to reduce the number of models and help the user pick up the best (lowest
-combined error) of the most different kinds (clusters) of models.
+to reduce the number of models and create bootstrapped confidence
+interval and help the user pick up the best (lowest combined error)
+of the most different kinds (clusters) of models.
 }
 \examples{
 \dontrun{
