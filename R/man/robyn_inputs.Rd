@@ -139,6 +139,8 @@ used for media, organic and context variables.}
 calibrate. Your input should include the following values for each experiment:
 channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
 You can calibrate any spend or organic variable with a well designed experiment.
+You can also use experimental results from multiple channels; to do so,
+provide concatenated channel value, i.e. "channel_A+channel_B".
 Check "Guide for calibration source" section.}
 
 \item{json_file}{Character. JSON file to import previously exported inputs

@@ -492,8 +492,9 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
     all_media <- c(paid_media_spends, organic_vars)
-    if (!all(calibration_input$channel %in% all_media)) {
-      these <- unique(calibration_input$channel[which(!calibration_input$channel %in% all_media)])
+    cal_media <- unique(stringr::str_split(calibration_input$channel, "\\+|,|;|\\s"))
+    if (!all(unlist(cal_media) %in% all_media)) {
+      these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
       stop(sprintf(
         "All channels from 'calibration_input' must be any of: %s.\n  Check: %s",
         v2t(all_media), v2t(these)
@@ -523,12 +524,13 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     if ("spend" %in% colnames(calibration_input)) {
       for (i in 1:nrow(calibration_input)) {
         temp <- calibration_input[i, ]
-        if (temp$channel %in% organic_vars) next
+        temp2 <- cal_media[[i]]
+        if (all(temp2 %in% organic_vars)) next
         dt_input_spend <- filter(
           dt_input, get(date_var) >= temp$liftStartDate,
           get(date_var) <= temp$liftEndDate
         ) %>%
-          pull(get(temp$channel)) %>%
+          select(all_of(temp2)) %>%
           sum(.) %>%
           round(., 0)
         if (dt_input_spend > temp$spend * 1.1 | dt_input_spend < temp$spend * 0.9) {
