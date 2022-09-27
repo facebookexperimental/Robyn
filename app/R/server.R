@@ -972,10 +972,9 @@ server <- function(input, output, session) {
       ggplot(
         input_reactive$weekday_counts,
         aes(
-          x = weekday,
-          y = count,
-          # fill=count,
-          label = count
+          x = .data$weekday,
+          y = .data$count,
+          label = .data$count
         )
       ) +
         geom_col(width = 0.3, fill = "#989898") +
