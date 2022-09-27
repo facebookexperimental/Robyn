@@ -5,6 +5,6 @@
 
 .onAttach <- function(libname, pkgname) {
   packageStartupMessage(paste(
-      ">>> Welcome to RobynLearn. To load the interactive app, run: robyn_learn()"
+    ">>> Welcome to RobynLearn. To load the interactive app, run: robyn_learn()"
   ))
 }

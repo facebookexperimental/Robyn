@@ -16,8 +16,7 @@ ui <- function() {
              font-size: 200%;
              }
              ", ".datepicker {z-index:99999 !important;}", ".navbar-default {
-      background-color: DFDFD6 !important;}"
-                 ))
+      background-color: DFDFD6 !important;}"))
     ),
     titlePanel(
       splitLayout(HTML('<img src="https://facebookexperimental.github.io/Robyn/img/robyn_logo.png" alt="Logo" width = 50 height = 40> Robyn Learn: Meta Open-Sourced MMM UI'),
@@ -57,7 +56,7 @@ ui <- function() {
             br(),
             br(),
             br(),
-            headerPanel(h3('Please zoom out your browser if buttons begin to overlap')),
+            headerPanel(h3("Please zoom out your browser if buttons begin to overlap")),
             br(),
             br(),
             br(),
@@ -242,7 +241,7 @@ ui <- function() {
                   tags$style(type = "text/css", "#q2 {vertical-align: top;}"),
                   actionButton("adstock_selection_popover", label = "", icon = icon("question"), style = "info", size = "extra-small")
                 ),
-                choices = c("geometric", "weibull_cdf", 'weibull_pdf'), selected = "geometric", selectize = F
+                choices = c("geometric", "weibull_cdf", "weibull_pdf"), selected = "geometric", selectize = F
               ),
               uiOutput("model_window_min"),
               uiOutput("model_window_max"),
@@ -262,7 +261,7 @@ ui <- function() {
                 ),
                 step = 1, min = 1, value = 10
               ),
-              uiOutput('dest_folder'),
+              uiOutput("dest_folder"),
               hr(style = "border-top: 1px solid #000000;"),
               checkboxInput("enable_calibration",
                 label = h4(
@@ -407,7 +406,7 @@ ui <- function() {
                   label = "", icon = icon("question"),
                   style = "info", size = "extra-small"
                 )
-              ), value = ''),
+              ), value = ""),
               fileInput("data_file_refresh",
                 label = h4(
                   "Choose CSV File containing data, with column names in first row ",
