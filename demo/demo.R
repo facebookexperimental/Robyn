@@ -118,7 +118,7 @@ hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 ## Guide to setup & understand hyperparameters
 
 ## 1. IMPORTANT: set plot = TRUE to see helper plots of hyperparameter's effect in transformation
-plot_adstock(plot = FALSE)
+plot_adstock(plot = T)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
@@ -304,7 +304,7 @@ OutputModels$convergence$moo_cloud_plot
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
-  pareto_fronts = 3,
+  # pareto_fronts = "auto",
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto" or "all"
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters

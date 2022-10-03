@@ -330,6 +330,7 @@ gamma_mle <- function(params, x){
 }
 
 .plot_clusters_ci <- function(df, df_label, dep_var_type) {
+  temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_label <- df_label[complete.cases(df_label), ]
   suppressMessages(print(
     df %>%
@@ -341,9 +342,9 @@ gamma_mle <- function(params, x){
       facet_wrap(~.data$cluster_title) +
       geom_vline(xintercept = 1, linetype = "dotted") +
       scale_fill_viridis_c(option = "D") +
-      labs(title = "In-Cluster ROAS & bootstrapped 95% CI",
+      labs(title = paste0("In-Cluster ",temp," & bootstrapped 95% CI"),
            subtitle = "Sampling distribution of cluster mean",
-           x = ifelse(dep_var_type == "conversion", "CPA", "ROAS"),
+           x = temp,
            y = "DENSITY") +
       theme_lares(legend = "none")
   ))

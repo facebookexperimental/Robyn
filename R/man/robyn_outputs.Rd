@@ -10,7 +10,7 @@
 robyn_outputs(
   InputCollect,
   OutputModels,
-  pareto_fronts = 3,
+  pareto_fronts = "auto",
   calibration_constraint = 0.1,
   plot_folder = NULL,
   plot_folder_sub = NULL,
@@ -36,7 +36,9 @@ outcomes.}
 
 \item{pareto_fronts}{Integer. Number of Pareto fronts for the output.
 \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
-\code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.}
+\code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
+\code{pareto_fronts = "auto"} selects the min fronts that include at least 100
+candidates.}
 
 \item{calibration_constraint}{Numeric. Default to 0.1 and allows 0.01-0.1. When
 calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
