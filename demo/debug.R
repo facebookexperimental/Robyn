@@ -74,7 +74,7 @@ quiet = FALSE
 args(robyn_outputs)
 #InputCollect
 #OutputModels
-pareto_fronts = 1
+pareto_fronts = 3
 calibration_constraint = 0.1
 plot_folder = robyn_object
 plot_folder_sub = NULL
@@ -91,12 +91,13 @@ args(robyn_pareto)
 
 #InputCollect
 #OutputModels
-pareto_fronts = 3
+pareto_fronts = "auto"
 calibration_constraint = 0.1
 quiet = FALSE
 
 ## debug robyn_clusters
 input = OutputCollect
+dep_var_type = InputCollect$dep_var_type
 all_media = NULL
 k = "auto"
 limit = 1

@@ -72,7 +72,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   pareto_results <- robyn_pareto(
     InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet
   )
-  allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
+  allSolutions <- pareto_results$pareto_solutions
 
   #####################################
   #### Gather the results into output object
@@ -142,7 +142,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
         if (clusters) {
           if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...))
+          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, dep_var_type = InputCollect$dep_var_type,
+                                                            quiet = quiet, export = export, ...))
         }
 
         if (plot_pareto) {

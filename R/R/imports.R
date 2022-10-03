@@ -22,10 +22,10 @@
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
 #' group_by lag left_join mutate n pull rename row_number select slice summarise summarise_all ungroup
-#' all_of bind_cols mutate_at tally
+#' all_of bind_cols mutate_at tally n_distinct
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
-#' @importFrom ggridges geom_density_ridges
+#' @importFrom ggridges geom_density_ridges geom_density_ridges_gradient
 #' @importFrom glmnet cv.glmnet glmnet
 #' @importFrom jsonlite fromJSON toJSON write_json read_json
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued ohse removenacols

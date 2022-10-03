@@ -15,6 +15,8 @@
 #' @inheritParams hyper_names
 #' @inheritParams robyn_outputs
 #' @param input \code{robyn_export()}'s output or \code{pareto_aggregated.csv} results.
+#' @param dep_var_type Character. For dep_var_type 'revenue', ROI is used for clustering.
+#' For conversion', CPA is used for clustering.
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
@@ -35,7 +37,7 @@
 #' }
 #' @return List. Clustering results as labeled data.frames and plots.
 #' @export
-robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
+robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE,
                            ...) {
@@ -49,10 +51,10 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     }
     # Pareto and ROI data
     xDecompAgg <- input$xDecompAgg
-    df <- .prepare_df(xDecompAgg, all_media = all_media)
+    df <- .prepare_df(xDecompAgg, all_media, dep_var_type)
   } else {
     if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) & is.data.frame(input)) {
-      df <- .prepare_df(input, all_media)
+      df <- .prepare_df(input, all_media, dep_var_type)
     } else {
       stop(paste(
         "You must run robyn_outputs(..., clusters = TRUE) or",
@@ -101,38 +103,44 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
   cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE)#, ...)
 
   # Select top models by minimum (weighted) distance to zero
-  top_sols <- .clusters_df(cls$df, weights, limit)
+  all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
+  top_sols <- .clusters_df(cls$df, all_paid, weights, limit)
 
   # Build in-cluster CI
-  df_clusters_roi <- xDecompAgg %>%
+  df_clusters_outcome <- xDecompAgg %>%
     filter(!is.na(.data$total_spend)) %>%
     left_join(y= dplyr::select(cls$df, c("solID", "cluster"))  , by = c("solID")) %>%
-    dplyr::select(c("solID", "cluster", "rn", "roi_total", "robynPareto")) %>%
+    dplyr::select(c("solID", "cluster", "rn", "roi_total", "cpa_total", "robynPareto")) %>%
     group_by(.data$cluster, .data$rn) %>% mutate(n = n()) %>%
     filter(!is.na(.data$cluster)) %>%
     arrange(.data$cluster, .data$rn)
 
-  # why is there NA in clusters
-  # df_clusters_roi %>% group_by(.data$cluster) %>% summarise(n_distinct(.data$solID))
+  # Check n in each cluster
+  # df_clusters_outcome %>% group_by(.data$cluster) %>% summarise(n_distinct(.data$solID))
 
   # check plot
-  # ggplot(df_clusters_roi, aes(x = .data$roi_total, fill =.data$rn)) + geom_density() + facet_wrap(~cluster)
+  # ggplot(df_clusters_outcome, aes(x = .data$roi_total, fill =.data$rn)) + geom_density() + facet_wrap(~cluster)
 
   cluster_collect <- list()
   chn_collect <- list()
   sim_collect <- list()
-  all_chn <- unique(df_roi$rn)
-
   for (j in 1:k) {
-    df_roi <- df_clusters_roi %>% filter(.data$cluster == j)
-    if (n_distinct(df_roi$solID) == 1) {
+    df_outcome <- df_clusters_outcome %>% filter(.data$cluster == j)
+    if (n_distinct(df_outcome$solID) == 1) {
       warning("cluster ", j, " contains only 1 candidate model. CI not available")
       }
-    for (i in all_chn) {
+    for (i in all_paid) {
       # bootstrap CI
-      get_chn <- df_roi %>% filter(.data$rn == i)
-      roi_sample <- get_chn$roi_total
-      boot_res <- .bootci(samp = roi_sample, boot_n = 1000)
+      if (dep_var_type == "conversion") {
+        # drop CPA == Inf
+        df_chn <- df_outcome %>% filter(.data$rn == i & is.finite(.data$cpa_total))
+        v_samp <- df_chn$cpa_total
+      } else {
+        df_chn <- df_outcome %>% filter(.data$rn == i)
+        v_samp <- df_chn$roi_total
+      }
+
+      boot_res <- .bootci(samp = v_samp, boot_n = 1000)
       boot_mean <- mean(boot_res$boot_means)
       boot_se <- boot_res$se
       ci_low <- ifelse(boot_res$ci[1]<0, 0, boot_res$ci[1])
@@ -140,35 +148,35 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
 
       ## experiment with gamma distribution fitting
       # mod_gamma <- nloptr(x0 = c(1, 1), eval_f = gamma_mle, lb = c(0,0),
-      #                     x = unlist(get_chn$roi_total),
+      #                     x = unlist(df_chn$roi_total),
       #                     opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5))
       # gamma_params <- mod_gamma$solution
       # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
       # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])
 
-      chn_collect[[i]] <- get_chn <- get_chn %>% mutate(ci_low = ci_low,
-                                                        ci_up = ci_up,
-                                                        n = length(roi_sample),
-                                                        boot_se = boot_se,
-                                                        boot_mean = boot_mean,
-                                                        cluster = j)
-
-      sim_collect[[i]] <- sim_samp <- data.frame(
-        n = length(roi_sample),
+      # Collect loop results
+      chn_collect[[i]] <- df_chn %>%
+        mutate(ci_low = ci_low,
+               ci_up = ci_up,
+               n = length(v_samp),
+               boot_se = boot_se,
+               boot_mean = boot_mean,
+               cluster = j)
+      sim_collect[[i]] <- data.frame(
+        n = length(v_samp),
         boot_se = boot_se,
         boot_mean = boot_mean,
         ci_low = ci_low,
         ci_up = ci_up,
         x_sim = rnorm(10000, mean = boot_mean, sd = boot_se),
         cluster = j,
-        rn = i
-      ) %>% mutate(
-        y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se)
-        )
+        rn = i) %>%
+        mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
     }
     cluster_collect[[j]] <- list(chn_collect = chn_collect, sim_collect = sim_collect)
   }
 
+  # prep for plotting & output
   chn_collect <- bind_rows(lapply(cluster_collect, function(x) bind_rows(lapply(x$chn_collect, function(y) y))))
   chn_collect <- mutate(chn_collect, cluster_title = paste0("cl.",cluster,": n = ", n))
 
@@ -206,7 +214,7 @@ robyn_clusters <- function(input, all_media = NULL, k = "auto", limit = 1,
     clusters_tSNE = cls[["tSNE"]],
     # Top Clusters
     models = top_sols,
-    plot_clusters_ci = .plot_clusters_ci(df = sim_collect, df_label = df_ci),
+    plot_clusters_ci = .plot_clusters_ci(df = sim_collect, df_label = df_ci, dep_var_type),
     plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
     plot_models_rois = .plot_topsols_rois(df, top_sols, all_media, limit)
   )
@@ -282,15 +290,23 @@ gamma_mle <- function(params, x){
 #        x = "(Un-normalized) ROI", y = NULL)
 
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
-.prepare_df <- function(x, all_media) {
+.prepare_df <- function(x, all_media, dep_var_type)  {
   check_opts(all_media, unique(x$rn))
-  rois <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
-    tidyr::spread(key = .data$rn, value = .data$roi_total)
-  rois <- removenacols(rois, all = FALSE)
-  rois <- select(rois, any_of(c("solID", all_media)))
+
+  if (dep_var_type == "revenue") {
+    outcome <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
+      tidyr::spread(key = .data$rn, value = .data$roi_total)
+  } else {
+    outcome <- select(x, .data$solID, .data$rn, .data$cpa_total) %>%
+      filter(is.finite(.data$cpa_total)) %>%
+      tidyr::spread(key = .data$rn, value = .data$cpa_total)
+  }
+
+  outcome <- removenacols(outcome, all = FALSE)
+  outcome <- select(outcome, any_of(c("solID", all_media)))
   errors <- distinct(x, .data$solID, .data$nrmse, .data$decomp.rssd, .data$mape)
-  rois <- left_join(rois, errors, "solID") %>% ungroup()
-  return(rois)
+  outcome <- left_join(outcome, errors, "solID") %>% ungroup()
+  return(outcome)
 }
 
 .min_max_norm <- function(x, min = 0, max = 1) {
@@ -302,7 +318,7 @@ gamma_mle <- function(params, x){
   (max - min) * (x - a) / (b - a) + min
 }
 
-.clusters_df <- function(df, balance = rep(1, 3), limit = 1) {
+.clusters_df <- function(df, all_paid, balance = rep(1, 3), limit = 1) {
   df %>%
     mutate(error_score = errors_scores(., balance)) %>%
     replace(., is.na(.), 0) %>%
@@ -313,7 +329,7 @@ gamma_mle <- function(params, x){
     select(.data$cluster, .data$rank, everything())
 }
 
-.plot_clusters_ci <- function(df, df_label) {
+.plot_clusters_ci <- function(df, df_label, dep_var_type) {
   df_label <- df_label[complete.cases(df_label), ]
   suppressMessages(print(
     df %>%
@@ -327,7 +343,8 @@ gamma_mle <- function(params, x){
       scale_fill_viridis_c(option = "D") +
       labs(title = "In-Cluster ROAS & bootstrapped 95% CI",
            subtitle = "Sampling distribution of cluster mean",
-           x = "ROAS", y = "DENSITY") +
+           x = ifelse(dep_var_type == "conversion", "CPA", "ROAS"),
+           y = "DENSITY") +
       theme_lares(legend = "none")
   ))
 }
@@ -395,6 +412,6 @@ gamma_mle <- function(params, x){
     ci <- c(samp_mean - me, samp_mean + me)
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
-    return(list(boot_means = samp_mean, ci = c(NA,NA), se = NA))
+    return(list(boot_means = samp, ci = c(NA,NA), se = NA))
   }
 }
