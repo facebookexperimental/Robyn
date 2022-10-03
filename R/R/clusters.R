@@ -72,7 +72,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
   if ("auto" %in% k) {
     cls <- tryCatch(
       {
-        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE)#, ...)
+        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -100,7 +100,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   # Build clusters
   stopifnot(k %in% min_clusters:30)
-  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE)#, ...)
+  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
@@ -109,9 +109,10 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
   # Build in-cluster CI
   df_clusters_outcome <- xDecompAgg %>%
     filter(!is.na(.data$total_spend)) %>%
-    left_join(y= dplyr::select(cls$df, c("solID", "cluster"))  , by = c("solID")) %>%
+    left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = c("solID")) %>%
     dplyr::select(c("solID", "cluster", "rn", "roi_total", "cpa_total", "robynPareto")) %>%
-    group_by(.data$cluster, .data$rn) %>% mutate(n = n()) %>%
+    group_by(.data$cluster, .data$rn) %>%
+    mutate(n = n()) %>%
     filter(!is.na(.data$cluster)) %>%
     arrange(.data$cluster, .data$rn)
 
@@ -128,7 +129,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     df_outcome <- df_clusters_outcome %>% filter(.data$cluster == j)
     if (n_distinct(df_outcome$solID) == 1) {
       warning("cluster ", j, " contains only 1 candidate model. CI not available")
-      }
+    }
     for (i in all_paid) {
       # bootstrap CI
       if (dep_var_type == "conversion") {
@@ -143,7 +144,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
       boot_res <- .bootci(samp = v_samp, boot_n = 1000)
       boot_mean <- mean(boot_res$boot_means)
       boot_se <- boot_res$se
-      ci_low <- ifelse(boot_res$ci[1]<0, 0, boot_res$ci[1])
+      ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
       ci_up <- boot_res$ci[2]
 
       ## experiment with gamma distribution fitting
@@ -156,12 +157,14 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
       # Collect loop results
       chn_collect[[i]] <- df_chn %>%
-        mutate(ci_low = ci_low,
-               ci_up = ci_up,
-               n = length(v_samp),
-               boot_se = boot_se,
-               boot_mean = boot_mean,
-               cluster = j)
+        mutate(
+          ci_low = ci_low,
+          ci_up = ci_up,
+          n = length(v_samp),
+          boot_se = boot_se,
+          boot_mean = boot_mean,
+          cluster = j
+        )
       sim_collect[[i]] <- data.frame(
         n = length(v_samp),
         boot_se = boot_se,
@@ -170,7 +173,8 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
         ci_up = ci_up,
         x_sim = rnorm(10000, mean = boot_mean, sd = boot_se),
         cluster = j,
-        rn = i) %>%
+        rn = i
+      ) %>%
         mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
     }
     cluster_collect[[j]] <- list(chn_collect = chn_collect, sim_collect = sim_collect)
@@ -178,24 +182,28 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   # prep for plotting & output
   chn_collect <- bind_rows(lapply(cluster_collect, function(x) bind_rows(lapply(x$chn_collect, function(y) y))))
-  chn_collect <- mutate(chn_collect, cluster_title = paste0("cl.",cluster,": n = ", n))
+  chn_collect <- mutate(chn_collect, cluster_title = paste0("cl.", cluster, ": n = ", n))
 
   sim_collect <- bind_rows(lapply(cluster_collect, function(x) bind_rows(lapply(x$sim_collect, function(y) y))))
   sim_collect <- sim_collect %>%
-    mutate(cluster_title = paste0("cl.",cluster,": n = ", n)) %>%
+    mutate(cluster_title = paste0("cl.", cluster, ": n = ", n)) %>%
     filter(!is.na(.data$boot_se))
 
   df_ci <- chn_collect %>%
-    dplyr::select(.data$rn, .data$cluster_title, .data$n,.data$cluster,
-                  .data$boot_mean, .data$boot_se, .data$ci_low, .data$ci_up) %>%
+    dplyr::select(
+      .data$rn, .data$cluster_title, .data$n, .data$cluster,
+      .data$boot_mean, .data$boot_se, .data$ci_low, .data$ci_up
+    ) %>%
     distinct() %>%
     group_by(.data$rn, .data$cluster_title, .data$cluster) %>%
-    summarise(n = .data$n,
-              boot_mean = .data$boot_mean,
-              boot_se = boot_se,
-              boot_ci = paste0("[",round(.data$ci_low,2), ", ",round(.data$ci_up, 2), "]"),
-              ci_low = .data$ci_low,
-              ci_up = .data$ci_up, .groups = "keep")
+    summarise(
+      n = .data$n,
+      boot_mean = .data$boot_mean,
+      boot_se = boot_se,
+      boot_ci = paste0("[", round(.data$ci_low, 2), ", ", round(.data$ci_up, 2), "]"),
+      ci_low = .data$ci_low,
+      ci_up = .data$ci_up, .groups = "keep"
+    )
 
   output <- list(
     # Data and parameters
@@ -224,12 +232,15 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
     write.csv(output$df_cluster_ci, file = paste0(path, "pareto_clusters_ci.csv"))
     # ggsave(paste0(path, "pareto_clusters_corr.png"), plot = output$corrs, dpi = 500, width = 7, height = 5)
-    db <- wrap_plots(A = suppressMessages(print(output$plot_clusters_ci)),
-                     B = output$plot_models_rois, C = output$plot_models_errors,
-                     design = "AA
-           BC")
+    db <- wrap_plots(
+      A = suppressMessages(print(output$plot_clusters_ci)),
+      B = output$plot_models_rois, C = output$plot_models_errors,
+      design = "AA
+           BC"
+    )
     ggsave(paste0(path, "pareto_clusters_detail.png"),
-           plot = db, dpi = 600, width = 12, height = 18)
+      plot = db, dpi = 600, width = 12, height = 18
+    )
   }
 
   return(output)
@@ -261,10 +272,10 @@ errors_scores <- function(df, balance = rep(1, 3)) {
   return(scores)
 }
 
-gamma_mle <- function(params, x){
+gamma_mle <- function(params, x) {
   gamma_shape <- params[[1]]
   gamma_scale <- params[[2]]
-  return (-sum(dgamma(x, shape = gamma_shape, scale = gamma_scale, log = TRUE))) # negative log-likelihood
+  return(-sum(dgamma(x, shape = gamma_shape, scale = gamma_scale, log = TRUE))) # negative log-likelihood
 }
 
 # # Mean Media ROI by Cluster
@@ -290,7 +301,7 @@ gamma_mle <- function(params, x){
 #        x = "(Un-normalized) ROI", y = NULL)
 
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
-.prepare_df <- function(x, all_media, dep_var_type)  {
+.prepare_df <- function(x, all_media, dep_var_type) {
   check_opts(all_media, unique(x$rn))
 
   if (dep_var_type == "revenue") {
@@ -334,18 +345,22 @@ gamma_mle <- function(params, x){
   df_label <- df_label[complete.cases(df_label), ]
   suppressMessages(print(
     df %>%
-    ggplot(aes(x = .data$x_sim, y = .data$rn, fill = stat(x))) +
+      ggplot(aes(x = .data$x_sim, y = .data$rn, fill = stat(x))) +
       geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
-      geom_text(data = df_label,
-                aes(x = 0, y= .data$rn, label=.data$boot_ci),
-                position=position_nudge(x= -0.02, y= 0.1), colour="grey", size=3.5) +
-      facet_wrap(~.data$cluster_title) +
+      geom_text(
+        data = df_label,
+        aes(x = 0, y = .data$rn, label = .data$boot_ci),
+        position = position_nudge(x = -0.02, y = 0.1), colour = "grey", size = 3.5
+      ) +
+      facet_wrap(~ .data$cluster_title) +
       geom_vline(xintercept = 1, linetype = "dotted") +
       scale_fill_viridis_c(option = "D") +
-      labs(title = paste0("In-Cluster ",temp," & bootstrapped 95% CI"),
-           subtitle = "Sampling distribution of cluster mean",
-           x = temp,
-           y = "DENSITY") +
+      labs(
+        title = paste0("In-Cluster ", temp, " & bootstrapped 95% CI"),
+        subtitle = "Sampling distribution of cluster mean",
+        x = temp,
+        y = "DENSITY"
+      ) +
       theme_lares(legend = "none")
   ))
 }
@@ -395,12 +410,12 @@ gamma_mle <- function(params, x){
     theme_lares()
 }
 
-.bootci<- function(samp, boot_n) {
+.bootci <- function(samp, boot_n) {
   if (length(samp) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp)
     boot_sample <- matrix(
-      sample(x = samp, size = samp_n*boot_n, replace=TRUE),
+      sample(x = samp, size = samp_n * boot_n, replace = TRUE),
       nrow = boot_n, ncol = samp_n
     )
     boot_means <- apply(X = boot_sample, MARGIN = 1, FUN = mean)
@@ -409,10 +424,10 @@ gamma_mle <- function(params, x){
     # plot_boot <- ggplot(data.frame(x = boot_means),aes(x = x)) +
     #   geom_histogram(aes(y = ..density.. ), binwidth = binwidth) +
     #   geom_density(color="red")
-    me <- qt(0.975, samp_n-1) * se
+    me <- qt(0.975, samp_n - 1) * se
     ci <- c(samp_mean - me, samp_mean + me)
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
-    return(list(boot_means = samp, ci = c(NA,NA), se = NA))
+    return(list(boot_means = samp, ci = c(NA, NA), se = NA))
   }
 }
