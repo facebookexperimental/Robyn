@@ -929,7 +929,9 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
     group_by(.data$solID, .data$label, .data$variable) %>%
     summarise_all(sum)
 
-  outputs[["pBarRF"]] <- pBarRF <- ggplot(df, aes(y = .data$variable)) +
+  df <- replace(df, is.na(df), 0)
+  outputs[["pBarRF"]] <- pBarRF <- df %>%
+    ggplot(aes(y = .data$variable)) +
     geom_col(aes(x = .data$decompPer)) +
     geom_text(aes(
       x = .data$decompPer,
@@ -945,7 +947,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
     na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b"
     ) +
     facet_wrap(. ~ .data$label, scales = "free") +
-    scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
+    # scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
     labs(
       title = paste(
         "Model refresh: Decomposition & Paid Media",

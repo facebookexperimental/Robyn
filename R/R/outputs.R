@@ -134,7 +134,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   OutputCollect$plot_folder <- gsub("//", "/", plotPath)
 
   if (export) {
-    dir.create(OutputCollect$plot_folder)
+    if (!dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)
     tryCatch(
       {
         if (!quiet) message(paste0(">>> Collecting ", length(allSolutions), " pareto-optimum results into: ", OutputCollect$plot_folder))

@@ -84,7 +84,7 @@ robyn_write <- function(InputCollect,
     select_model <- "inputs"
   }
 
-  if (!dir.exists(dir)) dir.create(dir)
+  if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
   filename <- sprintf("%s/RobynModel-%s.json", dir, select_model)
   filename <- gsub("//", "/", filename)
   class(ret) <- c("robyn_write", class(ret))
@@ -261,6 +261,7 @@ robyn_chain <- function(json_file) {
   plot_folder <- json_data$ExportedModel$plot_folder
   temp <- stringr::str_split(plot_folder, "/")[[1]]
   chain <- temp[startsWith(temp, "Robyn_")]
+  if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
   chainData <- list()
   for (i in rev(seq_along(chain))) {
