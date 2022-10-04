@@ -345,7 +345,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
       subtitle = "Sampling distribution of cluster mean",
       x = temp,
       y = "Density",
-      fill = paste("Mean", temp)
+      fill = temp
     ) +
     theme_lares(legend = "top")
   return(p)
