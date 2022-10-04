@@ -15,6 +15,8 @@
 #' @param pareto_fronts Integer. Number of Pareto fronts for the output.
 #' \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
 #' \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
+#' \code{pareto_fronts = "auto"} selects the min fronts that include at least 100
+#' candidates. To customize this threshold, set value with \code{pareto_models}.
 #' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
@@ -39,7 +41,7 @@
 #' results based on \code{robyn_run()} results.
 #' @export
 robyn_outputs <- function(InputCollect, OutputModels,
-                          pareto_fronts = 3,
+                          pareto_fronts = "auto",
                           calibration_constraint = 0.1,
                           plot_folder = NULL, plot_folder_sub = NULL,
                           plot_pareto = TRUE,
@@ -70,9 +72,14 @@ robyn_outputs <- function(InputCollect, OutputModels,
     ))
   }
   pareto_results <- robyn_pareto(
-    InputCollect, OutputModels, pareto_fronts, calibration_constraint, quiet
+    InputCollect, OutputModels,
+    pareto_fronts = "auto",
+    calibration_constraint = calibration_constraint,
+    quiet = quiet,
+    ...
   )
-  allSolutions <- unique(pareto_results$xDecompVecCollect$solID)
+  pareto_fronts <- pareto_results$pareto_fronts
+  allSolutions <- pareto_results$pareto_solutions
 
   #####################################
   #### Gather the results into output object
@@ -142,7 +149,10 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
         if (clusters) {
           if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect, quiet = quiet, export = export, ...))
+          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect,
+            dep_var_type = InputCollect$dep_var_type,
+            quiet = quiet, export = export, ...
+          ))
         }
 
         if (plot_pareto) {

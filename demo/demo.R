@@ -304,7 +304,7 @@ OutputModels$convergence$moo_cloud_plot
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
-  pareto_fronts = 3,
+  # pareto_fronts = "auto",
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto" or "all"
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters

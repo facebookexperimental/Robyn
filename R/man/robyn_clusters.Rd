@@ -6,6 +6,7 @@
 \usage{
 robyn_clusters(
   input,
+  dep_var_type,
   all_media = NULL,
   k = "auto",
   limit = 1,
@@ -18,6 +19,9 @@ robyn_clusters(
 }
 \arguments{
 \item{input}{\code{robyn_export()}'s output or \code{pareto_aggregated.csv} results.}
+
+\item{dep_var_type}{Character. For dep_var_type 'revenue', ROI is used for clustering.
+For conversion', CPA is used for clustering.}
 
 \item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}
@@ -45,8 +49,9 @@ List. Clustering results as labeled data.frames and plots.
 }
 \description{
 \code{robyn_clusters()} uses output from \code{robyn_run()},
-to reduce the number of models and help the user pick up the best (lowest
-combined error) of the most different kinds (clusters) of models.
+to reduce the number of models and create bootstrapped confidence
+interval and help the user pick up the best (lowest combined error)
+of the most different kinds (clusters) of models.
 }
 \examples{
 \dontrun{

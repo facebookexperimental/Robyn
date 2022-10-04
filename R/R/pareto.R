@@ -3,8 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts,
-                         calibration_constraint = 0.1, quiet = FALSE) {
+robyn_pareto <- function(InputCollect, OutputModels,
+                         pareto_fronts = "auto",
+                         pareto_models = 100,
+                         calibration_constraint = 0.1,
+                         quiet = FALSE,
+                         ...) {
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
 
@@ -69,7 +73,25 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts,
   # Prepare parallel loop
   if (TRUE) {
     if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+    # Get at least 100 candidates for better clustering
+    if ("auto" %in% pareto_fronts) {
+      if (nrow(resultHypParam) <= pareto_models) {
+        stop(paste("Please run at least", pareto_models, "iterations"))
+      }
+      auto_pareto <- resultHypParam %>%
+        group_by(.data$robynPareto) %>%
+        summarise(n = n_distinct(.data$solID)) %>%
+        mutate(n_cum = cumsum(.data$n)) %>%
+        filter(.data$n_cum >= pareto_models) %>%
+        slice(1)
+      message(sprintf(
+        ">> Automatically selected %s Pareto-fronts to contain at least %s models (%s)",
+        auto_pareto$robynPareto, pareto_models, auto_pareto$n_cum
+      ))
+      pareto_fronts <- as.integer(auto_pareto$robynPareto)
+    }
     pareto_fronts_vec <- 1:pareto_fronts
+
     decompSpendDistPar <- decompSpendDist[decompSpendDist$robynPareto %in% pareto_fronts_vec, ]
     resultHypParamPar <- resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ]
     xDecompAggPar <- xDecompAgg[xDecompAgg$robynPareto %in% pareto_fronts_vec, ]
@@ -459,6 +481,8 @@ robyn_pareto <- function(InputCollect, OutputModels, pareto_fronts,
   )
 
   pareto_results <- list(
+    pareto_solutions = unique(xDecompVecCollect$solID),
+    pareto_fronts = pareto_fronts,
     resultHypParam = resultHypParam,
     xDecompAgg = xDecompAgg,
     mediaVecCollect = mediaVecCollect,
