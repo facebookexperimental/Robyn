@@ -113,6 +113,8 @@
 #' calibrate. Your input should include the following values for each experiment:
 #' channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
 #' You can calibrate any spend or organic variable with a well designed experiment.
+#' You can also use experimental results from multiple channels; to do so,
+#' provide concatenated channel value, i.e. "channel_A+channel_B".
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
@@ -811,8 +813,10 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     }
   } else {
     if (dayInterval == 1) {
-      warning("Currently, there's a known issue with prophet that will crash this use case.",
-              "\n Read more here: https://github.com/facebook/prophet/pull/2252")
+      warning(
+        "Currently, there's a known issue with prophet that may crash this use case.",
+        "\n Read more here: https://github.com/facebook/prophet/pull/2252"
+      )
       # mod <<- mod
       # dt_regressors <<- dt_regressors
     }

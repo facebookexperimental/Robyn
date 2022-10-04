@@ -108,7 +108,7 @@ server <- function(input, output, session) {
         "Upload your dataset containing holiday data. If you do not have a separate file",
         ", in the github repository there is a file called holidays.csv that you can access ",
         "here containing holiday data going back and forward many years. Click ",
-        a("here.", href = "https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData", target = '_blank'),
+        a("here.", href = "https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData", target = "_blank"),
         " If you do have your own holiday file, ensure the formatting is the same as this file."
       )),
       easyClose = T,
@@ -183,11 +183,11 @@ server <- function(input, output, session) {
         "After we hit the Initialize Media & Baseline Variable Inputs button, a number of input fields will appear prompting you to input in the left box the action variable e.g. Impressions or Clicks, and in the right box the spend variable for the same channel",
         "The reason for needing both variables is due to the complex relationship between spend and a variable like impressions. ",
         "In many cases, these variables do not have a 1-1 relationship, and instead the relationship is better fit by a curve than by a straight line. ",
-        'Media activity: Data collected for media ideally should reflect how many eyeballs have seen or been exposed to the media (e.g. impressions, GRPs). Spends should also be collected in order to calculate Return On Investment, however it is best practice to use exposure metrics as direct inputs into the model, as this is a better representation than spends of how media activity has been consumed by consumers. For example, 1 dollar spent on TV might yield a different reach than 1 dollar spent on Facebook.',
-        'For digital activity, the most commonly used metrics are impressions. Avoid using clicks, as clicks do not account for view through conversions, and it is just as likely that someone can view an ad and convert.',
-        'For TV and radio, the most commonly used metrics are Gross Rating Points (GRPs) or Target Audience Rating Points (TARPs).',
-        'For print (e.g. newspapers or magazines), the most commonly used metrics are readership.',
-        'As mentioned above, aim to collect data that reflects eyeballs or impressions for all other channels.',
+        "Media activity: Data collected for media ideally should reflect how many eyeballs have seen or been exposed to the media (e.g. impressions, GRPs). Spends should also be collected in order to calculate Return On Investment, however it is best practice to use exposure metrics as direct inputs into the model, as this is a better representation than spends of how media activity has been consumed by consumers. For example, 1 dollar spent on TV might yield a different reach than 1 dollar spent on Facebook.",
+        "For digital activity, the most commonly used metrics are impressions. Avoid using clicks, as clicks do not account for view through conversions, and it is just as likely that someone can view an ad and convert.",
+        "For TV and radio, the most commonly used metrics are Gross Rating Points (GRPs) or Target Audience Rating Points (TARPs).",
+        "For print (e.g. newspapers or magazines), the most commonly used metrics are readership.",
+        "As mentioned above, aim to collect data that reflects eyeballs or impressions for all other channels.",
         paste0("For more information about this step, see the ", a("step-by-step guide.", href = "https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide/#set_mediavarname-and-set_mediaspendname")),
         sep = "<br><br>"
       )),
@@ -437,7 +437,7 @@ server <- function(input, output, session) {
         (input_reactive$baseline_vars_in_cols == T)) {
         input_reactive$dt_input <- input_reactive$tbl
         input_reactive$date_format <- input$date_format_var
-        input_reactive$dt_input$DATE <- as.Date(input_reactive$dt_input[,input$date_var], format = isolate(input$date_format_var))
+        input_reactive$dt_input$DATE <- as.Date(input_reactive$dt_input[, input$date_var], format = isolate(input$date_format_var))
         input_reactive$dt_input$DATE <- as.Date(gsub("00", "20", input_reactive$dt_input$DATE))
         input_reactive$holiday_data <- isolate(input_reactive$holiday_data)
         input_reactive$holiday_data$ds <- as.Date(input_reactive$holiday_data$ds)
@@ -482,8 +482,8 @@ server <- function(input, output, session) {
         if (length(input_reactive$context_vars) != isolate(input$num_context)) {
           error_message <- paste(error_message, "Missing Input for >=1 baseline variable column names", sep = "<br><br>")
         }
-        if(length(input_reactive$paid_media_vars) < 2){
-          error_message <- paste(error_message, 'Robyn requires at least 2 paid media variables. Please add additional variables')
+        if (length(input_reactive$paid_media_vars) < 2) {
+          error_message <- paste(error_message, "Robyn requires at least 2 paid media variables. Please add additional variables")
         }
         if (input_reactive$med_vars_impr_in_cols == F) {
           error_message <- paste(error_message, "At least 1 column name in the input media impression/click variable column names does not match the column names in the data. Remember they must be input case-sensitive.", sep = "<br><br>")
@@ -531,14 +531,16 @@ server <- function(input, output, session) {
       input_reactive$paid_media_spends, input_reactive$paid_media_vars,
       input_reactive$organic_vars, input_reactive$context_vars
     ))
-    eda_input <- as.data.frame(input_reactive$dt_input)[,vars_inputted]
+    eda_input <- as.data.frame(input_reactive$dt_input)[, vars_inputted]
     ##############################################################
     ####   1. Examine data completeness for all variables    #####
     ##   Get percent of non-missing data for all variables   #####
     ##############################################################
     no_rows <- length(eda_input$DATE) # Get number of rows in the input data
-    nonNA_counts <- as.data.frame(lapply(eda_input, function(x){sum(!is.na(x))}))
-    #nonNA_counts <- eda_input[, lapply(.SD, function(x) sum(!is.na(x))), .SDcols = names(eda_input)]
+    nonNA_counts <- as.data.frame(lapply(eda_input, function(x) {
+      sum(!is.na(x))
+    }))
+    # nonNA_counts <- eda_input[, lapply(.SD, function(x) sum(!is.na(x))), .SDcols = names(eda_input)]
     input_reactive$nonNA_counts_long <- nonNA_counts %>%
       pivot_longer(cols = everything(), names_to = "variable", values_to = "non_NA_count")
     input_reactive$nonNA_counts_long <- as.data.frame(input_reactive$nonNA_counts_long)
@@ -549,9 +551,10 @@ server <- function(input, output, session) {
     message_1_bad <- paste0(
       "<B>1. Percent of Non-Missing Data for Each Variable:</B>", "<br>",
       "Variable ",
-      ifelse(length(input_reactive$nonNA_counts_long[input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data",]) > 0,
-        paste(input_reactive$nonNA_counts_long[input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data",],sep = ','),
-        '(None)'),
+      ifelse(length(input_reactive$nonNA_counts_long[input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data", ]) > 0,
+        paste(input_reactive$nonNA_counts_long[input_reactive$nonNA_counts_long$pct_of_non_missing_data_cat == "Has missing data", ], sep = ","),
+        "(None)"
+      ),
       " has missing data. ",
       "", "The Robyn MMM model will not run properly on a dataset with missing data. Examine the variable(s) with missing data to see if the missing data can be added or imputed.
                                          There are different techniques to impute or interpolate missing data for time series type of data, such as mean, median, linear, and spline interpolation, etc.
@@ -582,22 +585,22 @@ server <- function(input, output, session) {
 
     # Prepare the data for getting the missing time periods:
     date_column <- as.data.frame(eda_input$DATE[order(as.Date(eda_input$DATE))])
-    colnames(date_column) <- 'DATE'
+    colnames(date_column) <- "DATE"
     date_column$date_previous_row <- lag(date_column$DATE, 1)
     date_column$date_diff_in_days <- as.numeric(difftime(date_column$DATE, date_column$date_previous_row, units = c("days")))
 
     # Calculate the correct lag
     correct_lag <- min(as.numeric(date_column$date_diff_in_days), na.rm = TRUE)
     date_column$date_diff_incorrect <- date_column$date_diff_in_days != correct_lag
-    date_column$date_diff_incorrect[is.na(date_column$date_diff_incorrect)]<- FALSE
+    date_column$date_diff_incorrect[is.na(date_column$date_diff_incorrect)] <- FALSE
 
     # Dynamic warning message based on missing time periods:
     message_2_bad <- paste0(
       "<B>2. Missing Time Periods:</B>", "<br>",
       "There seems to be some missing time period(s) after: ",
       ifelse(date_column$date_diff_incorrect,
-      paste(date_column$date_previous_row[date_column$date_diff_incorrect == TRUE],sep = ','),
-      "(None)"
+        paste(date_column$date_previous_row[date_column$date_diff_incorrect == TRUE], sep = ","),
+        "(None)"
       ),
       ".",
       " ", "Data completeness is crucial to the quality of the model.",
@@ -629,61 +632,61 @@ server <- function(input, output, session) {
     if (is.null(input_reactive$context_vars)) {
       c()
     } else {
-      a <- cbind(a,eda_input[, (input_reactive$context_vars)])
+      a <- cbind(a, eda_input[, (input_reactive$context_vars)])
     }
     if (is.null(input_reactive$organic_vars)) {
       c()
     } else {
-      a <- cbind(a,eda_input[,(input_reactive$organic_vars)])
+      a <- cbind(a, eda_input[, (input_reactive$organic_vars)])
     }
 
     dt_pw_corr <- a
 
-      tryCatch(
+    tryCatch(
       dt_pw_corr_n <- dt_pw_corr[, sapply(dt_pw_corr, is.numeric)],
-      error = function(e){}
-      )
-      corr <- round(cor(dt_pw_corr_n, use = "complete.obs"), 2) # calculate correlation matrix
+      error = function(e) {}
+    )
+    corr <- round(cor(dt_pw_corr_n, use = "complete.obs"), 2) # calculate correlation matrix
 
-      idx <- as.data.frame(which(abs(corr) >= 0.8, arr.ind = TRUE)) # get the indices for the matrix entries with abs(correlations) >=0.8
-      idx <- idx[which(idx$row  > idx$col ),]
-      pair_name_1 <- rownames(corr)[idx$row]
-      pair_name_2 <- colnames(corr)[idx$col]
+    idx <- as.data.frame(which(abs(corr) >= 0.8, arr.ind = TRUE)) # get the indices for the matrix entries with abs(correlations) >=0.8
+    idx <- idx[which(idx$row > idx$col), ]
+    pair_name_1 <- rownames(corr)[idx$row]
+    pair_name_2 <- colnames(corr)[idx$col]
 
-      # Get list of highly correlated variable pairs
-      high_corr_var_pairs <- function() {
-        message <- ""
-        for (i in 1:length(pair_name_1))
-        {
-          message <- paste0(message, "(", pair_name_1[i], ", ", pair_name_2[i], ") ")
-        }
-        return(message)
+    # Get list of highly correlated variable pairs
+    high_corr_var_pairs <- function() {
+      message <- ""
+      for (i in 1:length(pair_name_1))
+      {
+        message <- paste0(message, "(", pair_name_1[i], ", ", pair_name_2[i], ") ")
       }
+      return(message)
+    }
 
-      # Get dynamic message based on correlation matrix between independent variables
-      message_3a_bad <- paste0(
-        "<B>3a. Correlation Between Independent Variables:</B>",
-        "<br>", "Variable pair(s) ", high_corr_var_pairs(),
-        "have a correlation magnitude of >=0.8 with each other.",
-        "<br>", "1) Some high correlations between independent variables are expected. For example, when two media channels have a similar spending pattern, they will naturally have a higher intercorrelation. In this case, the higher intercorrelation reflects reality and it makes sense to keep both independent variables in the model.",
-        "<br>", "2) Other higher correlations between independent variables may suggest redundancy. Consider the example of including both percent of revenue spent on video creatives and percent of revenue spent on mobile-optimal creatives. In this case, one variable clearly includes the other and it might make sense to select the one with the higher correlation with the dependent variable to include in the model.",
-        "<br>", "3) When you have both media exposure data (such as impressions, clicks, GRPs, etc.) and spend data for a specific channel, the recommendation is to choose a media exposure variable over the spend variable to include in the model, especially for offline channels where spend level doesnt always accurately reflect the media exposure level.",
-        "<br>", "Refer to chart 3a (Pair-wise correlation between independent variable) for more detail."
-      )
+    # Get dynamic message based on correlation matrix between independent variables
+    message_3a_bad <- paste0(
+      "<B>3a. Correlation Between Independent Variables:</B>",
+      "<br>", "Variable pair(s) ", high_corr_var_pairs(),
+      "have a correlation magnitude of >=0.8 with each other.",
+      "<br>", "1) Some high correlations between independent variables are expected. For example, when two media channels have a similar spending pattern, they will naturally have a higher intercorrelation. In this case, the higher intercorrelation reflects reality and it makes sense to keep both independent variables in the model.",
+      "<br>", "2) Other higher correlations between independent variables may suggest redundancy. Consider the example of including both percent of revenue spent on video creatives and percent of revenue spent on mobile-optimal creatives. In this case, one variable clearly includes the other and it might make sense to select the one with the higher correlation with the dependent variable to include in the model.",
+      "<br>", "3) When you have both media exposure data (such as impressions, clicks, GRPs, etc.) and spend data for a specific channel, the recommendation is to choose a media exposure variable over the spend variable to include in the model, especially for offline channels where spend level doesnt always accurately reflect the media exposure level.",
+      "<br>", "Refer to chart 3a (Pair-wise correlation between independent variable) for more detail."
+    )
 
-      message_3a_good <- paste0(
-        "<B>3a. Correlation Between Independent Variables:</B>",
-        "<br>", "None of the independent variables has a correlation magnitude of >=0.8 with each other. No immediate action is needed here. You can still refer to some general recommendations regarding correlation between independent variables below:",
-        "<br>", "1) Some high correlations between independent variables are expected. For example, when two media channels have a similar spending pattern, they will naturally have a higher intercorrelation. In this case, the higher intercorrelation reflects reality and it makes sense to keep both independent variables in the model.",
-        "<br>", "2) Other higher correlations between independent variables may suggest redundancy. Consider the example of including both percent of revenue spent on video creatives and percent of revenue spent on mobile-optimal creatives. In this case, one variable clearly includes the other and it might make sense to select the one with the higher correlation with the dependent variable to include in the model.",
-        "<br>", "3) When you have both media exposure data (such as impressions, clicks, GRPs, etc.) and spend data for a specific channel, the recommendation is to choose a media exposure variable over the spend variable to include in the model, especially for offline channels where spend level doesnt always accurately reflect the media exposure level.",
-        "<br>", "Refer to chart 3a (Pair-wise correlation between independent variable) for more detail."
-      )
+    message_3a_good <- paste0(
+      "<B>3a. Correlation Between Independent Variables:</B>",
+      "<br>", "None of the independent variables has a correlation magnitude of >=0.8 with each other. No immediate action is needed here. You can still refer to some general recommendations regarding correlation between independent variables below:",
+      "<br>", "1) Some high correlations between independent variables are expected. For example, when two media channels have a similar spending pattern, they will naturally have a higher intercorrelation. In this case, the higher intercorrelation reflects reality and it makes sense to keep both independent variables in the model.",
+      "<br>", "2) Other higher correlations between independent variables may suggest redundancy. Consider the example of including both percent of revenue spent on video creatives and percent of revenue spent on mobile-optimal creatives. In this case, one variable clearly includes the other and it might make sense to select the one with the higher correlation with the dependent variable to include in the model.",
+      "<br>", "3) When you have both media exposure data (such as impressions, clicks, GRPs, etc.) and spend data for a specific channel, the recommendation is to choose a media exposure variable over the spend variable to include in the model, especially for offline channels where spend level doesnt always accurately reflect the media exposure level.",
+      "<br>", "Refer to chart 3a (Pair-wise correlation between independent variable) for more detail."
+    )
 
-      # Decide which message to show:
-      message_3a <- ifelse(length(which(abs(corr) >= 0.8 & corr != 1)) >= 1, message_3a_bad, message_3a_good)
+    # Decide which message to show:
+    message_3a <- ifelse(length(which(abs(corr) >= 0.8 & corr != 1)) >= 1, message_3a_bad, message_3a_good)
 
-      output$print_message_3a <- renderText(paste0("<B>3a. Correlation Between Independent Variables:</B><br>Only one independent variable, no correlation calculation possible"))
+    output$print_message_3a <- renderText(paste0("<B>3a. Correlation Between Independent Variables:</B><br>Only one independent variable, no correlation calculation possible"))
 
 
 
@@ -699,7 +702,7 @@ server <- function(input, output, session) {
       correlate(use = "complete.obs") %>%
       focus(all_of(input_reactive$dep_var))
     corr_w_dep_var <- as.data.frame(corr_w_dep_var)
-    corr_w_dep_var$flag <-ifelse(abs(corr_w_dep_var[input$dep_var]) >= 0.8, ">= 0.8", "< 0.8")
+    corr_w_dep_var$flag <- ifelse(abs(corr_w_dep_var[input$dep_var]) >= 0.8, ">= 0.8", "< 0.8")
 
     # Dynamic warning message based on correlation with dependent variable:
     message_3b <- paste0(
@@ -718,23 +721,25 @@ server <- function(input, output, session) {
     ##################################################################################
 
     # aggregate data to yearly sales by channel:
-    eda_input_media_spend_vars <- eda_input[which(colnames(eda_input) %in% c('DATE',input_reactive$paid_media_spends)),]
+    eda_input_media_spend_vars <- eda_input[which(colnames(eda_input) %in% c("DATE", input_reactive$paid_media_spends)), ]
     eda_input_media_spend_vars$year <- year(eda_input_media_spend_vars$DATE)
     yearly_media_spend <- eda_input_media_spend_vars %>%
-      select(colnames(subset(eda_input_media_spend_vars,select = -c(get('DATE'))))) %>%
+      select(colnames(subset(eda_input_media_spend_vars, select = -c(get("DATE"))))) %>%
       group_by(year) %>%
       summarize(across(everything(), sum))
 
-    yearly_media_spend <- yearly_media_spend[order(yearly_media_spend$year),]
+    yearly_media_spend <- yearly_media_spend[order(yearly_media_spend$year), ]
     yearly_media_spend$total_media_spend <- yearly_media_spend %>%
-      select(colnames(subset(yearly_media_spend,select = -c(get('year'))))) %>%
+      select(colnames(subset(yearly_media_spend, select = -c(get("year"))))) %>%
       rowSums()
 
     yearly_media_spend_pct <- yearly_media_spend %>%
-      mutate_at(colnames(subset(yearly_media_spend,select = -c(get('year')))), ~(./yearly_media_spend$total_media_spend))
+      mutate_at(colnames(subset(yearly_media_spend, select = -c(get("year")))), ~ (. / yearly_media_spend$total_media_spend))
 
-    colnames(yearly_media_spend_pct)[which(colnames(yearly_media_spend_pct) %in% colnames(subset(yearly_media_spend_pct,select=-c(get('year'),get('total_media_spend')))))] <-
-      lapply(colnames(subset(yearly_media_spend_pct, select = -c(get('year'),get('total_media_spend')))), function(x){paste0('pct_',x)})
+    colnames(yearly_media_spend_pct)[which(colnames(yearly_media_spend_pct) %in% colnames(subset(yearly_media_spend_pct, select = -c(get("year"), get("total_media_spend")))))] <-
+      lapply(colnames(subset(yearly_media_spend_pct, select = -c(get("year"), get("total_media_spend")))), function(x) {
+        paste0("pct_", x)
+      })
 
     # Only keep the pct_spend variables
     yearly_media_spend_pct <- yearly_media_spend_pct %>% select(year | starts_with("pct_"))
@@ -743,7 +748,7 @@ server <- function(input, output, session) {
     yearly_media_spend_pct_long <- yearly_media_spend_pct %>%
       pivot_longer(!year, names_to = "media", values_to = "pct_of_total_media_spend")
     yearly_media_spend_pct_long <- as.data.frame(yearly_media_spend_pct_long)
-    yearly_media_spend_pct_long$media <- gsub('pct_','',yearly_media_spend_pct_long$media)
+    yearly_media_spend_pct_long$media <- gsub("pct_", "", yearly_media_spend_pct_long$media)
 
 
     # Prepare data for dynamic warning message based % of total media spend by channel:
@@ -751,13 +756,13 @@ server <- function(input, output, session) {
 
     idx_low_pct <- as.data.frame(which(yearly_media_spend_pct_matrix < 0.05, arr.ind = TRUE)) # get the indices for the matrix entries with value < 0.05
     pair_year_low_pct <- yearly_media_spend_pct_matrix[idx_low_pct$row, 1]
-    pair_channel_low_pct <- gsub("pct_","",colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col])
-    pair_channel_low_pct <- gsub("_S","",colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col])
+    pair_channel_low_pct <- gsub("pct_", "", colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col])
+    pair_channel_low_pct <- gsub("_S", "", colnames(yearly_media_spend_pct_matrix)[idx_low_pct$col])
 
     idx_high_pct <- as.data.frame(which(yearly_media_spend_pct_matrix > 0.6 & yearly_media_spend_pct_matrix <= 1, arr.ind = TRUE)) # get the indices for the matrix entries with value >= 0.6
     pair_year_high_pct <- yearly_media_spend_pct_matrix[idx_high_pct$row, 1]
-    pair_channel_high_pct <- gsub("_S","",colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col])
-    pair_channel_high_pct <- gsub("pct_","",colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col])
+    pair_channel_high_pct <- gsub("_S", "", colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col])
+    pair_channel_high_pct <- gsub("pct_", "", colnames(yearly_media_spend_pct_matrix)[idx_high_pct$col])
 
     # Get list of channels with low or high share of total media spend:
     low_pct_pairs <- function() {
@@ -809,10 +814,10 @@ server <- function(input, output, session) {
         ggplot(
           input_reactive$nonNA_counts_long,
           aes(
-            x = reorder(get('variable'), -get('pct_of_non_missing_data')),
-            y = get('pct_of_non_missing_data'),
-            fill = get('pct_of_non_missing_data_cat'),
-            label = paste0(get('pct_of_non_missing_data')*100,'%')
+            x = reorder(get("variable"), -get("pct_of_non_missing_data")),
+            y = get("pct_of_non_missing_data"),
+            fill = get("pct_of_non_missing_data_cat"),
+            label = paste0(get("pct_of_non_missing_data") * 100, "%")
           )
         ) +
           geom_col(width = 0.6) +
@@ -840,10 +845,12 @@ server <- function(input, output, session) {
 
     # 2.a count by year data, flag if pct_diff_vs_count_max is > 5%:
     input_reactive$tbl$year <- year(input_reactive$tbl$DATE)
-    input_reactive$year_counts <- input_reactive$tbl %>% count(year) %>% arrange(get('.'),year)
-    colnames(input_reactive$year_counts)[2] <- 'count'
+    input_reactive$year_counts <- input_reactive$tbl %>%
+      count(year) %>%
+      arrange(get("."), year)
+    colnames(input_reactive$year_counts)[2] <- "count"
     input_reactive$year_counts$count_max <- max(input_reactive$year_counts$count)
-    input_reactive$year_counts$pct_diff_vs_count_max <- (input_reactive$year_counts$count_max -  input_reactive$year_counts$count) / input_reactive$year_counts$count_max
+    input_reactive$year_counts$pct_diff_vs_count_max <- (input_reactive$year_counts$count_max - input_reactive$year_counts$count) / input_reactive$year_counts$count_max
     input_reactive$year_counts$flag <- ifelse(input_reactive$year_counts$pct_diff_vs_count_max >= 0.05, ">= 5%", "< 5%")
     input_reactive$year_counts$year <- as.character(input_reactive$year_counts$year)
 
@@ -853,10 +860,10 @@ server <- function(input, output, session) {
       ggplot(
         input_reactive$year_counts,
         aes(
-          x = year,
-          y = count,
-          fill = get('flag'),
-          label = count
+          x = .data$year,
+          y = .data$count,
+          fill = get("flag"),
+          label = .data$count
         )
       ) +
         geom_col(width = 0.6) +
@@ -880,8 +887,10 @@ server <- function(input, output, session) {
     # 2b. count by month data -- need to decide on flag criteria if need any
 
     input_reactive$tbl$month <- month(input_reactive$tbl$DATE)
-    input_reactive$month_counts <- input_reactive$tbl %>% count(month) %>% arrange(get('.'),month)
-    colnames(input_reactive$month_counts)[2] <- 'count'
+    input_reactive$month_counts <- input_reactive$tbl %>%
+      count(month) %>%
+      arrange(get("."), month)
+    colnames(input_reactive$month_counts)[2] <- "count"
     input_reactive$month_counts$count_max <- max(input_reactive$month_counts$count)
     input_reactive$month_counts$pct_diff_vs_count_max <- (input_reactive$month_counts$count_max - input_reactive$month_counts$count) / input_reactive$month_counts$count_max
     input_reactive$month_counts$month_abb <- month.abb[input_reactive$month_counts$month]
@@ -893,9 +902,9 @@ server <- function(input, output, session) {
       ggplot(
         input_reactive$month_counts,
         aes(
-          x = reorder(get('month_abb'), month),
-          y = count,
-          label = count
+          x = reorder(get("month_abb"), .data$month),
+          y = .data$count,
+          label = .data$count
         )
       ) +
         geom_col(width = 0.6, fill = "#989898") +
@@ -916,11 +925,13 @@ server <- function(input, output, session) {
     # 2c. count by week data, flag if count is smaller than max count per week
 
     input_reactive$tbl$week <- week(input_reactive$tbl$DATE)
-    input_reactive$week_counts <- input_reactive$tbl %>% count(week) %>% arrange(get('.'),week)
-    colnames(input_reactive$week_counts)[2] <- 'count'
+    input_reactive$week_counts <- input_reactive$tbl %>%
+      count(week) %>%
+      arrange(get("."), week)
+    colnames(input_reactive$week_counts)[2] <- "count"
     input_reactive$week_counts$count_max <- max(input_reactive$week_counts$count)
     input_reactive$week_counts$pct_diff_vs_count_max <- (input_reactive$week_counts$count_max - input_reactive$week_counts$count) / input_reactive$week_counts$count_max
-    input_reactive$week_counts$week_char<- as.character(input_reactive$week_counts$week)
+    input_reactive$week_counts$week_char <- as.character(input_reactive$week_counts$week)
 
     # 2c. Plot count by week:
     pal3 <- c("Yes" = "tomato2", "No" = "#989898") # Set legend colors
@@ -928,17 +939,17 @@ server <- function(input, output, session) {
 
     output$ggplot2c <- renderPlot({
       ggplot(input_reactive$week_counts, aes(
-        x = reorder(get('week_char'), get('week')),
-        y = count,
-        label = count,
-        color = get('week_char')
+        x = reorder(get("week_char"), get("week")),
+        y = .data$count,
+        label = .data$count,
+        color = get("week_char")
       )) +
         geom_point(
           size = 3
         ) +
         geom_segment(aes(
-          x = reorder(get('week_char'), get('week')),
-          xend = reorder(get('week_char'), get('week')),
+          x = reorder(get("week_char"), get("week")),
+          xend = reorder(get("week_char"), get("week")),
           y = 0,
           yend = count
         )) +
@@ -961,9 +972,11 @@ server <- function(input, output, session) {
 
     # 2d. count by weekday data -- need to decide on flag criteria if need any
 
-    input_reactive$tbl$weekday <- weekdays(as.Date(input_reactive$tbl$DATE,format = input$date_format_var))
-    input_reactive$weekday_counts <- input_reactive$tbl %>% count(input_reactive$tbl$weekday) %>% arrange(.by_group = T)
-    colnames(input_reactive$weekday_counts)[1:2] <- c('weekday','count')
+    input_reactive$tbl$weekday <- weekdays(as.Date(input_reactive$tbl$DATE, format = input$date_format_var))
+    input_reactive$weekday_counts <- input_reactive$tbl %>%
+      count(input_reactive$tbl$weekday) %>%
+      arrange(.by_group = T)
+    colnames(input_reactive$weekday_counts)[1:2] <- c("weekday", "count")
     input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
     input_reactive$weekday_counts$pct_diff_vs_count_max <- (input_reactive$weekday_counts$count_max - input_reactive$weekday_counts$count) / input_reactive$weekday_counts$count_max
 
@@ -972,10 +985,9 @@ server <- function(input, output, session) {
       ggplot(
         input_reactive$weekday_counts,
         aes(
-          x = weekday,
-          y = count,
-          # fill=count,
-          label = count
+          x = .data$weekday,
+          y = .data$count,
+          label = .data$count
         )
       ) +
         geom_col(width = 0.3, fill = "#989898") +
@@ -1016,7 +1028,7 @@ server <- function(input, output, session) {
     output$ggplot3b <- renderPlot(
       {
         ggplot(corr_w_dep_var, aes(
-          x = reorder(get('term'), desc(get(input_reactive$dep_var))),
+          x = reorder(get("term"), desc(get(input_reactive$dep_var))),
           y = get(input_reactive$dep_var),
           label = round(get(input_reactive$dep_var), 2)
         )) +
@@ -1043,9 +1055,9 @@ server <- function(input, output, session) {
         ggplot4_multiple_year <- ggplot(
           yearly_media_spend_pct_long,
           aes(
-            x = year, y = get('pct_of_total_media_spend'),
-            fill = get('media'),
-            label = paste0(round(get('pct_of_total_media_spend')*100,1),'%')
+            x = .data$year, y = get("pct_of_total_media_spend"),
+            fill = get("media"),
+            label = paste0(round(get("pct_of_total_media_spend") * 100, 1), "%")
           )
         ) +
           geom_area(alpha = 0.6, size = .5, colour = "white") +
@@ -1065,9 +1077,9 @@ server <- function(input, output, session) {
         ggplot4_single_year <- ggplot(
           yearly_media_spend_pct_long,
           aes(
-            x = as.character(year), y = get('pct_of_total_media_spend'),
-            fill = get('media'),
-            label = paste0(round(get('pct_of_total_media_spend')*100,1),'%')
+            x = as.character(.data$year), y = get("pct_of_total_media_spend"),
+            fill = get("media"),
+            label = paste0(round(get("pct_of_total_media_spend") * 100, 1), "%")
           )
         ) +
           geom_bar(position = "stack", stat = "identity") +
@@ -1113,8 +1125,8 @@ server <- function(input, output, session) {
     # Plot 5
     output$ggplot5 <- renderPlot(
       {
-        ggplot(eda_input[order(eda_input$DATE),], aes(x = (if (input$granularity == "weekly") week(get('DATE')) else yday(get('DATE'))))) +
-          geom_line(aes(y = get(input$var_to_plot), colour = as.factor(year(get('DATE'))))) +
+        ggplot(eda_input[order(eda_input$DATE), ], aes(x = (if (input$granularity == "weekly") week(get("DATE")) else yday(get("DATE"))))) +
+          geom_line(aes(y = get(input$var_to_plot), colour = as.factor(year(get("DATE"))))) +
           labs(
             title = paste("5. Trend of", input$var_to_plot, "by year"),
             subtitle = "Compare each year's trend against the rest to detect obvious data anomalies",
@@ -1125,7 +1137,7 @@ server <- function(input, output, session) {
           theme(plot.title = element_text(size = 16, hjust = 0.5, colour = "blue", margin = margin(5, 0, 5, 0))) +
           theme(plot.subtitle = element_text(size = 14, hjust = 0.5, face = "italic", color = "firebrick")) +
           scale_x_continuous(breaks = (if (input$granularity == "weekly") seq(1, 53, 4) else seq(1, 366, 14))) +
-          facet_wrap(~ as.factor(year(get('DATE'))))
+          facet_wrap(~ as.factor(year(get("DATE"))))
       },
       height = 600
     )
@@ -1296,20 +1308,20 @@ server <- function(input, output, session) {
       } else if (input$adstock_selection == "weibull_pdf") {
         splitLayout(
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
-                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
-                      min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
+            min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
           ),
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas"),
-                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_gammas")),
-                      min = 0, max = 3, value = c(0.3, 1), step = 0.01
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_gammas")),
+            min = 0, max = 3, value = c(0.3, 1), step = 0.01
           ),
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_shapes"),
-                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_shapes")),
-                      min = 0, max = 1, value = c(0.3, 1), step = 0.01
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_shapes")),
+            min = 0, max = 1, value = c(0.3, 1), step = 0.01
           ),
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_scales"),
-                      label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_scale")),
-                      min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_scale")),
+            min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
           )
         )
       } else if (input$adstock_selection == "geometric") {
@@ -1356,20 +1368,20 @@ server <- function(input, output, session) {
         } else if (input$adstock_selection == "weibull_pdf") {
           splitLayout(
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_alphas"),
-                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_alphas")),
-                        min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
+              label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_alphas")),
+              min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
             ),
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_gammas"),
-                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_gammas")),
-                        min = 0, max = 3, value = c(0.3, 1), step = 0.01
+              label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_gammas")),
+              min = 0, max = 3, value = c(0.3, 1), step = 0.01
             ),
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_shapes"),
-                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_shapes")),
-                        min = 0, max = 1, value = c(0.3, 1), step = 0.01
+              label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_shapes")),
+              min = 0, max = 1, value = c(0.3, 1), step = 0.01
             ),
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_scales"),
-                        label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_scale")),
-                        min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
+              label = div(style = "font-size:12px", paste0(input_reactive$organic_vars[i], "_scale")),
+              min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
             )
           )
         } else if (input$adstock_selection == "geometric") {
@@ -1488,7 +1500,7 @@ server <- function(input, output, session) {
     input_reactive$hyp_org <- list()
     input_reactive$hyp_paid <- list()
     input_reactive$hyperparameters <- list()
-    if (input$adstock_selection %in% c("weibull_cdf",'weibull_pdf')) {
+    if (input$adstock_selection %in% c("weibull_cdf", "weibull_pdf")) {
       vals <- list()
       names_l <- list()
       lapply(1:length(input_reactive$paid_media_vars), function(i) {
@@ -1690,7 +1702,7 @@ server <- function(input, output, session) {
         dir.create(file.path(paste0(input$dest_folder, "plots")))
       }
       input_reactive$robyn_object <- paste0(input$dest_folder, "/plots")
-      input_reactive$robyn_json <- paste0(input_reactive$robyn_object,'/robyn.json')
+      input_reactive$robyn_json <- paste0(input_reactive$robyn_object, "/robyn.json")
       tryCatch(input_reactive$InputCollect <- robyn_inputs(
         dt_input = input_reactive$dt_input,
         dt_holidays = input_reactive$holiday_data,
@@ -1726,7 +1738,7 @@ server <- function(input, output, session) {
         {
           shinyjs::html("model_gen_text", "")
           input_reactive$OutputCollect <- robyn_run(
-            InputCollect = input_reactive$InputCollect,  # feed in all model specification  # plots will be saved in the same folder as robyn_object
+            InputCollect = input_reactive$InputCollect, # feed in all model specification  # plots will be saved in the same folder as robyn_object
             iterations = input_reactive$iterations,
             trials = input_reactive$trials,
             outputs = T,
@@ -1734,7 +1746,7 @@ server <- function(input, output, session) {
             clusters = T,
             ui = TRUE,
             json_file =
-          )
+            )
           showModal(modalDialog(
             title = "Models Generated Succesfully - Please proceed to the Model Selection Tab",
             easyClose = TRUE,
@@ -1821,7 +1833,7 @@ server <- function(input, output, session) {
     # overall error messaging
     plotMediaShareLoop <- input_reactive$OutputCollect$xDecompAgg[(input_reactive$OutputCollect$xDecompAgg$solID == input$plot & input_reactive$OutputCollect$xDecompAgg$rn %in% input_reactive$paid_media_vars), ]
 
-    rsq_train_plot <- round(unique(plotMediaShareLoop$rsq_train),4)
+    rsq_train_plot <- round(unique(plotMediaShareLoop$rsq_train), 4)
     nrmse_plot <- round(unique(plotMediaShareLoop$nrmse), 4)
     decomp_rssd_plot <- round(unique(plotMediaShareLoop$decomp.rssd), 4)
     mape_lift_plot <- round(unique(plotMediaShareLoop$mape), 4)
@@ -1846,12 +1858,12 @@ server <- function(input, output, session) {
 
     plotWaterfall <- input_reactive$OutputCollect$xDecompAgg[input_reactive$OutputCollect$xDecompAgg$solID == input$plot, ]
 
-    plotWaterfallLoop <- plotWaterfall[order(plotWaterfall$xDecompPerc),]
+    plotWaterfallLoop <- plotWaterfall[order(plotWaterfall$xDecompPerc), ]
     plotWaterfallLoop$end <- cumsum(plotWaterfallLoop$xDecompPerc)
-    plotWaterfallLoop$end <- 1-plotWaterfallLoop$end
-    plotWaterfallLoop$start <- lag(plotWaterfallLoop$end,n = 1)
+    plotWaterfallLoop$end <- 1 - plotWaterfallLoop$end
+    plotWaterfallLoop$start <- lag(plotWaterfallLoop$end, n = 1)
     plotWaterfallLoop$id <- 1:nrow(plotWaterfallLoop)
-    plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0,'pos','neg'))
+    plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0, "pos", "neg"))
 
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
@@ -1915,13 +1927,13 @@ server <- function(input, output, session) {
     plot2_tab$month <- floor_date(plot2_tab$ds, unit = "month")
     plot2_monthly <- plot2_tab %>%
       group_by(month) %>%
-      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
+      summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
     plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = T), ][1:10, ]
 
     plot2_tab$year <- floor_date(plot2_tab$ds, unit = "year")
     plot2_yearly <- plot2_tab %>%
       group_by(year) %>%
-      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
+      summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
     plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = T), ]
 
     plot2_message_1 <- paste("When considering the fit of your model, it can be useful to see how over time the model fit looks. For example,",
@@ -1975,8 +1987,8 @@ server <- function(input, output, session) {
       sep = "<br><br>"
     )
 
-    plot4_tbl_alphas <- input_reactive$OutputCollect$resultHypParam[input_reactive$OutputCollect$resultHypParam$solID == input$plot,] %>% select(contains("alpha"))
-    plot4_tbl_gammas <- input_reactive$OutputCollect$resultHypParam[input_reactive$OutputCollect$resultHypParam$solID == input$plot,] %>% select(contains("gamma"))
+    plot4_tbl_alphas <- input_reactive$OutputCollect$resultHypParam[input_reactive$OutputCollect$resultHypParam$solID == input$plot, ] %>% select(contains("alpha"))
+    plot4_tbl_gammas <- input_reactive$OutputCollect$resultHypParam[input_reactive$OutputCollect$resultHypParam$solID == input$plot, ] %>% select(contains("gamma"))
     plot4_alphas_message <- paste(
       paste0("In solID - ", input$plot, " we see that the paid media variables have the following <b>Alpha values</b>"),
       paste0(colnames(plot4_tbl_alphas), " - ", round(plot4_tbl_alphas, 3), collapse = "<br>"),
@@ -2519,10 +2531,11 @@ server <- function(input, output, session) {
 
     plotMediaShareLoop <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg[
       (input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot) &
-         (input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$rn %in%
-              input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_vars),]
+        (input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$rn %in%
+          input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_vars),
+    ]
 
-    rsq_train_plot <- round(unique(plotMediaShareLoop$rsq_train),4)
+    rsq_train_plot <- round(unique(plotMediaShareLoop$rsq_train), 4)
     nrmse_plot <- round(unique(plotMediaShareLoop$nrmse), 4)
     decomp_rssd_plot <- round(unique(plotMediaShareLoop$decomp.rssd), 4)
     mape_lift_plot <- round(unique(plotMediaShareLoop$mape), 4)
@@ -2547,12 +2560,12 @@ server <- function(input, output, session) {
 
     plotWaterfall <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$xDecompAgg$solID == input$refresh_plot, ]
 
-    plotWaterfallLoop <- plotWaterfall[order(plotWaterfall$xDecompPerc),]
+    plotWaterfallLoop <- plotWaterfall[order(plotWaterfall$xDecompPerc), ]
     plotWaterfallLoop$end <- cumsum(plotWaterfallLoop$xDecompPerc)
-    plotWaterfallLoop$end <- 1-plotWaterfallLoop$end
-    plotWaterfallLoop$start <- lag(plotWaterfallLoop$end,n = 1)
+    plotWaterfallLoop$end <- 1 - plotWaterfallLoop$end
+    plotWaterfallLoop$start <- lag(plotWaterfallLoop$end, n = 1)
     plotWaterfallLoop$id <- 1:nrow(plotWaterfallLoop)
-    plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0,'pos','neg'))
+    plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0, "pos", "neg"))
 
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
@@ -2617,13 +2630,13 @@ server <- function(input, output, session) {
     plot2_tab$month <- floor_date(plot2_tab$ds, unit = "month")
     plot2_monthly <- plot2_tab %>%
       group_by(month) %>%
-      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
+      summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
     plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = T), ][1:10, ]
 
     plot2_tab$year <- floor_date(plot2_tab$ds, unit = "year")
     plot2_yearly <- plot2_tab %>%
       group_by(year) %>%
-      summarize(err = sum(abs(get('dep_var') / get('depVarHat') - 1)) / n())
+      summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
     plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = T), ]
 
     plot2_message_1 <- paste("When considering the fit of your model, it can be useful to see how over time the model fit looks. For example,",
@@ -2677,8 +2690,8 @@ server <- function(input, output, session) {
       sep = "<br><br>"
     )
 
-    plot4_tbl_alphas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID == input$refresh_plot,] %>% select(contains("alpha"))
-    plot4_tbl_gammas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID == input$refresh_plot,] %>% select(contains("gamma"))
+    plot4_tbl_alphas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID == input$refresh_plot, ] %>% select(contains("alpha"))
+    plot4_tbl_gammas <- input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam[input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID == input$refresh_plot, ] %>% select(contains("gamma"))
     plot4_alphas_message <- paste(
       paste0("In refresh_solID - ", input$refresh_plot, " we see that the paid media variables have the following <b>Alpha values</b>"),
       paste0(colnames(plot4_tbl_alphas), " - ", round(plot4_tbl_alphas, 3), collapse = "<br>"),
@@ -2932,8 +2945,8 @@ server <- function(input, output, session) {
         isolate(robyn_allocator(
           InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect,
           OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect # input one of the model IDs in OutputCollect$allSolutions to get optimisation result
-          , select_model = isolate(input$ref_solID)
-          , scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
+          , select_model = isolate(input$ref_solID),
+          scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
           , expected_spend = isolate(input$ref_expected_spend_opt) # specify future spend volume. only applies when scenario = "max_response_expected_spend"
           , expected_spend_days = isolate(input$ref_expected_days_opt) # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
           , channel_constr_low = c(channel_constr_low_list) # must be between 0.01-1 and has same length and order as paid_media_vars

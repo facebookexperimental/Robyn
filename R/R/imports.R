@@ -39,8 +39,8 @@
 #' @importFrom reticulate tuple use_condaenv import conda_create conda_install py_module_available
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel
-#' @importFrom stats AIC BIC coef end lm model.matrix na.omit nls.control median sd
-#' predict pweibull dweibull quantile qunif reorder start setNames
+#' @importFrom stats AIC BIC coef complete.cases dgamma dnorm end lm model.matrix na.omit
+#' nls.control median qt sd predict pweibull dweibull quantile qunif reorder rnorm start setNames
 #' @importFrom stringr str_count str_detect str_remove str_which str_extract str_replace
 #' @importFrom tidyr pivot_longer pivot_wider
 #' @importFrom utils askYesNo flush.console head setTxtProgressBar tail txtProgressBar write.csv

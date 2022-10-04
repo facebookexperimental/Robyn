@@ -24,11 +24,11 @@ Imports:
     ggcorrplot,
     lubridate,
     patchwork,
-    Robyn,
+    Robyn (>= 3.6.3),
     scales,
     shiny,
     shinycssloaders,
     shinyjs,
     stats,
     tidyr,
-    utils,
+    utils
