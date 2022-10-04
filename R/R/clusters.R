@@ -392,7 +392,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     theme_lares()
 }
 
-.bootci <- function(samp, boot_n) {
+.bootci <- function(samp, boot_n = 1000) {
   if (length(samp) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)
