@@ -118,7 +118,7 @@ hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 ## Guide to setup & understand hyperparameters
 
 ## 1. IMPORTANT: set plot = TRUE to see helper plots of hyperparameter's effect in transformation
-plot_adstock(plot = T)
+plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
