@@ -539,15 +539,19 @@ robyn_mmm <- function(InputCollect,
           decomp.rssd.collect <- c()
           best_mape <- Inf
 
-          doparFx <- function(i, ...) {
+          doparFx <- function(i, ...) { # i=1
             t1 <- Sys.time()
             #### Get hyperparameter sample
             hypParamSam <- hypParamSamNG[i, ]
             #### Tranform media with hyperparameters
             dt_modAdstocked <- select(dt_mod, -.data$ds)
             mediaAdstocked <- list()
+            mediaShort <- list()
+            mediaLong <- list()
             mediaVecCum <- list()
             mediaSaturated <- list()
+            mediaSaturatedShort <- list()
+            mediaSaturatedLong <- list()
             adstock <- check_adstock(adstock)
 
             for (v in 1:length(all_media)) {
@@ -568,6 +572,8 @@ robyn_mmm <- function(InputCollect,
               }
               m_adstocked <- x_list$x_decayed
               mediaAdstocked[[v]] <- m_adstocked
+              mediaShort[[v]] <- m
+              mediaLong[[v]] <- m_long <- m_adstocked - m
               mediaVecCum[[v]] <- x_list$thetaVecCum
 
               # data.frame(id = rep(1:length(m), 2)) %>%
@@ -580,19 +586,31 @@ robyn_mmm <- function(InputCollect,
               ################################################
               ## 2. Saturation (only window data)
               m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
+              m_longRollWind <- m_long[rollingWindowStartWhich:rollingWindowEndWhich]
+
               alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
               gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
-              mediaSaturated[[v]] <- saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma)
+              mediaSaturated[[v]] <- m_saturated <- saturation_hill(
+                m_adstockedRollWind, alpha = alpha, gamma = gamma)
+              mediaSaturatedLong[[v]] <- m_saturatedLong <- saturation_hill(
+                m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_longRollWind)
+              mediaSaturatedShort[[v]] <- m_saturated - m_saturatedLong
               # plot(m_adstockedRollWind, mediaSaturated[[1]])
             }
-            names(mediaAdstocked) <- names(mediaVecCum) <- names(mediaSaturated) <- all_media
+            names(mediaAdstocked) <- names(mediaShort) <- names(mediaLong) <- names(mediaVecCum) <-
+              names(mediaSaturated) <- names(mediaSaturatedShort) <- names(mediaSaturatedLong) <-
+              all_media
             dt_modAdstocked <- dt_modAdstocked %>%
               select(-all_of(all_media)) %>%
               bind_cols(mediaAdstocked)
+            dt_mediaShort <- bind_cols(mediaShort)
+            dt_mediaLong <- bind_cols(mediaLong)
             mediaVecCum <- bind_cols(mediaVecCum)
             dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
               select(-all_of(all_media)) %>%
               bind_cols(mediaSaturated)
+            dt_saturatedShort <- bind_cols(mediaSaturatedShort)
+            dt_saturatedLong <- bind_cols(mediaSaturatedLong)
 
             #####################################
             #### Split and prepare data for modelling

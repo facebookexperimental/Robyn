@@ -42,10 +42,11 @@ outputs = FALSE
 quiet = FALSE
 add_penalty_factor = FALSE
 cores = 6
-iterations = 200
+iterations = 500
 trials = 1
 intercept_sign = "non_negative"
 nevergrad_algo = "TwoPointsDE"
+json_file = NULL
 
 ## debug robyn_train
 args(robyn_train)
