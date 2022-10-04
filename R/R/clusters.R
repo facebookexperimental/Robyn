@@ -163,7 +163,6 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
   cluster_collect <- list()
   chn_collect <- list()
   sim_collect <- list()
-
   for (j in 1:k) {
     df_outcome <- filter(df_clusters_outcome, .data$cluster == j)
     if (n_distinct(df_outcome$solID) == 1) {
@@ -204,14 +203,11 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
           cluster = j
         )
       sim_collect[[i]] <- data.frame(
-        n = length(v_samp),
-        boot_se = boot_se,
-        boot_mean = boot_mean,
-        ci_low = ci_low,
-        ci_up = ci_up,
-        x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se),
         cluster = j,
-        rn = i
+        rn = i,
+        n = length(v_samp),
+        boot_mean = boot_mean,
+        x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
       ) %>%
         mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
     }
@@ -222,8 +218,8 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
     bind_rows(lapply(x$sim_collect, function(y) y))
   })) %>%
     mutate(cluster_title = sprintf("Cl.%s (n=%s)", .data$cluster, .data$n)) %>%
-    filter(!is.na(.data$boot_se)) %>%
-    ungroup()
+    ungroup() %>%
+    as_tibble()
 
   df_ci <- bind_rows(lapply(cluster_collect, function(x) {
     bind_rows(lapply(x$chn_collect, function(y) y))
@@ -328,10 +324,9 @@ errors_scores <- function(df, balance = rep(1, 3)) {
 .plot_clusters_ci <- function(sim_collect, df_ci, dep_var_type) {
   temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_ci <- df_ci[complete.cases(df_ci), ]
-  p <- sim_collect %>%
-    ggplot(aes(x = .data$x_sim, y = .data$rn, fill = .data$boot_mean)) +
+  p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
     facet_wrap(~ .data$cluster_title) +
-    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01, size = 0.1) +
     geom_text(
       data = df_ci,
       aes(x = .data$boot_mean, y = .data$rn, label = .data$boot_ci),
@@ -339,7 +334,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
       colour = "grey30", size = 3.5
     ) +
     geom_vline(xintercept = 1, linetype = "dashed", size = .5, colour = "grey75") +
-    scale_fill_viridis_c(option = "D") +
+    # scale_fill_viridis_c(option = "D") +
     labs(
       title = paste("In-Cluster", temp, "& bootstrapped 95% CI"),
       subtitle = "Sampling distribution of cluster mean",
