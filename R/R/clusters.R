@@ -165,51 +165,52 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
   sim_collect <- list()
   for (j in 1:k) {
     df_outcome <- filter(df_clusters_outcome, .data$cluster == j)
-    if (n_distinct(df_outcome$solID) == 1) {
-      warning(paste("Cluster", j, "contains only 1 candidate model. CI not available"))
-    }
-    for (i in all_paid) {
-      # Bootstrap CI
-      if (dep_var_type == "conversion") {
-        # Drop CPA == Inf
-        df_chn <- filter(df_outcome, .data$rn == i & is.finite(.data$cpa_total))
-        v_samp <- df_chn$cpa_total
-      } else {
-        df_chn <- filter(df_outcome, .data$rn == i)
-        v_samp <- df_chn$roi_total
-      }
-      boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
-      boot_mean <- mean(boot_res$boot_means)
-      boot_se <- boot_res$se
-      ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
-      ci_up <- boot_res$ci[2]
+    if (length(unique(df_outcome$solID)) < 3) {
+      warning(paste("Cluster", j, "does not contain enough models to calculate CI"))
+    } else {
+      for (i in all_paid) {
+        # Bootstrap CI
+        if (dep_var_type == "conversion") {
+          # Drop CPA == Inf
+          df_chn <- filter(df_outcome, .data$rn == i & is.finite(.data$cpa_total))
+          v_samp <- df_chn$cpa_total
+        } else {
+          df_chn <- filter(df_outcome, .data$rn == i)
+          v_samp <- df_chn$roi_total
+        }
+        boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
+        boot_mean <- mean(boot_res$boot_means)
+        boot_se <- boot_res$se
+        ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
+        ci_up <- boot_res$ci[2]
 
-      ## Experiment with gamma distribution fitting
-      # mod_gamma <- nloptr(x0 = c(1, 1), eval_f = gamma_mle, lb = c(0,0),
-      #                     x = unlist(df_chn$roi_total),
-      #                     opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5))
-      # gamma_params <- mod_gamma$solution
-      # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
-      # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])
+        ## Experiment with gamma distribution fitting
+        # mod_gamma <- nloptr(x0 = c(1, 1), eval_f = gamma_mle, lb = c(0,0),
+        #                     x = unlist(df_chn$roi_total),
+        #                     opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5))
+        # gamma_params <- mod_gamma$solution
+        # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
+        # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])
 
-      # Collect loop results
-      chn_collect[[i]] <- df_chn %>%
-        mutate(
-          ci_low = ci_low,
-          ci_up = ci_up,
+        # Collect loop results
+        chn_collect[[i]] <- df_chn %>%
+          mutate(
+            ci_low = ci_low,
+            ci_up = ci_up,
+            n = length(v_samp),
+            boot_se = boot_se,
+            boot_mean = boot_mean,
+            cluster = j
+          )
+        sim_collect[[i]] <- data.frame(
+          cluster = j,
+          rn = i,
           n = length(v_samp),
-          boot_se = boot_se,
           boot_mean = boot_mean,
-          cluster = j
-        )
-      sim_collect[[i]] <- data.frame(
-        cluster = j,
-        rn = i,
-        n = length(v_samp),
-        boot_mean = boot_mean,
-        x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
-      ) %>%
-        mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
+          x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
+        ) %>%
+          mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
+      }
     }
     cluster_collect[[j]] <- list(chn_collect = chn_collect, sim_collect = sim_collect)
   }
