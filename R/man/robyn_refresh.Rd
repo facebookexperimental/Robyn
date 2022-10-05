@@ -42,8 +42,10 @@ Prophet holidays using \code{data("dt_prophet_holidays")}.}
 
 \item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data
-means the InputCollect$window_start & InputCollect$window_end move forward
-4 weeks.}
+means the \code{InputCollect$window_start} & \code{InputCollect$window_end}
+move forward 4 weeks. If \code{refresh_steps} is smaller than the number of
+newly provided data points, then Robyn would only use the first N steps of the
+new data.}
 
 \item{refresh_mode}{Character. Options are "auto" and "manual". In auto mode,
 the \code{robyn_refresh()} function builds refresh models with given
