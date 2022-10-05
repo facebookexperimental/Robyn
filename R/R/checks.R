@@ -626,7 +626,7 @@ check_robyn_name <- function(robyn_object, quiet = FALSE) {
   }
 }
 
-check_filedir <- function(plot_folder) {
+check_dir <- function(plot_folder) {
   file_end <- substr(plot_folder, nchar(plot_folder) - 3, nchar(plot_folder))
   if (file_end == ".RDS") {
     plot_folder <- dirname(plot_folder)

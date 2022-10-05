@@ -22,9 +22,6 @@
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param plot_folder Character. Path for saving plots. Default
 #' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
-#' @param plot_folder_sub Character. Customize sub path to save plots. The total
-#' path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
-#' For example, plot_folder_sub = "sub_dir".
 #' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
 #' and saving model one-pagers. Used when testing models.
 #' @param clusters Boolean. Apply \code{robyn_clusters()} to output models?
@@ -43,7 +40,7 @@
 robyn_outputs <- function(InputCollect, OutputModels,
                           pareto_fronts = "auto",
                           calibration_constraint = 0.1,
-                          plot_folder = NULL, plot_folder_sub = NULL,
+                          plot_folder = NULL,
                           plot_pareto = TRUE,
                           csv_out = "pareto",
                           clusters = TRUE,
@@ -51,7 +48,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           ui = FALSE, export = TRUE,
                           quiet = FALSE, ...) {
   if (is.null(plot_folder)) plot_folder <- getwd()
-  plot_folder <- check_filedir(plot_folder)
+  plot_folder <- check_dir(plot_folder)
 
   # Check calibration constrains
   calibration_constraint <- check_calibconstr(
@@ -91,6 +88,19 @@ robyn_outputs <- function(InputCollect, OutputModels,
     plotDataCollect = pareto_results$plotDataCollect
   )
 
+  # Set folder to save outputs: legacy plot_folder_sub
+  if (TRUE) {
+    depth <- ifelse(
+      "refreshDepth" %in% names(InputCollect),
+      InputCollect$refreshDepth,
+      ifelse("refreshCounter" %in% names(InputCollect),
+             InputCollect$refreshCounter, 0
+      )
+    )
+    folder_var <- ifelse(!as.integer(depth) > 0, "init", paste0("rf", depth))
+    plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
+  }
+
   # Final results object
   OutputCollect <- list(
     resultHypParam = filter(pareto_results$resultHypParam, .data$solID %in% allSolutions),
@@ -114,24 +124,6 @@ robyn_outputs <- function(InputCollect, OutputModels,
     plot_folder = gsub("//", "", paste0(plot_folder, "/", plot_folder_sub, "/"))
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
-
-  # Set folder to save outputs
-  if (is.null(plot_folder_sub)) {
-    refresh <- attr(OutputModels, "refresh")
-    depth <- ifelse(
-      "refreshDepth" %in% names(InputCollect),
-      InputCollect$refreshDepth,
-      ifelse("refreshCounter" %in% names(InputCollect),
-        InputCollect$refreshCounter, 0
-      )
-    )
-    refresh <- as.integer(depth) > 0
-    folder_var <- ifelse(!refresh, "init", paste0("rf", depth))
-    plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
-  }
-
-  plotPath <- paste0(plot_folder, "/", plot_folder_sub, "/")
-  OutputCollect$plot_folder <- gsub("//", "/", plotPath)
 
   if (export) {
     if (!dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)

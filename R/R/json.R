@@ -258,6 +258,7 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
 # Import the whole chain any refresh model to init
 robyn_chain <- function(json_file) {
   json_data <- robyn_read(json_file, quiet = TRUE)
+  ids <- c(json_data$InputCollect$refreshChain, json_data$ExportedModel$select_model)
   plot_folder <- json_data$ExportedModel$plot_folder
   temp <- stringr::str_split(plot_folder, "/")[[1]]
   chain <- temp[startsWith(temp, "Robyn_")]
@@ -278,6 +279,8 @@ robyn_chain <- function(json_file) {
   dirs <- sapply(chainData, function(x) x$ExportedModel$plot_folder)
   json_files <- paste0(dirs, "RobynModel-", names(dirs), ".json")
   attr(chainData, "json_files") <- json_files
-  attr(chainData, "chain") <- names(chainData)
+  attr(chainData, "chain") <- ids # names(chainData)
+  if (length(ids) != length(names(chainData)))
+    warning("Can't replicate chain-like results if you don't follow Robyn's chain structure")
   return(invisible(chainData))
 }

@@ -98,11 +98,11 @@ robyn_refresh <- function(json_file = NULL,
                           robyn_object = NULL,
                           dt_input = NULL,
                           dt_holidays = Robyn::dt_prophet_holidays,
-                          plot_folder_sub = NULL,
                           refresh_steps = 4,
                           refresh_mode = "manual",
                           refresh_iters = 1000,
                           refresh_trials = 3,
+                          plot_folder = NULL,
                           plot_pareto = TRUE,
                           version_prompt = FALSE,
                           export = TRUE,
@@ -119,12 +119,12 @@ robyn_refresh <- function(json_file = NULL,
     if (!is.null(json_file)) {
       Robyn <- list()
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
-      listInit <- robyn_recreate(
+      listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
         quiet = FALSE, ...
-      )
+      ))
       listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
       chainData <- robyn_chain(json_file)
       listInit$InputCollect$refreshChain <- attr(chainData, "chain")
@@ -277,7 +277,6 @@ robyn_refresh <- function(json_file = NULL,
     OutputCollectRF <- robyn_run(
       InputCollect = InputCollectRF,
       plot_folder = objectPath,
-      plot_folder_sub = plot_folder_sub,
       calibration_constraint = listOutputPrev[["calibration_constraint"]],
       add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
       iterations = refresh_iters,

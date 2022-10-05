@@ -929,7 +929,6 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
     group_by(.data$solID, .data$label, .data$variable) %>%
     summarise_all(sum)
 
-  df <- replace(df, is.na(df), 0)
   outputs[["pBarRF"]] <- pBarRF <- df %>%
     ggplot(aes(y = .data$variable)) +
     geom_col(aes(x = .data$decompPer)) +

@@ -11,11 +11,11 @@ robyn_refresh(
   robyn_object = NULL,
   dt_input = NULL,
   dt_holidays = Robyn::dt_prophet_holidays,
-  plot_folder_sub = NULL,
   refresh_steps = 4,
   refresh_mode = "manual",
   refresh_iters = 1000,
   refresh_trials = 3,
+  plot_folder = NULL,
   plot_pareto = TRUE,
   version_prompt = FALSE,
   export = TRUE,
@@ -40,10 +40,6 @@ data for the refresh.}
 \item{dt_holidays}{data.frame. Raw input holiday data. Load standard
 Prophet holidays using \code{data("dt_prophet_holidays")}.}
 
-\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
-path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
-For example, plot_folder_sub = "sub_dir".}
-
 \item{refresh_steps}{Integer. It controls how many time units the refresh
 model build move forward. For example, \code{refresh_steps = 4} on weekly data
 means the InputCollect$window_start & InputCollect$window_end move forward
@@ -61,6 +57,9 @@ still needs to be investigated.}
 
 \item{refresh_trials}{Integer. Trials per refresh. Defaults to 5 trials.
 More reliable recommendation still needs to be investigated.}
+
+\item{plot_folder}{Character. Path for saving plots. Default
+to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
