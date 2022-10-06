@@ -482,7 +482,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 }
 
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
-                              window_start, window_end, paid_media_spends, organic_vars) {
+                              window_start, window_end, paid_media_spends, organic_vars, calibration_type) {
   if (!is.null(calibration_input)) {
     calibration_input <- as_tibble(as.data.frame(calibration_input))
     if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
@@ -572,6 +572,9 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
           ))
         }
       }
+    }
+    if (!(calibration_type %in% c("immediate", "total"))) {
+      stop("calibration_type must be 'immediate' or 'total'")
     }
   }
   return(calibration_input)

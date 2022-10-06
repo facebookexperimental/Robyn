@@ -116,6 +116,10 @@
 #' You can also use experimental results from multiple channels; to do so,
 #' provide concatenated channel value, i.e. "channel_A+channel_B".
 #' Check "Guide for calibration source" section.
+#' @param calibration_type character. "immediate" or "total". Default to "immediate",
+#' because common calibration sources from experiment & attribution are considered
+#' immediate effect. In case of calibrating Robyn with other MMM models that
+#' include both immediate & carryover effect, set to "total".
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
 #' @param json_file Character. JSON file to import previously exported inputs
@@ -170,6 +174,7 @@ robyn_inputs <- function(dt_input = NULL,
                          window_start = NULL,
                          window_end = NULL,
                          calibration_input = NULL,
+                         calibration_type = "immediate",
                          json_file = NULL,
                          InputCollect = NULL,
                          ...) {
@@ -268,7 +273,7 @@ robyn_inputs <- function(dt_input = NULL,
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
-      window_start, window_end, paid_media_spends, organic_vars
+      window_start, window_end, paid_media_spends, organic_vars, calibration_type
     )
 
     ## Not used variables
@@ -316,6 +321,7 @@ robyn_inputs <- function(dt_input = NULL,
       adstock = adstock,
       hyperparameters = hyperparameters,
       calibration_input = calibration_input,
+      calibration_type = calibration_type,
       custom_params = list(...)
     )
 
@@ -339,11 +345,13 @@ robyn_inputs <- function(dt_input = NULL,
       window_start = InputCollect$window_start,
       window_end = InputCollect$window_end,
       paid_media_spends = InputCollect$paid_media_spends,
-      organic_vars = InputCollect$organic_vars
+      organic_vars = InputCollect$organic_vars,
+      calibration_type = InputCollect$calibration_type
     )
 
     ## Update calibration_input
     if (!is.null(calibration_input)) InputCollect$calibration_input <- calibration_input
+    InputCollect$calibration_type <- calibration_type
     if (!is.null(hyperparameters)) InputCollect$hyperparameters <- hyperparameters
     if (is.null(InputCollect$hyperparameters) & is.null(hyperparameters)) {
       stop("Must provide hyperparameters in robyn_inputs()")

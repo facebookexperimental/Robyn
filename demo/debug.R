@@ -64,18 +64,23 @@ args(robyn_mmm)
 #InputCollect
 #hyper_collect
 add_penalty_factor = FALSE
-iterations = InputCollect$iterations
+iterations = 500
 lambda.n = 100
 lambda_control = 1
 refresh = FALSE
 seed = 123L
 quiet = FALSE
 
+## debug model_decomp
+coefs = mod_out$coefs
+y_pred = mod_out$y_pred
+
+
 ## debug robyn_outputs
 args(robyn_outputs)
 #InputCollect
 #OutputModels
-pareto_fronts = 3
+pareto_fronts = "auto"
 calibration_constraint = 0.1
 plot_folder = robyn_object
 plot_folder_sub = NULL

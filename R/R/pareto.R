@@ -75,10 +75,13 @@ robyn_pareto <- function(InputCollect, OutputModels,
     if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
     # Get at least 100 candidates for better clustering
     if ("auto" %in% pareto_fronts) {
-      if (nrow(resultHypParam) <= pareto_models) {
-        stop(paste("Please run at least", pareto_models, "iterations"))
+      n_pareto <- resultHypParam %>% filter(!is.na(.data$robynPareto)) %>% nrow()
+      if (n_pareto <= pareto_models) {
+        stop(paste("Less than", pareto_models, "candidates in pareto fronts. Increase
+                   iterations to get more model candidates"))
       }
       auto_pareto <- resultHypParam %>%
+        filter(!is.na(.data$robynPareto)) %>%
         group_by(.data$robynPareto) %>%
         summarise(n = n_distinct(.data$solID)) %>%
         mutate(n_cum = cumsum(.data$n)) %>%

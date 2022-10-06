@@ -417,6 +417,7 @@ robyn_mmm <- function(InputCollect,
     organic_signs <- InputCollect$organic_signs
     all_media <- InputCollect$all_media
     calibration_input <- InputCollect$calibration_input
+    calibration_type <- InputCollect$calibration_type
     optimizer_name <- nevergrad_algo
     add_penalty_factor <- add_penalty_factor
     intercept_sign <- intercept_sign
@@ -546,12 +547,12 @@ robyn_mmm <- function(InputCollect,
             #### Tranform media with hyperparameters
             dt_modAdstocked <- select(dt_mod, -.data$ds)
             mediaAdstocked <- list()
-            mediaShort <- list()
-            mediaLong <- list()
+            mediaImmediate <- list()
+            mediaCarryover <- list()
             mediaVecCum <- list()
             mediaSaturated <- list()
-            mediaSaturatedShort <- list()
-            mediaSaturatedLong <- list()
+            mediaSaturatedImmediate <- list()
+            mediaSaturatedCarryover <- list()
             adstock <- check_adstock(adstock)
 
             for (v in 1:length(all_media)) {
@@ -572,8 +573,8 @@ robyn_mmm <- function(InputCollect,
               }
               m_adstocked <- x_list$x_decayed
               mediaAdstocked[[v]] <- m_adstocked
-              mediaShort[[v]] <- m
-              mediaLong[[v]] <- m_long <- m_adstocked - m
+              mediaImmediate[[v]] <- m
+              mediaCarryover[[v]] <- m_carryover <- m_adstocked - m
               mediaVecCum[[v]] <- x_list$thetaVecCum
 
               # data.frame(id = rep(1:length(m), 2)) %>%
@@ -586,31 +587,33 @@ robyn_mmm <- function(InputCollect,
               ################################################
               ## 2. Saturation (only window data)
               m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
-              m_longRollWind <- m_long[rollingWindowStartWhich:rollingWindowEndWhich]
+              m_carryoverRollWind <- m_carryover[rollingWindowStartWhich:rollingWindowEndWhich]
 
               alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
               gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
               mediaSaturated[[v]] <- m_saturated <- saturation_hill(
                 m_adstockedRollWind, alpha = alpha, gamma = gamma)
-              mediaSaturatedLong[[v]] <- m_saturatedLong <- saturation_hill(
-                m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_longRollWind)
-              mediaSaturatedShort[[v]] <- m_saturated - m_saturatedLong
+              mediaSaturatedCarryover[[v]] <- m_saturatedCarryover <- saturation_hill(
+                m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind)
+              mediaSaturatedImmediate[[v]] <- m_saturated - m_saturatedCarryover
               # plot(m_adstockedRollWind, mediaSaturated[[1]])
             }
-            names(mediaAdstocked) <- names(mediaShort) <- names(mediaLong) <- names(mediaVecCum) <-
-              names(mediaSaturated) <- names(mediaSaturatedShort) <- names(mediaSaturatedLong) <-
+            names(mediaAdstocked) <- names(mediaImmediate) <- names(mediaCarryover) <- names(mediaVecCum) <-
+              names(mediaSaturated) <- names(mediaSaturatedImmediate) <- names(mediaSaturatedCarryover) <-
               all_media
             dt_modAdstocked <- dt_modAdstocked %>%
               select(-all_of(all_media)) %>%
               bind_cols(mediaAdstocked)
-            dt_mediaShort <- bind_cols(mediaShort)
-            dt_mediaLong <- bind_cols(mediaLong)
+            dt_mediaImmediate <- bind_cols(mediaImmediate)
+            dt_mediaCarryover <- bind_cols(mediaCarryover)
             mediaVecCum <- bind_cols(mediaVecCum)
             dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
               select(-all_of(all_media)) %>%
               bind_cols(mediaSaturated)
-            dt_saturatedShort <- bind_cols(mediaSaturatedShort)
-            dt_saturatedLong <- bind_cols(mediaSaturatedLong)
+            dt_saturatedImmediate <- bind_cols(mediaSaturatedImmediate)
+            dt_saturatedImmediate[is.na(dt_saturatedImmediate)] <- 0
+            dt_saturatedCarryover <- bind_cols(mediaSaturatedCarryover)
+            dt_saturatedCarryover[is.na(dt_saturatedCarryover)] <- 0
 
             #####################################
             #### Split and prepare data for modelling
@@ -699,8 +702,9 @@ robyn_mmm <- function(InputCollect,
             decompCollect <- model_decomp(
               coefs = mod_out$coefs,
               dt_modSaturated = dt_modSaturated,
-              x = x_train,
               y_pred = mod_out$y_pred,
+              dt_saturatedImmediate = dt_saturatedImmediate,
+              dt_saturatedCarryover = dt_saturatedCarryover,
               i = i,
               dt_modRollWind = dt_modRollWind,
               refreshAddedStart = refreshAddedStart
@@ -712,10 +716,19 @@ robyn_mmm <- function(InputCollect,
             #####################################
             #### get calibration mape
             if (!is.null(calibration_input)) {
-              liftCollect <- calibrate_mmm(
-                calibration_input, decompCollect$xDecompVec,
-                dayInterval = InputCollect$dayInterval
-              )
+              if (calibration_type == "Immediate") {
+                liftCollect <- calibrate_mmm(
+                  calibration_input = calibration_input,
+                  df_media = decompCollect$mediaDecompImmediate,
+                  dayInterval = InputCollect$dayInterval
+                )
+              } else {
+                liftCollect <- calibrate_mmm(
+                  calibration_input = calibration_input,
+                  df_media = decompCollect$xDecompVec,
+                  dayInterval = InputCollect$dayInterval
+                )
+              }
               mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
             }
 
@@ -968,15 +981,17 @@ robyn_mmm <- function(InputCollect,
   ))
 }
 
-model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, refreshAddedStart) {
+model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
+                         dt_saturatedCarryover, i, dt_modRollWind, refreshAddedStart) {
 
   ## Input for decomp
   y <- dt_modSaturated$dep_var
-  x <- data.frame(x)
-  indepVar <- select(dt_modSaturated, -.data$dep_var)
+  # x <- data.frame(x)
+
+  x <- select(dt_modSaturated, -.data$dep_var)
   intercept <- coefs[1]
-  indepVarName <- names(indepVar)
-  indepVarCat <- indepVarName[sapply(indepVar, is.factor)]
+  x_name <- names(x)
+  x_factor <- x_name[sapply(x, is.factor)]
 
   ## Decomp x
   xDecomp <- data.frame(mapply(function(regressor, coeff) {
@@ -985,7 +1000,24 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   xDecomp <- cbind(data.frame(intercept = rep(intercept, nrow(xDecomp))), xDecomp)
   xDecompOut <- cbind(data.frame(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
+  ## Decomp immediate & carryover response
+  coefs_media <- coefs[rownames(coefs) == names(dt_saturatedImmediate), ]
+  mediaDecompImmediate <- data.frame(mapply(function(regressor, coeff) {
+    regressor * coeff
+  }, regressor = dt_saturatedImmediate, coeff = coefs_media))
+  mediaDecompCarryover <- data.frame(mapply(function(regressor, coeff) {
+    regressor * coeff
+  }, regressor = dt_saturatedCarryover, coeff = coefs_media))
+
   ## QA decomp
+  check_split <- all(round(xDecomp[, names(coefs_media)],2) ==
+                       round(mediaDecompImmediate + mediaDecompCarryover, 2))
+  if (!check_split) {
+    message(paste0(
+      "Attention for loop ", i,
+      ": immediate & carryover decomp don't sum up to total"
+    ))
+  }
   y_hat <- rowSums(xDecomp, na.rm = TRUE)
   errorTerm <- y_hat - y_pred
   if (prod(round(y_pred) == round(y_hat)) == 0) {
@@ -1001,7 +1033,7 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   xDecompOutPerc.scaled <- abs(xDecomp) / y_hat.scaled
   xDecompOut.scaled <- y_hat * xDecompOutPerc.scaled
 
-  temp <- select(xDecompOut, .data$intercept, all_of(indepVarName))
+  temp <- select(xDecompOut, .data$intercept, all_of(x_name))
   xDecompOutAgg <- sapply(temp, function(x) sum(x))
   xDecompOutAggPerc <- xDecompOutAgg / sum(y_hat)
   xDecompOutAggMeanNon0 <- sapply(temp, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x != 0])))
@@ -1012,7 +1044,7 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   refreshAddedEnd <- max(xDecompOut$ds)
   refreshAddedEndWhich <- which(xDecompOut$ds == refreshAddedEnd)
 
-  temp <- select(xDecompOut, .data$intercept, all_of(indepVarName)) %>%
+  temp <- select(xDecompOut, .data$intercept, all_of(x_name)) %>%
     slice(refreshAddedStartWhich:refreshAddedEndWhich)
   xDecompOutAggRF <- sapply(temp, function(x) sum(x))
   y_hatRF <- y_hat[refreshAddedStartWhich:refreshAddedEndWhich]
@@ -1022,8 +1054,8 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
   xDecompOutAggMeanNon0PercRF <- xDecompOutAggMeanNon0RF / sum(xDecompOutAggMeanNon0RF)
 
   coefsOutCat <- coefsOut <- data.frame(rn = rownames(coefs), coefs)
-  if (length(indepVarCat) > 0) {
-    coefsOut$rn <- sapply(indepVarCat, function(x) str_replace(coefsOut$rn, paste0(x, ".*"), x))
+  if (length(x_factor) > 0) {
+    coefsOut$rn <- sapply(x_factor, function(x) str_replace(coefsOut$rn, paste0(x, ".*"), x))
   }
   coefsOut <- coefsOut %>%
     group_by(.data$rn) %>%
@@ -1045,13 +1077,14 @@ model_decomp <- function(coefs, dt_modSaturated, x, y_pred, i, dt_modRollWind, r
 
   decompCollect <- list(
     xDecompVec = xDecompOut, xDecompVec.scaled = xDecompOut.scaled,
-    xDecompAgg = decompOutAgg, coefsOutCat = coefsOutCat
+    xDecompAgg = decompOutAgg, coefsOutCat = coefsOutCat,
+    mediaDecompImmediate = mutate(mediaDecompImmediate, ds = xDecompOut$ds, y = xDecompOut$y),
+    mediaDecompCarryover = mutate(mediaDecompCarryover, ds = xDecompOut$ds, y = xDecompOut$y)
   )
-
   return(decompCollect)
 }
 
-calibrate_mmm <- function(calibration_input, xDecompVec, dayInterval) {
+calibrate_mmm <- function(calibration_input, df_media, dayInterval) {
 
   ## Prep lift inputs
   getLiftMedia <- unique(calibration_input$channel)
@@ -1068,7 +1101,7 @@ calibrate_mmm <- function(calibration_input, xDecompVec, dayInterval) {
       ## Get lift period subset
       liftStart <- calibration_input$liftStartDate[liftWhich[lw]]
       liftEnd <- calibration_input$liftEndDate[liftWhich[lw]]
-      df <- filter(xDecompVec, .data$ds >= liftStart, .data$ds <= liftEnd)
+      df <- filter(df_media, .data$ds >= liftStart, .data$ds <= liftEnd)
       cal_media <- unique(stringr::str_split(getLiftMedia[m], "\\+|,|;|\\s"))[[1]]
       liftPeriodVec <- select(df, .data$ds, all_of(cal_media))
       liftPeriodVecDependent <- select(df, .data$ds, .data$y)
@@ -1076,7 +1109,7 @@ calibrate_mmm <- function(calibration_input, xDecompVec, dayInterval) {
       ## Scale decomp
       mmmDays <- nrow(liftPeriodVec) * dayInterval
       liftDays <- as.integer(liftEnd - liftStart + 1)
-      y_hatLift <- sum(unlist(xDecompVec[, -1])) # Total pred sales
+      # y_hatLift <- sum(unlist(df_media[, -1])) # Total pred sales
       x_decompLift <- sum(liftPeriodVec[, 2:ncol(liftPeriodVec)])
       x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
       y_scaledLift <- sum(liftPeriodVecDependent$y) / mmmDays * liftDays
