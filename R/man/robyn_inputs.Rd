@@ -27,7 +27,6 @@ robyn_inputs(
   window_start = NULL,
   window_end = NULL,
   calibration_input = NULL,
-  calibration_type = "immediate",
   json_file = NULL,
   InputCollect = NULL,
   ...
@@ -143,11 +142,6 @@ You can calibrate any spend or organic variable with a well designed experiment.
 You can also use experimental results from multiple channels; to do so,
 provide concatenated channel value, i.e. "channel_A+channel_B".
 Check "Guide for calibration source" section.}
-
-\item{calibration_type}{character. "immediate" or "total". Default to "immediate",
-because common calibration sources from experiment & attribution are considered
-immediate effect. In case of calibrating Robyn with other MMM models that
-include both immediate & carryover effect, set to "total".}
 
 \item{json_file}{Character. JSON file to import previously exported inputs
 (needs \code{dt_input} and \code{dt_holidays} parameters too).}

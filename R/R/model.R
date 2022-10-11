@@ -417,7 +417,6 @@ robyn_mmm <- function(InputCollect,
     organic_signs <- InputCollect$organic_signs
     all_media <- InputCollect$all_media
     calibration_input <- InputCollect$calibration_input
-    calibration_type <- InputCollect$calibration_type
     optimizer_name <- nevergrad_algo
     add_penalty_factor <- add_penalty_factor
     intercept_sign <- intercept_sign
@@ -544,7 +543,7 @@ robyn_mmm <- function(InputCollect,
             t1 <- Sys.time()
             #### Get hyperparameter sample
             hypParamSam <- hypParamSamNG[i, ]
-            #### Tranform media with hyperparameters
+            #### Tranform media for model fitting
             dt_modAdstocked <- select(dt_mod, -.data$ds)
             mediaAdstocked <- list()
             mediaImmediate <- list()
@@ -573,8 +572,11 @@ robyn_mmm <- function(InputCollect,
               }
               m_adstocked <- x_list$x_decayed
               mediaAdstocked[[v]] <- m_adstocked
+              m_carryover <- m_adstocked - m
+              m[m_carryover < 0] <- m_adstocked[m_carryover < 0] # adapt for weibull_pdf with lags
+              m_carryover[m_carryover < 0] <- 0 # adapt for weibull_pdf with lags
               mediaImmediate[[v]] <- m
-              mediaCarryover[[v]] <- m_carryover <- m_adstocked - m
+              mediaCarryover[[v]] <- m_carryover
               mediaVecCum[[v]] <- x_list$thetaVecCum
 
               # data.frame(id = rep(1:length(m), 2)) %>%
@@ -598,6 +600,7 @@ robyn_mmm <- function(InputCollect,
               mediaSaturatedImmediate[[v]] <- m_saturated - m_saturatedCarryover
               # plot(m_adstockedRollWind, mediaSaturated[[1]])
             }
+
             names(mediaAdstocked) <- names(mediaImmediate) <- names(mediaCarryover) <- names(mediaVecCum) <-
               names(mediaSaturated) <- names(mediaSaturatedImmediate) <- names(mediaSaturatedCarryover) <-
               all_media
@@ -716,19 +719,37 @@ robyn_mmm <- function(InputCollect,
             #####################################
             #### get calibration mape
             if (!is.null(calibration_input)) {
-              if (calibration_type == "Immediate") {
-                liftCollect <- calibrate_mmm(
-                  calibration_input = calibration_input,
-                  df_media = decompCollect$mediaDecompImmediate,
-                  dayInterval = InputCollect$dayInterval
-                )
-              } else {
-                liftCollect <- calibrate_mmm(
-                  calibration_input = calibration_input,
-                  df_media = decompCollect$xDecompVec,
-                  dayInterval = InputCollect$dayInterval
-                )
-              }
+
+              liftCollect <- robyn_calibrate(
+                calibration_input,
+                df_raw = dt_mod,
+                hypParamSam,
+                wind_start = rollingWindowStartWhich,
+                wind_end = rollingWindowEndWhich,
+                dayInterval = InputCollect$dayInterval,
+                dt_modAdstocked,
+                adstock,
+                xDecompVec = decompCollect$xDecompVec,
+                coefs = decompCollect$coefsOutCat
+              )
+
+              # liftCollect <- list()
+              # for (i in seq_along(calibration_input$calibration_scope)) {
+              #   if (calibration_input$calibration_scope[i] == "immediate") {
+              #     liftCollect[[i]] <- calibrate_mmm(
+              #       calibration_input = calibration_input[i, ],
+              #       df_media = decompCollect$mediaDecompImmediate,
+              #       dayInterval = InputCollect$dayInterval
+              #     )
+              #   } else {
+              #     liftCollect[[i]] <- calibrate_mmm(
+              #       calibration_input = calibration_input[i, ],
+              #       df_media = decompCollect$xDecompVec,
+              #       dayInterval = InputCollect$dayInterval
+              #     )
+              #   }
+              # }
+              # liftCollect <- bind_rows(liftCollect)
               mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
             }
 
@@ -1131,6 +1152,142 @@ calibrate_mmm <- function(calibration_input, df_media, dayInterval) {
   liftCollect <- bind_rows(liftCollect) %>%
     mutate(mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs))
   return(liftCollect)
+}
+
+robyn_calibrate <- function(
+  calibration_input,
+  df_raw,
+  hypParamSam,
+  wind_start,
+  wind_end,
+  dayInterval,
+  dt_modAdstocked,
+  adstock,
+  xDecompVec,
+  coefs
+) {
+
+  ds_wind <- df_raw$ds[wind_start:wind_end]
+  include_study <- any(
+    calibration_input$liftStartDate >= min(ds_wind) &
+      calibration_input$liftEndDate <= (max(ds_wind) + dayInterval -1)
+  )
+
+  if (!is.null(calibration_input) & !include_study) {
+    warning("All calibration_input in outside modelling window. Running without calibration")
+  } else if (!is.null(calibration_input) & include_study) {
+
+    calibration_input <- mutate(
+      calibration_input,
+      pred = NA, decompStart = NA, decompEnd = NA
+    )
+    split_channels <- strsplit(calibration_input$channel, split = "\\+")
+
+    for (l_study in 1:length(split_channels)) {
+      get_channels <- split_channels[[l_study]]
+      calibration_scope <- calibration_input$calibration_scope[[l_study]]
+      study_start <- calibration_input$liftStartDate[[l_study]]
+      study_end <- calibration_input$liftEndDate[[l_study]]
+      study_pos <- which(df_raw$ds > study_start & df_raw$ds <= study_end)
+      calib_pos <- c(min(study_pos)-1, study_pos)
+      calibrate_dates <- df_raw[calib_pos, "ds"][[1]]
+      calib_pos_rw <- which(xDecompVec$ds %in% calibrate_dates)
+
+      l_chn_collect <- list()
+      for (l_chn in seq_along(get_channels)) {
+        if (calibration_scope == "immediate") {
+          m <- df_raw[, get_channels[l_chn]][[1]]
+          # study_pos <- which(df_raw$ds > study_start &
+          #                      df_raw$ds <= study_end + dayInterval - 1)
+          # study_pos <- c(min(study_pos)-1, study_pos)
+          # cal_dates <- range(df_raw[study_pos, "ds"][[1]])
+          m_calib <- df_raw[calib_pos, get_channels[l_chn]][[1]]
+
+          ## adstock
+          if (adstock == "geometric") {
+            theta <- hypParamSam[paste0(get_channels[l_chn], "_thetas")][[1]][[1]]
+            x_list <- adstock_geometric(x = m_calib, theta = theta)
+          } else if (adstock == "weibull_cdf") {
+            shape <- hypParamSam[paste0(get_channels[l_chn], "_shapes")][[1]][[1]]
+            scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
+            x_list <- adstock_weibull(x = m_calib, shape = shape, scale = scale, windlen = length(m), type = "cdf")
+          } else if (adstock == "weibull_pdf") {
+            shape <- hypParamSam[paste0(get_channels[l_chn], "_shapes")][[1]][[1]]
+            scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
+            x_list <- adstock_weibull(x = m_calib, shape = shape, scale = scale, windlen = length(m), type = "pdf")
+          }
+
+          m_calib_total_adst <- dt_modAdstocked[calib_pos, get_channels[l_chn]][[1]]
+          m_calib_imme_adst <- x_list$x_decayed
+          m_calib_hist_adst <- m_calib_total_adst - m_calib_imme_adst
+          # adapt for weibull_pdf with lags
+          m_calib_imme_adst[m_calib_hist_adst < 0] <- m_calib_total_adst[m_calib_hist_adst < 0]
+          # adapt for weibull_pdf with lags
+          m_calib_hist_adst[m_calib_hist_adst < 0] <- 0
+
+          ## saturation
+          m_adstocked_rw <- dt_modAdstocked[wind_start:wind_end, get_channels[l_chn]][[1]]
+          alpha <- hypParamSam[paste0(get_channels[l_chn], "_alphas")][[1]][[1]]
+          gamma <- hypParamSam[paste0(get_channels[l_chn], "_gammas")][[1]][[1]]
+          m_calib_hist_sat <- saturation_hill(
+            m_adstocked_rw, alpha = alpha, gamma = gamma, x_marginal = m_calib_hist_adst)
+
+          # m_calib_total_sat <- saturation_hill(
+          #   m_adstocked_rw, alpha = alpha, gamma = gamma, x_marginal = m_calib_total_adst)
+          # m_val <- mediaSaturated[[get_channels[l_chn]]][calib_pos_rw]
+          # print(all(m_calib_total_sat == m_val))
+
+          m_calib_hist_decomp <- m_calib_hist_sat * coefs$s0[coefs$rn == get_channels[l_chn]]
+          m_calib_total_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
+          m_calib_decomp <- m_calib_total_decomp - m_calib_hist_decomp
+
+        } else if (calibration_scope == "total") {
+          m_calib_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
+        }
+        l_chn_collect[[get_channels[l_chn]]] <- m_calib_decomp
+      }
+
+      if (length(get_channels) > 1) {
+        l_chn_collect <- rowSums(bind_cols(l_chn_collect))
+      } else {
+        l_chn_collect <- unlist(l_chn_collect, use.names = FALSE)
+      }
+
+      calibration_input[l_study, ] <- mutate(
+        calibration_input[l_study, ],
+        pred = sum(l_chn_collect),
+        decompStart = range(calibrate_dates)[1],
+        decompEnd = range(calibrate_dates)[2]
+      )
+
+    }
+    liftCollect <- calibration_input %>%
+      mutate(
+        decompStart = as.Date(.data$decompStart, "1970-01-01"),
+        decompEnd = as.Date(.data$decompEnd, "1970-01-01")
+      ) %>%
+      mutate(
+        liftDays = as.numeric(
+          difftime(.data$liftEndDate, .data$liftStartDate, units = "days")),
+        decompDays =  as.numeric(
+          difftime(.data$decompEnd, .data$decompStart, units = "days"))
+      ) %>%
+      mutate(
+        decompAbsScaled = .data$pred / .data$decompDays * .data$liftDays
+      ) %>%
+      mutate(
+        liftMedia = .data$channel,
+        liftStart = .data$liftStartDate,
+        liftEnd = .data$liftEndDate,
+        mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs)
+        ) %>%
+      dplyr::select(
+        .data$liftMedia, .data$liftStart, .data$liftEnd, .data$liftAbs,
+        .data$decompStart, .data$decompEnd, .data$decompAbsScaled, .data$mape_lift
+      )
+
+    return(liftCollect)
+  }
 }
 
 

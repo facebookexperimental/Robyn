@@ -117,17 +117,17 @@ adstock_geometric <- function(x, theta) {
 #' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
 #' @rdname adstocks
 #' @export
-adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") {
-  check_opts(toupper(type), c("CDF", "PDF"))
+adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") {
+  check_opts(tolower(type), c("cdf", "pdf"))
   x_bin <- 1:windlen
   scaleTrans <- round(quantile(1:windlen, scale), 0)
   if (shape == 0) {
     thetaVecCum <- thetaVec <- rep(0, windlen)
   } else {
-    if ("CDF" %in% toupper(type)) {
+    if ("cdf" %in% tolower(type)) {
       thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
       thetaVecCum <- cumprod(thetaVec) # plot(thetaVecCum)
-    } else if ("PDF" %in% toupper(type)) {
+    } else if ("pdf" %in% tolower(type)) {
       thetaVecCum <- .normalize(dweibull(x_bin, shape = shape, scale = scaleTrans)) # plot(thetaVecCum)
     }
   }
@@ -136,8 +136,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "CDF") 
     thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
     x.prod <- x.vec * thetaVecCumLag
     return(x.prod)
-  }, x_val = x, x_pos = x_bin)
-  x_decayed <- rowSums(x_decayed)
+  }, x_val = x, x_pos = x_bin[1:length(x)])
+  x_decayed <- rowSums(x_decayed)[1:length(x)]
   return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
 }
 

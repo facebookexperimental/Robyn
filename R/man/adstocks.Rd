@@ -8,7 +8,7 @@
 \usage{
 adstock_geometric(x, theta)
 
-adstock_weibull(x, shape, scale, windlen = length(x), type = "CDF")
+adstock_weibull(x, shape, scale, windlen = length(x), type = "cdf")
 
 plot_adstock(plot = TRUE)
 }
