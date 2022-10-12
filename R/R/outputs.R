@@ -16,7 +16,7 @@
 #' \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
 #' \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
 #' \code{pareto_fronts = "auto"} selects the min fronts that include at least 100
-#' candidates. To customize this threshold, set value with \code{pareto_models}.
+#' candidates. To customize this threshold, set value with \code{min_candidates}.
 #' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
@@ -54,6 +54,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   plot_folder <- check_filedir(plot_folder)
 
   # Check calibration constrains
+  calibrated <- InputCollect$calibrated
   calibration_constraint <- check_calibconstr(
     calibration_constraint,
     OutputModels$iterations,
@@ -76,6 +77,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     pareto_fronts = "auto",
     calibration_constraint = calibration_constraint,
     quiet = quiet,
+    calibrated = calibrated,
     ...
   )
   pareto_fronts <- pareto_results$pareto_fronts
@@ -88,6 +90,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   allPareto <- list(
     resultHypParam = pareto_results$resultHypParam,
     xDecompAgg = pareto_results$xDecompAgg,
+    resultCalibration = pareto_results$resultCalibration,
     plotDataCollect = pareto_results$plotDataCollect
   )
 
@@ -97,6 +100,11 @@ robyn_outputs <- function(InputCollect, OutputModels,
     xDecompAgg = filter(pareto_results$xDecompAgg, .data$solID %in% allSolutions),
     mediaVecCollect = pareto_results$mediaVecCollect,
     xDecompVecCollect = pareto_results$xDecompVecCollect,
+    resultCalibration = if (calibrated) {
+      filter(pareto_results$resultCalibration, .data$solID %in% allSolutions)
+    } else {
+      NULL
+    },
     allSolutions = allSolutions,
     allPareto = allPareto,
     calibration_constraint = calibration_constraint,
@@ -132,27 +140,59 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
   plotPath <- paste0(plot_folder, "/", plot_folder_sub, "/")
   OutputCollect$plot_folder <- gsub("//", "/", plotPath)
+  if (export) dir.create(OutputCollect$plot_folder)
+
+  # Cluster results and amend cluster output
+  if (clusters) {
+    if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
+    try(clusterCollect <- robyn_clusters(OutputCollect,
+      dep_var_type = InputCollect$dep_var_type,
+      quiet = quiet, export = export, ...
+    ))
+    OutputCollect$resultHypParam <- left_join(
+      OutputCollect$resultHypParam,
+      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+      by = "solID"
+    )
+    OutputCollect$xDecompAgg <- left_join(
+      OutputCollect$xDecompAgg,
+      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+      by = "solID"
+    ) %>% left_join(
+      select(clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean, .data$boot_se, .data$ci_low, .data$ci_up, .data$rn),
+      by = c("rn", "cluster")
+    )
+    OutputCollect$mediaVecCollect <- left_join(
+      OutputCollect$mediaVecCollect,
+      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+      by = "solID"
+    )
+    OutputCollect$xDecompVecCollect <- left_join(
+      OutputCollect$xDecompVecCollect,
+      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+      by = "solID"
+    )
+    if (calibrated) {
+      OutputCollect$resultCalibration <- left_join(
+        OutputCollect$resultCalibration,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      )
+    }
+    OutputCollect[["clusters"]] <- clusterCollect
+  }
 
   if (export) {
-    dir.create(OutputCollect$plot_folder)
     tryCatch(
       {
         if (!quiet) message(paste0(">>> Collecting ", length(allSolutions), " pareto-optimum results into: ", OutputCollect$plot_folder))
 
-        if (csv_out %in% c("all", "pareto")) {
-          if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
-          robyn_csv(InputCollect, OutputCollect, csv_out, export = export)
-        }
-
         if (!quiet) message(">> Exporting general plots into directory...")
         all_plots <- robyn_plots(InputCollect, OutputCollect, export = export)
 
-        if (clusters) {
-          if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect,
-            dep_var_type = InputCollect$dep_var_type,
-            quiet = quiet, export = export, ...
-          ))
+        if (csv_out %in% c("all", "pareto")) {
+          if (!quiet) message(paste(">> Exporting", csv_out, "results as CSVs into directory..."))
+          robyn_csv(InputCollect, OutputCollect, csv_out, export = export, calibrated = calibrated)
         }
 
         if (plot_pareto) {
@@ -219,17 +259,23 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 #' @rdname robyn_outputs
 #' @return Invisible \code{NULL}.
 #' @export
-robyn_csv <- function(InputCollect, OutputCollect, csv_out = NULL, export = TRUE) {
+robyn_csv <- function(InputCollect, OutputCollect, csv_out = NULL, export = TRUE, calibrated) {
   if (export) {
     check_class("robyn_outputs", OutputCollect)
     temp_all <- OutputCollect$allPareto
     if ("pareto" %in% csv_out) {
       write.csv(OutputCollect$resultHypParam, paste0(OutputCollect$plot_folder, "pareto_hyperparameters.csv"))
       write.csv(OutputCollect$xDecompAgg, paste0(OutputCollect$plot_folder, "pareto_aggregated.csv"))
+      if (calibrated) {
+        write.csv(OutputCollect$resultCalibration, paste0(OutputCollect$plot_folder, "pareto_calibration.csv"))
+      }
     }
     if ("all" %in% csv_out) {
       write.csv(temp_all$resultHypParam, paste0(OutputCollect$plot_folder, "all_hyperparameters.csv"))
       write.csv(temp_all$xDecompAgg, paste0(OutputCollect$plot_folder, "all_aggregated.csv"))
+      if (calibrated) {
+        write.csv(temp_all$resultCalibration, paste0(OutputCollect$plot_folder, "all_calibration.csv"))
+      }
     }
     if (!is.null(csv_out)) {
       write.csv(InputCollect$dt_input, paste0(OutputCollect$plot_folder, "raw_data.csv"))

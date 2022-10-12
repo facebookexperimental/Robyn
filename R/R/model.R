@@ -594,9 +594,13 @@ robyn_mmm <- function(InputCollect,
               alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
               gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
               mediaSaturated[[v]] <- m_saturated <- saturation_hill(
-                m_adstockedRollWind, alpha = alpha, gamma = gamma)
+                m_adstockedRollWind,
+                alpha = alpha, gamma = gamma
+              )
               mediaSaturatedCarryover[[v]] <- m_saturatedCarryover <- saturation_hill(
-                m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind)
+                m_adstockedRollWind,
+                alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind
+              )
               mediaSaturatedImmediate[[v]] <- m_saturated - m_saturatedCarryover
               # plot(m_adstockedRollWind, mediaSaturated[[1]])
             }
@@ -719,7 +723,6 @@ robyn_mmm <- function(InputCollect,
             #####################################
             #### get calibration mape
             if (!is.null(calibration_input)) {
-
               liftCollect <- robyn_calibrate(
                 calibration_input,
                 df_raw = dt_mod,
@@ -1031,8 +1034,8 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   }, regressor = dt_saturatedCarryover, coeff = coefs_media))
 
   ## QA decomp
-  check_split <- all(round(xDecomp[, names(coefs_media)],2) ==
-                       round(mediaDecompImmediate + mediaDecompCarryover, 2))
+  check_split <- all(round(xDecomp[, names(coefs_media)], 2) ==
+    round(mediaDecompImmediate + mediaDecompCarryover, 2))
   if (!check_split) {
     message(paste0(
       "Attention for loop ", i,
@@ -1154,29 +1157,25 @@ calibrate_mmm <- function(calibration_input, df_media, dayInterval) {
   return(liftCollect)
 }
 
-robyn_calibrate <- function(
-  calibration_input,
-  df_raw,
-  hypParamSam,
-  wind_start,
-  wind_end,
-  dayInterval,
-  dt_modAdstocked,
-  adstock,
-  xDecompVec,
-  coefs
-) {
-
+robyn_calibrate <- function(calibration_input,
+                            df_raw,
+                            hypParamSam,
+                            wind_start,
+                            wind_end,
+                            dayInterval,
+                            dt_modAdstocked,
+                            adstock,
+                            xDecompVec,
+                            coefs) {
   ds_wind <- df_raw$ds[wind_start:wind_end]
   include_study <- any(
     calibration_input$liftStartDate >= min(ds_wind) &
-      calibration_input$liftEndDate <= (max(ds_wind) + dayInterval -1)
+      calibration_input$liftEndDate <= (max(ds_wind) + dayInterval - 1)
   )
 
   if (!is.null(calibration_input) & !include_study) {
     warning("All calibration_input in outside modelling window. Running without calibration")
   } else if (!is.null(calibration_input) & include_study) {
-
     calibration_input <- mutate(
       calibration_input,
       pred = NA, decompStart = NA, decompEnd = NA
@@ -1189,7 +1188,7 @@ robyn_calibrate <- function(
       study_start <- calibration_input$liftStartDate[[l_study]]
       study_end <- calibration_input$liftEndDate[[l_study]]
       study_pos <- which(df_raw$ds > study_start & df_raw$ds <= study_end)
-      calib_pos <- c(min(study_pos)-1, study_pos)
+      calib_pos <- c(min(study_pos) - 1, study_pos)
       calibrate_dates <- df_raw[calib_pos, "ds"][[1]]
       calib_pos_rw <- which(xDecompVec$ds %in% calibrate_dates)
 
@@ -1230,7 +1229,9 @@ robyn_calibrate <- function(
           alpha <- hypParamSam[paste0(get_channels[l_chn], "_alphas")][[1]][[1]]
           gamma <- hypParamSam[paste0(get_channels[l_chn], "_gammas")][[1]][[1]]
           m_calib_hist_sat <- saturation_hill(
-            m_adstocked_rw, alpha = alpha, gamma = gamma, x_marginal = m_calib_hist_adst)
+            m_adstocked_rw,
+            alpha = alpha, gamma = gamma, x_marginal = m_calib_hist_adst
+          )
 
           # m_calib_total_sat <- saturation_hill(
           #   m_adstocked_rw, alpha = alpha, gamma = gamma, x_marginal = m_calib_total_adst)
@@ -1240,7 +1241,6 @@ robyn_calibrate <- function(
           m_calib_hist_decomp <- m_calib_hist_sat * coefs$s0[coefs$rn == get_channels[l_chn]]
           m_calib_total_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
           m_calib_decomp <- m_calib_total_decomp - m_calib_hist_decomp
-
         } else if (calibration_scope == "total") {
           m_calib_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
         }
@@ -1259,7 +1259,6 @@ robyn_calibrate <- function(
         decompStart = range(calibrate_dates)[1],
         decompEnd = range(calibrate_dates)[2]
       )
-
     }
     liftCollect <- calibration_input %>%
       mutate(
@@ -1268,9 +1267,11 @@ robyn_calibrate <- function(
       ) %>%
       mutate(
         liftDays = as.numeric(
-          difftime(.data$liftEndDate, .data$liftStartDate, units = "days")),
-        decompDays =  as.numeric(
-          difftime(.data$decompEnd, .data$decompStart, units = "days"))
+          difftime(.data$liftEndDate, .data$liftStartDate, units = "days")
+        ),
+        decompDays = as.numeric(
+          difftime(.data$decompEnd, .data$decompStart, units = "days")
+        )
       ) %>%
       mutate(
         decompAbsScaled = .data$pred / .data$decompDays * .data$liftDays
@@ -1280,7 +1281,7 @@ robyn_calibrate <- function(
         liftStart = .data$liftStartDate,
         liftEnd = .data$liftEndDate,
         mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs)
-        ) %>%
+      ) %>%
       dplyr::select(
         .data$liftMedia, .data$liftStart, .data$liftEnd, .data$liftAbs,
         .data$decompStart, .data$decompEnd, .data$decompAbsScaled, .data$mape_lift

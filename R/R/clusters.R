@@ -111,7 +111,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   output <- list(
     # Data and parameters
-    data = mutate(cls$df, top_sol = .data$solID %in% top_sols$solID),
+    data = mutate(cls$df, top_sol = .data$solID %in% top_sols$solID, cluster = as.integer(.data$cluster)),
     df_cluster_ci = ungroup(ci_list$df_ci) %>% dplyr::select(-.data$cluster_title),
     n_clusters = k,
     errors_weights = weights,

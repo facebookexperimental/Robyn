@@ -5,9 +5,10 @@
 
 robyn_pareto <- function(InputCollect, OutputModels,
                          pareto_fronts = "auto",
-                         pareto_models = 100,
+                         min_candidates = 100,
                          calibration_constraint = 0.1,
                          quiet = FALSE,
+                         calibrated = FALSE,
                          ...) {
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
@@ -20,8 +21,23 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
 
+  if (calibrated) {
+    resultCalibration <- bind_rows(lapply(OutModels, function(x) {
+      x$resultCollect$liftCalibration %>%
+        mutate(trial = x$trial) %>%
+        rename(rn = liftMedia)
+    }))
+  } else {
+    resultCalibration <- NULL
+  }
+
   if (!hyper_fixed) {
-    for (df in c("resultHypParam", "xDecompAgg")) {
+    df_names <- if (calibrated) {
+      c("resultHypParam", "xDecompAgg", "resultCalibration")
+    } else {
+      c("resultHypParam", "xDecompAgg")
+    }
+    for (df in df_names) {
       assign(df, get(df) %>% mutate(
         iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
         solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
@@ -75,9 +91,11 @@ robyn_pareto <- function(InputCollect, OutputModels,
     if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
     # Get at least 100 candidates for better clustering
     if ("auto" %in% pareto_fronts) {
-      n_pareto <- resultHypParam %>% filter(!is.na(.data$robynPareto)) %>% nrow()
-      if (n_pareto <= pareto_models) {
-        stop(paste("Less than", pareto_models, "candidates in pareto fronts. Increase
+      n_pareto <- resultHypParam %>%
+        filter(!is.na(.data$robynPareto)) %>%
+        nrow()
+      if (n_pareto <= min_candidates) {
+        stop(paste("Less than", min_candidates, "candidates in pareto fronts. Increase
                    iterations to get more model candidates"))
       }
       auto_pareto <- resultHypParam %>%
@@ -85,11 +103,11 @@ robyn_pareto <- function(InputCollect, OutputModels,
         group_by(.data$robynPareto) %>%
         summarise(n = n_distinct(.data$solID)) %>%
         mutate(n_cum = cumsum(.data$n)) %>%
-        filter(.data$n_cum >= pareto_models) %>%
+        filter(.data$n_cum >= min_candidates) %>%
         slice(1)
       message(sprintf(
         ">> Automatically selected %s Pareto-fronts to contain at least %s models (%s)",
-        auto_pareto$robynPareto, pareto_models, auto_pareto$n_cum
+        auto_pareto$robynPareto, min_candidates, auto_pareto$n_cum
       ))
       pareto_fronts <- as.integer(auto_pareto$robynPareto)
     }
@@ -488,6 +506,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
     pareto_fronts = pareto_fronts,
     resultHypParam = resultHypParam,
     xDecompAgg = xDecompAgg,
+    resultCalibration = resultCalibration,
     mediaVecCollect = mediaVecCollect,
     xDecompVecCollect = xDecompVecCollect,
     plotDataCollect = plotDataCollect
