@@ -106,7 +106,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         filter(.data$n_cum >= min_candidates) %>%
         slice(1)
       message(sprintf(
-        ">> Automatically selected %s Pareto-fronts to contain at least %s models (%s)",
+        ">> Automatically selected %s Pareto-fronts to contain at least %s pareto-optimal models (%s)",
         auto_pareto$robynPareto, min_candidates, auto_pareto$n_cum
       ))
       pareto_fronts <- as.integer(auto_pareto$robynPareto)

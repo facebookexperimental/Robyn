@@ -146,6 +146,23 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
 
+  # collect all decomp vectors
+  vec_dfs <- c("xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover")
+  temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:trials)]
+  vec_collect <- list()
+  for (i in vec_dfs) {
+    vec_collect[[i]] <- bind_rows(
+      mapply(function(res, tr) {
+        res$resultCollect[[i]] %>%
+          mutate(trial = tr) %>%
+          mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
+      },
+      res = temp, tr = 1:trials, SIMPLIFY = FALSE
+      )
+    )
+  }
+
+
   if (!outputs & is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
@@ -163,6 +180,7 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Save hyper-parameters list
+  output[["vec_collect"]] <- vec_collect
   output[["hyper_updated"]] <- hyper_collect$hyper_list_all
   output[["seed"]] <- seed
 
@@ -845,14 +863,28 @@ robyn_mmm <- function(InputCollect,
               bind_cols(data.frame(t(common[9:11]))) %>%
               dplyr::mutate_all(unlist)
 
-            if (hyper_fixed) {
-              resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
-                bind_cols(data.frame(t(common[1:8]))) %>%
-                mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                  decompCollect$xDecompAgg$rn == "(Intercept)"
-                ]) %>%
-                bind_cols(data.frame(t(common[9:11])))
-            }
+            # if (hyper_fixed) {
+            resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
+              bind_cols(data.frame(t(common[1:8]))) %>%
+              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+                decompCollect$xDecompAgg$rn == "(Intercept)"
+              ]) %>%
+              bind_cols(data.frame(t(common[9:11])))
+
+            resultCollect[["mediaDecompImmediate"]] <- decompCollect$mediaDecompImmediate %>%
+              bind_cols(data.frame(t(common[1:8]))) %>%
+              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+                decompCollect$xDecompAgg$rn == "(Intercept)"
+              ]) %>%
+              bind_cols(data.frame(t(common[9:11])))
+
+            resultCollect[["mediaDecompCarryover"]] <- decompCollect$mediaDecompCarryover %>%
+              bind_cols(data.frame(t(common[1:8]))) %>%
+              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+                decompCollect$xDecompAgg$rn == "(Intercept)"
+              ]) %>%
+              bind_cols(data.frame(t(common[9:11])))
+            # }
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               bind_cols(data.frame(t(common)))
@@ -954,15 +986,29 @@ robyn_mmm <- function(InputCollect,
     arrange(.data$nrmse) %>%
     as_tibble()
 
-  if (hyper_fixed) {
-    resultCollect[["xDecompVec"]] <- bind_rows(
-      lapply(resultCollectNG, function(x) {
-        bind_rows(lapply(x, function(y) y$xDecompVec))
-      })
-    ) %>%
-      arrange(.data$nrmse, .data$ds) %>%
-      as_tibble()
-  }
+  # if (hyper_fixed) {
+  resultCollect[["xDecompVec"]] <- bind_rows(
+    lapply(resultCollectNG, function(x) {
+      bind_rows(lapply(x, function(y) y$xDecompVec))
+    })
+  ) %>%
+    arrange(.data$nrmse, .data$ds) %>%
+    as_tibble()
+  resultCollect[["xDecompVecImmediate"]] <- bind_rows(
+    lapply(resultCollectNG, function(x) {
+      bind_rows(lapply(x, function(y) y$mediaDecompImmediate))
+    })
+  ) %>%
+    arrange(.data$nrmse, .data$ds) %>%
+    as_tibble()
+  resultCollect[["xDecompVecCarryover"]] <- bind_rows(
+    lapply(resultCollectNG, function(x) {
+      bind_rows(lapply(x, function(y) y$mediaDecompCarryover))
+    })
+  ) %>%
+    arrange(.data$nrmse, .data$ds) %>%
+    as_tibble()
+  # }
 
   resultCollect[["xDecompAgg"]] <- bind_rows(
     lapply(resultCollectNG, function(x) {
