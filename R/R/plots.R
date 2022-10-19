@@ -473,15 +473,20 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 7. Immediate vs carryover
       df_imme_caov <- temp[[sid]]$plot7data
-      p7 <- ggplot(data = df_imme_caov,
-                   aes(x = .data$percentage, y = .data$channels,fill = .data$type,
-                       label = paste0(round(.data$percentage*100), "%"))) +
+      p7 <- ggplot(
+        data = df_imme_caov,
+        aes(
+          x = .data$percentage, y = .data$channels, fill = .data$type,
+          label = paste0(round(.data$percentage * 100), "%")
+        )
+      ) +
         geom_col() +
         geom_text(position = position_stack(vjust = 0.5)) +
         theme_lares(legend = "bottom", pal = 2, axis = "y") +
-        labs(x = "% response", y = "Channels",
-             title = "Immediate vs. Carryover response percentage")
-
+        labs(
+          x = "% Response", y = NULL, fill = NULL,
+          title = "Immediate vs. Carryover Response Percentage"
+        )
 
       ## Aggregate one-pager plots and export
       ver <- as.character(utils::packageVersion("Robyn"))

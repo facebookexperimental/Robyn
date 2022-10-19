@@ -54,7 +54,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   plot_folder <- check_filedir(plot_folder)
 
   # Check calibration constrains
-  calibrated <- InputCollect$calibrated
+  calibrated <- !is.null(InputCollect$calibration_input)
   calibration_constraint <- check_calibconstr(
     calibration_constraint,
     OutputModels$iterations,

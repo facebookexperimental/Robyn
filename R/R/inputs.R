@@ -373,7 +373,6 @@ robyn_inputs <- function(dt_input = NULL,
     )
   }
 
-  InputCollect$calibrated <- !is.null(calibration_input)
   class(InputCollect) <- c("robyn_inputs", class(InputCollect))
   return(InputCollect)
 }

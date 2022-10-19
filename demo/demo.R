@@ -243,24 +243,24 @@ print(InputCollect)
 # 8. If an experiment contains more than one media variable, input "channe_A+channel_B"
 # to indicate combination of channels, case sensitive.
 
-calibration_input <- data.frame(
-  # channel name must in paid_media_vars
-  channel = c("facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"),
-  # liftStartDate must be within input data range
-  liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01", "2017-12-01")),
-  # liftEndDate must be within input data range
-  liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31")),
-  # Provided value must be tested on same campaign level in model and same metric as dep_var_type
-  liftAbs = c(400000, 300000, 700000, 200),
-  # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
-  spend = c(421000, 7100, 350000, 0),
-  # Confidence: if frequentist experiment, you may use 1 - pvalue
-  confidence = c(0.85, 0.8, 0.99, 0.95),
-  # KPI measured: must match your dep_var
-  metric = c("revenue", "revenue", "revenue", "revenue"),
-  # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
-  calibration_scope = c("immediate", "immediate", "immediate", "immediate")
-)
+# calibration_input <- data.frame(
+#   # channel name must in paid_media_vars
+#   channel = c("facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"),
+#   # liftStartDate must be within input data range
+#   liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01", "2017-12-01")),
+#   # liftEndDate must be within input data range
+#   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31")),
+#   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
+#   liftAbs = c(400000, 300000, 700000, 200),
+#   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
+#   spend = c(421000, 7100, 350000, 0),
+#   # Confidence: if frequentist experiment, you may use 1 - pvalue
+#   confidence = c(0.85, 0.8, 0.99, 0.95),
+#   # KPI measured: must match your dep_var
+#   metric = c("revenue", "revenue", "revenue", "revenue"),
+#   # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
+#   calibration_scope = c("immediate", "immediate", "immediate", "immediate")
+# )
 # InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
 
 
@@ -310,8 +310,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 5000, # recommended for the dummy dataset
-  trials = 1, # recommended for the dummy dataset
+  iterations = 5000, # 2000 recommended for the dummy dataset with no calibration
+  trials = 1, # 5 recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
@@ -346,7 +346,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_100_6" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_256_6" # Pick one of the models from OutputCollect to proceed
 
 #### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
