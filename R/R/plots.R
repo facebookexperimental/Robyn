@@ -30,9 +30,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       ) +
         geom_line(color = "steelblue") +
         facet_wrap(~ .data$variable, scales = "free", ncol = 1) +
-        labs(title = "Prophet decomposition") +
-        xlab(NULL) +
-        ylab(NULL) +
+        labs(title = "Prophet decomposition", x = NULL, y = NULL) +
         theme_lares() +
         scale_y_abbr()
 
@@ -473,27 +471,45 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       ## 7. Immediate vs carryover
       df_imme_caov <- temp[[sid]]$plot7data
-      p7 <- ggplot(
-        data = df_imme_caov,
-        aes(
-          x = .data$percentage, y = .data$channels, fill = .data$type,
+      p7 <- df_imme_caov %>%
+        mutate(type = factor(.data$type, levels = c("Carryover", "Immediate"))) %>%
+        ggplot(aes(
+          x = .data$percentage, y = .data$channels, fill = reorder(.data$type, as.integer(.data$type)),
           label = paste0(round(.data$percentage * 100), "%")
-        )
-      ) +
+        )) +
         geom_col() +
         geom_text(position = position_stack(vjust = 0.5)) +
-        theme_lares(legend = "bottom", pal = 2, axis = "y") +
+        scale_fill_manual(values = c("Immediate" = "#59B3D2", "Carryover" = "coral")) +
+        scale_x_percent() +
+        theme_lares(legend = "top", grid = "Xx") +
         labs(
           x = "% Response", y = NULL, fill = NULL,
           title = "Immediate vs. Carryover Response Percentage"
         )
+
+      ## 8. Bootstrapped ROI/CPA with CIs
+      if ("ci_low" %in% colnames(xDecompAgg)) {
+        metric <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")
+        p8 <- xDecompAgg %>%
+          filter(!is.na(.data$ci_low), .data$solID == sid) %>%
+          select(.data$rn, .data$solID, .data$boot_mean, .data$ci_low, .data$ci_up) %>%
+          ggplot(aes(x = .data$rn, y = .data$boot_mean)) +
+          geom_col() +
+          geom_errorbar(aes(ymin = .data$ci_low, ymax = .data$ci_up), width = 0.25) +
+          labs(title = paste("Bootstrapped", metric, "with 95% CIs"), x = NULL, y = NULL) +
+          scale_y_percent() +
+          coord_flip() +
+          theme_lares()
+      } else {
+        p8 <- lares::noPlot("No bootstrap results")
+      }
 
       ## Aggregate one-pager plots and export
       ver <- as.character(utils::packageVersion("Robyn"))
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
-      pg <- wrap_plots(p2, p5, p1, p4, p3, p7, p6, ncol = 2) +
+      pg <- wrap_plots(p2, p5, p1, p8, p3, p7, p4, p6, ncol = 2) +
         plot_annotation(
           title = onepagerTitle, subtitle = errors,
           theme = theme_lares(background = "white"),

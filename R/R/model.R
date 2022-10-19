@@ -78,8 +78,11 @@ robyn_run <- function(InputCollect = NULL,
     for (i in 1:length(json$ExportedModel)) {
       assign(names(json$ExportedModel)[i], json$ExportedModel[[i]])
     }
+    bootstrap <- select(json$ExportedModel$summary, any_of(c("variable", "boot_mean", "ci_low", "ci_up")))
     if (is.null(seed) | length(seed) == 0) seed <- 123L
     dt_hyper_fixed$solID <- json$ExportedModel$select_model
+  } else {
+    bootstrap <- NULL
   }
 
   #####################################
@@ -134,6 +137,7 @@ robyn_run <- function(InputCollect = NULL,
   )
 
   attr(OutputModels, "hyper_fixed") <- hyper_collect$all_fixed
+  attr(OutputModels, "bootstrap") <- bootstrap
   attr(OutputModels, "refresh") <- refresh
 
   if (TRUE) {

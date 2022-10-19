@@ -310,7 +310,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 5000, # 2000 recommended for the dummy dataset with no calibration
+  iterations = 1000, # 2000 recommended for the dummy dataset with no calibration
   trials = 1, # 5 recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
@@ -326,10 +326,11 @@ OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
   # pareto_fronts = "auto",
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
-  csv_out = "pareto", # "pareto" or "all"
+  csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
   plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
-  plot_folder = robyn_object # path for plots export
+  plot_folder = robyn_object, # path for plots export
+  export = TRUE # creates local files with results
 )
 print(OutputCollect)
 
@@ -346,7 +347,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_256_6" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_204_5" # Pick one of the models from OutputCollect to proceed
 
 #### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -637,7 +638,7 @@ print(myModel)
 
 # Re-create one-pager
 myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, export = FALSE)
-myModelPlot
+# myModelPlot$`1_204_5`$patches$plots[[6]]
 
 # Refresh any imported model
 RobynRefresh <- robyn_refresh(
