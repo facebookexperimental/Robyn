@@ -161,6 +161,7 @@ robyn_run <- function(InputCollect = NULL,
       )
     )
   }
+  OutputModels[["vec_collect"]] <- vec_collect
 
 
   if (!outputs & is.null(dt_hyper_fixed)) {
@@ -180,7 +181,6 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Save hyper-parameters list
-  output[["vec_collect"]] <- vec_collect
   output[["hyper_updated"]] <- hyper_collect$hyper_list_all
   output[["seed"]] <- seed
 

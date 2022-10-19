@@ -471,12 +471,24 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         theme_lares() +
         labs(x = "Fitted", y = "Residual", title = "Fitted vs. Residual")
 
+      ## 7. Immediate vs carryover
+      df_imme_caov <- temp[[sid]]$plot7data
+      p7 <- ggplot(data = df_imme_caov,
+                   aes(x = .data$percentage, y = .data$channels,fill = .data$type,
+                       label = paste0(round(.data$percentage*100), "%"))) +
+        geom_col() +
+        geom_text(position = position_stack(vjust = 0.5)) +
+        theme_lares(legend = "bottom", pal = 2, axis = "y") +
+        labs(x = "% response", y = "Channels",
+             title = "Immediate vs. Carryover response percentage")
+
+
       ## Aggregate one-pager plots and export
       ver <- as.character(utils::packageVersion("Robyn"))
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
-      pg <- wrap_plots(p2, p5, p1, p4, p3, p6, ncol = 2) +
+      pg <- wrap_plots(p2, p5, p1, p4, p3, p7, p6, ncol = 2) +
         plot_annotation(
           title = onepagerTitle, subtitle = errors,
           theme = theme_lares(background = "white"),

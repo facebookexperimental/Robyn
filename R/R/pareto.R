@@ -21,6 +21,18 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
 
+  xDecompVec <- OutputModels$vec_collect$xDecompVec
+  xDecompVecImmediate <- OutputModels$vec_collect$xDecompVecImmediate
+  xDecompVecCarryover <- OutputModels$vec_collect$xDecompVecCarryover
+  xDecompVecImmeCaov <- bind_rows(
+    select(xDecompVec, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "total"),
+    select(xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "immediate"),
+    select(xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "carryover")
+  ) %>% pivot_longer(cols = InputCollect$all_media, names_to = "channels")
+
   if (calibrated) {
     resultCalibration <- bind_rows(lapply(OutModels, function(x) {
       x$resultCollect$liftCalibration %>%
@@ -471,6 +483,14 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ## 6. Diagnostic: fitted vs residual
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
+      ## 7. Immediate vs carryover response
+      plot7data <- filter(xDecompVecImmeCaov,
+                          .data$solID == sid & .data$type != "total") %>%
+        select(c("type", "channels", "value")) %>%
+        group_by(.data$channels, .data$type) %>%
+        summarise(response = sum(.data$value), .groups = "drop_last") %>%
+        mutate(percentage = .data$response / sum(.data$response))
+
       # Gather all results
       mediaVecCollect <- bind_rows(mediaVecCollect, list(
         mutate(dt_transformPlot, type = "rawMedia", solID = sid),
@@ -489,7 +509,8 @@ robyn_pareto <- function(InputCollect, OutputModels,
         plot3data = plot3data,
         plot4data = plot4data,
         plot5data = plot5data,
-        plot6data = plot6data
+        plot6data = plot6data,
+        plot7data = plot7data
       )
     }
   } # end pareto front loop
