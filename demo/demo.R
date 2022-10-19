@@ -52,6 +52,10 @@ options(future.fork.enable = TRUE)
 # Sys.setenv(RETICULATE_PYTHON = "~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
 # Finally, reset your R session and re-install Nevergrad with option 2
 
+#### Known potential issues when installing nevergrad and possible fixes
+# Try updating pip: system("pip3 install --upgrade pip")
+# Be sure to have numpy installed too: py_install("numpy", pip = TRUE)
+# Check if something looks weird on: py_config() # Py version < 3.10? No numpy?
 # Check this issue for more ideas to debug your reticulate/nevergrad issues:
 # https://github.com/facebookexperimental/Robyn/issues/189
 
