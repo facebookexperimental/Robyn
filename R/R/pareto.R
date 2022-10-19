@@ -40,8 +40,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
     select(xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
       mutate(type = "Carryover")
   ) %>% pivot_longer(cols = InputCollect$all_media, names_to = "channels")
-  if (length(unique(xDecompVecImmeCaov$solID)) == 1)
+  if (length(unique(xDecompVecImmeCaov$solID)) == 1) {
     xDecompVecImmeCaov$solID <- OutModels$trial1$resultCollect$resultHypParam$solID
+  }
 
   if (calibrated) {
     resultCalibration <- bind_rows(lapply(OutModels, function(x) {
@@ -118,8 +119,10 @@ robyn_pareto <- function(InputCollect, OutputModels,
         filter(!is.na(.data$robynPareto)) %>%
         nrow()
       if (n_pareto <= min_candidates & nrow(resultHypParam) > 1) {
-        stop(paste("Less than", min_candidates, "candidates in pareto fronts.",
-                   "Increaseiterations to get more model candidates"))
+        stop(paste(
+          "Less than", min_candidates, "candidates in pareto fronts.",
+          "Increaseiterations to get more model candidates"
+        ))
       }
       auto_pareto <- resultHypParam %>%
         filter(!is.na(.data$robynPareto)) %>%
