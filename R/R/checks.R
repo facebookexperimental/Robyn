@@ -511,10 +511,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
           temp$channel, temp$liftStartDate, temp$liftEndDate, window_start, window_end
         ))
       }
-      if (temp$liftStartDate >= temp$liftEndDate) {
+      if (temp$liftStartDate > temp$liftEndDate) {
         stop(sprintf(
           paste(
-            "Your calibration's date range for %s between %s and %s should respect liftStartDate < liftEndDate.",
+            "Your calibration's date range for %s between %s and %s should respect liftStartDate <= liftEndDate.",
             "Please, correct this experiment from 'calibration_input'."
           ),
           temp$channel, temp$liftStartDate, temp$liftEndDate
