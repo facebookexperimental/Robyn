@@ -485,8 +485,9 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
                               window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
     calibration_input <- as_tibble(as.data.frame(calibration_input))
-    if (!all(c("channel", "liftStartDate", "liftEndDate", "liftAbs") %in% names(calibration_input))) {
-      stop("Input 'calibration_input' must contain columns 'channel', 'liftStartDate', 'liftEndDate', 'liftAbs'")
+    these <- c("channel", "liftStartDate", "liftEndDate", "liftAbs")
+    if (!all(these %in% names(calibration_input))) {
+      stop("Input 'calibration_input' must contain columns: ", v2t(these))
     }
     if (!is.numeric(calibration_input$liftAbs) | any(is.na(calibration_input$liftAbs))) {
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
@@ -573,9 +574,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
         }
       }
     }
-    if ("calibration_scope" %in% colnames(calibration_input)) {
-      if (!all(calibration_input$calibration_scope %in% c("immediate", "total"))) {
-        stop("calibration_scope must be 'immediate' or 'total'")
+    if ("scope" %in% colnames(calibration_input)) {
+      these <- c("immediate", "total")
+      if (!all(calibration_input$scope %in% these)) {
+        stop("Inputs in 'calibration_input$scope' must be any of: ", v2t(these))
       }
     }
   }

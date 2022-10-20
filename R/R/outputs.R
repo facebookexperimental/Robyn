@@ -260,7 +260,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 #' @rdname robyn_outputs
 #' @return Invisible \code{NULL}.
 #' @export
-robyn_csv <- function(InputCollect, OutputCollect, csv_out = NULL, export = TRUE, calibrated) {
+robyn_csv <- function(InputCollect, OutputCollect, csv_out = NULL, export = TRUE, calibrated = FALSE) {
   if (export) {
     check_class("robyn_outputs", OutputCollect)
     temp_all <- OutputCollect$allPareto

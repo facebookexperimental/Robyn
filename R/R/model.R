@@ -579,6 +579,7 @@ robyn_mmm <- function(InputCollect,
             for (v in 1:length(all_media)) {
               ################################################
               ## 1. Adstocking (whole data)
+              # Decayed/adstocked response = Immediate response + Carryover response
               m <- dt_modAdstocked[, all_media[v]][[1]]
               if (adstock == "geometric") {
                 theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
@@ -610,20 +611,21 @@ robyn_mmm <- function(InputCollect,
 
               ################################################
               ## 2. Saturation (only window data)
+              # Saturated response = Immediate response + carryover response
               m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
               m_carryoverRollWind <- m_carryover[rollingWindowStartWhich:rollingWindowEndWhich]
 
               alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
               gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
-              mediaSaturated[[v]] <- m_saturated <- saturation_hill(
+              mediaSaturated[[v]] <- saturation_hill(
                 m_adstockedRollWind,
                 alpha = alpha, gamma = gamma
               )
-              mediaSaturatedCarryover[[v]] <- m_saturatedCarryover <- saturation_hill(
+              mediaSaturatedCarryover[[v]] <- saturation_hill(
                 m_adstockedRollWind,
                 alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind
               )
-              mediaSaturatedImmediate[[v]] <- m_saturated - m_saturatedCarryover
+              mediaSaturatedImmediate[[v]] <- mediaSaturated[[v]] - mediaSaturatedCarryover[[v]]
               # plot(m_adstockedRollWind, mediaSaturated[[1]])
             }
 
@@ -759,8 +761,8 @@ robyn_mmm <- function(InputCollect,
               )
 
               # liftCollect <- list()
-              # for (i in seq_along(calibration_input$calibration_scope)) {
-              #   if (calibration_input$calibration_scope[i] == "immediate") {
+              # for (i in seq_along(calibration_input$scope)) {
+              #   if (calibration_input$scope[i] == "immediate") {
               #     liftCollect[[i]] <- calibrate_mmm(
               #       calibration_input = calibration_input[i, ],
               #       df_media = decompCollect$mediaDecompImmediate,
@@ -1234,7 +1236,7 @@ robyn_calibrate <- function(calibration_input,
 
     for (l_study in 1:length(split_channels)) {
       get_channels <- split_channels[[l_study]]
-      calibration_scope <- calibration_input$calibration_scope[[l_study]]
+      scope <- calibration_input$scope[[l_study]]
       study_start <- calibration_input$liftStartDate[[l_study]]
       study_end <- calibration_input$liftEndDate[[l_study]]
       study_pos <- which(df_raw$ds > study_start & df_raw$ds <= study_end)
@@ -1244,7 +1246,7 @@ robyn_calibrate <- function(calibration_input,
 
       l_chn_collect <- list()
       for (l_chn in seq_along(get_channels)) {
-        if (calibration_scope == "immediate") {
+        if (scope == "immediate") {
           m <- df_raw[, get_channels[l_chn]][[1]]
           # study_pos <- which(df_raw$ds > study_start &
           #                      df_raw$ds <= study_end + dayInterval - 1)
@@ -1291,7 +1293,7 @@ robyn_calibrate <- function(calibration_input,
           m_calib_hist_decomp <- m_calib_hist_sat * coefs$s0[coefs$rn == get_channels[l_chn]]
           m_calib_total_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
           m_calib_decomp <- m_calib_total_decomp - m_calib_hist_decomp
-        } else if (calibration_scope == "total") {
+        } else if (scope == "total") {
           m_calib_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
         }
         l_chn_collect[[get_channels[l_chn]]] <- m_calib_decomp
