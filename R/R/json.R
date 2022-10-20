@@ -128,7 +128,7 @@ print.robyn_write <- function(x, ...) {
 
   print(x$ExportedModel$summary %>%
     select(-contains("boot"), -contains("ci_")) %>%
-    dplyr::rename_at("performance", list(~ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
+    dplyr::rename_at("performance", list(~ ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
     mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
     replace(., . == "NA", "-") %>% as.data.frame())

@@ -352,7 +352,8 @@ errors_scores <- function(df, balance = rep(1, 3)) {
       caption = sprintf(
         "Based on %s bootstrap results with %s simulations",
         formatNum(boot_n, abbr = TRUE),
-        formatNum(sim_n, abbr = TRUE))
+        formatNum(sim_n, abbr = TRUE)
+      )
     ) +
     theme_lares(legend = "none")
   if (temp == "ROAS") {

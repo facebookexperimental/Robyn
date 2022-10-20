@@ -4,21 +4,20 @@
 # LICENSE file in the root directory of this source tree.
 
 robyn_calibrate <- function(calibration_input,
-                            df_raw,
+                            df_raw, # df_raw = InputCollect$dt_mod
+                            dayInterval, # dayInterval = InputCollect$dayInterval
+                            dt_modAdstocked, # dt_modAdstocked = InputCollect$dt_mod (?)
+                            xDecompVec, # xDecompVec = decompCollect$xDecompVec
+                            coefs, # coefs = decompCollect$coefsOutCat
                             hypParamSam,
-                            wind_start,
-                            wind_end,
-                            dayInterval,
-                            dt_modAdstocked,
-                            adstock,
-                            xDecompVec,
-                            coefs) {
+                            wind_start = 1,
+                            wind_end = nrow(df_raw),
+                            adstock = "geometric") {
   ds_wind <- df_raw$ds[wind_start:wind_end]
   include_study <- any(
     calibration_input$liftStartDate >= min(ds_wind) &
       calibration_input$liftEndDate <= (max(ds_wind) + dayInterval - 1)
   )
-
   if (!is.null(calibration_input) & !include_study) {
     warning("All calibration_input in outside modelling window. Running without calibration")
   } else if (!is.null(calibration_input) & include_study) {

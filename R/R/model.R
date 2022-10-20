@@ -555,8 +555,7 @@ robyn_mmm <- function(InputCollect,
             hypParamSamNG <- select(dt_hyper_fixed_mod, all_of(hypParamSamName))
           }
 
-          ## Parallel start
-
+          ########### Parallel start
           nrmse.collect <- c()
           decomp.rssd.collect <- c()
           best_mape <- Inf
@@ -565,7 +564,8 @@ robyn_mmm <- function(InputCollect,
             t1 <- Sys.time()
             #### Get hyperparameter sample
             hypParamSam <- hypParamSamNG[i, ]
-            #### Tranform media for model fitting
+            adstock <- check_adstock(adstock)
+            #### Transform media for model fitting
             dt_modAdstocked <- select(dt_mod, -.data$ds)
             mediaAdstocked <- list()
             mediaImmediate <- list()
@@ -574,7 +574,6 @@ robyn_mmm <- function(InputCollect,
             mediaSaturated <- list()
             mediaSaturatedImmediate <- list()
             mediaSaturatedCarryover <- list()
-            adstock <- check_adstock(adstock)
 
             for (v in 1:length(all_media)) {
               ################################################
@@ -723,12 +722,15 @@ robyn_mmm <- function(InputCollect,
             # lambda <- lambda_range[1] + (lambda_range[2]-lambda_range[1]) * lambda_control
 
             #####################################
-            #### Refit ridge regression with selected lambda from x-validation (intercept)
+            ## NRMSE: Model's fit error
 
             ## If no lift calibration, refit using best lambda
-            mod_out <- model_refit(x_train, y_train,
+            mod_out <- model_refit(
+              x_train, y_train,
               lambda = lambda_scaled,
-              lower.limits, upper.limits, intercept_sign
+              lower.limits = lower.limits,
+              upper.limits = upper.limits,
+              intercept_sign = intercept_sign
             )
             decompCollect <- model_decomp(
               coefs = mod_out$coefs,
@@ -745,45 +747,26 @@ robyn_mmm <- function(InputCollect,
             df.int <- mod_out$df.int
 
             #####################################
-            #### get calibration mape
+            #### MAPE: Calibration error
             if (!is.null(calibration_input)) {
               liftCollect <- robyn_calibrate(
-                calibration_input,
+                calibration_input = calibration_input,
                 df_raw = dt_mod,
-                hypParamSam,
+                hypParamSam = hypParamSam,
                 wind_start = rollingWindowStartWhich,
                 wind_end = rollingWindowEndWhich,
                 dayInterval = InputCollect$dayInterval,
-                dt_modAdstocked,
-                adstock,
+                dt_modAdstocked = dt_modAdstocked,
+                adstock = adstock,
                 xDecompVec = decompCollect$xDecompVec,
                 coefs = decompCollect$coefsOutCat
               )
-
-              # liftCollect <- list()
-              # for (i in seq_along(calibration_input$scope)) {
-              #   if (calibration_input$scope[i] == "immediate") {
-              #     liftCollect[[i]] <- calibrate_mmm(
-              #       calibration_input = calibration_input[i, ],
-              #       df_media = decompCollect$mediaDecompImmediate,
-              #       dayInterval = InputCollect$dayInterval
-              #     )
-              #   } else {
-              #     liftCollect[[i]] <- calibrate_mmm(
-              #       calibration_input = calibration_input[i, ],
-              #       df_media = decompCollect$xDecompVec,
-              #       dayInterval = InputCollect$dayInterval
-              #     )
-              #   }
-              # }
-              # liftCollect <- bind_rows(liftCollect)
               mape <- mean(liftCollect$mape_lift, na.rm = TRUE)
             }
 
             #####################################
-            #### Calculate multi-objectives for pareto optimality
-
-            ## DECOMP objective: sum of squared distance between decomp share and spend share to be minimized
+            #### DECOMP.RSSD: Business error
+            # Sum of squared distance between decomp share and spend share to be minimized
             dt_decompSpendDist <- decompCollect$xDecompAgg %>%
               filter(.data$rn %in% paid_media_spends) %>%
               select(
@@ -807,12 +790,9 @@ robyn_mmm <- function(InputCollect,
               select(dt_decompSpendDist, .data$rn, contains("_spend"), contains("_share")),
               by = "rn"
             )
-
-            # Calculate DECOMP.RSSD error
             if (!refresh) {
               decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
             } else {
-              # xDecompAggPrev is NULL?
               dt_decompRF <- select(decompCollect$xDecompAgg, .data$rn, decomp_perc = .data$xDecompPerc) %>%
                 left_join(select(xDecompAggPrev, .data$rn, decomp_perc_prev = .data$xDecompPerc),
                   by = "rn"
@@ -834,16 +814,11 @@ robyn_mmm <- function(InputCollect,
               dt_decompSpendDist$effect_share <- 0
             }
 
-            ## adstock objective: sum of squared infinite sum of decay to be minimised - deprecated
-            # dt_decaySum <- dt_mediaVecCum[,  .(rn = all_media, decaySum = sapply(.SD, sum)), .SDcols = all_media]
-            # adstock.ssisd <- dt_decaySum[, sum(decaySum^2)]
-
-            ## calibration objective: not calibration: mse, decomp.rssd, if calibration: mse, decom.rssd, mape_lift
-
             #####################################
-            #### Collect output
-
+            #### Collect Multi-Objective Errors and Iteration Results
             resultCollect <- list()
+
+            # Auxiliary vector
             common <- c(
               rsq_train = mod_out$rsq_train,
               nrmse = nrmse,
@@ -869,7 +844,6 @@ robyn_mmm <- function(InputCollect,
               bind_cols(data.frame(t(common[9:11]))) %>%
               dplyr::mutate_all(unlist)
 
-            # if (hyper_fixed) {
             resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
               bind_cols(data.frame(t(common[1:8]))) %>%
               mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
@@ -890,7 +864,6 @@ robyn_mmm <- function(InputCollect,
                 decompCollect$xDecompAgg$rn == "(Intercept)"
               ]) %>%
               bind_cols(data.frame(t(common[9:11])))
-            # }
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               bind_cols(data.frame(t(common)))

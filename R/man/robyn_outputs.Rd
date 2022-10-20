@@ -31,7 +31,7 @@ robyn_csv(
   OutputCollect,
   csv_out = NULL,
   export = TRUE,
-  calibrated
+  calibrated = FALSE
 )
 
 robyn_plots(InputCollect, OutputCollect, export = TRUE)
