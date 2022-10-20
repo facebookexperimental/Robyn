@@ -114,6 +114,8 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     data = mutate(cls$df, top_sol = .data$solID %in% top_sols$solID, cluster = as.integer(.data$cluster)),
     df_cluster_ci = ungroup(ci_list$df_ci) %>% dplyr::select(-.data$cluster_title),
     n_clusters = k,
+    boot_n = ci_list$boot_n,
+    sim_n = ci_list$sim_n,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
     wss = cls$nclusters_plot,
@@ -126,7 +128,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     clusters_tSNE = cls[["tSNE"]],
     # Top Clusters
     models = top_sols,
-    plot_clusters_ci = .plot_clusters_ci(ci_list$sim_collect, ci_list$df_ci, dep_var_type),
+    plot_clusters_ci = .plot_clusters_ci(ci_list$sim_collect, ci_list$df_ci, dep_var_type, ci_list$boot_n, ci_list$sim_n),
     plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
     plot_models_rois = .plot_topsols_rois(df, top_sols, all_media, limit)
   )
@@ -179,7 +181,7 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
         df_chn <- filter(df_outcome, .data$rn == i)
         v_samp <- df_chn$roi_total
       }
-      boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
+      boot_res <- .bootci(samp = v_samp, boot_n = boot_n, ...)
       boot_mean <- mean(boot_res$boot_means)
       boot_se <- boot_res$se
       ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
@@ -247,7 +249,9 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
     ungroup()
   return(list(
     df_ci = df_ci,
-    sim_collect = sim_collect
+    sim_collect = sim_collect,
+    boot_n = boot_n,
+    sim_n = sim_n
   ))
 }
 
@@ -325,7 +329,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     select(.data$cluster, .data$rank, everything())
 }
 
-.plot_clusters_ci <- function(sim_collect, df_ci, dep_var_type) {
+.plot_clusters_ci <- function(sim_collect, df_ci, dep_var_type, boot_n, sim_n) {
   temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_ci <- df_ci[complete.cases(df_ci), ]
   p <- sim_collect %>%
@@ -345,9 +349,13 @@ errors_scores <- function(df, balance = rep(1, 3)) {
       subtitle = "Sampling distribution of cluster mean",
       x = temp,
       y = "Density",
-      fill = temp
+      fill = temp,
+      caption = sprintf(
+        "Based on %s bootstrap results with %s simulations",
+        formatNum(boot_n, abbr = TRUE),
+        formatNum(sim_n, abbr = TRUE))
     ) +
-    theme_lares(legend = "top")
+    theme_lares(legend = "none")
   return(p)
 }
 
@@ -396,7 +404,8 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     theme_lares()
 }
 
-.bootci <- function(samp, boot_n) {
+.bootci <- function(samp, boot_n, seed = 1, ...) {
+  set.seed(seed)
   if (length(samp) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)
