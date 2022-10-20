@@ -342,8 +342,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
       position = position_nudge(x = -0.02, y = 0.1),
       colour = "grey30", size = 3.5
     ) +
-    geom_vline(xintercept = 1, linetype = "dashed", size = .5, colour = "grey75") +
-    scale_fill_viridis_c(option = "D") +
+    # scale_fill_viridis_c(option = "D") +
     labs(
       title = paste("In-Cluster", temp, "& bootstrapped 95% CI"),
       subtitle = "Sampling distribution of cluster mean",
@@ -356,6 +355,9 @@ errors_scores <- function(df, balance = rep(1, 3)) {
         formatNum(sim_n, abbr = TRUE))
     ) +
     theme_lares(legend = "none")
+  if (temp == "ROAS") {
+    p <- p + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
+  }
   return(p)
 }
 
