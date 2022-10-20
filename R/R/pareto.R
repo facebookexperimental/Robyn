@@ -20,13 +20,6 @@ robyn_pareto <- function(InputCollect, OutputModels,
   xDecompAgg <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
-  # If recreated model, inherit bootstrap results
-  if (length(unique(xDecompAgg$solID)) == 1 & !"boot_mean" %in% colnames(xDecompAgg)) {
-    bootstrap <- attr(OutputModels, "bootstrap")
-    if (!is.null(bootstrap)) {
-      xDecompAgg <- left_join(xDecompAgg, bootstrap, by = c("rn" = "variable"))
-    }
-  }
 
   # Build immediate vs carryover dataframe
   xDecompVec <- OutputModels$vec_collect$xDecompVec
@@ -65,6 +58,14 @@ robyn_pareto <- function(InputCollect, OutputModels,
         iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
         solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
       ))
+    }
+  }
+
+  # If recreated model, inherit bootstrap results
+  if (length(unique(xDecompAgg$solID)) == 1 & !"boot_mean" %in% colnames(xDecompAgg)) {
+    bootstrap <- attr(OutputModels, "bootstrap")
+    if (!is.null(bootstrap)) {
+      xDecompAgg <- left_join(xDecompAgg, bootstrap, by = c("rn" = "variable"))
     }
   }
 
