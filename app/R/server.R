@@ -27,10 +27,10 @@ server <- function(input, output, session) {
     input_reactive$paid_media_vars <- c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P")
     input_reactive$paid_media_signs <- c("positive", "positive", "positive", "positive", "positive")
     input_reactive$paid_media_spends <- c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S")
-    input_reactive$organic_vars <- c("newsletter")
-    input_reactive$organic_signs <- c("positive")
-    input_reactive$context_vars <- c("competitor_sales_B")
-    input_reactive$context_signs <- c("default")
+    input_reactive$organic_vars <- "newsletter"
+    input_reactive$organic_signs <- "positive"
+    input_reactive$context_vars <- "competitor_sales_B"
+    input_reactive$context_signs <- "default"
     input_reactive$baseline_var_names_factor_bool_list <- NULL
     input_reactive$factor_vars <- NULL
     input_reactive$date_var <- "DATE"
@@ -65,11 +65,11 @@ server <- function(input, output, session) {
       input_reactive$tbl <- read.csv(file$datapath)
       input_reactive$data_path <- file$datapath
       datatable(head(mmm_data, n = 5L),
-        options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t")
+        options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t")
       )
     } else {
       datatable(head(input_reactive$tbl),
-        options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t")
+        options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t")
       )
     }
   })
@@ -95,9 +95,9 @@ server <- function(input, output, session) {
       validate(need(hol_ext == "csv", "Please upload a csv file"))
       holiday_data <- read.csv(hol_file$datapath)
       input_reactive$holiday_data <- read.csv(hol_file$datapath)
-      datatable(head(holiday_data, n = 5L), options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
+      datatable(head(holiday_data, n = 5L), options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t"))
     } else {
-      datatable(head(input_reactive$holiday_data, n = 5L), options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
+      datatable(head(input_reactive$holiday_data, n = 5L), options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t"))
     }
   })
 
@@ -111,7 +111,7 @@ server <- function(input, output, session) {
         a("here.", href = "https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData", target = "_blank"),
         " If you do have your own holiday file, ensure the formatting is the same as this file."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -126,7 +126,7 @@ server <- function(input, output, session) {
         a("github repository. ", href = "https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_prophet_holidays.RData", target = "_blank"),
         "Additionally, for more detailed information on this step please refer to the ? pop-ups on this tab. Please pre-load the sample data on the Getting Started tab if you want to explore the tool with that."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -135,7 +135,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Dependent Variable Column Name",
       HTML("Input the column name of your dependent variable here. It must correspond to conversion or revenue"),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -144,7 +144,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Dependent Variable Type",
       HTML("Make a selection on the type of your dependent variable between conversion or revenue"),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -156,7 +156,7 @@ server <- function(input, output, session) {
         'Input name of your date variable. <b>Note - Date variable must be in format "YYYY-mm-dd"</b>',
         ". Typically this will be either daily or weekly data. Consider testing both, but having more granular daily data may help the model fit."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -168,7 +168,7 @@ server <- function(input, output, session) {
         "Since we are dealing with daily data at the smallest here, our formatting will use the letters lowercase m (month), lowercase d (day), and uppercase Y (Year) to specify the format. If you are having trouble specifying the correct format, it may be easier to reformat your data to the default format of %Y-%m-%d.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -191,7 +191,7 @@ server <- function(input, output, session) {
         paste0("For more information about this step, see the ", a("step-by-step guide.", href = "https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide/#set_mediavarname-and-set_mediaspendname")),
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -200,7 +200,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Organic Media Variables",
       HTML("In order to more accurately capture the impact of Organic Media variables, we treat them similar to paid media variables by giving them adstocks and saturation curves. This ensures that we capture any latent effect of organic media."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -222,7 +222,7 @@ server <- function(input, output, session) {
         "<b> An important rule of thumb to answer the question - How much data do we need? Can be answered by roughly using 1:10 variables to observations. In other words, if you have 10 independent variables then you should have at least 100 observations. Remember that the variables that are generated via Prophet for seasonality, trend, etc. count towards this. More on Prophet later. This showcases again how more fine grain data has advantages in terms of ability to detect effect sizes for more variables or with less data.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -239,8 +239,8 @@ server <- function(input, output, session) {
             fluidRow(column(
               width = 8,
               splitLayout(
-                selectInput(paste0("media_var_impr_", toString(i)), label = paste0("Paid Media Variable Action (Imp/Click) Column #", toString(i)), choices = colnames(input_reactive$tbl), selectize = F),
-                selectInput(paste0("media_var_spend_", toString(i)), label = , paste0("Paid Media Spend Column #", toString(i)), choices = colnames(input_reactive$tbl), selectize = F)
+                selectInput(paste0("media_var_impr_", toString(i)), label = paste0("Paid Media Variable Action (Imp/Click) Column #", toString(i)), choices = colnames(input_reactive$tbl), selectize = FALSE),
+                selectInput(paste0("media_var_spend_", toString(i)), label = , paste0("Paid Media Spend Column #", toString(i)), choices = colnames(input_reactive$tbl), selectize = FALSE)
               ),
               br(),
               br()
@@ -248,12 +248,12 @@ server <- function(input, output, session) {
           })
         }
       } else {
-        lapply(1:isolate(length(input_reactive$paid_media_vars)), function(i) {
+        lapply(1:seq_along(isolate(input_reactive$paid_media_vars)), function(i) {
           fluidRow(column(
             width = 8,
             splitLayout(
-              selectInput(paste0("media_var_impr_", toString(i)), label = paste0("Paid Media Variable Action (Imp/Click) Column #", toString(i)), choices = input_reactive$paid_media_vars[i], selected = input_reactive$paid_media_vars[i], selectize = F),
-              selectInput(paste0("media_var_spend_", toString(i)), label = , paste0("Paid Media Spend Column #", toString(i)), choices = input_reactive$paid_media_spends[i], selected = input_reactive$paid_media_spends[i], selectize = F)
+              selectInput(paste0("media_var_impr_", toString(i)), label = paste0("Paid Media Variable Action (Imp/Click) Column #", toString(i)), choices = input_reactive$paid_media_vars[i], selected = input_reactive$paid_media_vars[i], selectize = FALSE),
+              selectInput(paste0("media_var_spend_", toString(i)), label = , paste0("Paid Media Spend Column #", toString(i)), choices = input_reactive$paid_media_spends[i], selected = input_reactive$paid_media_spends[i], selectize = FALSE)
             ),
             br(),
             br()
@@ -268,7 +268,7 @@ server <- function(input, output, session) {
           lapply(1:isolate(input$num_organic_media), function(j) {
             fluidRow(column(
               width = 8,
-              selectInput(paste0("org_media_var_impr_", toString(j)), label = paste0("Organic Media Variable Action (Imp/Click) Column #", toString(j)), choices = colnames(input_reactive$tbl), selectize = F),
+              selectInput(paste0("org_media_var_impr_", toString(j)), label = paste0("Organic Media Variable Action (Imp/Click) Column #", toString(j)), choices = colnames(input_reactive$tbl), selectize = FALSE),
               br(),
               br()
             ))
@@ -278,7 +278,7 @@ server <- function(input, output, session) {
         lapply(1:isolate(input$num_organic_media), function(j) {
           fluidRow(column(
             width = 8,
-            selectInput(paste0("org_media_var_impr_", toString(j)), label = paste0("Organic Media Variable Action (Imp/Click) Column #", toString(j)), choices = input_reactive$organic_vars[j], selected = input_reactive$organic_vars[j], selectize = F),
+            selectInput(paste0("org_media_var_impr_", toString(j)), label = paste0("Organic Media Variable Action (Imp/Click) Column #", toString(j)), choices = input_reactive$organic_vars[j], selected = input_reactive$organic_vars[j], selectize = FALSE),
             br(),
             br()
           ))
@@ -291,18 +291,18 @@ server <- function(input, output, session) {
         if (isolate(input$num_context) >= 1) {
           lapply(1:isolate(input$num_context), function(k) {
             splitLayout(
-              selectInput(paste0("baseline_var_name_", toString(k)), label = paste0("Column Name for Contextual Variable #", toString(k)), choices = colnames(input_reactive$tbl), selectize = F),
-              radioButtons(paste0("baseline_var_name_sign_", toString(k)), label = div(paste0("Force positive/negative sign for Contextual Variable #", toString(k)), style = "font-size:12px;"), choices = c("default", "positive", "negative"), inline = T),
-              checkboxInput(paste0("baseline_var_name_checkbox_", toString(k)), label = div(paste0("Check If Contextual Variable #", toString(k), " is a factor/categorical/indicator."), style = "font-size:12px;"), value = F)
+              selectInput(paste0("baseline_var_name_", toString(k)), label = paste0("Column Name for Contextual Variable #", toString(k)), choices = colnames(input_reactive$tbl), selectize = FALSE),
+              radioButtons(paste0("baseline_var_name_sign_", toString(k)), label = div(paste0("Force positive/negative sign for Contextual Variable #", toString(k)), style = "font-size:12px;"), choices = c("default", "positive", "negative"), inline = TRUE),
+              checkboxInput(paste0("baseline_var_name_checkbox_", toString(k)), label = div(paste0("Check If Contextual Variable #", toString(k), " is a factor/categorical/indicator."), style = "font-size:12px;"), value = FALSE)
             )
           })
         }
       } else {
         lapply(1:isolate(input$num_context), function(k) {
           splitLayout(
-            selectInput(paste0("baseline_var_name_", toString(k)), label = paste0("Column Name for Contextual Variable #", toString(k)), choices = input_reactive$context_vars[k], selected = input_reactive$context_vars[k], selectize = F),
-            radioButtons(paste0("baseline_var_name_sign_", toString(k)), label = div(paste0("Force positive/negative sign for Contextual Variable #", toString(k)), style = "font-size:12px;"), choices = c("default"), selected = "default", inline = T),
-            checkboxInput(paste0("baseline_var_name_checkbox_", toString(k)), label = div(paste0("Check If Contextual Variable #", toString(k), " is a factor/categorical/indicator."), style = "font-size:12px;"), value = F)
+            selectInput(paste0("baseline_var_name_", toString(k)), label = paste0("Column Name for Contextual Variable #", toString(k)), choices = input_reactive$context_vars[k], selected = input_reactive$context_vars[k], selectize = FALSE),
+            radioButtons(paste0("baseline_var_name_sign_", toString(k)), label = div(paste0("Force positive/negative sign for Contextual Variable #", toString(k)), style = "font-size:12px;"), choices = "default", selected = "default", inline = TRUE),
+            checkboxInput(paste0("baseline_var_name_checkbox_", toString(k)), label = div(paste0("Check If Contextual Variable #", toString(k), " is a factor/categorical/indicator."), style = "font-size:12px;"), value = FALSE)
           )
         })
       }
@@ -324,7 +324,7 @@ server <- function(input, output, session) {
         "If there is a mistake, the tool will show an error message and you will need to ensure that all column fields input into boxes are spelled correctly and contained in the data set, and all selections in the left panel are completed.",
         sep = "<br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -333,7 +333,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Variable Assignment Reminder",
       HTML("Remember, if you do not have a impression/click variable for a given media channel input the spend variable associated with that channel into <b>BOTH</b> fields for that channel."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -587,7 +587,7 @@ server <- function(input, output, session) {
     date_column <- as.data.frame(eda_input$DATE[order(as.Date(eda_input$DATE))])
     colnames(date_column) <- "DATE"
     date_column$date_previous_row <- lag(date_column$DATE, 1)
-    date_column$date_diff_in_days <- as.numeric(difftime(date_column$DATE, date_column$date_previous_row, units = c("days")))
+    date_column$date_diff_in_days <- as.numeric(difftime(date_column$DATE, date_column$date_previous_row, units = "days"))
 
     # Calculate the correct lag
     correct_lag <- min(as.numeric(date_column$date_diff_in_days), na.rm = TRUE)
@@ -975,7 +975,7 @@ server <- function(input, output, session) {
     input_reactive$tbl$weekday <- weekdays(as.Date(input_reactive$tbl$DATE, format = input$date_format_var))
     input_reactive$weekday_counts <- input_reactive$tbl %>%
       count(input_reactive$tbl$weekday) %>%
-      arrange(.by_group = T)
+      arrange(.by_group = TRUE)
     colnames(input_reactive$weekday_counts)[1:2] <- c("weekday", "count")
     input_reactive$weekday_counts$count_max <- max(input_reactive$weekday_counts$count)
     input_reactive$weekday_counts$pct_diff_vs_count_max <- (input_reactive$weekday_counts$count_max - input_reactive$weekday_counts$count) / input_reactive$weekday_counts$count_max
@@ -1147,7 +1147,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Time Grain of dataset",
       "Make a selection between daily or weekly based on the granularity of your data",
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1165,7 +1165,7 @@ server <- function(input, output, session) {
         "In the graphs to the right, you can explore how changing hyperparameters effect adstocking for your paid media variables. Try checking out both the Weibull adstock and Geometric adstock options to get an understanding of the difference.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1174,7 +1174,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Iteration Count",
       HTML("2000 iterations per Trial is the recommended value. More iterations will require more computation time, so use your judgement to decide what is best. Geometric adstock + 2000 iterations + 5 trials with 6 cores takes about an hour to run, Weibull adstocks will take at least double that."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1183,7 +1183,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Trial Count",
       HTML("Recommend trial count is 100 with calibration, since it will be minimizing three objective functions (NRMSE, DECOMP.RSSD, MAPE.LIFT) and 40 trials without calibration since it is only minimizing two objective functions (NRMSE, DECOMP.RSSD). <b>Robyn will create Trials * Iterations models</b>, so the more trials and the more iterations you add, the more models Robyn will build and the longer it will take to finish computation."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1200,7 +1200,7 @@ server <- function(input, output, session) {
         "<b>Ensure that any calibration data you include matches exactly what you have input as that channel data. For example, if a lift study only covered a portion of your Facebook media, you should not use it to calibrate your entire Facebook media variable.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1212,7 +1212,7 @@ server <- function(input, output, session) {
         "If you do not already have trend/seasonality data of your own, we would recommend you consider using Prophet for at least trend & season, but as the complexity of the model and industry being measured increases, it may be worthwhile exploring additional ways to account for time-based trends. Additionally, it could potentially help the fit of the model if you believe holidays or day of the week have an impact on your dependent variable to include those as well.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1224,7 +1224,7 @@ server <- function(input, output, session) {
         "If everything looks good you will get a message that says so and then you can move on to <b>Initiate ROBYN Modeling</b> and click there! As the model runs, you will be able to see output about the progress updating on the bottom of the page below the hyperparameter sliders and calibration data table.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1238,7 +1238,7 @@ server <- function(input, output, session) {
         "Please look at the charts here to get a better understanding of how these response curves may behave. Shortly you will have response curves of your own generated!",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1256,7 +1256,7 @@ server <- function(input, output, session) {
         "This is not meant to be set in stone or a hard recommendation. If a prior analysis points you in a different direction feel free to pursue that",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1426,7 +1426,7 @@ server <- function(input, output, session) {
           a("wiki page", href = "https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2", target = "_blank")
         )
       ),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1479,7 +1479,7 @@ server <- function(input, output, session) {
         "Since we are dealing with daily data at the smallest here, our formatting will use the letters lowercase m (month), lowercase d (day), and uppercase Y (Year) to specify the format. If you are having trouble specifying the correct format, it may be easier to reformat your data to the default format of %Y-%m-%d.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1492,7 +1492,7 @@ server <- function(input, output, session) {
       validate(need(ext == "csv", "Please upload a csv file for calibration with experiments"))
       input_reactive$calib_data <- read.csv(file$datapath)
       calib_data <- read.csv(file$datapath)
-      datatable(calib_data, options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
+      datatable(calib_data, options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t"))
     }
   })
 
@@ -1741,9 +1741,9 @@ server <- function(input, output, session) {
             InputCollect = input_reactive$InputCollect, # feed in all model specification  # plots will be saved in the same folder as robyn_object
             iterations = input_reactive$iterations,
             trials = input_reactive$trials,
-            outputs = T,
+            outputs = TRUE,
             csv_out = "pareto",
-            clusters = T,
+            clusters = TRUE,
             ui = TRUE,
             json_file =
             )
@@ -1776,7 +1776,7 @@ server <- function(input, output, session) {
         "We will talk more about how to choose a model that makes sense, and provide some proactive guidance after you select a model solID to investigate. A number of explanatory charts will appear, that will help us identify models that make the most sense.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -1793,7 +1793,7 @@ server <- function(input, output, session) {
 
     output$pareto_front_tbl <- renderDataTable({
       dat <- input_reactive$OutputCollect$clusters$data[input_reactive$OutputCollect$clusters$data$top_sol == TRUE, ]
-      datatable(dat, rownames = F, options = list(scrollX = T, scrollY = 200, paging = F, sDom = "t"))
+      datatable(dat, rownames = FALSE, options = list(scrollX = TRUE, scrollY = 200, paging = FALSE, sDom = "t"))
     })
 
     output$model_selection_info <- renderTable({
@@ -1801,7 +1801,7 @@ server <- function(input, output, session) {
       nearPoints(input_reactive$OutputCollect$UI$pParFront$data,
         input$plot_click,
         xvar = "nrmse", yvar = "decomp.rssd", maxpoints = 1
-      )[, c("solID")]
+      )[, "solID"]
     })
   })
 
@@ -1868,7 +1868,7 @@ server <- function(input, output, session) {
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
     negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == FALSE), ]
-    paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == F, ]
+    paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == FALSE, ]
 
     generic_message <- "The first plot looks at the overall decomposition of the model. The larger the bar, the larger the proportion of the effect is explained by changes in that particular variable. For instance, if Facebook_I had a share of 25% of the effect, then we would say that on average, Facebook media is causing 25% of the dependent variable on a given time period. This will change of course when looking at different days and when considering baseline variables as well such as seasonality/trend."
 
@@ -1922,19 +1922,19 @@ server <- function(input, output, session) {
     plot2_tab <- input_reactive$OutputCollect$xDecompVecCollect[input_reactive$OutputCollect$xDecompVecCollect$solID == input$plot, ]
     plot2_tab$error <- (plot2_tab$depVarHat / plot2_tab$dep_var) - 1
     plot2_tab$error_abs <- abs(plot2_tab$error)
-    plot2_tab_top10 <- plot2_tab[order(plot2_tab$error_abs, decreasing = T), ][1:10, ]
+    plot2_tab_top10 <- plot2_tab[order(plot2_tab$error_abs, decreasing = TRUE), ][1:10, ]
 
     plot2_tab$month <- floor_date(plot2_tab$ds, unit = "month")
     plot2_monthly <- plot2_tab %>%
       group_by(month) %>%
       summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
-    plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = T), ][1:10, ]
+    plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = TRUE), ][1:10, ]
 
     plot2_tab$year <- floor_date(plot2_tab$ds, unit = "year")
     plot2_yearly <- plot2_tab %>%
       group_by(year) %>%
       summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
-    plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = T), ]
+    plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = TRUE), ]
 
     plot2_message_1 <- paste("When considering the fit of your model, it can be useful to see how over time the model fit looks. For example,",
       "you may uncover that specific time periods (e.g. promotional periods) have high errors. In that case you could consider adding a baseline variable or splitting media in a way that better represents those periods. ",
@@ -2072,7 +2072,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting Model Suitability Statistics",
       HTML(input_reactive$final_gen_message),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2081,7 +2081,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting plot #1 - Waterfall Decomposition",
       HTML(input_reactive$plot1_message),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2090,7 +2090,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting plot #2 - Actual vs. Predicted Results",
       HTML(input_reactive$plot2_message_2),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2099,7 +2099,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting plot #3 - Share of Spend vs. Share of Effect",
       HTML(input_reactive$plot3_message_1),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2108,7 +2108,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting plot #4 - Response Curves",
       HTML(input_reactive$plot_4_final_message),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2117,7 +2117,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting plot #5 - Adstock decay rates",
       HTML(input_reactive$plot5_message_1),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2126,7 +2126,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting plot #6 - Fitted vs. Residuals",
       HTML(input_reactive$plot6_message_1),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2266,7 +2266,7 @@ server <- function(input, output, session) {
     input_reactive$refresh_data <- read.csv(file_r$datapath) # save dt_input as global var within server function
     # mmm_data_colnames <- colnames(mmm_data)
     datatable(head(input_reactive$refresh_data, n = 5L),
-      options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t")
+      options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t")
     )
   })
   colnames_reactive_r <- reactive({
@@ -2287,7 +2287,7 @@ server <- function(input, output, session) {
         "<br>", "1. Most data is new. If initial model has 100 weeks and 80 weeks new data is added in refresh, it might be better to rebuild the model",
         "<br>", "2. New variables are added"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2302,7 +2302,7 @@ server <- function(input, output, session) {
         " across old and new builds and regulates the new effect share of media variables towards the latest spend level. ",
         "It returns aggregated result with all previous builds for reporting purpose and produces reporting plots."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2318,7 +2318,7 @@ server <- function(input, output, session) {
         "Additionally, for more detailed information on this step please refer to the ",
         a("step by step guide.", href = "https://facebookexperimental.github.io/Robyn/docs/step-by-step-guide#load-data", target = "_blank")
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2333,7 +2333,7 @@ server <- function(input, output, session) {
         a("here.", href = "https://github.com/facebookexperimental/Robyn/blob/master/source/holidays.csv"),
         " If you do have your own holiday file, ensure the formatting is the same as this file."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2346,7 +2346,7 @@ server <- function(input, output, session) {
         "For example, refresh steps = 4 on weekly data, means the start & end dates of modelling period move",
         "forward 4 weeks."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2359,7 +2359,7 @@ server <- function(input, output, session) {
         "models with given refresh steps (you choose above) repeatedly until there is no more data available. In manual mode,",
         "the refresh function only moves forward the refresh steps only once"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2374,7 +2374,7 @@ server <- function(input, output, session) {
         "to decide what is best. Geometric adstock + 2000 iterations + 5 trials with ",
         "6 cores takes about an hour to run, Weibull adstocks will take at least double that."
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2383,7 +2383,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Setting Trial Count for Evolutionary Algorithm",
       HTML("Trials per refresh. Defaults to 5 trials."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2395,7 +2395,7 @@ server <- function(input, output, session) {
         'Customize sub path to save plots.For example, Sub-folder = "refresh".',
         "<br>", "The default folder is your initial plot folder (E.g., ~/Documents/GitHub/robynUI_private)"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2411,7 +2411,7 @@ server <- function(input, output, session) {
         "We will talk more about how to choose a model that makes sense, and provide some proactive guidance after you select a model solID to investigate. A number of explanatory charts will appear, that will help us identify models that make the most sense.",
         sep = "<br><br>"
       )),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2421,7 +2421,7 @@ server <- function(input, output, session) {
     hol_ext_r <- tools::file_ext(hol_file_r$datapath)
     validate(need(hol_ext_r == "csv", "Please upload a csv file"))
     input_reactive$holiday_data_r <- read.csv(hol_file_r$datapath) # reads in the file
-    datatable(head(input_reactive$holiday_data_r, n = 5L), options = list(scrollX = T, scrollCollapse = T, lengthChange = F, sDom = "t"))
+    datatable(head(input_reactive$holiday_data_r, n = 5L), options = list(scrollX = TRUE, scrollCollapse = TRUE, lengthChange = FALSE, sDom = "t"))
   })
 
   observeEvent(input$refresh_run, {
@@ -2492,7 +2492,7 @@ server <- function(input, output, session) {
       # dat$rsq_train <- round(dat$rsq_train, digits = 4)
       # dat <- dat[order(-rsq_train),]
       # dat <- dat[,c('solID','mape','nrmse','decomp.rssd')]
-      datatable(dat, rownames = F, options = list(scrollX = T, scrollY = 200, paging = F, sDom = "t"))
+      datatable(dat, rownames = FALSE, options = list(scrollX = TRUE, scrollY = 200, paging = FALSE, sDom = "t"))
     })
 
     output$refresh_model_selection_info <- renderTable({
@@ -2570,7 +2570,7 @@ server <- function(input, output, session) {
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
     negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == FALSE), ]
-    paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == F, ]
+    paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == FALSE, ]
 
     generic_message <- "The first plot looks at the overall decomposition of the model. The larger the bar, the larger the proportion of the effect is explained by changes in that particular variable. For instance, if Facebook_I had a share of 25% of the effect, then we would say that on average, Facebook media is causing 25% of the dependent variable on a given time period. This will change of course when looking at different days and when considering baseline variables as well such as seasonality/trend."
 
@@ -2625,19 +2625,19 @@ server <- function(input, output, session) {
     plot2_tab$ds <- as.Date(plot2_tab$ds)
     plot2_tab$error <- (plot2_tab$depVarHat / plot2_tab$dep_var) - 1
     plot2_tab$error_abs <- abs(plot2_tab$error)
-    plot2_tab_top10 <- plot2_tab[order(plot2_tab$error_abs, decreasing = T), ][1:10, ]
+    plot2_tab_top10 <- plot2_tab[order(plot2_tab$error_abs, decreasing = TRUE), ][1:10, ]
 
     plot2_tab$month <- floor_date(plot2_tab$ds, unit = "month")
     plot2_monthly <- plot2_tab %>%
       group_by(month) %>%
       summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
-    plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = T), ][1:10, ]
+    plot2_monthly_top10 <- plot2_monthly[order(plot2_monthly$err, decreasing = TRUE), ][1:10, ]
 
     plot2_tab$year <- floor_date(plot2_tab$ds, unit = "year")
     plot2_yearly <- plot2_tab %>%
       group_by(year) %>%
       summarize(err = sum(abs(get("dep_var") / get("depVarHat") - 1)) / n())
-    plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = T), ]
+    plot2_yearly_top10 <- plot2_yearly[order(plot2_yearly$err, decreasing = TRUE), ]
 
     plot2_message_1 <- paste("When considering the fit of your model, it can be useful to see how over time the model fit looks. For example,",
       "you may uncover that specific time periods (e.g. promotional periods) have high errors. In that case you could consider adding a baseline variable or splitting media in a way that better represents those periods. ",
@@ -2775,7 +2775,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = paste0("Model Suitability Statistics Explanations and Recommendations for refresh_solID - ", input$plot),
       HTML(input_reactive$final_gen_message),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2784,7 +2784,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = paste0("Considerations for the Decomposition of refresh_solID ", input$plot),
       HTML(input_reactive$plot1_message),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2793,7 +2793,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Considerations for interpreting Actual vs. Predicted Results",
       HTML(input_reactive$plot2_message_2),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2802,7 +2802,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Interpreting ROI and Share of Spend vs. Effect",
       HTML(input_reactive$plot3_message_1),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2811,7 +2811,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = paste0("Interpreting Response Curves of refresh_solID ", input$plot),
       HTML(input_reactive$plot_4_final_message),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2820,7 +2820,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title =  paste0("Interpreting Adstock Decay Rates of refresh_solID ", input$plot),
       HTML(input_reactive$plot5_message_1),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2829,7 +2829,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = paste0("Interpreting Fitted Vs. Residual Plots of refresh_solID ", input$plot),
       HTML(input_reactive$plot6_message_1),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2870,7 +2870,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Expected Spend in Optimization Period",
       HTML("Input your total expected spend for the optimization period in the same currency that the rest of your spend data is in."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2892,7 +2892,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Expected Days in Optimization Period",
       HTML("Input your total expected days for the optimization period. One important nuance - Even if your data is weekly data the input in here should be in days."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2901,7 +2901,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Choose the Optimization Scenario",
       HTML("There are two options for the optimization scenario. <b>Max historical response</b>, which uses the same spend and amount of time as the historical periods, and <b>Max response expected spend</b>, where you can input a number of days and spend value for scenario planning."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2910,7 +2910,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Setting and Understanding your Optimization Boundaries",
       HTML("As we think about reallocating budgets, it is important to set some boundaries so that we are not producing results that would be unreasonable to present to the team making budgetary decisions. Oftentimes, this is put in place as a proportion up or down by which you are willing to adjust an individual channels spend by in order to optimize. For each of the sliders below, lets say we set the boundaries to be 0.8 to 1.2. This would mean that we would be comfortable changing the mean spend per period of this channel to be anywhere between 80% or 120% times the mean spend during the historical period. As you think about what makes sense for your business, consider discussing with the marketing team what boundaries they would like to put in place here."),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2919,7 +2919,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = "Input your selected model's solID",
       HTML(paste0("In the previous model selection tab, you should have found a model solution solID that you are interested in tracking.")),
-      easyClose = T,
+      easyClose = TRUE,
       footer = NULL
     ))
   })
@@ -2943,10 +2943,10 @@ server <- function(input, output, session) {
       }))
       tryCatch(input_reactive$refresh_optim_result <-
         isolate(robyn_allocator(
-          InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect,
-          OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect # input one of the model IDs in OutputCollect$allSolutions to get optimisation result
-          , select_model = isolate(input$ref_solID),
-          scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
+          InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect
+          , OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect # input one of the model IDs in OutputCollect$allSolutions to get optimisation result
+          , select_model = isolate(input$ref_solID)
+          , scenario = isolate(input$refresh_opt_scenario) # c(max_historical_response, max_response_expected_spend)
           , expected_spend = isolate(input$ref_expected_spend_opt) # specify future spend volume. only applies when scenario = "max_response_expected_spend"
           , expected_spend_days = isolate(input$ref_expected_days_opt) # specify period for the future spend volumne in days. only applies when scenario = "max_response_expected_spend"
           , channel_constr_low = c(channel_constr_low_list) # must be between 0.01-1 and has same length and order as paid_media_vars
