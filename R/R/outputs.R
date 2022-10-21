@@ -125,6 +125,15 @@ robyn_outputs <- function(InputCollect, OutputModels,
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 
+  if (clusters) {
+    if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
+    try(OutputCollect[["clusters"]] <- robyn_clusters(
+      OutputCollect,
+      dep_var_type = InputCollect$dep_var_type,
+      quiet = quiet, export = export, ...
+    ))
+  }
+
   if (export) {
     if (!dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)
     tryCatch(
@@ -139,21 +148,13 @@ robyn_outputs <- function(InputCollect, OutputModels,
         if (!quiet) message(">> Exporting general plots into directory...")
         all_plots <- robyn_plots(InputCollect, OutputCollect, export = export)
 
-        if (clusters) {
-          if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
-          try(OutputCollect[["clusters"]] <- robyn_clusters(OutputCollect,
-            dep_var_type = InputCollect$dep_var_type,
-            quiet = quiet, export = export, ...
-          ))
-        }
-
         if (plot_pareto) {
           if (!quiet) {
             message(sprintf(
               ">>> Exporting %sone-pagers into directory...", ifelse(!OutputCollect$hyper_fixed, "pareto ", "")
             ))
           }
-          select_model <- if (!clusters | is.null(OutputCollect[["clusters"]])) NULL else select_model
+          select_model <- if (!clusters || is.null(OutputCollect[["clusters"]])) NULL else select_model
           pareto_onepagers <- robyn_onepagers(
             InputCollect, OutputCollect,
             select_model = select_model,
@@ -165,7 +166,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
         robyn_write(InputCollect, dir = OutputCollect$plot_folder, quiet = quiet)
 
         # For internal use -> UI Code
-        if (ui & plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers
+        if (ui && plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers
         OutputCollect[["UI"]] <- if (ui) list(pParFront = all_plots[["pParFront"]]) else NULL
       },
       error = function(err) {
