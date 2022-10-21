@@ -101,7 +101,7 @@ InputCollect <- robyn_inputs(
   paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"), # mandatory.
   # paid_media_vars must have same order as paid_media_spends. Use media exposure metrics like
   # impressions, GRP etc. If not applicable, use spend instead.
-  organic_vars = c("newsletter"), # marketing activity without media spend
+  organic_vars = "newsletter", # marketing activity without media spend
   # factor_vars = c("events"), # force variables in context_vars or organic_vars to be categorical
   window_start = "2016-11-21",
   window_end = "2018-08-20",
@@ -313,7 +313,8 @@ OutputCollect <- robyn_outputs(
   csv_out = "pareto", # "pareto" or "all"
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
   plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
-  plot_folder = robyn_object # path for plots export
+  plot_folder = robyn_object, # path for plots export
+  export = TRUE # this will create files locally
 )
 print(OutputCollect)
 

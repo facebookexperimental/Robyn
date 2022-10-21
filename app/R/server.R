@@ -12,7 +12,7 @@ server <- function(input, output, session) {
   ################################### Start/Data Input tab server functionality #######################################
 
   input_reactive <- reactiveValues()
-  mmm_data <- c()
+  mmm_data <- NULL
   input_reactive$version <-
     paste(ifelse(is.null(packageDescription("Robyn")$Repository), "dev", "stable"), packageDescription("Robyn")$Version, sep = "-")
 
@@ -31,8 +31,8 @@ server <- function(input, output, session) {
     input_reactive$organic_signs <- c("positive")
     input_reactive$context_vars <- c("competitor_sales_B")
     input_reactive$context_signs <- c("default")
-    input_reactive$baseline_var_names_factor_bool_list <- c()
-    input_reactive$factor_vars <- c()
+    input_reactive$baseline_var_names_factor_bool_list <- NULL
+    input_reactive$factor_vars <- NULL
     input_reactive$date_var <- "DATE"
     input_reactive$date_format_var <- "%Y-%m-%d"
     input_reactive$dt_input <- input_reactive$tbl
@@ -340,15 +340,15 @@ server <- function(input, output, session) {
 
   observeEvent(input$finalize_var_input, {
     if (input$test_data < 1) {
-      input_reactive$paid_media_vars <- c()
-      input_reactive$paid_media_signs <- c()
-      input_reactive$paid_media_spends <- c()
-      input_reactive$organic_vars <- c()
-      input_reactive$organic_signs <- c()
-      input_reactive$context_vars <- c()
-      input_reactive$context_signs <- c()
-      input_reactive$baseline_var_names_factor_bool_list <- c()
-      input_reactive$factor_vars <- c()
+      input_reactive$paid_media_vars <- NULL
+      input_reactive$paid_media_signs <- NULL
+      input_reactive$paid_media_spends <- NULL
+      input_reactive$organic_vars <- NULL
+      input_reactive$organic_signs <- NULL
+      input_reactive$context_vars <- NULL
+      input_reactive$context_signs <- NULL
+      input_reactive$baseline_var_names_factor_bool_list <- NULL
+      input_reactive$factor_vars <- NULL
 
       if (isolate(input$num_media) >= 1) {
         lapply(1:isolate(input$num_media), function(m) {
@@ -369,7 +369,7 @@ server <- function(input, output, session) {
         lapply(1:isolate(input$num_context), function(r) {
           input_reactive$baseline_var_names_factor_bool_list <- c(input_reactive$baseline_var_names_factor_bool_list, isolate(input[[paste0("baseline_var_name_checkbox_", toString(r))]]))
         })
-        input_reactive$factor_vars <- input_reactive$context_vars[which(input_reactive$baseline_var_names_factor_bool_list == T)]
+        input_reactive$factor_vars <- input_reactive$context_vars[which(input_reactive$baseline_var_names_factor_bool_list == TRUE)]
       }
       if (isolate(input$num_organic_media) >= 1) {
         lapply(1:isolate(input$num_organic_media), function(x) {
@@ -411,17 +411,17 @@ server <- function(input, output, session) {
       )
 
 
-      if ((is.null(isolate(input$data_file)) == F) &
-        (is.null(isolate(input$holiday_file)) == F) &
-        ((isolate(input$dep_var) == "") == F) &
-        ((isolate(input$date_var) == "") == F) &
-        ((isolate(input$date_format_var) == "") == F) &
+      if ((is.null(isolate(input$data_file)) == FALSE) &
+        (is.null(isolate(input$holiday_file)) == FALSE) &
+        ((isolate(input$dep_var) == "") == FALSE) &
+        ((isolate(input$date_var) == "") == FALSE) &
+        ((isolate(input$date_format_var) == "") == FALSE) &
         (input_reactive$date_transf_data == 0) &
-        ((isolate(length(intersect(input$dep_var, as.list(colnames(input_reactive$tbl)))) == 1)) == T) &
-        ((isolate(length(intersect(input$date_var, as.list(colnames(input_reactive$tbl)))) == 1)) == T) &
-        (is.null(isolate(input$num_media)) == F) &
-        (is.null(isolate(input$num_organic_media)) == F) &
-        (is.null(isolate(input$num_context)) == F) &
+        ((isolate(length(intersect(input$dep_var, as.list(colnames(input_reactive$tbl)))) == 1)) == TRUE) &
+        ((isolate(length(intersect(input$date_var, as.list(colnames(input_reactive$tbl)))) == 1)) == TRUE) &
+        (is.null(isolate(input$num_media)) == FALSE) &
+        (is.null(isolate(input$num_organic_media)) == FALSE) &
+        (is.null(isolate(input$num_context)) == FALSE) &
         (length(input_reactive$paid_media_vars) >= 2) &
         (length(input_reactive$paid_media_vars) == isolate(input$num_media)) &
         (length(input_reactive$paid_media_spends) == isolate(input$num_media)) &
@@ -430,11 +430,11 @@ server <- function(input, output, session) {
         (input_reactive$tbl %>% select(c(
           input_reactive$paid_media_vars, input_reactive$organic_vars,
           isolate(input$dep_var)
-        )) %>% sapply(is.numeric) %>% all() == T) & # force numeric paid media vars and dep var
-        (input_reactive$med_vars_impr_in_cols == T) &
-        (input_reactive$med_vars_spend_in_cols == T) &
-        (input_reactive$org_med_vars_in_cols == T) &
-        (input_reactive$baseline_vars_in_cols == T)) {
+        )) %>% unlist(lapply(is.numeric) %>% all() == TRUE)) & # force numeric paid media vars and dep var
+        (input_reactive$med_vars_impr_in_cols == TRUE) &
+        (input_reactive$med_vars_spend_in_cols == TRUE) &
+        (input_reactive$org_med_vars_in_cols == TRUE) &
+        (input_reactive$baseline_vars_in_cols == TRUE)) {
         input_reactive$dt_input <- input_reactive$tbl
         input_reactive$date_format <- input$date_format_var
         input_reactive$dt_input$DATE <- as.Date(input_reactive$dt_input[, input$date_var], format = isolate(input$date_format_var))
@@ -452,25 +452,25 @@ server <- function(input, output, session) {
         "Input Succesful - Please click anywhere on the screen to proceed."
       } else {
         error_message <- NULL
-        if (is.null(isolate(input$data_file)) == T) {
+        if (is.null(isolate(input$data_file)) == TRUE) {
           error_message <- paste(error_message, "Issue with Data File", sep = "<br><br>")
         }
-        if (is.null(isolate(input$holiday_file)) == T) {
+        if (is.null(isolate(input$holiday_file)) == TRUE) {
           error_message <- paste(error_message, "Issue with Holiday File", sep = "<br><br>")
         }
-        if (((isolate(input$dep_var) == "") == T) | isolate(length(intersect(input$dep_var, as.list(colnames(input_reactive$tbl)))) != 1)) {
+        if (((isolate(input$dep_var) == "") == TRUE) || isolate(length(intersect(input$dep_var, as.list(colnames(input_reactive$tbl)))) != 1)) {
           error_message <- paste(error_message, "Issue with Dependent Variable Name - Either none input, or input case-sensitive column name does not exist in data file", sep = "<br><br>")
         }
-        if (((isolate(input$date_var) == "") == T) | isolate(length(intersect(input$date_var, as.list(colnames(input_reactive$tbl)))) != 1)) {
+        if (((isolate(input$date_var) == "") == TRUE) || isolate(length(intersect(input$date_var, as.list(colnames(input_reactive$tbl)))) != 1)) {
           error_message <- paste(error_message, "Issue with Date Var Name, either none input or input case-sensitive column name does not exist in data file", sep = "<br><br>")
         }
-        if (((isolate(input$date_format_var) == "") == T) | (input_reactive$date_transf_data > 0)) {
+        if (((isolate(input$date_format_var) == "") == TRUE) || (input_reactive$date_transf_data > 0)) {
           error_message <- paste(error_message, "Issue with Date Format Var, either none input or input format does not work for all rows. I.e. 1+ rows are transformed to NA", sep = "<br><br>")
         }
-        if (is.null(isolate(input$num_media)) == T) {
+        if (is.null(isolate(input$num_media)) == TRUE) {
           error_message <- paste(error_message, "No number input for number of media variables", sep = "<br>")
         }
-        if (is.null(isolate(input$num_context)) == T) {
+        if (is.null(isolate(input$num_context)) == TRUE) {
           error_message <- paste(error_message, "No number input for number of baseline variables", sep = "<br>")
         }
         if (length(input_reactive$paid_media_vars) != isolate(input$num_media)) {
@@ -485,27 +485,27 @@ server <- function(input, output, session) {
         if (length(input_reactive$paid_media_vars) < 2) {
           error_message <- paste(error_message, "Robyn requires at least 2 paid media variables. Please add additional variables")
         }
-        if (input_reactive$med_vars_impr_in_cols == F) {
+        if (input_reactive$med_vars_impr_in_cols == FALSE) {
           error_message <- paste(error_message, "At least 1 column name in the input media impression/click variable column names does not match the column names in the data. Remember they must be input case-sensitive.", sep = "<br><br>")
         }
-        if (input_reactive$med_vars_spend_in_cols == F) {
+        if (input_reactive$med_vars_spend_in_cols == FALSE) {
           error_message <- paste(error_message, "At least 1 column name in the input media spend variable column names does not match the column names in the data. Remember they must be input case-sensitive.", sep = "<br><br>")
         }
-        if (input_reactive$baseline_vars_in_cols == F) {
+        if (input_reactive$baseline_vars_in_cols == FALSE) {
           error_message <- paste(error_message, "At least 1 column name in the input baseline variable column names does not match the column names in the data. Remember they must be input case-sensitive.", sep = "<br><br>")
         }
-        if (input_reactive$tbl %>% select(input_reactive$paid_media_vars) %>% sapply(is.numeric) %>% all() == F) {
+        if (input_reactive$tbl %>% select(input_reactive$paid_media_vars) %>% unlist(lapply(is.numeric)) %>% all() == FALSE) {
           error_message <- paste(error_message, 'At least 1 paid media variable column is not of the type NUMERIC - ensure that any non-numeric characters are removed from all paid media columns (e.g. "$", ",")', sep = "<br><br>")
         }
         if (input$num_organic_media > 0) {
-          if (input_reactive$tbl %>% select(input_reactive$organic_media_vars) %>% sapply(is.numeric) %>% all() == F) {
+          if (input_reactive$tbl %>% select(input_reactive$organic_media_vars) %>% unlist(lapply(is.numeric)) %>% all() == FALSE) {
             error_message <- paste(error_message, 'At least 1 Organic media variable column is not of the type NUMERIC - ensure that any non-numeric characters are removed from all paid media columns (e.g. "$", ",")', sep = "<br><br>")
           }
         }
-        if (input_reactive$tbl %>% select(isolate(input$dep_var)) %>% sapply(is.numeric) %>% all() == F) {
+        if (input_reactive$tbl %>% select(isolate(input$dep_var)) %>% unlist(lapply(is.numeric)) %>% all() == FALSE) {
           error_message <- paste(error_message, 'Dependent variable column is not of the type NUMERIC - ensure that any non-numeric characters are removed from the dependent variable column (e.g. "$", ",")', sep = "<br><br>")
         }
-        if (input_reactive$tbl %>% is.na() %>% any() == T) {
+        if (input_reactive$tbl %>% is.na() %>% any() == TRUE) {
           error_message <- paste(error_message, "Dataset has <NA> or missing values. These values must be removed or fixed for the model to properly run. Please investigate row number(s) - ", paste(which(rowSums(is.na(input_reactive$tbl)) > 0), collapse = ", "), sep = "<br><br>")
         }
 
@@ -630,12 +630,12 @@ server <- function(input, output, session) {
 
     a <- eda_input[, input_reactive$paid_media_spends]
     if (is.null(input_reactive$context_vars)) {
-      c()
+      NULL
     } else {
       a <- cbind(a, eda_input[, (input_reactive$context_vars)])
     }
     if (is.null(input_reactive$organic_vars)) {
-      c()
+      NULL
     } else {
       a <- cbind(a, eda_input[, (input_reactive$organic_vars)])
     }
@@ -656,7 +656,7 @@ server <- function(input, output, session) {
     # Get list of highly correlated variable pairs
     high_corr_var_pairs <- function() {
       message <- ""
-      for (i in 1:length(pair_name_1))
+      for (i in seq_along(pair_name_1))
       {
         message <- paste0(message, "(", pair_name_1[i], ", ", pair_name_2[i], ") ")
       }
@@ -770,7 +770,7 @@ server <- function(input, output, session) {
       if (length(pair_year_low_pct) == 0) {
         return(message)
       } else {
-        for (i in 1:length(pair_year_low_pct))
+        for (i in seq_along(pair_year_low_pct))
         {
           message <- paste0(message, " (", pair_channel_low_pct[i], " in ", pair_year_low_pct[i], ")")
         }
@@ -783,7 +783,7 @@ server <- function(input, output, session) {
       if (length(pair_year_high_pct) == 0) {
         return(message)
       } else {
-        for (i in 1:length(pair_year_high_pct))
+        for (i in seq_along(pair_year_high_pct))
         {
           message <- paste0(message, " (", pair_channel_high_pct[i], " in ", pair_year_high_pct[i], ")")
         }
@@ -1285,7 +1285,7 @@ server <- function(input, output, session) {
   })
 
   output$local_hyperparam_sliders_paid <- renderUI({
-    lapply(1:length(input_reactive$paid_media_vars), function(i) {
+    lapply(seq_along(input_reactive$paid_media_vars), function(i) {
       if (input$adstock_selection == "weibull_cdf") {
         splitLayout(
           sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
@@ -1345,7 +1345,7 @@ server <- function(input, output, session) {
 
   output$local_hyperparam_sliders_organic <- renderUI({
     if (length(input_reactive$organic_vars) > 0) {
-      lapply(1:length(input_reactive$organic_vars), function(i) {
+      lapply(seq_along(input_reactive$organic_vars), function(i) {
         if (input$adstock_selection == "weibull_cdf") {
           splitLayout(
             sliderInput(paste0("medVar_", input_reactive$organic_vars[i], "_alphas"),
@@ -1434,7 +1434,7 @@ server <- function(input, output, session) {
   input_reactive$prophet_options <- c("trend", "season", "holiday", "weekday")
   output$prophet_enable <- renderUI({
     if (isTRUE(input$prophet_enable_checkbox)) {
-      lapply(1:length(input_reactive$prophet_options), function(i) {
+      lapply(seq_along(input_reactive$prophet_options), function(i) {
         checkboxInput(paste0("prophet_option_", input_reactive$prophet_options[i]),
           label = div(paste0("Enable Prophet ", input_reactive$prophet_options[i], " decomposition?"), style = "font-size:12px;"), value = T
         )
@@ -1444,7 +1444,7 @@ server <- function(input, output, session) {
 
   output$prophet_signs <- renderUI({
     if (isTRUE(input$prophet_enable_checkbox)) {
-      lapply(1:length(input_reactive$prophet_options), function(i) {
+      lapply(seq_along(input_reactive$prophet_options), function(i) {
         if (isTRUE(input[[paste0("prophet_option_", input_reactive$prophet_options[i])]])) {
           radioButtons(paste0("prophet_sign_", input_reactive$prophet_options[i]),
             label = div(paste0("Expected Effect Sign for ", input_reactive$prophet_options[i]), style = "font-size:12px;"),
@@ -1484,7 +1484,7 @@ server <- function(input, output, session) {
     ))
   })
 
-  input_reactive$calib_data <- c()
+  input_reactive$calib_data <- NULL
   output$lift_calib_tbl <- renderDataTable({
     if (isTRUE(input$enable_calibration)) {
       file <- input$calibration_file
@@ -1503,7 +1503,7 @@ server <- function(input, output, session) {
     if (input$adstock_selection %in% c("weibull_cdf", "weibull_pdf")) {
       vals <- list()
       names_l <- list()
-      lapply(1:length(input_reactive$paid_media_vars), function(i) {
+      lapply(seq_along(input_reactive$paid_media_vars), function(i) {
         assign(paste0(input_reactive$paid_media_vars[i], "_alphas"), c(
           input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][1],
           input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][2]
@@ -1521,7 +1521,7 @@ server <- function(input, output, session) {
           input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_scales")]][2]
         ))
         hyps <- c("alphas", "gammas", "shapes", "scales")
-        for (i in 1:length(hyps)) {
+        for (i in seq_along(hyps)) {
           new_val <- eval(parse(text = (ls()[which(grepl(hyps[i], ls()) != 0)])))
           vals[[length(vals) + 1]] <- new_val
           names_val <- ls()[which(grepl(hyps[i], ls()) != 0)]
@@ -1533,7 +1533,7 @@ server <- function(input, output, session) {
       if (length(input_reactive$organic_vars > 0)) {
         vals <- list()
         names_l <- list()
-        lapply(1:length(input_reactive$organic_vars), function(i) {
+        lapply(seq_along(input_reactive$organic_vars), function(i) {
           assign(paste0(input_reactive$organic_vars[i], "_alphas"), c(
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_alphas")]][1],
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_alphas")]][2]
@@ -1552,7 +1552,7 @@ server <- function(input, output, session) {
           ))
 
           hyps <- c("alphas", "gammas", "shapes", "scales")
-          for (i in 1:length(hyps)) {
+          for (i in seq_along(hyps)) {
             new_val <- eval(parse(text = (ls()[which(grepl(hyps[i], ls()) != 0)])))
             vals[[length(vals) + 1]] <- new_val
             names_val <- ls()[which(grepl(hyps[i], ls()) != 0)]
@@ -1566,7 +1566,7 @@ server <- function(input, output, session) {
     } else if (input$adstock_selection == "geometric") {
       vals <- list()
       names_l <- list()
-      lapply(1:length(input_reactive$paid_media_vars), function(i) {
+      lapply(seq_along(input_reactive$paid_media_vars), function(i) {
         assign(paste0(input_reactive$paid_media_vars[i], "_alphas"), c(
           input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][1],
           input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][2]
@@ -1580,7 +1580,7 @@ server <- function(input, output, session) {
           input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_thetas")]][2]
         ))
         hyps <- c("alphas", "gammas", "thetas")
-        for (i in 1:length(hyps)) {
+        for (i in seq_along(hyps)) {
           new_val <- eval(parse(text = (ls()[which(grepl(hyps[i], ls()) != 0)])))
           vals[[length(vals) + 1]] <- new_val
           names_val <- ls()[which(grepl(hyps[i], ls()) != 0)]
@@ -1592,7 +1592,7 @@ server <- function(input, output, session) {
       if (length(input_reactive$organic_vars) > 0) {
         vals <- list()
         names_l <- list()
-        lapply(1:length(input_reactive$organic_vars), function(i) {
+        lapply(seq_along(input_reactive$organic_vars), function(i) {
           assign(paste0(input_reactive$organic_vars[i], "_alphas"), c(
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_alphas")]][1],
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_alphas")]][2]
@@ -1606,7 +1606,7 @@ server <- function(input, output, session) {
             input[[paste0("medVar_", input_reactive$organic_vars[i], "_thetas")]][2]
           ))
           hyps <- c("alphas", "gammas", "thetas")
-          for (i in 1:length(hyps)) {
+          for (i in seq_along(hyps)) {
             new_val <- eval(parse(text = (ls()[which(grepl(hyps[i], ls()) != 0)])))
             vals[[length(vals) + 1]] <- new_val
             names_val <- ls()[which(grepl(hyps[i], ls()) != 0)]
@@ -1623,16 +1623,16 @@ server <- function(input, output, session) {
 
   observeEvent(input$finalize_hyperparams, {
     input_reactive$activate_prophet <- NULL
-    input_reactive$prophet_vars <- c()
-    input_reactive$prophet_signs <- c()
-    input_reactive$prophet_country <- c()
+    input_reactive$prophet_vars <- NULL
+    input_reactive$prophet_signs <- NULL
+    input_reactive$prophet_country <- NULL
     input_reactive$dt_calibration <- NULL
-    if (exists("input_reactive$calib_data") == F) {
+    if (exists("input_reactive$calib_data") == FALSE) {
       input_reactive$calib_data <- NULL
     }
     if ((isolate(input$min_date_model_build < isolate(input$max_date_model_build))) &
-      (is.null(isolate(input$prophet_enable_checkbox)) == F) &
-      ((isTRUE(isolate(input$enable_calibration)) & (is.null(isolate(input$calibration_file)) == FALSE) &
+      (is.null(isolate(input$prophet_enable_checkbox)) == FALSE) &
+      ((isTRUE(isolate(input$enable_calibration)) && (is.null(isolate(input$calibration_file)) == FALSE) &
         (length(intersect(c("channel", "liftStartDate", "liftEndDate", "liftAbs"), colnames(input_reactive$calib_data))) == 4)) ||
         (isTRUE(isolate(input$enable_calibration)) == FALSE))
     ) {
@@ -1666,7 +1666,7 @@ server <- function(input, output, session) {
           input_reactive$prophet_signs <- c(input_reactive$prophet_signs, isolate(input$prophet_sign_weekday))
         }
       }
-      if (isTRUE(isolate(input$enable_calibration)) & (is.null(isolate(input$calibration_file)) == FALSE) &
+      if (isTRUE(isolate(input$enable_calibration)) && (is.null(isolate(input$calibration_file)) == FALSE) &
         (length(intersect(c("channel", "liftStartDate", "liftEndDate", "liftAbs"), colnames(input_reactive$calib_data))) == 4)) {
         input_reactive$dt_calibration <- input_reactive$calib_data
         input_reactive$dt_calibration$liftStartDate <- as.Date(get("liftStartDate"), isolate(input$calib_date_format_var))
@@ -1806,7 +1806,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$save_model, {
-    if ((is.null(isolate(input$plot)) == F) & (input$plot %in% input_reactive$OutputCollect$resultHypParam$solID)) {
+    if ((is.null(isolate(input$plot)) == FALSE) && (input$plot %in% input_reactive$OutputCollect$resultHypParam$solID)) {
       tryCatch(
         robyn_write(select_model = input$plot, InputCollect = input_reactive$InputCollect, OutputCollect = input_reactive$OutputCollect),
         error = function(e) {
@@ -1862,12 +1862,12 @@ server <- function(input, output, session) {
     plotWaterfallLoop$end <- cumsum(plotWaterfallLoop$xDecompPerc)
     plotWaterfallLoop$end <- 1 - plotWaterfallLoop$end
     plotWaterfallLoop$start <- lag(plotWaterfallLoop$end, n = 1)
-    plotWaterfallLoop$id <- 1:nrow(plotWaterfallLoop)
+    plotWaterfallLoop$id <- seq_along(plotWaterfallLoop[, 1])
     plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0, "pos", "neg"))
 
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
-    negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == F), ]
+    negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == FALSE), ]
     paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == F, ]
 
     generic_message <- "The first plot looks at the overall decomposition of the model. The larger the bar, the larger the proportion of the effect is explained by changes in that particular variable. For instance, if Facebook_I had a share of 25% of the effect, then we would say that on average, Facebook media is causing 25% of the dependent variable on a given time period. This will change of course when looking at different days and when considering baseline variables as well such as seasonality/trend."
@@ -1949,7 +1949,7 @@ server <- function(input, output, session) {
       html_msg_1 <- '<table style="width:50%">'
       html_msg_2 <- paste0("<tr>", paste("<th>", headers, "</th>", collapse = "", sep = ""), "</tr>")
       html_rows <- ""
-      for (i in 1:nrow(df)) {
+      for (i in seq_along(df[, 1])) {
         html_rows <- paste0(
           html_rows,
           paste0("<tr><td>", df[i, headers[1]], "</td><td>", paste0(100 * round(df[i, headers[2]], 3), "%"), "</td></tr>")
@@ -2214,7 +2214,7 @@ server <- function(input, output, session) {
   })
 
   output$sliders <- renderUI({
-    lapply(1:length(input_reactive$paid_media_spends), function(i) {
+    lapply(seq_along(input_reactive$paid_media_spends), function(i) {
       sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i]),
         label = div(style = "font-size:12px", input_reactive$paid_media_spends[i]),
         min = 0, max = 3, value = c(0.8, 1.2), step = 0.01
@@ -2224,10 +2224,10 @@ server <- function(input, output, session) {
 
   observeEvent(input$run_opt, {
     output$optimizer_plot <- renderPlot({
-      channel_constr_low_list <- unlist(lapply(1:length(input_reactive$paid_media_spends), function(i) {
+      channel_constr_low_list <- unlist(lapply(seq_along(input_reactive$paid_media_spends), function(i) {
         isolate(eval(parse(text = paste0("input$medVar_", input_reactive$paid_media_spends[i]))))[1]
       }))
-      channel_constr_up_list <- unlist(lapply(1:length(input_reactive$paid_media_spends), function(i) {
+      channel_constr_up_list <- unlist(lapply(seq_along(input_reactive$paid_media_spends), function(i) {
         isolate(eval(parse(text = paste0("input$medVar_", input_reactive$paid_media_spends[i]))))[2]
       }))
       tryCatch(input_reactive$optim_result <-
@@ -2507,7 +2507,7 @@ server <- function(input, output, session) {
   observeEvent(input$save_refresh_model, {
     # print(input_reactive$OutputCollect$listRefresh1$OutputCollect$resultHypParam$solID)
     print(input$refresh_plot)
-    if ((is.null(isolate(input$refresh_plot)) == F) & (input$refresh_plot %in% input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID)) {
+    if ((is.null(isolate(input$refresh_plot)) == FALSE) && (input$refresh_plot %in% input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect$resultHypParam$solID)) {
       robyn_object_refresh <- paste0(input$refresh_plots_folder, "/", gsub(":", ".", as.character(Sys.time())), "_solID_", input$refresh_plot, ".RDS")
       robyn_save(robyn_object = robyn_object_refresh, select_model = input$refresh_plot, InputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect, OutputCollect = input_reactive$OutputCollect[[input_reactive$refreshCounter]]$OutputCollect)
       showModal(modalDialog(
@@ -2564,12 +2564,12 @@ server <- function(input, output, session) {
     plotWaterfallLoop$end <- cumsum(plotWaterfallLoop$xDecompPerc)
     plotWaterfallLoop$end <- 1 - plotWaterfallLoop$end
     plotWaterfallLoop$start <- lag(plotWaterfallLoop$end, n = 1)
-    plotWaterfallLoop$id <- 1:nrow(plotWaterfallLoop)
+    plotWaterfallLoop$id <- seq_along(plotWaterfallLoop[, 1])
     plotWaterfallLoop$sign <- as.factor(ifelse(plotWaterfallLoop$xDecompPerc >= 0, "pos", "neg"))
 
     high_share <- plotWaterfallLoop[(plotWaterfallLoop$xDecompMeanNon0Perc > 0.4 & plotWaterfallLoop$rn %in% input_reactive$context_vars), ]
     low_share <- plotWaterfallLoop[abs(plotWaterfallLoop$xDecompMeanNon0Perc) < 0.01, ]
-    negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == F), ]
+    negative <- plotWaterfallLoop[plotWaterfallLoop$sign == "neg" & (plotWaterfallLoop$rn %in% c("season", "weekday", "holiday", "trend", "(Intercept)") == FALSE), ]
     paid_media_vars <- plotWaterfallLoop[is.na(plotWaterfallLoop$total_spend) == F, ]
 
     generic_message <- "The first plot looks at the overall decomposition of the model. The larger the bar, the larger the proportion of the effect is explained by changes in that particular variable. For instance, if Facebook_I had a share of 25% of the effect, then we would say that on average, Facebook media is causing 25% of the dependent variable on a given time period. This will change of course when looking at different days and when considering baseline variables as well such as seasonality/trend."
@@ -2652,7 +2652,7 @@ server <- function(input, output, session) {
       html_msg_1 <- '<table style="width:50%">'
       html_msg_2 <- paste0("<tr>", paste("<th>", headers, "</th>", collapse = "", sep = ""), "</tr>")
       html_rows <- ""
-      for (i in 1:nrow(df)) {
+      for (i in seq_along(df[, 1])) {
         html_rows <- paste0(
           html_rows,
           paste0("<tr><td>", df[i, headers[1]], "</td><td>", paste0(100 * round(df[i, headers[2]], 3), "%"), "</td></tr>")
@@ -2925,7 +2925,7 @@ server <- function(input, output, session) {
   })
 
   output$ref_sliders <- renderUI({
-    lapply(1:length(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
+    lapply(seq_along(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
       sliderInput(paste0("medVar_", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]),
         label = div(style = "font-size:12px", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]),
         min = 0, max = 3, value = c(0.8, 1.2), step = 0.01
@@ -2935,10 +2935,10 @@ server <- function(input, output, session) {
 
   observeEvent(input$run_refresh_opt, {
     output$ref_optimizer_plot <- renderPlot({
-      channel_constr_low_list <- unlist(lapply(1:length(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
+      channel_constr_low_list <- unlist(lapply(seq_along(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
         isolate(eval(parse(text = paste0("input$medVar_", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]))))[1]
       }))
-      channel_constr_up_list <- unlist(lapply(1:length(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
+      channel_constr_up_list <- unlist(lapply(seq_along(input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends), function(i) {
         isolate(eval(parse(text = paste0("input$medVar_", input_reactive$OutputCollect[[input_reactive$refreshCounter]]$InputCollect$paid_media_spends[i]))))[2]
       }))
       tryCatch(input_reactive$refresh_optim_result <-
