@@ -130,7 +130,7 @@ robyn_allocator <- function(robyn_object = NULL,
   }
 
   ## Collect inputs
-  if (!is.null(robyn_object) & (is.null(InputCollect) & is.null(OutputCollect))) {
+  if (!is.null(robyn_object) && (is.null(InputCollect) && is.null(OutputCollect))) {
     if ("robyn_exported" %in% class(robyn_object)) {
       imported <- robyn_object
       robyn_object <- imported$robyn_object
@@ -260,7 +260,7 @@ robyn_allocator <- function(robyn_object = NULL,
     histResponseUnitModel <- c(histResponseUnitModel, val)
   }
   names(histResponseUnitModel) <- mediaSpendSortedFiltered
-  if (!is.null(noSpendMedia) & !quiet) {
+  if (!is.null(noSpendMedia) && !quiet) {
     message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
   }
 

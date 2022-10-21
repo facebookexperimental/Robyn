@@ -147,7 +147,7 @@ robyn_refresh <- function(json_file = NULL,
     depth <- ifelse(!is.null(refreshDepth), refreshDepth, refreshCounter)
 
     objectCheck <- if (refreshCounter == 1) {
-      c("listInit")
+      "listInit"
     } else {
       c("listInit", paste0("listRefresh", 1:(refreshCounter - 1)))
     }
@@ -223,7 +223,7 @@ robyn_refresh <- function(json_file = NULL,
     if (refreshEnd > max(totalDates)) {
       stop("Not enough data for this refresh. Input data from date ", refreshEnd, " or later required")
     }
-    if (!is.null(json_file) & refresh_mode == "auto") {
+    if (!is.null(json_file) && refresh_mode == "auto") {
       message("Input 'refresh_mode' = 'auto' has been deprecated. Changed to 'manual'")
       refresh_mode <- "manual"
     }
@@ -510,13 +510,13 @@ Models (IDs):
 plot.robyn_refresh <- function(x, ...) plot((x$refresh$plots[[1]] / x$refresh$plots[[2]]), ...)
 
 refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength) {
-  initBoundsDis <- sapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0))
+  initBoundsDis <- unlist(lapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0)))
   newBoundsFreedom <- refresh_steps / rollingWindowLength
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
   hyper_updated_prev <- listOutputPrev$hyper_updated
   hypNames <- names(hyper_updated_prev)
   resultHypParam <- as_tibble(listOutputPrev$resultHypParam)
-  for (h in 1:length(hypNames)) {
+  for (h in seq_along(hypNames)) {
     hn <- hypNames[h]
     getHyp <- resultHypParam[, hn][[1]]
     getDis <- initBoundsDis[hn]

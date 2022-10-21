@@ -8,7 +8,7 @@ get_rsq <- function(true, predicted, p = NULL, df.int = NULL) {
   sse <- sum((predicted - true)^2)
   sst <- sum((true - mean(true))^2)
   rsq <- 1 - sse / sst
-  if (!is.null(p) & !is.null(df.int)) {
+  if (!is.null(p) && !is.null(df.int)) {
     n <- length(true)
     rdf <- n - p - 1
     rsq <- 1 - (1 - rsq) * ((n - df.int) / rdf)
@@ -36,9 +36,9 @@ flatten_hyps <- function(x) {
   if (is.null(x)) {
     return(x)
   }
-  temp <- sapply(x, function(x) {
+  temp <- unlist(lapply(x, function(x) {
     sprintf("[%s]", paste(if (is.numeric(x)) signif(x, 6) else x, collapse = ", "))
-  })
+  }))
   paste(paste0("  ", names(temp), ":"), temp, collapse = "\n")
 }
 

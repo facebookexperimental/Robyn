@@ -117,14 +117,14 @@ robyn_response <- function(InputCollect = NULL,
       select_build_all <- 0:(length(Robyn) - 1)
       if (is.null(select_build)) {
         select_build <- max(select_build_all)
-        if (!quiet & length(select_build_all) > 1) {
+        if (!quiet && length(select_build_all) > 1) {
           message(
             "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)),
             " for the response function. Use parameter 'select_build' to specify which run to use"
           )
         }
       }
-      if (!(select_build %in% select_build_all) | length(select_build) != 1) {
+      if (!(select_build %in% select_build_all) || length(select_build) != 1) {
         stop("'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
       }
       listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
@@ -168,11 +168,11 @@ robyn_response <- function(InputCollect = NULL,
   }
 
   ## Get media values
-  if (media_metric %in% paid_media_spends & length(media_metric) == 1) {
+  if (media_metric %in% paid_media_spends && length(media_metric) == 1) {
     metric_type <- "spend"
-  } else if (media_metric %in% exposure_vars & length(media_metric) == 1) {
+  } else if (media_metric %in% exposure_vars && length(media_metric) == 1) {
     metric_type <- "exposure"
-  } else if (media_metric %in% organic_vars & length(media_metric) == 1) {
+  } else if (media_metric %in% organic_vars && length(media_metric) == 1) {
     metric_type <- "organic"
   } else {
     stop(paste(

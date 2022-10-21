@@ -53,7 +53,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     xDecompAgg <- input$xDecompAgg
     df <- .prepare_df(xDecompAgg, all_media, dep_var_type)
   } else {
-    if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) & is.data.frame(input)) {
+    if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) && is.data.frame(input)) {
       df <- .prepare_df(input, all_media, dep_var_type)
     } else {
       stop(paste(
@@ -153,7 +153,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n = 1000, sim_n = 10000, ...) {
   df_clusters_outcome <- xDecompAgg %>%
     filter(!is.na(.data$total_spend)) %>%
-    left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = c("solID")) %>%
+    left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = "solID") %>%
     dplyr::select(c("solID", "cluster", "rn", "roi_total", "cpa_total", "robynPareto")) %>%
     group_by(.data$cluster, .data$rn) %>%
     mutate(n = n()) %>%
