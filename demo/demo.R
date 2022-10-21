@@ -54,7 +54,7 @@ options(future.fork.enable = TRUE)
 
 #### Known potential issues when installing nevergrad and possible fixes
 # Try updating pip: system("pip3 install --upgrade pip")
-# Be sure to have numpy installed too: py_install("numpy", pip = TRUE)
+# Be sure to have numpy (and wheel, and pip?) installed: py_install("numpy", pip = TRUE)
 # Check if something looks weird on: py_config() # Py version < 3.10? No numpy?
 # Check this issue for more ideas to debug your reticulate/nevergrad issues:
 # https://github.com/facebookexperimental/Robyn/issues/189
