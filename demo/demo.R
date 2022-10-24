@@ -11,8 +11,8 @@
 ################################################################
 #### Step 0: Setup environment
 
-## Install, load, and check (latest) version
-## Install the stable version from CRAN
+## Install, load, and check (latest) version.
+## Install the stable version from CRAN.
 # install.packages("Robyn")
 ## Install the dev version from GitHub
 # install.packages("remotes") # Install remotes first if you haven't already
