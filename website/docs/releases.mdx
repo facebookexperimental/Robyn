@@ -5,6 +5,25 @@ title: Releases
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
+## 3.7.0
+07-27-2022
+- **Recode**: got rid of data.table dependency for r2py wrapper and removed all `globalVariables` associated noise
+- **Recode**: all code is now clean and formatted under the tidyverse code style for better code reading and standardization
+- **Feat**: trimmed functionality for response curves on one-pagers outputs to have coherent ranges plotted
+- **Feat**: enabled channels removal on `robyn_allocator()` by setting their constraints to 0 #411
+- **Feat**: when manually selecting refresh models in `robyn_refresh()`, re-ask user until valid solID is provided, instead of crashing
+- **Feat**: new `plot` and improved `print` methods for `robyn_refresh()` outputs
+- **Feat**: include time units used in adstock plots for clarity
+- **Feat**: enabled organic media variables to be calibrated (no spend)
+- **Fix**: when best model based on minimum combined errors was tied with other models, inconsistent outputs (one-pagers / clustering). Standardized combined errors methodology with new `errors_scores()` function, especially normalizing errors before filtering models. The largest the "error_score", the better the model's performance #428
+- **Fix**: show blue dots on top of grey dots in Pareto plots #420
+- **Fix**:  positive/negative colour palette on waterfall plot when all values are positive
+- **Fix**:  set prophet's print as disabled when prophet_vars input is NULL (off)
+- **Docs**: added CRAN, site, and FB group badges on README files
+- **Docs**: several typos and documentation updates
+
+**Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.6.3...v3.7.0
+
 ## 3.6.3
 06-5-2022
 CRAN Version, Site & Documentation Revamp, More Inputs Flexibility...
@@ -18,11 +37,11 @@ CRAN Version, Site & Documentation Revamp, More Inputs Flexibility...
 * **Feat**: More checks and warnings included to push users to follow best practices.
 * **Refactor**: Changed 1 to 3 Pareto fronts as default to enrich `robyn_clusters()` results
 * **Refactor**: Changed default thresholds on `robyn_converge()` to be more flexible
-* **Fix**: Several bugs squashed 
+* **Fix**: Several bugs squashed
 
 **Full Changelog**: (https://github.com/facebookexperimental/Robyn/compare/v3.6.2...v3.6.3)
 
-## 3.6.2 
+## 3.6.2
 31-3-2022
 Allocation and plot improvements, new warnings, bugs fixed
 
@@ -34,13 +53,13 @@ Relevant changes on v3.6.2:
 - **Feat**: warn and avoid weekly trend input when data granularity is larger than "week".
 - **Fix**: issues on several `robyn_allocator()` specific cases ([#349](https://github.com/facebookexperimental/Robyn/issues/349), [#344](https://github.com/facebookexperimental/Robyn/issues/344), [#345](https://github.com/facebookexperimental/Robyn/issues/345)), especially when some coefficients were 0.
 - **Fix**: bug with Weibull adstock scenario [#353](https://github.com/facebookexperimental/Robyn/issues/353).
-- **Docs**: fixed some typos, updated, and standardized internal documentation. 
+- **Docs**: fixed some typos, updated, and standardized internal documentation.
 
 **Full Changelog**:https://github.com/facebookexperimental/Robyn/compare/v3.6.0...v3.6.2
 
 ---
 
-## 3.6.0 
+## 3.6.0
 22-2-2022
 
 What's New in v3.6.0
@@ -56,5 +75,3 @@ What's New in v3.6.0
 **Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.5.1...v3.6.0
 
 ---
-
-
