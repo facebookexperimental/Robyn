@@ -125,6 +125,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 
+  if (export && !dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)
+
   if (clusters) {
     if (!quiet) message(">>> Calculating clusters for model selection using Pareto fronts...")
     try(OutputCollect[["clusters"]] <- robyn_clusters(
@@ -135,7 +137,6 @@ robyn_outputs <- function(InputCollect, OutputModels,
   }
 
   if (export) {
-    if (!dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)
     tryCatch(
       {
         if (!quiet) message(paste0(">>> Collecting ", length(allSolutions), " pareto-optimum results into: ", OutputCollect$plot_folder))
