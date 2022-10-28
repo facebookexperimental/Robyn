@@ -274,9 +274,9 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
   return(invisible(list(organic_signs = organic_signs)))
 }
 
-check_factorvars <- function(dt_input, factor_vars, context_vars, organic_vars) {
+check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL, organic_vars = NULL) {
   temp <- select(dt_input, all_of(c(context_vars, organic_vars)))
-  are_not_numeric <- !unlist(lapply(temp, is.numeric))
+  are_not_numeric <- !sapply(temp, is.numeric)
   if (any(are_not_numeric)) {
     these <- are_not_numeric[!names(are_not_numeric) %in% factor_vars]
     these <- these[these]
