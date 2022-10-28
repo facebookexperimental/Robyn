@@ -25,7 +25,13 @@ robyn_outputs(
 
 \method{print}{robyn_outputs}(x, ...)
 
-robyn_csv(InputCollect, OutputCollect, csv_out = NULL, export = TRUE)
+robyn_csv(
+  InputCollect,
+  OutputCollect,
+  csv_out = NULL,
+  export = TRUE,
+  calibrated = FALSE
+)
 
 robyn_plots(InputCollect, OutputCollect, export = TRUE)
 }
@@ -37,7 +43,7 @@ outcomes.}
 \code{pareto_fronts = 1} returns the best models trading off \code{NRMSE} &
 \code{DECOMP.RSSD}. Increase \code{pareto_fronts} to get more model choices.
 \code{pareto_fronts = "auto"} selects the min fronts that include at least 100
-candidates. To customize this threshold, set value with \code{pareto_models}.}
+candidates. To customize this threshold, set value with \code{min_candidates}.}
 
 \item{calibration_constraint}{Numeric. Default to 0.1 and allows 0.01-0.1. When
 calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
@@ -69,6 +75,8 @@ wish to plot the one-pagers and export? Default will take top
 \item{x}{\code{robyn_outputs()} output.}
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
+
+\item{calibrated}{Logical}
 }
 \value{
 (Invisible) list. Class: \code{robyn_outputs}. Contains processed

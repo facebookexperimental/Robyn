@@ -11,9 +11,13 @@
 ################################################################
 #### Step 0: Setup environment
 
-## Install, load, and check (latest) version
+## Install, load, and check (latest) version.
+## Install the stable version from CRAN.
+# install.packages("Robyn")
+## Install the dev version from GitHub
 # install.packages("remotes") # Install remotes first if you haven't already
-library(Robyn) # remotes::install_github("facebookexperimental/Robyn/R")
+# remotes::install_github("facebookexperimental/Robyn/R")
+library(Robyn)
 
 # Please, check if you have installed the latest version before running this demo. Update if not
 # https://github.com/facebookexperimental/Robyn/blob/main/R/DESCRIPTION#L4
@@ -214,21 +218,35 @@ print(InputCollect)
 
 #### 2a-4: Fourth (optional), model calibration / add experimental input
 
-## Guide for calibration source
+## Guide for calibration
 
-# 1. We strongly recommend to use experimental and causal results that are considered
-# ground truth to calibrate MMM. Usual experiment types are people-based (e.g. Facebook
-# conversion lift) and geo-based (e.g. Facebook GeoLift).
-# 2. Currently, Robyn only accepts point-estimate as calibration input. For example, if
+# 1. Calibration channels need to be paid_media_spends or organic_vars names.
+# 2. We strongly recommend to use Weibull PDF adstock for more degree of freedom when
+# calibrating Robyn.
+# 3. We strongly recommend to use experimental and causal results that are considered
+# ground truth to calibrate MMM. Usual experiment types are identity-based (e.g. Facebook
+# conversion lift) or geo-based (e.g. Facebook GeoLift). Due to the nature of treatment
+# and control groups in an experiment, the result is considered immediate effect. It's
+# rather impossible to hold off carryover effect in an experiment. Therefore, it's
+# recommended to set calibration_scope = "immediate" while using experiments as calibration
+# source.
+# 4. It's controversial to use attribution/MTA contribution to calibrate MMM. Attribution
+# is considered biased towards lower-funnel channels and strongly impacted by signal
+# quality. In case of calibrating Robyn using attribution, set calibration_scope =
+# "immediate", because commonly available attribution windows are considered short-term.
+# 5. It's controversial to use an MMM to calibrate another MMM. The gold standard of
+# calibration is to use causal result, while MMM is correlational by nature. In case of
+# calibrating Robyn using another MMM that also conduct adstocking transformation, set
+# calibration_scope = "total".
+# 6. Currently, Robyn only accepts point-estimate as calibration input. For example, if
 # 10k$ spend is tested against a hold-out for channel A, then input the incremental
 # return as point-estimate as the example below.
-# 3. The point-estimate has to always match the spend in the variable. For example, if
+# 7. The point-estimate has to always match the spend in the variable. For example, if
 # channel A usually has $100K weekly spend and the experimental holdout is 70%, input
 # the point-estimate for the $30K, not the $70K.
+# 8. If an experiment contains more than one media variable, input "channe_A+channel_B"
+# to indicate combination of channels, case sensitive.
 
-## -------------------------------- NOTE v3.6.4 CHANGE !!! ---------------------------------- ##
-## Calibration channels need to be paid_media_spends or organic_vars name.
-## ------------------------------------------------------------------------------------------ ##
 # calibration_input <- data.frame(
 #   # channel name must in paid_media_vars
 #   channel = c("facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"),
@@ -243,7 +261,9 @@ print(InputCollect)
 #   # Confidence: if frequentist experiment, you may use 1 - pvalue
 #   confidence = c(0.85, 0.8, 0.99, 0.95),
 #   # KPI measured: must match your dep_var
-#   metric = c("revenue", "revenue", "revenue", "revenue")
+#   metric = c("revenue", "revenue", "revenue", "revenue"),
+#   # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
+#   calibration_scope = c("immediate", "immediate", "immediate", "immediate")
 # )
 # InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
 
@@ -270,7 +290,7 @@ print(InputCollect)
 #   ,window_end = "2018-08-22"
 #   ,adstock = "geometric"
 #   ,hyperparameters = hyperparameters # as in 2a-2 above
-#   #,calibration_input = dt_calibration # as in 2a-4 above
+#   ,calibration_input = calibration_input # as in 2a-4 above
 # )
 
 #### Check spend exposure fit if available
@@ -294,8 +314,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 2000, # recommended for the dummy dataset
-  trials = 5, # recommended for the dummy dataset
+  iterations = 1000, # 2000 recommended for the dummy dataset with no calibration
+  trials = 1, # 5 recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
@@ -310,7 +330,7 @@ OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
   # pareto_fronts = "auto",
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
-  csv_out = "pareto", # "pareto" or "all"
+  csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
   plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
   plot_folder = robyn_object, # path for plots export
@@ -331,7 +351,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_100_6" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_204_5" # Pick one of the models from OutputCollect to proceed
 
 #### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -622,7 +642,7 @@ print(myModel)
 
 # Re-create one-pager
 myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, export = FALSE)
-myModelPlot
+# myModelPlot$`1_204_5`$patches$plots[[6]]
 
 # Refresh any imported model
 RobynRefresh <- robyn_refresh(

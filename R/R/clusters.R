@@ -72,7 +72,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
   if ("auto" %in% k) {
     cls <- tryCatch(
       {
-        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -100,7 +100,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   # Build clusters
   stopifnot(k %in% min_clusters:30)
-  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE, ...)
+  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
@@ -111,9 +111,11 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   output <- list(
     # Data and parameters
-    data = mutate(cls$df, top_sol = .data$solID %in% top_sols$solID),
+    data = mutate(cls$df, top_sol = .data$solID %in% top_sols$solID, cluster = as.integer(.data$cluster)),
     df_cluster_ci = ungroup(ci_list$df_ci) %>% dplyr::select(-.data$cluster_title),
     n_clusters = k,
+    boot_n = ci_list$boot_n,
+    sim_n = ci_list$sim_n,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
     wss = cls$nclusters_plot,
@@ -126,7 +128,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     clusters_tSNE = cls[["tSNE"]],
     # Top Clusters
     models = top_sols,
-    plot_clusters_ci = .plot_clusters_ci(ci_list$sim_collect, ci_list$df_ci, dep_var_type),
+    plot_clusters_ci = .plot_clusters_ci(ci_list$sim_collect, ci_list$df_ci, dep_var_type, ci_list$boot_n, ci_list$sim_n),
     plot_models_errors = .plot_topsols_errors(df, top_sols, limit, weights),
     plot_models_rois = .plot_topsols_rois(df, top_sols, all_media, limit)
   )
@@ -244,7 +246,9 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
     ungroup()
   return(list(
     df_ci = df_ci,
-    sim_collect = sim_collect
+    sim_collect = sim_collect,
+    boot_n = boot_n,
+    sim_n = sim_n
   ))
 }
 
@@ -322,7 +326,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     select(.data$cluster, .data$rank, everything())
 }
 
-.plot_clusters_ci <- function(sim_collect, df_ci, dep_var_type) {
+.plot_clusters_ci <- function(sim_collect, df_ci, dep_var_type, boot_n, sim_n) {
   temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_ci <- df_ci[complete.cases(df_ci), ]
   p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
@@ -341,9 +345,17 @@ errors_scores <- function(df, balance = rep(1, 3)) {
       subtitle = "Sampling distribution of cluster mean",
       x = temp,
       y = "Density",
-      fill = temp
+      fill = temp,
+      caption = sprintf(
+        "Based on %s bootstrap results with %s simulations",
+        formatNum(boot_n, abbr = TRUE),
+        formatNum(sim_n, abbr = TRUE)
+      )
     ) +
-    theme_lares(legend = "top")
+    theme_lares(legend = "none")
+  if (temp == "ROAS") {
+    p <- p + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
+  }
   return(p)
 }
 
@@ -392,7 +404,9 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     theme_lares()
 }
 
-.bootci <- function(samp, boot_n = 1000) {
+.bootci <- function(samp, boot_n, seed = 1, ...) {
+  set.seed(seed)
+
   if (length(samp) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)
@@ -407,7 +421,10 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     #   geom_histogram(aes(y = ..density.. ), binwidth = binwidth) +
     #   geom_density(color="red")
     me <- qt(0.975, samp_n - 1) * se
-    ci <- c(samp_mean - me, samp_mean + me)
+    # ci <- c(mean(boot_means) - me, mean(boot_means) + me)
+    samp_me <- me * sqrt(samp_n)
+    ci <- c(samp_mean - samp_me, samp_mean + samp_me)
+
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
     return(list(boot_means = samp, ci = c(NA, NA), se = NA))

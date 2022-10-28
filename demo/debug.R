@@ -42,10 +42,11 @@ outputs = FALSE
 quiet = FALSE
 add_penalty_factor = FALSE
 cores = 6
-iterations = 200
+iterations = 500
 trials = 1
 intercept_sign = "non_negative"
 nevergrad_algo = "TwoPointsDE"
+json_file = NULL
 
 ## debug robyn_train
 args(robyn_train)
@@ -63,25 +64,30 @@ args(robyn_mmm)
 #InputCollect
 #hyper_collect
 add_penalty_factor = FALSE
-iterations = InputCollect$iterations
+iterations = 500
 lambda.n = 100
 lambda_control = 1
 refresh = FALSE
 seed = 123L
 quiet = FALSE
 
+## debug model_decomp
+coefs = mod_out$coefs
+y_pred = mod_out$y_pred
+
+
 ## debug robyn_outputs
 args(robyn_outputs)
 #InputCollect
 #OutputModels
-pareto_fronts = 3
+pareto_fronts = "auto"
 calibration_constraint = 0.1
 plot_folder = robyn_object
 plot_folder_sub = NULL
 plot_pareto = TRUE
 csv_out = "pareto"
 clusters = TRUE
-selected = "clusters"
+select_model = "clusters"
 ui = FALSE
 export = TRUE
 quiet = FALSE

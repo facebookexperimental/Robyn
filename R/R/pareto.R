@@ -5,9 +5,10 @@
 
 robyn_pareto <- function(InputCollect, OutputModels,
                          pareto_fronts = "auto",
-                         pareto_models = 100,
+                         min_candidates = 100,
                          calibration_constraint = 0.1,
                          quiet = FALSE,
+                         calibrated = FALSE,
                          ...) {
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
   OutModels <- OutputModels[unlist(lapply(OutputModels, function(x) "resultCollect" %in% names(x)))]
@@ -20,12 +21,51 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
 
+  # Build immediate vs carryover dataframe
+  xDecompVec <- OutputModels$vec_collect$xDecompVec
+  xDecompVecImmediate <- OutputModels$vec_collect$xDecompVecImmediate
+  xDecompVecCarryover <- OutputModels$vec_collect$xDecompVecCarryover
+  xDecompVecImmeCaov <- bind_rows(
+    select(xDecompVec, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "total"),
+    select(xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "Immediate"),
+    select(xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "Carryover")
+  ) %>% pivot_longer(cols = InputCollect$all_media, names_to = "channels")
+  if (length(unique(xDecompVecImmeCaov$solID)) == 1) {
+    xDecompVecImmeCaov$solID <- OutModels$trial1$resultCollect$resultHypParam$solID
+  }
+
+  if (calibrated) {
+    resultCalibration <- bind_rows(lapply(OutModels, function(x) {
+      x$resultCollect$liftCalibration %>%
+        mutate(trial = x$trial) %>%
+        rename(rn = .data$liftMedia)
+    }))
+  } else {
+    resultCalibration <- NULL
+  }
+
   if (!hyper_fixed) {
-    for (df in c("resultHypParam", "xDecompAgg")) {
+    df_names <- if (calibrated) {
+      c("resultHypParam", "xDecompAgg", "resultCalibration")
+    } else {
+      c("resultHypParam", "xDecompAgg")
+    }
+    for (df in df_names) {
       assign(df, get(df) %>% mutate(
         iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
         solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
       ))
+    }
+  }
+
+  # If recreated model, inherit bootstrap results
+  if (length(unique(xDecompAgg$solID)) == 1 & !"boot_mean" %in% colnames(xDecompAgg)) {
+    bootstrap <- attr(OutputModels, "bootstrap")
+    if (!is.null(bootstrap)) {
+      xDecompAgg <- left_join(xDecompAgg, bootstrap, by = c("rn" = "variable"))
     }
   }
 
@@ -75,19 +115,27 @@ robyn_pareto <- function(InputCollect, OutputModels,
     if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
     if (hyper_fixed) pareto_fronts <- 1
     # Get at least 100 candidates for better clustering
+    if (nrow(resultHypParam) == 1) pareto_fronts <- 1
     if ("auto" %in% pareto_fronts) {
-      if (nrow(resultHypParam) <= pareto_models) {
-        stop(paste("Please run at least", pareto_models, "iterations"))
+      n_pareto <- resultHypParam %>%
+        filter(!is.na(.data$robynPareto)) %>%
+        nrow()
+      if (n_pareto <= min_candidates & nrow(resultHypParam) > 1) {
+        stop(paste(
+          "Less than", min_candidates, "candidates in pareto fronts.",
+          "Increaseiterations to get more model candidates"
+        ))
       }
       auto_pareto <- resultHypParam %>%
+        filter(!is.na(.data$robynPareto)) %>%
         group_by(.data$robynPareto) %>%
         summarise(n = n_distinct(.data$solID)) %>%
         mutate(n_cum = cumsum(.data$n)) %>%
-        filter(.data$n_cum >= pareto_models) %>%
+        filter(.data$n_cum >= min_candidates) %>%
         slice(1)
       message(sprintf(
-        ">> Automatically selected %s Pareto-fronts to contain at least %s models (%s)",
-        auto_pareto$robynPareto, pareto_models, auto_pareto$n_cum
+        ">> Automatically selected %s Pareto-fronts to contain at least %s pareto-optimal models (%s)",
+        auto_pareto$robynPareto, min_candidates, auto_pareto$n_cum
       ))
       pareto_fronts <- as.integer(auto_pareto$robynPareto)
     }
@@ -451,6 +499,17 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ## 6. Diagnostic: fitted vs residual
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
+      ## 7. Immediate vs carryover response
+      plot7data <- filter(xDecompVecImmeCaov, .data$solID == sid, .data$type != "total") %>%
+        select(c("type", "channels", "value")) %>%
+        group_by(.data$channels, .data$type) %>%
+        summarise(response = sum(.data$value), .groups = "drop_last") %>%
+        mutate(percentage = .data$response / sum(.data$response)) %>%
+        replace(., is.na(.), 0)
+
+      ## 8. Bootstrapped ROI/CPA with CIs
+      # plot8data <- "Empty" # Filled when running robyn_onepagers() with clustering data
+
       # Gather all results
       mediaVecCollect <- bind_rows(mediaVecCollect, list(
         mutate(dt_transformPlot, type = "rawMedia", solID = sid),
@@ -469,7 +528,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
         plot3data = plot3data,
         plot4data = plot4data,
         plot5data = plot5data,
-        plot6data = plot6data
+        plot6data = plot6data,
+        plot7data = plot7data
+        # plot8data = plot8data
       )
     }
   } # end pareto front loop
@@ -486,6 +547,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
     pareto_fronts = pareto_fronts,
     resultHypParam = resultHypParam,
     xDecompAgg = xDecompAgg,
+    resultCalibration = resultCalibration,
     mediaVecCollect = mediaVecCollect,
     xDecompVecCollect = xDecompVecCollect,
     plotDataCollect = plotDataCollect
