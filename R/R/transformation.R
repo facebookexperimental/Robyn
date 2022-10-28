@@ -190,7 +190,7 @@ plot_adstock <- function(plot = TRUE) {
     geomCollect <- list()
     thetaVec <- c(0.01, 0.05, 0.1, 0.2, 0.5, 0.6, 0.7, 0.8, 0.9)
 
-    for (v in 1:length(thetaVec)) {
+    for (v in seq_along(thetaVec)) {
       thetaVecCum <- 1
       for (t in 2:100) {
         thetaVecCum[t] <- thetaVecCum[t - 1] * thetaVec[v]
@@ -277,7 +277,7 @@ plot_saturation <- function(plot = TRUE) {
 
     ## Plot alphas
     hillAlphaCollect <- list()
-    for (i in 1:length(alphaSamp)) {
+    for (i in seq_along(alphaSamp)) {
       hillAlphaCollect[[i]] <- data.frame(
         x = xSample,
         y = xSample**alphaSamp[i] / (xSample**alphaSamp[i] + (0.5 * 100)**alphaSamp[i]),
@@ -296,7 +296,7 @@ plot_saturation <- function(plot = TRUE) {
 
     ## Plot gammas
     hillGammaCollect <- list()
-    for (i in 1:length(gammaSamp)) {
+    for (i in seq_along(gammaSamp)) {
       hillGammaCollect[[i]] <- data.frame(
         x = xSample,
         y = xSample**2 / (xSample**2 + (gammaSamp[i] * 100)**2),

@@ -42,7 +42,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
   stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
   # Gather all trials
-  get_lists <- as.logical(grepl("trial", names(OutputModels)) * sapply(OutputModels, is.list))
+  get_lists <- as.logical(grepl("trial", names(OutputModels)) * unlist(lapply(OutputModels, is.list)))
   OutModels <- OutputModels[get_lists]
   for (i in seq_along(OutModels)) {
     if (i == 1) df <- data.frame()

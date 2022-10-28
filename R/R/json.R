@@ -39,7 +39,7 @@ robyn_write <- function(InputCollect,
   if (!is.null(OutputCollect)) {
     stopifnot(inherits(OutputCollect, "robyn_outputs"))
     stopifnot(select_model %in% OutputCollect$allSolutions)
-    if (is.null(select_model) & length(OutputCollect$allSolutions == 1)) {
+    if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
       select_model <- OutputCollect$allSolutions
     }
   }
@@ -47,7 +47,7 @@ robyn_write <- function(InputCollect,
 
   # InputCollect JSON
   ret <- list()
-  skip <- which(sapply(InputCollect, function(x) is.list(x) | is.null(x)))
+  skip <- which(unlist(lapply(InputCollect, function(x) is.list(x) | is.null(x))))
   skip <- skip[!names(skip) %in% c("calibration_input", "hyperparameters", "custom_params")]
   ret[["InputCollect"]] <- inputs <- InputCollect[-skip]
   # toJSON(inputs, pretty = TRUE)
@@ -76,8 +76,8 @@ robyn_write <- function(InputCollect,
       select(order(colnames(.))) %>%
       as.list()
     outputs$hyper_updated <- OutputCollect$hyper_updated
-    skip <- which(sapply(OutputCollect, function(x) is.list(x) | is.null(x)))
-    skip <- c(skip, which(names(OutputCollect) %in% c("allSolutions")))
+    skip <- which(unlist(lapply(OutputCollect, function(x) is.list(x) | is.null(x))))
+    skip <- c(skip, which(names(OutputCollect) %in% "allSolutions"))
     outputs <- append(outputs, OutputCollect[-skip])
     ret[["ExportedModel"]] <- outputs
     # toJSON(outputs, pretty = TRUE)
@@ -85,7 +85,7 @@ robyn_write <- function(InputCollect,
     select_model <- "inputs"
   }
 
-  if (!dir.exists(dir)) dir.create(dir)
+  if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
   filename <- sprintf("%s/RobynModel-%s.json", dir, select_model)
   filename <- gsub("//", "/", filename)
   class(ret) <- c("robyn_write", class(ret))
@@ -170,10 +170,10 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       }
       json <- read_json(json_file, simplifyVector = TRUE)
       json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
-      if (!"InputCollect" %in% names(json) & step == 1) {
+      if (!"InputCollect" %in% names(json) && step == 1) {
         stop("JSON file must contain InputCollect element")
       }
-      if (!"ExportedModel" %in% names(json) & step == 2) {
+      if (!"ExportedModel" %in% names(json) && step == 2) {
         stop("JSON file must contain ExportedModel element")
       }
       if (!quiet) message("Imported JSON file succesfully: ", json_file)
@@ -261,9 +261,11 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
 # Import the whole chain any refresh model to init
 robyn_chain <- function(json_file) {
   json_data <- robyn_read(json_file, quiet = TRUE)
+  ids <- c(json_data$InputCollect$refreshChain, json_data$ExportedModel$select_model)
   plot_folder <- json_data$ExportedModel$plot_folder
   temp <- stringr::str_split(plot_folder, "/")[[1]]
   chain <- temp[startsWith(temp, "Robyn_")]
+  if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
   chainData <- list()
   for (i in rev(seq_along(chain))) {
@@ -277,9 +279,11 @@ robyn_chain <- function(json_file) {
     chainData[[json_new$ExportedModel$select_model]] <- json_new
   }
   chainData <- chainData[rev(seq_along(chain))]
-  dirs <- sapply(chainData, function(x) x$ExportedModel$plot_folder)
+  dirs <- unlist(lapply(chainData, function(x) x$ExportedModel$plot_folder))
   json_files <- paste0(dirs, "RobynModel-", names(dirs), ".json")
   attr(chainData, "json_files") <- json_files
-  attr(chainData, "chain") <- names(chainData)
+  attr(chainData, "chain") <- ids # names(chainData)
+  if (length(ids) != length(names(chainData)))
+    warning("Can't replicate chain-like results if you don't follow Robyn's chain structure")
   return(invisible(chainData))
 }

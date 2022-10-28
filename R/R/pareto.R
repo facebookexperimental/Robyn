@@ -11,7 +11,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
                          calibrated = FALSE,
                          ...) {
   hyper_fixed <- attr(OutputModels, "hyper_fixed")
-  OutModels <- OutputModels[sapply(OutputModels, function(x) "resultCollect" %in% names(x))]
+  OutModels <- OutputModels[unlist(lapply(OutputModels, function(x) "resultCollect" %in% names(x)))]
 
   resultHypParam <- bind_rows(lapply(OutModels, function(x) {
     mutate(x$resultCollect$resultHypParam, trial = x$trial)
@@ -113,6 +113,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
   # Prepare parallel loop
   if (TRUE) {
     if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+    if (hyper_fixed) pareto_fronts <- 1
     # Get at least 100 candidates for better clustering
     if (nrow(resultHypParam) == 1) pareto_fronts <- 1
     if ("auto" %in% pareto_fronts) {
@@ -314,7 +315,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ]
 
       m_decayRate <- list()
-      for (med in 1:length(InputCollect$all_media)) {
+      for (med in seq_along(InputCollect$all_media)) {
         med_select <- InputCollect$all_media[med]
         m <- dt_transformPlot[, med_select][[1]]
         # Adstocking

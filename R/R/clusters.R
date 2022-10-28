@@ -53,7 +53,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     xDecompAgg <- input$xDecompAgg
     df <- .prepare_df(xDecompAgg, all_media, dep_var_type)
   } else {
-    if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) & is.data.frame(input)) {
+    if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) && is.data.frame(input)) {
       df <- .prepare_df(input, all_media, dep_var_type)
     } else {
       stop(paste(
@@ -155,7 +155,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n = 1000, sim_n = 10000, ...) {
   df_clusters_outcome <- xDecompAgg %>%
     filter(!is.na(.data$total_spend)) %>%
-    left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = c("solID")) %>%
+    left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = "solID") %>%
     dplyr::select(c("solID", "cluster", "rn", "roi_total", "cpa_total", "robynPareto")) %>%
     group_by(.data$cluster, .data$rn) %>%
     mutate(n = n()) %>%
@@ -165,57 +165,54 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
   cluster_collect <- list()
   chn_collect <- list()
   sim_collect <- list()
-
   for (j in 1:k) {
     df_outcome <- filter(df_clusters_outcome, .data$cluster == j)
-    if (n_distinct(df_outcome$solID) == 1) {
-      warning(paste("Cluster", j, "contains only 1 candidate model. CI not available"))
-    }
-    for (i in all_paid) {
-      # Bootstrap CI
-      if (dep_var_type == "conversion") {
-        # Drop CPA == Inf
-        df_chn <- filter(df_outcome, .data$rn == i & is.finite(.data$cpa_total))
-        v_samp <- df_chn$cpa_total
-      } else {
-        df_chn <- filter(df_outcome, .data$rn == i)
-        v_samp <- df_chn$roi_total
-      }
-      boot_res <- .bootci(samp = v_samp, boot_n = boot_n, ...)
-      boot_mean <- mean(boot_res$boot_means)
-      boot_se <- boot_res$se
-      ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
-      ci_up <- boot_res$ci[2]
+    if (length(unique(df_outcome$solID)) < 3) {
+      warning(paste("Cluster", j, "does not contain enough models to calculate CI"))
+    } else {
+      for (i in all_paid) {
+        # Bootstrap CI
+        if (dep_var_type == "conversion") {
+          # Drop CPA == Inf
+          df_chn <- filter(df_outcome, .data$rn == i & is.finite(.data$cpa_total))
+          v_samp <- df_chn$cpa_total
+        } else {
+          df_chn <- filter(df_outcome, .data$rn == i)
+          v_samp <- df_chn$roi_total
+        }
+        boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
+        boot_mean <- mean(boot_res$boot_means)
+        boot_se <- boot_res$se
+        ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
+        ci_up <- boot_res$ci[2]
 
-      ## Experiment with gamma distribution fitting
-      # mod_gamma <- nloptr(x0 = c(1, 1), eval_f = gamma_mle, lb = c(0,0),
-      #                     x = unlist(df_chn$roi_total),
-      #                     opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5))
-      # gamma_params <- mod_gamma$solution
-      # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
-      # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])
+        ## Experiment with gamma distribution fitting
+        # mod_gamma <- nloptr(x0 = c(1, 1), eval_f = gamma_mle, lb = c(0,0),
+        #                     x = unlist(df_chn$roi_total),
+        #                     opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5))
+        # gamma_params <- mod_gamma$solution
+        # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
+        # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])
 
-      # Collect loop results
-      chn_collect[[i]] <- df_chn %>%
-        mutate(
-          ci_low = ci_low,
-          ci_up = ci_up,
+        # Collect loop results
+        chn_collect[[i]] <- df_chn %>%
+          mutate(
+            ci_low = ci_low,
+            ci_up = ci_up,
+            n = length(v_samp),
+            boot_se = boot_se,
+            boot_mean = boot_mean,
+            cluster = j
+          )
+        sim_collect[[i]] <- data.frame(
+          cluster = j,
+          rn = i,
           n = length(v_samp),
-          boot_se = boot_se,
           boot_mean = boot_mean,
-          cluster = j
-        )
-      sim_collect[[i]] <- data.frame(
-        n = length(v_samp),
-        boot_se = boot_se,
-        boot_mean = boot_mean,
-        ci_low = ci_low,
-        ci_up = ci_up,
-        x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se),
-        cluster = j,
-        rn = i
-      ) %>%
-        mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
+          x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
+        ) %>%
+          mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
+      }
     }
     cluster_collect[[j]] <- list(chn_collect = chn_collect, sim_collect = sim_collect)
   }
@@ -224,8 +221,8 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
     bind_rows(lapply(x$sim_collect, function(y) y))
   })) %>%
     mutate(cluster_title = sprintf("Cl.%s (n=%s)", .data$cluster, .data$n)) %>%
-    filter(!is.na(.data$boot_se)) %>%
-    ungroup()
+    ungroup() %>%
+    as_tibble()
 
   df_ci <- bind_rows(lapply(cluster_collect, function(x) {
     bind_rows(lapply(x$chn_collect, function(y) y))
@@ -332,16 +329,16 @@ errors_scores <- function(df, balance = rep(1, 3)) {
 .plot_clusters_ci <- function(sim_collect, df_ci, dep_var_type, boot_n, sim_n) {
   temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_ci <- df_ci[complete.cases(df_ci), ]
-  p <- sim_collect %>%
-    ggplot(aes(x = .data$x_sim, y = .data$rn, fill = .data$boot_mean)) +
+  p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
     facet_wrap(~ .data$cluster_title) +
-    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01, size = 0.1) +
     geom_text(
       data = df_ci,
       aes(x = .data$boot_mean, y = .data$rn, label = .data$boot_ci),
       position = position_nudge(x = -0.02, y = 0.1),
       colour = "grey30", size = 3.5
     ) +
+    geom_vline(xintercept = 1, linetype = "dashed", size = .5, colour = "grey75") +
     # scale_fill_viridis_c(option = "D") +
     labs(
       title = paste("In-Cluster", temp, "& bootstrapped 95% CI"),
@@ -409,6 +406,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
 
 .bootci <- function(samp, boot_n, seed = 1, ...) {
   set.seed(seed)
+
   if (length(samp) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)

@@ -75,7 +75,7 @@ robyn_run <- function(InputCollect = NULL,
     if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
     json <- robyn_read(json_file, step = 2, quiet = TRUE)
     dt_hyper_fixed <- json$ExportedModel$hyper_values
-    for (i in 1:length(json$ExportedModel)) {
+    for (i in seq_along(json$ExportedModel)) {
       assign(names(json$ExportedModel)[i], json$ExportedModel[[i]])
     }
     bootstrap <- select(json$ExportedModel$summary, any_of(c("variable", "boot_mean", "ci_low", "ci_up")))
@@ -88,7 +88,7 @@ robyn_run <- function(InputCollect = NULL,
   #####################################
   #### Set local environment
 
-  if (!"hyperparameters" %in% names(InputCollect) | is.null(InputCollect$hyperparameters)) {
+  if (!"hyperparameters" %in% names(InputCollect) || is.null(InputCollect$hyperparameters)) {
     stop("Must provide 'hyperparameters' in robyn_inputs()'s output first")
   }
 
@@ -96,9 +96,9 @@ robyn_run <- function(InputCollect = NULL,
   InputCollect <- check_legacy_input(InputCollect, cores, iterations, trials, intercept_sign, nevergrad_algo)
   # Overwrite values imported from InputCollect
   legacyValues <- InputCollect[LEGACY_PARAMS]
-  legacyValues <- legacyValues[!sapply(legacyValues, is.null)]
+  legacyValues <- legacyValues[!unlist(lapply(legacyValues, is.null))]
   if (length(legacyValues) > 0) {
-    for (i in 1:length(InputCollect)) assign(names(InputCollect)[i], InputCollect[[i]])
+    for (i in seq_along(InputCollect)) assign(names(InputCollect)[i], InputCollect[[i]])
   }
 
   max_cores <- parallel::detectCores()
@@ -190,7 +190,7 @@ robyn_run <- function(InputCollect = NULL,
 
   # Report total timing
   attr(output, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
-  if (!quiet & iterations > 1) message(paste("Total run time:", attr(output, "runTime"), "mins"))
+  if (!quiet && iterations > 1) message(paste("Total run time:", attr(output, "runTime"), "mins"))
 
   class(output) <- unique(c("robyn_models", class(output)))
   return(output)
@@ -352,7 +352,7 @@ robyn_train <- function(InputCollect, hyper_collect,
       OutputModels[[ngt]] <- model_output
     }
   }
-  names(OutputModels) <- paste0("trial", 1:length(OutputModels))
+  names(OutputModels) <- paste0("trial", seq_along(OutputModels))
   return(OutputModels)
 }
 
@@ -514,7 +514,7 @@ robyn_mmm <- function(InputCollect,
   ## Prepare loop
   resultCollectNG <- list()
   cnt <- 0
-  if (!hyper_fixed & !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
+  if (!hyper_fixed && !quiet) pb <- txtProgressBar(max = iterTotal, style = 3)
 
   sysTimeDopar <- tryCatch(
     {
@@ -523,7 +523,7 @@ robyn_mmm <- function(InputCollect,
           nevergrad_hp <- list()
           nevergrad_hp_val <- list()
           hypParamSamList <- list()
-          hypParamSamNG <- c()
+          hypParamSamNG <- NULL
 
           if (hyper_fixed == FALSE) {
             # Setting initial seeds
@@ -558,6 +558,7 @@ robyn_mmm <- function(InputCollect,
           ########### Parallel start
           nrmse.collect <- c()
           decomp.rssd.collect <- c()
+
           best_mape <- Inf
 
           doparFx <- function(i, ...) { # i=1
@@ -575,7 +576,7 @@ robyn_mmm <- function(InputCollect,
             mediaSaturatedImmediate <- list()
             mediaSaturatedCarryover <- list()
 
-            for (v in 1:length(all_media)) {
+            for (v in seq_along(all_media)) {
               ################################################
               ## 1. Adstocking (whole data)
               # Decayed/adstocked response = Immediate response + Carryover response
@@ -601,7 +602,7 @@ robyn_mmm <- function(InputCollect,
               mediaCarryover[[v]] <- m_carryover
               mediaVecCum[[v]] <- x_list$thetaVecCum
 
-              # data.frame(id = rep(1:length(m), 2)) %>%
+              # data.frame(id = rep(seq_along(m), 2)) %>%
               #   mutate(value = c(m, m_adstocked),
               #          type = c(rep("raw", length(m)), rep("adstocked", length(m)))) %>%
               #   filter(id < 100) %>%
@@ -662,9 +663,9 @@ robyn_mmm <- function(InputCollect,
             dt_sign <- select(dt_modSaturated, -.data$dep_var)
             x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
             names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
-            check_factor <- sapply(dt_sign, is.factor)
-            lower.limits <- upper.limits <- c()
-            for (s in 1:length(check_factor)) {
+            check_factor <- unlist(lapply(dt_sign, is.factor))
+            lower.limits <- upper.limits <- NULL
+            for (s in seq_along(check_factor)) {
               if (check_factor[s] == TRUE) {
                 level.n <- length(levels(unlist(dt_sign[, s, with = FALSE])))
                 if (level.n <= 1) {
@@ -893,7 +894,7 @@ robyn_mmm <- function(InputCollect,
               for (i in 1:iterPar) doparFx(i)
             } else {
               # Create cluster to minimize overhead for parallel back-end registering
-              if (check_parallel() & !hyper_fixed) {
+              if (check_parallel() && !hyper_fixed) {
                 registerDoParallel(cores)
               } else {
                 registerDoSEQ()
@@ -902,9 +903,9 @@ robyn_mmm <- function(InputCollect,
             }
           )
 
-          nrmse.collect <- sapply(doparCollect, function(x) x$nrmse)
-          decomp.rssd.collect <- sapply(doparCollect, function(x) x$decomp.rssd)
-          mape.lift.collect <- sapply(doparCollect, function(x) x$mape)
+          nrmse.collect <- unlist(lapply(doparCollect, function(x) x$nrmse))
+          decomp.rssd.collect <- unlist(lapply(doparCollect, function(x) x$decomp.rssd))
+          mape.lift.collect <- unlist(lapply(doparCollect, function(x) x$mape))
 
           #####################################
           #### Nevergrad tells objectives
@@ -1085,7 +1086,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   temp <- select(xDecompOut, .data$intercept, all_of(x_name))
   xDecompOutAgg <- sapply(temp, function(x) sum(x))
   xDecompOutAggPerc <- xDecompOutAgg / sum(y_hat)
-  xDecompOutAggMeanNon0 <- sapply(temp, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x != 0])))
+  xDecompOutAggMeanNon0 <- unlist(lapply(temp, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x != 0]))))
   xDecompOutAggMeanNon0[is.nan(xDecompOutAggMeanNon0)] <- 0
   xDecompOutAggMeanNon0Perc <- xDecompOutAggMeanNon0 / sum(xDecompOutAggMeanNon0)
 
@@ -1095,10 +1096,10 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
 
   temp <- select(xDecompOut, .data$intercept, all_of(x_name)) %>%
     slice(refreshAddedStartWhich:refreshAddedEndWhich)
-  xDecompOutAggRF <- sapply(temp, function(x) sum(x))
+  xDecompOutAggRF <- unlist(lapply(temp, function(x) sum(x)))
   y_hatRF <- y_hat[refreshAddedStartWhich:refreshAddedEndWhich]
   xDecompOutAggPercRF <- xDecompOutAggRF / sum(y_hatRF)
-  xDecompOutAggMeanNon0RF <- sapply(temp, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x != 0])))
+  xDecompOutAggMeanNon0RF <- unlist(lapply(temp, function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x != 0]))))
   xDecompOutAggMeanNon0RF[is.nan(xDecompOutAggMeanNon0RF)] <- 0
   xDecompOutAggMeanNon0PercRF <- xDecompOutAggMeanNon0RF / sum(xDecompOutAggMeanNon0RF)
 
@@ -1198,7 +1199,7 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
   df.int <- 1
 
   ## drop intercept if negative and intercept_sign == "non_negative"
-  if (intercept_sign == "non_negative" & coef(mod)[1] < 0) {
+  if (intercept_sign == "non_negative" && coef(mod)[1] < 0) {
     mod <- glmnet(
       x_train,
       y_train,
@@ -1279,7 +1280,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
 
     # Collect media hyperparameters
     hyper_bound_list <- list()
-    for (i in 1:length(hypParamSamName)) {
+    for (i in seq_along(hypParamSamName)) {
       hyper_bound_list[i] <- hyper_in[hypParamSamName[i]]
       names(hyper_bound_list)[i] <- hypParamSamName[i]
     }
@@ -1300,28 +1301,28 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
     }
 
     # Get hyperparameters for Nevergrad
-    hyper_bound_list_updated <- hyper_bound_list[which(sapply(hyper_bound_list, length) == 2)]
+    hyper_bound_list_updated <- hyper_bound_list[which(unlist(lapply(hyper_bound_list, length) == 2))]
 
     # Get fixed hyperparameters
-    hyper_bound_list_fixed <- hyper_bound_list[which(sapply(hyper_bound_list, length) == 1)]
+    hyper_bound_list_fixed <- hyper_bound_list[which(unlist(lapply(hyper_bound_list, length) == 1))]
 
     hyper_list_bind <- c(hyper_bound_list_updated, hyper_bound_list_fixed)
     hyper_list_all <- list()
-    for (i in 1:length(hypParamSamName)) {
+    for (i in seq_along(hypParamSamName)) {
       hyper_list_all[[i]] <- hyper_list_bind[[hypParamSamName[i]]]
       names(hyper_list_all)[i] <- hypParamSamName[i]
     }
 
-    dt_hyper_fixed_mod <- data.frame(sapply(hyper_bound_list_fixed, function(x) rep(x, cores)))
+    dt_hyper_fixed_mod <- data.frame(unlist(lapply(hyper_bound_list_fixed, function(x) rep(x, cores))))
   } else {
     hyper_bound_list_fixed <- list()
-    for (i in 1:length(hypParamSamName)) {
+    for (i in seq_along(hypParamSamName)) {
       hyper_bound_list_fixed[[i]] <- dt_hyper_fixed[[hypParamSamName[i]]]
       names(hyper_bound_list_fixed)[i] <- hypParamSamName[i]
     }
 
     hyper_list_all <- hyper_bound_list_fixed
-    hyper_bound_list_updated <- hyper_bound_list_fixed[which(sapply(hyper_bound_list_fixed, length) == 2)]
+    hyper_bound_list_updated <- hyper_bound_list_fixed[which(unlist(lapply(hyper_bound_list_fixed, length) == 2))]
     cores <- 1
 
     dt_hyper_fixed_mod <- data.frame(matrix(hyper_bound_list_fixed, nrow = 1))

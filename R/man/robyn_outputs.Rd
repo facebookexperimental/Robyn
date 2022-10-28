@@ -13,7 +13,6 @@ robyn_outputs(
   pareto_fronts = "auto",
   calibration_constraint = 0.1,
   plot_folder = NULL,
-  plot_folder_sub = NULL,
   plot_pareto = TRUE,
   csv_out = "pareto",
   clusters = TRUE,
@@ -52,10 +51,6 @@ selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 
 \item{plot_folder}{Character. Path for saving plots. Default
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
-
-\item{plot_folder_sub}{Character. Customize sub path to save plots. The total
-path is created with \code{dir.create(file.path(plot_folder, plot_folder_sub))}.
-For example, plot_folder_sub = "sub_dir".}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
