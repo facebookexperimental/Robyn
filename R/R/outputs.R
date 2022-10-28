@@ -133,11 +133,9 @@ robyn_outputs <- function(InputCollect, OutputModels,
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
 
-  if (export && !dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)
-
   plotPath <- paste0(plot_folder, "/", plot_folder_sub, "/")
   OutputCollect$plot_folder <- gsub("//", "/", plotPath)
-  if (export) dir.create(OutputCollect$plot_folder)
+  if (export && !dir.exists(OutputCollect$plot_folder)) dir.create(OutputCollect$plot_folder, recursive = TRUE)
 
   # Cluster results and amend cluster output
   if (clusters) {
