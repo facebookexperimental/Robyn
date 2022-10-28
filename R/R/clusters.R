@@ -423,7 +423,10 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     #   geom_histogram(aes(y = ..density.. ), binwidth = binwidth) +
     #   geom_density(color="red")
     me <- qt(0.975, samp_n - 1) * se
-    ci <- c(samp_mean - me, samp_mean + me)
+    # ci <- c(mean(boot_means) - me, mean(boot_means) + me)
+    samp_me <- me * sqrt(samp_n)
+    ci <- c(samp_mean - samp_me, samp_mean + samp_me)
+
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
     return(list(boot_means = samp, ci = c(NA, NA), se = NA))
