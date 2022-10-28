@@ -33,6 +33,12 @@
 # $ cpa_total : Numeric. Pseudo-calc: cpa_total = total_spend / xDecompAgg
 # $ mean_response : Numeric. Response of mean_spend. Pseudo-calc: mean_response1 = beta1 * saturated(mean_spend1) Note the difference to xDecompMeanNon0.
 # $ next_unit_response : Numeric. Response of next unit spend from the level of mean_spend. Pseudo-calc: next_unit_response1 = beta1 * (saturated(mean_spend1 + 1) - saturated(mean_spend1))
+# $ cluster : Integer. Cluster index of the model
+# $ top_sol : Logical. TRUE indicates the model is selected as cluster winner
+# $ boot_mean : Numeric. Mean of bootstrapped in-cluster CI
+# $ boot_se: Numeric. Standard error of bootstrapped in-cluster CI
+# $ ci_low: Numeric. Lower bound of bootstrapped in-cluster CI adapted for the sample
+# $ ci_up: Numeric. Lower bound of bootstrapped in-cluster CI adapted for the sample
 
 #### pareto_hyperparameters.csv: Value of all hyperparameters of all pareto models. Number of column varies depending on input data
 
