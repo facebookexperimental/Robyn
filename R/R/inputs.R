@@ -824,7 +824,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     forecastRecurrence <- predict(mod, dt_regressors)
   }
 
-  these <- seq_along(recurrence[,1])
+  these <- seq_along(unlist(recurrence[,1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
   if (use_season) dt_transform$season <- forecastRecurrence$yearly[these]
   if (use_weekday) dt_transform$weekday <- forecastRecurrence$weekly[these]
