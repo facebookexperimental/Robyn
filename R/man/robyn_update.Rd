@@ -18,5 +18,7 @@ Invisible \code{NULL}.
 \description{
 Update Robyn version from
 \href{https://github.com/facebookexperimental/Robyn}{Github repository}
-for "dev" version or from CRAN (not yet submitted, but soon!).
+for latest "dev" version or from
+\href{https://cran.r-project.org/web/packages/Robyn/index.html}{CRAN}
+for latest "stable" version.
 }

@@ -47,7 +47,9 @@ flatten_hyps <- function(x) {
 #'
 #' Update Robyn version from
 #' \href{https://github.com/facebookexperimental/Robyn}{Github repository}
-#' for "dev" version or from CRAN (not yet submitted, but soon!).
+#' for latest "dev" version or from
+#' \href{https://cran.r-project.org/web/packages/Robyn/index.html}{CRAN}
+#' for latest "stable" version.
 #'
 #' @param dev Boolean. Dev version? If not, CRAN version.
 #' @param ... Parameters to pass to \code{remotes::install_github}
