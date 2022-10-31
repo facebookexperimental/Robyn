@@ -65,5 +65,5 @@ cls <- robyn_clusters(
 }
 }
 \author{
-Bernardo Lares (bernardolares@fb.com)
+Bernardo Lares (bernardolares@meta.com)
 }

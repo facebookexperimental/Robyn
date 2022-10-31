@@ -24,7 +24,7 @@
 #' to origin. Each value will be normalized so they all sum 1.
 #' @param export Export plots into local files?
 #' @param ... Additional parameters passed to \code{lares::clusterKmeans()}.
-#' @author Bernardo Lares (bernardolares@@fb.com)
+#' @author Bernardo Lares (bernardolares@@meta.com)
 #' @examples
 #' \dontrun{
 #' # Having InputCollect and OutputCollect results

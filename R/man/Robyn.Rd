@@ -21,11 +21,11 @@ Useful links:
 
 }
 \author{
-Gufeng Zhou (gufeng@fb.com)
+Gufeng Zhou (gufeng@meta.com)
 
-Leonel Sentana (leonelsentana@fb.com)
+Leonel Sentana (leonelsentana@meta.com)
 
-Igor Skokan (igorskokan@fb.com)
+Igor Skokan (igorskokan@meta.com)
 
-Bernardo Lares (bernardolares@fb.com)
+Bernardo Lares (bernardolares@meta.com)
 }

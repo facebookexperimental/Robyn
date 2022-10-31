@@ -3,12 +3,12 @@ Type: Package
 Title: Semi-Automated Marketing Mix Modeling (MMM) from Meta Marketing Science 
 Version: 3.8.0
 Authors@R: c(
-    person("Gufeng", "Zhou", , "gufeng@fb.com", c("aut")),
-    person("Leonel", "Sentana", , "leonelsentana@fb.com", c("aut")),
-    person("Igor", "Skokan", , "igorskokan@fb.com", c("aut")),
-    person("Bernardo", "Lares", , "bernardolares@fb.com", c("cre","aut")),
+    person("Gufeng", "Zhou", , "gufeng@meta.com", c("aut")),
+    person("Leonel", "Sentana", , "leonelsentana@meta.com", c("aut")),
+    person("Igor", "Skokan", , "igorskokan@meta.com", c("aut")),
+    person("Bernardo", "Lares", , "bernardolares@meta.com", c("cre","aut")),
     person("Meta Platforms, Inc.", role = c("cph", "fnd")))
-Maintainer: Bernardo Lares <bernardolares@fb.com>
+Maintainer: Bernardo Lares <bernardolares@meta.com>
 Description: Semi-Automated Marketing Mix Modeling (MMM) aiming to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocation and diminishing returns curves and allows ground-truth calibration to account for causation.
 Depends:
     R (>= 4.0.0)

@@ -34,8 +34,7 @@ Meta's Robyn is MIT licensed, as found in the LICENSE file.
 
 ## Contact
 
-* gufeng@fb.com, Gufeng Zhou, Marketing Science Partner
-* leonelsentana@fb.com, Leonel Sentana, Marketing Science Partner
-* igorskokan@fb.com, Igor Skokan, Marketing Science Partner
-* bernardolares@fb.com, Bernardo Lares, Marketing Science Partner
-* kylegoldberg@fb.com, Kyle Goldberg, Marketing Science Partner
+* gufeng@meta.com, Gufeng Zhou, Marketing Science Partner
+* leonelsentana@meta.com, Leonel Sentana, Marketing Science Partner
+* igorskokan@meta.com, Igor Skokan, Marketing Science Partner
+* bernardolares@meta.com, Bernardo Lares, Marketing Science Partner

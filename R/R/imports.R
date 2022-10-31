@@ -14,10 +14,10 @@
 #' @md
 #' @name Robyn
 #' @docType package
-#' @author Gufeng Zhou (gufeng@@fb.com)
-#' @author Leonel Sentana (leonelsentana@@fb.com)
-#' @author Igor Skokan (igorskokan@@fb.com)
-#' @author Bernardo Lares (bernardolares@@fb.com)
+#' @author Gufeng Zhou (gufeng@@meta.com)
+#' @author Leonel Sentana (leonelsentana@@meta.com)
+#' @author Igor Skokan (igorskokan@@meta.com)
+#' @author Bernardo Lares (bernardolares@@meta.com)
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter

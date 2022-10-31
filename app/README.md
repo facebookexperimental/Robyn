@@ -28,6 +28,5 @@ robyn_learn()
 
 ## Contact
 
-* kylegoldberg@fb.com, Kyle Goldberg, Marketing Science Partner
-* rblinder@fb.com, Rotem Blinder, Marketing Science Partner
-* bernardolares@fb.com, Bernardo Lares, Marketing Science Partner
+* rblinder@meta.com, Rotem Blinder, Marketing Science Partner
+* bernardolares@meta.com, Bernardo Lares, Marketing Science Partner
