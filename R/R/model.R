@@ -1051,7 +1051,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   xDecompOut <- cbind(data.frame(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
   ## Decomp immediate & carryover response
-  coefs_media <- coefs[rownames(coefs) == names(dt_saturatedImmediate), ]
+  coefs_media <- coefs[rownames(coefs) %in% names(dt_saturatedImmediate), ]
   mediaDecompImmediate <- data.frame(mapply(function(regressor, coeff) {
     regressor * coeff
   }, regressor = dt_saturatedImmediate, coeff = coefs_media))
