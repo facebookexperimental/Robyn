@@ -12,7 +12,7 @@ robyn_calibrate <- function(calibration_input,
                             hypParamSam,
                             wind_start = 1,
                             wind_end = nrow(df_raw),
-                            adstock = "geometric") {
+                            adstock) {
   ds_wind <- df_raw$ds[wind_start:wind_end]
   include_study <- any(
     calibration_input$liftStartDate >= min(ds_wind) &
@@ -27,9 +27,9 @@ robyn_calibrate <- function(calibration_input,
     )
     split_channels <- strsplit(calibration_input$channel, split = "\\+")
 
-    for (l_study in 1:length(split_channels)) {
+    for (l_study in seq_along(split_channels)) {
       get_channels <- split_channels[[l_study]]
-      scope <- calibration_input$scope[[l_study]]
+      scope <- calibration_input$calibration_scope[[l_study]]
       study_start <- calibration_input$liftStartDate[[l_study]]
       study_end <- calibration_input$liftEndDate[[l_study]]
       study_pos <- which(df_raw$ds > study_start & df_raw$ds <= study_end)
