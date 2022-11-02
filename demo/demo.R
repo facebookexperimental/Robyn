@@ -311,7 +311,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 500, # 2000 recommended for the dummy dataset with no calibration
+  iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 1, # 5 recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )

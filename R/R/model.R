@@ -647,17 +647,25 @@ robyn_mmm <- function(InputCollect,
             dt_saturatedCarryover[is.na(dt_saturatedCarryover)] <- 0
 
             #####################################
-            #### Split and prepare data for modelling
+            #### Split train & test and prepare data for modelling
 
-            dt_train <- dt_modSaturated
+            dt_window <- dt_modSaturated
 
             ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
-            y_train <- dt_train$dep_var
-            if (length(which(grepl("^[0-9]", dt_train))) > 1) {
-              x_train <- model.matrix(dep_var ~ ., dt_train)[, -1]
+            y_window <- dt_window$dep_var
+            if (length(which(grepl("^[0-9]", dt_window))) > 1) {
+              x_window <- model.matrix(dep_var ~ ., dt_window)[, -1]
             } else {
-              x_train <- as.matrix(dt_train[, -1])
+              x_window <- as.matrix(dt_window[, -1])
             }
+
+            ## Split train and test sets
+            train_size <- hypParamSam[, "train_size"]
+            train_size_index <- floor(quantile(1:nrow(dt_window), train_size))
+            y_train <- y_window[1:train_size_index]
+            y_test <- y_window[(train_size_index + 1):length(y_window)]
+            x_train <- x_window[1:train_size_index, ]
+            x_test <- x_window[(train_size_index + 1):length(y_window), ]
 
             ## Define and set sign control
             dt_sign <- select(dt_modSaturated, -.data$dep_var)
@@ -728,6 +736,7 @@ robyn_mmm <- function(InputCollect,
             ## If no lift calibration, refit using best lambda
             mod_out <- model_refit(
               x_train, y_train,
+              x_test, y_test,
               lambda = lambda_scaled,
               lower.limits = lower.limits,
               upper.limits = upper.limits,
@@ -743,7 +752,7 @@ robyn_mmm <- function(InputCollect,
               dt_modRollWind = dt_modRollWind,
               refreshAddedStart = refreshAddedStart
             )
-            nrmse <- mod_out$nrmse_train
+            nrmse <- mod_out$nrmse_test
             mape <- 0
             df.int <- mod_out$df.int
 
@@ -1184,7 +1193,7 @@ calibrate_mmm <- function(calibration_input, df_media, dayInterval) {
 }
 
 
-model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
+model_refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
   mod <- glmnet(
     x_train,
     y_train,
@@ -1213,26 +1222,27 @@ model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, in
     df.int <- 0
   } # ; plot(mod); print(mod)
 
-  y_trainPred <- predict(mod, s = lambda, newx = x_train)
-  rsq_train <- get_rsq(true = y_train, predicted = y_trainPred, p = ncol(x_train), df.int = df.int)
+  y_train_pred <- as.vector(predict(mod, s = lambda, newx = x_train))
+  rsq_train <- get_rsq(true = y_train, predicted = y_train_pred, p = ncol(x_train), df.int = df.int)
+  y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
+  rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
+  y_pred <- c(y_train_pred, y_test_pred)
 
-  # y_testPred <- predict(mod, s = lambda, newx = x_test)
-  # rsq_test <- get_rsq(true = y_test, predicted = y_testPred); rsq_test
-
-  # mape_mod<- mean(abs((y_test - y_testPred)/y_test)* 100); mape_mod
+  # mape_mod<- mean(abs((y_test - y_test_pred)/y_test)* 100); mape_mod
   coefs <- as.matrix(coef(mod))
-  # y_pred <- c(y_trainPred, y_testPred)
 
-  # mean(y_train) sd(y_train)
-  nrmse_train <- sqrt(mean((y_train - y_trainPred)^2)) / (max(y_train) - min(y_train))
-  # nrmse_test <- sqrt(mean(sum((y_test - y_testPred)^2))) /
-  # (max(y_test) - min(y_test)) # mean(y_test) sd(y_test)
+  nrmse_train <- sqrt(mean((y_train - y_train_pred)^2)) / (max(y_train) - min(y_train))
+  nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
 
   mod_out <- list(
     rsq_train = rsq_train,
+    rsq_test = rsq_test,
     nrmse_train = nrmse_train,
+    nrmse_test = nrmse_test,
     coefs = coefs,
-    y_pred = as.vector(y_trainPred),
+    y_train_pred = y_train_pred,
+    y_test_pred = y_test_pred,
+    y_pred = c(y_train_pred, y_test_pred),
     mod = mod,
     df.int = df.int
   )
@@ -1267,7 +1277,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
   # Add lambda
-  hypParamSamName <- c(hypParamSamName, "lambda")
+  hypParamSamName <- c(hypParamSamName, "lambda", "train_size")
 
   # Add penalty factor hyper-parameters names
   for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
@@ -1285,9 +1295,14 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
       names(hyper_bound_list)[i] <- hypParamSamName[i]
     }
 
-    # Add unfixed lambda hyperparameters manually
+    # Add unfixed lambda hyperparameter manually
     if (length(hyper_bound_list[["lambda"]]) != 1) {
       hyper_bound_list$lambda <- c(0, 1)
+    }
+
+    # Add unfixed train_size hyperparameter manually
+    if (length(hyper_bound_list[["train_size"]]) != 1) {
+      hyper_bound_list$train_size <- c(0.5, 0.99)
     }
 
     # Add unfixed penalty.factor hyperparameters manually
