@@ -179,7 +179,7 @@ plot_saturation(plot = FALSE)
 # Run hyper_limits() to check maximum upper and lower bounds by range
 # Example hyperparameters ranges for Geometric adstock
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3),
+  facebook_S_alphas = c(0.5),
   facebook_S_gammas = c(0.3, 1),
   facebook_S_thetas = c(0, 0.3),
   print_S_alphas = c(0.5, 3),
@@ -308,8 +308,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   # cores = NULL, # default to max available
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
-  iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 5, # 5 recommended for the dummy dataset
+  iterations = 500, # 2000 recommended for the dummy dataset with no calibration
+  trials = 1, # 5 recommended for the dummy dataset
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)

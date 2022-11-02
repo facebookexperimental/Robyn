@@ -1313,7 +1313,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
       names(hyper_list_all)[i] <- hypParamSamName[i]
     }
 
-    dt_hyper_fixed_mod <- data.frame(unlist(lapply(hyper_bound_list_fixed, function(x) rep(x, cores))))
+    dt_hyper_fixed_mod <- data.frame(bind_cols(lapply(hyper_bound_list_fixed, function(x) rep(x, cores))))
   } else {
     hyper_bound_list_fixed <- list()
     for (i in seq_along(hypParamSamName)) {
