@@ -661,12 +661,12 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     for (m in seq_along(metrics)) {
       temp <- which(modNLSCollect[[names(metrics)[m]]] < threshold)
       if (length(temp) > 0) {
-        warning(sprintf(
-          "%s: weak relationship for %s and %s spend",
-          metrics[m],
-          v2t(modNLSCollect$channel[temp], and = "and"),
-          ifelse(length(temp) > 1, "their", "its")
-        ))
+        # warning(sprintf(
+        #   "%s: weak relationship for %s and %s spend",
+        #   metrics[m],
+        #   v2t(modNLSCollect$channel[temp], and = "and"),
+        #   ifelse(length(temp) > 1, "their", "its")
+        # ))
         final_print <- TRUE
         these <- modNLSCollect$channel[temp]
       }
@@ -678,7 +678,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
           "Threshold (Minimum R2) =", threshold,
           "\n  Check: InputCollect$plotNLSCollect outputs"
         ),
-        "\n  Check data on: ", v2t(these)
+        "\n  Weak relationship for: ", v2t(these) , "and their spend"
       )
     }
   }
@@ -889,14 +889,14 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   modLMSum <- summary(modLM)
   rsq_lm <- modLMSum$adj.r.squared
   if (is.na(rsq_lm)) stop("Please check if ", paid_media_var, " contains only 0s")
-  if (max(rsq_lm, rsq_nls) < 0.7) {
-    warning(paste(
-      "Spend-exposure fitting for", paid_media_var,
-      "has rsq = ", round(max(rsq_lm, rsq_nls), 4),
-      "To increase the fit, try splitting the variable.",
-      "Otherwise consider using spend instead."
-    ))
-  }
+  # if (max(rsq_lm, rsq_nls) < 0.7) {
+  #   warning(paste(
+  #     "Spend-exposure fitting for", paid_media_var,
+  #     "has rsq = ", round(max(rsq_lm, rsq_nls), 4),
+  #     "To increase the fit, try splitting the variable.",
+  #     "Otherwise consider using spend instead."
+  #   ))
+  # }
 
   output <- list(
     res = data.frame(
