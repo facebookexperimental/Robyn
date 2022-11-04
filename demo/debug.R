@@ -28,7 +28,7 @@ iterations = 100
 trials = 2
 calibration_input = NULL
 json_file = NULL
-#InputCollect = NULL
+InputCollect = NULL
 #hyperparameters = NULL
 
 ## debug robyn_run
@@ -126,14 +126,21 @@ dt_coef = xDecompAggPar
 ## debug robyn_refresh
 args(robyn_refresh)
 # robyn_object
-plot_folder_sub = NULL
+# json_file
+# robyn_object
 dt_input = dt_simulated_weekly
 dt_holidays = dt_prophet_holidays
-refresh_steps = 14
+refresh_steps = 13
 refresh_mode = "manual" # "auto", "manual"
 refresh_iters = 100
 refresh_trials = 2
 plot_pareto = TRUE
+plot_folder = NULL
+version_prompt = FALSE
+export = TRUE
+#calibration_input
+
+
 
 ## debug robyn_allocator
 args(robyn_allocator)

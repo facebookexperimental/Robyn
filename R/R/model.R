@@ -167,12 +167,14 @@ robyn_run <- function(InputCollect = NULL,
   }
   OutputModels[["vec_collect"]] <- vec_collect
 
-
+  # Not direct output & not all fixed hyppar
   if (!outputs & is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
-    output <- robyn_outputs(InputCollect, OutputModels, ...)
+    # Direct output & not all fixed hyppar, including refresh mode
+    output <- robyn_outputs(InputCollect, OutputModels, refresh = refresh, ...)
   } else {
+    # Direct output & all fixed hyppar, thus no cluster
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 

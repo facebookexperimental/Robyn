@@ -710,9 +710,9 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       c("", "...")
     )
     prophet_custom_args <- setdiff(names(custom_params), robyn_args)
-    if (length(prophet_custom_args) > 0) {
-      message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
-    }
+    # if (length(prophet_custom_args) > 0) {
+    #   message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
+    # }
 
     dt_transform <- prophet_decomp(
       dt_transform,
