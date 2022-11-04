@@ -648,8 +648,8 @@ check_dir <- function(plot_folder) {
   return(plot_folder)
 }
 
-check_calibconstr <- function(calibration_constraint, iterations, trials, calibration_input) {
-  if (!is.null(calibration_input)) {
+check_calibconstr <- function(calibration_constraint, iterations, trials, calibration_input, refresh) {
+  if (!is.null(calibration_input) & !refresh) {
     total_iters <- iterations * trials
     if (calibration_constraint < 0.01 || calibration_constraint > 0.1) {
       message("Input 'calibration_constraint' must be >= 0.01 and <= 0.1. Changed to default: 0.1")

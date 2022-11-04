@@ -59,6 +59,14 @@ robyn_pareto <- function(InputCollect, OutputModels,
         solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
       ))
     }
+  } else if (hyper_fixed & calibrated) {
+    df_names <- "resultCalibration"
+    for (df in df_names) {
+      assign(df, get(df) %>% mutate(
+        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+      ))
+    }
   }
 
   # If recreated model, inherit bootstrap results
@@ -120,10 +128,10 @@ robyn_pareto <- function(InputCollect, OutputModels,
       n_pareto <- resultHypParam %>%
         filter(!is.na(.data$robynPareto)) %>%
         nrow()
-      if (n_pareto <= min_candidates & nrow(resultHypParam) > 1) {
+      if (n_pareto <= min_candidates & nrow(resultHypParam) > 1 & !calibrated) {
         stop(paste(
           "Less than", min_candidates, "candidates in pareto fronts.",
-          "Increaseiterations to get more model candidates"
+          "Increase iterations to get more model candidates or decrease min_candidates in robyn_output()"
         ))
       }
       auto_pareto <- resultHypParam %>%

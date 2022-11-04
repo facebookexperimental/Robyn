@@ -33,6 +33,7 @@
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @param export Boolean. Export outcomes into local files?
 #' @param quiet Boolean. Keep messages off?
+#' @param refresh Boolean. Refresh mode
 #' @param ... Additional parameters passed to \code{robyn_clusters()}
 #' @return (Invisible) list. Class: \code{robyn_outputs}. Contains processed
 #' results based on \code{robyn_run()} results.
@@ -46,18 +47,23 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           clusters = TRUE,
                           select_model = "clusters",
                           ui = FALSE, export = TRUE,
-                          quiet = FALSE, ...) {
+                          quiet = FALSE,
+                          refresh = FALSE, ...) {
   if (is.null(plot_folder)) plot_folder <- getwd()
   plot_folder <- check_dir(plot_folder)
 
   # Check calibration constrains
   calibrated <- !is.null(InputCollect$calibration_input)
-  calibration_constraint <- check_calibconstr(
-    calibration_constraint,
-    OutputModels$iterations,
-    OutputModels$trials,
-    InputCollect$calibration_input
-  )
+  all_fixed <- length(OutputModels$trial1$hyperBoundFixed) == length(OutputModels$hyper_updated)
+  if (!all_fixed) {
+    calibration_constraint <- check_calibconstr(
+      calibration_constraint,
+      OutputModels$iterations,
+      OutputModels$trials,
+      InputCollect$calibration_input,
+      refresh = refresh
+    )
+  }
 
   #####################################
   #### Run robyn_pareto on OutputModels
