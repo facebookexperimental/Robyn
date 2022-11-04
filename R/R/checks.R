@@ -150,7 +150,7 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
   if (is.null(dt_holidays) || is.null(prophet_vars)) {
     return(invisible(NULL))
   } else {
-    opts <- c("trend", "season", "weekday", "holiday")
+    opts <- c("trend", "season", "monthly", "weekday", "holiday")
     if (!all(prophet_vars %in% opts)) {
       stop("Allowed values for 'prophet_vars' are: ", paste(opts, collapse = ", "))
     }

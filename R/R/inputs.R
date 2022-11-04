@@ -770,6 +770,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_trend <- "trend" %in% prophet_vars
   use_holiday <- "holiday" %in% prophet_vars
   use_season <- "season" %in% prophet_vars | "yearly.seasonality" %in% prophet_vars
+  use_monthly <- "monthly" %in% prophet_vars
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- bind_cols(recurrence, select(
@@ -791,6 +792,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   )
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
+  if (use_monthly) modelRecurrence <- prophet::add_seasonality(modelRecurrence, name='monthly', period=30.5, fourier.order=5)
 
   # dt_regressors <<- dt_regressors
   # modelRecurrence <<- modelRecurrence
@@ -821,12 +823,13 @@ prophet_decomp <- function(dt_transform, dt_holidays,
       # dt_regressors <<- dt_regressors
     }
     mod <- fit.prophet(modelRecurrence, dt_regressors)
-    forecastRecurrence <- predict(mod, dt_regressors)
+    forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
   }
 
   these <- seq_along(unlist(recurrence[,1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
   if (use_season) dt_transform$season <- forecastRecurrence$yearly[these]
+  if (use_monthly) dt_transform$monthly <- forecastRecurrence$monthly[these]
   if (use_weekday) dt_transform$weekday <- forecastRecurrence$weekly[these]
   if (use_holiday) dt_transform$holiday <- forecastRecurrence$holidays[these]
   return(dt_transform)
