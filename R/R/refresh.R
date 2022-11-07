@@ -246,8 +246,10 @@ robyn_refresh <- function(json_file = NULL,
     if (!is.null(calibration_input)) {
       calibration_input <- bind_rows(
         InputCollectRF$calibration_input %>%
-          mutate(liftStartDate = as.Date(.data$liftStartDate),
-                 liftEndDate = as.Date(.data$liftEndDate)), calibration_input
+          mutate(
+            liftStartDate = as.Date(.data$liftStartDate),
+            liftEndDate = as.Date(.data$liftEndDate)
+          ), calibration_input
       ) %>% distinct()
       ## Check calibration data
       calibration_input <- check_calibration(
@@ -278,7 +280,7 @@ robyn_refresh <- function(json_file = NULL,
 
     ## Refresh model with adjusted decomp.rssd
     # OutputCollectRF <- Robyn$listRefresh1$OutputCollect
-    if (is.null(InputCollectRF$calibration_input)){
+    if (is.null(InputCollectRF$calibration_input)) {
       rf_cal_constr <- listOutputPrev[["calibration_constraint"]]
     } else {
       rf_cal_constr <- 1
