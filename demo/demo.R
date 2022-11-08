@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.8.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.8.1    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -179,7 +179,7 @@ plot_saturation(plot = FALSE)
 # Run hyper_limits() to check maximum upper and lower bounds by range
 # Example hyperparameters ranges for Geometric adstock
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3),
+  facebook_S_alphas = c(0.5),
   facebook_S_gammas = c(0.3, 1),
   facebook_S_thetas = c(0, 0.3),
   print_S_alphas = c(0.5, 3),
@@ -228,17 +228,20 @@ print(InputCollect)
 # conversion lift) or geo-based (e.g. Facebook GeoLift). Due to the nature of treatment
 # and control groups in an experiment, the result is considered immediate effect. It's
 # rather impossible to hold off historical carryover effect in an experiment. Therefore,
-# only calibrates the immediate and the future carryover effect.
+# only calibrates the immediate and the future carryover effect. When calibrating with
+# causal experiments, use calibration_scope = "immediate".
 # 4. It's controversial to use attribution/MTA contribution to calibrate MMM. Attribution
 # is considered biased towards lower-funnel channels and strongly impacted by signal
-# quality.
-# 5. Currently, Robyn only accepts point-estimate as calibration input. For example, if
+# quality. When calibrating with MTA, use calibration_scope = "immediate".
+# 5. Every MMM is different. It's highly contextual if two MMMs are comparable or not.
+# In case of using other MMM result to calibrate Robyn, use calibration_scope = "total".
+# 6. Currently, Robyn only accepts point-estimate as calibration input. For example, if
 # 10k$ spend is tested against a hold-out for channel A, then input the incremental
 # return as point-estimate as the example below.
-# 6. The point-estimate has to always match the spend in the variable. For example, if
+# 7. The point-estimate has to always match the spend in the variable. For example, if
 # channel A usually has $100K weekly spend and the experimental holdout is 70%, input
 # the point-estimate for the $30K, not the $70K.
-# 7. If an experiment contains more than one media variable, input "channe_A+channel_B"
+# 8. If an experiment contains more than one media variable, input "channe_A+channel_B"
 # to indicate combination of channels, case sensitive.
 
 # calibration_input <- data.frame(

@@ -20,6 +20,7 @@ robyn_outputs(
   ui = FALSE,
   export = TRUE,
   quiet = FALSE,
+  refresh = FALSE,
   ...
 )
 
@@ -69,6 +70,8 @@ wish to plot the one-pagers and export? Default will take top
 \item{export}{Boolean. Export outcomes into local files?}
 
 \item{quiet}{Boolean. Keep messages off?}
+
+\item{refresh}{Boolean. Refresh mode}
 
 \item{...}{Additional parameters passed to \code{robyn_clusters()}}
 

@@ -90,6 +90,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
     stop("You must provide only 1 correct date variable name for 'date_var'")
   }
   dt_input <- data.frame(arrange(dt_input, as.factor(!!as.symbol(date_var))))
+  dt_input[, date_var] <- as.Date(dt_input[[date_var]], origin = "1970-01-01")
   date_var_dates <- c(
     as.Date(dt_input[, date_var][[1]], origin = "1970-01-01"),
     as.Date(dt_input[, date_var][[2]], origin = "1970-01-01")
@@ -97,7 +98,7 @@ check_datevar <- function(dt_input, date_var = "auto") {
   if (any(table(date_var_dates) > 1)) {
     stop("Date variable shouldn't have duplicated dates (panel data)")
   }
-  if (any(c(is.na(date_var_dates) || is.infinite(date_var_dates)))) {
+  if (any(is.na(date_var_dates)) || any(is.infinite(date_var_dates))) {
     stop("Dates in 'date_var' must have format '2020-12-31' and can't contain NA nor Inf values")
   }
   dayInterval <- as.integer(difftime(
@@ -485,15 +486,15 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
                               window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
     calibration_input <- as_tibble(as.data.frame(calibration_input))
-    these <- c("channel", "liftStartDate", "liftEndDate", "liftAbs")
+    these <- c("channel", "liftStartDate", "liftEndDate", "liftAbs", "spend", "confidence", "metric", "calibration_scope")
     if (!all(these %in% names(calibration_input))) {
-      stop("Input 'calibration_input' must contain columns: ", v2t(these))
+      stop("Input 'calibration_input' must contain columns: ", v2t(these), ". Check the demo script for instruction.")
     }
     if (!is.numeric(calibration_input$liftAbs) || any(is.na(calibration_input$liftAbs))) {
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
     all_media <- c(paid_media_spends, organic_vars)
-    cal_media <- unique(stringr::str_split(calibration_input$channel, "\\+|,|;|\\s"))
+    cal_media <- stringr::str_split(calibration_input$channel, "\\+|,|;|\\s")
     if (!all(unlist(cal_media) %in% all_media)) {
       these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
       stop(sprintf(
@@ -648,8 +649,8 @@ check_dir <- function(plot_folder) {
   return(plot_folder)
 }
 
-check_calibconstr <- function(calibration_constraint, iterations, trials, calibration_input) {
-  if (!is.null(calibration_input)) {
+check_calibconstr <- function(calibration_constraint, iterations, trials, calibration_input, refresh) {
+  if (!is.null(calibration_input) & !refresh) {
     total_iters <- iterations * trials
     if (calibration_constraint < 0.01 || calibration_constraint > 0.1) {
       message("Input 'calibration_constraint' must be >= 0.01 and <= 0.1. Changed to default: 0.1")

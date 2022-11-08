@@ -259,6 +259,11 @@ errors_scores <- function(df, balance = rep(1, 3)) {
   balance <- balance / sum(balance)
   scores <- df %>%
     select(all_of(error_cols)) %>%
+    mutate(
+      nrmse = ifelse(is.infinite(.data$nrmse), max(is.finite(.data$nrmse)), .data$nrmse),
+      decomp.rssd = ifelse(is.infinite(.data$decomp.rssd), max(is.finite(.data$decomp.rssd)), .data$decomp.rssd),
+      mape = ifelse(is.infinite(.data$mape), max(is.finite(.data$mape)), .data$mape)
+    ) %>%
     # Force normalized values so they can be comparable
     mutate(
       nrmse_n = .min_max_norm(.data$nrmse),

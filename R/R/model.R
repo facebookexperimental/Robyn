@@ -167,12 +167,14 @@ robyn_run <- function(InputCollect = NULL,
   }
   OutputModels[["vec_collect"]] <- vec_collect
 
-
+  # Not direct output & not all fixed hyppar
   if (!outputs & is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
-    output <- robyn_outputs(InputCollect, OutputModels, ...)
+    # Direct output & not all fixed hyppar, including refresh mode
+    output <- robyn_outputs(InputCollect, OutputModels, refresh = refresh, ...)
   } else {
+    # Direct output & all fixed hyppar, thus no cluster
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
@@ -1051,7 +1053,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   xDecompOut <- cbind(data.frame(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
   ## Decomp immediate & carryover response
-  coefs_media <- coefs[rownames(coefs) == names(dt_saturatedImmediate), ]
+  coefs_media <- coefs[rownames(coefs) %in% names(dt_saturatedImmediate), ]
   mediaDecompImmediate <- data.frame(mapply(function(regressor, coeff) {
     regressor * coeff
   }, regressor = dt_saturatedImmediate, coeff = coefs_media))
@@ -1133,56 +1135,6 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   )
   return(decompCollect)
 }
-
-calibrate_mmm <- function(calibration_input, df_media, dayInterval) {
-
-  ## Prep lift inputs
-  getLiftMedia <- unique(calibration_input$channel)
-  liftCollect <- list()
-
-  # Loop per lift channel
-  for (m in seq_along(getLiftMedia)) {
-    liftWhich <- which(calibration_input$channel == getLiftMedia[m])
-    liftCollect2 <- list()
-
-    # Loop per lift test per channel
-    for (lw in seq_along(liftWhich)) {
-
-      ## Get lift period subset
-      liftStart <- calibration_input$liftStartDate[liftWhich[lw]]
-      liftEnd <- calibration_input$liftEndDate[liftWhich[lw]]
-      df <- filter(df_media, .data$ds >= liftStart, .data$ds <= liftEnd)
-      cal_media <- unique(stringr::str_split(getLiftMedia[m], "\\+|,|;|\\s"))[[1]]
-      liftPeriodVec <- select(df, .data$ds, all_of(cal_media))
-      liftPeriodVecDependent <- select(df, .data$ds, .data$y)
-
-      ## Scale decomp
-      mmmDays <- nrow(liftPeriodVec) * dayInterval
-      liftDays <- as.integer(liftEnd - liftStart + 1)
-      # y_hatLift <- sum(unlist(df_media[, -1])) # Total pred sales
-      x_decompLift <- sum(liftPeriodVec[, 2:ncol(liftPeriodVec)])
-      x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
-      y_scaledLift <- sum(liftPeriodVecDependent$y) / mmmDays * liftDays
-
-      ## Output
-      liftCollect2[[lw]] <- data.frame(
-        liftMedia = getLiftMedia[m],
-        liftStart = liftStart,
-        liftEnd = liftEnd,
-        liftAbs = calibration_input$liftAbs[liftWhich[lw]],
-        decompAbsScaled = x_decompLiftScaled,
-        dependent = y_scaledLift
-      )
-    }
-    liftCollect[[m]] <- bind_rows(liftCollect2)
-  }
-
-  ## Get mape_lift -> Then MAPE = mean(mape_lift)
-  liftCollect <- bind_rows(liftCollect) %>%
-    mutate(mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs))
-  return(liftCollect)
-}
-
 
 model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
   mod <- glmnet(
@@ -1313,7 +1265,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
       names(hyper_list_all)[i] <- hypParamSamName[i]
     }
 
-    dt_hyper_fixed_mod <- data.frame(unlist(lapply(hyper_bound_list_fixed, function(x) rep(x, cores))))
+    dt_hyper_fixed_mod <- data.frame(bind_cols(lapply(hyper_bound_list_fixed, function(x) rep(x, cores))))
   } else {
     hyper_bound_list_fixed <- list()
     for (i in seq_along(hypParamSamName)) {

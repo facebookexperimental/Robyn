@@ -28,7 +28,7 @@ iterations = 100
 trials = 2
 calibration_input = NULL
 json_file = NULL
-#InputCollect = NULL
+InputCollect = NULL
 #hyperparameters = NULL
 
 ## debug robyn_run
@@ -74,6 +74,18 @@ quiet = FALSE
 ## debug model_decomp
 coefs = mod_out$coefs
 y_pred = mod_out$y_pred
+
+## debug robyn_calibrate
+# calibration_input = calibration_input
+df_raw = dt_mod
+#hypParamSam = hypParamSam
+wind_start = rollingWindowStartWhich
+wind_end = rollingWindowEndWhich
+dayInterval = InputCollect$dayInterval
+dt_modAdstocked = dt_modAdstocked
+#adstock = adstock
+xDecompVec = decompCollect$xDecompVec
+coefs = decompCollect$coefsOutCat
 
 
 ## debug robyn_outputs
@@ -125,15 +137,22 @@ dt_coef = xDecompAggPar
 
 ## debug robyn_refresh
 args(robyn_refresh)
+robyn_object = NULL
+# json_file
 # robyn_object
-plot_folder_sub = NULL
 dt_input = dt_simulated_weekly
 dt_holidays = dt_prophet_holidays
-refresh_steps = 14
+refresh_steps = 3
 refresh_mode = "manual" # "auto", "manual"
 refresh_iters = 100
 refresh_trials = 2
 plot_pareto = TRUE
+plot_folder = NULL
+version_prompt = FALSE
+export = TRUE
+#calibration_input
+
+
 
 ## debug robyn_allocator
 args(robyn_allocator)
