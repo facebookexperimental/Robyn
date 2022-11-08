@@ -1145,57 +1145,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   return(decompCollect)
 }
 
-calibrate_mmm <- function(calibration_input, df_media, dayInterval) {
-
-  ## Prep lift inputs
-  getLiftMedia <- unique(calibration_input$channel)
-  liftCollect <- list()
-
-  # Loop per lift channel
-  for (m in seq_along(getLiftMedia)) {
-    liftWhich <- which(calibration_input$channel == getLiftMedia[m])
-    liftCollect2 <- list()
-
-    # Loop per lift test per channel
-    for (lw in seq_along(liftWhich)) {
-
-      ## Get lift period subset
-      liftStart <- calibration_input$liftStartDate[liftWhich[lw]]
-      liftEnd <- calibration_input$liftEndDate[liftWhich[lw]]
-      df <- filter(df_media, .data$ds >= liftStart, .data$ds <= liftEnd)
-      cal_media <- unique(stringr::str_split(getLiftMedia[m], "\\+|,|;|\\s"))[[1]]
-      liftPeriodVec <- select(df, .data$ds, all_of(cal_media))
-      liftPeriodVecDependent <- select(df, .data$ds, .data$y)
-
-      ## Scale decomp
-      mmmDays <- nrow(liftPeriodVec) * dayInterval
-      liftDays <- as.integer(liftEnd - liftStart + 1)
-      # y_hatLift <- sum(unlist(df_media[, -1])) # Total pred sales
-      x_decompLift <- sum(liftPeriodVec[, 2:ncol(liftPeriodVec)])
-      x_decompLiftScaled <- x_decompLift / mmmDays * liftDays
-      y_scaledLift <- sum(liftPeriodVecDependent$y) / mmmDays * liftDays
-
-      ## Output
-      liftCollect2[[lw]] <- data.frame(
-        liftMedia = getLiftMedia[m],
-        liftStart = liftStart,
-        liftEnd = liftEnd,
-        liftAbs = calibration_input$liftAbs[liftWhich[lw]],
-        decompAbsScaled = x_decompLiftScaled,
-        dependent = y_scaledLift
-      )
-    }
-    liftCollect[[m]] <- bind_rows(liftCollect2)
-  }
-
-  ## Get mape_lift -> Then MAPE = mean(mape_lift)
-  liftCollect <- bind_rows(liftCollect) %>%
-    mutate(mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs))
-  return(liftCollect)
-}
-
-
-model_refit <- function(x_train, y_train, x_test, y_test, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
+model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
   mod <- glmnet(
     x_train,
     y_train,
