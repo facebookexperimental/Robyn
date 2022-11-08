@@ -75,6 +75,18 @@ quiet = FALSE
 coefs = mod_out$coefs
 y_pred = mod_out$y_pred
 
+## debug robyn_calibrate
+# calibration_input = calibration_input
+df_raw = dt_mod
+#hypParamSam = hypParamSam
+wind_start = rollingWindowStartWhich
+wind_end = rollingWindowEndWhich
+dayInterval = InputCollect$dayInterval
+dt_modAdstocked = dt_modAdstocked
+#adstock = adstock
+xDecompVec = decompCollect$xDecompVec
+coefs = decompCollect$coefsOutCat
+
 
 ## debug robyn_outputs
 args(robyn_outputs)
