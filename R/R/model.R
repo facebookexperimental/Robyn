@@ -556,8 +556,8 @@ robyn_mmm <- function(InputCollect,
           }
 
           ########### Parallel start
-          nrmse.collect <- c()
-          decomp.rssd.collect <- c()
+          nrmse.collect <- NULL
+          decomp.rssd.collect <- NULL
 
           best_mape <- Inf
 
