@@ -32,8 +32,12 @@ robyn_calibrate <- function(calibration_input,
       scope <- calibration_input$calibration_scope[[l_study]]
       study_start <- calibration_input$liftStartDate[[l_study]]
       study_end <- calibration_input$liftEndDate[[l_study]]
-      study_pos <- which(df_raw$ds > study_start & df_raw$ds <= study_end)
-      calib_pos <- c(min(study_pos) - 1, study_pos)
+      study_pos <- which(df_raw$ds >= study_start & df_raw$ds <= study_end)
+      if (study_start %in% df_raw$ds) {
+        calib_pos <- study_pos
+      } else {
+        calib_pos <- c(min(study_pos) - 1, study_pos)
+      }
       calibrate_dates <- df_raw[calib_pos, "ds"][[1]]
       calib_pos_rw <- which(xDecompVec$ds %in% calibrate_dates)
 
