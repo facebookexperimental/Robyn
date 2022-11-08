@@ -112,7 +112,6 @@ robyn_refresh <- function(json_file = NULL,
                           ...) {
   refreshControl <- TRUE
   while (refreshControl) {
-
     ## Check for NA values
     check_nas(dt_input)
     check_nas(dt_holidays)

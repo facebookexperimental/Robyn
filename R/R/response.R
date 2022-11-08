@@ -88,7 +88,6 @@ robyn_response <- function(InputCollect = NULL,
                            dt_coef = NULL,
                            quiet = FALSE,
                            ...) {
-
   ## Get input
 
   ### Use previously exported model using json_file

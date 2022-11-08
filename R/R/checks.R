@@ -108,11 +108,9 @@ check_datevar <- function(dt_input, date_var = "auto") {
   ))
   intervalType <- if (dayInterval == 1) {
     "day"
-  } else
-  if (dayInterval == 7) {
+  } else if (dayInterval == 7) {
     "week"
-  } else
-  if (dayInterval %in% 28:31) {
+  } else if (dayInterval %in% 28:31) {
     "month"
   } else {
     stop(paste(date_var, "data has to be daily, weekly or monthly"))

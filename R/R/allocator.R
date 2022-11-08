@@ -114,7 +114,6 @@ robyn_allocator <- function(robyn_object = NULL,
                             quiet = FALSE,
                             ui = FALSE,
                             ...) {
-
   #####################################
   #### Set local environment
 
@@ -450,7 +449,6 @@ Allocation Summary:
 plot.robyn_allocator <- function(x, ...) plot(x$plots$plots, ...)
 
 eval_f <- function(X) {
-
   # eval_list <- get("eval_list", pos = as.environment(-1))
   eval_list <- getOption("ROBYN_TEMP")
   # mm_lm_coefs <- eval_list[["mm_lm_coefs"]]

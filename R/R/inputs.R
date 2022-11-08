@@ -173,7 +173,6 @@ robyn_inputs <- function(dt_input = NULL,
                          json_file = NULL,
                          InputCollect = NULL,
                          ...) {
-
   ### Use case 3: running robyn_inputs() with json_file
   if (!is.null(json_file)) {
     json <- robyn_read(json_file, step = 1, ...)

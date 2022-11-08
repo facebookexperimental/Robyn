@@ -33,7 +33,6 @@ robyn_write <- function(InputCollect,
                         dir = OutputCollect$plot_folder,
                         export = TRUE,
                         quiet = FALSE, ...) {
-
   # Checks
   stopifnot(inherits(InputCollect, "robyn_inputs"))
   if (!is.null(OutputCollect)) {
