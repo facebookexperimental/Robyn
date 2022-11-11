@@ -248,7 +248,7 @@ server <- function(input, output, session) {
           })
         }
       } else {
-        lapply(1:seq_along(isolate(input_reactive$paid_media_vars)), function(i) {
+        lapply(seq_along(isolate(input_reactive$paid_media_vars)), function(i) {
           fluidRow(column(
             width = 8,
             splitLayout(
