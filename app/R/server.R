@@ -1618,10 +1618,10 @@ server <- function(input, output, session) {
           }
           names(vals) <- names_l
           input_reactive$hyp_org <- c(input_reactive$hyp_org, vals)
-          input_reactive$hyperparameters <- c(input_reactive$hyperparameters, input_reactive$hyp_org)
+          # input_reactive$hyperparameters <- c(input_reactive$hyperparameters, input_reactive$hyp_org)
         })
       }
-      input_reactive$hyperparameters <- c(input_reactive$hyperparameters, input_reactive$hyp_paid)
+      input_reactive$hyperparameters <- c(input_reactive$hyp_org, input_reactive$hyp_paid)
     }
   })
 
