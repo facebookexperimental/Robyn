@@ -309,7 +309,7 @@ if (length(InputCollect$exposure_vars) > 0) {
 ## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
-  # cores = NULL, # default to max available
+  cores = NULL, # NULL defaults to max available - 1
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset

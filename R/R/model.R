@@ -892,19 +892,19 @@ robyn_mmm <- function(InputCollect,
             return(resultCollect)
           }
 
-          doparCollect <- suppressPackageStartupMessages(
-            if (cores == 1) {
-              for (i in 1:iterPar) doparFx(i)
+          if (cores == 1) {
+            doparCollect <- lapply(1:iterPar, doparFx)
+          } else {
+            # Create cluster to minimize overhead for parallel back-end registering
+            if (check_parallel() && !hyper_fixed) {
+              registerDoParallel(cores)
             } else {
-              # Create cluster to minimize overhead for parallel back-end registering
-              if (check_parallel() && !hyper_fixed) {
-                registerDoParallel(cores)
-              } else {
-                registerDoSEQ()
-              }
-              foreach(i = 1:iterPar) %dorng% doparFx(i)
+              registerDoSEQ()
             }
-          )
+            suppressPackageStartupMessages(
+              doparCollect <- foreach(i = 1:iterPar) %dorng% doparFx(i)
+            )
+          }
 
           nrmse.collect <- unlist(lapply(doparCollect, function(x) x$nrmse))
           decomp.rssd.collect <- unlist(lapply(doparCollect, function(x) x$decomp.rssd))
