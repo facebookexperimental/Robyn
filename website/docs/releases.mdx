@@ -5,9 +5,8 @@ title: Releases
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
-## 3.8.0
-2022-10-27
-Bootstrapped CI, Immediate vs Carryover, Multi-channel calibration
+## 3.8.0 (2022-10-27)
+### Bootstrapped CI, Immediate vs Carryover, Multi-channel calibration
 
 - **Feat:** Added in-cluster bootstrapped confidence intervals (CI) for ROAS and CPA. We treat each cluster of Pareto-optimal model candidates as a sample from a local optimum of the entire population. Default parameters can be customized manually with `boot_n` and `sim_n` arguments.
 - **Feat:** New `robyn_calibrate()` function that replaces  previous un-exported function `calibrate_mmm()`. The new calibration method is able to separate immediate & carryover effects. When calibrating using experimental results, only the immediate response and its future carryover serve as a calibration target, as opposed to previously the total response. The historical response is excluded from calibration.
@@ -21,9 +20,9 @@ Bootstrapped CI, Immediate vs Carryover, Multi-channel calibration
 
 **Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.7.2...v3.8.0
 
-## 3.7.2
-2022-09-01
-CRAN update, partial results, more reproducibility
+---
+## 3.7.2 (2022-09-01)
+### CRAN update, partial results, more reproducibility
 
 - **Feat**: wrap `robyn_mmm()` with a `tryCatch()` to return partial results if the function crashes after a certain time running and warns the user when this happens
 - **Feat**: auto-detect categorical variables (no need to set `factor_vars` parameter in `robyn_inputs()`)
@@ -40,9 +39,9 @@ CRAN update, partial results, more reproducibility
 
 **Full Changelog since last CRAN update**: https://github.com/facebookexperimental/Robyn/compare/v3.6.3...v3.7.2
 
-## 3.7.1
-2022-08-26
-JSON import/export, reactivate spend exposure fitting Latest
+---
+## 3.7.1 (2022-08-26)
+### JSON import/export, reactivate spend exposure fitting Latest
 
 - **Feat**: new `robyn_read()` and `robyn_write()` functions to save and load Robyn models in a transparent, flexible, and cost-efficient way using JSON instead of RDS files (read [more](https://www.facebook.com/groups/robynmmm/posts/1252761488825315/)); also, new `print` methods for both objects containing the most relevant information
 -  **Feat**: new `robyn_recreate()` to rebuild any model's `InputCollect` and `OutputCollect` objects based on their JSON files and data
@@ -60,9 +59,9 @@ JSON import/export, reactivate spend exposure fitting Latest
 
 **Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.7.0...v3.7.1
 
-## 3.7.0
-07-27-2022
-Total recoding, UX feats, and combined errors fix
+---
+## 3.7.0 (2022-07-27)
+### Total recoding, UX feats, and combined errors fix
 
 - **Recode**: got rid of data.table dependency for r2py wrapper and removed all `globalVariables` associated noise
 - **Recode**: all code is now clean and formatted under the tidyverse code style for better code reading and standardization
@@ -81,9 +80,9 @@ Total recoding, UX feats, and combined errors fix
 
 **Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.6.3...v3.7.0
 
-## 3.6.3
-06-5-2022
-CRAN Version, Site & Documentation Revamp, More Inputs Flexibility...
+---
+## 3.6.3 (2022-05-06)
+### CRAN Version, Site & Documentation Revamp, More Inputs Flexibility
 
 * **CRAN**: First Robyn version available via CRAN. From now on, install CRAN's for stable version, GitHub's for dev version.
 * **Docs**: Site revamp [#372](https://github.com/facebookexperimental/Robyn/pull/372), documentation updates and demo enrichment
@@ -98,11 +97,10 @@ CRAN Version, Site & Documentation Revamp, More Inputs Flexibility...
 
 **Full Changelog**: (https://github.com/facebookexperimental/Robyn/compare/v3.6.2...v3.6.3)
 
-## 3.6.2
-31-3-2022
-Allocation and plot improvements, new warnings, bugs fixed
+---
+## 3.6.2 (2022-03-31)
+### Allocation and plot improvements, new warnings, bugs fixed
 
-Relevant changes on v3.6.2:
 - **Viz**: removed redundant information on plots and standardized styles and contents on all visualizations.
 - **Feat**: new `date_min` and `date_max` parameters on `robyn_allocator()` to pick specific date range to consider mean spend values ([user request](https://www.facebook.com/groups/robynmmm/permalink/1072870463481086)).
 - **Feat**: new `plot` methods for `robyn_allocator()` and `robyn_save()` outputs, and `print` method for `robyn_inputs()` with and without hyperparameters.
@@ -115,11 +113,7 @@ Relevant changes on v3.6.2:
 **Full Changelog**:https://github.com/facebookexperimental/Robyn/compare/v3.6.0...v3.6.2
 
 ---
-
-## 3.6.0
-22-2-2022
-
-What's New in v3.6.0
+## 3.6.0 (2022-02-22)
 
 - New **hyperparameter "lambda"** finds MOO-optimal lambda and thus removes the need of manual lambda selection.
 - New optional **hyperparameter `penalty.factor`** that further extends hyperparameter spaces and thus potentially better fit.
@@ -130,5 +124,3 @@ What's New in v3.6.0
 - New **print methods** for `robyn_inputs()`, `robyn_run()`, `robyn_outputs()`, and `robyn_allocator()` outputs to enable visibility on each step's results and objects content.
 
 **Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.5.1...v3.6.0
-
----
