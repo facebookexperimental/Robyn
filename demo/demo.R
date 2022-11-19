@@ -343,6 +343,10 @@ print(OutputCollect)
 # pareto_media_transform_matrix.csv, all media transformation vectors
 # pareto_alldecomp_matrix.csv, all decomposition vectors of independent variables
 
+## MacOS Only: If vector memory exhaused, increase physical and virtual memory allocation
+# install.packages("usethis")
+# library(usethis)
+# usethis::edit_r_environ() # Once a new R studio tab opens, add this to the first line: R_MAX_VSIZE=100Gb
 
 ################################################################
 #### Step 4: Select and save the any model
