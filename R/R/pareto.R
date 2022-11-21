@@ -231,7 +231,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
     for (sid in uniqueSol) {
       # parallelResult <- foreach(sid = uniqueSol) %dorng% {
-      if (!quiet) lares::statusbar(which(sid == uniqueSol), length(uniqueSol), type = "arrow")
+      if (!quiet) lares::statusbar(which(sid == uniqueSol), length(uniqueSol), type = "equal")
 
       # Calculations for pareto AND pareto plots
 
