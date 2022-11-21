@@ -156,12 +156,13 @@ robyn_run <- function(InputCollect = NULL,
   vec_collect <- list()
   for (i in vec_dfs) {
     vec_collect[[i]] <- bind_rows(
-      mapply(function(res, tr) {
-        res$resultCollect[[i]] %>%
-          mutate(trial = tr) %>%
-          mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
-      },
-      res = temp, tr = 1:trials, SIMPLIFY = FALSE
+      mapply(
+        function(res, tr) {
+          res$resultCollect[[i]] %>%
+            mutate(trial = tr) %>%
+            mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
+        },
+        res = temp, tr = 1:trials, SIMPLIFY = FALSE
       )
     )
   }
@@ -304,7 +305,6 @@ robyn_train <- function(InputCollect, hyper_collect,
       )
     }
   } else {
-
     ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
     check_init_msg(InputCollect, cores)
 
@@ -558,8 +558,8 @@ robyn_mmm <- function(InputCollect,
           }
 
           ########### Parallel start
-          nrmse.collect <- c()
-          decomp.rssd.collect <- c()
+          nrmse.collect <- NULL
+          decomp.rssd.collect <- NULL
 
           best_mape <- Inf
 
@@ -786,12 +786,13 @@ robyn_mmm <- function(InputCollect,
                 .data$xDecompMeanNon0, .data$xDecompPercRF, .data$xDecompMeanNon0PercRF,
                 .data$xDecompMeanNon0RF
               ) %>%
-              left_join(select(
-                dt_spendShare,
-                .data$rn, .data$spend_share, .data$spend_share_refresh,
-                .data$mean_spend, .data$total_spend
-              ),
-              by = "rn"
+              left_join(
+                select(
+                  dt_spendShare,
+                  .data$rn, .data$spend_share, .data$spend_share_refresh,
+                  .data$mean_spend, .data$total_spend
+                ),
+                by = "rn"
               ) %>%
               mutate(
                 effect_share = .data$xDecompPerc / sum(.data$xDecompPerc),
@@ -900,19 +901,19 @@ robyn_mmm <- function(InputCollect,
             return(resultCollect)
           }
 
-          doparCollect <- suppressPackageStartupMessages(
-            if (cores == 1) {
-              for (i in 1:iterPar) doparFx(i)
+          if (cores == 1) {
+            doparCollect <- lapply(1:iterPar, doparFx)
+          } else {
+            # Create cluster to minimize overhead for parallel back-end registering
+            if (check_parallel() && !hyper_fixed) {
+              registerDoParallel(cores)
             } else {
-              # Create cluster to minimize overhead for parallel back-end registering
-              if (check_parallel() && !hyper_fixed) {
-                registerDoParallel(cores)
-              } else {
-                registerDoSEQ()
-              }
-              foreach(i = 1:iterPar) %dorng% doparFx(i)
+              registerDoSEQ()
             }
-          )
+            suppressPackageStartupMessages(
+              doparCollect <- foreach(i = 1:iterPar) %dorng% doparFx(i)
+            )
+          }
 
           nrmse.collect <- unlist(lapply(doparCollect, function(x) x$nrmse))
           decomp.rssd.collect <- unlist(lapply(doparCollect, function(x) x$decomp.rssd))
@@ -1044,7 +1045,6 @@ robyn_mmm <- function(InputCollect,
 
 model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
                          dt_saturatedCarryover, i, dt_modRollWind, refreshAddedStart) {
-
   ## Input for decomp
   y <- dt_modSaturated$dep_var
   # x <- data.frame(x)
@@ -1224,7 +1224,6 @@ lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
 }
 
 hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper_fixed = NULL, cores) {
-
   # Fetch hyper-parameters based on media
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
@@ -1239,7 +1238,6 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   all_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
 
   if (!all_fixed) {
-
     # Collect media hyperparameters
     hyper_bound_list <- list()
     for (i in seq_along(hypParamSamName)) {

@@ -155,29 +155,51 @@ robyn_pareto <- function(InputCollect, OutputModels,
     respN <- NULL
   }
 
-  resp_collect <- foreach(
-    respN = seq_along(decompSpendDistPar$rn), .combine = rbind
-  ) %dorng% {
-    get_resp <- robyn_response(
-      media_metric = decompSpendDistPar$rn[respN],
-      select_model = decompSpendDistPar$solID[respN],
-      metric_value = decompSpendDistPar$mean_spend[respN],
-      dt_hyppar = resultHypParamPar,
-      dt_coef = xDecompAggPar,
-      InputCollect = InputCollect,
-      OutputCollect = OutputModels,
-      quiet = quiet
-    )$response
-    dt_resp <- data.frame(
-      mean_response = get_resp,
-      rn = decompSpendDistPar$rn[respN],
-      solID = decompSpendDistPar$solID[respN]
-    )
-    return(dt_resp)
+  if (OutputModels$cores > 1) {
+    resp_collect <- foreach(
+      respN = seq_along(decompSpendDistPar$rn), .combine = rbind
+    ) %dorng% {
+      get_resp <- robyn_response(
+        media_metric = decompSpendDistPar$rn[respN],
+        select_model = decompSpendDistPar$solID[respN],
+        metric_value = decompSpendDistPar$mean_spend[respN],
+        dt_hyppar = resultHypParamPar,
+        dt_coef = xDecompAggPar,
+        InputCollect = InputCollect,
+        OutputCollect = OutputModels,
+        quiet = quiet
+      )$response
+      dt_resp <- data.frame(
+        mean_response = get_resp,
+        rn = decompSpendDistPar$rn[respN],
+        solID = decompSpendDistPar$solID[respN]
+      )
+      return(dt_resp)
+    }
+    stopImplicitCluster()
+    registerDoSEQ()
+    getDoParWorkers()
+  } else {
+    resp_collect <- lapply(seq_along(decompSpendDistPar$rn), function(respN) {
+      get_resp <- robyn_response(
+        media_metric = decompSpendDistPar$rn[respN],
+        select_model = decompSpendDistPar$solID[respN],
+        metric_value = decompSpendDistPar$mean_spend[respN],
+        dt_hyppar = resultHypParamPar,
+        dt_coef = xDecompAggPar,
+        InputCollect = InputCollect,
+        OutputCollect = OutputModels,
+        quiet = quiet
+      )$response
+      dt_resp <- data.frame(
+        mean_response = get_resp,
+        rn = decompSpendDistPar$rn[respN],
+        solID = decompSpendDistPar$solID[respN]
+      )
+      return(dt_resp)
+    })
+    resp_collect <- bind_rows(resp_collect)
   }
-  stopImplicitCluster()
-  registerDoSEQ()
-  getDoParWorkers()
 
   decompSpendDist <- left_join(
     decompSpendDist,

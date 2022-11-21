@@ -179,7 +179,7 @@ plot_saturation(plot = FALSE)
 # Run hyper_limits() to check maximum upper and lower bounds by range
 # Example hyperparameters ranges for Geometric adstock
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5),
+  facebook_S_alphas = c(0.5, 3),
   facebook_S_gammas = c(0.3, 1),
   facebook_S_thetas = c(0, 0.3),
   print_S_alphas = c(0.5, 3),
@@ -309,7 +309,7 @@ if (length(InputCollect$exposure_vars) > 0) {
 ## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
-  # cores = NULL, # default to max available
+  cores = NULL, # NULL defaults to max available - 1
   # add_penalty_factor = FALSE, # Untested feature. Use with caution.
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
@@ -329,6 +329,7 @@ OutputCollect <- robyn_outputs(
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
+  # min_candidates = 100, # top pareto models for clustering. default to 100
   plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
   plot_folder = robyn_object, # path for plots export
   export = TRUE # this will create files locally

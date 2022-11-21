@@ -248,7 +248,7 @@ server <- function(input, output, session) {
           })
         }
       } else {
-        lapply(1:seq_along(isolate(input_reactive$paid_media_vars)), function(i) {
+        lapply(seq_along(isolate(input_reactive$paid_media_vars)), function(i) {
           fluidRow(column(
             width = 8,
             splitLayout(
@@ -351,7 +351,9 @@ server <- function(input, output, session) {
       input_reactive$factor_vars <- NULL
 
       if (isolate(input$num_media) >= 1) {
+        message(">>> Processing media")
         lapply(1:isolate(input$num_media), function(m) {
+          x <<- input[[paste0("media_var_impr_", toString(m))]]
           if (isolate(input[[paste0("media_var_impr_", toString(m))]]) != "") {
             input_reactive$paid_media_vars <- c(input_reactive$paid_media_vars, isolate(input[[paste0("media_var_impr_", toString(m))]]))
             input_reactive$paid_media_signs <- c(input_reactive$paid_media_signs, "positive")
@@ -362,6 +364,7 @@ server <- function(input, output, session) {
         })
       }
       if (isolate(input$num_context) >= 1) {
+        message(">>> Processing context")
         lapply(1:isolate(input$num_context), function(r) {
           input_reactive$context_vars <- c(input_reactive$context_vars, isolate(input[[paste0("baseline_var_name_", toString(r))]]))
           input_reactive$context_signs <- c(input_reactive$context_signs, isolate(input[[paste0("baseline_var_name_sign_", toString(r))]]))
@@ -372,6 +375,7 @@ server <- function(input, output, session) {
         input_reactive$factor_vars <- input_reactive$context_vars[which(input_reactive$baseline_var_names_factor_bool_list == TRUE)]
       }
       if (isolate(input$num_organic_media) >= 1) {
+        message(">>> Processing organic_media")
         lapply(1:isolate(input$num_organic_media), function(x) {
           if (isolate(input[[paste0("org_media_var_impr_", toString(x))]]) != "") {
             input_reactive$organic_vars <- c(input_reactive$organic_vars, isolate(input[[paste0("org_media_var_impr_", toString(x))]]))
@@ -381,13 +385,13 @@ server <- function(input, output, session) {
       }
 
       input_reactive$med_vars_impr_in_cols <- ifelse(length(intersect(input_reactive$paid_media_vars, colnames(input_reactive$tbl))) ==
-        length(unique(input_reactive$paid_media_vars)), T, F)
+        length(unique(input_reactive$paid_media_vars)), TRUE, FALSE)
       input_reactive$med_vars_spend_in_cols <- ifelse(length(intersect(input_reactive$paid_media_spends, colnames(input_reactive$tbl))) ==
-        length(unique(input_reactive$paid_media_spends)), T, F)
+        length(unique(input_reactive$paid_media_spends)), TRUE, FALSE)
       input_reactive$org_med_vars_in_cols <- ifelse(length(intersect(input_reactive$organic_vars, colnames(input_reactive$tbl))) ==
-        length(unique(input_reactive$organic_vars)), T, F)
+        length(unique(input_reactive$organic_vars)), TRUE, FALSE)
       input_reactive$baseline_vars_in_cols <- ifelse(length(intersect(input_reactive$context_vars, as.list(colnames(input_reactive$tbl)))) ==
-        length(unique(input_reactive$context_vars)), T, F)
+        length(unique(input_reactive$context_vars)), TRUE, FALSE)
 
       tryCatch(input_reactive$date_transf_data <- {
         datetrasf <- (isolate(input_reactive$tbl) %>%
@@ -410,7 +414,7 @@ server <- function(input, output, session) {
       }
       )
 
-
+      message(">>> Checking inputs...")
       if ((is.null(isolate(input$data_file)) == FALSE) &
         (is.null(isolate(input$holiday_file)) == FALSE) &
         ((isolate(input$dep_var) == "") == FALSE) &
@@ -430,7 +434,7 @@ server <- function(input, output, session) {
         (input_reactive$tbl %>% select(c(
           input_reactive$paid_media_vars, input_reactive$organic_vars,
           isolate(input$dep_var)
-        )) %>% unlist(lapply(is.numeric) %>% all() == TRUE)) & # force numeric paid media vars and dep var
+        )) %>% sapply(is.numeric) %>% all() == TRUE) & # force numeric paid media vars and dep var
         (input_reactive$med_vars_impr_in_cols == TRUE) &
         (input_reactive$med_vars_spend_in_cols == TRUE) &
         (input_reactive$org_med_vars_in_cols == TRUE) &
@@ -449,7 +453,7 @@ server <- function(input, output, session) {
           easyClose = TRUE,
           footer = NULL
         ))
-        "Input Succesful - Please click anywhere on the screen to proceed."
+        message("Inputs processed succesfully!")
       } else {
         error_message <- NULL
         if (is.null(isolate(input$data_file)) == TRUE) {
@@ -494,21 +498,21 @@ server <- function(input, output, session) {
         if (input_reactive$baseline_vars_in_cols == FALSE) {
           error_message <- paste(error_message, "At least 1 column name in the input baseline variable column names does not match the column names in the data. Remember they must be input case-sensitive.", sep = "<br><br>")
         }
-        if (input_reactive$tbl %>% select(input_reactive$paid_media_vars) %>% unlist(lapply(is.numeric)) %>% all() == FALSE) {
+        if (input_reactive$tbl %>% select(input_reactive$paid_media_vars) %>% sapply(is.numeric) %>% all() == FALSE) {
           error_message <- paste(error_message, 'At least 1 paid media variable column is not of the type NUMERIC - ensure that any non-numeric characters are removed from all paid media columns (e.g. "$", ",")', sep = "<br><br>")
         }
         if (input$num_organic_media > 0) {
-          if (input_reactive$tbl %>% select(input_reactive$organic_media_vars) %>% unlist(lapply(is.numeric)) %>% all() == FALSE) {
+          if (input_reactive$tbl %>% select(input_reactive$organic_media_vars) %>% sapply(is.numeric) %>% all() == FALSE) {
             error_message <- paste(error_message, 'At least 1 Organic media variable column is not of the type NUMERIC - ensure that any non-numeric characters are removed from all paid media columns (e.g. "$", ",")', sep = "<br><br>")
           }
         }
-        if (input_reactive$tbl %>% select(isolate(input$dep_var)) %>% unlist(lapply(is.numeric)) %>% all() == FALSE) {
+        if (input_reactive$tbl %>% select(isolate(input$dep_var)) %>% sapply(is.numeric) %>% all() == FALSE) {
           error_message <- paste(error_message, 'Dependent variable column is not of the type NUMERIC - ensure that any non-numeric characters are removed from the dependent variable column (e.g. "$", ",")', sep = "<br><br>")
         }
         if (input_reactive$tbl %>% is.na() %>% any() == TRUE) {
           error_message <- paste(error_message, "Dataset has <NA> or missing values. These values must be removed or fixed for the model to properly run. Please investigate row number(s) - ", paste(which(rowSums(is.na(input_reactive$tbl)) > 0), collapse = ", "), sep = "<br><br>")
         }
-
+        message(">>> Failed to process inputs:\n", error_message)
         showModal(modalDialog(
           title = HTML(paste("<b>Variable Inputs not saved due to errors -</b>", error_message, sep = "<br>")),
           easyClose = TRUE,
@@ -1614,10 +1618,10 @@ server <- function(input, output, session) {
           }
           names(vals) <- names_l
           input_reactive$hyp_org <- c(input_reactive$hyp_org, vals)
-          input_reactive$hyperparameters <- c(input_reactive$hyperparameters, input_reactive$hyp_org)
+          # input_reactive$hyperparameters <- c(input_reactive$hyperparameters, input_reactive$hyp_org)
         })
       }
-      input_reactive$hyperparameters <- c(input_reactive$hyperparameters, input_reactive$hyp_paid)
+      input_reactive$hyperparameters <- c(input_reactive$hyp_org, input_reactive$hyp_paid)
     }
   })
 

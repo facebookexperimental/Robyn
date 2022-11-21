@@ -39,6 +39,7 @@
 # $ boot_se: Numeric. Standard error of bootstrapped in-cluster CI
 # $ ci_low: Numeric. Lower bound of bootstrapped in-cluster CI adapted for the sample
 # $ ci_up: Numeric. Lower bound of bootstrapped in-cluster CI adapted for the sample
+# $ carryover_pct: Numeric. Share of carryover response from total. 0.7 means 70% of total response comes from carryover.
 
 #### pareto_hyperparameters.csv: Value of all hyperparameters of all pareto models. Number of column varies depending on input data
 

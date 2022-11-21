@@ -140,8 +140,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
       thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
       x.prod <- x.vec * thetaVecCumLag
       return(x.prod)
-    }, x_val = x, x_pos = x_bin[1:length(x)])
-    x_decayed <- rowSums(x_decayed)[1:length(x)]
+    }, x_val = x, x_pos = x_bin[seq_along(x)])
+    x_decayed <- rowSums(x_decayed)[seq_along(x)]
   } else {
     x_decayed <- x
     thetaVecCum <- 1
