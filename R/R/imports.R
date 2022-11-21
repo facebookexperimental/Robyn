@@ -20,7 +20,7 @@
 #' @author Bernardo Lares (bernardolares@@meta.com)
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
-#' @importFrom dplyr any_of arrange as_tibble bind_rows contains desc distinct everything filter
+#' @importFrom dplyr across any_of arrange as_tibble bind_rows contains desc distinct everything filter
 #' group_by lag left_join mutate n pull rename row_number select slice summarise summarise_all ungroup
 #' all_of bind_cols mutate_at tally n_distinct
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
