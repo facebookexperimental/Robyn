@@ -227,13 +227,16 @@ robyn_pareto <- function(InputCollect, OutputModels,
     plotWaterfall <- xDecompAgg[xDecompAgg$robynPareto == pf, ]
     dt_mod <- InputCollect$dt_mod
     dt_modRollWind <- InputCollect$dt_modRollWind
-    if (!quiet) message(sprintf(">> Pareto-Front: %s [%s models]", pf, length(uniqueSol)))
+    if (!quiet & length(unique(xDecompAgg$solID)) > 1) {
+      message(sprintf(">> Pareto-Front: %s [%s models]", pf, length(uniqueSol)))
+    }
 
+    # Calculations for pareto AND pareto plots
     for (sid in uniqueSol) {
       # parallelResult <- foreach(sid = uniqueSol) %dorng% {
-      if (!quiet) lares::statusbar(which(sid == uniqueSol), length(uniqueSol), type = "equal")
-
-      # Calculations for pareto AND pareto plots
+      if (!quiet & length(unique(xDecompAgg$solID)) > 1) {
+        lares::statusbar(which(sid == uniqueSol), length(uniqueSol), type = "equal")
+      }
 
       ## 1. Spend x effect share comparison
       temp <- plotMediaShare[plotMediaShare$solID == sid, ] %>%
@@ -278,7 +281,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ## 3. Adstock rate
       dt_geometric <- weibullCollect <- wb_type <- NULL
       resultHypParamLoop <- resultHypParam[resultHypParam$solID == sid, ]
-      get_hp_names <- !startsWith(names(InputCollect$hyperparameters), "penalty_")
+      get_hp_names <- !endsWith(names(InputCollect$hyperparameters), "_penalty")
       get_hp_names <- names(InputCollect$hyperparameters)[get_hp_names]
       hypParam <- resultHypParamLoop[, get_hp_names]
       if (InputCollect$adstock == "geometric") {

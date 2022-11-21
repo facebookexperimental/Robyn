@@ -133,7 +133,8 @@ robyn_run <- function(InputCollect = NULL,
   OutputModels <- robyn_train(
     InputCollect, hyper_collect,
     cores, iterations, trials, intercept_sign, nevergrad_algo,
-    dt_hyper_fixed, add_penalty_factor,
+    dt_hyper_fixed = dt_hyper_fixed,
+    add_penalty_factor = add_penalty_factor,
     refresh, seed, quiet
   )
 
@@ -732,7 +733,7 @@ robyn_mmm <- function(InputCollect,
             }
 
             if (add_penalty_factor) {
-              penalty.factor <- unlist(hypParamSamNG[i, grepl("penalty_", names(hypParamSamNG))])
+              penalty.factor <- unlist(hypParamSamNG[i, grepl("_penalty", names(hypParamSamNG))])
             } else {
               penalty.factor <- rep(1, ncol(x_train))
             }
@@ -1246,15 +1247,9 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   # Fetch hyper-parameters based on media
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
-  # Add lambda
-  hypParamSamName <- c(hypParamSamName, "lambda")
-
-  # Add penalty factor hyper-parameters names
-  for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
-  if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
-
-  # Check hyper_fixed condition
+  # Check hyper_fixed condition + add lambda + penalty factor hyper-parameters names
   all_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
+  hypParamSamName <- attr(all_fixed, "hypParamSamName")
 
   if (!all_fixed) {
     # Collect media hyperparameters
@@ -1270,7 +1265,8 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
     }
 
     # Add unfixed penalty.factor hyperparameters manually
-    penalty_names <- paste0("penalty_", for_penalty)
+    for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
+    penalty_names <- paste0(for_penalty, "_penalty")
     if (add_penalty_factor) {
       for (penalty in penalty_names) {
         if (length(hyper_bound_list[[penalty]]) != 1) {
