@@ -227,9 +227,11 @@ robyn_pareto <- function(InputCollect, OutputModels,
     plotWaterfall <- xDecompAgg[xDecompAgg$robynPareto == pf, ]
     dt_mod <- InputCollect$dt_mod
     dt_modRollWind <- InputCollect$dt_modRollWind
+    if (!quiet) message(sprintf(">> Pareto-Front: %s [%s models]", pf, length(uniqueSol)))
 
     for (sid in uniqueSol) {
       # parallelResult <- foreach(sid = uniqueSol) %dorng% {
+      if (!quiet) lares::statusbar(which(sid == uniqueSol), length(uniqueSol))
 
       # Calculations for pareto AND pareto plots
 
