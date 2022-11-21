@@ -326,10 +326,10 @@ OutputModels$convergence$moo_cloud_plot
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
   # pareto_fronts = "auto",
+  # min_candidates = 100, # top pareto models for clustering. default to 100
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
-  # min_candidates = 100, # top pareto models for clustering. default to 100
   plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
   plot_folder = robyn_object, # path for plots export
   export = TRUE # this will create files locally

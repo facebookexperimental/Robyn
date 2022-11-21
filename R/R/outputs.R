@@ -77,7 +77,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   }
   pareto_results <- robyn_pareto(
     InputCollect, OutputModels,
-    pareto_fronts = "auto",
+    pareto_fronts = pareto_fronts,
     calibration_constraint = calibration_constraint,
     quiet = quiet,
     calibrated = calibrated,
