@@ -21,18 +21,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
 
-  # Build immediate vs carryover dataframe
-  xDecompVec <- OutputModels$vec_collect$xDecompVec
-  xDecompVecImmediate <- OutputModels$vec_collect$xDecompVecImmediate
-  xDecompVecCarryover <- OutputModels$vec_collect$xDecompVecCarryover
-  xDecompVecImmeCaov <- bind_rows(
-    select(xDecompVec, c("ds", InputCollect$all_media, "solID")) %>%
-      mutate(type = "total"),
-    select(xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
-      mutate(type = "Immediate"),
-    select(xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
-      mutate(type = "Carryover")
-  ) %>% pivot_longer(cols = InputCollect$all_media, names_to = "channels")
+  xDecompVecImmeCaov <- OutputModels$xDecompVecImmeCaov
   if (length(unique(xDecompVecImmeCaov$solID)) == 1) {
     xDecompVecImmeCaov$solID <- OutModels$trial1$resultCollect$resultHypParam$solID
   }
@@ -530,12 +519,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
       ## 7. Immediate vs carryover response
-      plot7data <- filter(xDecompVecImmeCaov, .data$solID == sid, .data$type != "total") %>%
-        select(c("type", "channels", "value")) %>%
-        group_by(.data$channels, .data$type) %>%
-        summarise(response = sum(.data$value), .groups = "drop_last") %>%
-        mutate(percentage = .data$response / sum(.data$response)) %>%
-        replace(., is.na(.), 0)
+      plot7data <- filter(xDecompVecImmeCaov, .data$solID == sid)
 
       ## 8. Bootstrapped ROI/CPA with CIs
       # plot8data <- "Empty" # Filled when running robyn_onepagers() with clustering data

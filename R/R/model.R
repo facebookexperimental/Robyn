@@ -166,7 +166,35 @@ robyn_run <- function(InputCollect = NULL,
       )
     )
   }
-  OutputModels[["vec_collect"]] <- vec_collect
+  ## This list is too large to export with having memory issues
+  # OutputModels[["vec_collect"]] <- vec_collect
+  df_caov <- vec_collect$xDecompVecCarryover %>%
+    group_by(solID) %>%
+    summarise(across(InputCollect$all_media, sum))
+  df_total <- vec_collect$xDecompVec %>%
+    group_by(solID) %>%
+    summarise(across(InputCollect$all_media, sum))
+  df_caov_pct <- bind_cols(
+    df_caov[, "solID"],
+    df_caov %>% select(-solID) / df_total %>% select(-solID)
+  ) %>%
+    pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
+  df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
+
+  # Gather everything in an aggregated format
+  OutputModels[["xDecompVecImmeCaov"]] <- bind_rows(
+    select(vec_collect$xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "Immediate"),
+    select(vec_collect$xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "Carryover")
+  ) %>%
+    pivot_longer(cols = InputCollect$all_media, names_to = "channels") %>%
+    select(c("solID", "type", "channels", "value")) %>%
+    group_by(.data$solID, .data$channels, .data$type) %>%
+    summarise(response = sum(.data$value), .groups = "drop_last") %>%
+    mutate(percentage = .data$response / sum(.data$response)) %>%
+    replace(., is.na(.), 0) %>%
+    left_join(df_caov_pct, c("solID", "channels" = "rn"))
 
   # Not direct output & not all fixed hyppar
   if (!outputs & is.null(dt_hyper_fixed)) {
