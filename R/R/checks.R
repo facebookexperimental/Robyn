@@ -687,10 +687,11 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
     if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
     if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
+      these <- hypParamSamName[!hypParamSamName %in% names(dt_hyper_fixed)]
       stop(paste(
         "Input 'dt_hyper_fixed' is invalid.",
         "Please provide 'OutputCollect$resultHypParam' result from previous runs or",
-        "'pareto_hyperparameters.csv' data with desired model ID"
+        "'pareto_hyperparameters.csv' data with desired model ID. Missing values for:", v2t(these)
       ))
     }
   }

@@ -118,11 +118,12 @@ robyn_run <- function(InputCollect = NULL,
 
   #####################################
   #### Prepare hyper-parameters
-
   hyper_collect <- hyper_collector(
     InputCollect,
     hyper_in = InputCollect$hyperparameters,
-    add_penalty_factor, dt_hyper_fixed, cores
+    add_penalty_factor = add_penalty_factor,
+    dt_hyper_fixed = dt_hyper_fixed,
+    cores = cores
   )
   InputCollect$hyper_updated <- hyper_collect$hyper_list_all
 
