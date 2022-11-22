@@ -94,7 +94,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
     resultHypParam = pareto_results$resultHypParam,
     xDecompAgg = pareto_results$xDecompAgg,
     resultCalibration = pareto_results$resultCalibration,
-    plotDataCollect = pareto_results$plotDataCollect
+    plotDataCollect = pareto_results$plotDataCollect,
+    df_caov_pct = pareto_results$df_caov_pct_all
   )
 
   # Set folder to save outputs: legacy plot_folder_sub
@@ -155,11 +156,6 @@ robyn_outputs <- function(InputCollect, OutputModels,
       select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
       by = "solID"
     )
-
-    df_caov_pct <- distinct(
-      OutputModels$xDecompVecImmeCaov, .data$solID, .data$channels, .data$carryover_pct
-    ) %>%
-      rename("rn" = "channels")
     OutputCollect$xDecompAgg <- left_join(
       OutputCollect$xDecompAgg,
       select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
@@ -173,7 +169,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
         by = c("rn", "cluster")
       ) %>%
       left_join(
-        df_caov_pct,
+        pareto_results$df_caov_pct_all,
         by = c("solID", "rn")
       )
     OutputCollect$mediaVecCollect <- left_join(

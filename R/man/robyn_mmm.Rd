@@ -14,6 +14,7 @@ robyn_mmm(
   add_penalty_factor = FALSE,
   dt_hyper_fixed = NULL,
   refresh = FALSE,
+  trial = 1L,
   seed = 123L,
   quiet = FALSE
 )
@@ -49,6 +50,8 @@ more iterations to converge.}
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
+
+\item{trial}{Integer. Which trial are we running? Used to ID each model.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
 

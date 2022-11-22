@@ -128,7 +128,7 @@ robyn_run <- function(InputCollect = NULL,
   InputCollect$hyper_updated <- hyper_collect$hyper_list_all
 
   #####################################
-  #### Run robyn_mmm on set_trials
+  #### Run robyn_mmm() for each trial
 
   OutputModels <- robyn_train(
     InputCollect, hyper_collect,
@@ -151,52 +151,6 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$add_penalty_factor <- add_penalty_factor
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
-
-  # collect all decomp vectors
-  vec_dfs <- c("xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover")
-  temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:trials)]
-  vec_collect <- list()
-  for (i in vec_dfs) {
-    vec_collect[[i]] <- bind_rows(
-      mapply(
-        function(res, tr) {
-          res$resultCollect[[i]] %>%
-            mutate(trial = tr) %>%
-            mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
-        },
-        res = temp, tr = 1:trials, SIMPLIFY = FALSE
-      )
-    )
-  }
-  ## This list is too large to export with having memory issues
-  # OutputModels[["vec_collect"]] <- vec_collect
-  df_caov <- vec_collect$xDecompVecCarryover %>%
-    group_by(.data$solID) %>%
-    summarise(across(InputCollect$all_media, sum))
-  df_total <- vec_collect$xDecompVec %>%
-    group_by(.data$solID) %>%
-    summarise(across(InputCollect$all_media, sum))
-  df_caov_pct <- bind_cols(
-    df_caov[, "solID"],
-    select(df_caov, -.data$solID) / select(df_total, -.data$solID)
-  ) %>%
-    pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
-  df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
-
-  # Gather everything in an aggregated format
-  OutputModels[["xDecompVecImmeCaov"]] <- bind_rows(
-    select(vec_collect$xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
-      mutate(type = "Immediate"),
-    select(vec_collect$xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
-      mutate(type = "Carryover")
-  ) %>%
-    pivot_longer(cols = InputCollect$all_media, names_to = "channels") %>%
-    select(c("solID", "type", "channels", "value")) %>%
-    group_by(.data$solID, .data$channels, .data$type) %>%
-    summarise(response = sum(.data$value), .groups = "drop_last") %>%
-    mutate(percentage = .data$response / sum(.data$response)) %>%
-    replace(., is.na(.), 0) %>%
-    left_join(df_caov_pct, c("solID", "channels" = "rn"))
 
   # Not direct output & not all fixed hyppar
   if (!outputs & is.null(dt_hyper_fixed)) {
@@ -284,7 +238,6 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
   }
 }
 
-
 ####################################################################
 #' Train Robyn Models
 #'
@@ -335,9 +288,8 @@ robyn_train <- function(InputCollect, hyper_collect,
       )
     }
   } else {
-    ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
+    ## Run robyn_mmm() for each trial if hyperparameters are not all fixed
     check_init_msg(InputCollect, cores)
-
     if (!quiet) {
       message(paste(
         ">>> Starting", trials, "trials with",
@@ -360,6 +312,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         intercept_sign = intercept_sign,
         add_penalty_factor = add_penalty_factor,
         refresh = refresh,
+        trial = ngt,
         seed = seed + ngt,
         quiet = quiet
       )
@@ -402,6 +355,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
 #' @param iterations Integer. Number of iterations to run.
+#' @param trial Integer. Which trial are we running? Used to ID each model.
 #' @return List. MMM results with hyperparameters values.
 #' @export
 robyn_mmm <- function(InputCollect,
@@ -414,6 +368,7 @@ robyn_mmm <- function(InputCollect,
                       dt_hyper_fixed = NULL,
                       # lambda_fixed = NULL,
                       refresh = FALSE,
+                      trial = 1L,
                       seed = 123L,
                       quiet = FALSE) {
   if (reticulate::py_module_available("nevergrad")) {
@@ -558,7 +513,7 @@ robyn_mmm <- function(InputCollect,
           hypParamSamNG <- NULL
 
           if (hyper_fixed == FALSE) {
-            # Setting initial seeds
+            # Setting initial seeds (co = cores)
             for (co in 1:iterPar) { # co = 1
               ## Get hyperparameter sample with ask (random)
               nevergrad_hp[[co]] <- optimizer$ask()
@@ -587,13 +542,8 @@ robyn_mmm <- function(InputCollect,
             hypParamSamNG <- select(dt_hyper_fixed_mod, all_of(hypParamSamName))
           }
 
-          ########### Parallel start
-          nrmse.collect <- NULL
-          decomp.rssd.collect <- NULL
-
-          best_mape <- Inf
-
-          doparFx <- function(i, ...) { # i=1
+          # Must remain within this function for it to work
+          robyn_iterations <- function(i, ...) { # i=1
             t1 <- Sys.time()
             #### Get hyperparameter sample
             hypParamSam <- hypParamSamNG[i, ]
@@ -883,21 +833,33 @@ robyn_mmm <- function(InputCollect,
               mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
                 decompCollect$xDecompAgg$rn == "(Intercept)"
               ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
+              bind_cols(data.frame(t(common[9:11]))) %>%
+              mutate(
+                trial = trial,
+                solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+              )
 
             resultCollect[["mediaDecompImmediate"]] <- decompCollect$mediaDecompImmediate %>%
               bind_cols(data.frame(t(common[1:8]))) %>%
               mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
                 decompCollect$xDecompAgg$rn == "(Intercept)"
               ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
+              bind_cols(data.frame(t(common[9:11]))) %>%
+              mutate(
+                trial = trial,
+                solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+              )
 
             resultCollect[["mediaDecompCarryover"]] <- decompCollect$mediaDecompCarryover %>%
               bind_cols(data.frame(t(common[1:8]))) %>%
               mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
                 decompCollect$xDecompAgg$rn == "(Intercept)"
               ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
+              bind_cols(data.frame(t(common[9:11]))) %>%
+              mutate(
+                trial = trial,
+                solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+              )
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               bind_cols(data.frame(t(common)))
@@ -911,19 +873,15 @@ robyn_mmm <- function(InputCollect,
               bind_cols(data.frame(t(common)))
 
             resultCollect <- append(resultCollect, as.list(common))
-
-            if (cnt == iterTotal) {
-              print(" === ")
-              print(paste0(
-                "Optimizer_name: ", optimizer_name, ";  Total_iterations: ",
-                cnt, ";   Best MAPE: ", min(best_mape, mape)
-              ))
-            }
             return(resultCollect)
           }
 
+          ########### Parallel start
+          nrmse.collect <- NULL
+          decomp.rssd.collect <- NULL
+          best_mape <- Inf
           if (cores == 1) {
-            doparCollect <- lapply(1:iterPar, doparFx)
+            doparCollect <- lapply(1:iterPar, robyn_iterations)
           } else {
             # Create cluster to minimize overhead for parallel back-end registering
             if (check_parallel() && !hyper_fixed) {
@@ -932,7 +890,7 @@ robyn_mmm <- function(InputCollect,
               registerDoSEQ()
             }
             suppressPackageStartupMessages(
-              doparCollect <- foreach(i = 1:iterPar) %dorng% doparFx(i)
+              doparCollect <- foreach(i = 1:iterPar) %dorng% robyn_iterations(i)
             )
           }
 
