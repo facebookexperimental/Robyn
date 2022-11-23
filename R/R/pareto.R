@@ -21,10 +21,6 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
 
-  # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
-  temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
-  xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec))
-
   if (calibrated) {
     resultCalibration <- bind_rows(lapply(OutModels, function(x) {
       x$resultCollect$liftCalibration %>%
@@ -230,6 +226,11 @@ robyn_pareto <- function(InputCollect, OutputModels,
     if (!quiet & length(unique(xDecompAgg$solID)) > 1) {
       message(sprintf(">> Pareto-Front: %s [%s models]", pf, length(uniqueSol)))
     }
+
+    # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
+    temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
+    xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec)) %>%
+      filter(.data$solID %in% uniqueSol)
 
     # Calculations for pareto AND pareto plots
     for (sid in uniqueSol) {
