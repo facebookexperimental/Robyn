@@ -935,13 +935,11 @@ robyn_mmm <- function(InputCollect,
     arrange(.data$nrmse) %>%
     as_tibble()
 
-  # if (hyper_fixed) {
   resultCollect[["xDecompVec"]] <- bind_rows(
     lapply(resultCollectNG, function(x) {
       bind_rows(lapply(x, function(y) y$xDecompVec))
     })
   ) %>%
-    arrange(.data$solID, .data$ds) %>%
     as_tibble()
   # resultCollect[["xDecompVecImmediate"]] <- bind_rows(
   #   lapply(resultCollectNG, function(x) {
@@ -957,7 +955,6 @@ robyn_mmm <- function(InputCollect,
   # ) %>%
   #   arrange(.data$nrmse, .data$ds) %>%
   #   as_tibble()
-  # }
 
   resultCollect[["xDecompAgg"]] <- bind_rows(
     lapply(resultCollectNG, function(x) {
