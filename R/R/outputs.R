@@ -87,11 +87,9 @@ robyn_outputs <- function(InputCollect, OutputModels,
   allSolutions <- pareto_results$pareto_solutions
 
   # Reduce the size of xDecompVec with only pareto-front models
-  temp <- OutputModels[names(OutputModels) %in% paste0("trial", seq(OutputModels$trials))]
-  temp2 <- lapply(temp, function(x) filter(x$resultCollect$xDecompVec, .data$solID %in% allSolutions))
-  for (i in seq(OutputModels$trials)) {
-    OutputModels[[paste0("trial", i)]]$resultCollect$xDecompVec <- temp2[[i]]
-  }
+  OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)] <- lapply(
+    OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)],
+    function(x) filter(x$resultCollect$xDecompVec, .data$solID %in% allSolutions))
 
   #####################################
   #### Gather the results into output object
@@ -101,8 +99,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
     resultHypParam = pareto_results$resultHypParam,
     xDecompAgg = pareto_results$xDecompAgg,
     resultCalibration = pareto_results$resultCalibration,
-    plotDataCollect = pareto_results$plotDataCollect,
-    df_caov_pct = pareto_results$df_caov_pct_all
+    plotDataCollect = pareto_results$plotDataCollect
+    # df_caov_pct = pareto_results$df_caov_pct_all # redunant with OutputCollect$xDecompAgg$carryover_pct
   )
 
   # Set folder to save outputs: legacy plot_folder_sub
@@ -177,7 +175,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
       ) %>%
       left_join(
         pareto_results$df_caov_pct_all,
-        by = c("solID", "rn")
+        by = c("solID", "rn" = "channel")
       )
     OutputCollect$mediaVecCollect <- left_join(
       OutputCollect$mediaVecCollect,
