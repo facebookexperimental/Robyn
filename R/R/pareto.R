@@ -21,6 +21,10 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mutate(x$resultCollect$xDecompAgg, trial = x$trial)
   }))
 
+  # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
+  temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
+  xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec))
+
   if (calibrated) {
     resultCalibration <- bind_rows(lapply(OutModels, function(x) {
       x$resultCollect$liftCalibration %>%
@@ -481,14 +485,12 @@ robyn_pareto <- function(InputCollect, OutputModels,
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
       ## 7. Immediate vs carryover response
-      # Collect all decomp vectors for each model and then store all together into df_caov_pct_all
-      vec_dfs <- c("xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover")
-      trials <- OutputModels$trials
-      temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:trials)]
-      vec_collect <- list()
-      for (i in vec_dfs) {
-        vec_collect[[i]] <- bind_rows(lapply(temp, function(x) filter(x$resultCollect[[i]], .data$solID == sid)))
-      }
+      temp <- filter(xDecompVecImmCarr, .data$solID == sid)
+      vec_collect <- list(
+        xDecompVec = select(temp, -dplyr::ends_with("_MDI"), -dplyr::ends_with("_MDC")),
+        xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), all_of(InputCollect$all_media)),
+        xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), all_of(InputCollect$all_media))
+      )
       df_caov <- vec_collect$xDecompVecCarryover %>%
         group_by(.data$solID) %>%
         summarise(across(InputCollect$all_media, sum))

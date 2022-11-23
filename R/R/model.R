@@ -828,29 +828,15 @@ robyn_mmm <- function(InputCollect,
               bind_cols(data.frame(t(common[9:11]))) %>%
               dplyr::mutate_all(unlist)
 
-            resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11]))) %>%
-              mutate(
-                trial = trial,
-                solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
-              )
-
-            resultCollect[["mediaDecompImmediate"]] <- decompCollect$mediaDecompImmediate %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11]))) %>%
-              mutate(
-                trial = trial,
-                solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
-              )
-
-            resultCollect[["mediaDecompCarryover"]] <- decompCollect$mediaDecompCarryover %>%
+            mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
+            colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
+            mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -.data$ds, -.data$y)
+            colnames(mediaDecompCarryover) <- paste0(colnames(mediaDecompCarryover), "_MDC")
+            resultCollect[["xDecompVec"]] <- bind_cols(
+              decompCollect$xDecompVec,
+              mediaDecompImmediate,
+              mediaDecompCarryover
+            ) %>%
               bind_cols(data.frame(t(common[1:8]))) %>%
               mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
                 decompCollect$xDecompAgg$rn == "(Intercept)"
@@ -965,20 +951,20 @@ robyn_mmm <- function(InputCollect,
   ) %>%
     arrange(.data$nrmse, .data$ds) %>%
     as_tibble()
-  resultCollect[["xDecompVecImmediate"]] <- bind_rows(
-    lapply(resultCollectNG, function(x) {
-      bind_rows(lapply(x, function(y) y$mediaDecompImmediate))
-    })
-  ) %>%
-    arrange(.data$nrmse, .data$ds) %>%
-    as_tibble()
-  resultCollect[["xDecompVecCarryover"]] <- bind_rows(
-    lapply(resultCollectNG, function(x) {
-      bind_rows(lapply(x, function(y) y$mediaDecompCarryover))
-    })
-  ) %>%
-    arrange(.data$nrmse, .data$ds) %>%
-    as_tibble()
+  # resultCollect[["xDecompVecImmediate"]] <- bind_rows(
+  #   lapply(resultCollectNG, function(x) {
+  #     bind_rows(lapply(x, function(y) y$mediaDecompImmediate))
+  #   })
+  # ) %>%
+  #   arrange(.data$nrmse, .data$ds) %>%
+  #   as_tibble()
+  # resultCollect[["xDecompVecCarryover"]] <- bind_rows(
+  #   lapply(resultCollectNG, function(x) {
+  #     bind_rows(lapply(x, function(y) y$mediaDecompCarryover))
+  #   })
+  # ) %>%
+  #   arrange(.data$nrmse, .data$ds) %>%
+  #   as_tibble()
   # }
 
   resultCollect[["xDecompAgg"]] <- bind_rows(
