@@ -832,12 +832,8 @@ robyn_mmm <- function(InputCollect,
               mediaDecompImmediate,
               mediaDecompCarryover
             ) %>%
-              # bind_cols(data.frame(t(common[1:8]))) %>%
-              # mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-              #   decompCollect$xDecompAgg$rn == "(Intercept)"
-              # ]) %>%
-              # bind_cols(data.frame(t(common[9:11]))) %>%
-              mutate(solID = paste(trial, lng, i, sep = "_"))
+              mutate(solID = paste(trial, lng, i, sep = "_")) %>%
+              select(.data$solID, dplyr::everything())
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               bind_cols(data.frame(t(common)))
