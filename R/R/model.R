@@ -806,10 +806,12 @@ robyn_mmm <- function(InputCollect,
             #### Collect Multi-Objective Errors and Iteration Results
             resultCollect <- list()
 
-            # Auxiliary vector
+            # Auxiliary dynamic vector
             common <- c(
+              rsq_test = mod_out$rsq_test,
               rsq_train = mod_out$rsq_train,
-              nrmse = nrmse,
+              nrmse = mod_out$nrmse_test,
+              nrmse_train = mod_out$nrmse_train,
               decomp.rssd = decomp.rssd,
               mape = mape,
               lambda = lambda_scaled,
@@ -820,16 +822,18 @@ robyn_mmm <- function(InputCollect,
               iterNG = lng,
               df.int = df.int
             )
+            total_common <- length(common)
+            split_common <- which(names(common) == "lambda_min_ratio")
 
             resultCollect[["resultHypParam"]] <- data.frame(hypParamSam) %>%
               select(-.data$lambda) %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
+              bind_cols(data.frame(t(common[1:split_common]))) %>%
               mutate(
                 pos = prod(decompCollect$xDecompAgg$pos),
                 Elapsed = as.numeric(difftime(Sys.time(), t1, units = "secs")),
                 ElapsedAccum = as.numeric(difftime(Sys.time(), t0, units = "secs"))
               ) %>%
-              bind_cols(data.frame(t(common[9:11]))) %>%
+              bind_cols(data.frame(t(common[(split_common + 1):total_common]))) %>%
               dplyr::mutate_all(unlist)
 
             mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
@@ -1104,7 +1108,9 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   return(decompCollect)
 }
 
-model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
+model_refit <- function(x_train, y_train, x_test, y_test,
+                        lambda, lower.limits, upper.limits,
+                        intercept_sign = "non_negative") {
   mod <- glmnet(
     x_train,
     y_train,
