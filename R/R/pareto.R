@@ -489,9 +489,11 @@ robyn_pareto <- function(InputCollect, OutputModels,
       temp <- filter(xDecompVecImmCarr, .data$solID == sid)
       vec_collect <- list(
         xDecompVec = select(temp, -dplyr::ends_with("_MDI"), -dplyr::ends_with("_MDC")),
-        xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), all_of(InputCollect$all_media)),
-        xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), all_of(InputCollect$all_media))
+        xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), -all_of(InputCollect$all_media)),
+        xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), -all_of(InputCollect$all_media))
       )
+      this <- gsub("_MDI", "",  colnames(vec_collect$xDecompVecImmediate))
+      colnames(vec_collect$xDecompVecImmediate) <- colnames(vec_collect$xDecompVecCarryover) <- this
       df_caov <- vec_collect$xDecompVecCarryover %>%
         group_by(.data$solID) %>%
         summarise(across(InputCollect$all_media, sum))
@@ -499,7 +501,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         group_by(.data$solID) %>%
         summarise(across(InputCollect$all_media, sum))
       df_caov_pct <- bind_cols(
-        df_caov[, "solID"],
+        select(df_caov, .data$solID),
         select(df_caov, -.data$solID) / select(df_total, -.data$solID)
       ) %>%
         pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
