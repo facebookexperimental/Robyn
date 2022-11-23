@@ -276,16 +276,11 @@ robyn_train <- function(InputCollect, hyper_collect,
     OutputModels[[1]]$resultCollect$resultHypParam <- arrange(
       OutputModels[[1]]$resultCollect$resultHypParam, .data$iterPar
     )
-    dt_IDs <- data.frame(
-      solID = dt_hyper_fixed$solID,
-      iterPar = OutputModels[[1]]$resultCollect$resultHypParam$iterPar
-    )
     these <- c("resultHypParam", "xDecompAgg", "xDecompVec", "decompSpendDist")
     for (tab in these) {
-      OutputModels[[1]]$resultCollect[[tab]] <- left_join(
-        OutputModels[[1]]$resultCollect[[tab]], dt_IDs,
-        by = "iterPar"
-      )
+      if (!"solID" %in% colnames(OutputModels[[1]]$resultCollect[[tab]])) {
+        OutputModels[[1]]$resultCollect[[tab]]$solID <- dt_hyper_fixed$solID
+      }
     }
   } else {
     ## Run robyn_mmm() for each trial if hyperparameters are not all fixed
