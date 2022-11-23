@@ -791,7 +791,12 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   )
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
-  if (use_monthly) modelRecurrence <- prophet::add_seasonality(modelRecurrence, name='monthly', period=30.5, fourier.order=5)
+  if (use_monthly) {
+    modelRecurrence <- add_seasonality(
+      modelRecurrence,
+      name = "monthly", period = 30.5, fourier.order = 5
+    )
+  }
 
   # dt_regressors <<- dt_regressors
   # modelRecurrence <<- modelRecurrence

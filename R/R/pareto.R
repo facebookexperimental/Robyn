@@ -492,7 +492,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), -all_of(InputCollect$all_media)),
         xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), -all_of(InputCollect$all_media))
       )
-      this <- gsub("_MDI", "",  colnames(vec_collect$xDecompVecImmediate))
+      this <- gsub("_MDI", "", colnames(vec_collect$xDecompVecImmediate))
       colnames(vec_collect$xDecompVecImmediate) <- colnames(vec_collect$xDecompVecCarryover) <- this
       df_caov <- vec_collect$xDecompVecCarryover %>%
         group_by(.data$solID) %>%
