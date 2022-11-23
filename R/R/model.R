@@ -837,15 +837,12 @@ robyn_mmm <- function(InputCollect,
               mediaDecompImmediate,
               mediaDecompCarryover
             ) %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11]))) %>%
-              mutate(
-                trial = trial,
-                solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
-              )
+              # bind_cols(data.frame(t(common[1:8]))) %>%
+              # mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+              #   decompCollect$xDecompAgg$rn == "(Intercept)"
+              # ]) %>%
+              # bind_cols(data.frame(t(common[9:11]))) %>%
+              mutate(solID = paste(trial, lng, i, sep = "_"))
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               bind_cols(data.frame(t(common)))
@@ -949,7 +946,7 @@ robyn_mmm <- function(InputCollect,
       bind_rows(lapply(x, function(y) y$xDecompVec))
     })
   ) %>%
-    arrange(.data$nrmse, .data$ds) %>%
+    arrange(.data$solID, .data$ds) %>%
     as_tibble()
   # resultCollect[["xDecompVecImmediate"]] <- bind_rows(
   #   lapply(resultCollectNG, function(x) {
