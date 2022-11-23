@@ -310,9 +310,9 @@ if (length(InputCollect$exposure_vars) > 0) {
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to max available - 1
-  # add_penalty_factor = FALSE, # Untested feature. Use with caution.
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
+  add_penalty_factor = FALSE, # Experimental feature. Use with caution.
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
@@ -325,11 +325,11 @@ OutputModels$convergence$moo_cloud_plot
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
-  # pareto_fronts = "auto",
+  pareto_fronts = "auto", # automatically pick how many pareto-fronts to fill min_candidates
+  # min_candidates = 100, # top pareto models for clustering. Default to 100
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
-  # min_candidates = 100, # top pareto models for clustering. default to 100
   plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
   plot_folder = robyn_object, # path for plots export
   export = TRUE # this will create files locally
@@ -454,7 +454,7 @@ if (TRUE) {
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
 # It can be any model, initial or a refresh model
-json_file <- "~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json"
+json_file <- "~/Desktop/Robyn_202211211853_init/RobynModel-1_100_6.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,

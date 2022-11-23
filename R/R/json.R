@@ -71,7 +71,7 @@ robyn_write <- function(InputCollect,
     hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
-      select(contains(hyps_name), .data$lambda) %>%
+      select(contains(hyps_name), dplyr::ends_with("_penalty"), .data$lambda) %>%
       select(order(colnames(.))) %>%
       as.list()
     outputs$hyper_updated <- OutputCollect$hyper_updated
@@ -137,7 +137,7 @@ print.robyn_write <- function(x, ...) {
   ))
 
   # Nice and tidy table format for hyper-parameters
-  hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
+  hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
   regex <- paste(paste0("_", hyps_name), collapse = "|")
   hyper_df <- as.data.frame(x$ExportedModel$hyper_values) %>%
     select(-contains("lambda")) %>%

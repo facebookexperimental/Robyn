@@ -672,6 +672,15 @@ check_calibconstr <- function(calibration_constraint, iterations, trials, calibr
 
 check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) {
   hyper_fixed <- !is.null(dt_hyper_fixed)
+  # Adstock hyper-parameters
+  hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+  # Add lambda hyper-parameter
+  hypParamSamName <- c(hypParamSamName, "lambda")
+  # Add penalty factor hyper-parameters names
+  if (add_penalty_factor) {
+    for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
+    hypParamSamName <- c(hypParamSamName, paste0(for_penalty, "_penalty"))
+  }
   if (hyper_fixed) {
     ## Run robyn_mmm if using old model result tables
     dt_hyper_fixed <- as_tibble(dt_hyper_fixed)
@@ -681,19 +690,16 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
         "pareto_hyperparameters.csv from previous runs"
       ))
     }
-    hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
-    hypParamSamName <- c(hypParamSamName, "lambda")
-    for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
-    if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
-
     if (!all(hypParamSamName %in% names(dt_hyper_fixed))) {
+      these <- hypParamSamName[!hypParamSamName %in% names(dt_hyper_fixed)]
       stop(paste(
         "Input 'dt_hyper_fixed' is invalid.",
         "Please provide 'OutputCollect$resultHypParam' result from previous runs or",
-        "'pareto_hyperparameters.csv' data with desired model ID"
+        "'pareto_hyperparameters.csv' data with desired model ID. Missing values for:", v2t(these)
       ))
     }
   }
+  attr(hyper_fixed, "hypParamSamName") <- hypParamSamName
   return(hyper_fixed)
 }
 

@@ -118,21 +118,23 @@ robyn_run <- function(InputCollect = NULL,
 
   #####################################
   #### Prepare hyper-parameters
-
   hyper_collect <- hyper_collector(
     InputCollect,
     hyper_in = InputCollect$hyperparameters,
-    add_penalty_factor, dt_hyper_fixed, cores
+    add_penalty_factor = add_penalty_factor,
+    dt_hyper_fixed = dt_hyper_fixed,
+    cores = cores
   )
   InputCollect$hyper_updated <- hyper_collect$hyper_list_all
 
   #####################################
-  #### Run robyn_mmm on set_trials
+  #### Run robyn_mmm() for each trial
 
   OutputModels <- robyn_train(
     InputCollect, hyper_collect,
     cores, iterations, trials, intercept_sign, nevergrad_algo,
-    dt_hyper_fixed, add_penalty_factor,
+    dt_hyper_fixed = dt_hyper_fixed,
+    add_penalty_factor = add_penalty_factor,
     refresh, seed, quiet
   )
 
@@ -149,24 +151,6 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$add_penalty_factor <- add_penalty_factor
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
-
-  # collect all decomp vectors
-  vec_dfs <- c("xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover")
-  temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:trials)]
-  vec_collect <- list()
-  for (i in vec_dfs) {
-    vec_collect[[i]] <- bind_rows(
-      mapply(
-        function(res, tr) {
-          res$resultCollect[[i]] %>%
-            mutate(trial = tr) %>%
-            mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_"))
-        },
-        res = temp, tr = 1:trials, SIMPLIFY = FALSE
-      )
-    )
-  }
-  OutputModels[["vec_collect"]] <- vec_collect
 
   # Not direct output & not all fixed hyppar
   if (!outputs & is.null(dt_hyper_fixed)) {
@@ -254,7 +238,6 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
   }
 }
 
-
 ####################################################################
 #' Train Robyn Models
 #'
@@ -305,9 +288,8 @@ robyn_train <- function(InputCollect, hyper_collect,
       )
     }
   } else {
-    ## Run robyn_mmm on set_trials if hyperparameters are not all fixed
+    ## Run robyn_mmm() for each trial if hyperparameters are not all fixed
     check_init_msg(InputCollect, cores)
-
     if (!quiet) {
       message(paste(
         ">>> Starting", trials, "trials with",
@@ -330,6 +312,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         intercept_sign = intercept_sign,
         add_penalty_factor = add_penalty_factor,
         refresh = refresh,
+        trial = ngt,
         seed = seed + ngt,
         quiet = quiet
       )
@@ -372,6 +355,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 #' @param hyper_collect List. Containing hyperparameter bounds. Defaults to
 #' \code{InputCollect$hyperparameters}.
 #' @param iterations Integer. Number of iterations to run.
+#' @param trial Integer. Which trial are we running? Used to ID each model.
 #' @return List. MMM results with hyperparameters values.
 #' @export
 robyn_mmm <- function(InputCollect,
@@ -384,6 +368,7 @@ robyn_mmm <- function(InputCollect,
                       dt_hyper_fixed = NULL,
                       # lambda_fixed = NULL,
                       refresh = FALSE,
+                      trial = 1L,
                       seed = 123L,
                       quiet = FALSE) {
   if (reticulate::py_module_available("nevergrad")) {
@@ -528,7 +513,7 @@ robyn_mmm <- function(InputCollect,
           hypParamSamNG <- NULL
 
           if (hyper_fixed == FALSE) {
-            # Setting initial seeds
+            # Setting initial seeds (co = cores)
             for (co in 1:iterPar) { # co = 1
               ## Get hyperparameter sample with ask (random)
               nevergrad_hp[[co]] <- optimizer$ask()
@@ -557,13 +542,8 @@ robyn_mmm <- function(InputCollect,
             hypParamSamNG <- select(dt_hyper_fixed_mod, all_of(hypParamSamName))
           }
 
-          ########### Parallel start
-          nrmse.collect <- NULL
-          decomp.rssd.collect <- NULL
-
-          best_mape <- Inf
-
-          doparFx <- function(i, ...) { # i=1
+          # Must remain within this function for it to work
+          robyn_iterations <- function(i, ...) { # i=1
             t1 <- Sys.time()
             #### Get hyperparameter sample
             hypParamSam <- hypParamSamNG[i, ]
@@ -711,7 +691,7 @@ robyn_mmm <- function(InputCollect,
             }
 
             if (add_penalty_factor) {
-              penalty.factor <- unlist(hypParamSamNG[i, grepl("penalty_", names(hypParamSamNG))])
+              penalty.factor <- unlist(hypParamSamNG[i, grepl("_penalty", names(hypParamSamNG))])
             } else {
               penalty.factor <- rep(1, ncol(x_train))
             }
@@ -857,26 +837,21 @@ robyn_mmm <- function(InputCollect,
               bind_cols(data.frame(t(common[9:11]))) %>%
               dplyr::mutate_all(unlist)
 
-            resultCollect[["xDecompVec"]] <- decompCollect$xDecompVec %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
-
-            resultCollect[["mediaDecompImmediate"]] <- decompCollect$mediaDecompImmediate %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
-
-            resultCollect[["mediaDecompCarryover"]] <- decompCollect$mediaDecompCarryover %>%
-              bind_cols(data.frame(t(common[1:8]))) %>%
-              mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
-                decompCollect$xDecompAgg$rn == "(Intercept)"
-              ]) %>%
-              bind_cols(data.frame(t(common[9:11])))
+            mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
+            colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
+            mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -.data$ds, -.data$y)
+            colnames(mediaDecompCarryover) <- paste0(colnames(mediaDecompCarryover), "_MDC")
+            resultCollect[["xDecompVec"]] <- bind_cols(
+              decompCollect$xDecompVec,
+              mediaDecompImmediate,
+              mediaDecompCarryover
+            ) %>%
+              # bind_cols(data.frame(t(common[1:8]))) %>%
+              # mutate(intercept = decompCollect$xDecompAgg$xDecompAgg[
+              #   decompCollect$xDecompAgg$rn == "(Intercept)"
+              # ]) %>%
+              # bind_cols(data.frame(t(common[9:11]))) %>%
+              mutate(solID = paste(trial, lng, i, sep = "_"))
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               bind_cols(data.frame(t(common)))
@@ -890,19 +865,15 @@ robyn_mmm <- function(InputCollect,
               bind_cols(data.frame(t(common)))
 
             resultCollect <- append(resultCollect, as.list(common))
-
-            if (cnt == iterTotal) {
-              print(" === ")
-              print(paste0(
-                "Optimizer_name: ", optimizer_name, ";  Total_iterations: ",
-                cnt, ";   Best MAPE: ", min(best_mape, mape)
-              ))
-            }
             return(resultCollect)
           }
 
+          ########### Parallel start
+          nrmse.collect <- NULL
+          decomp.rssd.collect <- NULL
+          best_mape <- Inf
           if (cores == 1) {
-            doparCollect <- lapply(1:iterPar, doparFx)
+            doparCollect <- lapply(1:iterPar, robyn_iterations)
           } else {
             # Create cluster to minimize overhead for parallel back-end registering
             if (check_parallel() && !hyper_fixed) {
@@ -911,7 +882,7 @@ robyn_mmm <- function(InputCollect,
               registerDoSEQ()
             }
             suppressPackageStartupMessages(
-              doparCollect <- foreach(i = 1:iterPar) %dorng% doparFx(i)
+              doparCollect <- foreach(i = 1:iterPar) %dorng% robyn_iterations(i)
             )
           }
 
@@ -984,22 +955,22 @@ robyn_mmm <- function(InputCollect,
       bind_rows(lapply(x, function(y) y$xDecompVec))
     })
   ) %>%
-    arrange(.data$nrmse, .data$ds) %>%
+    arrange(.data$solID, .data$ds) %>%
     as_tibble()
-  resultCollect[["xDecompVecImmediate"]] <- bind_rows(
-    lapply(resultCollectNG, function(x) {
-      bind_rows(lapply(x, function(y) y$mediaDecompImmediate))
-    })
-  ) %>%
-    arrange(.data$nrmse, .data$ds) %>%
-    as_tibble()
-  resultCollect[["xDecompVecCarryover"]] <- bind_rows(
-    lapply(resultCollectNG, function(x) {
-      bind_rows(lapply(x, function(y) y$mediaDecompCarryover))
-    })
-  ) %>%
-    arrange(.data$nrmse, .data$ds) %>%
-    as_tibble()
+  # resultCollect[["xDecompVecImmediate"]] <- bind_rows(
+  #   lapply(resultCollectNG, function(x) {
+  #     bind_rows(lapply(x, function(y) y$mediaDecompImmediate))
+  #   })
+  # ) %>%
+  #   arrange(.data$nrmse, .data$ds) %>%
+  #   as_tibble()
+  # resultCollect[["xDecompVecCarryover"]] <- bind_rows(
+  #   lapply(resultCollectNG, function(x) {
+  #     bind_rows(lapply(x, function(y) y$mediaDecompCarryover))
+  #   })
+  # ) %>%
+  #   arrange(.data$nrmse, .data$ds) %>%
+  #   as_tibble()
   # }
 
   resultCollect[["xDecompAgg"]] <- bind_rows(
@@ -1234,8 +1205,9 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
   if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
-  # Check hyper_fixed condition
+  # Check hyper_fixed condition + add lambda + penalty factor hyper-parameters names
   all_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
+  hypParamSamName <- attr(all_fixed, "hypParamSamName")
 
   if (!all_fixed) {
     # Collect media hyperparameters
@@ -1256,7 +1228,8 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
     }
 
     # Add unfixed penalty.factor hyperparameters manually
-    penalty_names <- paste0("penalty_", for_penalty)
+    for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
+    penalty_names <- paste0(for_penalty, "_penalty")
     if (add_penalty_factor) {
       for (penalty in penalty_names) {
         if (length(hyper_bound_list[[penalty]]) != 1) {

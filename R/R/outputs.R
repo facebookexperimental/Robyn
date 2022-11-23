@@ -77,7 +77,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   }
   pareto_results <- robyn_pareto(
     InputCollect, OutputModels,
-    pareto_fronts = "auto",
+    pareto_fronts = pareto_fronts,
     calibration_constraint = calibration_constraint,
     quiet = quiet,
     calibrated = calibrated,
@@ -95,6 +95,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     xDecompAgg = pareto_results$xDecompAgg,
     resultCalibration = pareto_results$resultCalibration,
     plotDataCollect = pareto_results$plotDataCollect
+    # df_caov_pct = pareto_results$df_caov_pct_all
   )
 
   # Set folder to save outputs: legacy plot_folder_sub
@@ -155,24 +156,22 @@ robyn_outputs <- function(InputCollect, OutputModels,
       select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
       by = "solID"
     )
-    df_caov <- OutputModels$vec_collect$xDecompVecCarryover %>% group_by(solID) %>%
-      summarise(across(InputCollect$all_media, sum))
-    df_total <- OutputModels$vec_collect$xDecompVec %>% group_by(solID) %>%
-      summarise(across(InputCollect$all_media, sum))
-    df_caov_pct <- bind_cols(df_caov[, "solID"],
-                             df_caov %>% select(-solID) / df_total %>% select(-solID)) %>%
-      pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
-    df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
     OutputCollect$xDecompAgg <- left_join(
       OutputCollect$xDecompAgg,
       select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
       by = "solID"
-    ) %>% left_join(
-      select(clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean, .data$boot_se, .data$ci_low, .data$ci_up, .data$rn),
-      by = c("rn", "cluster")
-    ) %>% left_join(
-      df_caov_pct, by = c("solID", "rn")
-    )
+    ) %>%
+      left_join(
+        select(
+          clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean,
+          .data$boot_se, .data$ci_low, .data$ci_up, .data$rn
+        ),
+        by = c("rn", "cluster")
+      ) %>%
+      left_join(
+        pareto_results$df_caov_pct_all,
+        by = c("solID", "rn")
+      )
     OutputCollect$mediaVecCollect <- left_join(
       OutputCollect$mediaVecCollect,
       select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
