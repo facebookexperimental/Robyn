@@ -517,7 +517,7 @@ robyn_mmm <- function(InputCollect,
               for (hypNameLoop in hyper_bound_list_updated_name) {
                 index <- which(hypNameLoop == hyper_bound_list_updated_name)
                 channelBound <- unlist(hyper_bound_list_updated[hypNameLoop])
-                hyppar_value <- nevergrad_hp_val[[co]][index]
+                hyppar_value <- signif(nevergrad_hp_val[[co]][index], 6)
                 if (length(channelBound) > 1) {
                   hypParamSamNG[hypNameLoop] <- qunif(hyppar_value, min(channelBound), max(channelBound))
                 } else {
@@ -630,22 +630,22 @@ robyn_mmm <- function(InputCollect,
 
             ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
             y_window <- dt_window$dep_var
-            if (length(which(grepl("^[0-9]", dt_window))) > 1) {
-              x_window <- model.matrix(dep_var ~ ., dt_window)[, -1]
-            } else {
-              x_window <- as.matrix(dt_window[, -1])
-            }
+            x_window <- as.matrix(lares::ohse(select(dt_window, -.data$dep_var)))
 
-            ## Split train and test sets
+            ## Split train, test, and validation sets
             train_size <- hypParamSam[, "train_size"]
+            val_size <- test_size <- (1 - train_size) / 2
             train_size_index <- floor(quantile(seq(nrow(dt_window)), train_size))
+            test_size_index <- train_size_index + floor(val_size * nrow(dt_window))
             y_train <- y_window[1:train_size_index]
-            y_test <- y_window[(train_size_index + 1):length(y_window)]
+            y_test <- y_window[(train_size_index + 1):test_size_index]
+            y_val <- y_window[(test_size_index + 1):length(y_window)]
             x_train <- x_window[1:train_size_index, ]
-            x_test <- x_window[(train_size_index + 1):length(y_window), ]
+            x_test <- x_window[(train_size_index + 1):test_size_index, ]
+            x_val <- x_window[(test_size_index + 1):length(y_window), ]
 
             ## Define and set sign control
-            dt_sign <- select(dt_modSaturated, -.data$dep_var)
+            dt_sign <- select(dt_window, -.data$dep_var)
             x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
             names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
             check_factor <- unlist(lapply(dt_sign, is.factor))
@@ -714,6 +714,7 @@ robyn_mmm <- function(InputCollect,
             mod_out <- model_refit(
               x_train, y_train,
               x_test, y_test,
+              x_val, y_val,
               lambda = lambda_scaled,
               lower.limits = lower.limits,
               upper.limits = upper.limits,
@@ -810,8 +811,10 @@ robyn_mmm <- function(InputCollect,
             common <- c(
               rsq_test = mod_out$rsq_test,
               rsq_train = mod_out$rsq_train,
+              rsq_val = mod_out$rsq_val,
               nrmse = mod_out$nrmse_test,
               nrmse_train = mod_out$nrmse_train,
+              nrmse_val = mod_out$nrmse_val,
               decomp.rssd = decomp.rssd,
               mape = mape,
               lambda = lambda_scaled,
@@ -909,7 +912,7 @@ robyn_mmm <- function(InputCollect,
       }) # end system.time
     },
     error = function(err) {
-      if (!is.null(resultCollectNG)) {
+      if (length(resultCollectNG) > 1) {
         msg <- "Error while running robyn_mmm(); providing PARTIAL results"
         warning(msg)
         message(paste(msg, err, sep = "\n"))
@@ -1108,7 +1111,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   return(decompCollect)
 }
 
-model_refit <- function(x_train, y_train, x_test, y_test,
+model_refit <- function(x_train, y_train, x_test, y_test, x_val, y_val,
                         lambda, lower.limits, upper.limits,
                         intercept_sign = "non_negative") {
   mod <- glmnet(
@@ -1139,27 +1142,31 @@ model_refit <- function(x_train, y_train, x_test, y_test,
     df.int <- 0
   } # ; plot(mod); print(mod)
 
+  # Calculate all Adjusted R2
   y_train_pred <- as.vector(predict(mod, s = lambda, newx = x_train))
   rsq_train <- get_rsq(true = y_train, predicted = y_train_pred, p = ncol(x_train), df.int = df.int)
   y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
   rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
-  y_pred <- c(y_train_pred, y_test_pred)
+  y_val_pred <- as.vector(predict(mod, s = lambda, newx = x_val))
+  rsq_val <- get_rsq(true = y_val, predicted = y_val_pred, p = ncol(x_val), df.int = df.int)
 
-  # mape_mod<- mean(abs((y_test - y_test_pred)/y_test)* 100); mape_mod
-  coefs <- as.matrix(coef(mod))
-
+  # Calculate all NRMSE
   nrmse_train <- sqrt(mean((y_train - y_train_pred)^2)) / (max(y_train) - min(y_train))
   nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
+  nrmse_val <- sqrt(mean(sum((y_val - y_val_pred)^2))) / (max(y_val) - min(y_val))
 
   mod_out <- list(
     rsq_train = rsq_train,
     rsq_test = rsq_test,
+    rsq_val = rsq_val,
     nrmse_train = nrmse_train,
     nrmse_test = nrmse_test,
-    coefs = coefs,
+    nrmse_val = nrmse_val,
+    coefs = as.matrix(coef(mod)),
     y_train_pred = y_train_pred,
     y_test_pred = y_test_pred,
-    y_pred = c(y_train_pred, y_test_pred),
+    y_val_pred = y_val_pred,
+    y_pred = c(y_train_pred, y_test_pred, y_val_pred),
     mod = mod,
     df.int = df.int
   )
@@ -1192,7 +1199,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
   # Fetch hyper-parameters based on media
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
-  # Add lambda
+  # Manually add other hyper-parameters
   hypParamSamName <- c(hypParamSamName, "lambda", "train_size")
 
   # Add penalty factor hyper-parameters names
@@ -1218,7 +1225,7 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
 
     # Add unfixed train_size hyperparameter manually
     if (length(hyper_bound_list[["train_size"]]) != 1) {
-      hyper_bound_list$train_size <- c(0.5, 0.99)
+      hyper_bound_list$train_size <- c(0.5, 0.8)
     }
 
     # Add unfixed penalty.factor hyperparameters manually

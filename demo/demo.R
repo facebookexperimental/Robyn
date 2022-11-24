@@ -311,11 +311,32 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to max available - 1
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 5, # 5 recommended for the dummy dataset
+  trials = 1, # 5 recommended for the dummy dataset
   add_penalty_factor = FALSE, # Experimental feature. Use with caution.
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
+
+OutputModels$trial1$resultCollect$resultHypParam %>%
+  mutate(i = rev(row_number())) %>%
+  ggplot(aes(x = i)) +
+  geom_line(aes(y = rsq_test, colour = "rsq_test")) +
+  geom_line(aes(y = rsq_train, colour = "rsq_train")) +
+  geom_line(aes(y = rsq_val, colour = "rsq_val")) +
+  ylim(-20, 5) +
+  labs(y = "RSQ")
+
+OutputModels$trial1$resultCollect$resultHypParam %>%
+  mutate(i = rev(row_number())) %>%
+  ggplot(aes(x = i)) +
+  geom_line(aes(y = nrmse, colour = "nrmse")) +
+  geom_line(aes(y = nrmse_train, colour = "nrmse_train")) +
+  geom_line(aes(y = nrmse_val, colour = "nrmse_val")) +
+  labs(y = "NRMSE")
+
+OutputModels$trial1$resultCollect$resultHypParam %>%
+  mutate(i = rev(row_number())) %>%
+  ggplot(aes(x=i, y=train_size)) + geom_point()
 
 ## Check MOO (multi-objective optimization) convergence plots
 OutputModels$convergence$moo_distrb_plot
