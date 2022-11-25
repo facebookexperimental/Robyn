@@ -320,18 +320,18 @@ print(OutputModels)
 OutputModels$trial1$resultCollect$resultHypParam %>%
   mutate(i = rev(row_number())) %>%
   ggplot(aes(x = i)) +
-  geom_line(aes(y = rsq_test, colour = "rsq_test")) +
   geom_line(aes(y = rsq_train, colour = "rsq_train")) +
   geom_line(aes(y = rsq_val, colour = "rsq_val")) +
+  geom_line(aes(y = rsq_test, colour = "rsq_test")) +
   ylim(-20, 5) +
   labs(y = "RSQ")
 
 OutputModels$trial1$resultCollect$resultHypParam %>%
   mutate(i = rev(row_number())) %>%
   ggplot(aes(x = i)) +
-  geom_line(aes(y = nrmse, colour = "nrmse")) +
   geom_line(aes(y = nrmse_train, colour = "nrmse_train")) +
-  geom_line(aes(y = nrmse_val, colour = "nrmse_val")) +
+  geom_line(aes(y = nrmse, colour = "nrmse_val")) +
+  geom_line(aes(y = nrmse_test, colour = "nrmse_test")) +
   labs(y = "NRMSE")
 
 OutputModels$trial1$resultCollect$resultHypParam %>%

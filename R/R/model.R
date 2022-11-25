@@ -636,13 +636,13 @@ robyn_mmm <- function(InputCollect,
             train_size <- hypParamSam[, "train_size"]
             val_size <- test_size <- (1 - train_size) / 2
             train_size_index <- floor(quantile(seq(nrow(dt_window)), train_size))
-            test_size_index <- train_size_index + floor(val_size * nrow(dt_window))
+            val_size_index <- train_size_index + floor(val_size * nrow(dt_window))
             y_train <- y_window[1:train_size_index]
-            y_test <- y_window[(train_size_index + 1):test_size_index]
-            y_val <- y_window[(test_size_index + 1):length(y_window)]
+            y_val <- y_window[(train_size_index + 1):val_size_index]
+            y_test <- y_window[(val_size_index + 1):length(y_window)]
             x_train <- x_window[1:train_size_index, ]
-            x_test <- x_window[(train_size_index + 1):test_size_index, ]
-            x_val <- x_window[(test_size_index + 1):length(y_window), ]
+            x_val <- x_window[(train_size_index + 1):val_size_index, ]
+            x_test <- x_window[(val_size_index + 1):length(y_window), ]
 
             ## Define and set sign control
             dt_sign <- select(dt_window, -.data$dep_var)
@@ -713,8 +713,8 @@ robyn_mmm <- function(InputCollect,
             ## If no lift calibration, refit using best lambda
             mod_out <- model_refit(
               x_train, y_train,
-              x_test, y_test,
               x_val, y_val,
+              x_test, y_test,
               lambda = lambda_scaled,
               lower.limits = lower.limits,
               upper.limits = upper.limits,
@@ -730,7 +730,7 @@ robyn_mmm <- function(InputCollect,
               dt_modRollWind = dt_modRollWind,
               refreshAddedStart = refreshAddedStart
             )
-            nrmse <- mod_out$nrmse_test
+            nrmse <- mod_out$nrmse_val
             mape <- 0
             df.int <- mod_out$df.int
 
@@ -809,12 +809,12 @@ robyn_mmm <- function(InputCollect,
 
             # Auxiliary dynamic vector
             common <- c(
-              rsq_test = mod_out$rsq_test,
               rsq_train = mod_out$rsq_train,
               rsq_val = mod_out$rsq_val,
-              nrmse = mod_out$nrmse_test,
+              rsq_test = mod_out$rsq_test,
               nrmse_train = mod_out$nrmse_train,
-              nrmse_val = mod_out$nrmse_val,
+              nrmse = mod_out$nrmse_val,
+              nrmse_test = mod_out$nrmse_test,
               decomp.rssd = decomp.rssd,
               mape = mape,
               lambda = lambda_scaled,
@@ -1111,7 +1111,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   return(decompCollect)
 }
 
-model_refit <- function(x_train, y_train, x_test, y_test, x_val, y_val,
+model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
                         lambda, lower.limits, upper.limits,
                         intercept_sign = "non_negative") {
   mod <- glmnet(
@@ -1145,28 +1145,28 @@ model_refit <- function(x_train, y_train, x_test, y_test, x_val, y_val,
   # Calculate all Adjusted R2
   y_train_pred <- as.vector(predict(mod, s = lambda, newx = x_train))
   rsq_train <- get_rsq(true = y_train, predicted = y_train_pred, p = ncol(x_train), df.int = df.int)
-  y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
-  rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
   y_val_pred <- as.vector(predict(mod, s = lambda, newx = x_val))
   rsq_val <- get_rsq(true = y_val, predicted = y_val_pred, p = ncol(x_val), df.int = df.int)
+  y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
+  rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
 
   # Calculate all NRMSE
   nrmse_train <- sqrt(mean((y_train - y_train_pred)^2)) / (max(y_train) - min(y_train))
-  nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
   nrmse_val <- sqrt(mean(sum((y_val - y_val_pred)^2))) / (max(y_val) - min(y_val))
+  nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
 
   mod_out <- list(
     rsq_train = rsq_train,
-    rsq_test = rsq_test,
     rsq_val = rsq_val,
+    rsq_test = rsq_test,
     nrmse_train = nrmse_train,
-    nrmse_test = nrmse_test,
     nrmse_val = nrmse_val,
+    nrmse_test = nrmse_test,
     coefs = as.matrix(coef(mod)),
     y_train_pred = y_train_pred,
-    y_test_pred = y_test_pred,
     y_val_pred = y_val_pred,
-    y_pred = c(y_train_pred, y_test_pred, y_val_pred),
+    y_test_pred = y_test_pred,
+    y_pred = c(y_train_pred, y_val_pred, y_test_pred),
     mod = mod,
     df.int = df.int
   )
