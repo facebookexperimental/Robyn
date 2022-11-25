@@ -106,8 +106,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
     resultHypParam = pareto_results$resultHypParam,
     xDecompAgg = pareto_results$xDecompAgg,
     resultCalibration = pareto_results$resultCalibration,
-    plotDataCollect = pareto_results$plotDataCollect
-    # df_caov_pct = pareto_results$df_caov_pct_all # redunant with OutputCollect$xDecompAgg$carryover_pct
+    plotDataCollect = pareto_results$plotDataCollect,
+    df_caov_pct = pareto_results$df_caov_pct_all
   )
 
   # Set folder to save outputs: legacy plot_folder_sub
