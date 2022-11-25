@@ -418,7 +418,7 @@ Adstock: {x$adstock}
     },
     hyps = if (!is.null(x$hyperparameters)) {
       glued(
-        "Hyper-parameters for channel transformations:\n{flatten_hyps(x$hyperparameters)}"
+        "Hyper-parameters ranges:\n{flatten_hyps(x$hyperparameters)}"
       )
     } else {
       paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
@@ -514,11 +514,12 @@ Adstock: {x$adstock}
 #' @export
 hyper_names <- function(adstock, all_media) {
   adstock <- check_adstock(adstock)
-  global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
-    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("thetas|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, hyps_name[
+      grepl("thetas|alphas|gammas", hyps_name)]), 1, paste, collapse = "_"))
   } else if (adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("shapes|scales|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, hyps_name[
+      grepl("shapes|scales|alphas|gammas", hyps_name)]), 1, paste, collapse = "_"))
   }
   return(local_name)
 }

@@ -14,6 +14,8 @@
 #' @inheritParams robyn_inputs
 #' @param dt_hyper_fixed data.frame. Only provide when loading old model results.
 #' It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.
+#' @param ts_validation Boolean. When set to \code{TRUE}, Robyn will split data
+#' by test, train, and validation partitions to validate the time series.
 #' @param add_penalty_factor Boolean. Add penalty factor hyperparameters to
 #' glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
 #' this feature might add too much hyperparameter space and probably requires
@@ -55,6 +57,7 @@
 robyn_run <- function(InputCollect = NULL,
                       dt_hyper_fixed = NULL,
                       json_file = NULL,
+                      ts_validation = TRUE,
                       add_penalty_factor = FALSE,
                       refresh = FALSE,
                       seed = 123L,
@@ -121,6 +124,7 @@ robyn_run <- function(InputCollect = NULL,
   hyper_collect <- hyper_collector(
     InputCollect,
     hyper_in = InputCollect$hyperparameters,
+    ts_validation = ts_validation,
     add_penalty_factor = add_penalty_factor,
     dt_hyper_fixed = dt_hyper_fixed,
     cores = cores
@@ -134,6 +138,7 @@ robyn_run <- function(InputCollect = NULL,
     InputCollect, hyper_collect,
     cores, iterations, trials, intercept_sign, nevergrad_algo,
     dt_hyper_fixed = dt_hyper_fixed,
+    ts_validation = ts_validation,
     add_penalty_factor = add_penalty_factor,
     refresh, seed, quiet
   )
@@ -148,6 +153,7 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$trials <- trials
     OutputModels$intercept_sign <- intercept_sign
     OutputModels$nevergrad_algo <- nevergrad_algo
+    OutputModels$ts_validation <- ts_validation
     OutputModels$add_penalty_factor <- add_penalty_factor
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
@@ -201,6 +207,7 @@ print.robyn_models <- function(x, ...) {
 
   Nevergrad Algo: {x$nevergrad_algo}
   Intercept sign: {x$intercept_sign}
+  Time-series validation: {x$ts_validation}
   Penalty factor: {x$add_penalty_factor}
   Refresh: {isTRUE(attr(x, 'refresh'))}
 
@@ -253,6 +260,7 @@ robyn_train <- function(InputCollect, hyper_collect,
                         cores, iterations, trials,
                         intercept_sign, nevergrad_algo,
                         dt_hyper_fixed = NULL,
+                        ts_validation = TRUE,
                         add_penalty_factor = FALSE,
                         refresh = FALSE, seed = 123,
                         quiet = FALSE) {
@@ -268,6 +276,7 @@ robyn_train <- function(InputCollect, hyper_collect,
       nevergrad_algo = nevergrad_algo,
       intercept_sign = intercept_sign,
       dt_hyper_fixed = dt_hyper_fixed,
+      ts_validation = ts_validation,
       seed = seed,
       quiet = quiet
     )
@@ -305,6 +314,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         cores = cores,
         nevergrad_algo = nevergrad_algo,
         intercept_sign = intercept_sign,
+        ts_validation = ts_validation,
         add_penalty_factor = add_penalty_factor,
         refresh = refresh,
         trial = ngt,
@@ -359,6 +369,7 @@ robyn_mmm <- function(InputCollect,
                       cores,
                       nevergrad_algo,
                       intercept_sign,
+                      ts_validation = TRUE,
                       add_penalty_factor = FALSE,
                       dt_hyper_fixed = NULL,
                       # lambda_fixed = NULL,
@@ -422,6 +433,7 @@ robyn_mmm <- function(InputCollect,
     all_media <- InputCollect$all_media
     calibration_input <- InputCollect$calibration_input
     optimizer_name <- nevergrad_algo
+    ts_validation <- ts_validation
     add_penalty_factor <- add_penalty_factor
     intercept_sign <- intercept_sign
     i <- NULL # For parallel iterations (globalVar)
@@ -579,13 +591,6 @@ robyn_mmm <- function(InputCollect,
               mediaCarryover[[v]] <- m_carryover
               mediaVecCum[[v]] <- x_list$thetaVecCum
 
-              # data.frame(id = rep(seq_along(m), 2)) %>%
-              #   mutate(value = c(m, m_adstocked),
-              #          type = c(rep("raw", length(m)), rep("adstocked", length(m)))) %>%
-              #   filter(id < 100) %>%
-              #   ggplot(aes(x = id, y = value, colour = type)) +
-              #   geom_line()
-
               ################################################
               ## 2. Saturation (only window data)
               # Saturated response = Immediate response + carryover response
@@ -631,18 +636,22 @@ robyn_mmm <- function(InputCollect,
             ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
             y_window <- dt_window$dep_var
             x_window <- as.matrix(lares::ohse(select(dt_window, -.data$dep_var)))
+            y_train <- y_val <- y_test <- y_window
+            x_train <- x_val <- x_test <- x_window
 
             ## Split train, test, and validation sets
-            train_size <- hypParamSam[, "train_size"]
+            train_size <- hypParamSam[, "train_size"][[1]]
             val_size <- test_size <- (1 - train_size) / 2
-            train_size_index <- floor(quantile(seq(nrow(dt_window)), train_size))
-            val_size_index <- train_size_index + floor(val_size * nrow(dt_window))
-            y_train <- y_window[1:train_size_index]
-            y_val <- y_window[(train_size_index + 1):val_size_index]
-            y_test <- y_window[(val_size_index + 1):length(y_window)]
-            x_train <- x_window[1:train_size_index, ]
-            x_val <- x_window[(train_size_index + 1):val_size_index, ]
-            x_test <- x_window[(val_size_index + 1):length(y_window), ]
+            if (train_size < 1) {
+              train_size_index <- floor(quantile(seq(nrow(dt_window)), train_size))
+              val_size_index <- train_size_index + floor(val_size * nrow(dt_window))
+              y_train <- y_window[1:train_size_index]
+              y_val <- y_window[(train_size_index + 1):val_size_index]
+              y_test <- y_window[(val_size_index + 1):length(y_window)]
+              x_train <- x_window[1:train_size_index, ]
+              x_val <- x_window[(train_size_index + 1):val_size_index, ]
+              x_test <- x_window[(val_size_index + 1):length(y_window), ]
+            }
 
             ## Define and set sign control
             dt_sign <- select(dt_window, -.data$dep_var)
@@ -1173,12 +1182,12 @@ lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
   return(lambdas)
 }
 
-hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper_fixed = NULL, cores) {
+hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_factor, dt_hyper_fixed = NULL, cores) {
   # Fetch hyper-parameters based on media
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
   # Manually add other hyper-parameters
-  hypParamSamName <- c(hypParamSamName, "lambda", "train_size")
+  hypParamSamName <- c(hypParamSamName, other_hyps)
 
   # Add penalty factor hyper-parameters names
   for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
@@ -1202,8 +1211,15 @@ hyper_collector <- function(InputCollect, hyper_in, add_penalty_factor, dt_hyper
     }
 
     # Add unfixed train_size hyperparameter manually
-    if (length(hyper_bound_list[["train_size"]]) != 1) {
-      hyper_bound_list$train_size <- c(0.5, 0.8)
+    if (ts_validation) {
+      if (!"train_size" %in% names(hyper_bound_list)) {
+        hyper_bound_list$train_size <- c(0.5, 0.8)
+      }
+      message(sprintf("Fitting time series dynamically with %s of data and validating with the rest...",
+                      paste(formatNum(100 * hyper_bound_list$train_size, pos = "%"), collapse = "-")))
+    } else {
+      hyper_bound_list$train_size <- 1
+      message("Fitting time series with all available data...")
     }
 
     # Add unfixed penalty.factor hyperparameters manually

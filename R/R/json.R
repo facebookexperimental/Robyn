@@ -68,10 +68,9 @@ robyn_write <- function(InputCollect,
       )
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
       select(.data$rsq_train, .data$nrmse, .data$decomp.rssd, .data$mape)
-    hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
-      select(contains(hyps_name), dplyr::ends_with("_penalty"), .data$lambda) %>%
+      select(contains(hyps_name), dplyr::ends_with("_penalty"), any_of(other_hyps)) %>%
       select(order(colnames(.))) %>%
       as.list()
     outputs$hyper_updated <- OutputCollect$hyper_updated
@@ -133,14 +132,14 @@ print.robyn_write <- function(x, ...) {
     replace(., . == "NA", "-") %>% as.data.frame())
 
   print(glued(
-    "\n\nHyper-parameters for channel transformations:\n    Adstock: {x$InputCollect$adstock}"
+    "\n\nHyper-parameters:\n    Adstock: {x$InputCollect$adstock}"
   ))
 
   # Nice and tidy table format for hyper-parameters
-  hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
+  hyps_name <- c(hyps_name, "penalty")
   regex <- paste(paste0("_", hyps_name), collapse = "|")
   hyper_df <- as.data.frame(x$ExportedModel$hyper_values) %>%
-    select(-contains("lambda")) %>%
+    select(-contains("lambda"), -any_of(other_hyps)) %>%
     tidyr::gather() %>%
     tidyr::separate(.data$key,
       into = c("channel", "none"),
@@ -220,7 +219,7 @@ Adstock: {a$adstock}
       "None"
     },
     hyps = glued(
-      "Hyper-parameters for channel transformations:\n{flatten_hyps(a$hyperparameters)}"
+      "Hyper-parameters ranges:\n{flatten_hyps(a$hyperparameters)}"
     )
   ))
 

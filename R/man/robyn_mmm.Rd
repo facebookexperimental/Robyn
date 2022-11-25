@@ -11,6 +11,7 @@ robyn_mmm(
   cores,
   nevergrad_algo,
   intercept_sign,
+  ts_validation = TRUE,
   add_penalty_factor = FALSE,
   dt_hyper_fixed = NULL,
   refresh = FALSE,
@@ -40,6 +41,9 @@ except one). Set to 1 if you want to turn parallel computing off.}
 "unconstrained". By default, if intercept is negative, Robyn will drop intercept
 and refit the model. Consider changing intercept_sign to "unconstrained" when
 there are \code{context_vars} with large positive values.}
+
+\item{ts_validation}{Boolean. When set to \code{TRUE}, Robyn will split data
+by test, train, and validation partitions to validate the time series.}
 
 \item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
 glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because

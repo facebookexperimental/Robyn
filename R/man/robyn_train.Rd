@@ -13,6 +13,7 @@ robyn_train(
   intercept_sign,
   nevergrad_algo,
   dt_hyper_fixed = NULL,
+  ts_validation = TRUE,
   add_penalty_factor = FALSE,
   refresh = FALSE,
   seed = 123,
@@ -47,6 +48,9 @@ there are \code{context_vars} with large positive values.}
 
 \item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
 It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+
+\item{ts_validation}{Boolean. When set to \code{TRUE}, Robyn will split data
+by test, train, and validation partitions to validate the time series.}
 
 \item{add_penalty_factor}{Boolean. Add penalty factor hyperparameters to
 glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because

@@ -196,7 +196,8 @@ hyperparameters <- list(
   ooh_S_thetas = c(0.1, 0.4),
   newsletter_alphas = c(0.5, 3),
   newsletter_gammas = c(0.3, 1),
-  newsletter_thetas = c(0.1, 0.4)
+  newsletter_thetas = c(0.1, 0.4),
+  train_size = c(0.5, 0.8)
 )
 
 # Example hyperparameters ranges for Weibull CDF adstock
@@ -309,8 +310,9 @@ if (length(InputCollect$exposure_vars) > 0) {
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to max available - 1
-  iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 5, # 5 recommended for the dummy dataset
+  iterations = 3000, # 2000 recommended for the dummy dataset with no calibration
+  trials = 3, # 5 recommended for the dummy dataset
+  ts_validation = TRUE, # Split time series to validate
   add_penalty_factor = FALSE, # Experimental feature. Use with caution.
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
