@@ -86,10 +86,16 @@ robyn_outputs <- function(InputCollect, OutputModels,
   pareto_fronts <- pareto_results$pareto_fronts
   allSolutions <- pareto_results$pareto_solutions
 
-  # Reduce the size of xDecompVec with only pareto-front models
+  # Reduce the size of xDecompVec with only pareto-front models and create solID
   OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)] <- lapply(
     OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)],
-    function(x) filter(x$resultCollect$xDecompVec, .data$solID %in% allSolutions)
+    function(x) {
+      mutate(x$resultCollect$xDecompVec,
+        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+      ) %>%
+        filter(.data$solID %in% allSolutions) %>%
+        select(-.data$iterNG, -.data$iterPar)
+    }
   )
 
   #####################################
@@ -176,7 +182,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
       ) %>%
       left_join(
         pareto_results$df_caov_pct_all,
-        by = c("solID", "rn" = "channel")
+        by = c("solID", "rn")
       )
     OutputCollect$mediaVecCollect <- left_join(
       OutputCollect$mediaVecCollect,

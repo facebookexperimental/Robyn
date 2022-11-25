@@ -473,7 +473,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       p7 <- df_imme_caov %>%
         mutate(type = factor(.data$type, levels = c("Carryover", "Immediate"))) %>%
         ggplot(aes(
-          x = .data$percentage, y = .data$channels, fill = reorder(.data$type, as.integer(.data$type)),
+          x = .data$percentage, y = .data$rn, fill = reorder(.data$type, as.integer(.data$type)),
           label = paste0(round(.data$percentage * 100), "%")
         )) +
         geom_bar(stat = "identity", width = 0.5) +
@@ -1009,4 +1009,70 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
   }
 
   return(invisible(outputs))
+}
+
+ts_validation <- function(OutputModels) {
+  resultHypParam <- bind_rows(
+    lapply(OutputModels[
+      which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))
+    ], function(x) x$resultCollect$resultHypParam)
+  ) %>%
+    group_by(.data$trial) %>%
+    mutate(i = row_number()) %>%
+    ungroup()
+
+  resultHypParamLong <- suppressWarnings(
+    resultHypParam %>%
+      select(.data$solID, .data$i, .data$trial, contains("rsq")) %>%
+      mutate(trial = paste("Trial", .data$trial)) %>%
+      tidyr::gather("dataset", "rsq", contains("rsq")) %>%
+      bind_cols(select(resultHypParam, .data$solID, contains("nrmse")) %>%
+        tidyr::gather("del", "nrmse", contains("nrmse")) %>%
+        select(.data$nrmse)) %>%
+      # group_by(.data$trial, .data$dataset) %>%
+      mutate(
+        rsq = lares::winsorize(.data$rsq, thresh = c(0.01, 0.99)),
+        nrmse = lares::winsorize(.data$nrmse, thresh = c(0.01, 0.99)),
+        dataset = gsub("rsq_", "", .data$dataset)
+      ) %>%
+      ungroup()
+  )
+
+  pIters <- resultHypParam %>%
+    ggplot(aes(x = .data$i, y = .data$train_size)) +
+    geom_point(alpha = 0.5) +
+    labs(y = "Train Size", x = "Iteration") +
+    scale_y_percent() +
+    theme_lares() +
+    scale_x_abbr()
+
+  pRSQ <- ggplot(resultHypParamLong, aes(
+    x = .data$i, y = .data$rsq,
+    colour = .data$dataset,
+    group = as.character(.data$trial)
+  )) +
+    geom_point(alpha = 0.5, size = 1) +
+    facet_grid(.data$trial ~ .) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
+    theme_lares(legend = "top", pal = 2) +
+    scale_x_abbr()
+
+  pNRMSE <- ggplot(resultHypParamLong, aes(
+    x = .data$i, y = .data$nrmse,
+    colour = .data$dataset,
+    group = as.character(.data$trial)
+  )) +
+    geom_point(alpha = 0.5, size = 1) +
+    facet_grid(.data$trial ~ .) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(y = "NRMSE [1% Winsorized]", x = "Iteration", colour = "Dataset") +
+    theme_lares(legend = "top", pal = 2) +
+    scale_x_abbr()
+
+  pw <- ((pRSQ + pNRMSE) / pIters) +
+    patchwork::plot_annotation(title = "Time-series validation & Convergence") +
+    patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
+    theme_lares(legend = "top")
+  return(pw)
 }

@@ -808,7 +808,7 @@ robyn_mmm <- function(InputCollect,
             resultCollect <- list()
 
             # Auxiliary dynamic vector
-            common <- c(
+            common <- data.frame(
               rsq_train = mod_out$rsq_train,
               rsq_val = mod_out$rsq_val,
               rsq_test = mod_out$rsq_test,
@@ -821,22 +821,24 @@ robyn_mmm <- function(InputCollect,
               lambda_hp = lambda_hp,
               lambda_max = lambda_max,
               lambda_min_ratio = lambda_min_ratio,
-              iterPar = i,
+              solID = paste(trial, lng, i, sep = "_"),
+              trial = trial,
               iterNG = lng,
+              iterPar = i,
               df.int = df.int
             )
-            total_common <- length(common)
-            split_common <- which(names(common) == "lambda_min_ratio")
+            total_common <- ncol(common)
+            split_common <- which(colnames(common) == "lambda_min_ratio")
 
-            resultCollect[["resultHypParam"]] <- data.frame(hypParamSam) %>%
+            resultCollect[["resultHypParam"]] <- as_tibble(hypParamSam) %>%
               select(-.data$lambda) %>%
-              bind_cols(data.frame(t(common[1:split_common]))) %>%
+              bind_cols(common[, 1:split_common]) %>%
               mutate(
                 pos = prod(decompCollect$xDecompAgg$pos),
                 Elapsed = as.numeric(difftime(Sys.time(), t1, units = "secs")),
                 ElapsedAccum = as.numeric(difftime(Sys.time(), t0, units = "secs"))
               ) %>%
-              bind_cols(data.frame(t(common[(split_common + 1):total_common]))) %>%
+              bind_cols(common[, (split_common + 1):total_common]) %>%
               dplyr::mutate_all(unlist)
 
             mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
@@ -847,20 +849,18 @@ robyn_mmm <- function(InputCollect,
               decompCollect$xDecompVec,
               mediaDecompImmediate,
               mediaDecompCarryover
-            ) %>%
-              mutate(solID = paste(trial, lng, i, sep = "_")) %>%
-              select(.data$solID, dplyr::everything())
+            ) %>% mutate(trial = trial, iterNG = lng, iterPar = i)
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
-              bind_cols(data.frame(t(common)))
+              bind_cols(common)
 
             if (!is.null(calibration_input)) {
               resultCollect[["liftCalibration"]] <- liftCollect %>%
-                bind_cols(data.frame(t(common)))
+                bind_cols(common)
             }
 
             resultCollect[["decompSpendDist"]] <- dt_decompSpendDist %>%
-              bind_cols(data.frame(t(common)))
+              bind_cols(common)
 
             resultCollect <- append(resultCollect, as.list(common))
             return(resultCollect)
@@ -939,60 +939,38 @@ robyn_mmm <- function(InputCollect,
 
   resultCollect <- list()
 
-  resultCollect[["resultHypParam"]] <- bind_rows(
+  resultCollect[["resultHypParam"]] <- as_tibble(bind_rows(
     lapply(resultCollectNG, function(x) {
       bind_rows(lapply(x, function(y) y$resultHypParam))
     })
-  ) %>%
-    arrange(.data$nrmse) %>%
-    as_tibble()
+  ))
 
-  resultCollect[["xDecompVec"]] <- bind_rows(
+  resultCollect[["xDecompVec"]] <- as_tibble(bind_rows(
     lapply(resultCollectNG, function(x) {
       bind_rows(lapply(x, function(y) y$xDecompVec))
     })
-  ) %>%
-    as_tibble()
-  # resultCollect[["xDecompVecImmediate"]] <- bind_rows(
-  #   lapply(resultCollectNG, function(x) {
-  #     bind_rows(lapply(x, function(y) y$mediaDecompImmediate))
-  #   })
-  # ) %>%
-  #   arrange(.data$nrmse, .data$ds) %>%
-  #   as_tibble()
-  # resultCollect[["xDecompVecCarryover"]] <- bind_rows(
-  #   lapply(resultCollectNG, function(x) {
-  #     bind_rows(lapply(x, function(y) y$mediaDecompCarryover))
-  #   })
-  # ) %>%
-  #   arrange(.data$nrmse, .data$ds) %>%
-  #   as_tibble()
+  ))
 
-  resultCollect[["xDecompAgg"]] <- bind_rows(
+  resultCollect[["xDecompAgg"]] <- as_tibble(bind_rows(
     lapply(resultCollectNG, function(x) {
       bind_rows(lapply(x, function(y) y$xDecompAgg))
     })
-  ) %>%
-    arrange(.data$nrmse) %>%
-    as_tibble()
+  ))
 
   if (!is.null(calibration_input)) {
-    resultCollect[["liftCalibration"]] <- bind_rows(
+    resultCollect[["liftCalibration"]] <- as_tibble(bind_rows(
       lapply(resultCollectNG, function(x) {
         bind_rows(lapply(x, function(y) y$liftCalibration))
       })
     ) %>%
-      arrange(.data$mape, .data$liftMedia, .data$liftStart) %>%
-      as_tibble()
+      arrange(.data$mape, .data$liftMedia, .data$liftStart))
   }
 
-  resultCollect[["decompSpendDist"]] <- bind_rows(
+  resultCollect[["decompSpendDist"]] <- as_tibble(bind_rows(
     lapply(resultCollectNG, function(x) {
       bind_rows(lapply(x, function(y) y$decompSpendDist))
     })
-  ) %>%
-    arrange(.data$nrmse) %>%
-    as_tibble()
+  ))
 
   resultCollect$iter <- length(resultCollect$mape)
   resultCollect$elapsed.min <- sysTimeDopar[3] / 60

@@ -292,8 +292,7 @@ print(InputCollect)
 
 #### Check spend exposure fit if available
 if (length(InputCollect$exposure_vars) > 0) {
-  InputCollect$modNLS$plots$facebook_I
-  InputCollect$modNLS$plots$search_clicks_P
+  lapply(InputCollect$modNLS$plots, plot)
 }
 
 ##### Manually save and import InputCollect as JSON file
@@ -311,37 +310,19 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to max available - 1
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 1, # 5 recommended for the dummy dataset
+  trials = 5, # 5 recommended for the dummy dataset
   add_penalty_factor = FALSE, # Experimental feature. Use with caution.
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
 print(OutputModels)
 
-OutputModels$trial1$resultCollect$resultHypParam %>%
-  mutate(i = rev(row_number())) %>%
-  ggplot(aes(x = i)) +
-  geom_line(aes(y = rsq_train, colour = "rsq_train")) +
-  geom_line(aes(y = rsq_val, colour = "rsq_val")) +
-  geom_line(aes(y = rsq_test, colour = "rsq_test")) +
-  ylim(-20, 5) +
-  labs(y = "RSQ")
-
-OutputModels$trial1$resultCollect$resultHypParam %>%
-  mutate(i = rev(row_number())) %>%
-  ggplot(aes(x = i)) +
-  geom_line(aes(y = nrmse_train, colour = "nrmse_train")) +
-  geom_line(aes(y = nrmse, colour = "nrmse_val")) +
-  geom_line(aes(y = nrmse_test, colour = "nrmse_test")) +
-  labs(y = "NRMSE")
-
-OutputModels$trial1$resultCollect$resultHypParam %>%
-  mutate(i = rev(row_number())) %>%
-  ggplot(aes(x=i, y=train_size)) + geom_point()
-
 ## Check MOO (multi-objective optimization) convergence plots
+# Read more about convergence rules: ?robyn_converge
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
-# check convergence rules ?robyn_converge
+
+## Check time-series validation
+ts_validation(OutputModels)
 
 ## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(

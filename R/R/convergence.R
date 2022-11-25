@@ -42,13 +42,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
   stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
   # Gather all trials
-  get_lists <- as.logical(grepl("trial", names(OutputModels)) * unlist(lapply(OutputModels, is.list)))
-  OutModels <- OutputModels[get_lists]
-  for (i in seq_along(OutModels)) {
-    if (i == 1) df <- data.frame()
-    temp <- OutModels[[i]]$resultCollect$resultHypParam %>% mutate(trial = i)
-    df <- rbind(df, temp)
-  }
+  get_trials <- which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))
+  df <- bind_rows(lapply(OutputModels[get_trials], function(x) x$resultCollect$resultHypParam))
   calibrated <- isTRUE(sum(df$mape) > 0)
 
   # Calculate deciles

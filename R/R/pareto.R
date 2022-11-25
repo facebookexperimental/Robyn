@@ -39,16 +39,14 @@ robyn_pareto <- function(InputCollect, OutputModels,
     }
     for (df in df_names) {
       assign(df, get(df) %>% mutate(
-        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
-        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar
       ))
     }
   } else if (hyper_fixed & calibrated) {
     df_names <- "resultCalibration"
     for (df in df_names) {
       assign(df, get(df) %>% mutate(
-        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
-        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
+        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar
       ))
     }
   }
@@ -230,6 +228,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
     # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
     temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
     xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec)) %>%
+      mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
       filter(.data$solID %in% uniqueSol)
 
     # Calculations for pareto AND pareto plots
@@ -504,7 +503,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         select(df_caov, .data$solID),
         select(df_caov, -.data$solID) / select(df_total, -.data$solID)
       ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "channel", values_to = "carryover_pct")
+        pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
       df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
       df_caov_pct_all <- bind_rows(df_caov_pct_all, df_caov_pct)
       # Gather everything in an aggregated format
@@ -514,13 +513,13 @@ robyn_pareto <- function(InputCollect, OutputModels,
         select(vec_collect$xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
           mutate(type = "Carryover")
       ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "channel") %>%
-        select(c("solID", "type", "channel", "value")) %>%
-        group_by(.data$solID, .data$channel, .data$type) %>%
+        pivot_longer(cols = InputCollect$all_media, names_to = "rn") %>%
+        select(c("solID", "type", "rn", "value")) %>%
+        group_by(.data$solID, .data$rn, .data$type) %>%
         summarise(response = sum(.data$value), .groups = "drop_last") %>%
         mutate(percentage = .data$response / sum(.data$response)) %>%
         replace(., is.na(.), 0) %>%
-        left_join(df_caov_pct, c("solID", "channel"))
+        left_join(df_caov_pct, c("solID", "rn"))
       if (length(unique(xDecompAgg$solID)) == 1) {
         xDecompVecImmeCaov$solID <- OutModels$trial1$resultCollect$resultHypParam$solID
       }
