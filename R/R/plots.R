@@ -1011,7 +1011,18 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
   return(invisible(outputs))
 }
 
-ts_validation <- function(OutputModels) {
+
+####################################################################
+#' Generate Plots for Time-Series Validation
+#'
+#' @rdname robyn_outputs
+#' @return Invisible list with \code{ggplot} plots.
+#' @export
+ts_validation <- function(OutputModels, ...) {
+  if (!isTRUE(OutputModels$ts_validation)) {
+   warning("Validation was not turned on when training these models. Set: 'ts_validation = TRUE'")
+    return(NULL)
+  }
   resultHypParam <- bind_rows(
     lapply(OutputModels[
       which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))

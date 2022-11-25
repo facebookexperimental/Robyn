@@ -5,6 +5,7 @@
 \alias{print.robyn_outputs}
 \alias{robyn_csv}
 \alias{robyn_plots}
+\alias{ts_validation}
 \title{Evaluate Models and Output Results into Local Files}
 \usage{
 robyn_outputs(
@@ -35,6 +36,8 @@ robyn_csv(
 )
 
 robyn_plots(InputCollect, OutputCollect, export = TRUE)
+
+ts_validation(OutputModels, ...)
 }
 \arguments{
 \item{InputCollect, OutputModels}{\code{robyn_inputs()} and \code{robyn_run()}
@@ -86,6 +89,8 @@ wish to plot the one-pagers and export? Default will take top
 results based on \code{robyn_run()} results.
 
 Invisible \code{NULL}.
+
+Invisible list with \code{ggplot} plots.
 
 Invisible list with \code{ggplot} plots.
 }
