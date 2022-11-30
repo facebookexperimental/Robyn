@@ -790,6 +790,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     ),
     daily.seasonality = FALSE # No hourly models allowed
   )
+  custom_params$yearly.seasonality <- custom_params$weekly.seasonality <- NULL
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
   if (use_monthly) {
