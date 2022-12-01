@@ -57,6 +57,7 @@ options(future.fork.enable = TRUE)
 # Finally, reset your R session and re-install Nevergrad with option 2
 
 #### Known potential issues when installing nevergrad and possible fixes
+# Fix SSL issue (#189): reticulate:::rm_all_reticulate_state()
 # Try updating pip: system("pip3 install --upgrade pip")
 # Be sure to have numpy (and wheel, and pip?) installed: py_install("numpy", pip = TRUE)
 # Check if something looks weird on: py_config() # Py version < 3.10? No numpy?
