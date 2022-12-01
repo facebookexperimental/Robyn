@@ -475,9 +475,10 @@ RobynRefresh <- robyn_refresh(
   refresh_trials = 1
 )
 
-# InputCollect <- RobynRefresh$listRefresh1$InputCollect
-# OutputCollect <- RobynRefresh$listRefresh1$OutputCollect
-# select_model <- RobynRefresh$listRefresh1$OutputCollect$selectID
+# Continue with refreshed new InputCollect, OutputCollect, select_model values
+InputCollectX <- RobynRefresh$listRefresh1$InputCollect
+OutputCollectX <- RobynRefresh$listRefresh1$OutputCollect
+select_modelX <- RobynRefresh$listRefresh1$OutputCollect$selectID
 
 ###### DEPRECATED (<3.7.1) (might work)
 # # Run ?robyn_refresh to check parameter definition
