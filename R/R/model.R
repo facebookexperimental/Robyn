@@ -651,6 +651,8 @@ robyn_mmm <- function(InputCollect,
               x_train <- x_window[1:train_size_index, ]
               x_val <- x_window[(train_size_index + 1):val_size_index, ]
               x_test <- x_window[(val_size_index + 1):length(y_window), ]
+            } else {
+              y_val <- y_test <- x_val <- x_test <- NULL
             }
 
             ## Define and set sign control
@@ -739,7 +741,7 @@ robyn_mmm <- function(InputCollect,
               dt_modRollWind = dt_modRollWind,
               refreshAddedStart = refreshAddedStart
             )
-            nrmse <- mod_out$nrmse_val
+            nrmse <- ifelse(ts_validation, mod_out$nrmse_val, mod_out$nrmse_train)
             mape <- 0
             df.int <- mod_out$df.int
 
@@ -1132,15 +1134,26 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
   # Calculate all Adjusted R2
   y_train_pred <- as.vector(predict(mod, s = lambda, newx = x_train))
   rsq_train <- get_rsq(true = y_train, predicted = y_train_pred, p = ncol(x_train), df.int = df.int)
-  y_val_pred <- as.vector(predict(mod, s = lambda, newx = x_val))
-  rsq_val <- get_rsq(true = y_val, predicted = y_val_pred, p = ncol(x_val), df.int = df.int)
-  y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
-  rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
+  if (!is.null(x_val)) {
+    y_val_pred <- as.vector(predict(mod, s = lambda, newx = x_val))
+    rsq_val <- get_rsq(true = y_val, predicted = y_val_pred, p = ncol(x_val), df.int = df.int)
+    y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
+    rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
+    y_pred <- c(y_train_pred, y_val_pred, y_test_pred)
+  } else {
+    rsq_val <- rsq_test <- NA
+    y_pred <- y_train_pred
+  }
 
   # Calculate all NRMSE
   nrmse_train <- sqrt(mean((y_train - y_train_pred)^2)) / (max(y_train) - min(y_train))
-  nrmse_val <- sqrt(mean(sum((y_val - y_val_pred)^2))) / (max(y_val) - min(y_val))
-  nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
+  if (!is.null(x_val)) {
+    nrmse_val <- sqrt(mean(sum((y_val - y_val_pred)^2))) / (max(y_val) - min(y_val))
+    nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
+  } else {
+    nrmse_val <- nrmse_test <- NA
+  }
+
 
   mod_out <- list(
     rsq_train = rsq_train,
@@ -1153,7 +1166,7 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
     y_train_pred = y_train_pred,
     y_val_pred = y_val_pred,
     y_test_pred = y_test_pred,
-    y_pred = c(y_train_pred, y_val_pred, y_test_pred),
+    y_pred = y_pred,
     mod = mod,
     df.int = df.int
   )
