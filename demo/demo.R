@@ -57,6 +57,7 @@ options(future.fork.enable = TRUE)
 # Finally, reset your R session and re-install Nevergrad with option 2
 
 #### Known potential issues when installing nevergrad and possible fixes
+# Fix SSL issue (#189): reticulate:::rm_all_reticulate_state()
 # Try updating pip: system("pip3 install --upgrade pip")
 # Be sure to have numpy (and wheel, and pip?) installed: py_install("numpy", pip = TRUE)
 # Check if something looks weird on: py_config() # Py version < 3.10? No numpy?
@@ -478,9 +479,10 @@ RobynRefresh <- robyn_refresh(
   refresh_trials = 1
 )
 
-# InputCollect <- RobynRefresh$listRefresh1$InputCollect
-# OutputCollect <- RobynRefresh$listRefresh1$OutputCollect
-# select_model <- RobynRefresh$listRefresh1$OutputCollect$selectID
+# Continue with refreshed new InputCollect, OutputCollect, select_model values
+InputCollectX <- RobynRefresh$listRefresh1$InputCollect
+OutputCollectX <- RobynRefresh$listRefresh1$OutputCollect
+select_modelX <- RobynRefresh$listRefresh1$OutputCollect$selectID
 
 ###### DEPRECATED (<3.7.1) (might work)
 # # Run ?robyn_refresh to check parameter definition

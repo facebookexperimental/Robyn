@@ -148,6 +148,8 @@ check_depvar <- function(dt_input, dep_var, dep_var_type) {
 }
 
 check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval) {
+  check_vector(prophet_vars)
+  check_vector(prophet_signs)
   if (is.null(dt_holidays) || is.null(prophet_vars)) {
     return(invisible(NULL))
   } else {
@@ -200,11 +202,19 @@ check_context <- function(dt_input, context_vars, context_signs) {
   }
 }
 
+check_vector <- function(x) {
+  if (!is.null(names(x)) || is.list(x)) {
+    stop(sprintf("Input '%s' must be a valid vector", deparse(substitute(x))))
+  }
+}
+
 check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_media_spends) {
   if (is.null(paid_media_spends)) {
     stop("Must provide 'paid_media_spends'")
   }
-
+  check_vector(paid_media_vars)
+  check_vector(paid_media_signs)
+  check_vector(paid_media_spends)
   mediaVarCount <- length(paid_media_vars)
   spendVarCount <- length(paid_media_spends)
 
@@ -255,6 +265,8 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
   if (is.null(organic_vars)) {
     return(invisible(NULL))
   }
+  check_vector(organic_vars)
+  check_vector(organic_signs)
   temp <- organic_vars %in% names(dt_input)
   if (!all(temp)) {
     stop(paste(
@@ -276,6 +288,9 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
 }
 
 check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL, organic_vars = NULL) {
+  check_vector(factor_vars)
+  check_vector(context_vars)
+  check_vector(organic_vars)
   temp <- select(dt_input, all_of(c(context_vars, organic_vars)))
   are_not_numeric <- !sapply(temp, is.numeric)
   if (any(are_not_numeric)) {
@@ -307,6 +322,9 @@ check_datadim <- function(dt_input, all_ind_vars, rel = 10) {
       "There are", length(all_ind_vars), "independent variables &",
       num_obs, "data points.", "We recommend row:column ratio of", rel, "to 1"
     ))
+  }
+  if (ncol(dt_input) <= 2) {
+    stop("Provide a valid 'dt_input' input with at least 3 columns or more")
   }
 }
 
