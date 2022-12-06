@@ -101,7 +101,8 @@ robyn_run <- function(InputCollect = NULL,
     for (i in seq_along(InputCollect)) assign(names(InputCollect)[i], InputCollect[[i]])
   }
 
-  max_cores <- parallel::detectCores()
+  # Keep in mind: https://www.jottr.org/2022/12/05/avoid-detectcores/
+  max_cores <- max(1L, parallel::detectCores(), na.rm = TRUE)
   if (is.null(cores)) {
     cores <- max_cores - 1 # It's recommended to always leave at least one core free
   } else if (cores > max_cores) {
