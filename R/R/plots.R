@@ -222,6 +222,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
 #' Generate and Export Robyn One-Pager Plots
 #'
 #' @inheritParams robyn_outputs
+#' @inheritParams robyn_allocator
 #' @inheritParams robyn_csv
 #' @return Invisible list with \code{patchwork} plot(s).
 #' @export

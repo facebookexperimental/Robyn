@@ -12,7 +12,6 @@ robyn_run(
   add_penalty_factor = FALSE,
   refresh = FALSE,
   seed = 123L,
-  outputs = FALSE,
   quiet = FALSE,
   cores = NULL,
   trials = 5,
@@ -43,8 +42,6 @@ more iterations to converge.}
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
-
-\item{outputs}{Boolean. Process results with \code{robyn_outputs()}?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
@@ -90,8 +87,7 @@ OutputCollect <- robyn_run(
   InputCollect = InputCollect,
   cores = 2,
   iterations = 200,
-  trials = 1,
-  outputs = FALSE
+  trials = 1
 )
 }
 }

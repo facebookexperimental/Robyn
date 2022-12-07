@@ -313,8 +313,7 @@ OutputModels <- robyn_run(
   cores = NULL, # NULL defaults to max available - 1
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
-  add_penalty_factor = FALSE, # Experimental feature. Use with caution.
-  outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
+  add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
 print(OutputModels)
 

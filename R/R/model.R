@@ -34,7 +34,6 @@
 #' and refit the model. Consider changing intercept_sign to "unconstrained" when
 #' there are \code{context_vars} with large positive values.
 #' @param seed Integer. For reproducible results when running nevergrad.
-#' @param outputs Boolean. Process results with \code{robyn_outputs()}?
 #' @param lambda_control Deprecated in v3.6.0.
 #' @param ... Additional parameters passed to \code{robyn_outputs()}.
 #' @return List. Class: \code{robyn_models}. Contains the results of all trials
@@ -46,8 +45,7 @@
 #'   InputCollect = InputCollect,
 #'   cores = 2,
 #'   iterations = 200,
-#'   trials = 1,
-#'   outputs = FALSE
+#'   trials = 1
 #' )
 #' }
 #' @return List. Contains all trained models. Class: \code{robyn_models}.
@@ -58,7 +56,6 @@ robyn_run <- function(InputCollect = NULL,
                       add_penalty_factor = FALSE,
                       refresh = FALSE,
                       seed = 123L,
-                      outputs = FALSE,
                       quiet = FALSE,
                       cores = NULL,
                       trials = 5,
@@ -153,16 +150,8 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
 
-  # Not direct output & not all fixed hyppar
-  if (!outputs & is.null(dt_hyper_fixed)) {
+  # Deprecated outputs parameter so the user will run robyn_outputs()
     output <- OutputModels
-  } else if (!hyper_collect$all_fixed) {
-    # Direct output & not all fixed hyppar, including refresh mode
-    output <- robyn_outputs(InputCollect, OutputModels, refresh = refresh, ...)
-  } else {
-    # Direct output & all fixed hyppar, thus no cluster
-    output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
-  }
 
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {

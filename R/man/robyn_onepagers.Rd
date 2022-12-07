@@ -13,8 +13,8 @@ robyn_onepagers(
 )
 }
 \arguments{
-\item{InputCollect}{\code{robyn_inputs()} and \code{robyn_run()}
-outcomes.}
+\item{InputCollect}{List. Contains all input parameters for the model.
+Required when \code{robyn_object} is not provided.}
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
