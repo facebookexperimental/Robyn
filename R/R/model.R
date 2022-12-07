@@ -172,7 +172,7 @@ robyn_run <- function(InputCollect = NULL,
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
     output[["convergence"]] <- robyn_converge(OutputModels, ...)
-    output[["ts_validation"]] <- ts_validation(OutputModels, ...)
+    output[["ts_validation_plot"]] <- ts_validation(OutputModels, ...)
   } else {
     if ("solID" %in% names(dt_hyper_fixed)) {
       output[["selectID"]] <- dt_hyper_fixed$solID

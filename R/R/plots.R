@@ -9,7 +9,7 @@
 #' @rdname robyn_outputs
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
-robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
+robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
   check_class("robyn_outputs", OutputCollect)
   pareto_fronts <- OutputCollect$pareto_fronts
   hyper_fixed <- OutputCollect$hyper_fixed
@@ -213,6 +213,15 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE) {
       }
     }
   } # End of !hyper_fixed
+
+  OutputModels$ts_validation_plot <- suppressWarnings(ts_validation(OutputModels, ...))
+  if (!is.null(OutputModels$ts_validation_plot)) {
+    ggsave(
+      paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
+      plot = OutputModels$ts_validation_plot, dpi = 600,
+      width = 10, height = 12, limitsize = FALSE
+    )
+  }
 
   return(invisible(all_plots))
 }
@@ -1082,7 +1091,7 @@ ts_validation <- function(OutputModels, ...) {
     geom_point(alpha = 0.5, size = 0.9) +
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
-    labs(y = "NRMSE [1% Winsorized]", x = "Iteration", colour = "Dataset") +
+    labs(y = "NRMSE [Upper 1% Winsorized]", x = "Iteration", colour = "Dataset") +
     theme_lares(legend = "top", pal = 2) +
     scale_x_abbr()
 

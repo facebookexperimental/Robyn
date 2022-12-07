@@ -326,7 +326,7 @@ OutputModels$convergence$moo_cloud_plot
 
 ## Check time-series validation plot (when ts_validation == TRUE)
 # Read more and replicate results: ?ts_validation
-OutputModels$ts_validation
+OutputModels$ts_validation_plot
 
 ## Calculate Pareto fronts, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
