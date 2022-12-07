@@ -214,7 +214,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
     }
   } # End of !hyper_fixed
 
-  OutputModels$ts_validation_plot <- suppressWarnings(ts_validation(OutputModels, ...))
+  OutputModels$ts_validation_plot <- ts_validation(OutputModels, quiet = TRUE, ...)
   if (!is.null(OutputModels$ts_validation_plot)) {
     ggsave(
       paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
@@ -1032,9 +1032,9 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 #' @rdname robyn_outputs
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
-ts_validation <- function(OutputModels, ...) {
+ts_validation <- function(OutputModels, quiet = FALSE, ...) {
   if (!isTRUE(OutputModels$ts_validation)) {
-   warning("Validation was not turned on when training these models. Set: 'ts_validation = TRUE'")
+    if (!quiet) warning("Validation was not turned on when training these models. Set: 'ts_validation = TRUE'")
     return(NULL)
   }
   resultHypParam <- bind_rows(

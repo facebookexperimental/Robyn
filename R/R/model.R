@@ -1233,8 +1233,10 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
       if (!"train_size" %in% names(hyper_bound_list)) {
         hyper_bound_list$train_size <- c(0.5, 0.8)
       }
-      message(sprintf("Time-series validation with default train_size range of %s of the data...",
-                      paste(formatNum(100 * hyper_bound_list$train_size, pos = "%"), collapse = "-")))
+      message(sprintf(
+        "Time-series validation with default train_size range of %s of the data...",
+        paste(formatNum(100 * hyper_bound_list$train_size, pos = "%"), collapse = "-")
+      ))
     } else {
       hyper_bound_list$train_size <- 1
       message("Fitting time series with all available data...")

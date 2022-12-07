@@ -35,9 +35,9 @@ robyn_csv(
   calibrated = FALSE
 )
 
-robyn_plots(InputCollect, OutputCollect, export = TRUE)
+robyn_plots(InputCollect, OutputCollect, export = TRUE, ...)
 
-ts_validation(OutputModels, ...)
+ts_validation(OutputModels, quiet = FALSE, ...)
 }
 \arguments{
 \item{InputCollect, OutputModels}{\code{robyn_inputs()} and \code{robyn_run()}

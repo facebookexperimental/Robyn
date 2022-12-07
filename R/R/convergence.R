@@ -204,24 +204,26 @@ test_cvg <- function() {
     return(-sum(dgamma(x, shape = gamma_shape, scale = gamma_scale, log = TRUE)))
   }
   f_geo <- function(a, r, n) {
-    for (i in 2:n) a[i] <- a[i-1] * r
+    for (i in 2:n) a[i] <- a[i - 1] * r
     return(a)
   }
   seq_nrmse <- f_geo(5, 0.7, 100)
   df_nrmse <- data.frame(x = 1:100, y = seq_nrmse, type = "true")
-  mod_gamma <- nloptr(x0 = c(1, 1), eval_f = gamma_mle, lb = c(0,0),
-                      x = seq_nrmse,
-                      opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5))
+  mod_gamma <- nloptr(
+    x0 = c(1, 1), eval_f = gamma_mle, lb = c(0, 0),
+    x = seq_nrmse,
+    opts = list(algorithm = "NLOPT_LN_SBPLX", maxeval = 1e5)
+  )
   gamma_params <- mod_gamma$solution
-  seq_nrmse_gam <- 1/dgamma(seq_nrmse, shape=gamma_params[[1]], scale= gamma_params[[2]])
-  seq_nrmse_gam <- seq_nrmse_gam/(max(seq_nrmse_gam)-min(seq_nrmse_gam))
-  seq_nrmse_gam <- max(seq_nrmse)*seq_nrmse_gam
-  range(seq_nrmse_gam); range(seq_nrmse)
+  seq_nrmse_gam <- 1 / dgamma(seq_nrmse, shape = gamma_params[[1]], scale = gamma_params[[2]])
+  seq_nrmse_gam <- seq_nrmse_gam / (max(seq_nrmse_gam) - min(seq_nrmse_gam))
+  seq_nrmse_gam <- max(seq_nrmse) * seq_nrmse_gam
+  range(seq_nrmse_gam)
+  range(seq_nrmse)
   df_nrmse_gam <- data.frame(x = 1:100, y = seq_nrmse_gam, type = "pred")
   df_nrmse <- bind_rows(df_nrmse, df_nrmse_gam)
-  print(ggplot(df_nrmse, aes(x, y, color = type)) + geom_line())
-
+  p <- ggplot(df_nrmse, aes(.data$x, .data$y, color = .data$type)) + geom_line()
+  return(p)
   # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
   # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])
-
 }
