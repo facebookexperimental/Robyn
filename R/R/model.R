@@ -173,7 +173,11 @@ robyn_run <- function(InputCollect = NULL,
   if (!hyper_collect$all_fixed) {
     output[["convergence"]] <- robyn_converge(OutputModels, ...)
   } else {
-    output[["selectID"]] <- OutputModels$trial1$resultCollect$resultHypParam$solID
+    if ("solID" %in% names(dt_hyper_fixed)) {
+      output[["selectID"]] <- dt_hyper_fixed$solID
+    } else {
+      output[["selectID"]] <- OutputModels$trial1$resultCollect$resultHypParam$solID
+    }
     if (!quiet) message("Successfully recreated model ID: ", output$selectID)
   }
 

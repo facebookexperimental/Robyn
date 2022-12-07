@@ -206,16 +206,12 @@ robyn_refresh <- function(json_file = NULL,
 
     ## Refresh rolling window
     if (TRUE) {
-      totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
-      refreshStart <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
-      refreshEnd <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
       InputCollectRF$refreshAddedStart <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval
-      InputCollectRF$window_start <- refreshStart
-      InputCollectRF$window_end <- refreshEnd
-      refreshStartWhich <- which.min(abs(difftime(totalDates, as.Date(refreshStart), units = "days")))
-      refreshEndWhich <- which.min(abs(difftime(totalDates, as.Date(refreshEnd), units = "days")))
-      InputCollectRF$rollingWindowStartWhich <- refreshStartWhich
-      InputCollectRF$rollingWindowEndWhich <- refreshEndWhich
+      totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
+      refreshStartWhich <- InputCollectRF$rollingWindowStartWhich <- which.min(abs(difftime(totalDates, refreshStart, units = "days")))
+      refreshEndWhich <- InputCollectRF$rollingWindowEndWhich <- which.min(abs(difftime(totalDates, refreshEnd, units = "days")))
+      refreshStart <- InputCollectRF$window_start <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
+      refreshEnd <- InputCollectRF$window_end <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
       InputCollectRF$rollingWindowLength <- refreshEndWhich - refreshStartWhich + 1
     }
 
