@@ -312,7 +312,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to max available - 1
   iterations = 3000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 3, # 5 recommended for the dummy dataset
+  trials = 5, # 5 recommended for the dummy dataset
   ts_validation = TRUE, # Split time series to validate
   add_penalty_factor = FALSE, # Experimental feature. Use with caution.
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
@@ -324,10 +324,11 @@ print(OutputModels)
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
 
-## Check time-series validation
-ts_validation(OutputModels)
+## Check time-series validation plot (when ts_validation == TRUE)
+# Read more and replicate results: ?ts_validation
+OutputModels$ts_validation
 
-## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
+## Calculate Pareto fronts, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
   pareto_fronts = "auto", # automatically pick how many pareto-fronts to fill min_candidates

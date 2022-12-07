@@ -1015,6 +1015,11 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 ####################################################################
 #' Generate Plots for Time-Series Validation
 #'
+#' Create a plot to visualize the convergence for each of the datasets
+#' when time-series validation is enabled when running \code{robyn_run()}.
+#' As a reference, the closer the test and validation convergence points are,
+#' the better, given the time-series wasn't overfitted.
+#'
 #' @rdname robyn_outputs
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
@@ -1043,7 +1048,7 @@ ts_validation <- function(OutputModels, ...) {
       # group_by(.data$trial, .data$dataset) %>%
       mutate(
         rsq = lares::winsorize(.data$rsq, thresh = c(0.01, 0.99)),
-        nrmse = lares::winsorize(.data$nrmse, thresh = c(0.01, 0.99)),
+        nrmse = lares::winsorize(.data$nrmse, thresh = c(0.00, 0.99)),
         dataset = gsub("rsq_", "", .data$dataset)
       ) %>%
       ungroup()
@@ -1051,7 +1056,7 @@ ts_validation <- function(OutputModels, ...) {
 
   pIters <- resultHypParam %>%
     ggplot(aes(x = .data$i, y = .data$train_size)) +
-    geom_point(alpha = 0.5) +
+    geom_point(fill = "black", alpha = 0.5, size = 1.2, pch = 23) +
     labs(y = "Train Size", x = "Iteration") +
     scale_y_percent() +
     theme_lares() +
@@ -1062,7 +1067,7 @@ ts_validation <- function(OutputModels, ...) {
     colour = .data$dataset,
     group = as.character(.data$trial)
   )) +
-    geom_point(alpha = 0.5, size = 1) +
+    geom_point(alpha = 0.5, size = 0.9) +
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
@@ -1074,14 +1079,14 @@ ts_validation <- function(OutputModels, ...) {
     colour = .data$dataset,
     group = as.character(.data$trial)
   )) +
-    geom_point(alpha = 0.5, size = 1) +
+    geom_point(alpha = 0.5, size = 0.9) +
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(y = "NRMSE [1% Winsorized]", x = "Iteration", colour = "Dataset") +
     theme_lares(legend = "top", pal = 2) +
     scale_x_abbr()
 
-  pw <- ((pRSQ + pNRMSE) / pIters) +
+  pw <- (pNRMSE / pIters) +
     patchwork::plot_annotation(title = "Time-series validation & Convergence") +
     patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
     theme_lares(legend = "top")

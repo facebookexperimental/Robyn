@@ -98,4 +98,9 @@ Invisible list with \code{ggplot} plots.
 Pack \code{robyn_plots()}, \code{robyn_csv()}, and \code{robyn_clusters()}
 outcomes on \code{robyn_run()} results. When \code{UI=TRUE}, enriched
 \code{OutputModels} results with additional plots and objects.
+
+Create a plot to visualize the convergence for each of the datasets
+when time-series validation is enabled when running \code{robyn_run()}.
+As a reference, the closer the test and validation convergence points are,
+the better, given the time-series wasn't overfitted.
 }
