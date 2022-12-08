@@ -5,6 +5,24 @@ title: Releases
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
+## 3.8.2 (2022-11-23)
+### Memory friendly outputs, progress bars for Pareto-front models, bugs and docs
+- **Feat**: new status bars for Pareto-Front models per trial to provide information on calculation status
+- **Feat**: included carryover results into pareto_aggregated.csv output and `OutputCollect$xDecompAgg$carryover_pct`
+- **Feat**: new error message shows which hyperparameters inputs are missing #543
+- **Fix**:  substantially reduced the size of `robyn_run()` and `robyn_outputs()` results (around -80% compared with 3.8.1 version's size) by removing redundant and unused data from outputs #534
+- **Fix**: invalid argument type in check_factorvars() and issue recreating calibrated models #520
+- **Fix**: `add_penalty_factor` parameter now works correctly with JSON files and `robyn_refresh()` #543
+- **Fix**: correct hyper-parameters length for custom data #533
+- **Fix**: bug in RobynLearn when checking numerical data #532
+- **Fix**: removed .iData format for legacy demo .RData files
+- **Fix**: passing custom `pareto_fronts` input instead of "auto" now works as is expected
+- **Docs**: updated released version on website, meta.com emails, update CRAN link on `robyn_update()`
+
+**Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.8.0...v3.8.2
+
+---
+
 ## 3.8.0 (2022-10-27)
 ### Bootstrapped CI, Immediate vs Carryover, Multi-channel calibration
 

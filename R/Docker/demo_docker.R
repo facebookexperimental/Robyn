@@ -61,7 +61,6 @@ InputCollect <- robyn_inputs(
   organic_vars = "newsletter",
   organic_signs = "positive",
   factor_vars = "events",
-  cores = parallel::detectCores(),
   window_start = "2016-11-23",
   window_end = "2018-08-22",
   adstock = "geometric",
