@@ -7,7 +7,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 An in-depth discussion of both the implementation and technical underpinnings of Robyn follows -
 
-## Inputs
+## Model Inputs
 
 The function `robyn_inputs()` mainly captures all model specification for the dataset. Here we break down some of the underlying concepts
 
@@ -228,16 +228,29 @@ Ridge regression has an additional benefit of being relatively easy to interpret
 
 ---
 
-##  Nevergrad Automated Hyperparameter Selection Optimization
+##  Multi-Objective Hyperparameter Optimization with Nevergrad
 
 ---
 
-MMMs are likely to **contain high cardinality of parameters**. ie. alphas and gammas for the diminishing returns (Hill) function, as well as, thetas for geometric ad stock transformation.
-In addition, parameters dimensionality increases proportionally with the total number of marketing channels to be measured. Thus, it is extremely necessary to deal with a high dimensionality parameter space where, the greater the number of parameters, **the greater the model complexity, its dimensionality and computational requirements.**
+One of the most important innovation in Robyn is the implementation of multi-objective hyperparameter optimization in MMM. This enables us to automate the selection of adstocking, saturation, regularization penalty and even training size for time-series validation. At the same time, the ability to optimise towards multiple "goals", implemented as objective functions, provides us the edge to produce model candidates with great predictive power as well as more realistic effect decomposition.
 
-In order to achieve computational efficiency while optimizing overall model accuracy, we leverage [**Meta’s Nevergrad gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/).  Nevergrad allows us to optimize the explore and exploit balance through the **ask** and **tell** commands, in order to perform a multi-objective optimization tha balances out the Normalized Root Mean Square Error (**NRMSE**) and **decomp.RSSD** ratio (Relationship between spend share and channels coefficient decomposition share) providing a set of **Pareto optimal model solutions**
+Robyn uses [**Nevergrad, Meta’s gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/), to perform this task with its **ask** and **tell** interface. In other words, Robyn "asks" Nevergrad for the mutating hyperparameter values by "telling" it which values have better scores (objective functions).
 
-Please find below an example of a common chart for the Pareto model solutions.
+**Hyperparameters**
+There're four types of hyperparameters in Robyn at the moment.
+- **Adstocking**: `theta` when selecting Geometric adstocking, or `shape` & `scale` when selecting Weibull adstocking
+- **Saturation**: `alpha` & `gamma` for Hill function
+- **Regularization**: `lambda` for the penalty term in ridge regression
+- **Validation**: `train_size` for the percentage of training data
+The cardinality of hyperparameters increases when adding more paid and organic media variables, because Robyn performs adstocking & saturation transformation for each media variable individually. For example, if using 10 media variables with Geometric adstock, the total amount of hyperparameters is 32: 10 thetas + 10 alphas + 10 gammas + 1 lambda + 1 train_size. With Weibull adstock, it's 42: 10 shapes + 10 scales + 10 alphas + 10 gammas + 1 lambda + 1 train_size. Adding hyperparameters will give Robyn more flexibility to find optimum solutions, but it will trade-off model runtime because it needs longer to converge.
+
+**Objective Functions**
+Robyn implements three objective functions as the "goals" for hyperparameter optimisation at the moment.
+- **NRMSE**: The Normalized Root Mean Square Error is also referred to as the **prediction error**. Robyn allows time-series validation with the spitting of the dataset into train / validation / test. To be precise, the validation NRMSE `nrmse_val` is the objective function, while `nrmse_test` is used to assess the out-of-sample preditive performance.
+- **DECOMP.RSSD**: The Decomposition Root Sum of Squared Distance is also referred to as the **business error** and is a key invention of Robyn. It represents the difference between share of spend and share of effect for paid media variables. We're aware that the hypothesis of driving homogenuous shares between spend & effect is controvertial. In the reality, DECOMP.RSSD can rule out the most extreme decomposition results and thus is helpful for narrowing down model selection. It's important to remember that all objective functions "work together" and the results are always balanced.
+- **MAPE.LIFT**: The Mean Absolute Percentage Error for experiments is activated when calibrating and is referred to as the **calibration error**. It's a key invention of Robyn and allows Robyn to minimise the difference between predicted effect and causal effect.
+
+Using the concept of Pareto-optimality balancing all objective functions, Robyn always outputs a set of pareto-optimum model candidates that are considered "the best". Please find below an example of an example chart of the Pareto model solutions.
 Each dot in the chart represents an explored model solution, while the lower-left corner lines are Pareto-fronts 1-3 and contains the best possible model results from all iterations.
 The two axes (NRMSE on x and DECOMP.RSSD on y) are the two objective functions to be minimized.
 As the iteration increases, a trend down the lower-left corner of the coordinate can be clearly observed.

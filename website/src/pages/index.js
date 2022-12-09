@@ -107,7 +107,7 @@ function Home() {
       <header className={clsx('hero hero--primary', styles.heroBanner)}>
         <div className="container">
           <h1 className={clsx('hero__title', styles.heroTitle)}>{siteConfig.title}</h1>
-          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an automated Marketing Mix Modeling (MMM) open source code.</p>
+          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an experimental, ML-powered and semi-automatetd Marketing Mix Modeling (MMM) open source package.</p>
           <div className={styles.buttons}>
             <Link
               className={clsx(
@@ -125,7 +125,7 @@ function Home() {
           <div className="container">
             <div className="row">
               <div className={clsx('col col--6', styles.descriptionSection)}>
-                <h2>Open Source and Automated Marketing Mix Modeling</h2>
+                <h2>A New Generation of Marketing Mix Modeling</h2>
                 <p className={styles.descriptionSectionText}>{siteConfig.tagline}</p>
               </div>
               <div className="col col--6">

@@ -9,7 +9,7 @@
 
 module.exports = {
   title: 'Robyn',
-  tagline: 'Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocator and diminishing returns curves and allows ground-truth calibration to account for causation.',
+  tagline: 'Robyn aims to reduce human bias in the modeling process, esp. by automating modelers decisions like adstocking, saturation, trend & seasonality as well as model validation. Moreover, the budget allocator & calibration enable actionability and causality of the results.',
   url: 'https://facebookexperimental.github.io',
   baseUrl: '/Robyn/',
   onBrokenLinks: 'throw',
