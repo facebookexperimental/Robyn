@@ -313,7 +313,7 @@ OutputModels <- robyn_run(
   cores = NULL, # NULL defaults to max available - 1
   iterations = 3000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
-  ts_validation = TRUE, # Split time series to validate
+  ts_validation = FALSE, # Split time series to validate
   add_penalty_factor = FALSE, # Experimental feature. Use with caution.
   outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
 )
