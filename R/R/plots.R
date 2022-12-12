@@ -218,7 +218,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
   if (!is.null(OutputModels$ts_validation_plot)) {
     ggsave(
       paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
-      plot = OutputModels$ts_validation_plot, dpi = 600,
+      plot = OutputModels$ts_validation_plot, dpi = 300,
       width = 10, height = 12, limitsize = FALSE
     )
   }
