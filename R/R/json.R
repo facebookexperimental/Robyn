@@ -51,10 +51,11 @@ robyn_write <- function(InputCollect,
   ret[["InputCollect"]] <- inputs <- InputCollect[-skip]
   # toJSON(inputs, pretty = TRUE)
 
-  # ExportedModel JSON (improve)
+  # ExportedModel JSON
   if (!is.null(OutputCollect)) {
     outputs <- list()
     outputs$select_model <- select_model
+    outputs$ts_validation <- OutputCollect$OutputModels$ts_validation
     outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
       mutate(
         metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),
@@ -67,7 +68,7 @@ robyn_write <- function(InputCollect,
         contains("boot_mean"), contains("ci_")
       )
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
-      select(.data$rsq_train, .data$nrmse, .data$decomp.rssd, .data$mape)
+      select(dplyr::starts_with("rsq_"), .data$nrmse, .data$decomp.rssd, .data$mape)
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
       select(contains(hyps_name), dplyr::ends_with("_penalty"), any_of(other_hyps)) %>%
@@ -101,24 +102,29 @@ robyn_write <- function(InputCollect,
 #' @param x \code{robyn_read()} or \code{robyn_write()} output.
 #' @export
 print.robyn_write <- function(x, ...) {
+  val <- isTRUE(x$ExportedModel$ts_validation)
   print(glued(
     "
    Exported directory: {x$ExportedModel$plot_folder}
    Exported model: {x$ExportedModel$select_model}
-   Window: {start} to {end} ({periods} {type}s)",
+   Window: {start} to {end} ({periods} {type}s)
+   Time Series Validation: {val} (train size = {val_detail})",
     start = x$InputCollect$window_start,
     end = x$InputCollect$window_end,
     periods = x$InputCollect$rollingWindowLength,
-    type = x$InputCollect$intervalType
+    type = x$InputCollect$intervalType,
+    val_detail = formatNum(100 * x$ExportedModel$hyper_values$train_size, 2, pos = "%")
   ))
-
+  errors <- x$ExportedModel$errors
   print(glued(
     "\n\nModel's Performance and Errors:\n    {errors}",
     errors = paste(
-      "R2 (train):", signif(x$ExportedModel$errors$rsq_train, 4),
-      "| NRMSE =", signif(x$ExportedModel$errors$nrmse, 4),
-      "| DECOMP.RSSD =", signif(x$ExportedModel$errors$decomp.rssd, 4),
-      "| MAPE =", signif(x$ExportedModel$errors$mape, 4)
+      sprintf("Adj.R2 (%s): %s",
+              ifelse(!val, "train", "test"),
+              ifelse(!val, signif(errors$rsq_train, 4), signif(errors$rsq_test, 4))),
+      "| NRMSE =", signif(errors$nrmse, 4),
+      "| DECOMP.RSSD =", signif(errors$decomp.rssd, 4),
+      "| MAPE =", signif(errors$mape, 4)
     )
   ))
 

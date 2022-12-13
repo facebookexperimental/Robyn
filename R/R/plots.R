@@ -241,6 +241,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     hyper_fixed <- OutputCollect$hyper_fixed
     resultHypParam <- as_tibble(OutputCollect$resultHypParam)
     xDecompAgg <- as_tibble(OutputCollect$xDecompAgg)
+    val <- isTRUE(OutputCollect$OutputModels$ts_validation)
     sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
@@ -288,23 +289,17 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
       plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
       rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
+      rsq_test_plot <- round(plotMediaShareLoop$rsq_test[1], 4)
       nrmse_plot <- round(plotMediaShareLoop$nrmse[1], 4)
       decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
-      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
-        round(plotMediaShareLoop$mape[1], 4), NA
-      )
-      errors <- paste0(
-        "R2 train: ", rsq_train_plot,
-        ", NRMSE = ", nrmse_plot,
-        ", DECOMP.RSSD = ", decomp_rssd_plot,
-        ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
-      )
-
-      errors <- paste0(
-        "R2 train: ", rsq_train_plot,
-        ", NRMSE = ", nrmse_plot,
-        ", DECOMP.RSSD = ", decomp_rssd_plot,
-        ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
+      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), round(plotMediaShareLoop$mape[1], 4), 0)
+      errors <- paste(
+        sprintf("Adj.R2 (%s) = %s",
+                ifelse(!val, "train", "test"),
+                ifelse(!val, rsq_train_plot, rsq_test_plot)),
+        "| NRMSE =", nrmse_plot,
+        "| DECOMP.RSSD =", decomp_rssd_plot,
+        "| MAPE =", mape_lift_plot
       )
 
       ## 1. Spend x effect share comparison
