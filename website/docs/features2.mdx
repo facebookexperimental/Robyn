@@ -230,7 +230,6 @@ Ridge regression has an additional benefit of being relatively easy to interpret
 
 ##  Multi-Objective Hyperparameter Optimization with Nevergrad
 
----
 
 One of the most important innovation in Robyn is the implementation of multi-objective hyperparameter optimization in MMM. This enables us to automate the selection of adstocking, saturation, regularization penalty and even training size for time-series validation. At the same time, the ability to optimise towards multiple "goals", implemented as objective functions, provides us the edge to produce model candidates with great predictive power as well as more realistic effect decomposition.
 
@@ -280,6 +279,13 @@ After the modeling is complete, you can run:
 To investigate the convergence of your multi-objective optimization. See below for examples of these graphs.
 <img alt="moo distrb plot" src={useBaseUrl('img/moo_distrb_plot.png')} />
 <img alt="moo cloud plot" src={useBaseUrl('img/moo_cloud_plot.png')} />
+
+---
+## Time Series Validation
+
+Time series validation parameter (train_size) is included as one of the four components in Robyn's hyperparameters. When ts_validation = TRUE in robyn_run(), train_size defines the percentage of data used for training, validation and out-of-sample testing. For example, when train_size = 0.7, val_size and test_size will be 0.15 each. This hyperparameter is customizable with default range of c(0.5, 0.8) and must be between c(0.1, 1).
+
+<img alt="time series validation" src={useBaseUrl('img/time_series_validation.png')} />
 
 ---
 
