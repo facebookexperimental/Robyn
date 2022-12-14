@@ -128,10 +128,13 @@ print.robyn_save <- function(x, ...) {
   print(glued(
     "\n\nModel's Performance and Errors:\n    {errors}",
     errors = paste(
-      sprintf("R2 (%s): %s)",
-              ifelse(!isTRUE(x$ExportedModel$ts_validation), "train", "test"),
-              ifelse(!isTRUE(x$ExportedModel$ts_validation),
-                     signif(x$errors$rsq_train, 4), signif(x$errors$rsq_test, 4))),
+      sprintf(
+        "R2 (%s): %s)",
+        ifelse(!isTRUE(x$ExportedModel$ts_validation), "train", "test"),
+        ifelse(!isTRUE(x$ExportedModel$ts_validation),
+          signif(x$errors$rsq_train, 4), signif(x$errors$rsq_test, 4)
+        )
+      ),
       "| NRMSE =", signif(x$errors$nrmse, 4),
       "| DECOMP.RSSD =", signif(x$errors$decomp.rssd, 4),
       "| MAPE =", signif(x$errors$mape, 4)

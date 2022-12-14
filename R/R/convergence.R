@@ -222,7 +222,8 @@ test_cvg <- function() {
   range(seq_nrmse)
   df_nrmse_gam <- data.frame(x = 1:100, y = seq_nrmse_gam, type = "pred")
   df_nrmse <- bind_rows(df_nrmse, df_nrmse_gam)
-  p <- ggplot(df_nrmse, aes(.data$x, .data$y, color = .data$type)) + geom_line()
+  p <- ggplot(df_nrmse, aes(.data$x, .data$y, color = .data$type)) +
+    geom_line()
   return(p)
   # g_low = qgamma(0.025, shape=gamma_params[[1]], scale= gamma_params[[2]])
   # g_up = qgamma(0.975, shape=gamma_params[[1]], scale= gamma_params[[2]])

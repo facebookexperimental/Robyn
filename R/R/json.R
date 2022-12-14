@@ -119,9 +119,11 @@ print.robyn_write <- function(x, ...) {
   print(glued(
     "\n\nModel's Performance and Errors:\n    {errors}",
     errors = paste(
-      sprintf("Adj.R2 (%s): %s",
-              ifelse(!val, "train", "test"),
-              ifelse(!val, signif(errors$rsq_train, 4), signif(errors$rsq_test, 4))),
+      sprintf(
+        "Adj.R2 (%s): %s",
+        ifelse(!val, "train", "test"),
+        ifelse(!val, signif(errors$rsq_train, 4), signif(errors$rsq_test, 4))
+      ),
       "| NRMSE =", signif(errors$nrmse, 4),
       "| DECOMP.RSSD =", signif(errors$decomp.rssd, 4),
       "| MAPE =", signif(errors$mape, 4)

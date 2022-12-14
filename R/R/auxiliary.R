@@ -4,16 +4,22 @@
 # LICENSE file in the root directory of this source tree.
 
 # Calculate R-squared
-get_rsq <- function(true, predicted, p = NULL, df.int = NULL) {
+get_rsq <- function(true, predicted, p = NULL, df.int = NULL, n_train = NULL) {
   sse <- sum((predicted - true)^2)
   sst <- sum((true - mean(true))^2)
-  rsq <- 1 - sse / sst
+  rsq <- 1 - sse / sst # rsq interpreted as variance explained
+  rsq_out <- rsq
   if (!is.null(p) && !is.null(df.int)) {
-    n <- length(true)
+    if (!is.null(n_train)) {
+      n <- n_train # for oos dataset, use n from train set for adj. rsq
+    } else {
+      n <- length(true)
+    }
     rdf <- n - p - 1
-    rsq <- 1 - (1 - rsq) * ((n - df.int) / rdf)
+    rsq_adj <- 1 - (1 - rsq) * ((n - df.int) / rdf)
+    rsq_out <- rsq_adj
   }
-  return(rsq)
+  return(rsq_out)
 }
 
 # Robyn colors

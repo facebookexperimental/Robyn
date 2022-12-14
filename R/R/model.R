@@ -836,8 +836,9 @@ robyn_mmm <- function(InputCollect,
               rsq_val = mod_out$rsq_val,
               rsq_test = mod_out$rsq_test,
               nrmse_train = mod_out$nrmse_train,
-              nrmse = mod_out$nrmse_val,
+              nrmse_val = mod_out$nrmse_val,
               nrmse_test = mod_out$nrmse_test,
+              nrmse = nrmse,
               decomp.rssd = decomp.rssd,
               mape = mape,
               lambda = lambda_scaled,
@@ -1148,9 +1149,9 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
   rsq_train <- get_rsq(true = y_train, predicted = y_train_pred, p = ncol(x_train), df.int = df.int)
   if (!is.null(x_val)) {
     y_val_pred <- as.vector(predict(mod, s = lambda, newx = x_val))
-    rsq_val <- get_rsq(true = y_val, predicted = y_val_pred, p = ncol(x_val), df.int = df.int)
+    rsq_val <- get_rsq(true = y_val, predicted = y_val_pred, p = ncol(x_val), df.int = df.int, n_train = length(y_train))
     y_test_pred <- as.vector(predict(mod, s = lambda, newx = x_test))
-    rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int)
+    rsq_test <- get_rsq(true = y_test, predicted = y_test_pred, p = ncol(x_test), df.int = df.int, n_train = length(y_train))
     y_pred <- c(y_train_pred, y_val_pred, y_test_pred)
   } else {
     rsq_val <- rsq_test <- NA

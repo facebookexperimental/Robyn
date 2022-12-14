@@ -47,6 +47,8 @@ trials = 1
 intercept_sign = "non_negative"
 nevergrad_algo = "TwoPointsDE"
 json_file = NULL
+ts_validation = TRUE
+
 
 ## debug robyn_train
 args(robyn_train)
@@ -70,6 +72,7 @@ lambda_control = 1
 refresh = FALSE
 seed = 123L
 quiet = FALSE
+trial = 1
 
 ## debug model_decomp
 coefs = mod_out$coefs
