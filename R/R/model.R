@@ -876,6 +876,7 @@ robyn_mmm <- function(InputCollect,
             ) %>% mutate(trial = trial, iterNG = lng, iterPar = i)
 
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
+              mutate(train_size = train_size) %>%
               bind_cols(common)
 
             if (!is.null(calibration_input)) {

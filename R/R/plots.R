@@ -248,7 +248,9 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
     resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model, ]
     xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model, ]
-    if (!quiet) message(">> Generating only cluster results one-pagers (", nrow(resultHypParam), ")...")
+    if (!quiet & nrow(resultHypParam) > 1) {
+      message(">> Generating only cluster results one-pagers (", nrow(resultHypParam), ")...")
+    }
   }
 
   # Prepare for parallel plotting
@@ -265,12 +267,16 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   if (!all(pareto_fronts_vec %in% all_fronts)) pareto_fronts_vec <- all_fronts
 
   if (check_parallel_plot()) {
-    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on", OutputCollect$cores, "cores..."))
+    if (!quiet & nrow(resultHypParam) > 1) {
+      message(paste(">> Plotting", count_mod_out, "selected models on", OutputCollect$cores, "cores..."))
+    }
   } else {
-    if (!quiet) message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
+    if (!quiet & nrow(resultHypParam) > 1) {
+      message(paste(">> Plotting", count_mod_out, "selected models on 1 core (MacOS fallback)..."))
+    }
   }
 
-  if (!quiet && count_mod_out > 0) {
+  if (!quiet && count_mod_out > 1) {
     pbplot <- txtProgressBar(min = 0, max = count_mod_out, style = 3)
   }
   temp <- OutputCollect$allPareto$plotDataCollect
@@ -296,17 +302,21 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       nrmse_test_plot <- round(plotMediaShareLoop$nrmse_test[1], 4)
       decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
       mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), round(plotMediaShareLoop$mape[1], 4), 0)
+      train_size <- round(plotMediaShareLoop$train_size[1], 4)
 
       if (val) {
         errors <- paste0(
-          "Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot,
-          " ### NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
-          " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+          "NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
+          "; [Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot, "]",
+          ";\nDECOMP.RSSD = ", decomp_rssd_plot,
+          "; MAPE = ", mape_lift_plot
         )
       } else {
         errors <- paste0(
-          "Adj.R2 train = ", rsq_train_plot, " ### NRMSE train = ", nrmse_train_plot,
-          " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+          "NRMSE train = ", nrmse_train_plot,
+          "; [Adj.R2 train = ", rsq_train_plot, "]",
+          "; DECOMP.RSSD = ", decomp_rssd_plot,
+          "; MAPE = ", mape_lift_plot
         )
       }
 
@@ -456,7 +466,6 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           variable = stringr::str_to_title(.data$variable),
           ds = as.Date(.data$ds, origin = "1970-01-01")
         )
-      # rsq <- temp[[sid]]$plot5data$rsq
       p5 <- ggplot(
         xDecompVecPlotMelted,
         aes(x = .data$ds, y = .data$value, color = .data$variable)
@@ -467,9 +476,30 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         guides(linetype = "none") +
         labs(
           title = "Actual vs. Predicted Response",
-          # subtitle = paste("Train R2 =", round(rsq, 4)),
           x = "Date", y = "Response", color = NULL
         )
+      if (val) {
+        days <- sort(unique(p5$data$ds))
+        ndays <- length(days)
+        train_cut <- round(ndays * train_size)
+        val_cut <- train_cut + round(ndays * (1 - train_size) / 2)
+        p5 <- p5 +
+          # Train
+          geom_vline(xintercept = p5$data$ds[train_cut], colour = "#39638b", alpha = 0.8) +
+          geom_text(x = p5$data$ds[train_cut], y = Inf, hjust = 0, vjust = 1.2,
+                    angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
+                    label = sprintf("Train: %s", formatNum(100 * train_size, 1, pos = "%"))) +
+          # Validation
+          geom_vline(xintercept = p5$data$ds[val_cut], colour = "#39638b", alpha = 0.8) +
+          geom_text(x = p5$data$ds[val_cut], y = Inf, hjust = 0, vjust = 1.2,
+                    angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
+                    label = sprintf("Validation: %s", formatNum(100 * (1 - train_size) / 2, 1, pos = "%"))) +
+          # Test
+          geom_vline(xintercept = p5$data$ds[ndays], colour = "#39638b", alpha = 0.8) +
+          geom_text(x = p5$data$ds[ndays], y = Inf, hjust = 0, vjust = 1.2,
+                    angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
+                    label = sprintf("Test: %s", formatNum(100 * (1 - train_size) / 2, 1, pos = "%")))
+      }
 
       ## 6. Diagnostic: fitted vs residual
       xDecompVecPlot <- temp[[sid]]$plot6data$xDecompVecPlot
@@ -1061,11 +1091,11 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
 
   resultHypParamLong <- suppressWarnings(
     resultHypParam %>%
-      select(.data$solID, .data$i, .data$trial, contains("rsq_")) %>%
+      select(.data$solID, .data$i, .data$trial, .data$train_size, starts_with("rsq_")) %>%
       mutate(trial = paste("Trial", .data$trial)) %>%
-      tidyr::gather("dataset", "rsq", contains("rsq_")) %>%
-      bind_cols(select(resultHypParam, .data$solID, contains("nrmse_")) %>%
-        tidyr::gather("del", "nrmse", contains("nrmse_")) %>%
+      tidyr::gather("dataset", "rsq", starts_with("rsq_")) %>%
+      bind_cols(select(resultHypParam, .data$solID, starts_with("nrmse_")) %>%
+        tidyr::gather("del", "nrmse", starts_with("nrmse_")) %>%
         select(.data$nrmse)) %>%
       # group_by(.data$trial, .data$dataset) %>%
       mutate(
@@ -1103,7 +1133,7 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     # group = as.character(.data$trial)
   )) +
     geom_point(alpha = 0.2, size = 0.9) +
-    geom_smooth() +
+    geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(y = "NRMSE [Upper 1% Winsorized]", x = "Iteration", colour = "Dataset") +

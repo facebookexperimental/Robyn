@@ -342,7 +342,7 @@ OutputModels$convergence$moo_cloud_plot
 
 ## Check time-series validation plot (when ts_validation == TRUE)
 # Read more and replicate results: ?ts_validation
-OutputModels$ts_validation_plot
+if (OutputModels$ts_validation) OutputModels$ts_validation_plot
 
 ## Calculate Pareto fronts, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
@@ -371,7 +371,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_204_5" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_115_2" # Pick one of the models from OutputCollect to proceed
 
 #### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -662,7 +662,7 @@ myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
-myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, export = FALSE)
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = FALSE)
 # myModelPlot$`1_204_5`$patches$plots[[6]]
 
 # Refresh any imported model
