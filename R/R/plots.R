@@ -289,18 +289,26 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
     parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
       plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
       rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
+      rsq_val_plot <- round(plotMediaShareLoop$rsq_val[1], 4)
       rsq_test_plot <- round(plotMediaShareLoop$rsq_test[1], 4)
-      nrmse_plot <- round(plotMediaShareLoop$nrmse[1], 4)
+      nrmse_train_plot <- round(plotMediaShareLoop$nrmse_train[1], 4)
+      nrmse_val_plot <- round(plotMediaShareLoop$nrmse_val[1], 4)
+      nrmse_test_plot <- round(plotMediaShareLoop$nrmse_test[1], 4)
       decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
       mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), round(plotMediaShareLoop$mape[1], 4), 0)
-      errors <- paste(
-        sprintf("Adj.R2 (%s) = %s",
-                ifelse(!val, "train", "test"),
-                ifelse(!val, rsq_train_plot, rsq_test_plot)),
-        "| NRMSE =", nrmse_plot,
-        "| DECOMP.RSSD =", decomp_rssd_plot,
-        "| MAPE =", mape_lift_plot
-      )
+
+      if (val) {
+        errors <- paste0(
+          "Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot,
+          " ### NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
+          " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+        )
+      } else {
+        errors <- paste0(
+          "Adj.R2 train = ", rsq_train_plot, " ### NRMSE train = ", nrmse_train_plot,
+          " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+        )
+      }
 
       ## 1. Spend x effect share comparison
       plotMediaShareLoopBar <- temp[[sid]]$plot1data$plotMediaShareLoopBar
@@ -570,17 +578,27 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   )
 
   rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
-  nrmse_plot <- round(plotDT_scurveMeanResponse$nrmse[1], 4)
+  rsq_val_plot <- round(plotDT_scurveMeanResponse$rsq_val[1], 4)
+  rsq_test_plot <- round(plotDT_scurveMeanResponse$rsq_test[1], 4)
+  nrmse_train_plot <- round(plotDT_scurveMeanResponse$nrmse_train[1], 4)
+  nrmse_val_plot <- round(plotDT_scurveMeanResponse$nrmse_val[1], 4)
+  nrmse_test_plot <- round(plotDT_scurveMeanResponse$nrmse_test[1], 4)
   decomp_rssd_plot <- round(plotDT_scurveMeanResponse$decomp.rssd[1], 4)
   mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
     round(plotDT_scurveMeanResponse$mape[1], 4), NA
   )
-  errors <- paste0(
-    "R2 train: ", rsq_train_plot,
-    ", NRMSE = ", nrmse_plot,
-    ", DECOMP.RSSD = ", decomp_rssd_plot,
-    ifelse(!is.na(mape_lift_plot), paste0(", MAPE = ", mape_lift_plot), "")
-  )
+  if (OutputCollect$OutputModels$ts_validation) {
+    errors <- paste0(
+      "Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot,
+      " ### NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
+      " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+    )
+  } else {
+    errors <- paste0(
+      "Adj.R2 train = ", rsq_train_plot, " ### NRMSE train = ", nrmse_train_plot,
+      " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+    )
+  }
 
   # 1. Response comparison plot
   plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
@@ -1043,11 +1061,11 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
 
   resultHypParamLong <- suppressWarnings(
     resultHypParam %>%
-      select(.data$solID, .data$i, .data$trial, contains("rsq")) %>%
+      select(.data$solID, .data$i, .data$trial, contains("rsq_")) %>%
       mutate(trial = paste("Trial", .data$trial)) %>%
-      tidyr::gather("dataset", "rsq", contains("rsq")) %>%
-      bind_cols(select(resultHypParam, .data$solID, contains("nrmse")) %>%
-        tidyr::gather("del", "nrmse", contains("nrmse")) %>%
+      tidyr::gather("dataset", "rsq", contains("rsq_")) %>%
+      bind_cols(select(resultHypParam, .data$solID, contains("nrmse_")) %>%
+        tidyr::gather("del", "nrmse", contains("nrmse_")) %>%
         select(.data$nrmse)) %>%
       # group_by(.data$trial, .data$dataset) %>%
       mutate(
@@ -1061,6 +1079,7 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
   pIters <- resultHypParam %>%
     ggplot(aes(x = .data$i, y = .data$train_size)) +
     geom_point(fill = "black", alpha = 0.5, size = 1.2, pch = 23) +
+    # geom_smooth() +
     labs(y = "Train Size", x = "Iteration") +
     scale_y_percent() +
     theme_lares() +
@@ -1080,10 +1099,11 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
 
   pNRMSE <- ggplot(resultHypParamLong, aes(
     x = .data$i, y = .data$nrmse,
-    colour = .data$dataset,
-    group = as.character(.data$trial)
+    colour = .data$dataset
+    # group = as.character(.data$trial)
   )) +
-    geom_point(alpha = 0.5, size = 0.9) +
+    geom_point(alpha = 0.2, size = 0.9) +
+    geom_smooth() +
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(y = "NRMSE [Upper 1% Winsorized]", x = "Iteration", colour = "Dataset") +
