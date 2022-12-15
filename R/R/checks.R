@@ -6,6 +6,8 @@
 ############# Auxiliary non-exported functions #############
 
 opts_pnd <- c("positive", "negative", "default")
+other_hyps <- c("lambda", "train_size")
+hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
 
 check_nas <- function(df) {
   name <- deparse(substitute(df))
@@ -151,7 +153,7 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
   if (is.null(dt_holidays) || is.null(prophet_vars)) {
     return(invisible(NULL))
   } else {
-    opts <- c("trend", "season", "weekday", "holiday")
+    opts <- c("trend", "season", "monthly", "weekday", "holiday")
     if (!all(prophet_vars %in% opts)) {
       stop("Allowed values for 'prophet_vars' are: ", paste(opts, collapse = ", "))
     }
@@ -426,7 +428,10 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
-    hyperparameters <- hyperparameters[which(!names(hyperparameters) %in% "lambda")]
+    # Non-adstock hyperparameters check
+    check_train_size(hyperparameters)
+    # Adstock hyperparameters check
+    hyperparameters <- hyperparameters[which(!names(hyperparameters) %in% other_hyps)]
     hyperparameters_ordered <- hyperparameters[order(names(hyperparameters))]
     get_hyp_names <- names(hyperparameters_ordered)
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
@@ -467,6 +472,17 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     check_hyper_limits(hyperparameters_ordered, "shapes")
     check_hyper_limits(hyperparameters_ordered, "scales")
     return(hyperparameters_ordered)
+  }
+}
+
+check_train_size <- function(hyps) {
+  if ("train_size" %in% names(hyps)) {
+    if (!length(hyps$train_size) %in% 1:2) {
+      stop("Hyperparameter 'train_size' must be length 1 (fixed) or 2 (range)")
+    }
+    if (any(hyps$train_size <= 0.1) || any(hyps$train_size > 1)) {
+      stop("Hyperparameter 'train_size' values must be defined between 0.1 and 1")
+    }
   }
 }
 
@@ -692,8 +708,8 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
   hyper_fixed <- !is.null(dt_hyper_fixed)
   # Adstock hyper-parameters
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
-  # Add lambda hyper-parameter
-  hypParamSamName <- c(hypParamSamName, "lambda")
+  # Add lambda and other hyper-parameters manually
+  hypParamSamName <- c(hypParamSamName, other_hyps)
   # Add penalty factor hyper-parameters names
   if (add_penalty_factor) {
     for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
@@ -734,10 +750,14 @@ check_init_msg <- function(InputCollect, cores) {
     "Using", InputCollect$adstock, "adstocking with",
     length(InputCollect$hyper_updated), "hyperparameters", det
   )
-  if (check_parallel()) {
-    message(paste(base, "on", cores, "cores"))
+  if (cores == 1) {
+    message(paste(base, "with no parallel computation"))
   } else {
-    message(paste(base, "on 1 core (Windows fallback)"))
+    if (check_parallel()) {
+      message(paste(base, "on", cores, "cores"))
+    } else {
+      message(paste(base, "on 1 core (Windows fallback)"))
+    }
   }
 }
 

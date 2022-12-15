@@ -35,7 +35,7 @@
 #' @importFrom nloptr nloptr
 #' @importFrom parallel detectCores
 #' @importFrom patchwork guide_area plot_layout plot_annotation wrap_plots
-#' @importFrom prophet add_regressor fit.prophet prophet
+#' @importFrom prophet add_regressor add_seasonality fit.prophet prophet
 #' @importFrom reticulate tuple use_condaenv import conda_create conda_install py_module_available
 #' virtualenv_create py_install use_virtualenv
 #' @importFrom rPref low psel

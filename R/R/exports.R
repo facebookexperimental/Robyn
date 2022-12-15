@@ -35,7 +35,6 @@ robyn_save <- function(InputCollect,
     )
 
   # Nice and tidy table format for hyper-parameters
-  hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
   regex <- paste(paste0("_", hyps_name), collapse = "|")
   hyps <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
     select(contains(hyps_name)) %>%
@@ -129,7 +128,13 @@ print.robyn_save <- function(x, ...) {
   print(glued(
     "\n\nModel's Performance and Errors:\n    {errors}",
     errors = paste(
-      "R2 (train):", signif(x$errors$rsq_train, 4),
+      sprintf(
+        "R2 (%s): %s)",
+        ifelse(!isTRUE(x$ExportedModel$ts_validation), "train", "test"),
+        ifelse(!isTRUE(x$ExportedModel$ts_validation),
+          signif(x$errors$rsq_train, 4), signif(x$errors$rsq_test, 4)
+        )
+      ),
       "| NRMSE =", signif(x$errors$nrmse, 4),
       "| DECOMP.RSSD =", signif(x$errors$decomp.rssd, 4),
       "| MAPE =", signif(x$errors$mape, 4)
@@ -144,7 +149,7 @@ print.robyn_save <- function(x, ...) {
     replace(., . == "NA", "-") %>% as.data.frame())
 
   print(glued(
-    "\n\nHyper-parameters for channel transformations:\n    Adstock: {x$adstock}"
+    "\n\nHyper-parameters:\n    Adstock: {x$adstock}"
   ))
 
   print(as.data.frame(x$hyper_df))

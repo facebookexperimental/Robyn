@@ -418,7 +418,7 @@ Adstock: {x$adstock}
     },
     hyps = if (!is.null(x$hyperparameters)) {
       glued(
-        "Hyper-parameters for channel transformations:\n{flatten_hyps(x$hyperparameters)}"
+        "Hyper-parameters ranges:\n{flatten_hyps(x$hyperparameters)}"
       )
     } else {
       paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
@@ -514,11 +514,14 @@ Adstock: {x$adstock}
 #' @export
 hyper_names <- function(adstock, all_media) {
   adstock <- check_adstock(adstock)
-  global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
-    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("thetas|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, hyps_name[
+      grepl("thetas|alphas|gammas", hyps_name)
+    ]), 1, paste, collapse = "_"))
   } else if (adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("shapes|scales|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, hyps_name[
+      grepl("shapes|scales|alphas|gammas", hyps_name)
+    ]), 1, paste, collapse = "_"))
   }
   return(local_name)
 }
@@ -769,6 +772,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_trend <- "trend" %in% prophet_vars
   use_holiday <- "holiday" %in% prophet_vars
   use_season <- "season" %in% prophet_vars | "yearly.seasonality" %in% prophet_vars
+  use_monthly <- "monthly" %in% prophet_vars
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- bind_cols(recurrence, select(
@@ -791,6 +795,12 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   custom_params$yearly.seasonality <- custom_params$weekly.seasonality <- NULL
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
+  if (use_monthly) {
+    modelRecurrence <- add_seasonality(
+      modelRecurrence,
+      name = "monthly", period = 30.5, fourier.order = 5
+    )
+  }
 
   # dt_regressors <<- dt_regressors
   # modelRecurrence <<- modelRecurrence
@@ -821,12 +831,13 @@ prophet_decomp <- function(dt_transform, dt_holidays,
       # dt_regressors <<- dt_regressors
     }
     mod <- fit.prophet(modelRecurrence, dt_regressors)
-    forecastRecurrence <- predict(mod, dt_regressors)
+    forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
   }
 
   these <- seq_along(unlist(recurrence[, 1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
   if (use_season) dt_transform$season <- forecastRecurrence$yearly[these]
+  if (use_monthly) dt_transform$monthly <- forecastRecurrence$monthly[these]
   if (use_weekday) dt_transform$weekday <- forecastRecurrence$weekly[these]
   if (use_holiday) dt_transform$holiday <- forecastRecurrence$holidays[these]
   return(dt_transform)

@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.8.1    ######################
+####################         Facebook MMM Open Source - Robyn 3.9.0    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -108,8 +108,8 @@ InputCollect <- robyn_inputs(
   # impressions, GRP etc. If not applicable, use spend instead.
   organic_vars = "newsletter", # marketing activity without media spend
   # factor_vars = c("events"), # force variables in context_vars or organic_vars to be categorical
-  window_start = "2016-11-21",
-  window_end = "2018-08-20",
+  window_start = "2016-01-01",
+  window_end = "2018-12-31",
   adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
 )
 print(InputCollect)
@@ -126,16 +126,23 @@ hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
 ## Guide to setup & understand hyperparameters
 
-## 1. IMPORTANT: set plot = TRUE to see helper plots of hyperparameter's effect in transformation
+## Robyn's hyperparameters have four components:
+## Adstock parameters (theta or shape/scale).
+## Saturation parameters (alpha/gamma).
+## Regularisation parameter (lambda). No need to specify manually.
+## Time series validation parameter (train_size).
+
+## 1. IMPORTANT: set plot = TRUE to create example plots for adstock & saturation
+## hyperparameters and their influence in curve transformation
 plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
 # All variables in paid_media_spends and organic_vars require hyperparameter and will be
 # transformed by adstock & saturation.
-# Run hyper_names() as above to get correct media hyperparameter names. All names in
-# hyperparameters must equal names from hyper_names(), case sensitive.
-# Run ?hyper_names to check parameter definition.
+# Run hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+# to get correct media hyperparameter names. All names in hyperparameters must equal
+# names from hyper_names(), case sensitive. Run ?hyper_names to check fucntion arguments
 
 ## 3. Hyperparameter interpretation & recommendation:
 
@@ -174,6 +181,16 @@ plot_saturation(plot = FALSE)
 # more C-shape. Gamma controls the inflexion point. Recommended bounce is c(0.3, 1). The
 # larger the gamma, the later the inflection point in the response curve.
 
+## Regularization for ridge regression: Lambda is the penalty term for regularised regression.
+# Lambda doesn't need manual definition from the users, because it is set to the range of
+# c(0, 1) by default in hyperparameters and will be scaled to the proper altitude with
+# lambda_max and lambda_min_ratio.
+
+## Time series validation: When ts_validation = TRUE in robyn_run(), train_size defines the
+# percentage of data used for training, validation and out-of-sample testing. For example,
+# when train_size = 0.7, val_size and test_size will be 0.15 each. This hyperparameter is
+# customizable with default range of c(0.5, 0.8) and must be between c(0.1, 1).
+
 ## 4. Set individual hyperparameter bounds. They either contain two values e.g. c(0, 0.5),
 # or only one value, in which case you'd "fix" that hyperparameter.
 
@@ -197,7 +214,8 @@ hyperparameters <- list(
   ooh_S_thetas = c(0.1, 0.4),
   newsletter_alphas = c(0.5, 3),
   newsletter_gammas = c(0.3, 1),
-  newsletter_thetas = c(0.1, 0.4)
+  newsletter_thetas = c(0.1, 0.4),
+  train_size = c(0.5, 0.8)
 )
 
 # Example hyperparameters ranges for Weibull CDF adstock
@@ -293,8 +311,7 @@ print(InputCollect)
 
 #### Check spend exposure fit if available
 if (length(InputCollect$exposure_vars) > 0) {
-  InputCollect$modNLS$plots$facebook_I
-  InputCollect$modNLS$plots$search_clicks_P
+  lapply(InputCollect$modNLS$plots, plot)
 }
 
 ##### Manually save and import InputCollect as JSON file
@@ -313,17 +330,21 @@ OutputModels <- robyn_run(
   cores = NULL, # NULL defaults to max available - 1
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
-  add_penalty_factor = FALSE, # Experimental feature. Use with caution.
-  outputs = FALSE # outputs = FALSE disables direct model output - robyn_outputs()
+  ts_validation = FALSE, # 3-way-split time series for NRMSE validation.
+  add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
 print(OutputModels)
 
 ## Check MOO (multi-objective optimization) convergence plots
+# Read more about convergence rules: ?robyn_converge
 OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
-# check convergence rules ?robyn_converge
 
-## Calculate Pareto optimality, cluster and export results and plots. See ?robyn_outputs
+## Check time-series validation plot (when ts_validation == TRUE)
+# Read more and replicate results: ?ts_validation
+if (OutputModels$ts_validation) OutputModels$ts_validation_plot
+
+## Calculate Pareto fronts, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
   pareto_fronts = "auto", # automatically pick how many pareto-fronts to fill min_candidates
@@ -350,7 +371,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_204_5" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_115_2" # Pick one of the models from OutputCollect to proceed
 
 #### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
@@ -641,7 +662,7 @@ myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
-myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, export = FALSE)
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = FALSE)
 # myModelPlot$`1_204_5`$patches$plots[[6]]
 
 # Refresh any imported model
