@@ -283,12 +283,18 @@ To investigate the convergence of your multi-objective optimization. See below f
 ---
 ## Time Series Validation
 
+<<<<<<< HEAD
 When `ts_validation = TRUE` in `robyn_run()` a 3-way-split time series for NRMSE validation is enabled.
 A time series validation parameter `train_size` is included as one of Robyn's hyperparameters. When `ts_validation = TRUE` in `robyn_run()`, train_size defines the percentage of data used for training, validation and out-of-sample testing. For example, when `train_size = 0.7`, `val_size` and `test_size` will be 0.15 each. This hyperparameter is customizable with default range of `c(0.5, 0.8)` and must be between `c(0.1, 1)`.
 
 <img alt="time series validation" src={useBaseUrl('img/time_series_validation_and_convergence.png')} />
 
 <img alt="time series validation" src={useBaseUrl('img/actual_vs_predicted_response_ts.png')} />
+=======
+Time series validation parameter (train_size) is included as one of the four components in Robyn's hyperparameters. When ts_validation = TRUE in robyn_run(), train_size defines the percentage of data used for training, validation and out-of-sample testing. For example, when train_size = 0.7, val_size and test_size will be 0.15 each. This hyperparameter is customizable with default range of c(0.5, 0.8) and must be between c(0.1, 1).
+
+<img alt="time series validation" src={useBaseUrl('img/time_series_validation.png')} />
+>>>>>>> 739599f939321af1805f5c4ce9a19fbf0e576681
 
 ---
 
