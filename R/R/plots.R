@@ -486,19 +486,25 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         p5 <- p5 +
           # Train
           geom_vline(xintercept = p5$data$ds[train_cut], colour = "#39638b", alpha = 0.8) +
-          geom_text(x = p5$data$ds[train_cut], y = Inf, hjust = 0, vjust = 1.2,
-                    angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
-                    label = sprintf("Train: %s", formatNum(100 * train_size, 1, pos = "%"))) +
+          geom_text(
+            x = p5$data$ds[train_cut], y = Inf, hjust = 0, vjust = 1.2,
+            angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
+            label = sprintf("Train: %s", formatNum(100 * train_size, 1, pos = "%"))
+          ) +
           # Validation
           geom_vline(xintercept = p5$data$ds[val_cut], colour = "#39638b", alpha = 0.8) +
-          geom_text(x = p5$data$ds[val_cut], y = Inf, hjust = 0, vjust = 1.2,
-                    angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
-                    label = sprintf("Validation: %s", formatNum(100 * (1 - train_size) / 2, 1, pos = "%"))) +
+          geom_text(
+            x = p5$data$ds[val_cut], y = Inf, hjust = 0, vjust = 1.2,
+            angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
+            label = sprintf("Validation: %s", formatNum(100 * (1 - train_size) / 2, 1, pos = "%"))
+          ) +
           # Test
           geom_vline(xintercept = p5$data$ds[ndays], colour = "#39638b", alpha = 0.8) +
-          geom_text(x = p5$data$ds[ndays], y = Inf, hjust = 0, vjust = 1.2,
-                    angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
-                    label = sprintf("Test: %s", formatNum(100 * (1 - train_size) / 2, 1, pos = "%")))
+          geom_text(
+            x = p5$data$ds[ndays], y = Inf, hjust = 0, vjust = 1.2,
+            angle = 270, colour = "#39638b", alpha = 0.5, size = 3.2,
+            label = sprintf("Test: %s", formatNum(100 * (1 - train_size) / 2, 1, pos = "%"))
+          )
       }
 
       ## 6. Diagnostic: fitted vs residual
