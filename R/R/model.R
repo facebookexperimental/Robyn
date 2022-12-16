@@ -143,7 +143,8 @@ robyn_run <- function(InputCollect = NULL,
 
   OutputModels <- robyn_train(
     InputCollect, hyper_collect,
-    cores, iterations, trials, intercept_sign, nevergrad_algo,
+    cores = cores, iterations = iterations, trials = trials,
+    intercept_sign = intercept_sign, nevergrad_algo = nevergrad_algo,
     dt_hyper_fixed = dt_hyper_fixed,
     ts_validation = ts_validation,
     add_penalty_factor = add_penalty_factor,
@@ -165,14 +166,14 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
   }
 
-  # Not direct output & not all fixed hyppar
+  # Not direct output & not all fixed hyperparameters
   if (!outputs & is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
-    # Direct output & not all fixed hyppar, including refresh mode
+    # Direct output & not all fixed hyperparameters, including refresh mode
     output <- robyn_outputs(InputCollect, OutputModels, refresh = refresh, ...)
   } else {
-    # Direct output & all fixed hyppar, thus no cluster
+    # Direct output & all fixed hyperparameters, thus no cluster
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
@@ -292,16 +293,11 @@ robyn_train <- function(InputCollect, hyper_collect,
       seed = seed,
       quiet = quiet
     )
-
     OutputModels[[1]]$trial <- 1
-    OutputModels[[1]]$resultCollect$resultHypParam <- arrange(
-      OutputModels[[1]]$resultCollect$resultHypParam, .data$iterPar
-    )
-    these <- c("resultHypParam", "xDecompAgg", "xDecompVec", "decompSpendDist")
-    for (tab in these) {
-      if (!"solID" %in% colnames(OutputModels[[1]]$resultCollect[[tab]])) {
-        OutputModels[[1]]$resultCollect[[tab]]$solID <- dt_hyper_fixed$solID
-      }
+    # Set original solID (to overwrite default 1_1_1)
+    if ("solID" %in% names(dt_hyper_fixed)) {
+      these <- c("resultHypParam", "xDecompVec", "xDecompAgg", "decompSpendDist")
+      for (tab in these) OutputModels[[1]]$resultCollect[[tab]]$solID <- dt_hyper_fixed$solID
     }
   } else {
     ## Run robyn_mmm() for each trial if hyperparameters are not all fixed
