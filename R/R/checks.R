@@ -431,14 +431,14 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     # Non-adstock hyperparameters check
     check_train_size(hyperparameters)
     # Adstock hyperparameters check
-    hyperparameters <- hyperparameters[which(!names(hyperparameters) %in% other_hyps)]
     hyperparameters_ordered <- hyperparameters[order(names(hyperparameters))]
     get_hyp_names <- names(hyperparameters_ordered)
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
     ref_hyp_name_expo <- hyper_names(adstock, all_media = exposure_vars)
     ref_hyp_name_org <- hyper_names(adstock, all_media = organic_vars)
-    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org))
-    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org)
+    # Excluding lambda (first other_hyps) given its range is not customizable
+    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, other_hyps[-1]))
+    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, other_hyps[-1])
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
@@ -446,7 +446,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
-    total <- length(get_hyp_names)
+    total <- length(get_hyp_names) - 1 # lambda not included
     total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org))
     if (total != total_in) {
       stop(sprintf(
