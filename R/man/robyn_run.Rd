@@ -30,8 +30,9 @@ robyn_run(
 \item{InputCollect}{List. Contains all input parameters for the model.
 Required when \code{robyn_object} is not provided.}
 
-\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
-It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+\item{dt_hyper_fixed}{data.frame or named list. Only provide when loading
+old model results. It consumes hyperparameters from saved csv
+\code{pareto_hyperparameters.csv} or JSON file to replicate a model.}
 
 \item{json_file}{Character. JSON file to import previously exported inputs
 (needs \code{dt_input} and \code{dt_holidays} parameters too).}

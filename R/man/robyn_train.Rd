@@ -46,8 +46,9 @@ there are \code{context_vars} with large positive values.}
 "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
 "cGA", "RandomSearch")}.}
 
-\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
-It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+\item{dt_hyper_fixed}{data.frame or named list. Only provide when loading
+old model results. It consumes hyperparameters from saved csv
+\code{pareto_hyperparameters.csv} or JSON file to replicate a model.}
 
 \item{ts_validation}{Boolean. When set to \code{TRUE}, Robyn will split data
 by test, train, and validation partitions to validate the time series. By

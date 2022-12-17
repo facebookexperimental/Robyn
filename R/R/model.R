@@ -12,8 +12,9 @@
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
 #' @inheritParams robyn_inputs
-#' @param dt_hyper_fixed data.frame. Only provide when loading old model results.
-#' It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.
+#' @param dt_hyper_fixed data.frame or named list. Only provide when loading
+#' old model results. It consumes hyperparameters from saved csv
+#' \code{pareto_hyperparameters.csv} or JSON file to replicate a model.
 #' @param ts_validation Boolean. When set to \code{TRUE}, Robyn will split data
 #' by test, train, and validation partitions to validate the time series. By
 #' default the "train_size" range is set to \code{c(0.5, 0.8)}, but it can be

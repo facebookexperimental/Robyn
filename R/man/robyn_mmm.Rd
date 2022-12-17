@@ -56,8 +56,9 @@ glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
 this feature might add too much hyperparameter space and probably requires
 more iterations to converge.}
 
-\item{dt_hyper_fixed}{data.frame. Only provide when loading old model results.
-It consumes hyperparameters from saved csv \code{pareto_hyperparameters.csv}.}
+\item{dt_hyper_fixed}{data.frame or named list. Only provide when loading
+old model results. It consumes hyperparameters from saved csv
+\code{pareto_hyperparameters.csv} or JSON file to replicate a model.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
