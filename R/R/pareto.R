@@ -102,7 +102,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
   # Prepare parallel loop
   if (TRUE) {
-    if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+    if (check_parallel() & OutputModels$cores > 1) registerDoParallel(OutputModels$cores) else registerDoSEQ()
     if (hyper_fixed) pareto_fronts <- 1
     # Get at least 100 candidates for better clustering
     if (nrow(resultHypParam) == 1) pareto_fronts <- 1
