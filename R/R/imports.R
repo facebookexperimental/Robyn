@@ -22,7 +22,7 @@
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr across any_of arrange as_tibble bind_rows contains desc distinct everything filter
 #' group_by lag left_join mutate n pull rename row_number select slice summarise summarise_all ungroup
-#' all_of bind_cols mutate_at tally n_distinct
+#' all_of bind_cols mutate_at starts_with ends_with tally n_distinct
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges geom_density_ridges_gradient

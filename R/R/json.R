@@ -68,7 +68,7 @@ robyn_write <- function(InputCollect,
         contains("boot_mean"), contains("ci_")
       )
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
-      select(dplyr::starts_with("rsq_"), .data$nrmse, .data$decomp.rssd, .data$mape)
+      select(starts_with("rsq_"), starts_with("nrmse"), .data$decomp.rssd, .data$mape)
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
       select(contains(hyps_name), dplyr::ends_with("_penalty"), any_of(other_hyps)) %>%

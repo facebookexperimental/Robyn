@@ -254,7 +254,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   }
 
   # Prepare for parallel plotting
-  if (check_parallel_plot()) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
+  if (check_parallel_plot() && OutputCollect$cores > 1) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
   if (!hyper_fixed) {
     pareto_fronts_vec <- 1:pareto_fronts
     count_mod_out <- nrow(resultHypParam[resultHypParam$robynPareto %in% pareto_fronts_vec, ])
