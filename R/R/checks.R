@@ -428,6 +428,10 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
+    if (!"train_size" %in% hyperparameters) {
+      hyperparameters[["train_size"]] <- c(0.5, 0.8)
+      warning("Automatically added missing hyperparameter range: 'train_size' = c(0.5, 0.8)")
+    }
     # Non-adstock hyperparameters check
     check_train_size(hyperparameters)
     # Adstock hyperparameters check

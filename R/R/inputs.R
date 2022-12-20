@@ -351,7 +351,8 @@ robyn_inputs <- function(dt_input = NULL,
       ## 'hyperparameters' provided --> run robyn_engineering()
       ## Update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
-      check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
+      InputCollect$hyperparameters <- check_hyperparameters(
+        InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
   }
