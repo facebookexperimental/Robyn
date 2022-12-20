@@ -576,18 +576,18 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           dpi = 400, width = 17, height = 19
         )
       }
-      if (check_parallel_plot() && !quiet && count_mod_out > 0) {
+      if (check_parallel_plot() && !quiet && count_mod_out > 1) {
         cnt <- cnt + 1
         setTxtProgressBar(pbplot, cnt)
       }
       return(all_plots)
     }
-    if (!quiet && count_mod_out > 0) {
+    if (!quiet && count_mod_out > 1) {
       cnt <- cnt + length(uniqueSol)
       setTxtProgressBar(pbplot, cnt)
     }
   }
-  if (!quiet && count_mod_out > 0) close(pbplot)
+  if (!quiet && count_mod_out > 1) close(pbplot)
   # Stop cluster to avoid memory leaks
   if (check_parallel_plot()) stopImplicitCluster()
   return(invisible(parallelResult[[1]]))
