@@ -543,7 +543,7 @@ hyper_limits <- function() {
     thetas = c(">=0", "<1"),
     alphas = c(">0", "<10"),
     gammas = c(">0", "<=1"),
-    shapes = c(">0", "<20"),
+    shapes = c(">=0", "<20"),
     scales = c(">=0", "<=1")
   )
 }

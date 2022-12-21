@@ -441,9 +441,10 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
     ref_hyp_name_expo <- hyper_names(adstock, all_media = exposure_vars)
     ref_hyp_name_org <- hyper_names(adstock, all_media = organic_vars)
+    ref_hyp_name_other <- get_hyp_names[get_hyp_names %in% other_hyps]
     # Excluding lambda (first other_hyps) given its range is not customizable
-    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, other_hyps[-1]))
-    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, other_hyps[-1])
+    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, other_hyps))
+    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, other_hyps)
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
@@ -451,8 +452,8 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
-    total <- length(get_hyp_names) - 1 # lambda not included
-    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org))
+    total <- length(get_hyp_names)
+    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org, ref_hyp_name_other))
     if (total != total_in) {
       stop(sprintf(
         paste(
@@ -467,9 +468,6 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
       get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
       get_hyp_names[get_expo_pos] <- ref_all_media[get_expo_pos]
       names(hyperparameters_ordered) <- get_hyp_names
-    }
-    if (!identical(get_hyp_names, ref_all_media)) {
-      stop("Input 'hyperparameters' must contain: ", paste(ref_all_media, collapse = ", "))
     }
     check_hyper_limits(hyperparameters_ordered, "thetas")
     check_hyper_limits(hyperparameters_ordered, "alphas")

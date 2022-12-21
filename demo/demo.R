@@ -154,9 +154,10 @@ plot_saturation(plot = FALSE)
 ## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters
 # , shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
 # decay rate. The shape parameter controls the shape of the decay curve. Recommended
-# bound is c(0.0001, 2). The larger the shape, the more S-shape. The smaller, the more
+# bound is c(0, 2). The larger the shape, the more S-shape. The smaller, the more
 # L-shape. Scale controls the inflexion point of the decay curve. We recommend very
 # conservative bounce of c(0, 0.1), because scale increases the adstock half-life greatly.
+# When shape or scale is 0, adstock will be 0.
 
 ## Weibull PDF adstock: The Probability Density Function of the Weibull also has two
 # parameters, shape & scale, and also has flexible decay rate as Weibull CDF. The
@@ -173,7 +174,7 @@ plot_saturation(plot = FALSE)
 # c(2.0001, 10) as bound for shape. In all cases, we recommend conservative bound of
 # c(0, 0.1) for scale. Due to the great flexibility of Weibull PDF, meaning more freedom
 # in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
-# to converge.
+# to converge. When shape or scale is 0, adstock will be 0.
 
 ## Hill function for saturation: Hill function is a two-parametric function in Robyn with
 # alpha and gamma. Alpha controls the shape of the curve between exponential and s-shape.
@@ -221,13 +222,13 @@ hyperparameters <- list(
 # Example hyperparameters ranges for Weibull CDF adstock
 # facebook_S_alphas = c(0.5, 3)
 # facebook_S_gammas = c(0.3, 1)
-# facebook_S_shapes = c(0.0001, 2)
+# facebook_S_shapes = c(0, 2)
 # facebook_S_scales = c(0, 0.1)
 
 # Example hyperparameters ranges for Weibull PDF adstock
 # facebook_S_alphas = c(0.5, 3
 # facebook_S_gammas = c(0.3, 1)
-# facebook_S_shapes = c(0.0001, 10)
+# facebook_S_shapes = c(0, 10)
 # facebook_S_scales = c(0, 0.1)
 
 #### 2a-3: Third, add hyperparameters into robyn_inputs()

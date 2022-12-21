@@ -125,7 +125,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     check_opts(tolower(type), c("cdf", "pdf"))
     x_bin <- 1:windlen
     scaleTrans <- round(quantile(1:windlen, scale), 0)
-    if (shape == 0) {
+    if (shape == 0 | scale == 0) {
+      x_decayed <- x
       thetaVecCum <- thetaVec <- rep(0, windlen)
     } else {
       if ("cdf" %in% tolower(type)) {
@@ -134,14 +135,14 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
       } else if ("pdf" %in% tolower(type)) {
         thetaVecCum <- .normalize(dweibull(x_bin, shape = shape, scale = scaleTrans)) # plot(thetaVecCum)
       }
+      x_decayed <- mapply(function(x_val, x_pos) {
+        x.vec <- c(rep(0, x_pos - 1), rep(x_val, windlen - x_pos + 1))
+        thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
+        x.prod <- x.vec * thetaVecCumLag
+        return(x.prod)
+      }, x_val = x, x_pos = x_bin[seq_along(x)])
+      x_decayed <- rowSums(x_decayed)[seq_along(x)]
     }
-    x_decayed <- mapply(function(x_val, x_pos) {
-      x.vec <- c(rep(0, x_pos - 1), rep(x_val, windlen - x_pos + 1))
-      thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
-      x.prod <- x.vec * thetaVecCumLag
-      return(x.prod)
-    }, x_val = x, x_pos = x_bin[seq_along(x)])
-    x_decayed <- rowSums(x_decayed)[seq_along(x)]
   } else {
     x_decayed <- x
     thetaVecCum <- 1

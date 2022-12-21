@@ -1083,7 +1083,6 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 #' @export
 ts_validation <- function(OutputModels, quiet = FALSE, ...) {
   if (!isTRUE(OutputModels$ts_validation)) {
-    if (!quiet) warning("Validation was not turned on when training these models. Set: 'ts_validation = TRUE'")
     return(NULL)
   }
   resultHypParam <- bind_rows(
