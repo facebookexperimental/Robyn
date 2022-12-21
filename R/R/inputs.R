@@ -259,11 +259,6 @@ robyn_inputs <- function(dt_input = NULL,
     ## Check adstock
     adstock <- check_adstock(adstock)
 
-    ## Check hyperparameters (if passed)
-    hyperparameters <- check_hyperparameters(
-      hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
-    )
-
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
@@ -321,6 +316,11 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(hyperparameters)) {
       ### Conditional output 1.2
       ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
+
+      ## Check hyperparameters
+      hyperparameters <- check_hyperparameters(
+        hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
+      )
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
   } else {

@@ -421,14 +421,14 @@ check_adstock <- function(adstock) {
 
 check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
                                   paid_media_spends = NULL, organic_vars = NULL,
-                                  exposure_vars = NULL, quiet = FALSE) {
-  if (is.null(hyperparameters) && !quiet) {
+                                  exposure_vars = NULL) {
+  if (is.null(hyperparameters)) {
     message(paste(
       "Input 'hyperparameters' not provided yet. To include them, run",
       "robyn_inputs(InputCollect = InputCollect, hyperparameters = ...)"
     ))
   } else {
-    if (!"train_size" %in% hyperparameters) {
+    if (!"train_size" %in% names(hyperparameters)) {
       hyperparameters[["train_size"]] <- c(0.5, 0.8)
       warning("Automatically added missing hyperparameter range: 'train_size' = c(0.5, 0.8)")
     }
@@ -437,6 +437,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     # Adstock hyperparameters check
     hyperparameters_ordered <- hyperparameters[order(names(hyperparameters))]
     get_hyp_names <- names(hyperparameters_ordered)
+    original_order <- sapply(names(hyperparameters), function(x) which(x == get_hyp_names))
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
     ref_hyp_name_expo <- hyper_names(adstock, all_media = exposure_vars)
     ref_hyp_name_org <- hyper_names(adstock, all_media = organic_vars)
@@ -475,7 +476,8 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     check_hyper_limits(hyperparameters_ordered, "gammas")
     check_hyper_limits(hyperparameters_ordered, "shapes")
     check_hyper_limits(hyperparameters_ordered, "scales")
-    return(hyperparameters_ordered)
+    hyperparameters_unordered <- hyperparameters_ordered[original_order]
+    return(hyperparameters_unordered)
   }
 }
 
