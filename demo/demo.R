@@ -22,6 +22,8 @@ library(Robyn)
 # Please, check if you have installed the latest version before running this demo. Update if not
 # https://github.com/facebookexperimental/Robyn/blob/main/R/DESCRIPTION#L4
 packageVersion("Robyn")
+# Also, if you're using an older version than the latest dev version, please check older demo.R with
+# https://github.com/facebookexperimental/Robyn/blob/vX.X.X/demo/demo.R
 
 ## Force multicore when using RStudio
 Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
