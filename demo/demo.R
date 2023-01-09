@@ -29,42 +29,8 @@ packageVersion("Robyn")
 Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
 options(future.fork.enable = TRUE)
 
-## Must install the python library Nevergrad once
-## ATTENTION: The latest Python 3.10 version may cause Nevergrad installation error
-## See here for more info about installing Python packages via reticulate
-## https://rstudio.github.io/reticulate/articles/python_packages.html
-
-# install.packages("reticulate") # Install reticulate first if you haven't already
-# library("reticulate") # Load the library
-
-## Option 1: nevergrad installation via PIP (no additional installs)
-# virtualenv_create("r-reticulate")
-# use_virtualenv("r-reticulate", required = TRUE)
-# py_install("nevergrad", pip = TRUE)
-# py_config() # Check your python version and configurations
-## In case nevergrad still can't be installed,
-# Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate/bin/python")
-# Reset your R session and re-install Nevergrad with option 1
-
-## Option 2: nevergrad installation via conda (must have conda installed)
-# conda_create("r-reticulate", "Python 3.9") # Only works with <= Python 3.9 sofar
-# use_condaenv("r-reticulate")
-# conda_install("r-reticulate", "nevergrad", pip=TRUE)
-# py_config() # Check your python version and configurations
-## In case nevergrad still can't be installed,
-## please locate your python file and run this line with your path:
-# use_python("~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
-# Alternatively, force Python path for reticulate with this:
-# Sys.setenv(RETICULATE_PYTHON = "~/Library/r-miniconda/envs/r-reticulate/bin/python3.9")
-# Finally, reset your R session and re-install Nevergrad with option 2
-
-#### Known potential issues when installing nevergrad and possible fixes
-# Fix SSL issue (#189): reticulate:::rm_all_reticulate_state()
-# Try updating pip: system("pip3 install --upgrade pip")
-# Be sure to have numpy (and wheel, and pip?) installed: py_install("numpy", pip = TRUE)
-# Check if something looks weird on: py_config() # Py version < 3.10? No numpy?
-# Check this issue for more ideas to debug your reticulate/nevergrad issues:
-# https://github.com/facebookexperimental/Robyn/issues/189
+## ATTENTION: Must install the python library Nevergrad once before using Robyn.
+## Guide: https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R
 
 ################################################################
 #### Step 1: Load data
