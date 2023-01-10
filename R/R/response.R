@@ -84,6 +84,7 @@ robyn_response <- function(InputCollect = NULL,
                            media_metric = NULL,
                            select_model = NULL,
                            metric_value = NULL,
+                           metric_ds = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
                            quiet = FALSE,
@@ -222,7 +223,7 @@ robyn_response <- function(InputCollect = NULL,
     hpm_name <- media_metric
   }
 
-  ## Adstocking
+  ## Adstocking original
   if (adstock == "geometric") {
     theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]]
     x_list <- adstock_geometric(x = media_vec, theta = theta)
@@ -237,11 +238,43 @@ robyn_response <- function(InputCollect = NULL,
   }
   m_adstocked <- x_list$x_decayed
 
+  ## Adstocking simulation
+  get_ds <- pull(dt_input, InputCollect$date_var)
+
+  if (is.null(metric_ds)) {
+    metric_value_updated <- metric_value
+  } else {
+    if (metric_ds == "last_date") {
+      metric_ds <- tail(get_ds, 1)
+      metric_ds_loc <- which(get_ds == metric_ds)
+      message("robyn_response() using the last ds '",
+              get_ds[metric_ds_loc], "' for the input value")
+    } else if (is.Date(metric_ds) & length(metric_ds) == 1) {
+      metric_ds_loc <- which.min(abs(as.Date(metric_ds) - get_ds))
+      message("robyn_response() using the closest ds '",
+              get_ds[metric_ds_loc], "' for the input value ds")
+    } else {
+      ## for  length(metric_ds) > 1
+    }
+
+    media_vec_sim <- media_vec[1:max(metric_ds_loc)]
+    media_vec_sim[metric_ds_loc] <- metric_value
+    if (adstock == "geometric") {
+      x_list_sim <- adstock_geometric(x = media_vec_sim, theta = theta)
+    } else if (adstock == "weibull_cdf") {
+      x_list_sim <- adstock_weibull(x = media_vec_sim, shape = shape, scale = scale, type = "cdf")
+    } else if (adstock == "weibull_pdf") {
+      x_list_sim <- adstock_weibull(x = media_vec_sim, shape = shape, scale = scale, type = "pdf")
+    }
+    m_adstocked_sim <- x_list_sim$x_decayed
+    metric_value_updated <- metric_value_adstocked <- m_adstocked_sim[metric_ds_loc]
+  }
+
   ## Saturation
   m_adstockedRW <- m_adstocked[startRW:endRW]
   alpha <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]]
   gamma <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]]
-  Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
+  Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value_updated)
   m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
 
   ## Decomp
@@ -252,7 +285,7 @@ robyn_response <- function(InputCollect = NULL,
   ## Plot optimal response
   media_type <- ifelse(metric_type == "organic", "organic", "paid")
   dt_line <- data.frame(metric = m_adstockedRW, response = response_vec, channel = media_metric)
-  dt_point <- data.frame(input = metric_value, output = Response)
+  dt_point <- data.frame(input = metric_value_updated, output = Response)
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
     geom_line(color = "steelblue") +
     geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
