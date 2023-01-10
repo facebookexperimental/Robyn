@@ -13,6 +13,7 @@ robyn_response(
   media_metric = NULL,
   select_model = NULL,
   metric_value = NULL,
+  metric_ds = NULL,
   dt_hyppar = NULL,
   dt_coef = NULL,
   quiet = FALSE,
@@ -45,6 +46,8 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{OutputCollect$allSolutions}.}
 
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
+
+\item{metric_ds}{Character. One of: NULL or "last_date".}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
