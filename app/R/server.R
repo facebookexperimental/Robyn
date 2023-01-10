@@ -349,6 +349,7 @@ server <- function(input, output, session) {
       input_reactive$context_signs <- NULL
       input_reactive$baseline_var_names_factor_bool_list <- NULL
       input_reactive$factor_vars <- NULL
+      x <- NULL
 
       if (isolate(input$num_media) >= 1) {
         message(">>> Processing media")
@@ -650,7 +651,7 @@ server <- function(input, output, session) {
       dt_pw_corr_n <- dt_pw_corr[, sapply(dt_pw_corr, is.numeric)],
       error = function(e) {}
     )
-    corr <- round(cor(dt_pw_corr_n, use = "complete.obs"), 2) # calculate correlation matrix
+    corr <- round(cor(dt_pw_corr_n, use = "complete.obs", method = "pearson"), 2) # calculate correlation matrix
 
     idx <- as.data.frame(which(abs(corr) >= 0.8, arr.ind = TRUE)) # get the indices for the matrix entries with abs(correlations) >=0.8
     idx <- idx[which(idx$row > idx$col), ]
@@ -1011,19 +1012,8 @@ server <- function(input, output, session) {
     # Plot 3a
     output$ggplot3a <- renderPlot(
       {
-        ggcorrplot(corr,
-          hc.order = TRUE,
-          type = "lower",
-          lab = TRUE,
-          lab_size = 5,
-          method = "circle",
-          colors = c("tomato2", "white", "springgreen3"),
-          title = "3a. Pair-wise correlation between independent variables",
-          legend.title = "correlation",
-          ggtheme = theme_bw
-        ) +
-          theme(plot.title = element_text(size = 16, hjust = 0.5, colour = "blue")) +
-          theme(plot.subtitle = element_text(size = 14, hjust = 0.5, face = "italic", color = "firebrick"))
+        lares::corr_cross(eda_input, method = "pearson", ignore = input_reactive$dep_var, top = 20) +
+          labs(title = "3a. Pair-wise correlation between independent variables")
       },
       height = 600
     )

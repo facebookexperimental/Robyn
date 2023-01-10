@@ -15,7 +15,6 @@
 #' select slice starts_with summarize ungroup `%>%`
 #' @importFrom DT dataTableOutput renderDataTable datatable
 #' @import ggplot2
-#' @importFrom ggcorrplot ggcorrplot
 #' @importFrom lubridate floor_date year month week yday
 #' @importFrom patchwork plot_annotation
 #' @import Robyn

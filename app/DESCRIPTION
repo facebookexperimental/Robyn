@@ -18,7 +18,7 @@ Imports:
     dplyr,
     DT,
     ggplot2,
-    ggcorrplot,
+    lares,
     lubridate,
     patchwork,
     Robyn (>= 3.6.3),
