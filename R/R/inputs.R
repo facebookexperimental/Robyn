@@ -826,13 +826,11 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     if (dayInterval == 1) {
       warning(
         "Currently, there's a known issue with prophet that may crash this use case.",
-        "\n Read more here: https://github.com/facebook/prophet/pull/2252"
+        "\n Read more here: https://github.com/facebookexperimental/Robyn/issues/472"
       )
-      # mod <<- mod
-      # dt_regressors <<- dt_regressors
     }
     mod <- fit.prophet(modelRecurrence, dt_regressors)
-    forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
+    forecastRecurrence <- predict(mod, dt_regressors)
   }
 
   these <- seq_along(unlist(recurrence[, 1]))
