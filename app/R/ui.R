@@ -259,7 +259,7 @@ ui <- function() {
                   tags$style(type = "text/css", "#q2 {vertical-align: top;}"),
                   actionButton("trial_count_popover", label = "", icon = icon("question"), style = "info", size = "extra-small")
                 ),
-                step = 1, min = 1, value = 10
+                step = 1, min = 1, value = 5
               ),
               uiOutput("dest_folder"),
               hr(style = "border-top: 1px solid #000000;"),

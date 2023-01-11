@@ -9,23 +9,23 @@ server <- function(input, output, session) {
   })
   Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
   options(future.fork.enable = TRUE)
-  ################################### Start/Data Input tab server functionality #######################################
+
+  ############################# Start/Data Input tab server functionality #######################################
 
   input_reactive <- reactiveValues()
   mmm_data <- NULL
-  input_reactive$version <-
-    paste(ifelse(is.null(packageDescription("Robyn")$Repository), "dev", "stable"), packageDescription("Robyn")$Version, sep = "-")
+  input_reactive$version <-paste(ifelse(
+    is.null(packageDescription("Robyn")$Repository), "dev", "stable"),
+    packageDescription("Robyn")$Version, sep = "-")
 
-
-  output$version <- renderText({
-    input_reactive$version
-  })
+  output$version <- renderText(input_reactive$version)
 
   observeEvent(input$test_data, {
+    message(">>> Setting test data...")
     input_reactive$tbl <- Robyn::dt_simulated_weekly
     input_reactive$holiday_data <- Robyn::dt_prophet_holidays
     input_reactive$paid_media_vars <- c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P")
-    input_reactive$paid_media_signs <- c("positive", "positive", "positive", "positive", "positive")
+    input_reactive$paid_media_signs <- rep("positive", length(input_reactive$paid_media_vars))
     input_reactive$paid_media_spends <- c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S")
     input_reactive$organic_vars <- "newsletter"
     input_reactive$organic_signs <- "positive"
@@ -49,14 +49,15 @@ server <- function(input, output, session) {
     updateNumericInput(session, "num_organic_media", value = length(input_reactive$organic_vars))
     updateNumericInput(session, "num_context", value = length(input_reactive$context_vars))
 
-    showModal(modalDialog(
-      title = "Sample data loaded, proceed to create a new model tabs",
-      easyClose = TRUE,
-      footer = NULL
-    ))
+    message("Automatic fields filled: ", paste(names(input_reactive), collapse = ", "))
+    print(head(input_reactive$dt_input))
+    msg <- "Sample data loaded, proceed to create a new model tabs"
+    showModal(modalDialog(title = msg, easyClose = TRUE, footer = NULL))
+    message(msg)
   })
 
   output$data_tbl <- renderDataTable({
+    message(">>> Setting input data...")
     if (input$test_data < 1) {
       file <- input$data_file
       ext <- tools::file_ext(file$datapath)
@@ -228,6 +229,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$init_var_input, {
+    message(">>> Started variables assignment...")
     output$var_assignment_descipt <- renderUI({
       fluidRow(actionButton("var_assignment_button", label = "Reminder on Variable Assignment", size = "small"))
     })
@@ -448,12 +450,9 @@ server <- function(input, output, session) {
         input_reactive$dep_var <- isolate(input$dep_var)
         input_reactive$dep_var_type <- isolate(input$dep_var_type)
         input_reactive$date_var <- "DATE"
-        showModal(modalDialog(
-          title = "Variable Input Succesful - Please click anywhere on the screen to proceed.",
-          easyClose = TRUE,
-          footer = NULL
-        ))
-        message("Inputs processed succesfully!")
+        msg <- "Variable Input Succesful - Please click anywhere on the screen to proceed."
+        showModal(modalDialog(title = msg, easyClose = TRUE, footer = NULL))
+        message(msg)
       } else {
         error_message <- NULL
         if (is.null(isolate(input$data_file)) == TRUE) {
@@ -520,11 +519,9 @@ server <- function(input, output, session) {
         ))
       }
     } else {
-      showModal(modalDialog(
-        title = "Variable Input Succesful - Please click anywhere on the screen to proceed.",
-        easyClose = TRUE,
-        footer = NULL
-      ))
+      msg <- "Variable Input Succesful - Please click anywhere on the screen to proceed."
+      showModal(modalDialog(title = msg, easyClose = TRUE, footer = NULL))
+      message(msg)
     }
   })
 
@@ -1156,7 +1153,7 @@ server <- function(input, output, session) {
     ))
   })
 
-  ################################### HyperParameter Selection/Model Run ########################################
+  #############################HyperParameter Selection/Model Run ########################################
 
   observeEvent(input$adstock_selection_popover, {
     showModal(modalDialog(
@@ -1289,57 +1286,57 @@ server <- function(input, output, session) {
   })
 
   output$local_hyperparam_sliders_paid <- renderUI({
-    lapply(seq_along(input_reactive$paid_media_vars), function(i) {
+    lapply(seq_along(input_reactive$paid_media_spends), function(i) {
       if (input$adstock_selection == "weibull_cdf") {
         splitLayout(
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_alphas")),
             min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_gammas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_gammas")),
             min = 0, max = 3, value = c(0.3, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_shapes"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_shapes")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_shapes"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_shapes")),
             min = 0, max = 1, value = c(0.3, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_scales"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_scale")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_scales"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_scale")),
             min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
           )
         )
       } else if (input$adstock_selection == "weibull_pdf") {
         splitLayout(
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_alphas")),
             min = 0.001, max = 3, value = c(0.001, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_gammas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_gammas")),
             min = 0, max = 3, value = c(0.3, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_shapes"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_shapes")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_shapes"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_shapes")),
             min = 0, max = 1, value = c(0.3, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_scales"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_scale")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_scales"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_scale")),
             min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
           )
         )
       } else if (input$adstock_selection == "geometric") {
         splitLayout(
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_alphas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_alphas")),
             min = 0, max = 3, value = c(0.5, 3), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_gammas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_gammas")),
             min = 0, max = 1, value = c(0.5, 1), step = 0.01
           ),
-          sliderInput(paste0("medVar_", input_reactive$paid_media_vars[i], "_thetas"),
-            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_vars[i], "_thetas")),
+          sliderInput(paste0("medVar_", input_reactive$paid_media_spends[i], "_thetas"),
+            label = div(style = "font-size:12px", paste0(input_reactive$paid_media_spends[i], "_thetas")),
             min = 0, max = 1, value = c(0.1, 0.4), step = 0.01
           )
         )
@@ -1501,28 +1498,29 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$finalize_hyperparams, {
+    message(paste(">>> Creating", input$adstock_selection, "hyperparameters..."))
     input_reactive$hyp_org <- list()
     input_reactive$hyp_paid <- list()
     input_reactive$hyperparameters <- list()
     if (input$adstock_selection %in% c("weibull_cdf", "weibull_pdf")) {
       vals <- list()
       names_l <- list()
-      lapply(seq_along(input_reactive$paid_media_vars), function(i) {
-        assign(paste0(input_reactive$paid_media_vars[i], "_alphas"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][2]
+      lapply(seq_along(input_reactive$paid_media_spends), function(i) {
+        assign(paste0(input_reactive$paid_media_spends[i], "_alphas"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas")]][2]
         ))
-        assign(paste0(input_reactive$paid_media_vars[i], "_gammas"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas")]][2]
+        assign(paste0(input_reactive$paid_media_spends[i], "_gammas"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas")]][2]
         ))
-        assign(paste0(input_reactive$paid_media_vars[i], "_shapes"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_shapes")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_shapes")]][2]
+        assign(paste0(input_reactive$paid_media_spends[i], "_shapes"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_shapes")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_shapes")]][2]
         ))
-        assign(paste0(input_reactive$paid_media_vars[i], "_scales"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_scales")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_scales")]][2]
+        assign(paste0(input_reactive$paid_media_spends[i], "_scales"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_scales")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_scales")]][2]
         ))
         hyps <- c("alphas", "gammas", "shapes", "scales")
         for (i in seq_along(hyps)) {
@@ -1570,18 +1568,18 @@ server <- function(input, output, session) {
     } else if (input$adstock_selection == "geometric") {
       vals <- list()
       names_l <- list()
-      lapply(seq_along(input_reactive$paid_media_vars), function(i) {
-        assign(paste0(input_reactive$paid_media_vars[i], "_alphas"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_alphas")]][2]
+      lapply(seq_along(input_reactive$paid_media_spends), function(i) {
+        assign(paste0(input_reactive$paid_media_spends[i], "_alphas"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_alphas")]][2]
         ))
-        assign(paste0(input_reactive$paid_media_vars[i], "_gammas"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_gammas")]][2]
+        assign(paste0(input_reactive$paid_media_spends[i], "_gammas"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_gammas")]][2]
         ))
-        assign(paste0(input_reactive$paid_media_vars[i], "_thetas"), c(
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_thetas")]][1],
-          input[[paste0("medVar_", input_reactive$paid_media_vars[i], "_thetas")]][2]
+        assign(paste0(input_reactive$paid_media_spends[i], "_thetas"), c(
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_thetas")]][1],
+          input[[paste0("medVar_", input_reactive$paid_media_spends[i], "_thetas")]][2]
         ))
         hyps <- c("alphas", "gammas", "thetas")
         for (i in seq_along(hyps)) {
@@ -1623,9 +1621,9 @@ server <- function(input, output, session) {
       }
       input_reactive$hyperparameters <- c(input_reactive$hyp_org, input_reactive$hyp_paid)
     }
-  })
+    # hyperparameters <<- input_reactive$hyperparameters
 
-  observeEvent(input$finalize_hyperparams, {
+    message(">>> Setting up calibration and prophet...")
     input_reactive$activate_prophet <- NULL
     input_reactive$prophet_vars <- NULL
     input_reactive$prophet_signs <- NULL
@@ -1679,77 +1677,78 @@ server <- function(input, output, session) {
         input_reactive$dt_calibration$liftEndDate <- as.Date(gsub("00", "20", input_reactive$dt_calibration$liftEndDate))
       }
 
-
-      showModal(modalDialog(
-        title = "Input_success - Please click anywhere on the screen to proceed",
-        easyClose = TRUE,
-        footer = NULL
-      ))
+      msg <- "Input_success - Please click anywhere on the screen to proceed"
+      showModal(modalDialog(title = msg, easyClose = TRUE, footer = NULL))
+      message(msg)
     } else {
-      showModal(modalDialog(
-        title = "Input failed. Please ensure all fields have proper input per tooltip guiance and try again",
-        easyClose = TRUE,
-        footer = NULL
-      ))
+      msg <- "Input failed. Please ensure all fields have proper input per tooltip guiance and try again"
+      showModal(modalDialog(title = msg, easyClose = TRUE, footer = NULL))
+      message(msg)
     }
   })
 
   observeEvent(input$run_model, {
+    message(">>> Preparing to run model...")
     input_reactive$iterations <- input$set_iter
     input_reactive$adstock <- input$adstock_selection
     input_reactive$trials <- input$set_trials
 
     withCallingHandlers({
-      message("Preparing to run model...")
       shinyjs::html("model_gen_text", "")
       if (!dir.exists(paste0(input$dest_folder, "plots"))) {
         dir.create(file.path(paste0(input$dest_folder, "plots")))
       }
       input_reactive$robyn_object <- paste0(input$dest_folder, "/plots")
       input_reactive$robyn_json <- paste0(input_reactive$robyn_object, "/robyn.json")
-      tryCatch(input_reactive$InputCollect <- robyn_inputs(
-        dt_input = input_reactive$dt_input,
-        dt_holidays = input_reactive$holiday_data,
-        hyperparameters = input_reactive$hyperparameters,
-        calibration_input = input_reactive$calib_data,
-        date_var = input_reactive$date_var,
-        dep_var = input_reactive$dep_var,
-        dep_var_type = input_reactive$dep_var_type,
-        prophet_vars = input_reactive$prophet_vars,
-        prophet_signs = input_reactive$prophet_signs,
-        prophet_country = input_reactive$prophet_country,
-        context_vars = input_reactive$context_vars,
-        context_signs = input_reactive$context_signs,
-        paid_media_vars = input_reactive$paid_media_vars,
-        paid_media_signs = input_reactive$paid_media_signs,
-        paid_media_spends = input_reactive$paid_media_spends,
-        organic_vars = input_reactive$organic_vars,
-        organic_signs = input_reactive$organic_signs,
-        factor_vars = input_reactive$factor_vars,
-        window_start = input_reactive$window_start,
-        window_end = input_reactive$window_end,
-        adstock = input_reactive$adstock
-      ),
+      # input_reactive <- reactiveValuesToList(input_reactive, all.names = TRUE)
+      # saveRDS(input_reactive, file = "input_reactive.RDS")
+      # input_reactive <- readRDS("input_reactive.RDS")
+      message("Creating InputCollect...")
+      input_reactive$InputCollect <- tryCatch({
+        robyn_inputs(
+          dt_input = input_reactive$dt_input,
+          dt_holidays = input_reactive$holiday_data,
+          adstock = input_reactive$adstock,
+          calibration_input = input_reactive$calib_data,
+          date_var = input_reactive$date_var,
+          dep_var = input_reactive$dep_var,
+          dep_var_type = input_reactive$dep_var_type,
+          prophet_vars = input_reactive$prophet_vars,
+          prophet_signs = input_reactive$prophet_signs,
+          prophet_country = input_reactive$prophet_country,
+          context_vars = input_reactive$context_vars,
+          context_signs = input_reactive$context_signs,
+          paid_media_vars = input_reactive$paid_media_vars,
+          paid_media_signs = input_reactive$paid_media_signs,
+          paid_media_spends = input_reactive$paid_media_spends,
+          organic_vars = input_reactive$organic_vars,
+          organic_signs = input_reactive$organic_signs,
+          factor_vars = input_reactive$factor_vars,
+          window_start = input_reactive$window_start,
+          window_end = input_reactive$window_end,
+          hyperparameters = input_reactive$hyperparameters)
+      },
       error = function(e) {
+        message("ERROR: ", e$message)
         showNotification(e$message, duration = NULL)
-      }
-      )
+        return(NULL)
+      })
+      print(input_reactive$InputCollect)
     })
-
 
     tryCatch(
       withCallingHandlers(
         {
           shinyjs::html("model_gen_text", "")
+          # plots will be saved in the same folder as robyn_object
           input_reactive$OutputCollect <- robyn_run(
-            InputCollect = input_reactive$InputCollect, # feed in all model specification  # plots will be saved in the same folder as robyn_object
+            InputCollect = input_reactive$InputCollect,
             iterations = input_reactive$iterations,
             trials = input_reactive$trials,
             outputs = TRUE,
             csv_out = "pareto",
             clusters = TRUE,
-            ui = TRUE,
-            json_file =
+            ui = TRUE
             )
           showModal(modalDialog(
             title = "Models Generated Succesfully - Please proceed to the Model Selection Tab",
@@ -1767,7 +1766,7 @@ server <- function(input, output, session) {
     )
   })
 
-  ################################### Model Selection tab server functionality ##################################
+  #############################Model Selection tab server functionality ##################################
 
   observeEvent(input$pareto_front_popover, {
     showModal(modalDialog(
@@ -2478,7 +2477,7 @@ server <- function(input, output, session) {
   })
 
 
-  ################################### Refresh Model Selection tab server functionality ##################################
+  #############################Refresh Model Selection tab server functionality ##################################
 
   observeEvent(input$refresh_load_models, {
     input_reactive$refreshCounter <- length(input_reactive$OutputCollect) - 1

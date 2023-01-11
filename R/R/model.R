@@ -393,7 +393,8 @@ robyn_mmm <- function(InputCollect,
       np$random$seed(seed)
     }
   } else {
-    stop("You must have nevergrad python library installed.")
+    stop("You must have nevergrad python library installed.\nPlease check our install demo: ",
+         "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R")
   }
 
   ################################################
