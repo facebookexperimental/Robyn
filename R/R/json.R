@@ -176,6 +176,9 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       }
       json <- read_json(json_file, simplifyVector = TRUE)
       json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
+      # Add train_size if not available (<3.9.0)
+      if (!"train_size" %in% names(json$ExportedModel$hyper_values))
+        json$ExportedModel$hyper_values$train_size <- 1
       if (!"InputCollect" %in% names(json) && step == 1) {
         stop("JSON file must contain InputCollect element")
       }
