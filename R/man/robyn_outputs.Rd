@@ -5,6 +5,7 @@
 \alias{print.robyn_outputs}
 \alias{robyn_csv}
 \alias{robyn_plots}
+\alias{robyn_onepagers}
 \alias{ts_validation}
 \title{Evaluate Models and Output Results into Local Files}
 \usage{
@@ -36,6 +37,14 @@ robyn_csv(
 )
 
 robyn_plots(InputCollect, OutputCollect, export = TRUE, ...)
+
+robyn_onepagers(
+  InputCollect,
+  OutputCollect,
+  select_model = NULL,
+  quiet = FALSE,
+  export = TRUE
+)
 
 ts_validation(OutputModels, quiet = FALSE, ...)
 }
@@ -91,6 +100,8 @@ results based on \code{robyn_run()} results.
 Invisible \code{NULL}.
 
 Invisible list with \code{ggplot} plots.
+
+Invisible list with \code{patchwork} plot(s).
 
 Invisible list with \code{ggplot} plots.
 }

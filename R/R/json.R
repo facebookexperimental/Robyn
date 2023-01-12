@@ -177,8 +177,9 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       json <- read_json(json_file, simplifyVector = TRUE)
       json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
       # Add train_size if not available (<3.9.0)
-      if (!"train_size" %in% names(json$ExportedModel$hyper_values))
+      if (!"train_size" %in% names(json$ExportedModel$hyper_values)) {
         json$ExportedModel$hyper_values$train_size <- 1
+      }
       if (!"InputCollect" %in% names(json) && step == 1) {
         stop("JSON file must contain InputCollect element")
       }
@@ -272,7 +273,7 @@ robyn_chain <- function(json_file) {
   json_data <- robyn_read(json_file, quiet = TRUE)
   ids <- c(json_data$InputCollect$refreshChain, json_data$ExportedModel$select_model)
   plot_folder <- json_data$ExportedModel$plot_folder
-  temp <- stringr::str_split(plot_folder, "/")[[1]]
+  temp <- str_split(plot_folder, "/")[[1]]
   chain <- temp[startsWith(temp, "Robyn_")]
   if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
