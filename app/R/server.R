@@ -14,9 +14,10 @@ server <- function(input, output, session) {
 
   input_reactive <- reactiveValues()
   mmm_data <- NULL
-  input_reactive$version <-paste(ifelse(
+  input_reactive$version <- version <- paste(ifelse(
     is.null(packageDescription("Robyn")$Repository), "dev", "stable"),
     packageDescription("Robyn")$Version, sep = "-")
+  message("ROBYN VERSION: ", version)
 
   output$version <- renderText(input_reactive$version)
 

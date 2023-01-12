@@ -291,10 +291,11 @@ ui <- function() {
             mainPanel(
               width = 7,
               splitLayout(
-                cellWidths = c("40%", "20%", "20%"),
-                actionButton("finalize_inputs_popover", label = "Info on Finalizing your Inputs", style = "info", size = "small"),
-                actionButton("finalize_hyperparams", label = "Finalize All Model Inputs"),
-                actionButton("run_model", label = "Initiate ROBYN Modelling")
+                cellWidths = c("40%", "30%", "30%"),
+                actionButton("finalize_inputs_popover", label = "Info on Finalizing your Inputs",
+                             style = "info", size = "small", width = "100%"),
+                actionButton("finalize_hyperparams", label = "1. Finalize Inputs", width = "100%"),
+                actionButton("run_model", label = "2. Initiate Modelling", width = "100%")
               ),
               textOutput("model_gen_text"),
               hr(style = "border-top: 1px solid #000000;"),
