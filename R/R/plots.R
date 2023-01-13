@@ -599,9 +599,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   subtitle <- sprintf(
     paste0(
-      "Total spend increase: %s%%",
+      "Total %sspend increase: %s%%",
       "\nTotal response increase: %s%% with optimised spend allocation"
     ),
+    ifelse(isTRUE(dt_optimOut$adstocked[1]), "adstocked ", ""),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )

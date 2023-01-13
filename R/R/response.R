@@ -243,15 +243,21 @@ robyn_response <- function(InputCollect = NULL,
   get_ds <- pull(dt_input, InputCollect$date_var)
   if (is.null(metric_ds)) {
     metric_value_updated <- metric_value
+    metric_ds_val <- NULL
   } else {
     if ("last_date" %in% metric_ds) {
       metric_ds <- tail(get_ds, 1)
       metric_ds_loc <- which(get_ds == metric_ds)
       metric_ds_val <- get_ds[metric_ds_loc]
       if (!quiet) message("Using the last ds '", metric_ds_val, "' for the adstocked input value")
-    } else if (is.Date(metric_ds) & length(metric_ds) == 1) {
-      metric_ds_loc <- which.min(abs(as.Date(metric_ds) - get_ds))
-      metric_ds_val <- get_ds[metric_ds_loc]
+    } else if (is.Date(as.Date(metric_ds, origin = "1970-01-01")) & length(metric_ds) == 1) {
+      metric_ds <- as.Date(metric_ds, origin = "1970-01-01")
+      metric_ds_loc <- which.min(abs(metric_ds - get_ds))
+      # Set closest date available if not exact date provided
+      if (!metric_ds %in% get_ds) {
+        metric_ds_val <- get_ds[which(abs(get_ds - metric_ds) == min(abs(get_ds - metric_ds)))]
+        if (!quiet) warning("Input 'metric_ds' (", metric_ds, ") was not valid. Picking closest date: ", metric_ds_val)
+      }
       if (!quiet) message("Using ds '", metric_ds_val, "' for the adstocked input value")
     } else {
       ## for length(metric_ds) > 1
@@ -269,6 +275,8 @@ robyn_response <- function(InputCollect = NULL,
     m_adstocked_sim <- x_list_sim$x_decayed
     metric_value_updated <- metric_value_adstocked <- m_adstocked_sim[metric_ds_loc]
   }
+  # Inflation rate
+  inflation <- metric_value_updated / metric_value
 
   ## Saturation
   m_adstockedRW <- m_adstocked[startRW:endRW]
@@ -319,13 +327,15 @@ robyn_response <- function(InputCollect = NULL,
     p_res <- p_res +
       geom_point(data = dt_pointR, aes(x = .data$input, y = .data$output), size = 3, shape = 8)
   }
-
-  class(Response) <- unique(c("robyn_response", class(Response)))
-  return(list(
+  ret <- list(
     response = Response,
     metric = metric_value_updated,
     response_ref = ResponseR,
     metric_ref = metric_value,
+    inflation = inflation,
+    date = metric_ds_val,
     plot = p_res
-  ))
+  )
+  class(ret) <- unique(c("robyn_response", class(ret)))
+  return(ret)
 }
