@@ -241,21 +241,20 @@ robyn_response <- function(InputCollect = NULL,
 
   ## Adstocking simulation
   get_ds <- pull(dt_input, InputCollect$date_var)
-
   if (is.null(metric_ds)) {
     metric_value_updated <- metric_value
   } else {
-    if (metric_ds == "last_date") {
+    if ("last_date" %in% metric_ds) {
       metric_ds <- tail(get_ds, 1)
       metric_ds_loc <- which(get_ds == metric_ds)
-      message("robyn_response() using the last ds '",
-              get_ds[metric_ds_loc], "' for the input value")
+      metric_ds_val <- get_ds[metric_ds_loc]
+      if (!quiet) message("Using the last ds '", metric_ds_val, "' for the adstocked input value")
     } else if (is.Date(metric_ds) & length(metric_ds) == 1) {
       metric_ds_loc <- which.min(abs(as.Date(metric_ds) - get_ds))
-      message("robyn_response() using the closest ds '",
-              get_ds[metric_ds_loc], "' for the input value ds")
+      metric_ds_val <- get_ds[metric_ds_loc]
+      if (!quiet) message("Using ds '", metric_ds_val, "' for the adstocked input value")
     } else {
-      ## for  length(metric_ds) > 1
+      ## for length(metric_ds) > 1
     }
 
     media_vec_sim <- media_vec[1:max(metric_ds_loc)]
@@ -277,38 +276,56 @@ robyn_response <- function(InputCollect = NULL,
   gamma <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]]
   Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value_updated)
   m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
-
   ## Decomp
   coeff <- dt_coef[dt_coef$solID == select_model & dt_coef$rn == hpm_name, ][["coef"]]
   response_vec <- m_saturated * coeff
   Response <- as.numeric(Saturated * coeff)
-
-  ## Plot optimal response
-  media_type <- ifelse(metric_type == "organic", "organic", "paid")
   dt_line <- data.frame(metric = m_adstockedRW, response = response_vec, channel = media_metric)
   dt_point <- data.frame(input = metric_value_updated, output = Response)
+
+  # Reference non-adstocked data when using updated metric values
+  if (!is.null(metric_value)) {
+    SaturatedR <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
+    ResponseR <- as.numeric(SaturatedR * coeff)
+    dt_pointR <- data.frame(input = metric_value, output = ResponseR)
+  } else SaturatedR <- ResponseR <- dt_pointR <- NULL
+
+  ## Plot optimal response
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
     geom_line(color = "steelblue") +
     geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
     labs(
       title = paste(
-        "Saturation curve of", media_type, "media:", media_metric,
+        "Saturation curve of",
+        ifelse(metric_type == "organic", "organic", "paid"),
+        "media:", media_metric,
         ifelse(metric_type == "spend", "spend metric", "exposure metric")
       ),
       subtitle = sprintf(
-        "Response of %s @ %s",
+        "Response of %s @ %s%s",
         formatNum(dt_point$output, signif = 4),
-        formatNum(dt_point$input, signif = 4)
+        formatNum(dt_point$input, signif = 4),
+        ifelse(!is.null(metric_value), sprintf(
+          " [adstocked from %s]", formatNum(dt_pointR$input, signif = 4)
+        ), "")
       ),
-      x = "Metric", y = "Response"
+      x = "Metric", y = "Response",
+      caption = ifelse(!is.null(metric_ds), paste("Using ds =", metric_ds_val, "adstocked metric"), "")
     ) +
     theme_lares() +
     scale_x_abbr() +
     scale_y_abbr()
+  if (!is.null(metric_value)) {
+    p_res <- p_res +
+      geom_point(data = dt_pointR, aes(x = .data$input, y = .data$output), size = 3, shape = 8)
+  }
 
   class(Response) <- unique(c("robyn_response", class(Response)))
   return(list(
     response = Response,
+    metric = metric_value_updated,
+    response_ref = ResponseR,
+    metric_ref = metric_value,
     plot = p_res
   ))
 }
