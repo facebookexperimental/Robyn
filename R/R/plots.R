@@ -602,7 +602,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       "Total %sspend increase: %s%%",
       "\nTotal response increase: %s%% with optimised spend allocation"
     ),
-    ifelse(isTRUE(dt_optimOut$adstocked[1]), "adstocked ", ""),
+    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("[adstocked @", dt_optimOut$adstocked_date[1], "] "), ""),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )

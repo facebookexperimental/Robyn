@@ -234,7 +234,7 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendUnit[is.nan(histSpendUnit)] <- 0
   histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
   histSpendShare <- histSpendUnit / histSpendUnitTotal
-  histSpendUnitOriginal <- histSpendUnit
+  histSpendUnitRaw <- histSpendUnit
 
   # Response values based on date range -> mean spend
   noSpendMedia <- histResponseUnitModel <- NULL
@@ -266,7 +266,7 @@ robyn_allocator <- function(robyn_object = NULL,
   if (!is.null(noSpendMedia) && !quiet) {
     message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
   }
-  adstocked <- isTRUE(!all(histSpendUnitOriginal == histSpendUnit))
+  adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
   if (!quiet & adstocked) message("Adstocked results for date: ", resp$date)
 
   ## Build constraints function with scenarios
@@ -339,10 +339,12 @@ robyn_allocator <- function(robyn_object = NULL,
     constr_low = channelConstrLowSorted,
     constr_up = channelConstrUpSorted,
     # Initial
-    adstocked = adstocked,
     histSpend = histSpend,
     histSpendTotal = histSpendTotal,
     initSpendUnitTotal = histSpendUnitTotal,
+    initSpendUnitRaw = histSpendUnitRaw,
+    adstocked = adstocked,
+    adstocked_date = as.Date(ifelse(adstocked, resp$date, NA), origin = "1970-01-01"),
     initSpendUnit = histSpendUnit,
     initSpendShare = histSpendShare,
     initResponseUnit = histResponseUnitModel,
