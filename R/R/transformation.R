@@ -68,7 +68,8 @@ adstock_geometric <- function(x, theta) {
     x_decayed <- x
     thetaVecCum <- theta
   }
-  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+  inflation <- sum(x_decayed) / sum(x)
+  return(list(x = x, x_decayed = x_decayed, inflation = inflation, thetaVecCum = thetaVecCum))
 }
 
 
@@ -147,7 +148,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     x_decayed <- x
     thetaVecCum <- 1
   }
-  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+  inflation <- sum(x_decayed) / sum(x)
+  return(list(x = x, x_decayed = x_decayed, inflation = inflation, thetaVecCum = thetaVecCum))
 }
 
 .normalize <- function(x) {
