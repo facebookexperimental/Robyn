@@ -238,6 +238,9 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (!all(paid_media_signs %in% opts_pnd)) {
     stop("Allowed values for 'paid_media_signs' are: ", paste(opts_pnd, collapse = ", "))
   }
+  if (length(paid_media_signs) == 1) {
+    paid_media_signs <- rep(paid_media_signs, length(paid_media_vars))
+  }
   if (length(paid_media_signs) != length(paid_media_vars)) {
     stop("Input 'paid_media_signs' must have same length as 'paid_media_vars'")
   }
@@ -445,6 +448,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     # Excluding lambda (first other_hyps) given its range is not customizable
     ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, other_hyps))
     all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, other_hyps)
+    all_ref_names <- all_ref_names[order(all_ref_names)]
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
@@ -530,7 +534,7 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
     all_media <- c(paid_media_spends, organic_vars)
-    cal_media <- stringr::str_split(calibration_input$channel, "\\+|,|;|\\s")
+    cal_media <- str_split(calibration_input$channel, "\\+|,|;|\\s")
     if (!all(unlist(cal_media) %in% all_media)) {
       these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
       stop(sprintf(

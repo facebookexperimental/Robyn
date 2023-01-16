@@ -1,6 +1,6 @@
 Package: RobynLearn
 Title: Interactive UI for Robyn Education & MMM Development
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(
     person("Kyle", "Goldberg", , "kylegoldberg@meta.com", role = c("aut","cre")),
     person("Rotem", "Blinder", , "rblinder@meta.com", role = c("aut")),

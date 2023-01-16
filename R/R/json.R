@@ -134,7 +134,7 @@ print.robyn_write <- function(x, ...) {
 
   print(x$ExportedModel$summary %>%
     select(-contains("boot"), -contains("ci_")) %>%
-    dplyr::rename_at("performance", list(~ ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
+    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
     mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
     replace(., . == "NA", "-") %>% as.data.frame())
@@ -176,6 +176,10 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       }
       json <- read_json(json_file, simplifyVector = TRUE)
       json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
+      # Add train_size if not available (<3.9.0)
+      if (!"train_size" %in% names(json$ExportedModel$hyper_values)) {
+        json$ExportedModel$hyper_values$train_size <- 1
+      }
       if (!"InputCollect" %in% names(json) && step == 1) {
         stop("JSON file must contain InputCollect element")
       }
@@ -269,7 +273,7 @@ robyn_chain <- function(json_file) {
   json_data <- robyn_read(json_file, quiet = TRUE)
   ids <- c(json_data$InputCollect$refreshChain, json_data$ExportedModel$select_model)
   plot_folder <- json_data$ExportedModel$plot_folder
-  temp <- stringr::str_split(plot_folder, "/")[[1]]
+  temp <- str_split(plot_folder, "/")[[1]]
   chain <- temp[startsWith(temp, "Robyn_")]
   if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)

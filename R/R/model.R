@@ -393,7 +393,10 @@ robyn_mmm <- function(InputCollect,
       np$random$seed(seed)
     }
   } else {
-    stop("You must have nevergrad python library installed.")
+    stop(
+      "You must have nevergrad python library installed.\nPlease check our install demo: ",
+      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
+    )
   }
 
   ################################################
@@ -1038,24 +1041,24 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
     regressor * coeff
   }, regressor = dt_saturatedCarryover, coeff = coefs_media))
 
-  ## QA decomp
-  check_split <- all(round(xDecomp[, names(coefs_media)], 2) ==
-    round(mediaDecompImmediate + mediaDecompCarryover, 2))
-  if (!check_split) {
-    message(paste0(
-      "Attention for loop ", i,
-      ": immediate & carryover decomp don't sum up to total"
-    ))
-  }
-  y_hat <- rowSums(xDecomp, na.rm = TRUE)
-  errorTerm <- y_hat - y_pred
-  if (prod(round(y_pred) == round(y_hat)) == 0) {
-    message(paste0(
-      "Attention for loop ", i,
-      ": manual decomp is not matching linear model prediction. ",
-      "Deviation is ", round(mean(errorTerm / y) * 100, 2), "%"
-    ))
-  }
+  # ## QA decomp
+  # check_split <- all(round(xDecomp[, names(coefs_media)], 2) ==
+  #   round(mediaDecompImmediate + mediaDecompCarryover, 2))
+  # if (!check_split) {
+  #   message(paste0(
+  #     "Attention for loop ", i,
+  #     ": immediate & carryover decomp don't sum up to total"
+  #   ))
+  # }
+  # y_hat <- rowSums(xDecomp, na.rm = TRUE)
+  # errorTerm <- y_hat - y_pred
+  # if (prod(round(y_pred) == round(y_hat)) == 0) {
+  #   message(paste0(
+  #     "Attention for loop ", i,
+  #     ": manual decomp is not matching linear model prediction. ",
+  #     "Deviation is ", round(mean(errorTerm / y) * 100, 2), "%"
+  #   ))
+  # }
 
   ## Output decomp
   y_hat.scaled <- rowSums(abs(xDecomp), na.rm = TRUE)

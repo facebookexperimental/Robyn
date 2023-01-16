@@ -64,21 +64,29 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
       resultHypParam <- temp_all$resultHypParam
-      hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated), "robynPareto")
+      hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated))
       hpnames_updated <- str_replace(hpnames_updated, "lambda", "lambda_hp")
       resultHypParam.melted <- resultHypParam %>%
-        select(all_of(hpnames_updated)) %>%
-        tidyr::gather("variable", "value", -.data$robynPareto) %>%
-        mutate(variable = ifelse(.data$variable == "lambda_hp", "lambda", .data$variable))
-      all_plots[["pSamp"]] <- ggplot(
-        resultHypParam.melted,
-        aes(x = .data$value, y = .data$variable, color = .data$variable, fill = .data$variable)
-      ) +
-        geom_violin(alpha = .5, size = 0) +
-        geom_point(size = 0.2) +
-        theme_lares(legend = "none") +
+        dplyr::select(any_of(hpnames_updated)) %>%
+        tidyr::gather("variable", "value") %>%
+        mutate(variable = ifelse(.data$variable == "lambda_hp", "lambda", .data$variable)) %>%
+        dplyr::rowwise() %>%
+        mutate(type = str_split(.data$variable, "_")[[1]][str_count(.data$variable, "_")[[1]] + 1]) %>%
+        mutate(channel = gsub(pattern = paste0("_", .data$type), "", .data$variable)) %>%
+        ungroup() %>%
+        mutate(
+          type = factor(.data$type, levels = unique(.data$type)),
+          channel = factor(.data$channel, levels = rev(unique(.data$channel)))
+        )
+      all_plots[["pSamp"]] <- ggplot(resultHypParam.melted) +
+        facet_grid(. ~ .data$type, scales = "free") +
+        geom_violin(
+          aes(x = .data$value, y = .data$channel, color = .data$channel, fill = .data$channel),
+          alpha = .8, size = 0
+        ) +
+        theme_lares(legend = "none", pal = 1) +
         labs(
-          title = "Hyperparameter Optimisation Sampling",
+          title = "Hyperparameters Optimization Distributions",
           subtitle = paste0(
             "Sample distribution", ", iterations = ",
             OutputCollect$iterations, " x ", OutputCollect$trials, " trial"
@@ -230,8 +238,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
 ####################################################################
 #' Generate and Export Robyn One-Pager Plots
 #'
-#' @inheritParams robyn_outputs
-#' @inheritParams robyn_csv
+#' @rdname robyn_outputs
 #' @return Invisible list with \code{patchwork} plot(s).
 #' @export
 robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, quiet = FALSE, export = TRUE) {

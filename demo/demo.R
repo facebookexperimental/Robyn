@@ -162,8 +162,9 @@ plot_saturation(plot = FALSE)
 
 ## 4. Set individual hyperparameter bounds. They either contain two values e.g. c(0, 0.5),
 # or only one value, in which case you'd "fix" that hyperparameter.
-
 # Run hyper_limits() to check maximum upper and lower bounds by range
+hyper_limits()
+
 # Example hyperparameters ranges for Geometric adstock
 hyperparameters <- list(
   facebook_S_alphas = c(0.5, 3),
@@ -194,7 +195,7 @@ hyperparameters <- list(
 # facebook_S_scales = c(0, 0.1)
 
 # Example hyperparameters ranges for Weibull PDF adstock
-# facebook_S_alphas = c(0.5, 3
+# facebook_S_alphas = c(0.5, 3)
 # facebook_S_gammas = c(0.3, 1)
 # facebook_S_shapes = c(0, 10)
 # facebook_S_scales = c(0, 0.1)
