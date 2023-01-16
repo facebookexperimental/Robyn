@@ -344,7 +344,7 @@ print(OutputCollect)
 select_model <- "1_115_2" # Pick one of the models from OutputCollect to proceed
 
 #### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
-ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
+ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = TRUE)
 print(ExportedModel)
 
 ###### DEPRECATED (<3.7.1) (might work)
@@ -424,7 +424,8 @@ if (TRUE) {
     select_model = select_model,
     select_build = 0,
     media_metric = select_media,
-    metric_value = metric_value
+    metric_value = metric_value,
+    metric_ds = NULL
   )
   plot(optimal_response$plot)
   if (length(optimal_response_allocator) > 0) {
@@ -528,7 +529,8 @@ Response1 <- robyn_response(
   OutputCollect = OutputCollect,
   select_model = select_model,
   media_metric = "search_S",
-  metric_value = Spend1
+  metric_value = Spend1,
+  metric_ds = NULL
 )
 Response1$response / Spend1 # ROI for search 80k
 Response1$plot
@@ -539,7 +541,8 @@ Response1$plot
 #   dt_input = dt_simulated_weekly,
 #   dt_holidays = dt_prophet_holidays,
 #   media_metric = "search_S",
-#   metric_value = Spend1
+#   metric_value = Spend1,
+#   metric_ds = NULL
 # )
 
 # Get response for +10%
@@ -549,7 +552,8 @@ Response2 <- robyn_response(
   OutputCollect = OutputCollect,
   select_model = select_model,
   media_metric = "search_S",
-  metric_value = Spend2
+  metric_value = Spend2,
+  metric_ds = NULL
 )
 Response2$response / Spend2 # ROI for search 81k
 Response2$plot
@@ -564,7 +568,8 @@ response_imps <- robyn_response(
   OutputCollect = OutputCollect,
   select_model = select_model,
   media_metric = "facebook_I",
-  metric_value = imps
+  metric_value = imps,
+  metric_ds = NULL
 )
 response_imps$response / imps * 1000
 response_imps$plot
@@ -576,7 +581,8 @@ response_sending <- robyn_response(
   OutputCollect = OutputCollect,
   select_model = select_model,
   media_metric = "newsletter",
-  metric_value = sendings
+  metric_value = sendings,
+  metric_ds = NULL
 )
 response_sending$response / sendings * 1000
 response_sending$plot

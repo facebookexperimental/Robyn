@@ -14,7 +14,8 @@
 #' @param media_metric A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param metric_ds Character. One of: NULL or "last_date".
+#' @param metric_ds Character. One of: NULL, "last", or "last_n" where n is the
+#' last N days available (same as tail).
 #' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
@@ -245,24 +246,46 @@ robyn_response <- function(InputCollect = NULL,
     metric_value_updated <- metric_value
     metric_ds_val <- NULL
   } else {
-    if ("last_date" %in% metric_ds) {
-      metric_ds <- tail(get_ds, 1)
-      metric_ds_loc <- which(get_ds == metric_ds)
+    if (grepl("last", metric_ds[1])) {
+      last_n <- ifelse(grepl("_", metric_ds[1]), as.integer(gsub("last_", "", metric_ds)), 1)
+      metric_ds <- tail(get_ds, last_n)
+      metric_ds_loc <- which(get_ds %in% metric_ds)
       metric_ds_val <- get_ds[metric_ds_loc]
-      if (!quiet) message("Using the last ds '", metric_ds_val, "' for the adstocked input value")
-    } else if (is.Date(as.Date(metric_ds, origin = "1970-01-01")) & length(metric_ds) == 1) {
-      metric_ds <- as.Date(metric_ds, origin = "1970-01-01")
-      metric_ds_loc <- which.min(abs(metric_ds - get_ds))
-      # Set closest date available if not exact date provided
-      if (!metric_ds %in% get_ds) {
-        metric_ds_val <- get_ds[which(abs(get_ds - metric_ds) == min(abs(get_ds - metric_ds)))]
-        if (!quiet) warning("Input 'metric_ds' (", metric_ds, ") was not valid. Picking closest date: ", metric_ds_val)
-      }
-      if (!quiet) message("Using ds '", metric_ds_val, "' for the adstocked input value")
+      if (!quiet) message("Using the last ", last_n, " ds (", v2t(metric_ds_val), ") for the adstocked input value")
     } else {
-      ## for length(metric_ds) > 1
+      if (all(is.Date(as.Date(metric_ds, origin = "1970-01-01")))) {
+        metric_ds <- as.Date(metric_ds, origin = "1970-01-01")
+        if (length(metric_ds) == 1) {
+          metric_ds_loc <- which.min(abs(metric_ds - get_ds))
+          # Set closest date available if not exact date provided
+          if (!metric_ds %in% get_ds) {
+            metric_ds_val <- get_ds[which(abs(get_ds - metric_ds) == min(abs(get_ds - metric_ds)))]
+            if (!quiet) warning("Input 'metric_ds' (", metric_ds, ") was not valid. Picking closest date: ", metric_ds_val)
+          } else {
+            metric_ds_val <- metric_ds
+          }
+          if (!quiet) message("Using ds '", metric_ds_val, "' for the adstocked input value")
+        } else {
+          ## Multiple metric_ds (and metric_value)
+          metric_ds_loc <- which(get_ds %in% metric_ds)
+          metric_ds_val <- get_ds[metric_ds_loc]
+          if (length(metric_ds_val) != length(metric_ds)) {
+            not_present <- metric_ds[which(!metric_ds %in% metric_ds_val)]
+            stop(
+              paste("The following 'metric_ds' values are not valid: ", v2t(not_present, quotes = FALSE)),
+              "\n\tCheck values from: InputCollect$dt_input[InputCollect$date_var] or use 'last_n' input"
+            )
+          }
+          metric_value <- metric_value / length(metric_ds_val)
+          if (!quiet) {
+            message(sprintf(
+              "Using %s metric values and %s metric date(s) for adstocked input value",
+              length(metric_ds), length(metric_ds_val)
+            ))
+          }
+        }
+      }
     }
-
     media_vec_sim <- media_vec[1:max(metric_ds_loc)]
     media_vec_sim[metric_ds_loc] <- metric_value
     if (adstock == "geometric") {
@@ -292,11 +315,14 @@ robyn_response <- function(InputCollect = NULL,
   dt_point <- data.frame(input = metric_value_updated, output = Response)
 
   # Reference non-adstocked data when using updated metric values
-  if (!is.null(metric_value)) {
+  if (!is.null(metric_ds_val)) {
     SaturatedR <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
     ResponseR <- as.numeric(SaturatedR * coeff)
     dt_pointR <- data.frame(input = metric_value, output = ResponseR)
-  } else SaturatedR <- ResponseR <- dt_pointR <- NULL
+  } else {
+    ResponseR <- Response
+    SaturatedR <- Saturated
+  }
 
   ## Plot optimal response
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
@@ -313,17 +339,25 @@ robyn_response <- function(InputCollect = NULL,
         "Response of %s @ %s%s",
         formatNum(dt_point$output, signif = 4),
         formatNum(dt_point$input, signif = 4),
-        ifelse(!is.null(metric_value), sprintf(
+        ifelse(!is.null(metric_ds_val), sprintf(
           " [adstocked from %s]", formatNum(dt_pointR$input, signif = 4)
         ), "")
       ),
       x = "Metric", y = "Response",
-      caption = ifelse(!is.null(metric_ds), paste("Using ds =", metric_ds_val, "adstocked metric"), "")
+      caption = ifelse(
+        !is.null(metric_ds),
+        sprintf(
+          "Using adstocked metric results from %s%s",
+          head(metric_ds_val, 1),
+          ifelse(length(metric_ds_val) > 1, paste(" to", tail(metric_ds_val, 1)), "")
+        ),
+        ""
+      )
     ) +
     theme_lares() +
     scale_x_abbr() +
     scale_y_abbr()
-  if (!is.null(metric_value)) {
+  if (!is.null(metric_ds_val)) {
     p_res <- p_res +
       geom_point(data = dt_pointR, aes(x = .data$input, y = .data$output), size = 3, shape = 8)
   }
