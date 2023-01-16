@@ -152,6 +152,18 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
   return(list(x = x, x_decayed = x_decayed, inflation = inflation, thetaVecCum = thetaVecCum))
 }
 
+transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NULL) {
+  check_adstock(adstock)
+  if (adstock == "geometric") {
+    x_list_sim <- adstock_geometric(x = x, theta = theta)
+  } else if (adstock == "weibull_cdf") {
+    x_list_sim <- adstock_weibull(x = x, shape = shape, scale = scale, type = "cdf")
+  } else if (adstock == "weibull_pdf") {
+    x_list_sim <- adstock_weibull(x = x, shape = shape, scale = scale, type = "pdf")
+  }
+  return(x_list_sim)
+}
+
 .normalize <- function(x) {
   if (diff(range(x)) == 0) {
     return(c(1, rep(0, length(x) - 1)))

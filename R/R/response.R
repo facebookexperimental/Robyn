@@ -288,14 +288,8 @@ robyn_response <- function(InputCollect = NULL,
     }
     media_vec_sim <- media_vec[1:max(metric_ds_loc)]
     media_vec_sim[metric_ds_loc] <- metric_value
-    if (adstock == "geometric") {
-      x_list_sim <- adstock_geometric(x = media_vec_sim, theta = theta)
-    } else if (adstock == "weibull_cdf") {
-      x_list_sim <- adstock_weibull(x = media_vec_sim, shape = shape, scale = scale, type = "cdf")
-    } else if (adstock == "weibull_pdf") {
-      x_list_sim <- adstock_weibull(x = media_vec_sim, shape = shape, scale = scale, type = "pdf")
-    }
-    m_adstocked_sim <- x_list_sim$x_decayed
+    m_adstocked <- transform_adstock(media_vec_sim, theta = theta, shape = shape, scale = scale)
+    m_adstocked_sim <- m_adstocked$x_decayed
     metric_value_updated <- metric_value_adstocked <- m_adstocked_sim[metric_ds_loc]
   }
   # Inflation rate
