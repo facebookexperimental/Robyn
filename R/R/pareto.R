@@ -343,18 +343,15 @@ robyn_pareto <- function(InputCollect, OutputModels,
         med_select <- InputCollect$all_media[med]
         m <- dt_transformPlot[, med_select][[1]]
         # Adstocking
-        if (InputCollect$adstock == "geometric") {
+        adstock <- InputCollect$adstock
+        if (adstock == "geometric") {
           theta <- hypParam[paste0(InputCollect$all_media[med], "_thetas")][[1]]
-          x_list <- adstock_geometric(x = m, theta = theta)
-        } else if (InputCollect$adstock == "weibull_cdf") {
-          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
-          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
-        } else if (InputCollect$adstock == "weibull_pdf") {
-          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
-          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
-          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
         }
+        if (grepl("weibull", adstock)) {
+          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
+          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
+        }
+        x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
         m_adstocked <- x_list$x_decayed
         dt_transformAdstock[med_select] <- m_adstocked
         m_adstockedRollWind <- m_adstocked[

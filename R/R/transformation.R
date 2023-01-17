@@ -68,8 +68,8 @@ adstock_geometric <- function(x, theta) {
     x_decayed <- x
     thetaVecCum <- theta
   }
-  inflation <- sum(x_decayed) / sum(x)
-  return(list(x = x, x_decayed = x_decayed, inflation = inflation, thetaVecCum = thetaVecCum))
+  inflation_total <- sum(x_decayed) / sum(x)
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total))
 }
 
 
@@ -148,8 +148,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     x_decayed <- x
     thetaVecCum <- 1
   }
-  inflation <- sum(x_decayed) / sum(x)
-  return(list(x = x, x_decayed = x_decayed, inflation = inflation, thetaVecCum = thetaVecCum))
+  inflation_total <- sum(x_decayed) / sum(x)
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total))
 }
 
 transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NULL, windlen = length(x)) {

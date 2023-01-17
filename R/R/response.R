@@ -228,16 +228,12 @@ robyn_response <- function(InputCollect = NULL,
   ## Adstocking original
   if (adstock == "geometric") {
     theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]]
-    x_list <- adstock_geometric(x = media_vec, theta = theta)
-  } else if (adstock == "weibull_cdf") {
-    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
-    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "cdf")
-  } else if (adstock == "weibull_pdf") {
-    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
-    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "pdf")
   }
+  if (grepl("weibull", adstock)) {
+    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
+    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
+  }
+  x_list <- transform_adstock(media_vec, adstock, theta = theta, shape = shape, scale = scale)
   m_adstocked <- x_list$x_decayed
 
   ## Adstocking simulation

@@ -49,7 +49,6 @@ robyn_calibrate <- function(calibration_input,
           m_calib <- df_raw[calib_pos, get_channels[l_chn]][[1]]
 
           ## 1. Adstock
-          theta <- shape <- scale <- NULL
           if (adstock == "geometric") {
             theta <- hypParamSam[paste0(get_channels[l_chn], "_thetas")][[1]][[1]]
           }
