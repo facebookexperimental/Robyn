@@ -119,6 +119,9 @@ adstock_geometric <- function(x, theta) {
 #' @examples
 #' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "CDF")
 #' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
+#'
+#' # Wrapped function for either adstock
+#' transform_adstock(rep(100, 10), "weibull_pdf", shape = 1, scale = 0.5)
 #' @rdname adstocks
 #' @export
 adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") {
@@ -152,6 +155,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
   return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total))
 }
 
+#' @rdname adstocks
+#' @export
 transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NULL, windlen = length(x)) {
   check_adstock(adstock)
   if (adstock == "geometric") {
