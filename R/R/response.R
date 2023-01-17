@@ -286,7 +286,7 @@ robyn_response <- function(InputCollect = NULL,
       }
     }
     media_vec_sim <- media_vec[1:max(metric_ds_loc)]
-    media_vec_sim[metric_ds_loc] <- metric_value
+    # media_vec_sim[metric_ds_loc] <- metric_value
     m_adstocked_sim <- transform_adstock(media_vec_sim, adstock, theta = theta, shape = shape, scale = scale)
     m_adstocked_sim <- m_adstocked_sim$x_decayed
     metric_value_updated <- metric_value_adstocked <- m_adstocked_sim[metric_ds_loc]
