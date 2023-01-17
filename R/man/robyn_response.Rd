@@ -47,8 +47,8 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
 
-\item{metric_ds}{Character. One of: NULL, "last", or "last_n" where n is the
-last N days available (same as tail).}
+\item{metric_ds}{Character. One of: NULL, "all", "last", or "last_n" where
+n is the last N ds available.}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along

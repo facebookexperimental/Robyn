@@ -14,8 +14,8 @@
 #' @param media_metric A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param metric_ds Character. One of: NULL, "last", or "last_n" where n is the
-#' last N days available (same as tail).
+#' @param metric_ds Character. One of: NULL, "all", "last", or "last_n" where
+#' n is the last N ds available.
 #' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
@@ -226,6 +226,7 @@ robyn_response <- function(InputCollect = NULL,
   }
 
   ## Adstocking original
+  theta <- scale <- shape <- NULL
   if (adstock == "geometric") {
     theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]]
   }
@@ -242,12 +243,14 @@ robyn_response <- function(InputCollect = NULL,
     metric_value_updated <- metric_value
     metric_ds_val <- NULL
   } else {
-    if (grepl("last", metric_ds[1])) {
+    if (grepl("last|all", metric_ds[1])) {
+      if ("all" %in% metric_ds) metric_ds <- paste0("last_", length(get_ds))
       last_n <- ifelse(grepl("_", metric_ds[1]), as.integer(gsub("last_", "", metric_ds)), 1)
       metric_ds <- tail(get_ds, last_n)
       metric_ds_loc <- which(get_ds %in% metric_ds)
       metric_ds_val <- get_ds[metric_ds_loc]
-      if (!quiet) message("Using the last ", last_n, " ds (", v2t(metric_ds_val), ") for the adstocked input value")
+      rg <- v2t(range(metric_ds_val), sep = ":", quotes = FALSE)
+      if (!quiet) message("Using the last ", last_n, " ds (", rg, ") for the adstocked input value")
     } else {
       if (all(is.Date(as.Date(metric_ds, origin = "1970-01-01")))) {
         metric_ds <- as.Date(metric_ds, origin = "1970-01-01")
@@ -284,8 +287,8 @@ robyn_response <- function(InputCollect = NULL,
     }
     media_vec_sim <- media_vec[1:max(metric_ds_loc)]
     media_vec_sim[metric_ds_loc] <- metric_value
-    m_adstocked <- transform_adstock(media_vec_sim, theta = theta, shape = shape, scale = scale)
-    m_adstocked_sim <- m_adstocked$x_decayed
+    m_adstocked_sim <- transform_adstock(media_vec_sim, adstock, theta = theta, shape = shape, scale = scale)
+    m_adstocked_sim <- m_adstocked_sim$x_decayed
     metric_value_updated <- metric_value_adstocked <- m_adstocked_sim[metric_ds_loc]
   }
   # Inflation rate
@@ -337,9 +340,10 @@ robyn_response <- function(InputCollect = NULL,
       caption = ifelse(
         !is.null(metric_ds),
         sprintf(
-          "Using adstocked metric results from %s%s",
+          "Using adstocked metric results from %s%s%s",
           head(metric_ds_val, 1),
-          ifelse(length(metric_ds_val) > 1, paste(" to", tail(metric_ds_val, 1)), "")
+          ifelse(length(metric_ds_val) > 1, paste(" to", tail(metric_ds_val, 1)), ""),
+          ifelse(length(metric_ds_val) > 1, paste0(" [", length(metric_ds_val), " periods]"), "")
         ),
         ""
       )
