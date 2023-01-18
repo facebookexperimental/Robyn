@@ -365,7 +365,7 @@ check_metric_dates <- function(metric_value, metric_ds = NULL, all_dates = metri
           }
         } else if (length(metric_ds) == 2) {
           ## Using two dates as "from-to" date range
-          metric_ds_loc <- sapply(metric_ds, function(x) which.min(abs(x - all_dates)))
+          metric_ds_loc <- unlist(lapply(metric_ds, function(x) which.min(abs(x - all_dates))))
           metric_ds_loc <- metric_ds_loc[1]:metric_ds_loc[2]
           metric_ds_val <- all_dates[metric_ds_loc]
           metric_ds_n <- length(metric_ds_val)
@@ -385,7 +385,7 @@ check_metric_dates <- function(metric_value, metric_ds = NULL, all_dates = metri
           if (all(metric_ds %in% all_dates)) {
             metric_ds_val <- metric_ds
           } else {
-            metric_ds_loc <- sapply(metric_ds, function(x) which.min(abs(x - all_dates)))
+            metric_ds_loc <- unlist(lapply(metric_ds, function(x) which.min(abs(x - all_dates))))
             if (all(na.omit(metric_ds_loc - lag(metric_ds_loc)) == 1)) {
               metric_ds_val <- all_dates[metric_ds_loc]
               if (!quiet) warning("At least one date in 'metric_ds' do not match ds. Picking closest date: ", metric_ds_val)
