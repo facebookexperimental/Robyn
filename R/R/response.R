@@ -384,7 +384,7 @@ check_metric_dates <- function(metric_value, metric_ds = NULL, all_dates = metri
           ## Manually inputting each date
           if (all(metric_ds %in% all_dates)) {
             metric_ds_val <- metric_ds
-            metric_ds_loc <- which(metric_ds %in% all_dates)
+            metric_ds_loc <- which(all_dates %in% metric_ds)
             avlb_dates <- all_dates[(all_dates >= min(metric_ds_val) & all_dates <= max(metric_ds_val))]
             if (length(metric_ds_loc) != length(avlb_dates) & !quiet)
               warning(sprintf("There are %s skipping dates within your 'metric_ds' input",
