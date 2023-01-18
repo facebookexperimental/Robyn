@@ -829,9 +829,9 @@ check_metric_value <- function(metric_value, media_metric) {
         "Input 'metric_value' for %s (%s) must be a numerical value\n", media_metric, toString(metric_value)
       ))
     }
-    if (sum(metric_value <= 0) > 0) {
+    if (any(metric_value < 0)) {
       stop(sprintf(
-        "Input 'metric_value' for %s (%s) must be a positive value\n", media_metric, metric_value[metric_value <= 0]
+        "Input 'metric_value' for %s must be positive\n", media_metric
       ))
     }
   }

@@ -329,6 +329,7 @@ robyn_response <- function(InputCollect = NULL,
 # check_metric_dates(c(50000, 60000), metric_ds = "last_2", all_dates, quiet = FALSE)
 # check_metric_dates(c(50000, 60000), metric_ds = c("2018-12-31", "2019-01-07"), all_dates, quiet = FALSE)
 # check_metric_dates(c(50000, 60000), metric_ds = c("2018-12-31"), all_dates, quiet = FALSE) # ERROR
+# check_metric_dates(0, metric_ds = c("2018-12-31"), all_dates, quiet = FALSE)
 
 check_metric_dates <- function(metric_value, metric_ds = NULL, all_dates = metric_ds, quiet = FALSE) {
   metric_value_updated <- metric_value
