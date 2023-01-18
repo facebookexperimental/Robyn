@@ -244,49 +244,84 @@ robyn_response <- function(InputCollect = NULL,
     metric_ds_val <- NULL
   } else {
     if (grepl("last|all", metric_ds[1])) {
+      ## using last_n as metric_ds range
       if ("all" %in% metric_ds) metric_ds <- paste0("last_", length(get_ds))
       last_n <- ifelse(grepl("_", metric_ds[1]), as.integer(gsub("last_", "", metric_ds)), 1)
       metric_ds <- tail(get_ds, last_n)
       metric_ds_loc <- which(get_ds %in% metric_ds)
       metric_ds_val <- get_ds[metric_ds_loc]
       rg <- v2t(range(metric_ds_val), sep = ":", quotes = FALSE)
-      if (!quiet) message("Using the last ", last_n, " ds (", rg, ") for the adstocked input value")
+      ## get values for last_n
+      if (length(metric_value) == last_n) {
+        metric_value_updated <- rep(metric_value / last_n, last_n)
+        if (!quiet) message("Using the last ", last_n, " ds (", rg, ") as the response period")
+      } else {
+        stop("metric_value must have length of 1 or same length as last_n")
+      }
     } else {
+      ## using dates as metric_ds range
       if (all(is.Date(as.Date(metric_ds, origin = "1970-01-01")))) {
         metric_ds <- as.Date(metric_ds, origin = "1970-01-01")
-        if (length(metric_ds) == 1) {
-          metric_ds_loc <- which.min(abs(metric_ds - get_ds))
-          # Set closest date available if not exact date provided
-          if (!metric_ds %in% get_ds) {
-            metric_ds_val <- get_ds[which(abs(get_ds - metric_ds) == min(abs(get_ds - metric_ds)))]
-            if (!quiet) warning("Input 'metric_ds' (", metric_ds, ") was not valid. Picking closest date: ", metric_ds_val)
-          } else {
+        if (length(metric_value) == 1 & length(metric_ds == 1)) {
+          ## using only 1 date
+          if (metric_ds %in% get_ds) {
             metric_ds_val <- metric_ds
+            if (!quiet) message("Using ds '", metric_ds_val, "' as the response period")
+          } else {
+            metric_ds_loc <- which.min(abs(metric_ds - get_ds))
+            metric_ds_val <- get_ds[metric_ds_loc]
+            if (!quiet) warning("Input 'metric_ds' (", metric_ds, ") has no match. Picking closest date: ", metric_ds_val)
           }
-          if (!quiet) message("Using ds '", metric_ds_val, "' for the adstocked input value")
+          metric_value_updated <- metric_value
+        } else if (length(metric_ds == 2)) {
+          ## using two dates as "from-to"
+          if (all(metric_ds %in% get_ds)) {
+            metric_ds_val <- metric_ds
+          } else {
+            metric_ds_loc <- sapply(metric_ds, function(x) which.min(abs(x - get_ds)))
+            metric_ds_loc <- metric_ds_loc[1]:metric_ds_loc[2]
+            metric_ds_val <- get_ds[metric_ds_loc]
+            metric_ds_n <- length(metric_ds_val)
+            if (!quiet) warning("At least one date in 'metric_ds' do not match ds. Picking closest date: ", metric_ds_val)
+          }
+          rg <- v2t(range(metric_ds_val), sep = ":", quotes = FALSE)
+          if (!quiet) message("Using ds ", rg, " (",metric_ds_n," period included)", " as the response period")
+          if (length(metric_value)==1) {
+            metric_value_updated <- rep(metric_value / metric_ds_n, metric_ds_n)
+          } else if (metric_ds_n == length(metric_value)) {
+            metric_value_updated <- metric_value
+          } else {
+            stop(paste0("metric_value needs to have length of ", metric_ds_n, " for the period ", rg))
+          }
         } else {
-          ## Multiple metric_ds (and metric_value)
-          metric_ds_loc <- which(get_ds %in% metric_ds)
-          metric_ds_val <- get_ds[metric_ds_loc]
-          if (length(metric_ds_val) != length(metric_ds)) {
-            not_present <- metric_ds[which(!metric_ds %in% metric_ds_val)]
-            stop(
-              paste("The following 'metric_ds' values are not valid: ", v2t(not_present, quotes = FALSE)),
-              "\n\tCheck values from: InputCollect$dt_input[InputCollect$date_var] or use 'last_n' input"
-            )
-          }
-          metric_value <- metric_value / length(metric_ds_val)
-          if (!quiet) {
-            message(sprintf(
-              "Using %s metric values and %s metric date(s) for adstocked input value",
-              length(metric_ds), length(metric_ds_val)
-            ))
+          ## manually inputing each date
+          if (all(metric_ds %in% get_ds)) {
+            metric_ds_val <- metric_ds
+          } else {
+            metric_ds_loc <- sapply(metric_ds, function(x) which.min(abs(x - get_ds)))
+            if (all(na.omit(metric_ds_loc - lag(metric_ds_loc)) ==1)) {
+              metric_ds_val <- get_ds[metric_ds_loc]
+              metric_ds_n <- length(metric_ds_val)
+              if (!quiet) warning("At least one date in 'metric_ds' do not match ds. Picking closest date: ", metric_ds_val)
+            } else {
+              stop("metric_ds need to have sequential dates")
+            }
+            rg <- v2t(range(metric_ds_val), sep = ":", quotes = FALSE)
+            if (length(metric_value)==1) {
+              metric_value_updated <- rep(metric_value / metric_ds_n, metric_ds_n)
+            } else if (metric_ds_n == length(metric_value)) {
+              metric_value_updated <- metric_value
+            } else {
+              stop(paste0("metric_value needs to have length of ", metric_ds_n, " for the period ", rg))
+            }
           }
         }
+      } else {
+        stop("metric_ds must have date format '2023-01-01' or use 'last_n'")
       }
     }
     media_vec_sim <- media_vec[1:max(metric_ds_loc)]
-    # media_vec_sim[metric_ds_loc] <- metric_value
+    media_vec_sim[metric_ds_loc] <- metric_value
     m_adstocked_sim <- transform_adstock(media_vec_sim, adstock, theta = theta, shape = shape, scale = scale)
     m_adstocked_sim <- m_adstocked_sim$x_decayed
     metric_value_updated <- metric_value_adstocked <- m_adstocked_sim[metric_ds_loc]
