@@ -5,9 +5,10 @@
 
 ############# Auxiliary non-exported functions #############
 
-opts_pnd <- c("positive", "negative", "default")
-other_hyps <- c("lambda", "train_size")
-hyps_name <- c("thetas", "shapes", "scales", "alphas", "gammas")
+OPTS_PDN <- c("positive", "negative", "default")
+HYPS_NAMES <- c("thetas", "shapes", "scales", "alphas", "gammas")
+HYPS_OTHERS <- c("lambda", "train_size")
+LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
 
 check_nas <- function(df) {
   name <- deparse(substitute(df))
@@ -172,8 +173,8 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     if (is.null(prophet_signs)) {
       prophet_signs <- rep("default", length(prophet_vars))
     }
-    if (!all(prophet_signs %in% opts_pnd)) {
-      stop("Allowed values for 'prophet_signs' are: ", paste(opts_pnd, collapse = ", "))
+    if (!all(prophet_signs %in% OPTS_PDN)) {
+      stop("Allowed values for 'prophet_signs' are: ", paste(OPTS_PDN, collapse = ", "))
     }
     if (length(prophet_signs) != length(prophet_vars)) {
       stop("'prophet_signs' must have same length as 'prophet_vars'")
@@ -185,8 +186,8 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
 check_context <- function(dt_input, context_vars, context_signs) {
   if (!is.null(context_vars)) {
     if (is.null(context_signs)) context_signs <- rep("default", length(context_vars))
-    if (!all(context_signs %in% opts_pnd)) {
-      stop("Allowed values for 'context_signs' are: ", paste(opts_pnd, collapse = ", "))
+    if (!all(context_signs %in% OPTS_PDN)) {
+      stop("Allowed values for 'context_signs' are: ", paste(OPTS_PDN, collapse = ", "))
     }
     if (length(context_signs) != length(context_vars)) {
       stop("Input 'context_signs' must have same length as 'context_vars'")
@@ -235,8 +236,8 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (is.null(paid_media_signs)) {
     paid_media_signs <- rep("positive", mediaVarCount)
   }
-  if (!all(paid_media_signs %in% opts_pnd)) {
-    stop("Allowed values for 'paid_media_signs' are: ", paste(opts_pnd, collapse = ", "))
+  if (!all(paid_media_signs %in% OPTS_PDN)) {
+    stop("Allowed values for 'paid_media_signs' are: ", paste(OPTS_PDN, collapse = ", "))
   }
   if (length(paid_media_signs) == 1) {
     paid_media_signs <- rep(paid_media_signs, length(paid_media_vars))
@@ -281,8 +282,8 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
     organic_signs <- rep("positive", length(organic_vars))
     # message("'organic_signs' were not provided. Using 'positive'")
   }
-  if (!all(organic_signs %in% opts_pnd)) {
-    stop("Allowed values for 'organic_signs' are: ", paste(opts_pnd, collapse = ", "))
+  if (!all(organic_signs %in% OPTS_PDN)) {
+    stop("Allowed values for 'organic_signs' are: ", paste(OPTS_PDN, collapse = ", "))
   }
   if (length(organic_signs) != length(organic_vars)) {
     stop("Input 'organic_signs' must have same length as 'organic_vars'")
@@ -444,10 +445,10 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
     ref_hyp_name_expo <- hyper_names(adstock, all_media = exposure_vars)
     ref_hyp_name_org <- hyper_names(adstock, all_media = organic_vars)
-    ref_hyp_name_other <- get_hyp_names[get_hyp_names %in% other_hyps]
-    # Excluding lambda (first other_hyps) given its range is not customizable
-    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, other_hyps))
-    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, other_hyps)
+    ref_hyp_name_other <- get_hyp_names[get_hyp_names %in% HYPS_OTHERS]
+    # Excluding lambda (first HYPS_OTHERS) given its range is not customizable
+    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, HYPS_OTHERS))
+    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, HYPS_OTHERS)
     all_ref_names <- all_ref_names[order(all_ref_names)]
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
@@ -717,7 +718,7 @@ check_hyper_fixed <- function(InputCollect, dt_hyper_fixed, add_penalty_factor) 
   # Adstock hyper-parameters
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
   # Add lambda and other hyper-parameters manually
-  hypParamSamName <- c(hypParamSamName, other_hyps)
+  hypParamSamName <- c(hypParamSamName, HYPS_OTHERS)
   # Add penalty factor hyper-parameters names
   if (add_penalty_factor) {
     for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
@@ -836,7 +837,25 @@ check_metric_value <- function(metric_value, media_metric) {
   }
 }
 
-LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
+check_metric_type <- function(media_metric, paid_media_spends, paid_media_vars, exposure_vars, organic_vars) {
+  if (media_metric %in% paid_media_spends && length(media_metric) == 1) {
+    metric_type <- "spend"
+  } else if (media_metric %in% exposure_vars && length(media_metric) == 1) {
+    metric_type <- "exposure"
+  } else if (media_metric %in% organic_vars && length(media_metric) == 1) {
+    metric_type <- "organic"
+  } else {
+    stop(paste(
+      "Invalid 'media_metric' input. It must be any media variable from",
+      "paid_media_spends (spend), paid_media_vars (exposure),",
+      "or organic_vars (organic); NOT:", media_metric,
+      paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
+      paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
+      paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
+    ))
+  }
+  return(metric_type)
+}
 
 check_legacy_input <- function(InputCollect,
                                cores = NULL, iterations = NULL, trials = NULL,

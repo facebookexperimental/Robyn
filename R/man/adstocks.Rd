@@ -42,6 +42,8 @@ meaning no lagged effect. PDF, or the probability density function, enables
 peak value occurring after the first period when shape >=1, allowing lagged
 effect.}
 
+\item{adstock}{Character. One of: "geometric", "weibull_cdf", "weibull_pdf".}
+
 \item{plot}{Boolean. Do you wish to return the plot?}
 }
 \value{

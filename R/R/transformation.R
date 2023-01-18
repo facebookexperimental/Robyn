@@ -156,6 +156,7 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
 }
 
 #' @rdname adstocks
+#' @param adstock Character. One of: "geometric", "weibull_cdf", "weibull_pdf".
 #' @export
 transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NULL, windlen = length(x)) {
   check_adstock(adstock)

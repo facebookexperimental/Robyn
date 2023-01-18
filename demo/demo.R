@@ -29,6 +29,9 @@ packageVersion("Robyn")
 Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
 options(future.fork.enable = TRUE)
 
+# Set to FALSE to avoid the creation of files locally
+create_files <- TRUE
+
 ## ATTENTION: Must install the python library Nevergrad once before using Robyn.
 ## Guide: https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R
 
@@ -297,7 +300,7 @@ if (length(InputCollect$exposure_vars) > 0) {
 ## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
-  cores = NULL, # NULL defaults to max available - 1
+  cores = NULL, # NULL defaults to (max available - 1)
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
   ts_validation = FALSE, # 3-way-split time series for NRMSE validation.
@@ -322,9 +325,9 @@ OutputCollect <- robyn_outputs(
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
-  plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
-  plot_folder = robyn_object, # path for plots export
-  export = TRUE # this will create files locally
+  export = create_files, # this will create files locally
+  plot_folder = robyn_object, # path for plots exports and files creation
+  plot_pareto = create_files # Set to FALSE to deactivate plotting and saving model one-pagers
 )
 print(OutputCollect)
 
@@ -343,8 +346,8 @@ print(OutputCollect)
 print(OutputCollect)
 select_model <- "1_115_2" # Pick one of the models from OutputCollect to proceed
 
-#### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
-ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = TRUE)
+#### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
+ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
 print(ExportedModel)
 
 ###### DEPRECATED (<3.7.1) (might work)
@@ -376,9 +379,9 @@ AllocatorCollect1 <- robyn_allocator(
   scenario = "max_historical_response",
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  export = TRUE,
   date_min = "2016-11-21",
-  date_max = "2018-08-20"
+  date_max = "2018-08-20",
+  export = create_files
 )
 print(AllocatorCollect1)
 # plot(AllocatorCollect1)
@@ -395,7 +398,7 @@ AllocatorCollect2 <- robyn_allocator(
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   expected_spend = 1000000, # Total spend to be simulated
   expected_spend_days = 7, # Duration of expected_spend in days
-  export = TRUE
+  export = create_files
 )
 print(AllocatorCollect2)
 AllocatorCollect2$dt_optimOut
@@ -435,8 +438,18 @@ if (TRUE) {
   }
 }
 
+## Saturation curve for adstocked metric results (example)
+robyn_response(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  media_metric = select_media,
+  metric_value = metric_value,
+  metric_ds = "last_5"
+)
+
 ################################################################
-#### Step 6: Model refresh based on selected model and saved results "Alpha" [v3.7.1]
+#### Step 6: Model refresh based on selected model and saved results
 
 ## Must run robyn_write() (manually or automatically) to export any model first, before refreshing.
 ## The robyn_refresh() function is suitable for updating within "reasonable periods".
@@ -456,7 +469,7 @@ RobynRefresh <- robyn_refresh(
   refresh_iters = 1000, # 1k is an estimation
   refresh_trials = 1
 )
-
+# Now refreshing a refreshed model, following the same approach
 json_file_rf1 <- "~/Desktop/Robyn_202208231837_init/Robyn_202208231841_rf1/RobynModel-1_12_5.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file_rf1,
@@ -502,7 +515,8 @@ AllocatorCollect <- robyn_allocator(
   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   expected_spend = 2000000, # Total spend to be simulated
-  expected_spend_days = 14 # Duration of expected_spend in days
+  expected_spend_days = 14, # Duration of expected_spend in days
+  export = FALSE
 )
 print(AllocatorCollect)
 # plot(AllocatorCollect)
@@ -622,7 +636,7 @@ InputCollectX <- robyn_inputs(
 OutputCollectX <- robyn_run(
   InputCollect = InputCollectX,
   json_file = json_file,
-  export = FALSE)
+  export = create_files)
 
 # Or re-create both by simply using robyn_recreate()
 RobynRecreated <- robyn_recreate(
@@ -638,7 +652,7 @@ myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
-myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = FALSE)
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = create_files)
 # myModelPlot$`1_204_5`$patches$plots[[6]]
 
 # Refresh any imported model

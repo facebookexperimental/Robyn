@@ -35,9 +35,9 @@ robyn_save <- function(InputCollect,
     )
 
   # Nice and tidy table format for hyper-parameters
-  regex <- paste(paste0("_", hyps_name), collapse = "|")
+  regex <- paste(paste0("_", HYPS_NAMES), collapse = "|")
   hyps <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
-    select(contains(hyps_name)) %>%
+    select(contains(HYPS_NAMES)) %>%
     tidyr::gather() %>%
     tidyr::separate(.data$key,
       into = c("channel", "none"),

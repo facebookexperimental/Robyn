@@ -47,8 +47,10 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
 
-\item{metric_ds}{Character. One of: NULL, "all", "last", or "last_n" where
-n is the last N ds available.}
+\item{metric_ds}{Character. Date(s) to apply adstocked transformations.
+One of: NULL, "all", "last", or "last_n" (where
+n is the last N dates available), date (i.e. "2022-03-27"), or date range
+(i.e. \code{c("2022-01-01", "2022-12-31")}).}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along

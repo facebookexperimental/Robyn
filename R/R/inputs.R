@@ -517,12 +517,12 @@ Adstock: {x$adstock}
 hyper_names <- function(adstock, all_media) {
   adstock <- check_adstock(adstock)
   if (adstock == "geometric") {
-    local_name <- sort(apply(expand.grid(all_media, hyps_name[
-      grepl("thetas|alphas|gammas", hyps_name)
+    local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
+      grepl("thetas|alphas|gammas", HYPS_NAMES)
     ]), 1, paste, collapse = "_"))
   } else if (adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    local_name <- sort(apply(expand.grid(all_media, hyps_name[
-      grepl("shapes|scales|alphas|gammas", hyps_name)
+    local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
+      grepl("shapes|scales|alphas|gammas", HYPS_NAMES)
     ]), 1, paste, collapse = "_"))
   }
   return(local_name)

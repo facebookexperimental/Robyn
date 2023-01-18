@@ -1212,7 +1212,7 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
   # Manually add other hyper-parameters
-  hypParamSamName <- c(hypParamSamName, other_hyps)
+  hypParamSamName <- c(hypParamSamName, HYPS_OTHERS)
 
   # Add penalty factor hyper-parameters names
   for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
