@@ -381,9 +381,14 @@ check_metric_dates <- function(metric_value, metric_ds = NULL, all_dates = metri
             metric_value_updated <- rep(metric_value_updated, metric_ds_n)
           }
         } else {
-          ## Manually inputing each date
+          ## Manually inputting each date
           if (all(metric_ds %in% all_dates)) {
             metric_ds_val <- metric_ds
+            metric_ds_loc <- which(metric_ds %in% all_dates)
+            avlb_dates <- all_dates[(all_dates >= min(metric_ds_val) & all_dates <= max(metric_ds_val))]
+            if (length(metric_ds_loc) != length(avlb_dates) & !quiet)
+              warning(sprintf("There are %s skipping dates within your 'metric_ds' input",
+                              length(avlb_dates) - length(metric_ds_loc)))
           } else {
             metric_ds_loc <- unlist(lapply(metric_ds, function(x) which.min(abs(x - all_dates))))
             if (all(na.omit(metric_ds_loc - lag(metric_ds_loc)) == 1)) {
