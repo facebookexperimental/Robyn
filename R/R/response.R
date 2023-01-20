@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Response Function
+#' Response and Saturation Curves
 #'
 #' \code{robyn_response()} returns the response for a given
 #' spend level of a given \code{paid_media_vars} from a selected model
@@ -18,6 +18,8 @@
 #' One of: NULL, "all", "last", or "last_n" (where
 #' n is the last N dates available), date (i.e. "2022-03-27"), or date range
 #' (i.e. \code{c("2022-01-01", "2022-12-31")}).
+#' @param metric_total Boolean. Metric provided is totalized?
+#' If \code{TRUE} then it will be divided by the final length of \code{metric_ds}.
 #' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
@@ -89,6 +91,7 @@ robyn_response <- function(InputCollect = NULL,
                            select_model = NULL,
                            metric_value = NULL,
                            metric_ds = NULL,
+                           metric_total = TRUE,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
                            quiet = FALSE,
@@ -162,6 +165,7 @@ robyn_response <- function(InputCollect = NULL,
     exposure_vars <- InputCollect$exposure_vars
     organic_vars <- InputCollect$organic_vars
     allSolutions <- unique(dt_hyppar$solID)
+    dayInterval <- InputCollect$dayInterval
   }
 
   if (!(select_model %in% allSolutions)) {
@@ -228,7 +232,7 @@ robyn_response <- function(InputCollect = NULL,
 
   ## Adstocking simulation
   all_dates <- pull(dt_input, InputCollect$date_var)
-  ds_list <- check_metric_dates(metric_value, metric_ds, all_dates, media_vec, quiet)
+  ds_list <- check_metric_dates(metric_value, metric_ds, all_dates, media_vec, dayInterval, metric_total, quiet)
   metric_ds_updated <- ds_list$metric_ds_updated
   input_immediate <- metric_value_updated <- ds_list$metric_value_updated
   media_vec_updated <- media_vec
@@ -332,13 +336,19 @@ robyn_response <- function(InputCollect = NULL,
 # check_metric_dates(c(50000, 60000), metric_ds = c("2018-12-31"), all_dates, quiet = FALSE) # ERROR
 # check_metric_dates(0, metric_ds = c("2018-12-31"), all_dates, quiet = FALSE)
 
-check_metric_dates <- function(metric_value, metric_ds, all_dates, all_val, quiet = FALSE) {
+check_metric_dates <- function(metric_value, metric_ds, all_dates, all_val,
+                               dayInterval = NULL, metric_total = TRUE, quiet = FALSE,
+                               ...) {
   metric_value_updated <- metric_value
-  if (is.null(metric_ds)) stop("Input 'metric_ds' must be defined")
-  # if (is.null(metric_ds)) {
-  #   metric_ds_updated <- NULL
-  #   metric_ds_loc <- 1
-  # } else {
+  if (is.null(metric_ds)) {
+    if (is.null(dayInterval)) stop("Input 'metric_ds' or 'dayInterval' must be defined")
+    metric_ds <- paste0("last_", dplyr::case_when(
+      dayInterval == 1 ~ 30,
+      dayInterval == 7 ~ 4,
+      dayInterval == 30 ~ 1,
+    ))
+    if (!quiet) message(sprintf("Automatically picked metric_ds = '%s' (~1 month)", metric_ds))
+  }
   if (grepl("last|all", metric_ds[1])) {
     ## Using last_n as metric_ds range
     if ("all" %in% metric_ds) metric_ds <- paste0("last_", length(all_dates))
@@ -347,7 +357,10 @@ check_metric_dates <- function(metric_value, metric_ds, all_dates, all_val, quie
     metric_ds_loc <- which(all_dates %in% metric_ds)
     metric_ds_updated <- all_dates[metric_ds_loc]
     rg <- v2t(range(metric_ds_updated), sep = ":", quotes = FALSE)
-    if (length(metric_value_updated) == 1) metric_value_updated <- rep(metric_value_updated, last_n) / last_n
+    if (length(metric_value_updated) == 1) {
+      metric_value_updated <- rep(metric_value_updated, last_n)
+    }
+    if (metric_total) metric_value_updated <- metric_value_updated / last_n
     if (length(metric_value_updated) != last_n) {
       stop("Input 'metric_value' must have length of 1 or same length as 'last_n'")
     }
@@ -381,8 +394,9 @@ check_metric_dates <- function(metric_value, metric_ds, all_dates, all_val, quie
         rg <- v2t(range(metric_ds_updated), sep = ":", quotes = FALSE)
         if (!quiet) message("Using ds ", rg, " (", metric_ds_n, " period(s) included) as the response period")
         if (length(metric_value_updated) == 1) {
-          metric_value_updated <- rep(metric_value_updated, metric_ds_n) / metric_ds_n
+          metric_value_updated <- rep(metric_value_updated, metric_ds_n)
         }
+        if (metric_total) metric_value_updated <- metric_value_updated / metric_ds_n
       } else {
         ## Manually inputting each date
         if (all(metric_ds %in% all_dates)) {
@@ -396,8 +410,9 @@ check_metric_dates <- function(metric_value, metric_ds, all_dates, all_val, quie
           metric_ds_loc <- unlist(lapply(metric_ds, function(x) which.min(abs(x - all_dates))))
           rg <- v2t(range(metric_ds_updated), sep = ":", quotes = FALSE)
           if (length(metric_value_updated) == 1) {
-            metric_value_updated <- metric_value_updated / length(metric_ds_updated)
+            metric_value_updated <- metric_value_updated
           }
+          if (metric_total) metric_value_updated <- metric_value_updated / length(metric_ds_updated)
         }
         if (all(na.omit(metric_ds_loc - lag(metric_ds_loc)) == 1)) {
           metric_ds_updated <- all_dates[metric_ds_loc]

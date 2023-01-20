@@ -2,7 +2,7 @@
 % Please edit documentation in R/response.R
 \name{robyn_response}
 \alias{robyn_response}
-\title{Response Function}
+\title{Response and Saturation Curves}
 \usage{
 robyn_response(
   InputCollect = NULL,
@@ -14,6 +14,7 @@ robyn_response(
   select_model = NULL,
   metric_value = NULL,
   metric_ds = NULL,
+  metric_total = TRUE,
   dt_hyppar = NULL,
   dt_coef = NULL,
   quiet = FALSE,
@@ -51,6 +52,9 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 One of: NULL, "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
 (i.e. \code{c("2022-01-01", "2022-12-31")}).}
+
+\item{metric_total}{Boolean. Metric provided is totalized?
+If \code{TRUE} then it will be divided by the final length of \code{metric_ds}.}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along

@@ -137,50 +137,41 @@ robyn_pareto <- function(InputCollect, OutputModels,
     respN <- NULL
   }
 
+  # Calculate response curves for all models
+  run_dt_resp <- function(
+    respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
+    get_resp <- robyn_response(
+      media_metric = decompSpendDistPar$rn[respN],
+      select_model = decompSpendDistPar$solID[respN],
+      metric_value = decompSpendDistPar$mean_spend[respN],
+      metric_total = FALSE,
+      dt_hyppar = resultHypParamPar,
+      dt_coef = xDecompAggPar,
+      InputCollect = InputCollect,
+      OutputCollect = OutputModels,
+      quiet = TRUE,
+      ...
+    )
+    # Median value (but must be within the curve)
+    med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total)/2)]
+    dt_resp <- data.frame(
+      mean_response = med_in_curve,
+      rn = decompSpendDistPar$rn[respN],
+      solID = decompSpendDistPar$solID[respN]
+    )
+    return(dt_resp)
+  }
   if (OutputModels$cores > 1) {
     resp_collect <- foreach(
-      respN = seq_along(decompSpendDistPar$rn), .combine = rbind
+      respN = seq_along(decompSpendDistPar$rn), .combine = bind_rows
     ) %dorng% {
-      get_resp <- robyn_response(
-        media_metric = decompSpendDistPar$rn[respN],
-        select_model = decompSpendDistPar$solID[respN],
-        metric_value = decompSpendDistPar$mean_spend[respN],
-        dt_hyppar = resultHypParamPar,
-        dt_coef = xDecompAggPar,
-        InputCollect = InputCollect,
-        OutputCollect = OutputModels,
-        quiet = quiet
-      )$response
-      dt_resp <- data.frame(
-        mean_response = get_resp,
-        rn = decompSpendDistPar$rn[respN],
-        solID = decompSpendDistPar$solID[respN]
-      )
-      return(dt_resp)
+      run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
     }
-    stopImplicitCluster()
-    registerDoSEQ()
-    getDoParWorkers()
+    stopImplicitCluster(); registerDoSEQ(); getDoParWorkers()
   } else {
-    resp_collect <- lapply(seq_along(decompSpendDistPar$rn), function(respN) {
-      get_resp <- robyn_response(
-        media_metric = decompSpendDistPar$rn[respN],
-        select_model = decompSpendDistPar$solID[respN],
-        metric_value = decompSpendDistPar$mean_spend[respN],
-        dt_hyppar = resultHypParamPar,
-        dt_coef = xDecompAggPar,
-        InputCollect = InputCollect,
-        OutputCollect = OutputModels,
-        quiet = quiet
-      )$response
-      dt_resp <- data.frame(
-        mean_response = get_resp,
-        rn = decompSpendDistPar$rn[respN],
-        solID = decompSpendDistPar$solID[respN]
-      )
-      return(dt_resp)
-    })
-    resp_collect <- bind_rows(resp_collect)
+    resp_collect <- bind_rows(lapply(seq_along(decompSpendDistPar$rn), function(respN) {
+      run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
+    }))
   }
 
   decompSpendDist <- left_join(
