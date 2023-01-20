@@ -222,9 +222,8 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
     }
   } # End of !hyper_fixed
 
-  OutputModels$ts_validation_plot <- ts_validation(OutputModels, quiet = TRUE, ...)
   if (isTRUE(OutputCollect$OutputModels$ts_validation)) {
-    ts_validation_plot <- ts_validation(OutputModels, quiet = TRUE, ...)
+    ts_validation_plot <- ts_validation(OutputCollect$OutputModels, quiet = TRUE, ...)
     ggsave(
       paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
       plot = ts_validation_plot, dpi = 300,
@@ -1090,18 +1089,12 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
 ts_validation <- function(OutputModels, quiet = FALSE, ...) {
-  if ("resultCollect" %in% names(OutputModels$trial1)) {
-    resultHypParam <- bind_rows(
-      lapply(OutputModels[
-        which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))
-      ], function(x) x$resultCollect$resultHypParam)
-    )
-  } else {
-    resultHypParam <- bind_rows(OutputModels[
+  if (!isTRUE(OutputModels$ts_validation)) return(NULL)
+  resultHypParam <- bind_rows(
+    lapply(OutputModels[
       which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))
-    ])
-  }
-  resultHypParam <- resultHypParam%>%
+    ], function(x) x$resultCollect$resultHypParam)
+  ) %>%
     group_by(.data$trial) %>%
     mutate(i = row_number()) %>%
     ungroup()
