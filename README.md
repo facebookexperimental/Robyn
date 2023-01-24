@@ -51,6 +51,8 @@ remotes::install_github("facebookexperimental/Robyn/R")
   
   * Join our [public group](https://www.facebook.com/groups/robynmmm/) to exchange with other users and interact with team Robyn.
   
+  * Take the Meta [official Robyn blueprint course](https://www.facebookblueprint.com/student/path/253121-marketing-mix-models) online 
+  
 ## Quick start (Python): TBA
 
 Work in progress. Expect a Python wrapper soon.
