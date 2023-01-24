@@ -117,10 +117,12 @@ plot_saturation(plot = FALSE)
 ## Geometric adstock: Theta is the only parameter and means fixed decay rate. Assuming TV
 # spend on day 1 is 100€ and theta = 0.7, then day 2 has 100*0.7=70€ worth of effect
 # carried-over from day 1, day 3 has 70*0.7=49€ from day 2 etc. Rule-of-thumb for common
-# media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
+# media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3). Also,
+# to convert weekly to daily we can transform the parameter to the power of (1/7),
+# so to convert 30% daily to weekly is 0.3^(1/7) = 0.84.
 
-## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters
-# , shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
+## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters,
+# shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
 # decay rate. The shape parameter controls the shape of the decay curve. Recommended
 # bound is c(0, 2). The larger the shape, the more S-shape. The smaller, the more
 # L-shape. Scale controls the inflexion point of the decay curve. We recommend very
