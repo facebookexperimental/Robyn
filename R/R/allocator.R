@@ -224,6 +224,7 @@ robyn_allocator <- function(robyn_object = NULL,
   if (date_min < min(dt_optimCost$ds)) date_min <- min(dt_optimCost$ds)
   if (date_max > max(dt_optimCost$ds)) date_max <- max(dt_optimCost$ds)
   histFiltered <- filter(dt_optimCost, .data$ds >= date_min & .data$ds <= date_max)
+
   nPeriod <- nrow(histFiltered)
   message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, nPeriod, InputCollect$intervalType))
 
@@ -235,6 +236,18 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
   histSpendShare <- histSpendUnit / histSpendUnitTotal
   histSpendUnitRaw <- histSpendUnit
+
+  #### WIP: Spend/cost raw values for non-adstocked optimization
+  df_cost <- slice(InputCollect$dt_input, startRW:endRW)
+  histCostFiltered <- df_cost[, InputCollect$date_var >= date_min & InputCollect$date_var <= date_max]
+  histCostB <- select(histCostFiltered, any_of(mediaSpendSortedFiltered))
+  histCostTotal <- sum(histCostB)
+  histCost <- unlist(summarise_all(select(histCostFiltered, any_of(mediaSpendSortedFiltered)), sum))
+  histCostUnit <- unlist(summarise_all(histCostB, function(x) sum(x) / sum(x > 0)))
+  histCostUnit[is.nan(histCostUnit)] <- 0
+  histCostUnitTotal <- sum(histCostUnit, na.rm = TRUE)
+  histCostShare <- histCostUnit / histCostUnitTotal
+  histCostUnitRaw <- histCostUnit
 
   # Response values based on date range -> mean spend
   noSpendMedia <- histResponseUnitModel <- NULL
@@ -254,8 +267,8 @@ robyn_allocator <- function(robyn_object = NULL,
         quiet = TRUE,
         ...
       )
-      val <- resp$response
-      histSpendUnit[i] <- resp$metric
+      val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
+      histSpendUnit[i] <- resp$input_total[which(resp$response_total == val)]
     } else {
       val <- 0
       noSpendMedia <- c(noSpendMedia, mediaSpendSortedFiltered[i])
@@ -267,7 +280,7 @@ robyn_allocator <- function(robyn_object = NULL,
     message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
   }
   adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
-  if (!quiet & adstocked) message("Adstocked results for date: ", resp$date)
+  if (!quiet & adstocked) message("Adstocked results for date: ", paste(range(resp$date), collapse = ":"))
 
   ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {
@@ -344,7 +357,9 @@ robyn_allocator <- function(robyn_object = NULL,
     initSpendUnitTotal = histSpendUnitTotal,
     initSpendUnitRaw = histSpendUnitRaw,
     adstocked = adstocked,
-    adstocked_date = as.Date(ifelse(adstocked, resp$date, NA), origin = "1970-01-01"),
+    adstocked_start_date = as.Date(ifelse(adstocked, head(resp$date, 1), NA), origin = "1970-01-01"),
+    adstocked_end_date = as.Date(ifelse(adstocked, tail(resp$date, 1), NA), origin = "1970-01-01"),
+    adstocked_periods = length(resp$date),
     initSpendUnit = histSpendUnit,
     initSpendShare = histSpendShare,
     initResponseUnit = histResponseUnitModel,

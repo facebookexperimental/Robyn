@@ -609,7 +609,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       "Total %sspend increase: %s%%",
       "\nTotal response increase: %s%% with optimised spend allocation"
     ),
-    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("[adstocked @", dt_optimOut$adstocked_date[1], "] "), ""),
+    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("(adstocked**) ", "")),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
@@ -751,10 +751,19 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       title = "Response Curve and Mean* Spend by Channel",
       x = "Spend", y = "Response", shape = NULL, color = NULL,
       caption = sprintf(
-        "*Based on date range: %s to %s (%s)",
+        "*Based on date range: %s to %s (%s)%s",
         dt_optimOut$date_min[1],
         dt_optimOut$date_max[1],
-        dt_optimOut$periods[1]
+        dt_optimOut$periods[1],
+        ifelse(isTRUE(dt_optimOut$adstocked[1]),
+          sprintf(
+            "\n**Adstocked period: %s to %s (%s %ss)",
+            dt_optimOut$adstocked_start_date[1],
+            dt_optimOut$adstocked_end_date[1],
+            dt_optimOut$adstocked_periods[1],
+            InputCollect$intervalType
+          ), ""
+        )
       )
     ) +
     scale_x_abbr() +
