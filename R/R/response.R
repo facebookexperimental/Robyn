@@ -220,11 +220,11 @@ robyn_response <- function(InputCollect = NULL,
   ## Adstocking original
   theta <- scale <- shape <- NULL
   if (adstock == "geometric") {
-    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]]
+    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]][[1]]
   }
   if (grepl("weibull", adstock)) {
-    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
-    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
+    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]][[1]]
+    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]][[1]]
   }
   x_list <- transform_adstock(media_vec, adstock, theta = theta, shape = shape, scale = scale)
   m_adstocked <- x_list$x_decayed
@@ -243,9 +243,9 @@ robyn_response <- function(InputCollect = NULL,
   net_carryover <- input_total - input_immediate
 
   ## Saturation
-  m_adstockedRW <- m_adstocked[startRW:endRW]
-  alpha <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]]
-  gamma <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]]
+  m_adstockedRW <<- m_adstocked[startRW:endRW]
+  alpha <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]], 1)
+  gamma <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]], 1)
   metric_saturated_total <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = input_total)
   metric_saturated_carryover <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = net_carryover)
   metric_saturated_immediate <- metric_saturated_total - metric_saturated_carryover

@@ -87,7 +87,8 @@ robyn_pareto <- function(InputCollect, OutputModels,
       left_join(paretoResults, by = c("nrmse" = "x", "decomp.rssd" = "y")) %>%
       rename("robynPareto" = "pareto_front") %>%
       arrange(.data$iterNG, .data$iterPar, .data$nrmse) %>%
-      select(.data$solID, .data$robynPareto)
+      select(.data$solID, .data$robynPareto) %>%
+      group_by(.data$solID) %>% arrange(.data$robynPareto) %>% slice(1)
     resultHypParam <- left_join(resultHypParam, resultHypParamPareto, by = "solID")
   } else {
     resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
@@ -143,7 +144,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
     respN <- NULL
   }
 
-  # Calculate response curves for all models
+  if (!quiet) message(sprintf(
+    ">>> Calculating response curves for all models' variables (%s)...",
+    nrow(decompSpendDistPar)))
   run_dt_resp <- function(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
     get_resp <- robyn_response(
       media_metric = decompSpendDistPar$rn[respN],
@@ -416,8 +419,8 @@ robyn_pareto <- function(InputCollect, OutputModels,
           InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
         ]
         # m <- m[m > 0] # remove outlier introduced by MM nls fitting
-        alpha <- hypParam[which(paste0(get_med, "_alphas") == names(hypParam))][[1]]
-        gamma <- hypParam[which(paste0(get_med, "_gammas") == names(hypParam))][[1]]
+        alpha <- head(hypParam[which(paste0(get_med, "_alphas") == names(hypParam))][[1]], 1)
+        gamma <- head(hypParam[which(paste0(get_med, "_gammas") == names(hypParam))][[1]], 1)
         get_response <- saturation_hill(x = m, alpha = alpha, gamma = gamma, x_marginal = get_spend_mm)
         get_response_marginal <- saturation_hill(x = m, alpha = alpha, gamma = gamma, x_marginal = get_spend_mm + 1)
 

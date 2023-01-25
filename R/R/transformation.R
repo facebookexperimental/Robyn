@@ -55,6 +55,7 @@ mic_men <- function(x, Vmax, Km, reverse = FALSE) {
 #' @rdname adstocks
 #' @export
 adstock_geometric <- function(x, theta) {
+  stopifnot(length(theta) == 1)
   if (length(x) > 1) {
     x_decayed <- c(x[1], rep(0, length(x) - 1))
     for (xi in 2:length(x_decayed)) {
@@ -125,6 +126,8 @@ adstock_geometric <- function(x, theta) {
 #' @rdname adstocks
 #' @export
 adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") {
+  stopifnot(length(shape) == 1)
+  stopifnot(length(scale) == 1)
   if (length(x) > 1) {
     check_opts(tolower(type), c("cdf", "pdf"))
     x_bin <- 1:windlen
@@ -197,6 +200,8 @@ transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NU
 #' @return Numeric values. Transformed values.
 #' @export
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
+  stopifnot(length(alpha) == 1)
+  stopifnot(length(gamma) == 1)
   inflexion <- c(range(x) %*% c(1 - gamma, gamma)) # linear interpolation by dot product
   if (is.null(x_marginal)) {
     x_scurve <- x**alpha / (x**alpha + inflexion**alpha) # plot(x_scurve) summary(x_scurve)
