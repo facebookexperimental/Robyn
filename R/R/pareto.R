@@ -75,12 +75,18 @@ robyn_pareto <- function(InputCollect, OutputModels,
             .data$nrmse <= nrmse_quantile90 &
             .data$decomp.rssd <= decomprssd_quantile90
       )
-
+    # Calculate Pareto-fronts (for "all" or pareto_fronts)
     resultHypParamPareto <- filter(resultHypParam, .data$mape.qt10 == TRUE)
-    px <- rPref::low(resultHypParamPareto$nrmse) * rPref::low(resultHypParamPareto$decomp.rssd)
-    resultHypParamPareto <- rPref::psel(resultHypParamPareto, px, top = nrow(resultHypParamPareto)) %>%
+    paretoResults <- pareto_front(
+      x = resultHypParamPareto$nrmse,
+      y = resultHypParamPareto$decomp.rssd,
+      fronts = ifelse("auto" %in% pareto_fronts, Inf, pareto_fronts),
+      sort = FALSE
+    )
+    resultHypParamPareto <- resultHypParamPareto %>%
+      left_join(paretoResults, by = c("nrmse" = "x", "decomp.rssd" = "y")) %>%
+      rename("robynPareto" = "pareto_front") %>%
       arrange(.data$iterNG, .data$iterPar, .data$nrmse) %>%
-      rename("robynPareto" = ".level") %>%
       select(.data$solID, .data$robynPareto)
     resultHypParam <- left_join(resultHypParam, resultHypParamPareto, by = "solID")
   } else {
@@ -138,8 +144,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
   }
 
   # Calculate response curves for all models
-  run_dt_resp <- function(
-    respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
+  run_dt_resp <- function(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
     get_resp <- robyn_response(
       media_metric = decompSpendDistPar$rn[respN],
       select_model = decompSpendDistPar$solID[respN],
@@ -153,7 +158,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ...
     )
     # Median value (but must be within the curve)
-    med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total)/2)]
+    med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total) / 2)]
     dt_resp <- data.frame(
       mean_response = med_in_curve,
       rn = decompSpendDistPar$rn[respN],
@@ -167,7 +172,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
     ) %dorng% {
       run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
     }
-    stopImplicitCluster(); registerDoSEQ(); getDoParWorkers()
+    stopImplicitCluster()
+    registerDoSEQ()
+    getDoParWorkers()
   } else {
     resp_collect <- bind_rows(lapply(seq_along(decompSpendDistPar$rn), function(respN) {
       run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
@@ -564,4 +571,21 @@ robyn_pareto <- function(InputCollect, OutputModels,
   # close(pbplot)
 
   return(pareto_results)
+}
+
+pareto_front <- function(x, y, fronts = 1, sort = TRUE) {
+  stopifnot(length(x) == length(y))
+  d <- data.frame(x, y)
+  Dtemp <- D <- d[order(d$x, d$y, decreasing = FALSE), ]
+  df <- data.frame()
+  i <- 1
+  while (nrow(Dtemp) >= 1 & i <= max(fronts)) {
+    these <- Dtemp[which(!duplicated(cummin(Dtemp$y))), ]
+    these$pareto_front <- i
+    df <- rbind(df, these)
+    Dtemp <- Dtemp[!row.names(Dtemp) %in% row.names(these), ]
+    i <- i + 1
+  }
+  ret <- merge(x = d, y = df, by = c("x", "y"), all.x = TRUE, sort = sort)
+  return(ret)
 }
