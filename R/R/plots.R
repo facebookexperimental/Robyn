@@ -601,7 +601,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 }
 
 allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model,
-                             scenario, export = TRUE, quiet = FALSE) {
+                             scenario, eval_list, export = TRUE, quiet = FALSE) {
   outputs <- list()
 
   subtitle <- sprintf(
@@ -609,7 +609,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       "Total %sspend increase: %s%%",
       "\nTotal response increase: %s%% with optimised spend allocation"
     ),
-    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("(adstocked**) ", "")),
+    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("(adstocked**) ", ""),""),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
@@ -690,19 +690,48 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   ## 3. Response curves
-  plotDT_saturation <- OutputCollect$mediaVecCollect %>%
-    filter(.data$solID == select_model, .data$type == "saturatedSpendReversed") %>%
+  # plotDT_saturation <- OutputCollect$mediaVecCollect %>%
+  #   filter(.data$solID == select_model, .data$type == "saturatedSpendReversed") %>%
+  #   select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+  #   tidyr::gather("channel", "spend", -.data$ds)
+  #
+  # plotDT_decomp <- OutputCollect$mediaVecCollect %>%
+  #   filter(.data$solID == select_model, .data$type == "decompMedia") %>%
+  #   select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+  #   tidyr::gather("channel", "response", -.data$ds)
+  #
+  # plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
+  #   filter(.data$spend >= 0) %>%
+  #   as_tibble()
+
+  plotDT_adstocked <- OutputCollect$mediaVecCollect %>%
+    filter(.data$solID == select_model, .data$type == "adstockedMedia") %>%
     select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
     tidyr::gather("channel", "spend", -.data$ds)
 
-  plotDT_decomp <- OutputCollect$mediaVecCollect %>%
-    filter(.data$solID == select_model, .data$type == "decompMedia") %>%
-    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
-    tidyr::gather("channel", "response", -.data$ds)
+  plotDT_scurve <- list()
+  for (i in InputCollect$paid_media_spends) {
+    get_max_x <- plotDT_adstocked %>% filter(.data$channel == i)
+    get_max_x <- max(get_max_x$spend)
+    simulate_spend <- seq(0, get_max_x, length.out = 100)
+    simualte_response <- fx_objective(x = simulate_spend,
+                                      coeff = eval_list$coefsFiltered[[i]],
+                                      alpha = eval_list$alphas[[paste0(i, "_alphas")]],
+                                      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+                                      x_hist_carryover = mean(eval_list$hist_carryover[[i]]),
+                                      get_sum = FALSE)
+    plotDT_scurve[[i]] <- data.frame(channel = i, spend = simulate_spend, response = simualte_response)
+  }
+  plotDT_scurve <- bind_rows(plotDT_scurve) %>% as_tibble()
 
-  plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
-    filter(.data$spend >= 0) %>%
-    as_tibble()
+  # plotDT_decomp <- OutputCollect$mediaVecCollect %>%
+  #   filter(.data$solID == select_model, .data$type == "decompMedia") %>%
+  #   select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+  #   tidyr::gather("channel", "response", -.data$ds)
+  #
+  # plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
+  #   filter(.data$spend >= 0) %>%
+  #   as_tibble()
 
   dt_optimOutScurve <- rbind(
     select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Initial") %>% as.matrix(),
@@ -748,22 +777,23 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       legend.spacing.y = unit(0.2, "cm")
     ) +
     labs(
-      title = "Response Curve and Mean* Spend by Channel",
-      x = "Spend", y = "Response", shape = NULL, color = NULL,
+      title = "Response Curve for Selected Allocation Period",
+      x = "Raw Spend*", y = "Marginal Response**", shape = NULL, color = NULL,
       caption = sprintf(
-        "*Based on date range: %s to %s (%s)%s",
+        "*Simulated raw spend on date range: %s to %s (%s)%s",
         dt_optimOut$date_min[1],
         dt_optimOut$date_max[1],
         dt_optimOut$periods[1],
-        ifelse(isTRUE(dt_optimOut$adstocked[1]),
-          sprintf(
-            "\n**Adstocked period: %s to %s (%s %ss)",
-            dt_optimOut$adstocked_start_date[1],
-            dt_optimOut$adstocked_end_date[1],
-            dt_optimOut$adstocked_periods[1],
-            InputCollect$intervalType
-          ), ""
-        )
+        "\n**y axis might not start from 0 due to historical adstock effect"
+        # ifelse(isTRUE(dt_optimOut$adstocked[1]),
+        #   sprintf(
+        #     "\n**Adstocked period: %s to %s (%s %ss)",
+        #     dt_optimOut$adstocked_start_date[1],
+        #     dt_optimOut$adstocked_end_date[1],
+        #     dt_optimOut$adstocked_periods[1],
+        #     InputCollect$intervalType
+        #   ), ""
+        # )
       )
     ) +
     scale_x_abbr() +

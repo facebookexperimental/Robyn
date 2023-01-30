@@ -382,7 +382,7 @@ AllocatorCollect1 <- robyn_allocator(
   scenario = "max_historical_response",
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  date_min = "2016-11-21",
+  date_min = "2018-07-21",
   date_max = "2018-08-20",
   export = create_files
 )

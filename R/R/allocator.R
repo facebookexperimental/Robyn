@@ -226,6 +226,7 @@ robyn_allocator <- function(robyn_object = NULL,
   histFiltered <- filter(dt_optimCost, .data$ds >= date_min & .data$ds <= date_max)
 
   nPeriod <- nrow(histFiltered)
+  nDates <- histFiltered$ds
   message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, nPeriod, InputCollect$intervalType))
 
   histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
@@ -251,6 +252,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Response values based on date range -> mean spend
   noSpendMedia <- histResponseUnitModel <- NULL
+  hist_carryover <- list()
   for (i in seq_along(mediaSpendSortedFiltered)) {
     if (histSpendUnit[i] > 0) {
       resp <- robyn_response(
@@ -259,7 +261,8 @@ robyn_allocator <- function(robyn_object = NULL,
         select_build = select_build,
         media_metric = mediaSpendSortedFiltered[i],
         select_model = select_model,
-        metric_value = histSpendUnit[i],
+        metric_value = rep(histSpendUnit[i], nPeriod),
+        metric_ds = nDates,
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
@@ -268,14 +271,16 @@ robyn_allocator <- function(robyn_object = NULL,
         ...
       )
       val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
-      histSpendUnit[i] <- resp$input_total[which(resp$response_total == val)]
+      # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
+      hist_carryover[[i]] <- resp$input_carryover
+      names(hist_carryover[[i]]) <- resp$date
     } else {
       val <- 0
       noSpendMedia <- c(noSpendMedia, mediaSpendSortedFiltered[i])
     }
     histResponseUnitModel <- c(histResponseUnitModel, val)
   }
-  names(histResponseUnitModel) <- mediaSpendSortedFiltered
+  names(histResponseUnitModel) <- names(hist_carryover) <- mediaSpendSortedFiltered
   if (!is.null(noSpendMedia) && !quiet) {
     message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
   }
@@ -296,7 +301,8 @@ robyn_allocator <- function(robyn_object = NULL,
     alphas = alphas,
     gammaTrans = gammaTrans,
     mediaSpendSortedFiltered = mediaSpendSortedFiltered,
-    expSpendUnitTotal = expSpendUnitTotal
+    expSpendUnitTotal = expSpendUnitTotal,
+    hist_carryover = hist_carryover
   )
   # So we can implicitly use these values within eval_f()
   options("ROBYN_TEMP" = eval_list)
@@ -384,7 +390,7 @@ robyn_allocator <- function(robyn_object = NULL,
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Plot allocator results
-  plots <- allocation_plots(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, export, quiet)
+  plots <- allocation_plots(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, eval_list, export, quiet)
 
   ## Export results into CSV
   if (export) {
@@ -480,29 +486,10 @@ eval_f <- function(X) {
   alphas <- eval_list[["alphas"]]
   gammaTrans <- eval_list[["gammaTrans"]]
   mediaSpendSortedFiltered <- eval_list[["mediaSpendSortedFiltered"]]
+  hist_carryover <- eval_list[["hist_carryover"]]
   # exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
   # vmaxVec <- eval_list[["vmaxVec"]]
   # kmVec <- eval_list[["kmVec"]]
-
-  fx_objective <- function(x, coeff, alpha, gammaTran
-                           # , chnName, vmax, km, criteria
-  ) {
-    # Apply Michaelis Menten model to scale spend to exposure
-    # if (criteria) {
-    #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
-    # } else if (chnName %in% names(mm_lm_coefs)) {
-    #   xScaled <- x * mm_lm_coefs[chnName]
-    # } else {
-    #   xScaled <- x
-    # }
-
-    # Adstock scales
-    xAdstocked <- x
-    # Hill transformation
-    xOut <- coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
-    xOut
-    return(xOut)
-  }
 
   objective <- -sum(mapply(
     fx_objective,
@@ -510,31 +497,13 @@ eval_f <- function(X) {
     coeff = coefsFiltered,
     alpha = alphas,
     gammaTran = gammaTrans,
+    x_hist_carryover = hist_carryover,
     # chnName = mediaSpendSortedFiltered,
     # vmax = vmaxVec,
     # km = kmVec,
     # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
-
-  # https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
-  fx_gradient <- function(x, coeff, alpha, gammaTran
-                          # , chnName, vmax, km, criteria
-  ) {
-    # Apply Michaelis Menten model to scale spend to exposure
-    # if (criteria) {
-    #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
-    # } else if (chnName %in% names(mm_lm_coefs)) {
-    #   xScaled <- x * mm_lm_coefs[chnName]
-    # } else {
-    #   xScaled <- x
-    # }
-
-    # Adstock scales
-    xAdstocked <- x
-    xOut <- -coeff * sum((alpha * (gammaTran**alpha) * (xAdstocked**(alpha - 1))) / (xAdstocked**alpha + gammaTran**alpha)**2)
-    return(xOut)
-  }
 
   gradient <- c(mapply(
     fx_gradient,
@@ -542,6 +511,7 @@ eval_f <- function(X) {
     coeff = coefsFiltered,
     alpha = alphas,
     gammaTran = gammaTrans,
+    x_hist_carryover = hist_carryover,
     # chnName = mediaSpendSortedFiltered,
     # vmax = vmaxVec,
     # km = kmVec,
@@ -549,30 +519,13 @@ eval_f <- function(X) {
     SIMPLIFY = TRUE
   ))
 
-  fx_objective.chanel <- function(x, coeff, alpha, gammaTran
-                                  # , chnName, vmax, km, criteria
-  ) {
-    # Apply Michaelis Menten model to scale spend to exposure
-    # if (criteria) {
-    #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
-    # } else if (chnName %in% names(mm_lm_coefs)) {
-    #   xScaled <- x * mm_lm_coefs[chnName]
-    # } else {
-    #   xScaled <- x
-    # }
-
-    # Adstock scales
-    xAdstocked <- x
-    xOut <- -coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
-    return(xOut)
-  }
-
   objective.channel <- mapply(
     fx_objective.chanel,
     x = X,
     coeff = coefsFiltered,
     alpha = alphas,
     gammaTran = gammaTrans,
+    x_hist_carryover = hist_carryover,
     # chnName = mediaSpendSortedFiltered,
     # vmax = vmaxVec,
     # km = kmVec,
@@ -582,6 +535,66 @@ eval_f <- function(X) {
 
   optm <- list(objective = objective, gradient = gradient, objective.channel = objective.channel)
   return(optm)
+}
+
+fx_objective <- function(x, coeff, alpha, gammaTran, x_hist_carryover, get_sum = TRUE
+                         # , chnName, vmax, km, criteria
+) {
+  # Apply Michaelis Menten model to scale spend to exposure
+  # if (criteria) {
+  #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
+  # } else if (chnName %in% names(mm_lm_coefs)) {
+  #   xScaled <- x * mm_lm_coefs[chnName]
+  # } else {
+  #   xScaled <- x
+  # }
+
+  # Adstock scales
+  xAdstocked <- x + mean(x_hist_carryover)
+  # Hill transformation
+  if (get_sum == TRUE) {
+    xOut <- coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
+  } else {
+    xOut <- coeff * ((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
+  }
+  return(xOut)
+}
+
+# https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
+fx_gradient <- function(x, coeff, alpha, gammaTran, x_hist_carryover
+                        # , chnName, vmax, km, criteria
+) {
+  # Apply Michaelis Menten model to scale spend to exposure
+  # if (criteria) {
+  #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
+  # } else if (chnName %in% names(mm_lm_coefs)) {
+  #   xScaled <- x * mm_lm_coefs[chnName]
+  # } else {
+  #   xScaled <- x
+  # }
+
+  # Adstock scales
+  xAdstocked <- x + mean(x_hist_carryover)
+  xOut <- -coeff * sum((alpha * (gammaTran**alpha) * (xAdstocked**(alpha - 1))) / (xAdstocked**alpha + gammaTran**alpha)**2)
+  return(xOut)
+}
+
+fx_objective.chanel <- function(x, coeff, alpha, gammaTran, x_hist_carryover
+                                # , chnName, vmax, km, criteria
+) {
+  # Apply Michaelis Menten model to scale spend to exposure
+  # if (criteria) {
+  #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
+  # } else if (chnName %in% names(mm_lm_coefs)) {
+  #   xScaled <- x * mm_lm_coefs[chnName]
+  # } else {
+  #   xScaled <- x
+  # }
+
+  # Adstock scales
+  xAdstocked <- x + mean(x_hist_carryover)
+  xOut <- -coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
+  return(xOut)
 }
 
 eval_g_eq <- function(X) {
