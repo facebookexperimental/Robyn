@@ -8,6 +8,9 @@
 ####################                    Quick guide                   #######################
 #############################################################################################
 
+# Advanced marketing mix modeling using Meta Open Source project Robyn (Blueprint training)
+# https://www.facebookblueprint.com/student/path/253121-marketing-mix-models?utm_source=demo
+
 ################################################################
 #### Step 0: Setup environment
 
