@@ -1043,7 +1043,7 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
 
   ## QA decomp
   check_split <- all(round(xDecomp[, names(coefs_media)], 2) ==
-                       round(mediaDecompImmediate + mediaDecompCarryover, 2))
+    round(mediaDecompImmediate + mediaDecompCarryover, 2))
   if (!check_split) {
     message(paste0(
       "Attention for loop ", i,

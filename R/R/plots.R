@@ -1089,7 +1089,9 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
 ts_validation <- function(OutputModels, quiet = FALSE, ...) {
-  if (!isTRUE(OutputModels$ts_validation)) return(NULL)
+  if (!isTRUE(OutputModels$ts_validation)) {
+    return(NULL)
+  }
   resultHypParam <- bind_rows(
     lapply(OutputModels[
       which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))
