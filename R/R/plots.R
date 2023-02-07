@@ -775,7 +775,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve) +
     scale_x_abbr() + scale_y_abbr() +
     geom_line(aes(x = .data$spend, y = .data$total_response, color = .data$channel), show.legend = FALSE) +
-    facet_wrap(.data$channel~., scales = "free", ncol = 2) +
+    facet_wrap(.data$channel~., scales = "free", ncol = 3) +
     geom_area(data = group_by(plotDT_scurve, .data$channel) %>% filter(spend <= mean_carryover),
               aes(x = .data$spend, y = .data$total_response, color = .data$channel),
               stat = "align", position = "stack", size = 0.1,
