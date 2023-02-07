@@ -537,9 +537,7 @@ eval_f <- function(X) {
   return(optm)
 }
 
-fx_objective <- function(x, coeff, alpha, gammaTran, x_hist_carryover, get_sum = TRUE
-                         # , chnName, vmax, km, criteria
-) {
+fx_objective <- function(x, coeff, alpha, gammaTran, x_hist_carryover, get_sum = TRUE) {
   # Apply Michaelis Menten model to scale spend to exposure
   # if (criteria) {
   #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)

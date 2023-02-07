@@ -710,19 +710,35 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     tidyr::gather("channel", "spend", -.data$ds)
 
   plotDT_scurve <- list()
+  carryover_means <- NULL
   for (i in InputCollect$paid_media_spends) {
     get_max_x <- plotDT_adstocked %>% filter(.data$channel == i)
     get_max_x <- max(get_max_x$spend)
     simulate_spend <- seq(0, get_max_x, length.out = 100)
-    simualte_response <- fx_objective(x = simulate_spend,
-                                      coeff = eval_list$coefsFiltered[[i]],
-                                      alpha = eval_list$alphas[[paste0(i, "_alphas")]],
-                                      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
-                                      x_hist_carryover = mean(eval_list$hist_carryover[[i]]),
-                                      get_sum = FALSE)
-    plotDT_scurve[[i]] <- data.frame(channel = i, spend = simulate_spend, response = simualte_response)
+    carryover_vec <- eval_list$hist_carryover[[i]]
+    carryover_means <- c(carryover_means, mean(carryover_vec))
+    simulate_response <- fx_objective(
+      x = mean(carryover_vec) + simulate_spend,
+      coeff = eval_list$coefsFiltered[[i]],
+      alpha = eval_list$alphas[[paste0(i, "_alphas")]],
+      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+      x_hist_carryover = 0,
+      get_sum = FALSE)
+    simulate_response_carryover <- fx_objective(
+      x = mean(carryover_vec),
+      coeff = eval_list$coefsFiltered[[i]],
+      alpha = eval_list$alphas[[paste0(i, "_alphas")]],
+      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+      x_hist_carryover = 0,
+      get_sum = FALSE)
+    plotDT_scurve[[i]] <- data.frame(
+      channel = i, spend = simulate_spend,
+      mean_carryover = mean(carryover_vec),
+      carryover_response = simulate_response_carryover,
+      total_response = simulate_response)
   }
-  plotDT_scurve <- bind_rows(plotDT_scurve) %>% as_tibble()
+  plotDT_scurve <- as_tibble(bind_rows(plotDT_scurve))
+  names(carryover_means) <- InputCollect$paid_media_spends
 
   # plotDT_decomp <- OutputCollect$mediaVecCollect %>%
   #   filter(.data$solID == select_model, .data$type == "decompMedia") %>%
@@ -746,58 +762,46 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       response_dif = dplyr::last(.data$response) - dplyr::first(.data$response)
     )
 
-  trim_rate <- 1.6 # maybe enable as a parameter
-  if (trim_rate > 0) {
-    plotDT_scurve <- plotDT_scurve %>%
-      filter(
-        .data$spend < max(dt_optimOutScurve$spend) * trim_rate,
-        .data$response < max(dt_optimOutScurve$response) * trim_rate
-      )
-  }
-  outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
-    x = .data$spend, y = .data$response, color = .data$channel
-  )) +
-    geom_line() +
-    geom_point(data = dt_optimOutScurve, aes(
-      x = .data$spend, y = .data$response,
-      color = .data$channels, shape = .data$type
+  # trim_rate <- 1.6 # maybe enable as a parameter
+  # if (trim_rate > 0) {
+  #   plotDT_scurve <- plotDT_scurve %>%
+  #     filter(
+  #       .data$spend < max(dt_optimOutScurve$spend) * trim_rate,
+  #       .data$total_response < max(dt_optimOutScurve$response) * trim_rate
+  #     )
+  # }
+
+  temp <- rename(dt_optimOutScurve, "response_point" = "response", "spend_point" = "spend", "channel" = "channels")
+  outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve) +
+    scale_x_abbr() + scale_y_abbr() +
+    geom_line(aes(x = .data$spend, y = .data$total_response, color = .data$channel), show.legend = FALSE) +
+    facet_wrap(.data$channel~., scales = "free", ncol = 2) +
+    geom_area(data = group_by(plotDT_scurve, .data$channel) %>% filter(spend <= mean_carryover),
+              aes(x = .data$spend, y = .data$total_response, color = .data$channel),
+              stat = "align", position = "stack", size = 0.1,
+              fill = "grey50", alpha = 0.4, show.legend = FALSE) +
+    geom_point(data = temp, aes(
+      x = .data$spend_point, y = .data$response_point,
+      shape = .data$type
     ), size = 2.5) +
-    # geom_text(
-    #   data = dt_optimOutScurve, aes(
-    #     x = .data$spend, y = .data$response, color = .data$channels,
-    #     hjust = .data$hjust,
-    #     label = formatNum(.data$spend, 2, abbr = TRUE)
-    #   ),
-    #   show.legend = FALSE
-    # ) +
-    theme_lares(legend.position = c(0.9, 0), pal = 2) +
-    theme(
-      legend.position = c(0.87, 0.5),
-      legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90"),
-      legend.spacing.y = unit(0.2, "cm")
+    geom_text(data = temp, aes(
+        x = .data$spend_point, y = .data$response_point, color = .data$channel,
+        label = formatNum(.data$spend_point, 2, abbr = TRUE)
+      ),
+      show.legend = FALSE, hjust = -0.5
     ) +
+    theme_lares(legend = "top", pal = 2) +
     labs(
-      title = "Response Curve for Selected Allocation Period",
-      x = "Raw Spend*", y = "Marginal Response**", shape = NULL, color = NULL,
+      title = "Simulated Response Curve for Selected Allocation Period",
+      x = "Adstocked Spend (Mean Adstock Zone in Grey)", y = "Total Response",
+      shape = NULL, color = NULL,
       caption = sprintf(
-        "*Simulated raw spend on date range: %s to %s (%s)%s",
+        "*Simulated spend on date range: %s to %s (%s)",
         dt_optimOut$date_min[1],
         dt_optimOut$date_max[1],
-        dt_optimOut$periods[1],
-        "\n**y axis might not start from 0 due to historical adstock effect"
-        # ifelse(isTRUE(dt_optimOut$adstocked[1]),
-        #   sprintf(
-        #     "\n**Adstocked period: %s to %s (%s %ss)",
-        #     dt_optimOut$adstocked_start_date[1],
-        #     dt_optimOut$adstocked_end_date[1],
-        #     dt_optimOut$adstocked_periods[1],
-        #     InputCollect$intervalType
-        #   ), ""
-        # )
+        dt_optimOut$periods[1]
       )
-    ) +
-    scale_x_abbr() +
-    scale_y_abbr()
+    )
 
   # Gather all plots into a single one
   p13 <- p13 + labs(subtitle = NULL)
