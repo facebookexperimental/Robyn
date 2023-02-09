@@ -727,7 +727,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   plotDT_scurve <- list()
   carryover_means <- NULL
-  for (i in InputCollect$paid_media_spends) {
+  for (i in unique(dt_optimOutScurve$channels)) {
     carryover_vec <- eval_list$hist_carryover[[i]]
     carryover_means <- c(carryover_means, mean(carryover_vec))
     # get_max_x <- plotDT_adstocked %>% filter(.data$channel == i)
@@ -762,7 +762,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
                                simulate_response_carryover, response))
   }
   plotDT_scurve <- as_tibble(bind_rows(plotDT_scurve))
-  names(carryover_means) <- InputCollect$paid_media_spends
+  names(carryover_means) <- unique(dt_optimOutScurve$channels)
 
   # plotDT_decomp <- OutputCollect$mediaVecCollect %>%
   #   filter(.data$solID == select_model, .data$type == "decompMedia") %>%
@@ -792,7 +792,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve) +
     scale_x_abbr() + scale_y_abbr() +
-    geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE) +
+    geom_line(aes(x = .data$spend, y = .data$total_response, color = .data$channel), show.legend = FALSE) +
     facet_wrap(.data$channel~., scales = "free", ncol = 3) +
     geom_area(data = group_by(plotDT_scurve, .data$channel) %>% filter(spend <= mean_carryover),
               aes(x = .data$spend, y = .data$total_response, color = .data$channel),
@@ -800,8 +800,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
               fill = "grey50", alpha = 0.4, show.legend = FALSE) +
     geom_point(data = temp, aes(
       x = .data$spend_point, y = .data$response_point,
-      fill = .data$type
-    ), size = 2.5, shape = 21) +
+      shape = .data$type
+    ), size = 2.5) +
     geom_text(data = temp, aes(
         x = .data$spend_point, y = .data$response_point,
         label = paste0("mROI=",
