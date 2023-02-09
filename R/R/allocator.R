@@ -232,10 +232,13 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
   histSpendTotal <- sum(histSpendB)
   histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
-  histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
-  histSpendUnit[is.nan(histSpendUnit)] <- 0
-  histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
-  histSpendShare <- histSpendUnit / histSpendUnitTotal
+  # histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
+  # histSpendUnit[is.nan(histSpendUnit)] <- 0
+  # histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
+  # histSpendShare <- histSpendUnit / histSpendUnitTotal
+  histSpendUnitTotal <- histSpendTotal / nPeriod
+  histSpendShare <- histSpend / histSpendTotal
+  histSpendUnit <- histSpendUnitTotal * histSpendShare
   histSpendUnitRaw <- histSpendUnit
 
   #### WIP: Spend/cost raw values for non-adstocked optimization
@@ -347,6 +350,27 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   )
 
+  optmSpendUnit <- nlsMod$solution
+  optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
+
+  lb_carryover <- mapply(mean, hist_carryover, SIMPLIFY = TRUE)
+  nlsModUnbound <- nloptr::nloptr(
+    x0 = rep(0, length(lb_carryover)),
+    eval_f = eval_f,
+    eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
+    eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
+    lb = rep(0, length(lb_carryover)), ub = rep(Inf, length(lb_carryover)),
+    opts = list(
+      "algorithm" = "NLOPT_LD_AUGLAG",
+      "xtol_rel" = 1.0e-10,
+      "maxeval" = maxeval,
+      "local_opts" = local_opts
+    )
+  )
+
+  optmSpendUnitUnbound <- nlsModUnbound$solution
+  optmResponseUnitUnbound <- -eval_f(optmSpendUnitUnbound)[["objective.channel"]]
+
   ## Collect output
   dt_optimOut <- data.frame(
     solID = select_model,
@@ -376,17 +400,24 @@ robyn_allocator <- function(robyn_object = NULL,
     expSpendUnitTotal = expSpendUnitTotal,
     expSpendUnitDelta = expSpendUnitTotal / histSpendUnitTotal - 1,
     # Optimized
-    optmSpendUnit = nlsMod$solution,
-    optmSpendUnitDelta = (nlsMod$solution / histSpendUnit - 1),
-    optmSpendUnitTotal = sum(nlsMod$solution),
-    optmSpendUnitTotalDelta = sum(nlsMod$solution) / histSpendUnitTotal - 1,
-    optmSpendShareUnit = nlsMod$solution / sum(nlsMod$solution),
-    optmResponseUnit = -eval_f(nlsMod$solution)[["objective.channel"]],
-    optmResponseUnitTotal = sum(-eval_f(nlsMod$solution)[["objective.channel"]]),
-    optmRoiUnit = -eval_f(nlsMod$solution)[["objective.channel"]] / nlsMod$solution,
-    optmResponseUnitLift = (-eval_f(nlsMod$solution)[["objective.channel"]] / histResponseUnitModel) - 1
+    optmSpendUnit = optmSpendUnit,
+    optmSpendUnitDelta = (optmSpendUnit / histSpendUnit - 1),
+    optmSpendUnitUnbound = optmSpendUnitUnbound,
+    optmSpendUnitDeltaUnbound = (optmSpendUnitUnbound / histSpendUnit - 1),
+    optmSpendUnitTotal = sum(optmSpendUnit),
+    optmSpendUnitTotalDelta = sum(optmSpendUnit) / histSpendUnitTotal - 1,
+    optmSpendShareUnit = optmSpendUnit / sum(optmSpendUnit),
+    optmResponseUnit = optmResponseUnit,
+    optmResponseUnitTotal = sum(optmResponseUnit),
+    optmRoiUnit = optmResponseUnit / optmSpendUnit,
+    optmResponseUnitLift = (optmResponseUnit / histResponseUnitModel) - 1,
+    optmResponseUnitUnbound = optmResponseUnitUnbound,
+    optmResponseUnitTotalUnbound  = sum(optmResponseUnitUnbound),
+    optmRoiUnitUnbound = optmResponseUnitUnbound / optmSpendUnitUnbound,
+    optmResponseUnitLiftUnbound = (optmResponseUnitUnbound / histResponseUnitModel) - 1
   ) %>%
-    mutate(optmResponseUnitTotalLift = (.data$optmResponseUnitTotal / .data$initResponseUnitTotal) - 1)
+    mutate(optmResponseUnitTotalLift = (.data$optmResponseUnitTotal / .data$initResponseUnitTotal) - 1,
+           optmResponseUnitTotalLiftUnbound = (.data$optmResponseUnitTotalUnbound / .data$initResponseUnitTotal) - 1)
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Plot allocator results
