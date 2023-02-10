@@ -666,7 +666,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   )) +
     facet_wrap(.data$type ~., scales = "free", ncol = 2)  +
     geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
-    scale_fill_brewer(palette = 3) +
+    scale_fill_brewer(palette = 4) +
     geom_text(aes(x = 0, label = formatNum(.data$response_share * 100, 1, pos = "%"), hjust = -0.1),
       position = position_dodge2(width = 0.5, reverse = TRUE), fontface = "bold", show.legend = FALSE
     ) +
