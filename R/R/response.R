@@ -243,7 +243,7 @@ robyn_response <- function(InputCollect = NULL,
   net_carryover <- input_total - input_immediate
 
   ## Saturation
-  m_adstockedRW <<- m_adstocked[startRW:endRW]
+  m_adstockedRW <- m_adstocked[startRW:endRW]
   alpha <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]], 1)
   gamma <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]], 1)
   metric_saturated_total <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = input_total)

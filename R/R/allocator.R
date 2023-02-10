@@ -394,6 +394,7 @@ robyn_allocator <- function(robyn_object = NULL,
     initSpendShare = histSpendShare,
     initResponseUnit = histResponseUnitModel,
     initResponseUnitTotal = sum(histResponseUnitModel),
+    initResponseUnitShare = histResponseUnitModel / sum(histResponseUnitModel),
     initRoiUnit = histResponseUnitModel / histSpendUnit,
     # Expected
     expSpendTotal = expected_spend,
@@ -402,17 +403,25 @@ robyn_allocator <- function(robyn_object = NULL,
     # Optimized
     optmSpendUnit = optmSpendUnit,
     optmSpendUnitDelta = (optmSpendUnit / histSpendUnit - 1),
-    optmSpendUnitUnbound = optmSpendUnitUnbound,
-    optmSpendUnitDeltaUnbound = (optmSpendUnitUnbound / histSpendUnit - 1),
     optmSpendUnitTotal = sum(optmSpendUnit),
     optmSpendUnitTotalDelta = sum(optmSpendUnit) / histSpendUnitTotal - 1,
     optmSpendShareUnit = optmSpendUnit / sum(optmSpendUnit),
+
+    optmSpendUnitUnbound = optmSpendUnitUnbound,
+    optmSpendUnitDeltaUnbound = (optmSpendUnitUnbound / histSpendUnit - 1),
+    optmSpendUnitTotalUnbound = sum(optmSpendUnitUnbound),
+    optmSpendUnitTotalDeltaUnbound = sum(optmSpendUnitUnbound) / histSpendUnitTotal - 1,
+    optmSpendShareUnitUnbound = optmSpendUnitUnbound / sum(optmSpendUnitUnbound),
+
     optmResponseUnit = optmResponseUnit,
     optmResponseUnitTotal = sum(optmResponseUnit),
+    optmResponseUnitShare = optmResponseUnit/ sum(optmResponseUnit),
     optmRoiUnit = optmResponseUnit / optmSpendUnit,
     optmResponseUnitLift = (optmResponseUnit / histResponseUnitModel) - 1,
+
     optmResponseUnitUnbound = optmResponseUnitUnbound,
     optmResponseUnitTotalUnbound  = sum(optmResponseUnitUnbound),
+    optmResponseUnitShareUnbound = optmResponseUnitUnbound/ sum(optmResponseUnitUnbound),
     optmRoiUnitUnbound = optmResponseUnitUnbound / optmSpendUnitUnbound,
     optmResponseUnitLiftUnbound = (optmResponseUnitUnbound / histResponseUnitModel) - 1
   ) %>%

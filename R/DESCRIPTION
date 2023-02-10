@@ -28,7 +28,6 @@ Imports:
     patchwork,
     prophet,
     reticulate,
-    rPref,
     stringr,
     tidyr
 Suggests:
