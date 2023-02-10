@@ -222,11 +222,11 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
     }
   } # End of !hyper_fixed
 
-  OutputModels$ts_validation_plot <- ts_validation(OutputModels, quiet = TRUE, ...)
-  if (!is.null(OutputModels$ts_validation_plot)) {
+  if (isTRUE(OutputCollect$OutputModels$ts_validation)) {
+    ts_validation_plot <- ts_validation(OutputCollect$OutputModels, quiet = TRUE, ...)
     ggsave(
       paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
-      plot = OutputModels$ts_validation_plot, dpi = 300,
+      plot = ts_validation_plot, dpi = 300,
       width = 10, height = 12, limitsize = FALSE
     )
   }

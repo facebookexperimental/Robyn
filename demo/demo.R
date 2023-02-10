@@ -14,10 +14,10 @@
 ################################################################
 #### Step 0: Setup environment
 
-## Install, load, and check (latest) version.
-## Install the stable version from CRAN.
+## Install, load, and check (latest) Robyn version, using one of these 2 sources:
+## A) Install the latest stable version from CRAN:
 # install.packages("Robyn")
-## Install the dev version from GitHub
+## B) Install the latest dev version from GitHub:
 # install.packages("remotes") # Install remotes first if you haven't already
 # remotes::install_github("facebookexperimental/Robyn/R")
 library(Robyn)
@@ -28,14 +28,14 @@ packageVersion("Robyn")
 # Also, if you're using an older version than the latest dev version, please check older demo.R with
 # https://github.com/facebookexperimental/Robyn/blob/vX.X.X/demo/demo.R
 
-## Force multicore when using RStudio
+## Force multi-core use when running RStudio
 Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
 options(future.fork.enable = TRUE)
 
 # Set to FALSE to avoid the creation of files locally
 create_files <- TRUE
 
-## ATTENTION: Must install the python library Nevergrad once before using Robyn.
+## IMPORTANT: Must install and setup the python library "Nevergrad" once before using Robyn
 ## Guide: https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R
 
 ################################################################
@@ -62,11 +62,10 @@ robyn_object <- "~/Desktop"
 
 #### 2a-1: First, specify input variables
 
-## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
-## All sign control are now automatically provided: "positive" for media & organic variables
-## and "default" for all others. User can still customise signs if necessary. Documentation
-## is available in ?robyn_inputs
-## ------------------------------------------------------------------------------------------ ##
+## NOTE (>3.6.1): All sign control are now automatically provided: "positive" for media & organic
+## variables and "default" for all others. User can still customise signs if necessary.
+## Documentation is available, access it anytime by running: ?robyn_inputs
+
 InputCollect <- robyn_inputs(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
@@ -90,13 +89,10 @@ print(InputCollect)
 
 #### 2a-2: Second, define and add hyperparameters
 
-## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
-## Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
-## hyperparameter names needs to be base on paid_media_spends names. Run:
+## NOTE (>3.6.1): Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
+## Also, calibration_input are required to be spend names.
+## hyperparameter names are based on paid_media_spends names too. See right hyperparameter names:
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
-## to see correct hyperparameter names. Check GitHub homepage for background of change.
-## Also calibration_input are required to be spend names.
-## ------------------------------------------------------------------------------------------ ##
 
 ## Guide to setup & understand hyperparameters
 
@@ -123,10 +119,12 @@ plot_saturation(plot = FALSE)
 ## Geometric adstock: Theta is the only parameter and means fixed decay rate. Assuming TV
 # spend on day 1 is 100€ and theta = 0.7, then day 2 has 100*0.7=70€ worth of effect
 # carried-over from day 1, day 3 has 70*0.7=49€ from day 2 etc. Rule-of-thumb for common
-# media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
+# media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3). Also,
+# to convert weekly to daily we can transform the parameter to the power of (1/7),
+# so to convert 30% daily to weekly is 0.3^(1/7) = 0.84.
 
-## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters
-# , shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
+## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters,
+# shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
 # decay rate. The shape parameter controls the shape of the decay curve. Recommended
 # bound is c(0, 2). The larger the shape, the more S-shape. The smaller, the more
 # L-shape. Scale controls the inflexion point of the decay curve. We recommend very
