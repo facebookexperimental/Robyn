@@ -609,7 +609,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       "Total %sspend increase: %s%%",
       "\nTotal response increase: %s%% with optimised spend allocation"
     ),
-    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("(adstocked**) ", ""),""),
+    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("(adstocked**) ", ""), ""),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
@@ -644,64 +644,85 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
   }
 
-  # 1. Response comparison plot
-  # plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
-  #   mutate(channels = as.factor(.data$channels))
-  plotDT_resp <- bind_rows(
-    dt_optimOut %>%
-      mutate(channels =  as.factor(.data$channels), init_response_share = .data$initResponseUnitShare,
-             optm_response_share = .data$optmResponseUnitShare, type = "Bounded Allocation") %>%
-      select(.data$channels, .data$init_response_share, .data$optm_response_share, .data$type),
-    dt_optimOut %>%
-      mutate(channels =  as.factor(.data$channels), init_response_share = .data$initResponseUnitShare,
-             optm_response_share = .data$optmResponseUnitShareUnbound, type = "Unbounded Allocation") %>%
-      select(.data$channels, .data$init_response_share, .data$optm_response_share, .data$type))
 
-  names(plotDT_resp) <- c("channel", "Response Share Historical Period", "Response Share Optimised", "type")
-  plotDT_resp <- tidyr::gather(plotDT_resp, "variable", "response_share", -.data$channel, -.data$type)
-  outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
-    y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$response_share,
-    fill = reorder(.data$variable, as.numeric(as.factor(.data$variable)))
-  )) +
-    facet_wrap(.data$type ~., scales = "free", ncol = 2)  +
-    geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
-    scale_fill_brewer(palette = 4) +
-    geom_text(aes(x = 0, label = formatNum(.data$response_share * 100, 1, pos = "%"), hjust = -0.1),
-      position = position_dodge2(width = 0.5, reverse = TRUE), fontface = "bold", show.legend = FALSE
-    ) +
-    theme_lares(legend = "top") +
-    scale_x_abbr() +
+  # 1. Response comparison plot
+
+  resp_roi <- data.frame(
+    type = c("Initial", "Bounded", "Unbounded"),
+    roi = c(
+      0,
+      dt_optimOut$optmResponseUnitTotalLift[1],
+      dt_optimOut$optmResponseUnitTotalLiftUnbound[1]
+    )
+  ) %>%
+    mutate(label = factor(
+      paste("Incr.Resp:", formatNum(100 * .data$roi, signif = 3, pos = "%")),
+      levels = paste("Incr.Resp:", formatNum(100 * .data$roi, signif = 3, pos = "%"))
+    ))
+
+  plotDT_resp <- dt_optimOut %>%
+    mutate(channel = as.factor(.data$channels), init_response_share = .data$initResponseUnitShare) %>%
+    select(
+      .data$channel, .data$init_response_share, .data$optmResponseUnitShare,
+      .data$optmResponseUnitShareUnbound
+    ) %>%
+    tidyr::gather("key" = "type", "values", -.data$channel) %>%
+    mutate(type = dplyr::case_when(
+      .data$type == "init_response_share" ~ "Initial",
+      .data$type == "optmResponseUnitShare" ~ "Bounded",
+      .data$type == "optmResponseUnitShareUnbound" ~ "Unbounded"
+    )) %>%
+    left_join(resp_roi, by = "type") %>%
+    mutate(type = factor(.data$type, levels = c("Initial", "Bounded", "Unbounded")))
+
+  outputs[["p12"]] <- p12 <- plotDT_resp %>%
+    ggplot(aes(x = .data$type, y = .data$channel)) +
+    geom_tile(aes(fill = .data$values)) +
+    geom_text(aes(label = formatNum(100 * values, signif = 3, pos = "%")), colour = "white") +
+    facet_grid(. ~ .data$label, scales = "free") +
+    theme_lares(legend = "none") +
     labs(
       title = "Initial vs. Optimised Mean Response",
       subtitle = subtitle,
-      fill = NULL, x = "Mean Response [#]", y = NULL
+      fill = NULL, x = "Mean Response Share [%]", y = NULL
     )
 
   # 2. Budget share comparison plot
-  plotDT_share <- bind_rows(
-    dt_optimOut %>%
-    mutate(channels =  as.factor(.data$channels), init_spend_share = .data$initSpendShare,
-           optm_spend_share = .data$optmSpendShareUnit, type = "Bounded Allocation") %>%
-      select(.data$channels, .data$init_spend_share, .data$optm_spend_share, .data$type),
-    dt_optimOut %>%
-      mutate(channels =  as.factor(.data$channels), init_spend_share = .data$initSpendShare,
-             optm_spend_share = .data$optmSpendShareUnitUnbound, type = "Unbounded Allocation") %>%
-      select(.data$channels, .data$init_spend_share, .data$optm_spend_share, .data$type))
-  names(plotDT_share) <- c("channel", "Spend Share Historical Period", "Spend Share Optimised", "type")
-  plotDT_share <- tidyr::gather(plotDT_share, "variable", "spend_share", -.data$channel, -.data$type)
-  outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
-    y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$spend_share, fill = .data$variable
-  )) +
-    facet_wrap(.data$type ~., scales = "free", ncol = 2)  +
-    geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
-    scale_fill_brewer(palette = 3) +
-    geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
-      position = position_dodge2(width = 0.5, reverse = TRUE), fontface = "bold", show.legend = FALSE
-    ) +
-    theme_lares(legend = "top") +
-    scale_x_percent() +
+
+  spend_share <- data.frame(
+    type = c("Initial", "Bounded", "Unbounded"),
+    share = c(
+      0,
+      dt_optimOut$optmSpendUnitTotalDelta[1],
+      dt_optimOut$optmSpendUnitTotalDeltaUnbound[1]
+    )
+  ) %>%
+    mutate(label = factor(
+      paste("Incr.Spend:", formatNum(100 * .data$share, signif = 3, pos = "%")),
+      levels = unique(paste("Incr.Spend:", formatNum(100 * .data$share, signif = 3, pos = "%")))
+    ))
+
+  plotDT_share <- dt_optimOut %>%
+    mutate(channel = as.factor(.data$channels), init_spend_share = .data$initSpendShare) %>%
+    select(
+      .data$channel, .data$init_spend_share, .data$optmSpendShareUnit,
+      .data$optmSpendShareUnitUnbound
+    ) %>%
+    tidyr::gather("key" = "type", "values", -.data$channel) %>%
+    mutate(type = dplyr::case_when(
+      .data$type == "init_spend_share" ~ "Initial",
+      .data$type == "optmSpendShareUnit" ~ "Bounded",
+      .data$type == "optmSpendShareUnitUnbound" ~ "Unbounded"
+    )) %>%
+    left_join(spend_share, by = "type") %>%
+    mutate(type = factor(.data$type, levels = c("Initial", "Bounded", "Unbounded")))
+
+  outputs[["p13"]] <- p13 <- plotDT_share %>%
+    ggplot(aes(x = .data$type, y = .data$channel)) +
+    geom_tile(aes(fill = .data$values)) +
+    geom_text(aes(label = formatNum(100 * values, signif = 3, pos = "%")), colour = "white") +
+    facet_grid(. ~ .data$label, scales = "free") +
+    theme_lares(legend = "none") +
     labs(
       title = "Initial vs. Optimised Budget Allocation",
       subtitle = subtitle,
@@ -724,37 +745,38 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   #   as_tibble()
 
   dt_optimOutScurve <- rbind(
-    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Hist.Sel.Avg") %>% as.matrix(),
-    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(x = "Bounded Allocation") %>% as.matrix(),
-    select(dt_optimOut, .data$channels, .data$optmSpendUnitUnbound, .data$optmResponseUnitUnbound) %>% mutate(x = "Unbounded Allocation") %>% as.matrix()
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
+      mutate(x = "Hist.Sel.Avg") %>% as.matrix(),
+    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>%
+      mutate(x = "Bounded Allocation") %>% as.matrix(),
+    select(dt_optimOut, .data$channels, .data$optmSpendUnitUnbound, .data$optmResponseUnitUnbound) %>%
+      mutate(x = "Unbounded Allocation") %>% as.matrix()
   ) %>% as.data.frame()
   colnames(dt_optimOutScurve) <- c("channels", "spend", "response", "type")
-  dt_optimOutScurve <- rbind(dt_optimOutScurve,
-                             data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type ="Hist.Carryover"))
+  dt_optimOutScurve <- rbind(
+    dt_optimOutScurve,
+    data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type = "Hist.Carryover")
+  )
   dt_optimOutScurve <- dt_optimOutScurve %>%
     mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
-    group_by(.data$channels) # %>%
-    # mutate(
-    #   spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
-    #   response_dif = dplyr::last(.data$response) - dplyr::first(.data$response)
-    # )
-
+    group_by(.data$channels)
   plotDT_adstocked <- OutputCollect$mediaVecCollect %>%
     filter(.data$solID == select_model, .data$type == "adstockedMedia") %>%
     select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
     tidyr::gather("channel", "spend", -.data$ds)
 
   plotDT_scurve <- list()
-  carryover_means <- NULL
-  for (i in unique(dt_optimOutScurve$channels)) {
+  channels <- unique(dt_optimOutScurve$channels)
+  for (i in channels) {
     carryover_vec <- eval_list$hist_carryover[[i]]
-    carryover_means <- c(carryover_means, mean(carryover_vec))
     # get_max_x <- plotDT_adstocked %>% filter(.data$channel == i)
     dt_optimOutScurve <- dt_optimOutScurve %>%
       mutate(spend = ifelse(.data$channels == i & .data$type %in% c("Hist.Sel.Avg", "Bounded Allocation", "Unbounded Allocation"),
-                            .data$spend + mean(carryover_vec), ifelse(
-                              .data$channels == i & .data$type == "Hist.Carryover",
-                              mean(carryover_vec), .data$spend)))
+        .data$spend + mean(carryover_vec), ifelse(
+          .data$channels == i & .data$type == "Hist.Carryover",
+          mean(carryover_vec), .data$spend
+        )
+      ))
     get_max_x <- max(filter(dt_optimOutScurve, .data$channels == i)$spend) * 1.5
     simulate_spend <- seq(0, get_max_x, length.out = 100)
     simulate_response <- fx_objective(
@@ -763,25 +785,28 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       alpha = eval_list$alphas[[paste0(i, "_alphas")]],
       gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
       x_hist_carryover = 0,
-      get_sum = FALSE)
+      get_sum = FALSE
+    )
     simulate_response_carryover <- fx_objective(
       x = mean(carryover_vec),
       coeff = eval_list$coefsFiltered[[i]],
       alpha = eval_list$alphas[[paste0(i, "_alphas")]],
       gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
       x_hist_carryover = 0,
-      get_sum = FALSE)
+      get_sum = FALSE
+    )
     plotDT_scurve[[i]] <- data.frame(
-      channel = i, spend = simulate_spend ,
+      channel = i, spend = simulate_spend,
       mean_carryover = mean(carryover_vec),
       carryover_response = simulate_response_carryover,
-      total_response = simulate_response)
+      total_response = simulate_response
+    )
     dt_optimOutScurve <- dt_optimOutScurve %>%
       mutate(response = ifelse(.data$channels == i & .data$type == "Hist.Carryover",
-                               simulate_response_carryover, .data$response))
+        simulate_response_carryover, .data$response
+      ))
   }
   plotDT_scurve <- as_tibble(bind_rows(plotDT_scurve))
-  names(carryover_means) <- unique(dt_optimOutScurve$channels)
 
   # plotDT_decomp <- OutputCollect$mediaVecCollect %>%
   #   filter(.data$solID == select_model, .data$type == "decompMedia") %>%
@@ -801,40 +826,50 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   #     )
   # }
 
-  temp <- rename(dt_optimOutScurve, "response_point" = "response", "spend_point" = "spend", "channel" = "channels")
-  temp <- temp %>% mutate(type_abb = dplyr::case_when(.data$type == "Hist.Carryover" ~ "ca.ov.",
-                                                      .data$type == "Hist.Sel.Avg" ~ "avg.",
-                                                      .data$type == "Bounded Allocation" ~ "b.opt.",
-                                                      .data$type == "Unbounded Allocation" ~ "unb.opt."))
+  temp <- dt_optimOutScurve %>%
+    rename("response_point" = "response", "spend_point" = "spend", "channel" = "channels") %>%
+    mutate(type_abb = dplyr::case_when(
+      .data$type == "Hist.Carryover" ~ "ca.ov.",
+      .data$type == "Hist.Sel.Avg" ~ "avg.",
+      .data$type == "Bounded Allocation" ~ "b.opt.",
+      .data$type == "Unbounded Allocation" ~ "unb.opt."
+    ))
   temp_caov <- temp %>% filter(.data$type == "Hist.Carryover")
   temp$mspend <- temp$spend_point - temp_caov$spend_point
-  temp <- temp %>% mutate(mspend = ifelse(.data$type == "Hist.Carryover", .data$spend_point, .data$mspend))
-  temp_init <- temp %>% filter(.data$type == "Hist.Sel.Avg")
-  temp_optm <- temp %>% filter(.data$type == "Bounded Allocation")
-  temp_optm_unb <- temp %>% filter(.data$type == "Unbounded Allocation")
+  temp$mspend <- ifelse(temp$type == "Hist.Carryover", temp$spend_point, temp$mspend)
 
-  outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve) +
-    scale_x_abbr() + scale_y_abbr() +
+  outputs[["p14"]] <- p14 <- ggplot(plotDT_scurve) +
+    scale_x_abbr() +
+    scale_y_abbr() +
     geom_line(aes(x = .data$spend, y = .data$total_response, color = .data$channel), show.legend = FALSE) +
-    facet_wrap(.data$channel~., scales = "free", ncol = 3) +
-    geom_area(data = group_by(plotDT_scurve, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
-              aes(x = .data$spend, y = .data$total_response, color = .data$channel),
-              stat = "align", position = "stack", size = 0.1,
-              fill = "grey50", alpha = 0.4, show.legend = FALSE) +
+    facet_wrap(.data$channel ~ ., scales = "free", ncol = 3) +
+    geom_area(
+      data = group_by(plotDT_scurve, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
+      aes(x = .data$spend, y = .data$total_response, color = .data$channel),
+      stat = "align", position = "stack", size = 0.1,
+      fill = "grey50", alpha = 0.4, show.legend = FALSE
+    ) +
     geom_point(data = temp, aes(
       x = .data$spend_point, y = .data$response_point, fill = .data$type
-    ), size = 2.5, shape = 21) + scale_fill_manual(values=c("grey", "black", "green", "steelblue")) +
+    ), size = 2.5, shape = 21) +
+    scale_fill_manual(values = c("grey", "black", "green", "steelblue")) +
     geom_text(data = temp, aes(
-        x = .data$spend_point, y = .data$response_point,
-        label = paste0(.data$type_abb,
-                       ifelse(.data$type == "Hist.Carryover", "", paste0(
-                         "mROI:", formatNum(ifelse(.data$mspend == 0, 0, .data$response_point/.data$mspend)
-                                , 2, abbr = TRUE), ", ")),
-                       "[x:", formatNum(.data$spend_point, 2, abbr = TRUE), ", y:",
-                       formatNum(.data$response_point, 2, abbr = TRUE), "]")
+      x = .data$spend_point, y = .data$response_point,
+      label = sprintf(
+        "(%s, %s)",
+        # .data$type_abb,
+        formatNum(.data$spend_point, 2, abbr = TRUE),
+        formatNum(.data$response_point, 2, abbr = TRUE)
+      )
+    ), show.legend = FALSE, hjust = -0.2, size = 2.7, angle = 359, color = "grey36") +
+    geom_text(data = temp, aes(
+      x = .data$spend_point, y = .data$response_point,
+      label = ifelse(.data$type == "Hist.Carryover", "",
+        sprintf("mROI %s", formatNum(ifelse(
+          .data$mspend == 0, 0, .data$response_point / .data$mspend
+        ), 2, abbr = TRUE))
       ),
-      show.legend = FALSE, hjust = -0.1, size = 2.7, angle = 359, color = "grey36"
-    ) +
+    ), show.legend = FALSE, hjust = 1.2, size = 2.7, angle = 359, color = "grey36") +
     theme_lares(legend = "top", pal = 2) +
     labs(
       title = "Simulated Response Curve for Selected Allocation Period",
@@ -845,15 +880,18 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         dt_optimOut$periods[1]
       ),
       x = "Spend (Mean Adstock Zone in Grey)", y = "Total Response",
-      shape = NULL, color = NULL,
-      caption = "*Historical & Optimised mROI = total response / raw spend (excl.carryover)\n**Unbounded Allocation points are free from channel lower & upper constraints"
+      shape = NULL, color = NULL, fill = NULL,
+      caption = paste(
+        "*Historical & Optimised mROI = total response / raw spend (excl.carryover)\n",
+        "**Unbounded Allocation points are free from channel lower & upper constraints"
+      )
     )
 
   # Gather all plots into a single one
   p13 <- p13 + labs(subtitle = NULL)
   p12 <- p12 + labs(subtitle = NULL)
-  #p15 <- p15 + labs(subtitle = NULL)
-  outputs[["plots"]] <- plots <- (p13 / p12 / p14) + plot_annotation(
+  # p15 <- p15 + labs(subtitle = NULL)
+  outputs[["plots"]] <- plots <- (p13 | p12) / p14 + plot_annotation(
     title = paste0("Budget Allocator Optimum Result for Model ID ", select_model),
     subtitle = subtitle,
     theme = theme_lares(background = "white")
@@ -867,7 +905,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
-      dpi = 350, width = 15, height = 18
+      dpi = 350, width = 15, height = 15 + 2 * ceiling(length(channels) / 3)
     )
   }
 

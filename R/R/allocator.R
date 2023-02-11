@@ -241,18 +241,6 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendUnit <- histSpendUnitTotal * histSpendShare
   histSpendUnitRaw <- histSpendUnit
 
-  #### WIP: Spend/cost raw values for non-adstocked optimization
-  df_cost <- slice(InputCollect$dt_input, startRW:endRW)
-  histCostFiltered <- df_cost[, InputCollect$date_var >= date_min & InputCollect$date_var <= date_max]
-  histCostB <- select(histCostFiltered, any_of(mediaSpendSortedFiltered))
-  histCostTotal <- sum(histCostB)
-  histCost <- unlist(summarise_all(select(histCostFiltered, any_of(mediaSpendSortedFiltered)), sum))
-  histCostUnit <- unlist(summarise_all(histCostB, function(x) sum(x) / sum(x > 0)))
-  histCostUnit[is.nan(histCostUnit)] <- 0
-  histCostUnitTotal <- sum(histCostUnit, na.rm = TRUE)
-  histCostShare <- histCostUnit / histCostUnitTotal
-  histCostUnitRaw <- histCostUnit
-
   # Response values based on date range -> mean spend
   noSpendMedia <- histResponseUnitModel <- NULL
   hist_carryover <- list()
@@ -406,27 +394,26 @@ robyn_allocator <- function(robyn_object = NULL,
     optmSpendUnitTotal = sum(optmSpendUnit),
     optmSpendUnitTotalDelta = sum(optmSpendUnit) / histSpendUnitTotal - 1,
     optmSpendShareUnit = optmSpendUnit / sum(optmSpendUnit),
-
     optmSpendUnitUnbound = optmSpendUnitUnbound,
     optmSpendUnitDeltaUnbound = (optmSpendUnitUnbound / histSpendUnit - 1),
     optmSpendUnitTotalUnbound = sum(optmSpendUnitUnbound),
     optmSpendUnitTotalDeltaUnbound = sum(optmSpendUnitUnbound) / histSpendUnitTotal - 1,
     optmSpendShareUnitUnbound = optmSpendUnitUnbound / sum(optmSpendUnitUnbound),
-
     optmResponseUnit = optmResponseUnit,
     optmResponseUnitTotal = sum(optmResponseUnit),
-    optmResponseUnitShare = optmResponseUnit/ sum(optmResponseUnit),
+    optmResponseUnitShare = optmResponseUnit / sum(optmResponseUnit),
     optmRoiUnit = optmResponseUnit / optmSpendUnit,
     optmResponseUnitLift = (optmResponseUnit / histResponseUnitModel) - 1,
-
     optmResponseUnitUnbound = optmResponseUnitUnbound,
-    optmResponseUnitTotalUnbound  = sum(optmResponseUnitUnbound),
-    optmResponseUnitShareUnbound = optmResponseUnitUnbound/ sum(optmResponseUnitUnbound),
+    optmResponseUnitTotalUnbound = sum(optmResponseUnitUnbound),
+    optmResponseUnitShareUnbound = optmResponseUnitUnbound / sum(optmResponseUnitUnbound),
     optmRoiUnitUnbound = optmResponseUnitUnbound / optmSpendUnitUnbound,
     optmResponseUnitLiftUnbound = (optmResponseUnitUnbound / histResponseUnitModel) - 1
   ) %>%
-    mutate(optmResponseUnitTotalLift = (.data$optmResponseUnitTotal / .data$initResponseUnitTotal) - 1,
-           optmResponseUnitTotalLiftUnbound = (.data$optmResponseUnitTotalUnbound / .data$initResponseUnitTotal) - 1)
+    mutate(
+      optmResponseUnitTotalLift = (.data$optmResponseUnitTotal / .data$initResponseUnitTotal) - 1,
+      optmResponseUnitTotalLiftUnbound = (.data$optmResponseUnitTotalUnbound / .data$initResponseUnitTotal) - 1
+    )
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Plot allocator results
