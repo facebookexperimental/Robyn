@@ -905,7 +905,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
-      dpi = 350, width = 15, height = 15 + 2 * ceiling(length(channels) / 3)
+      dpi = 350, width = 12, height = 10 + 2 * ceiling(length(channels) / 3)
     )
   }
 
