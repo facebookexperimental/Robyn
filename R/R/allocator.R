@@ -341,7 +341,7 @@ robyn_allocator <- function(robyn_object = NULL,
   optmSpendUnit <- nlsMod$solution
   optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
 
-  lb_carryover <- mapply(mean, hist_carryover, SIMPLIFY = TRUE)
+  lb_carryover <- unlist(lapply(hist_carryover, mean))
   nlsModUnbound <- nloptr::nloptr(
     x0 = rep(0, length(lb_carryover)),
     eval_f = eval_f,
