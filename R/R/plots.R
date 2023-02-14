@@ -300,31 +300,37 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
     parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
-      plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
-      rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
-      rsq_val_plot <- round(plotMediaShareLoop$rsq_val[1], 4)
-      rsq_test_plot <- round(plotMediaShareLoop$rsq_test[1], 4)
-      nrmse_train_plot <- round(plotMediaShareLoop$nrmse_train[1], 4)
-      nrmse_val_plot <- round(plotMediaShareLoop$nrmse_val[1], 4)
-      nrmse_test_plot <- round(plotMediaShareLoop$nrmse_test[1], 4)
-      decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
-      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), round(plotMediaShareLoop$mape[1], 4), 0)
-      train_size <- round(plotMediaShareLoop$train_size[1], 4)
 
-      if (val) {
-        errors <- paste0(
-          "NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
-          "; [Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot, "]",
-          ";\nDECOMP.RSSD = ", decomp_rssd_plot,
-          "; MAPE = ", mape_lift_plot
+      if (TRUE) {
+        plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
+        rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
+        rsq_val_plot <- round(plotMediaShareLoop$rsq_val[1], 4)
+        rsq_test_plot <- round(plotMediaShareLoop$rsq_test[1], 4)
+        nrmse_train_plot <- round(plotMediaShareLoop$nrmse_train[1], 4)
+        nrmse_val_plot <- round(plotMediaShareLoop$nrmse_val[1], 4)
+        nrmse_test_plot <- round(plotMediaShareLoop$nrmse_test[1], 4)
+        decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
+        mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+          round(plotMediaShareLoop$mape[1], 4), NA
         )
-      } else {
-        errors <- paste0(
-          "NRMSE train = ", nrmse_train_plot,
-          "; [Adj.R2 train = ", rsq_train_plot, "]",
-          "; DECOMP.RSSD = ", decomp_rssd_plot,
-          "; MAPE = ", mape_lift_plot
-        )
+        train_size <- round(plotMediaShareLoop$train_size[1], 4)
+        if (val) {
+          errors <- sprintf(
+            paste(
+              "Adj.R2: train = %s, val = %s, test = %s |",
+              "NRMSE: train = %s, val = %s, test = %s |",
+              "DECOMP.RSSD = %s | MAPE = %s"
+            ),
+            rsq_train_plot, rsq_val_plot, rsq_test_plot,
+            nrmse_train_plot, nrmse_val_plot, nrmse_test_plot,
+            decomp_rssd_plot, mape_lift_plot
+          )
+        } else {
+          errors <- sprintf(
+            "Adj.R2: train = %s | NRMSE: train = %s | DECOMP.RSSD = %s | MAPE = %s",
+            rsq_train_plot, nrmse_train_plot, decomp_rssd_plot, mape_lift_plot
+          )
+        }
       }
 
       ## 1. Spend x effect share comparison
@@ -621,29 +627,35 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     .data$rn %in% InputCollect$paid_media_spends
   )
 
-  rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
-  rsq_val_plot <- round(plotDT_scurveMeanResponse$rsq_val[1], 4)
-  rsq_test_plot <- round(plotDT_scurveMeanResponse$rsq_test[1], 4)
-  nrmse_train_plot <- round(plotDT_scurveMeanResponse$nrmse_train[1], 4)
-  nrmse_val_plot <- round(plotDT_scurveMeanResponse$nrmse_val[1], 4)
-  nrmse_test_plot <- round(plotDT_scurveMeanResponse$nrmse_test[1], 4)
-  decomp_rssd_plot <- round(plotDT_scurveMeanResponse$decomp.rssd[1], 4)
-  mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
-    round(plotDT_scurveMeanResponse$mape[1], 4), NA
-  )
-  if (OutputCollect$OutputModels$ts_validation) {
-    errors <- paste0(
-      "Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot,
-      " ### NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
-      " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+  if (TRUE) {
+    rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
+    rsq_val_plot <- round(plotDT_scurveMeanResponse$rsq_val[1], 4)
+    rsq_test_plot <- round(plotDT_scurveMeanResponse$rsq_test[1], 4)
+    nrmse_train_plot <- round(plotDT_scurveMeanResponse$nrmse_train[1], 4)
+    nrmse_val_plot <- round(plotDT_scurveMeanResponse$nrmse_val[1], 4)
+    nrmse_test_plot <- round(plotDT_scurveMeanResponse$nrmse_test[1], 4)
+    decomp_rssd_plot <- round(plotDT_scurveMeanResponse$decomp.rssd[1], 4)
+    mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+      round(plotDT_scurveMeanResponse$mape[1], 4), NA
     )
-  } else {
-    errors <- paste0(
-      "Adj.R2 train = ", rsq_train_plot, " ### NRMSE train = ", nrmse_train_plot,
-      " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
-    )
+    if (OutputCollect$OutputModels$ts_validation) {
+      errors <- sprintf(
+        paste(
+          "Adj.R2: train = %s, val = %s, test = %s |",
+          "NRMSE: train = %s, val = %s, test = %s |",
+          "DECOMP.RSSD = %s | MAPE = %s"
+        ),
+        rsq_train_plot, rsq_val_plot, rsq_test_plot,
+        nrmse_train_plot, nrmse_val_plot, nrmse_test_plot,
+        decomp_rssd_plot, mape_lift_plot
+      )
+    } else {
+      errors <- sprintf(
+        "Adj.R2: train = %s | NRMSE: train = %s | DECOMP.RSSD = %s | MAPE = %s",
+        rsq_train_plot, nrmse_train_plot, decomp_rssd_plot, mape_lift_plot
+      )
+    }
   }
-
 
   # 1. Response comparison plot
   init_total_spend <- dt_optimOut$initSpendUnitTotal[1]
@@ -662,60 +674,75 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     type = factor(c("Initial", "Bounded", "Unbounded"), levels = c("Initial", "Bounded", "Unbounded")),
     total_spend = c(init_total_spend, optm_total_spend_bounded, optm_total_spend_unbounded),
     total_response = c(init_total_response, optm_total_response_bounded, optm_total_response_unbounded),
-    total_response_lift = c(0,
-                            dt_optimOut$optmResponseUnitTotalLift[1],
-                            dt_optimOut$optmResponseUnitTotalLiftUnbound[1]),
+    total_response_lift = c(
+      0,
+      dt_optimOut$optmResponseUnitTotalLift[1],
+      dt_optimOut$optmResponseUnitTotalLiftUnbound[1]
+    ),
     total_roi = c(init_total_roi, optm_total_roi_bounded, optm_total_roi_unbounded),
     ph = ""
   ) %>%
-    mutate(label = factor(
-      paste("Incr.Resp:", formatNum(100 * .data$total_response_lift, signif = 3, pos = "%")),
-      levels = paste("Incr.Resp:", formatNum(100 * .data$total_response_lift, signif = 3, pos = "%"))
-    ),
-    label_roi = factor(c("Initial ROAS", "Bounded Allocation ROAS", "Unbounded Allocation ROAS"),
-                       levels = c("Initial ROAS", "Bounded Allocation ROAS", "Unbounded Allocation ROAS")))
+    mutate(
+      label = factor(
+        paste("Incr.Resp:", formatNum(100 * .data$total_response_lift, signif = 3, pos = "%")),
+        levels = paste("Incr.Resp:", formatNum(100 * .data$total_response_lift, signif = 3, pos = "%"))
+      ),
+      label_roi = factor(c("Initial ROAS", "Bounded Allocation ROAS", "Unbounded Allocation ROAS"),
+        levels = c("Initial ROAS", "Bounded Allocation ROAS", "Unbounded Allocation ROAS")
+      )
+    )
 
-   p16 <- ggplot(resp_roi, aes(x = .data$label_roi, y = .data$ph)) +
-     geom_tile(fill = "white") +
-     facet_grid(. ~ .data$label_roi, scales = "free") +
-     geom_text(aes(label = paste0("x",formatNum( .data$total_roi, signif = 2))), size = 15, color = "black") +
-     theme_lares(legend = "none", axis = FALSE) +
-     labs(title = "Total Marketing ROAS", y = "", x = "")
+  p16 <- ggplot(resp_roi, aes(x = .data$label_roi, y = .data$ph)) +
+    geom_tile(fill = "white") +
+    facet_grid(. ~ .data$label_roi, scales = "free") +
+    geom_text(aes(label = paste0("x", formatNum(.data$total_roi, signif = 2))), size = 15, color = "black") +
+    theme_lares(legend = "none", axis = FALSE) +
+    labs(title = "Total Marketing ROAS", y = "", x = "")
 
-   temp_roi <- resp_roi %>%
-     mutate(spend = .data$total_spend, response = .data$total_response) %>%
-     select(.data$type, .data$spend, .data$response) %>%
-     pivot_longer(cols = !"type") %>% mutate(
-       name = factor(.data$name, levels = c("spend", "response")))
+  temp_roi <- resp_roi %>%
+    mutate(spend = .data$total_spend, response = .data$total_response) %>%
+    select(.data$type, .data$spend, .data$response) %>%
+    pivot_longer(cols = !"type") %>%
+    mutate(
+      name = factor(.data$name, levels = c("spend", "response"))
+    )
 
-   p17 <- ggplot(temp_roi, aes(x = .data$name, y = .data$value, fill = .data$name)) +
-     facet_wrap(~ .data$type, scales = "free", nrow = 1) +
-     scale_y_continuous(expand=expansion(mult=c(0,0.2))) +
-     scale_fill_manual(values = c("grey", "darkseagreen2")) +
-     geom_bar(stat='identity', width = 0.6)+
-     geom_text(aes(label = formatNum( .data$value, signif = 2)), color = "black") +
-     theme_lares(legend = "none") +
-     theme(strip.background = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(),
-           axis.text.y = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-           strip.text.x = element_blank())
+  p17 <- ggplot(temp_roi, aes(x = .data$name, y = .data$value, fill = .data$name)) +
+    facet_wrap(~ .data$type, scales = "free", nrow = 1) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+    scale_fill_manual(values = c("grey", "darkseagreen2")) +
+    geom_bar(stat = "identity", width = 0.6) +
+    geom_text(aes(label = formatNum(.data$value, signif = 2)), color = "black") +
+    theme_lares(legend = "none") +
+    theme(
+      strip.background = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(),
+      axis.text.y = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+      strip.text.x = element_blank()
+    )
 
   df_plots <- dt_optimOut %>%
-    mutate(channel = as.factor(.data$channels), Initial = .data$initResponseUnitShare,
-           Bounded = .data$optmResponseUnitShare, Unbounded = .data$optmResponseUnitShareUnbound) %>%
+    mutate(
+      channel = as.factor(.data$channels), Initial = .data$initResponseUnitShare,
+      Bounded = .data$optmResponseUnitShare, Unbounded = .data$optmResponseUnitShareUnbound
+    ) %>%
     select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
     tidyr::pivot_longer(names_to = "type", values_to = "response_share", -.data$channel) %>%
     left_join(
       dt_optimOut %>%
-        mutate(channel = as.factor(.data$channels), Initial = .data$initSpendShare,
-               Bounded = .data$optmSpendShareUnit, Unbounded = .data$optmSpendShareUnitUnbound) %>%
+        mutate(
+          channel = as.factor(.data$channels), Initial = .data$initSpendShare,
+          Bounded = .data$optmSpendShareUnit, Unbounded = .data$optmSpendShareUnitUnbound
+        ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         tidyr::pivot_longer(names_to = "type", values_to = "spend_share", -.data$channel),
       by = c("channel", "type")
     ) %>%
     left_join(
       dt_optimOut %>%
-        mutate(channel = as.factor(.data$channels), Initial = .data$initRoiUnit,
-               Bounded = .data$optmRoiUnit, Unbounded = .data$optmRoiUnitUnbound) %>%
+        mutate(
+          channel = as.factor(.data$channels), Initial = .data$initRoiUnit,
+          Bounded = .data$optmRoiUnit, Unbounded = .data$optmRoiUnitUnbound
+        ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         tidyr::pivot_longer(names_to = "type", values_to = "channel_roi", -.data$channel),
       by = c("channel", "type")
@@ -766,38 +793,52 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   #   left_join(spend_share, by = "type") %>%
   #   mutate(type = factor(.data$type, levels = c("Initial", "Bounded", "Unbounded")))
 
-  df_plot_resp_share <- df_plots %>% select(c("channel", "type", "response_share")) %>% mutate(metric = "response") %>% rename(values = .data$response_share)
-  df_plot_spend_share <- df_plots %>% select(c("channel", "type", "spend_share")) %>% mutate(metric = "spend") %>% rename(values = .data$spend_share)
+  df_plot_resp_share <- df_plots %>%
+    select(c("channel", "type", "response_share")) %>%
+    mutate(metric = "response") %>%
+    rename(values = .data$response_share)
+  df_plot_spend_share <- df_plots %>%
+    select(c("channel", "type", "spend_share")) %>%
+    mutate(metric = "spend") %>%
+    rename(values = .data$spend_share)
   df_plot_share <- rbind(df_plot_resp_share, df_plot_spend_share) %>%
     mutate(facet_title = factor(paste(.data$type, .data$metric),
-                                levels = c("Initial spend", "Initial response", "Bounded spend",
-                                           "Bounded response", "Unbounded spend", "Unbounded response")))
+      levels = c(
+        "Initial spend", "Initial response", "Bounded spend",
+        "Bounded response", "Unbounded spend", "Unbounded response"
+      )
+    ))
 
   p18 <- ggplot(df_plot_share, aes(x = .data$channel, y = .data$values, fill = .data$metric)) +
     geom_bar(stat = "identity") +
     scale_fill_manual(values = c("darkseagreen2", "grey")) +
-    coord_flip()+
+    coord_flip() +
     facet_grid(. ~ .data$facet_title, scales = "free") +
     geom_text(aes(label = formatNum(100 * .data$values, signif = 3, pos = "%")), color = "black") +
     theme_lares(legend = "none") +
-    theme(strip.background = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank(),
-          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.title.x = element_blank()) +
+    theme(
+      strip.background = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank(),
+      panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title.x = element_blank()
+    ) +
     labs(title = "Channel Spend, Response, & ROAS", y = "", x = "")
 
-  df_channel_roi <- df_plots %>% select(c("channel", "type", "channel_roi")) %>%
+  df_channel_roi <- df_plots %>%
+    select(c("channel", "type", "channel_roi")) %>%
     mutate(type = paste0(.data$type, " ROAS")) %>%
     mutate(type = factor(.data$type, levels = c("Initial ROAS", "Bounded ROAS", "Unbounded ROAS")))
   p19 <- ggplot(df_channel_roi, aes(x = .data$channel, y = .data$channel_roi)) +
-    geom_segment(aes(xend=.data$channel, yend=0)) +
-    geom_point( size=4, color="orange") +
-    scale_y_continuous(expand=expansion(mult=c(0,0.2))) +
+    geom_segment(aes(xend = .data$channel, yend = 0)) +
+    geom_point(size = 4, color = "orange") +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
     coord_flip() +
     facet_grid(. ~ .data$type, scales = "free") +
     geom_text(aes(label = formatNum(.data$channel_roi, abbr = TRUE)), color = "black", hjust = -0.5) +
     theme_lares(legend = "none") +
-    theme(axis.text.x = element_blank(), axis.title.y = element_blank(),
-          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-          axis.title.x = element_blank())
+    theme(
+      axis.text.x = element_blank(), axis.title.y = element_blank(),
+      panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+      axis.title.x = element_blank()
+    )
 
   # outputs[["p13"]] <- p13 <- plotDT_share %>%
   #   ggplot(aes(x = .data$type, y = .data$channel)) +
@@ -814,7 +855,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   outputs[["p13"]] <- p13 <- df_plot_share %>%
     ggplot(aes(x = .data$channel, y = .data$values)) +
-    geom_bar(aes(fill = .data$type), stat = "identity") + coord_flip()+
+    geom_bar(aes(fill = .data$type), stat = "identity") +
+    coord_flip() +
     scale_fill_manual(values = c("grey95", "darkseagreen1", "khaki1")) +
     geom_text(aes(label = formatNum(100 * values, signif = 3, pos = "%")), colour = "black") +
     facet_grid(. ~ .data$type + .data$metric, scales = "free") +
@@ -987,12 +1029,12 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   # Gather all plots into a single one
-  #p13 <- p13 + labs(subtitle = NULL)
-  #p12 <- p12 + labs(subtitle = NULL)
+  # p13 <- p13 + labs(subtitle = NULL)
+  # p12 <- p12 + labs(subtitle = NULL)
   p16 <- p16 + labs(subtitle = NULL)
   p17 <- p17 + labs(subtitle = NULL)
   p18 <- p18 + labs(subtitle = NULL)
-  outputs[["plots"]] <- plots <- p16 / p17 / p18 / p19/ p14 + plot_annotation(
+  outputs[["plots"]] <- plots <- p16 / p17 / p18 / p19 / p14 + plot_annotation(
     title = paste0("Budget Allocator Optimum Result for Model ID ", select_model),
     # subtitle = subtitle,
     theme = theme_lares(background = "white")
