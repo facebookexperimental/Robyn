@@ -663,6 +663,14 @@ robyn_mmm <- function(InputCollect,
               y_val <- y_test <- x_val <- x_test <- NULL
             }
 
+            ## Split train and test sets
+            train_size <- hypParamSam[, "train_size"]
+            train_size_index <- floor(quantile(1:nrow(dt_window), train_size))
+            y_train <- y_window[1:train_size_index]
+            y_test <- y_window[(train_size_index + 1):length(y_window)]
+            x_train <- x_window[1:train_size_index, ]
+            x_test <- x_window[(train_size_index + 1):length(y_window), ]
+
             ## Define and set sign control
             dt_sign <- select(dt_window, -.data$dep_var)
             x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)

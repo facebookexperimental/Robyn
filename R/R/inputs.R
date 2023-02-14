@@ -831,7 +831,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
       )
     }
     mod <- fit.prophet(modelRecurrence, dt_regressors)
-    forecastRecurrence <- predict(mod, dt_regressors)
+    forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
   }
 
   these <- seq_along(unlist(recurrence[, 1]))
