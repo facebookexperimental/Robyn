@@ -310,6 +310,11 @@ robyn_allocator <- function(robyn_object = NULL,
   x0 <- lb <- histSpendUnit * channelConstrLowSorted
   ub <- histSpendUnit * channelConstrUpSorted
 
+  channelConstrLowSortedExt <- ifelse(1- (1 - channelConstrLowSorted) * 3 < 0, 0, 1- (1 - channelConstrLowSorted) * 3)
+  x0_ext <- lb_ext <- histSpendUnit *  channelConstrLowSortedExt
+  channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * 3
+  ub_ext <- histSpendUnit *  channelConstrUpSortedExt
+
   ## Set optim options
   if (optim_algo == "MMA_AUGLAG") {
     local_opts <- list(
@@ -343,11 +348,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   lb_carryover <- unlist(lapply(hist_carryover, mean))
   nlsModUnbound <- nloptr::nloptr(
-    x0 = rep(0, length(lb_carryover)),
+    x0 = x0_ext,
     eval_f = eval_f,
     eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
     eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
-    lb = rep(0, length(lb_carryover)), ub = rep(Inf, length(lb_carryover)),
+    lb = lb_ext, ub = ub_ext,
     opts = list(
       "algorithm" = "NLOPT_LD_AUGLAG",
       "xtol_rel" = 1.0e-10,
