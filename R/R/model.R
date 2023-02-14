@@ -665,7 +665,7 @@ robyn_mmm <- function(InputCollect,
 
             ## Split train and test sets
             train_size <- hypParamSam[, "train_size"]
-            train_size_index <- floor(quantile(1:nrow(dt_window), train_size))
+            train_size_index <- floor(quantile(seq(nrow(dt_window)), train_size))
             y_train <- y_window[1:train_size_index]
             y_test <- y_window[(train_size_index + 1):length(y_window)]
             x_train <- x_window[1:train_size_index, ]
