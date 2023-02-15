@@ -782,17 +782,20 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   ## 3. Response curves
-  plotDT_scurve <- eval_list[["plotDT_scurve"]]
-  mainPoints <- eval_list[["mainPoints"]]
+  constr_labels <- dt_optimOut %>%
+    mutate(constr_label = sprintf("%s [%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
+    select("channel" = "channels", "constr_label")
+  plotDT_scurve <- eval_list[["plotDT_scurve"]] %>% left_join(constr_labels, "channel")
+  mainPoints <- eval_list[["mainPoints"]] %>% left_join(constr_labels, "channel")
 
   outputs[["p14"]] <- p14 <- ggplot(plotDT_scurve) +
     scale_x_abbr() +
     scale_y_abbr() +
     geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE, size = 0.5) +
-    facet_wrap(.data$channel ~ ., scales = "free", ncol = 3) +
+    facet_wrap(.data$constr_label ~ ., scales = "free", ncol = 3) +
     geom_area(
-      data = group_by(plotDT_scurve, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
-      aes(x = .data$spend, y = .data$total_response, color = .data$channel),
+      data = group_by(plotDT_scurve, .data$constr_label) %>% filter(.data$spend <= .data$mean_carryover),
+      aes(x = .data$spend, y = .data$total_response, color = .data$constr_label),
       stat = "align", position = "stack", size = 0.1,
       fill = "grey50", alpha = 0.4, show.legend = FALSE
     ) +
@@ -830,7 +833,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
           dt_optimOut$periods[1]
         ),
         "*Historical & Optimised mROI = total response / raw spend (excl.carryover)\n",
-        "**Unbounded Allocation points are free from channel lower & upper constraints"
+        paste0("**Unbounded Allocation points per channel set to ",
+               dt_optimOut$unconstr_mult[1], "X lower & upper constraints")
       )
     )
 

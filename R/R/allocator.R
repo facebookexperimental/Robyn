@@ -386,6 +386,7 @@ robyn_allocator <- function(robyn_object = NULL,
     periods = sprintf("%s %ss", nPeriod, InputCollect$intervalType),
     constr_low = channelConstrLowSorted,
     constr_up = channelConstrUpSorted,
+    unconstr_mult = channel_constr_multiplier,
     # Initial
     histSpend = histSpend,
     histSpendTotal = histSpendTotal,
