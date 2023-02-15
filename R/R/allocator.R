@@ -433,6 +433,83 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
+  ## Calculate curves and main points for each channel
+  dt_optimOutScurve <- rbind(
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
+      mutate(x = "Hist.Sel.Avg") %>% as.matrix(),
+    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>%
+      mutate(x = "Bounded Allocation") %>% as.matrix(),
+    select(dt_optimOut, .data$channels, .data$optmSpendUnitUnbound, .data$optmResponseUnitUnbound) %>%
+      mutate(x = "Unbounded Allocation") %>% as.matrix()
+  ) %>%
+    magrittr::set_colnames(c("channels", "spend", "response", "type")) %>%
+    rbind(data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type = "Hist.Carryover")) %>%
+    mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
+    group_by(.data$channels)
+  plotDT_adstocked <- OutputCollect$mediaVecCollect %>%
+    filter(.data$solID == select_model, .data$type == "adstockedMedia") %>%
+    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+    tidyr::gather("channel", "spend", -.data$ds)
+
+  channels <- unique(dt_optimOutScurve$channels)
+  plotDT_scurve <- list()
+  for (i in channels) { # i <- channels[i]
+    carryover_vec <- eval_list$hist_carryover[[i]]
+    dt_optimOutScurve <- dt_optimOutScurve %>%
+      mutate(spend = ifelse(
+        .data$channels == i & .data$type %in% c("Hist.Sel.Avg", "Bounded Allocation", "Unbounded Allocation"),
+        .data$spend + mean(carryover_vec), ifelse(
+          .data$channels == i & .data$type == "Hist.Carryover",
+          mean(carryover_vec), .data$spend
+        )
+      ))
+    get_max_x <- max(filter(dt_optimOutScurve, .data$channels == i)$spend) * 1.5
+    simulate_spend <- seq(0, get_max_x, length.out = 100)
+    simulate_response <- fx_objective(
+      x = simulate_spend,
+      coeff = eval_list$coefsFiltered[[i]],
+      alpha = eval_list$alphas[[paste0(i, "_alphas")]],
+      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+      x_hist_carryover = 0,
+      get_sum = FALSE
+    )
+    simulate_response_carryover <- fx_objective(
+      x = mean(carryover_vec),
+      coeff = eval_list$coefsFiltered[[i]],
+      alpha = eval_list$alphas[[paste0(i, "_alphas")]],
+      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+      x_hist_carryover = 0,
+      get_sum = FALSE
+    )
+    plotDT_scurve[[i]] <- data.frame(
+      channel = i, spend = simulate_spend,
+      mean_carryover = mean(carryover_vec),
+      carryover_response = simulate_response_carryover,
+      total_response = simulate_response
+    )
+    dt_optimOutScurve <- dt_optimOutScurve %>%
+      mutate(response = ifelse(
+        .data$channels == i & .data$type == "Hist.Carryover",
+        simulate_response_carryover, .data$response
+      ))
+  }
+  eval_list[["plotDT_scurve"]] <- plotDT_scurve <- as_tibble(bind_rows(plotDT_scurve))
+  mainPoints <- dt_optimOutScurve %>%
+    rename("response_point" = "response", "spend_point" = "spend", "channel" = "channels") %>%
+    mutate(type_abb = dplyr::case_when(
+      .data$type == "Hist.Carryover" ~ "ca.ov.",
+      .data$type == "Hist.Sel.Avg" ~ "avg.",
+      .data$type == "Bounded Allocation" ~ "b.opt.",
+      .data$type == "Unbounded Allocation" ~ "unb.opt."
+    ))
+  temp_caov <- mainPoints %>% filter(.data$type == "Hist.Carryover")
+  mainPoints$mspend <- mainPoints$spend_point - temp_caov$spend_point
+  mainPoints$mspend <- ifelse(mainPoints$type == "Hist.Carryover", mainPoints$spend_point, mainPoints$mspend)
+  mainPoints$type <- factor(mainPoints$type, levels = c(
+    "Hist.Carryover", "Hist.Sel.Avg", "Bounded Allocation", "Unbounded Allocation"
+  ))
+  eval_list[["mainPoints"]] <- mainPoints
+
   ## Plot allocator results
   plots <- allocation_plots(InputCollect, OutputCollect, dt_optimOut, select_model, scenario, eval_list, export, quiet)
 
@@ -447,6 +524,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   output <- list(
     dt_optimOut = dt_optimOut,
+    mainPoints = mainPoints,
     nlsMod = nlsMod,
     plots = plots,
     scenario = scenario,
