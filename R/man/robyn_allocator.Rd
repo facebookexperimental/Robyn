@@ -19,6 +19,8 @@ robyn_allocator(
   expected_spend_days = NULL,
   channel_constr_low = 0.5,
   channel_constr_up = 2,
+  channel_constr_multiplier = 3,
+  date_range = NULL,
   maxeval = 1e+05,
   constr_mode = "eq",
   date_min = NULL,
@@ -80,6 +82,16 @@ Both constrains must be length 1 (same for all values) OR same length and order 
 \code{paid_media_spends}. It's not recommended to 'exaggerate' upper bounds, especially
 if the new level is way higher than historical level. Lower bound must be >=0.01,
 and upper bound should be < 5.}
+
+\item{channel_constr_multiplier}{Numeric. Default to 3. For example, if channel_constr_low and
+channel_constr_up are 0.8 to 1.2, the range is 0.4. The allocator will also show the
+optimum solution for a larger constraint range of 0.4 x 3 = 1.2, or 0.4 to 1.6, to show
+the optimization potential to support allocation interpretation and decision.}
+
+\item{date_range}{Character. Date(s) to apply adstocked transformations.
+One of: NULL, "all", "last", or "last_n" (where
+n is the last N dates available), date (i.e. "2022-03-27"), or date range
+(i.e. \code{c("2022-01-01", "2022-12-31")}).}
 
 \item{maxeval}{Integer. The maximum iteration of the global optimization algorithm.
 Defaults to 100000.}

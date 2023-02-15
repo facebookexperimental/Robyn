@@ -858,7 +858,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_bar(aes(fill = .data$type), stat = "identity") +
     coord_flip() +
     scale_fill_manual(values = c("grey95", "darkseagreen1", "khaki1")) +
-    geom_text(aes(label = formatNum(100 * values, signif = 3, pos = "%")), colour = "black") +
+    geom_text(aes(label = formatNum(100 * .data$values, signif = 3, pos = "%")), colour = "black") +
     facet_grid(. ~ .data$type + .data$metric, scales = "free") +
     theme_lares(legend = "none") +
     labs(

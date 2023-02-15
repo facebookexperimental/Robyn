@@ -13,7 +13,7 @@ robyn_response(
   media_metric = NULL,
   select_model = NULL,
   metric_value = NULL,
-  metric_ds = NULL,
+  date_range = NULL,
   metric_total = TRUE,
   dt_hyppar = NULL,
   dt_coef = NULL,
@@ -48,13 +48,13 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
 
-\item{metric_ds}{Character. Date(s) to apply adstocked transformations.
+\item{date_range}{Character. Date(s) to apply adstocked transformations.
 One of: NULL, "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
 (i.e. \code{c("2022-01-01", "2022-12-31")}).}
 
 \item{metric_total}{Boolean. Metric provided is totalized?
-If \code{TRUE} then it will be divided by the final length of \code{metric_ds}.}
+If \code{TRUE} then it will be divided by the final length of \code{date_range}.}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
