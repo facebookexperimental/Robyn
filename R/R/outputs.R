@@ -179,7 +179,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
       ) %>%
       left_join(
         pareto_results$df_caov_pct_all,
-        by = c("solID", "rn" = "channel")
+        by = c("solID", "rn")
       )
     OutputCollect$mediaVecCollect <- left_join(
       OutputCollect$mediaVecCollect,

@@ -228,9 +228,12 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
     # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
     temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
-    xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec)) %>%
-      mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
-      filter(.data$solID %in% uniqueSol)
+    xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec))
+    if (!"solID" %in% colnames(xDecompVecImmCarr)) {
+      xDecompVecImmCarr <- xDecompVecImmCarr %>%
+        mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
+        filter(.data$solID %in% uniqueSol)
+    }
 
     # Calculations for pareto AND pareto plots
     for (sid in uniqueSol) {
@@ -501,7 +504,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         select(df_caov, .data$solID),
         select(df_caov, -.data$solID) / select(df_total, -.data$solID)
       ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "channel", values_to = "carryover_pct")
+        pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
       df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
       df_caov_pct_all <- bind_rows(df_caov_pct_all, df_caov_pct)
       # Gather everything in an aggregated format
