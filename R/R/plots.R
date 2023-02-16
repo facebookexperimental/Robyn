@@ -734,7 +734,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       Bounded = .data$optmResponseUnitShare, Unbounded = .data$optmResponseUnitShareUnbound
     ) %>%
     select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
-    magrittr::set_colnames(c("channel", levs1)) %>%
+    `colnames<-`(c("channel", levs1)) %>%
     tidyr::pivot_longer(names_to = "type", values_to = "response_share", -.data$channel) %>%
     left_join(
       dt_optimOut %>%
@@ -745,7 +745,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
           Unbounded = .data$optmSpendShareUnitUnbound
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
-        magrittr::set_colnames(c("channel", levs1)) %>%
+        `colnames<-`(c("channel", levs1)) %>%
         tidyr::pivot_longer(names_to = "type", values_to = "spend_share", -.data$channel),
       by = c("channel", "type")
     ) %>%
@@ -756,7 +756,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
           Bounded = .data$optmRoiUnit, Unbounded = .data$optmRoiUnitUnbound
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
-        magrittr::set_colnames(c("channel", levs1)) %>%
+        `colnames<-`(c("channel", levs1)) %>%
         tidyr::pivot_longer(names_to = "type", values_to = "channel_roi", -.data$channel),
       by = c("channel", "type")
     ) %>%
@@ -797,7 +797,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_tile(aes(alpha = .data$values), color = "white") +
     scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
     scale_alpha_continuous(range = c(0.6, 1)) +
-    geom_text(aes(label = values_label), colour = "black") +
+    geom_text(aes(label = .data$values_label), colour = "black") +
     facet_grid(. ~ .data$type_lab, scales = "free") +
     theme_lares(legend = "none") +
     labs(
@@ -826,14 +826,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   mainPoints <- mainPoints %>%
     left_join(caov_points, "channel") %>%
     mutate(
-      constr_low_abs = ifelse(.data$type == levs1[2], .data$constr_low_abs + caov_spend, NA),
-      constr_up_abs = ifelse(.data$type == levs1[2], .data$constr_up_abs + caov_spend, NA),
-      constr_low_unb_abs = ifelse(.data$type == levs1[3], .data$constr_low_unb_abs + caov_spend, NA),
-      constr_up_unb_abs = ifelse(.data$type == levs1[3], .data$constr_up_unb_abs + caov_spend, NA)
+      constr_low_abs = ifelse(.data$type == levs1[2], .data$constr_low_abs + .data$caov_spend, NA),
+      constr_up_abs = ifelse(.data$type == levs1[2], .data$constr_up_abs + .data$caov_spend, NA),
+      constr_low_unb_abs = ifelse(.data$type == levs1[3], .data$constr_low_unb_abs + .data$caov_spend, NA),
+      constr_up_unb_abs = ifelse(.data$type == levs1[3], .data$constr_up_unb_abs + .data$caov_spend, NA)
     ) %>%
     mutate(
-      plot_lb = ifelse(is.na(constr_low_abs), constr_low_unb_abs, constr_low_abs),
-      plot_ub = ifelse(is.na(constr_up_abs), constr_up_unb_abs, constr_up_abs)
+      plot_lb = ifelse(is.na(.data$constr_low_abs), .data$constr_low_unb_abs, .data$constr_low_abs),
+      plot_ub = ifelse(is.na(.data$constr_up_abs), .data$constr_up_unb_abs, .data$constr_up_abs)
     )
 
   outputs[["p3"]] <- p3 <- ggplot(plotDT_scurve) +

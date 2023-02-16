@@ -435,7 +435,7 @@ robyn_allocator <- function(robyn_object = NULL,
     select(dt_optimOut, .data$channels, .data$optmSpendUnitUnbound, .data$optmResponseUnitUnbound) %>%
       mutate(x = levs1[3]) %>% as.matrix()
   ) %>%
-    magrittr::set_colnames(c("channels", "spend", "response", "type")) %>%
+    `colnames<-`(c("channels", "spend", "response", "type")) %>%
     rbind(data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type = "Carryover")) %>%
     mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
     group_by(.data$channels)
