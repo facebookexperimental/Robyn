@@ -223,7 +223,7 @@ robyn_allocator <- function(robyn_object = NULL,
     InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model
   )
   alphas <- hills$alphas
-  gammaTrans <- hills$gammaTrans
+  inflexions <- hills$inflexions
   coefsFiltered <- hills$coefsFiltered
 
   # Spend values based on date range set
@@ -256,6 +256,7 @@ robyn_allocator <- function(robyn_object = NULL,
   hist_carryover <- list()
   for (i in seq_along(mediaSpendSortedFiltered)) {
     if (histSpendUnit[i] > 0) {
+      # get simulated adstock
       resp <- robyn_response(
         json_file = json_file,
         robyn_object = robyn_object,
@@ -271,15 +272,24 @@ robyn_allocator <- function(robyn_object = NULL,
         quiet = TRUE,
         ...
       )
-      val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
+      # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
       # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
       hist_carryover[[i]] <- resp$input_carryover
+      # get simulated response
+      resp_simulate <- fx_objective(
+        x = histSpendUnit[i],
+        coeff = coefsFiltered[[mediaSpendSortedFiltered[i]]],
+        alpha = alphas[[paste0(mediaSpendSortedFiltered[i], "_alphas")]],
+        inflexion = inflexions[[paste0(mediaSpendSortedFiltered[i], "_gammas")]],
+        x_hist_carryover = mean(resp$input_carryover),
+        get_sum = FALSE
+      )
       names(hist_carryover[[i]]) <- resp$date
     } else {
-      val <- 0
+      resp_simulate <- 0
       noSpendMedia <- c(noSpendMedia, mediaSpendSortedFiltered[i])
     }
-    histResponseUnitModel <- c(histResponseUnitModel, val)
+    histResponseUnitModel <- c(histResponseUnitModel, resp_simulate)
   }
   names(histResponseUnitModel) <- names(hist_carryover) <- mediaSpendSortedFiltered
   if (!is.null(noSpendMedia) && !quiet) {
@@ -300,7 +310,7 @@ robyn_allocator <- function(robyn_object = NULL,
   eval_list <- list(
     coefsFiltered = coefsFiltered,
     alphas = alphas,
-    gammaTrans = gammaTrans,
+    inflexions = inflexions,
     mediaSpendSortedFiltered = mediaSpendSortedFiltered,
     expSpendUnitTotal = expSpendUnitTotal,
     hist_carryover = hist_carryover
@@ -474,7 +484,7 @@ robyn_allocator <- function(robyn_object = NULL,
       x = simulate_spend,
       coeff = eval_list$coefsFiltered[[i]],
       alpha = eval_list$alphas[[paste0(i, "_alphas")]],
-      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+      inflexion = eval_list$inflexions[[paste0(i, "_gammas")]],
       x_hist_carryover = 0,
       get_sum = FALSE
     )
@@ -482,7 +492,7 @@ robyn_allocator <- function(robyn_object = NULL,
       x = mean(carryover_vec),
       coeff = eval_list$coefsFiltered[[i]],
       alpha = eval_list$alphas[[paste0(i, "_alphas")]],
-      gammaTran = eval_list$gammaTrans[[paste0(i, "_gammas")]],
+      inflexion = eval_list$inflexions[[paste0(i, "_gammas")]],
       x_hist_carryover = 0,
       get_sum = FALSE
     )
@@ -611,7 +621,7 @@ eval_f <- function(X) {
   # mm_lm_coefs <- eval_list[["mm_lm_coefs"]]
   coefsFiltered <- eval_list[["coefsFiltered"]]
   alphas <- eval_list[["alphas"]]
-  gammaTrans <- eval_list[["gammaTrans"]]
+  inflexions <- eval_list[["inflexions"]]
   mediaSpendSortedFiltered <- eval_list[["mediaSpendSortedFiltered"]]
   hist_carryover <- eval_list[["hist_carryover"]]
   # exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
@@ -623,7 +633,7 @@ eval_f <- function(X) {
     x = X,
     coeff = coefsFiltered,
     alpha = alphas,
-    gammaTran = gammaTrans,
+    inflexion = inflexions,
     x_hist_carryover = hist_carryover,
     # chnName = mediaSpendSortedFiltered,
     # vmax = vmaxVec,
@@ -637,7 +647,7 @@ eval_f <- function(X) {
     x = X,
     coeff = coefsFiltered,
     alpha = alphas,
-    gammaTran = gammaTrans,
+    inflexion = inflexions,
     x_hist_carryover = hist_carryover,
     # chnName = mediaSpendSortedFiltered,
     # vmax = vmaxVec,
@@ -651,7 +661,7 @@ eval_f <- function(X) {
     x = X,
     coeff = coefsFiltered,
     alpha = alphas,
-    gammaTran = gammaTrans,
+    inflexion = inflexions,
     x_hist_carryover = hist_carryover,
     # chnName = mediaSpendSortedFiltered,
     # vmax = vmaxVec,
@@ -664,7 +674,7 @@ eval_f <- function(X) {
   return(optm)
 }
 
-fx_objective <- function(x, coeff, alpha, gammaTran, x_hist_carryover, get_sum = TRUE) {
+fx_objective <- function(x, coeff, alpha, inflexion, x_hist_carryover, get_sum = TRUE) {
   # Apply Michaelis Menten model to scale spend to exposure
   # if (criteria) {
   #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
@@ -678,15 +688,15 @@ fx_objective <- function(x, coeff, alpha, gammaTran, x_hist_carryover, get_sum =
   xAdstocked <- x + mean(x_hist_carryover)
   # Hill transformation
   if (get_sum == TRUE) {
-    xOut <- coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
+    xOut <- coeff * sum((1 + inflexion**alpha / xAdstocked**alpha)**-1)
   } else {
-    xOut <- coeff * ((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
+    xOut <- coeff * ((1 + inflexion**alpha / xAdstocked**alpha)**-1)
   }
   return(xOut)
 }
 
 # https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
-fx_gradient <- function(x, coeff, alpha, gammaTran, x_hist_carryover
+fx_gradient <- function(x, coeff, alpha, inflexion, x_hist_carryover
                         # , chnName, vmax, km, criteria
 ) {
   # Apply Michaelis Menten model to scale spend to exposure
@@ -700,11 +710,11 @@ fx_gradient <- function(x, coeff, alpha, gammaTran, x_hist_carryover
 
   # Adstock scales
   xAdstocked <- x + mean(x_hist_carryover)
-  xOut <- -coeff * sum((alpha * (gammaTran**alpha) * (xAdstocked**(alpha - 1))) / (xAdstocked**alpha + gammaTran**alpha)**2)
+  xOut <- -coeff * sum((alpha * (inflexion**alpha) * (xAdstocked**(alpha - 1))) / (xAdstocked**alpha + inflexion**alpha)**2)
   return(xOut)
 }
 
-fx_objective.chanel <- function(x, coeff, alpha, gammaTran, x_hist_carryover
+fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover
                                 # , chnName, vmax, km, criteria
 ) {
   # Apply Michaelis Menten model to scale spend to exposure
@@ -718,7 +728,7 @@ fx_objective.chanel <- function(x, coeff, alpha, gammaTran, x_hist_carryover
 
   # Adstock scales
   xAdstocked <- x + mean(x_hist_carryover)
-  xOut <- -coeff * sum((1 + gammaTran**alpha / xAdstocked**alpha)**-1)
+  xOut <- -coeff * sum((1 + inflexion**alpha / xAdstocked**alpha)**-1)
   return(xOut)
 }
 
@@ -764,16 +774,17 @@ get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, med
   ) %>%
     select(all_of(mediaSpendSortedFiltered)) %>%
     slice(startRW:endRW)
-  gammaTrans <- mapply(function(gamma, x) {
-    round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
+  inflexions <- mapply(function(gamma, x) {
+    # round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
+    c(range(x) %*% c(1 - gamma, gamma))
   }, gamma = gammas, x = chnAdstocked)
-  names(gammaTrans) <- names(gammas)
+  names(inflexions) <- names(gammas)
   coefs <- dt_coef$coef
   names(coefs) <- dt_coef$rn
   coefsFiltered <- coefs[mediaSpendSortedFiltered]
   return(list(
     alphas = alphas,
-    gammaTrans = gammaTrans,
+    inflexions = inflexions,
     coefsFiltered = coefsFiltered
   ))
 }

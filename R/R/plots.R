@@ -721,7 +721,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   suppressWarnings(outputs[["p1"]] <- p1 <- df_roi %>%
     ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$type, alpha = .data$name)) +
     facet_grid(. ~ .data$labs, scales = "free") +
-    scale_fill_manual(values = c("grey", "darkseagreen4", "darkgoldenrod4")) +
+    scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
     scale_alpha_discrete(range = c(0.6,1)) +
     geom_bar(stat = "identity", width = 0.6) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
@@ -790,7 +790,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   outputs[["p2"]] <- p2 <- df_plot_share %>%
     ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
     geom_tile(aes(alpha = .data$values), color = "white") +
-    scale_fill_manual(values = c("grey50", "darkseagreen4", "darkgoldenrod4")) +
+    scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
     scale_alpha_continuous(range = c(0.6,1)) +
     geom_text(aes(label = values_label), colour = "black") +
     facet_grid(. ~ .data$type_lab, scales = "free") +
@@ -830,10 +830,6 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       stat = "align", position = "stack", size = 0.1,
       fill = "grey50", alpha = 0.4, show.legend = FALSE
     ) +
-    geom_point(data = mainPoints, aes(
-      x = .data$spend_point, y = .data$response_point, fill = .data$type_lab
-    ), size = 2.5, shape = 21) +
-    scale_fill_manual(values = c("white", "grey", "darkseagreen4", "darkgoldenrod4")) +
     geom_errorbar(mainPoints, mapping = aes(x = .data$spend_point, y = .data$response_point,
                                             xmin = .data$plot_lb, xmax = .data$plot_ub),
                   color = "black", linetype = "dotted") +
@@ -841,6 +837,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
                aes(x = .data$plot_lb, y = .data$response_point), shape = 18) +
     geom_point(data = filter(mainPoints, !is.na(.data$plot_ub)),
                aes(x = .data$plot_ub, y = .data$response_point), shape = 18) +
+    geom_point(data = mainPoints, aes(
+      x = .data$spend_point, y = .data$response_point, fill = .data$type_lab
+    ), size = 2.5, shape = 21) +
+    scale_fill_manual(values = c("white", "grey", "steelblue", "darkgoldenrod4")) +
     # geom_text(data = mainPoints, aes(
     #   x = .data$spend_point, y = .data$response_point,
     #   label = sprintf(
@@ -873,7 +873,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   # Gather all plots into a single one
   outputs[["plots"]] <- plots <- (p1 / p2 / p3) +
-    plot_layout(heights = c(1, 1, ceiling(length(dt_optimOut$channels) / 3))) +
+    plot_layout(heights = c(0.8, 0.2 + length(dt_optimOut$channels) * 0.2, ceiling(length(dt_optimOut$channels) / 3))) +
     plot_annotation(
       title = paste0("Budget Allocation Onepager for Model ID ", select_model),
       subtitle = sprintf(
