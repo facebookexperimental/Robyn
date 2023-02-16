@@ -719,7 +719,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   outputs[["p1"]] <- p1 <- df_roi %>%
     ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$type)) +
-    facet_grid(. ~ .data$type_lab, scales = "free") +
+    facet_grid(. ~ .data$labs, scales = "free") +
     scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
