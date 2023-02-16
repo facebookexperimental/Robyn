@@ -534,7 +534,7 @@ Model ID: {x$dt_optimOut$solID[1]}
 Scenario: {scenario}
 Dep. Variable Type: {temp$dep_var_type[1]}
 Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')} {no_spend}
-Relative Spend Increase: {spend_increase_p}% ({spend_increase}
+Relative Spend Increase: {spend_increase_p}% ({spend_increase})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
