@@ -380,31 +380,12 @@ AllocatorCollect1 <- robyn_allocator(
   scenario = "max_historical_response",
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 3,
-  date_min = "2018-07-21",
-  date_max = "2018-08-20",
+  channel_constr_multiplier = 4,
+  date_range = "last_26",
   export = create_files
 )
 print(AllocatorCollect1)
 # plot(AllocatorCollect1)
-
-# Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
-# total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
-# is the optimum spend share.
-AllocatorCollect2 <- robyn_allocator(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model,
-  scenario = "max_response_expected_spend",
-  channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  expected_spend = 1000000, # Total spend to be simulated
-  expected_spend_days = 7, # Duration of expected_spend in days
-  export = create_files
-)
-print(AllocatorCollect2)
-AllocatorCollect2$dt_optimOut
-# plot(AllocatorCollect2)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

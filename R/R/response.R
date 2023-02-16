@@ -14,10 +14,6 @@
 #' @param media_metric A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param date_range Character. Date(s) to apply adstocked transformations.
-#' One of: NULL, "all", "last", or "last_n" (where
-#' n is the last N dates available), date (i.e. "2022-03-27"), or date range
-#' (i.e. \code{c("2022-01-01", "2022-12-31")}).
 #' @param metric_total Boolean. Metric provided is totalized?
 #' If \code{TRUE} then it will be divided by the final length of \code{date_range}.
 #' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use

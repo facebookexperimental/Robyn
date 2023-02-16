@@ -204,9 +204,9 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Spend values based on date range set
   dt_optimCost <- slice(dt_mod, startRW:endRW)
-  stopifnot(length(date_range) == 2)
-  date_min <- date_range[1]
-  date_max <- date_range[2]
+  new_date_range <- check_metric_dates(metric_value = 1, date_range, dt_optimCost$ds, quiet = FALSE)
+  date_min <- head(new_date_range$date_range_updated, 1)
+  date_max <- tail(new_date_range$date_range_updated, 1)
   check_daterange(date_min, date_max, dt_optimCost$ds)
   if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
   if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
