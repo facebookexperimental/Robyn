@@ -622,7 +622,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
   formulax <- ifelse(
     metric == "ROAS",
-    "mROI = total response / raw spend (excl.carryover)",
+    "mROAS = total response / raw spend (excl.carryover)",
     "mCPA = raw spend (excl.carryover) / total response")
 
   # Calculate errors for subtitles
@@ -675,9 +675,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   optm_total_roi_unbounded <- optm_total_response_unbounded / optm_total_spend_unbounded
   optm_total_cpa_unbounded <- optm_total_spend_unbounded / optm_total_response_unbounded
 
+  bound_mult <- dt_optimOut$unconstr_mult[1]
+  bound_mult_lab <- paste("Bounded x", bound_mult)
+
   levs1 <- c("Initial", "Bounded", "Unbounded")
+  levs2 <- c("Initial", "Bounded", bound_mult_lab)
   resp_metric <- data.frame(
     type = factor(levs1, levels = levs1),
+    type_lab = factor(levs2, levels = levs2),
     total_spend = c(init_total_spend, optm_total_spend_bounded, optm_total_spend_unbounded),
     total_response = c(init_total_response, optm_total_response_bounded, optm_total_response_unbounded),
     total_response_lift = c(
@@ -686,8 +691,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       dt_optimOut$optmResponseUnitTotalLiftUnbound[1]
     ),
     total_roi = c(init_total_roi, optm_total_roi_bounded, optm_total_roi_unbounded),
-    total_cpa = c(init_total_cpa, optm_total_cpa_bounded, optm_total_cpa_unbounded),
-    ph = ""
+    total_cpa = c(init_total_cpa, optm_total_cpa_bounded, optm_total_cpa_unbounded)
   )
   df_roi <- resp_metric %>%
     mutate(spend = .data$total_spend, response = .data$total_response) %>%
@@ -703,7 +707,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
   labs <- paste(
-    paste(levs1, "\n"),
+    paste(levs2, "\n"),
     paste("Spend:", formatNum(
       100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
       signif = 3, pos = "%", sign = TRUE
@@ -714,15 +718,17 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   )
   df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
 
-  outputs[["p1"]] <- p1 <- df_roi %>%
-    ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$name)) +
+  suppressWarnings(outputs[["p1"]] <- p1 <- df_roi %>%
+    ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$type, alpha = .data$name)) +
     facet_grid(. ~ .data$labs, scales = "free") +
-    scale_fill_manual(values = c("darkseagreen2", "grey")) +
+    scale_fill_manual(values = c("grey", "darkseagreen4", "darkgoldenrod4")) +
+    scale_alpha_discrete(range = c(0.6,1)) +
     geom_bar(stat = "identity", width = 0.6) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
-    labs(title = "Reallocation Scenarios Comparisson", fill = NULL, y = NULL, x = NULL) +
-    scale_y_abbr()
+    labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
+    scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
+    )
 
   # 2. Response and spend comparison per channel plot
   df_plots <- dt_optimOut %>%
@@ -756,15 +762,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   df_plot_share <- bind_rows(
     df_plots %>%
-      select(c("channel", "type", "response_share")) %>%
+      select(c("channel", "type", "type_lab", "response_share")) %>%
       mutate(metric = "response") %>%
       rename(values = .data$response_share),
     df_plots %>%
-      select(c("channel", "type", "spend_share")) %>%
+      select(c("channel", "type", "type_lab","spend_share")) %>%
       mutate(metric = "spend") %>%
       rename(values = .data$spend_share),
     df_plots %>%
-      select(c("channel", "type", "channel_roi")) %>%
+      select(c("channel", "type", "type_lab","channel_roi")) %>%
       mutate(metric = metric) %>%
       rename(values = .data$channel_roi)
   ) %>%
@@ -782,22 +788,36 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ))
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
-    ggplot(aes(x = .data$name_label, y = .data$channel)) +
-    geom_tile(aes(fill = .data$values)) +
-    geom_text(aes(label = values_label), colour = "white") +
-    facet_grid(. ~ .data$type, scales = "free") +
+    ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
+    geom_tile(aes(alpha = .data$values), color = "white") +
+    scale_fill_manual(values = c("grey50", "darkseagreen4", "darkgoldenrod4")) +
+    scale_alpha_continuous(range = c(0.6,1)) +
+    geom_text(aes(label = values_label), colour = "black") +
+    facet_grid(. ~ .data$type_lab, scales = "free") +
     theme_lares(legend = "none") +
     labs(
-      title = "Budget Allocation and Simulated Results per Channel",
+      title = "Budget Allocation per Channel",
       fill = NULL, x = NULL, y = "Paid Channels"
     )
 
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
-    mutate(constr_label = sprintf("%s [%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
-    select("channel" = "channels", "constr_label")
+    mutate(constr_label = sprintf("%s bound:[%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
+    select("channel" = "channels", "constr_label", "constr_low_abs", "constr_up_abs", "constr_low_unb_abs", "constr_up_unb_abs")
   plotDT_scurve <- eval_list[["plotDT_scurve"]] %>% left_join(constr_labels, "channel")
-  mainPoints <- eval_list[["mainPoints"]] %>% left_join(constr_labels, "channel")
+  mainPoints <- eval_list[["mainPoints"]] %>% left_join(constr_labels, "channel") %>%
+    left_join(resp_metric, "type") %>% mutate(type_lab = as.character(.data$type_lab)) %>%
+    mutate(type_lab = factor(ifelse(is.na(.data$type_lab), "Carryover", .data$type_lab),
+                             levels = c("Carryover", "Initial", "Bounded", bound_mult_lab)))
+  caov_points <- mainPoints %>% filter(.data$type == "Carryover") %>% select("channel", "caov_spend" = "spend_point")
+  mainPoints <- mainPoints %>% left_join(caov_points, "channel") %>%
+    mutate(constr_low_abs = ifelse(.data$type == "Bounded", .data$constr_low_abs + caov_spend, NA),
+           constr_up_abs = ifelse(.data$type == "Bounded", .data$constr_up_abs + caov_spend, NA),
+           constr_low_unb_abs = ifelse(.data$type == "Unbounded", .data$constr_low_unb_abs + caov_spend, NA),
+           constr_up_unb_abs = ifelse(.data$type == "Unbounded", .data$constr_up_unb_abs + caov_spend, NA)) %>%
+    mutate(plot_lb = ifelse(is.na(constr_low_abs), constr_low_unb_abs, constr_low_abs),
+           plot_ub = ifelse(is.na(constr_up_abs), constr_up_unb_abs, constr_up_abs))
+
 
   outputs[["p3"]] <- p3 <- ggplot(plotDT_scurve) +
     scale_x_abbr() +
@@ -811,9 +831,16 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       fill = "grey50", alpha = 0.4, show.legend = FALSE
     ) +
     geom_point(data = mainPoints, aes(
-      x = .data$spend_point, y = .data$response_point, fill = .data$type
+      x = .data$spend_point, y = .data$response_point, fill = .data$type_lab
     ), size = 2.5, shape = 21) +
-    scale_fill_manual(values = c("grey", "black", "green", "orange")) +
+    scale_fill_manual(values = c("white", "grey", "darkseagreen4", "darkgoldenrod4")) +
+    geom_errorbar(mainPoints, mapping = aes(x = .data$spend_point, y = .data$response_point,
+                                            xmin = .data$plot_lb, xmax = .data$plot_ub),
+                  color = "black", linetype = "dotted") +
+    geom_point(data = filter(mainPoints, !is.na(.data$plot_lb)),
+               aes(x = .data$plot_lb, y = .data$response_point), shape = 18) +
+    geom_point(data = filter(mainPoints, !is.na(.data$plot_ub)),
+               aes(x = .data$plot_ub, y = .data$response_point), shape = 18) +
     # geom_text(data = mainPoints, aes(
     #   x = .data$spend_point, y = .data$response_point,
     #   label = sprintf(
@@ -837,23 +864,25 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       x = "Spend (Mean Adstock Zone in Grey)", y = "Total Response",
       shape = NULL, color = NULL, fill = NULL,
       caption = paste(
-        sprintf(
-          "Simulation date range: %s to %s (%s)\n",
-          dt_optimOut$date_min[1],
-          dt_optimOut$date_max[1],
-          dt_optimOut$periods[1]
-        ),
         paste("*Historical & Optimised", formulax, "\n"),
-        paste0("**Unbounded Allocation points per channel set to ",
+        paste("**Dotted lines show budget optimization range per channel\n"),
+        paste0("***Unbounded budget range per channel set to ",
                dt_optimOut$unconstr_mult[1], "X lower & upper constraints")
       )
     )
 
   # Gather all plots into a single one
   outputs[["plots"]] <- plots <- (p1 / p2 / p3) +
-    plot_layout(heights = c(1, 1, 2)) +
+    plot_layout(heights = c(1, 1, ceiling(length(dt_optimOut$channels) / 3))) +
     plot_annotation(
-      title = paste0("Budget Allocator Optimum Result for Model ID ", select_model),
+      title = paste0("Budget Allocation Onepager for Model ID ", select_model),
+      subtitle = sprintf(
+        "Simulation date range: %s to %s (%s) | Scenario: %s",
+        dt_optimOut$date_min[1],
+        dt_optimOut$date_max[1],
+        dt_optimOut$periods[1],
+        scenario
+      ),
       theme = theme_lares(background = "white")
     )
 
@@ -865,7 +894,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
-      dpi = 350, width = 12, height = 10 + 2 * ceiling(length(channels) / 3)
+      dpi = 350, width = 12, height = 10 + 2 * ceiling(length(dt_optimOut$channels) / 3)
     )
   }
 

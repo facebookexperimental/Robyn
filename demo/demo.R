@@ -303,8 +303,8 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to (max available - 1)
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 5, # 5 recommended for the dummy dataset
-  ts_validation = FALSE, # 3-way-split time series for NRMSE validation.
+  trials = 1, # 5 recommended for the dummy dataset
+  ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
   add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
 print(OutputModels)
@@ -345,7 +345,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_115_2" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_120_5" # Pick one of the models from OutputCollect to proceed
 
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
@@ -380,6 +380,7 @@ AllocatorCollect1 <- robyn_allocator(
   scenario = "max_historical_response",
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_multiplier = 3,
   date_min = "2018-07-21",
   date_max = "2018-08-20",
   export = create_files
