@@ -331,11 +331,12 @@ robyn_allocator <- function(robyn_object = NULL,
   ub <- histSpendUnit * channelConstrUpSorted
 
   channelConstrLowSortedExt <- ifelse(
-    1- (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
-    0, 1- (1 - channelConstrLowSorted) * channel_constr_multiplier)
-  x0_ext <- lb_ext <- histSpendUnit *  channelConstrLowSortedExt
+    1 - (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
+    0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
+  )
+  x0_ext <- lb_ext <- histSpendUnit * channelConstrLowSortedExt
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
-  ub_ext <- histSpendUnit *  channelConstrUpSortedExt
+  ub_ext <- histSpendUnit * channelConstrUpSortedExt
 
   ## Set optim options
   if (optim_algo == "MMA_AUGLAG") {
@@ -449,13 +450,14 @@ robyn_allocator <- function(robyn_object = NULL,
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Calculate curves and main points for each channel
+  levs1 <- c("Initial", "Bounded", paste0("Bounded x", channel_constr_multiplier))
   dt_optimOutScurve <- rbind(
     select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
-      mutate(x = "Initial") %>% as.matrix(),
+      mutate(x = levs1[1]) %>% as.matrix(),
     select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>%
-      mutate(x = "Bounded") %>% as.matrix(),
+      mutate(x = levs1[2]) %>% as.matrix(),
     select(dt_optimOut, .data$channels, .data$optmSpendUnitUnbound, .data$optmResponseUnitUnbound) %>%
-      mutate(x = "Unbounded") %>% as.matrix()
+      mutate(x = levs1[3]) %>% as.matrix()
   ) %>%
     magrittr::set_colnames(c("channels", "spend", "response", "type")) %>%
     rbind(data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type = "Carryover")) %>%
@@ -472,7 +474,7 @@ robyn_allocator <- function(robyn_object = NULL,
     carryover_vec <- eval_list$hist_carryover[[i]]
     dt_optimOutScurve <- dt_optimOutScurve %>%
       mutate(spend = ifelse(
-        .data$channels == i & .data$type %in% c("Initial", "Bounded", "Unbounded"),
+        .data$channels == i & .data$type %in% levs1,
         .data$spend + mean(carryover_vec), ifelse(
           .data$channels == i & .data$type == "Carryover",
           mean(carryover_vec), .data$spend
@@ -510,19 +512,11 @@ robyn_allocator <- function(robyn_object = NULL,
   }
   eval_list[["plotDT_scurve"]] <- plotDT_scurve <- as_tibble(bind_rows(plotDT_scurve))
   mainPoints <- dt_optimOutScurve %>%
-    rename("response_point" = "response", "spend_point" = "spend", "channel" = "channels") %>%
-    mutate(type_abb = dplyr::case_when(
-      .data$type == "Carryover" ~ "ca.ov.",
-      .data$type == "Initial" ~ "avg.",
-      .data$type == "Bounded" ~ "b.opt.",
-      .data$type == "Unbounded" ~ "unb.opt."
-    ))
+    rename("response_point" = "response", "spend_point" = "spend", "channel" = "channels")
   temp_caov <- mainPoints %>% filter(.data$type == "Carryover")
   mainPoints$mspend <- mainPoints$spend_point - temp_caov$spend_point
   mainPoints$mspend <- ifelse(mainPoints$type == "Carryover", mainPoints$spend_point, mainPoints$mspend)
-  mainPoints$type <- factor(mainPoints$type, levels = c(
-    "Carryover", "Initial", "Bounded", "Unbounded"
-  ))
+  mainPoints$type <- factor(mainPoints$type, levels = c("Carryover", levs1))
   eval_list[["mainPoints"]] <- mainPoints
 
   ## Plot allocator results
