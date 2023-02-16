@@ -15,16 +15,12 @@ robyn_allocator(
   json_file = NULL,
   optim_algo = "SLSQP_AUGLAG",
   scenario = "max_historical_response",
-  expected_spend = NULL,
-  expected_spend_days = NULL,
   channel_constr_low = 0.5,
   channel_constr_up = 2,
   channel_constr_multiplier = 3,
   date_range = NULL,
   maxeval = 1e+05,
   constr_mode = "eq",
-  date_min = NULL,
-  date_max = NULL,
   export = TRUE,
   quiet = FALSE,
   ui = FALSE,
@@ -62,17 +58,10 @@ Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AU
 short for "Methods of Moving Asymptotes". More details see the documentation of
 NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.}
 
-\item{scenario}{Character. Accepted options are: \code{"max_historical_response"} or
-\code{"max_response_expected_spend"}. \code{"max_historical_response"} simulates the scenario
-"what's the optimal media spend allocation given the same average spend level in history?",
-while \code{"max_response_expected_spend"} simulates the scenario "what's the optimal media
-spend allocation of a given future spend level for a given period?"}
-
-\item{expected_spend}{Numeric. The expected future spend volume. Only applies when
-\code{scenario = "max_response_expected_spend"}.}
-
-\item{expected_spend_days}{Integer. The duration of the future spend volume in
-\code{expected_spend}. Only applies when \code{scenario = "max_response_expected_spend"}.}
+\item{scenario}{Character. Accepted options are: \code{"max_historical_response"}.
+\code{"max_historical_response"} simulates the scenario
+"what's the optimal media spend allocation given the same average spend level in history?".
+Deprecated scenario: \code{"max_response_expected_spend"}.}
 
 \item{channel_constr_low, channel_constr_up}{Numeric vectors. The lower and upper bounds
 for each paid media variable when maximizing total media response. For example,
@@ -98,10 +87,6 @@ Defaults to 100000.}
 
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
-
-\item{date_min, date_max}{Character/Date. Date range to calculate mean (of non-zero
-spends) and total spends. Default will consider all dates within modeled window.
-Length must be 1 for both parameters.}
 
 \item{export}{Boolean. Export outcomes into local files?}
 
@@ -147,18 +132,6 @@ AllocatorCollect <- robyn_allocator(
   scenario = "max_historical_response",
   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
-)
-
-# Run allocator with a 'robyn_object' from the second model refresh
-# with 'scenario = "max_response_expected_spend"'
-AllocatorCollect <- robyn_allocator(
-  robyn_object = robyn_object,
-  select_build = 2,
-  scenario = "max_response_expected_spend",
-  channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  expected_spend = 100000,
-  expected_spend_days = 90
 )
 }
 }

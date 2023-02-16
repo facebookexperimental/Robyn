@@ -28,15 +28,10 @@
 #' Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
 #' short for "Methods of Moving Asymptotes". More details see the documentation of
 #' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
-#' @param scenario Character. Accepted options are: \code{"max_historical_response"} or
-#' \code{"max_response_expected_spend"}. \code{"max_historical_response"} simulates the scenario
-#' "what's the optimal media spend allocation given the same average spend level in history?",
-#' while \code{"max_response_expected_spend"} simulates the scenario "what's the optimal media
-#' spend allocation of a given future spend level for a given period?"
-#' @param expected_spend Numeric. The expected future spend volume. Only applies when
-#' \code{scenario = "max_response_expected_spend"}.
-#' @param expected_spend_days Integer. The duration of the future spend volume in
-#' \code{expected_spend}. Only applies when \code{scenario = "max_response_expected_spend"}.
+#' @param scenario Character. Accepted options are: \code{"max_historical_response"}.
+#' \code{"max_historical_response"} simulates the scenario
+#' "what's the optimal media spend allocation given the same average spend level in history?".
+#' Deprecated scenario: \code{"max_response_expected_spend"}.
 #' @param channel_constr_low,channel_constr_up Numeric vectors. The lower and upper bounds
 #' for each paid media variable when maximizing total media response. For example,
 #' \code{channel_constr_low = 0.7} means minimum spend of the variable is 70% of historical
@@ -57,9 +52,6 @@
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
 #' indicating constraints with equality or inequality.
-#' @param date_min,date_max Character/Date. Date range to calculate mean (of non-zero
-#' spends) and total spends. Default will consider all dates within modeled window.
-#' Length must be 1 for both parameters.
 #' @return A list object containing allocator result.
 #' @examples
 #' \dontrun{
@@ -87,18 +79,6 @@
 #'   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
 #'   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
 #' )
-#'
-#' # Run allocator with a 'robyn_object' from the second model refresh
-#' # with 'scenario = "max_response_expected_spend"'
-#' AllocatorCollect <- robyn_allocator(
-#'   robyn_object = robyn_object,
-#'   select_build = 2,
-#'   scenario = "max_response_expected_spend",
-#'   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
-#'   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-#'   expected_spend = 100000,
-#'   expected_spend_days = 90
-#' )
 #' }
 #' @return List. Contains optimized allocation results and plots.
 #' @export
@@ -110,20 +90,17 @@ robyn_allocator <- function(robyn_object = NULL,
                             json_file = NULL,
                             optim_algo = "SLSQP_AUGLAG",
                             scenario = "max_historical_response",
-                            expected_spend = NULL,
-                            expected_spend_days = NULL,
                             channel_constr_low = 0.5,
                             channel_constr_up = 2,
                             channel_constr_multiplier = 3,
                             date_range = NULL,
                             maxeval = 100000,
                             constr_mode = "eq",
-                            date_min = NULL,
-                            date_max = NULL,
                             export = TRUE,
                             quiet = FALSE,
                             ui = FALSE,
                             ...) {
+
   #####################################
   #### Set local environment
 
@@ -171,8 +148,7 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Check inputs and parameters
   check_allocator(
     OutputCollect, select_model, paid_media_spends, scenario,
-    channel_constr_low, channel_constr_up,
-    expected_spend, expected_spend_days, constr_mode
+    channel_constr_low, channel_constr_up, constr_mode
   )
 
   # Channels contrains
@@ -228,6 +204,9 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Spend values based on date range set
   dt_optimCost <- slice(dt_mod, startRW:endRW)
+  stopifnot(length(date_range) == 2)
+  date_min <- date_range[1]
+  date_max <- date_range[2]
   check_daterange(date_min, date_max, dt_optimCost$ds)
   if (is.null(date_min)) date_min <- min(dt_optimCost$ds)
   if (is.null(date_max)) date_max <- max(dt_optimCost$ds)
@@ -302,8 +281,6 @@ robyn_allocator <- function(robyn_object = NULL,
   if ("max_historical_response" %in% scenario) {
     expected_spend <- histSpendTotal
     expSpendUnitTotal <- histSpendUnitTotal
-  } else {
-    expSpendUnitTotal <- expected_spend / (expected_spend_days / InputCollect$dayInterval)
   }
 
   # Gather all values that will be used internally on optim (nloptr)
@@ -418,7 +395,6 @@ robyn_allocator <- function(robyn_object = NULL,
     initResponseUnitShare = histResponseUnitModel / sum(histResponseUnitModel),
     initRoiUnit = histResponseUnitModel / histSpendUnit,
     # Expected
-    expSpendTotal = expected_spend,
     expSpendUnitTotal = expSpendUnitTotal,
     expSpendUnitDelta = expSpendUnitTotal / histSpendUnitTotal - 1,
     # Optimized
@@ -537,8 +513,6 @@ robyn_allocator <- function(robyn_object = NULL,
     nlsMod = nlsMod,
     plots = plots,
     scenario = scenario,
-    expected_spend = expected_spend,
-    expected_spend_days = expected_spend_days,
     skipped = chn_coef0,
     no_spend = noSpendMedia,
     ui = if (ui) plots else NULL
@@ -560,7 +534,7 @@ Model ID: {x$dt_optimOut$solID[1]}
 Scenario: {scenario}
 Dep. Variable Type: {temp$dep_var_type[1]}
 Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')} {no_spend}
-Relative Spend Increase: {spend_increase_p}% ({spend_increase}{scenario_plus})
+Relative Spend Increase: {spend_increase_p}% ({spend_increase}
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
@@ -577,10 +551,6 @@ Allocation Summary:
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
       abbr = TRUE, sign = TRUE
-    ),
-    scenario_plus = ifelse(
-      x$scenario == "max_response_expected_spend",
-      sprintf(" in %s days", x$expected_spend_days), ""
     ),
     summary = paste(sprintf(
       "

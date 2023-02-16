@@ -887,11 +887,12 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     plot_annotation(
       title = paste0("Budget Allocation Onepager for Model ID ", select_model),
       subtitle = sprintf(
-        "Simulation date range: %s to %s (%s) | Scenario: %s\n%s",
+        "%s\nSimulation date range: %s to %s (%s) | Scenario: %s",
+        errors,
         dt_optimOut$date_min[1],
         dt_optimOut$date_max[1],
         dt_optimOut$periods[1],
-        scenario, errors
+        scenario
       ),
       theme = theme_lares(background = "white")
     )

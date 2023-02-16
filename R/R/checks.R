@@ -775,8 +775,7 @@ check_class <- function(x, object) {
 }
 
 check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
-                            channel_constr_low, channel_constr_up,
-                            expected_spend, expected_spend_days, constr_mode) {
+                            channel_constr_low, channel_constr_up, constr_mode) {
   dt_hyppar <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == select_model, ]
   if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
@@ -793,7 +792,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (any(channel_constr_up > 5)) {
     warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
   }
-  opts <- c("max_historical_response", "max_response_expected_spend")
+  opts <- c("max_historical_response") # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
@@ -809,12 +808,6 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
       "Input 'channel_constr_up' have to contain either only 1",
       "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
     ))
-  }
-
-  if ("max_response_expected_spend" %in% scenario) {
-    if (any(is.null(expected_spend), is.null(expected_spend_days))) {
-      stop("When scenario = 'max_response_expected_spend', expected_spend and expected_spend_days must be provided")
-    }
   }
   opts <- c("eq", "ineq")
   if (!(constr_mode %in% opts)) {
