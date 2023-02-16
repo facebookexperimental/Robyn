@@ -619,6 +619,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
+  metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
+  formulax <- ifelse(
+    metric == "ROAS",
+    "mROI = total response / raw spend (excl.carryover)",
+    "mCPA = raw spend (excl.carryover) / total response")
 
   # Calculate errors for subtitles
   plotDT_scurveMeanResponse <- filter(
@@ -658,17 +663,20 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   init_total_spend <- dt_optimOut$initSpendUnitTotal[1]
   init_total_response <- dt_optimOut$initResponseUnitTotal[1]
   init_total_roi <- init_total_response / init_total_spend
+  init_total_cpa <- init_total_spend / init_total_response
 
   optm_total_spend_bounded <- dt_optimOut$optmSpendUnitTotal[1]
   optm_total_response_bounded <- dt_optimOut$optmResponseUnitTotal[1]
   optm_total_roi_bounded <- optm_total_response_bounded / optm_total_spend_bounded
+  optm_total_cpa_bounded <- optm_total_spend_bounded / optm_total_response_bounded
 
   optm_total_spend_unbounded <- dt_optimOut$optmSpendUnitTotalUnbound[1]
   optm_total_response_unbounded <- dt_optimOut$optmResponseUnitTotalUnbound[1]
   optm_total_roi_unbounded <- optm_total_response_unbounded / optm_total_spend_unbounded
+  optm_total_cpa_unbounded <- optm_total_spend_unbounded / optm_total_response_unbounded
 
   levs1 <- c("Initial", "Bounded", "Unbounded")
-  resp_roi <- data.frame(
+  resp_metric <- data.frame(
     type = factor(levs1, levels = levs1),
     total_spend = c(init_total_spend, optm_total_spend_bounded, optm_total_spend_unbounded),
     total_response = c(init_total_response, optm_total_response_bounded, optm_total_response_unbounded),
@@ -678,13 +686,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       dt_optimOut$optmResponseUnitTotalLiftUnbound[1]
     ),
     total_roi = c(init_total_roi, optm_total_roi_bounded, optm_total_roi_unbounded),
+    total_cpa = c(init_total_cpa, optm_total_cpa_bounded, optm_total_cpa_unbounded),
     ph = ""
   )
-  df_roi <- resp_roi %>%
+  df_roi <- resp_metric %>%
     mutate(spend = .data$total_spend, response = .data$total_response) %>%
     select(.data$type, .data$spend, .data$response) %>%
     pivot_longer(cols = !"type") %>%
-    left_join(resp_roi, "type") %>%
+    left_join(resp_metric, "type") %>%
     mutate(
       name = factor(.data$name, levels = c("spend", "response")),
       name_label = factor(
@@ -692,14 +701,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         levels = paste(.data$type, .data$name, sep = "\n")
       )
     )
+  metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
   labs <- paste(
     paste(levs1, "\n"),
     paste("Spend:", formatNum(
-      100 * (resp_roi$total_spend - resp_roi$total_spend[1]) / resp_roi$total_spend[1],
+      100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
       signif = 3, pos = "%", sign = TRUE
     )),
     unique(paste("Resp:", formatNum(100 * df_roi$total_response_lift, signif = 3, pos = "%", sign = TRUE))),
-    paste0("ROAS: x", round(resp_roi$total_roi, 2)),
+    paste(metric, ":", round(metric_vals, 2)),
     sep = "\n"
   )
   df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
@@ -742,7 +752,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         tidyr::pivot_longer(names_to = "type", values_to = "channel_roi", -.data$channel),
       by = c("channel", "type")
     ) %>%
-    left_join(resp_roi, by = "type")
+    left_join(resp_metric, by = "type")
 
   df_plot_share <- bind_rows(
     df_plots %>%
@@ -755,19 +765,20 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       rename(values = .data$spend_share),
     df_plots %>%
       select(c("channel", "type", "channel_roi")) %>%
-      mutate(metric = "ROI") %>%
+      mutate(metric = metric) %>%
       rename(values = .data$channel_roi)
   ) %>%
     mutate(
-      type = factor(type, levels = levs1),
+      type = factor(.data$type, levels = levs1),
       name_label = factor(
         paste(.data$type, .data$metric, sep = "\n"),
         levels = unique(paste(.data$type, .data$metric, sep = "\n"))
       )
     ) %>%
     mutate(values_label = dplyr::case_when(
-      metric == "ROI" ~ paste0("x", round(values, 2)),
-      TRUE ~ formatNum(100 * values, 1, pos = "%")
+      .data$metric == "ROAS" ~ paste0("x", round(.data$values, 2)),
+      .data$metric == "CPA" ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
+      TRUE ~ formatNum(100 * .data$values, 1, pos = "%")
     ))
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
@@ -788,7 +799,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   plotDT_scurve <- eval_list[["plotDT_scurve"]] %>% left_join(constr_labels, "channel")
   mainPoints <- eval_list[["mainPoints"]] %>% left_join(constr_labels, "channel")
 
-  outputs[["p14"]] <- p14 <- ggplot(plotDT_scurve) +
+  outputs[["p3"]] <- p3 <- ggplot(plotDT_scurve) +
     scale_x_abbr() +
     scale_y_abbr() +
     geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE, size = 0.5) +
@@ -832,14 +843,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
           dt_optimOut$date_max[1],
           dt_optimOut$periods[1]
         ),
-        "*Historical & Optimised mROI = total response / raw spend (excl.carryover)\n",
+        paste("*Historical & Optimised", formulax, "\n"),
         paste0("**Unbounded Allocation points per channel set to ",
                dt_optimOut$unconstr_mult[1], "X lower & upper constraints")
       )
     )
 
   # Gather all plots into a single one
-  outputs[["plots"]] <- plots <- (p1 / p2 / p14) +
+  outputs[["plots"]] <- plots <- (p1 / p2 / p3) +
     plot_layout(heights = c(1, 1, 2)) +
     plot_annotation(
       title = paste0("Budget Allocator Optimum Result for Model ID ", select_model),
