@@ -793,8 +793,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
+    group_by(.data$name_label) %>%
+    mutate(values_norm = lares::normalize(.data$values)) %>%
     ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
-    geom_tile(aes(alpha = .data$values), color = "white") +
+    geom_tile(aes(alpha = .data$values_norm), color = "white") +
     scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
     scale_alpha_continuous(range = c(0.6, 1)) +
     geom_text(aes(label = .data$values_label), colour = "black") +
