@@ -148,11 +148,17 @@ robyn_pareto <- function(InputCollect, OutputModels,
     ">>> Calculating response curves for all models' variables (%s)...",
     nrow(decompSpendDistPar)))
   run_dt_resp <- function(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
+
+    get_solID <- decompSpendDistPar$solID[respN]
+    get_spendname <- decompSpendDistPar$rn[respN]
+    get_nPeriod <- nrow(InputCollect$dt_modRollWind)
+
     get_resp <- robyn_response(
       media_metric = decompSpendDistPar$rn[respN],
       select_model = decompSpendDistPar$solID[respN],
-      metric_value = decompSpendDistPar$mean_spend[respN],
+      metric_value = rep(decompSpendDistPar$mean_spend[respN], get_nPeriod),
       metric_total = FALSE,
+      date_range = paste0("last_", get_nPeriod),
       dt_hyppar = resultHypParamPar,
       dt_coef = xDecompAggPar,
       InputCollect = InputCollect,
@@ -161,7 +167,23 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ...
     )
     # Median value (but must be within the curve)
-    med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total) / 2)]
+    # med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total) / 2)]
+
+    hills <- get_hill_params(
+      InputCollect, OutputCollect, resultHypParamPar %>%
+        select(starts_with(get_spendname), "solID") %>% filter(.data$solID == get_solID),
+      filter(xDecompAggPar, .data$solID == get_solID),
+      get_spendname, get_solID
+    )
+    med_in_curve <- fx_objective(
+      x = decompSpendDistPar$mean_spend[respN],
+      coeff = hills$coefsFiltered,
+      alpha = hills$alphas,
+      inflexion = hills$inflexions,
+      x_hist_carryover = mean(get_resp$input_carryover),
+      get_sum = FALSE
+    )
+
     dt_resp <- data.frame(
       mean_response = med_in_curve,
       rn = decompSpendDistPar$rn[respN],

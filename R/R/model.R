@@ -459,9 +459,10 @@ robyn_mmm <- function(InputCollect,
   dt_spendShare <- data.frame(
     rn = paid_media_spends,
     total_spend = unlist(summarise_all(temp, sum)),
-    mean_spend = unlist(summarise_all(temp, function(x) {
-      ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
-    }))
+    # mean_spend = unlist(summarise_all(temp, function(x) {
+    #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
+    # }))
+    mean_spend = unlist(summarise_all(temp, mean))
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # When not refreshing, dt_spendShareRF = dt_spendShare
@@ -471,9 +472,10 @@ robyn_mmm <- function(InputCollect,
   dt_spendShareRF <- data.frame(
     rn = paid_media_spends,
     total_spend = unlist(summarise_all(temp, sum)),
-    mean_spend = unlist(summarise_all(temp, function(x) {
-      ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
-    }))
+    # mean_spend = unlist(summarise_all(temp, function(x) {
+    #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
+    # }))
+    mean_spend = unlist(summarise_all(temp, mean))
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # Join both dataframes into a single one

@@ -243,7 +243,8 @@ robyn_allocator <- function(robyn_object = NULL,
         media_metric = mediaSpendSortedFiltered[i],
         select_model = select_model,
         metric_value = rep(histSpendUnit[i], nPeriod),
-        date_range = nDates,
+        metric_total = FALSE,
+        date_range = paste0("last_", nPeriod),
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
@@ -516,6 +517,7 @@ robyn_allocator <- function(robyn_object = NULL,
     skipped = chn_coef0,
     no_spend = noSpendMedia,
     ui = if (ui) plots else NULL
+    # hist_carryover = hist_carryover
   )
 
   class(output) <- c("robyn_allocator", class(output))
