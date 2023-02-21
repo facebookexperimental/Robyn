@@ -10,8 +10,8 @@ robyn_response(
   json_file = NULL,
   robyn_object = NULL,
   select_build = NULL,
-  media_metric = NULL,
   select_model = NULL,
+  metric_name = NULL,
   metric_value = NULL,
   date_range = NULL,
   metric_total = TRUE,
@@ -37,14 +37,14 @@ that contains all previous modeling information or the imported list.}
 \item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
 selects the initial model. \code{select_build = 1} selects the first refresh model.}
 
-\item{media_metric}{A character. Selected media variable for the response.
-Must be one value from paid_media_spends, paid_media_vars or organic_vars}
-
 \item{select_model}{Character. A model \code{SolID}. When \code{robyn_object}
 is provided, \code{select_model} defaults to the already selected \code{SolID}. When
 \code{robyn_object} is not provided, \code{select_model} must be provided with
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
+
+\item{metric_name}{A character. Selected media variable for the response.
+Must be one value from paid_media_spends, paid_media_vars or organic_vars}
 
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
 
@@ -86,7 +86,7 @@ spend1 <- 80000
 Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  media_metric = "search_S",
+  metric_name = "search_S",
   metric_value = spend1
 )$response
 # Get ROI for 80k
@@ -97,7 +97,7 @@ spend2 <- spend1 + 1000
 Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  media_metric = "search_S",
+  metric_name = "search_S",
   metric_value = spend2
 )$response
 
@@ -113,7 +113,7 @@ imps <- 1000000
 response_imps <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  media_metric = "facebook_I",
+  metric_name = "facebook_I",
   metric_value = imps
 )$response
 response_per_1k_imps <- response_imps / imps * 1000
@@ -124,7 +124,7 @@ response_per_1k_imps
 robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  media_metric = "search_S",
+  metric_name = "search_S",
   metric_value = 80000,
   dt_hyppar = OutputCollect$resultHypParam,
   dt_coef = OutputCollect$xDecompAgg

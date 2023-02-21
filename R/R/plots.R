@@ -370,7 +370,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Share of Spend VS Share of Effect with total ", type),
+          title = paste0("Total Spend% VS Effect% with total ", type),
           y = "Total Share by Channel", x = NULL, fill = NULL, color = NULL
         )
 
@@ -622,8 +622,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
   formulax <- ifelse(
     metric == "ROAS",
-    "mROAS = total response / raw spend (excl.carryover)",
-    "mCPA = raw spend (excl.carryover) / total response"
+    "ROAS = total response / raw spend (excl.carryover)",
+    "CPA = raw spend (excl.carryover) / total response"
   )
 
   # Calculate errors for subtitles
@@ -874,10 +874,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       x = "Spend (Mean Adstock Zone in Grey)", y = "Total Response",
       shape = NULL, color = NULL, fill = NULL,
       caption = paste(
-        paste("*Historical & Optimised", formulax, "\n"),
-        paste("**Dotted lines show budget optimization range per channel\n"),
+        paste("*Initial & optimised", formulax, "\n"),
+        paste("*Dotted lines show budget optimization range per channel\n"),
         paste0(
-          "***Unbounded budget range per channel set to ",
+          "*Unbounded budget range per channel set to ",
           bound_mult, "X lower & upper constraints"
         )
       )

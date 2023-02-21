@@ -204,7 +204,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Spend values based on date range set
   dt_optimCost <- slice(dt_mod, startRW:endRW)
-  new_date_range <- check_metric_dates(metric_value = 1, date_range, dt_optimCost$ds, quiet = FALSE)
+  new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, quiet = FALSE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
   check_daterange(date_min, date_max, dt_optimCost$ds)
@@ -240,11 +240,11 @@ robyn_allocator <- function(robyn_object = NULL,
         json_file = json_file,
         robyn_object = robyn_object,
         select_build = select_build,
-        media_metric = mediaSpendSortedFiltered[i],
         select_model = select_model,
-        metric_value = rep(histSpendUnit[i], nPeriod),
+        metric_name = mediaSpendSortedFiltered[i],
+        metric_value = histSpendUnit[i],
         metric_total = FALSE,
-        date_range = paste0("last_", nPeriod),
+        #date_range = range(InputCollect$dt_modRollWind$ds),
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
@@ -727,19 +727,21 @@ get_adstock_params <- function(InputCollect, dt_hyppar) {
   return(getAdstockHypPar)
 }
 
-get_hill_params <- function(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model) {
+get_hill_params <- function(InputCollect, OutputCollect = NULL, dt_hyppar, dt_coef, mediaSpendSortedFiltered, select_model, chnAdstocked = NULL) {
   hillHypParVec <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))))
   alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
   gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
   startRW <- InputCollect$rollingWindowStartWhich
   endRW <- InputCollect$rollingWindowEndWhich
-  chnAdstocked <- filter(
-    OutputCollect$mediaVecCollect,
-    .data$type == "adstockedMedia",
-    .data$solID == select_model
-  ) %>%
-    select(all_of(mediaSpendSortedFiltered)) %>%
-    slice(startRW:endRW)
+  if (is.null(chnAdstocked)) {
+    chnAdstocked <- filter(
+      OutputCollect$mediaVecCollect,
+      .data$type == "adstockedMedia",
+      .data$solID == select_model
+    ) %>%
+      select(all_of(mediaSpendSortedFiltered)) %>%
+      slice(startRW:endRW)
+  }
   inflexions <- mapply(function(gamma, x) {
     # round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
     c(range(x) %*% c(1 - gamma, gamma))
