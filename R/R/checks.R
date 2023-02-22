@@ -792,7 +792,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (any(channel_constr_up > 5)) {
     warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
   }
-  opts <- c("max_historical_response") # Deprecated: max_response_expected_spend
+  opts <- "max_historical_response" # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
@@ -855,7 +855,6 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
     date_range_loc <- which(all_dates %in% date_range)
     date_range_updated <- all_dates[date_range_loc]
     rg <- v2t(range(date_range_updated), sep = ":", quotes = FALSE)
-
   } else {
     ## Using dates as date_range range
     if (all(is.Date(as.Date(date_range, origin = "1970-01-01")))) {
@@ -911,7 +910,6 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
 }
 
 check_metric_value <- function(metric_value, metric_name, all_values, metric_loc) {
-
   get_n <- length(metric_loc)
   if (any(is.nan(metric_value))) metric_value <- NULL
   if (!is.null(metric_value)) {
@@ -940,8 +938,10 @@ check_metric_value <- function(metric_value, metric_name, all_values, metric_loc
   }
   all_values_updated <- all_values
   all_values_updated[metric_loc] <- metric_value_updated
-  return(list(metric_value_updated = metric_value_updated,
-              all_values_updated = all_values_updated))
+  return(list(
+    metric_value_updated = metric_value_updated,
+    all_values_updated = all_values_updated
+  ))
 }
 
 check_legacy_input <- function(InputCollect,

@@ -100,7 +100,6 @@ robyn_allocator <- function(robyn_object = NULL,
                             quiet = FALSE,
                             ui = FALSE,
                             ...) {
-
   #####################################
   #### Set local environment
 
@@ -243,7 +242,7 @@ robyn_allocator <- function(robyn_object = NULL,
         select_model = select_model,
         metric_name = mediaSpendSortedFiltered[i],
         metric_value = histSpendUnit[i],
-        #date_range = range(InputCollect$dt_modRollWind$ds),
+        # date_range = range(InputCollect$dt_modRollWind$ds),
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
@@ -740,10 +739,9 @@ get_hill_params <- function(InputCollect, OutputCollect = NULL, dt_hyppar, dt_co
       select(all_of(mediaSpendSortedFiltered)) %>%
       slice(startRW:endRW)
   }
-  inflexions <- mapply(function(gamma, x) {
-    # round(quantile(seq(range(x)[1], range(x)[2], length.out = 100), gamma), 4)
-    c(range(x) %*% c(1 - gamma, gamma))
-  }, gamma = gammas, x = chnAdstocked)
+  inflexions <- unlist(lapply(seq(ncol(chnAdstocked)), function(i) {
+    c(range(chnAdstocked[, i]) %*% c(1 - gammas[i], gammas[i]))
+  }))
   names(inflexions) <- names(gammas)
   coefs <- dt_coef$coef
   names(coefs) <- dt_coef$rn
