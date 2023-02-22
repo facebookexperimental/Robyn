@@ -243,7 +243,6 @@ robyn_allocator <- function(robyn_object = NULL,
         select_model = select_model,
         metric_name = mediaSpendSortedFiltered[i],
         metric_value = histSpendUnit[i],
-        metric_total = FALSE,
         #date_range = range(InputCollect$dt_modRollWind$ds),
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
@@ -491,8 +490,8 @@ robyn_allocator <- function(robyn_object = NULL,
   mainPoints <- dt_optimOutScurve %>%
     rename("response_point" = "response", "spend_point" = "spend", "channel" = "channels")
   temp_caov <- mainPoints %>% filter(.data$type == "Carryover")
-  mainPoints$mspend <- mainPoints$spend_point - temp_caov$spend_point
-  mainPoints$mspend <- ifelse(mainPoints$type == "Carryover", mainPoints$spend_point, mainPoints$mspend)
+  mainPoints$mean_spend <- mainPoints$spend_point - temp_caov$spend_point
+  mainPoints$mean_spend <- ifelse(mainPoints$type == "Carryover", mainPoints$spend_point, mainPoints$mean_spend)
   mainPoints$type <- factor(mainPoints$type, levels = c("Carryover", levs1))
   eval_list[["mainPoints"]] <- mainPoints
 
@@ -517,7 +516,6 @@ robyn_allocator <- function(robyn_object = NULL,
     skipped = chn_coef0,
     no_spend = noSpendMedia,
     ui = if (ui) plots else NULL
-    # hist_carryover = hist_carryover
   )
 
   class(output) <- c("robyn_allocator", class(output))

@@ -438,25 +438,33 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
           filter(
-            .data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
-            .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate
+            .data$spend < max(dt_scurvePlotMean$mean_spend_adstocked) * trim_rate,
+            .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate,
+            .data$channel %in% InputCollect$paid_media_spends
+          ) %>% left_join(
+            dt_scurvePlotMean[, c("channel", "mean_carryover")], "channel"
           )
       }
       if (!"channel" %in% colnames(dt_scurvePlotMean)) {
         dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
       }
       p4 <- ggplot(
-        dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends, ],
-        aes(x = .data$spend, y = .data$response, color = .data$channel)
+        dt_scurvePlot, aes(x = .data$spend, y = .data$response, color = .data$channel)
       ) +
         geom_line() +
+        geom_area(
+          data = group_by(dt_scurvePlot, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
+          aes(x = .data$spend, y = .data$response, color = .data$channel),
+          stat = "align", position = "stack", size = 0.1,
+          fill = "grey50", alpha = 0.4, show.legend = FALSE
+        ) +
         geom_point(data = dt_scurvePlotMean, aes(
-          x = .data$mean_spend, y = .data$mean_response, color = .data$channel
+          x = .data$mean_spend_adstocked, y = .data$mean_response, color = .data$channel
         )) +
         geom_text(
           data = dt_scurvePlotMean, aes(
-            x = .data$mean_spend, y = .data$mean_response, color = .data$channel,
-            label = formatNum(.data$mean_spend, 2, abbr = TRUE)
+            x = .data$mean_spend_adstocked, y = .data$mean_response, color = .data$channel,
+            label = formatNum(.data$mean_spend_adstocked, 2, abbr = TRUE)
           ),
           show.legend = FALSE, hjust = -0.2
         ) +
@@ -467,7 +475,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         ) +
         labs(
           title = "Response Curves and Mean Spends by Channel",
-          x = "Spend", y = "Response", color = NULL
+          x = "Spend (carryover + immediate)", y = "Response", color = NULL
         ) +
         scale_y_abbr() +
         scale_x_abbr()

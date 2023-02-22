@@ -14,8 +14,6 @@
 #' @param metric_name A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param metric_total Boolean. Metric provided is totalized?
-#' If \code{TRUE} then it will be divided by the final length of \code{date_range}.
 #' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
@@ -87,7 +85,6 @@ robyn_response <- function(InputCollect = NULL,
                            metric_name = NULL,
                            metric_value = NULL,
                            date_range = NULL,
-                           metric_total = TRUE,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
                            quiet = FALSE,
