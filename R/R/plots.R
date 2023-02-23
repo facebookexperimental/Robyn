@@ -799,12 +799,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         .data$metric == "CPA" ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
-      values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label)
-    )
+      # Better fill scale colours
+      values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label),
+      values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values)
+    ) %>%
+    group_by(.data$name_label) %>%
+    mutate(values_norm = lares::normalize(.data$values),
+           values_norm = ifelse(is.nan(.data$values_norm), 0, .data$values_norm))
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
-    group_by(.data$name_label) %>%
-    mutate(values_norm = lares::normalize(.data$values)) %>%
     ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
     geom_tile(aes(alpha = .data$values_norm), color = "white") +
     scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
