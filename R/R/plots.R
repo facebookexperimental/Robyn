@@ -733,7 +733,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
-    labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
+    labs(title = "Total Budget Optimization Result*", fill = NULL, y = NULL, x = NULL) +
     scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
 
   # 2. Response and spend comparison per channel plot
@@ -816,7 +816,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     facet_grid(. ~ .data$type_lab, scales = "free") +
     theme_lares(legend = "none") +
     labs(
-      title = "Budget Allocation per Channel",
+      title = "Budget Allocation per Channel*",
       fill = NULL, x = NULL, y = "Paid Channels"
     )
 
@@ -889,15 +889,12 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     theme_lares(legend = "top", pal = 2) +
     labs(
       title = "Simulated Response Curve for Selected Allocation Period",
-      x = "Spend (Mean Adstock Zone in Grey)", y = "Total Response",
+      x = sprintf("Spend** per %s (Mean Adstock Zone in Grey)", InputCollect$intervalType),
+      y = sprintf("Total Response [%s]", InputCollect$dep_var_type),
       shape = NULL, color = NULL, fill = NULL,
       caption = paste(
-        paste("*Initial & optimised", formulax, "\n"),
-        paste("*Dotted lines show budget optimization range per channel\n"),
-        paste0(
-          "*Unbounded budget range per channel set to ",
-          bound_mult, "X lower & upper constraints"
-        )
+        paste("* Initial & optimised", formulax, "\n"),
+        paste("** Dotted lines show budget optimization bounded range per channel")
       )
     )
 

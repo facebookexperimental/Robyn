@@ -375,12 +375,12 @@ print(ExportedModel)
 # same spend level in date_range and what is the spend and expected response mix?"
 # For this scenario, we have several use cases:
 
-# Case 1: date_range & simulated_spend both NULL (default for last period's spend)
+# Case 1: date_range & simulated_spend both NULL (default for last month's spend)
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  date_range = NULL, # When NULL, same as "last_1"
+  date_range = NULL, # When NULL, will take last month (30 days, 4 weeks, or 1 month)
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 4,
@@ -404,6 +404,8 @@ AllocatorCollect2 <- robyn_allocator(
   scenario = "max_historical_response",
   export = create_files
 )
+print(AllocatorCollect2)
+plot(AllocatorCollect2)
 
 # Case 3: date_range defined, one simulated_spend defined (simulated_spend as total budget
 # divided by periods of date_range to get the mean spend)

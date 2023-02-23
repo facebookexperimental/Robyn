@@ -838,13 +838,12 @@ check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, e
 check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL, quiet = FALSE, ...) {
   ## default using latest 30 days / 4 weeks / 1 month for spend level
   if (is.null(date_range)) {
-    # if (is.null(dayInterval)) stop("Input 'date_range' or 'dayInterval' must be defined")
-    # date_range <- paste0("last_", dplyr::case_when(
-    #   dayInterval == 1 ~ 30,
-    #   dayInterval == 7 ~ 4,
-    #   dayInterval >= 30 & dayInterval <= 31 ~ 1,
-    # ))
-    date_range <- "last_1"
+    if (is.null(dayInterval)) stop("Input 'date_range' or 'dayInterval' must be defined")
+    date_range <- paste0("last_", dplyr::case_when(
+      dayInterval == 1 ~ 30,
+      dayInterval == 7 ~ 4,
+      dayInterval >= 30 & dayInterval <= 31 ~ 1,
+    ))
     if (!quiet) message(sprintf("Automatically picked date_range = '%s'", date_range))
   }
   if (grepl("last|all", date_range[1])) {
@@ -925,7 +924,7 @@ check_metric_value <- function(metric_value, metric_name, all_values, metric_loc
     }
     if (get_n > 1 & length(metric_value) == 1) {
       metric_value_updated <- rep(metric_value / get_n, get_n)
-      message(paste0("metric_value of ", metric_value, " splitting into ", get_n, " periods evenly"))
+      # message(paste0("'metric_value'", metric_value, " splitting into ", get_n, " periods evenly"))
     } else {
       if (length(metric_value) != get_n) {
         stop("robyn_response metric_value & date_range must have same length\n")
