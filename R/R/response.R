@@ -192,7 +192,7 @@ robyn_response <- function(InputCollect = NULL,
     ds_list <- check_metric_dates(date_range = "all", all_dates, dayInterval, quiet)
     val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else if (usecase == "unit_metric_default_last_n") {
-    ds_list <- check_metric_dates(date_range = paste0("last_",length(metric_value)), all_dates, dayInterval, quiet)
+    ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates, dayInterval, quiet)
     val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else {
     ds_list <- check_metric_dates(date_range, all_dates, dayInterval, quiet)
@@ -351,4 +351,3 @@ robyn_response <- function(InputCollect = NULL,
 # check_metric_dates(c(50000, 60000), date_range = c("2018-12-31", "2019-01-07"), all_dates, quiet = FALSE)
 # check_metric_dates(c(50000, 60000), date_range = c("2018-12-31"), all_dates, quiet = FALSE) # ERROR
 # check_metric_dates(0, date_range = c("2018-12-31"), all_dates, quiet = FALSE)
-

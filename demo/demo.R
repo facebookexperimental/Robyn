@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.9.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.9.1    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -303,7 +303,7 @@ OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to (max available - 1)
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 1, # 5 recommended for the dummy dataset
+  trials = 5, # 5 recommended for the dummy dataset
   ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
   add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
@@ -372,7 +372,7 @@ print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the
-# same historical spend level and what is the spend mix?"
+# same spend level in date_range and what is the spend and expected response mix?"
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
@@ -384,8 +384,10 @@ AllocatorCollect1 <- robyn_allocator(
   date_range = "last_26",
   export = create_files
 )
+# Print the allocator's output summary
 print(AllocatorCollect1)
-# plot(AllocatorCollect1)
+# Plot the allocator one-pager
+plot(AllocatorCollect1)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

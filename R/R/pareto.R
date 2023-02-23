@@ -88,7 +88,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
       rename("robynPareto" = "pareto_front") %>%
       arrange(.data$iterNG, .data$iterPar, .data$nrmse) %>%
       select(.data$solID, .data$robynPareto) %>%
-      group_by(.data$solID) %>% arrange(.data$robynPareto) %>% slice(1)
+      group_by(.data$solID) %>%
+      arrange(.data$robynPareto) %>%
+      slice(1)
     resultHypParam <- left_join(resultHypParam, resultHypParamPareto, by = "solID")
   } else {
     resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
@@ -144,11 +146,13 @@ robyn_pareto <- function(InputCollect, OutputModels,
     respN <- NULL
   }
 
-  if (!quiet) message(sprintf(
-    ">>> Calculating response curves for all models' variables (%s)...",
-    nrow(decompSpendDistPar)))
+  if (!quiet) {
+    message(sprintf(
+      ">>> Calculating response curves for all models' variables (%s)...",
+      nrow(decompSpendDistPar)
+    ))
+  }
   run_dt_resp <- function(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
-
     get_solID <- decompSpendDistPar$solID[respN]
     get_spendname <- decompSpendDistPar$rn[respN]
     get_nPeriod <- nrow(InputCollect$dt_modRollWind)
@@ -419,8 +423,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
       # Remove outlier introduced by MM nls fitting
       dt_scurvePlot <- dt_scurvePlot[dt_scurvePlot$spend >= 0, ]
-      dt_scurvePlotMean <- plotWaterfall %>% filter(.data$solID == sid & !is.na(.data$mean_spend)) %>%
-        select(c(channel = "rn", "mean_spend", "mean_spend_adstocked", "mean_carryover","mean_response", "solID"))
+      dt_scurvePlotMean <- plotWaterfall %>%
+        filter(.data$solID == sid & !is.na(.data$mean_spend)) %>%
+        select(c(channel = "rn", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"))
 
       # Exposure response curve
       plot4data <- list(
