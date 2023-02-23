@@ -373,21 +373,42 @@ print(ExportedModel)
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the
 # same spend level in date_range and what is the spend and expected response mix?"
+# For this scenario, we have several use cases:
+
+# Case 1: date_range & simulated_spend both NULL (default for last period's spend)
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  scenario = "max_historical_response",
+  date_range = NULL, # When NULL, same as "last_1"
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 4,
-  date_range = "last_26",
+  scenario = "max_historical_response",
   export = create_files
 )
 # Print the allocator's output summary
 print(AllocatorCollect1)
 # Plot the allocator one-pager
 plot(AllocatorCollect1)
+
+# Case 2: date_range defined, simulated_spend NULL (mean spend of date_range as initial spend)
+AllocatorCollect2 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
+  channel_constr_low = 0.7,
+  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_multiplier = 4,
+  scenario = "max_historical_response",
+  export = create_files
+)
+
+# Case 3: date_range defined, one simulated_spend defined (simulated_spend as total budget
+# divided by periods of date_range to get the mean spend)
+
+##### Response curves
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

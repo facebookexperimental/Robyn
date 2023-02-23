@@ -882,7 +882,7 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
           ))
         }
         rg <- v2t(range(date_range_updated), sep = ":", quotes = FALSE)
-        if (!quiet) message("Using ds ", rg, " (", get_n, " period(s) included) as the response period")
+        get_n <- length(date_range_loc)
       } else {
         ## Manually inputting each date
         date_range_updated <- date_range

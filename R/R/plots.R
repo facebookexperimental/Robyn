@@ -798,7 +798,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         .data$metric == "ROAS" ~ paste0("x", round(.data$values, 2)),
         .data$metric == "CPA" ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
-      )
+      ),
+      values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label)
     )
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
@@ -818,6 +819,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
+    filter(.data$histSpend > 0) %>%
     mutate(constr_label = sprintf("%s [%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
     select(
       "channel" = "channels", "constr_label", "constr_low_abs",
@@ -847,18 +849,22 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       plot_ub = ifelse(is.na(.data$constr_up_abs), .data$constr_up_unb_abs, .data$constr_up_abs)
     )
 
-  outputs[["p3"]] <- p3 <- ggplot(plotDT_scurve) +
+  outputs[["p3"]] <- p3 <- plotDT_scurve %>%
+    filter(!is.na(.data$constr_label)) %>%
+    ggplot() +
     scale_x_abbr() +
     scale_y_abbr() +
     geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE, size = 0.5) +
     facet_wrap(.data$constr_label ~ ., scales = "free", ncol = 3) +
     geom_area(
-      data = group_by(plotDT_scurve, .data$constr_label) %>% filter(.data$spend <= .data$mean_carryover),
+      data = group_by(plotDT_scurve, .data$constr_label) %>%
+        filter(.data$spend <= .data$mean_carryover, !is.na(.data$constr_label)),
       aes(x = .data$spend, y = .data$total_response, color = .data$constr_label),
       stat = "align", position = "stack", size = 0.1,
       fill = "grey50", alpha = 0.4, show.legend = FALSE
     ) +
-    geom_errorbar(mainPoints,
+    geom_errorbar(
+      data = filter(mainPoints, !is.na(.data$constr_label)),
       mapping = aes(
         x = .data$spend_point, y = .data$response_point,
         xmin = .data$plot_lb, xmax = .data$plot_ub
@@ -866,14 +872,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       color = "black", linetype = "dotted"
     ) +
     geom_point(
-      data = filter(mainPoints, !is.na(.data$plot_lb)),
+      data = filter(mainPoints, !is.na(.data$plot_lb), !is.na(.data$mean_spend)),
       aes(x = .data$plot_lb, y = .data$response_point), shape = 18
     ) +
     geom_point(
-      data = filter(mainPoints, !is.na(.data$plot_ub)),
+      data = filter(mainPoints, !is.na(.data$plot_ub), !is.na(.data$mean_spend)),
       aes(x = .data$plot_ub, y = .data$response_point), shape = 18
     ) +
-    geom_point(data = mainPoints, aes(
+    geom_point(data = filter(mainPoints, !is.na(.data$constr_label)), aes(
       x = .data$spend_point, y = .data$response_point, fill = .data$type_lab
     ), size = 2.5, shape = 21) +
     scale_fill_manual(values = c("white", "grey", "steelblue", "darkgoldenrod4")) +

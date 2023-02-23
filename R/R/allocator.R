@@ -266,13 +266,13 @@ robyn_allocator <- function(robyn_object = NULL,
   names(histResponseUnitModel) <- names(hist_carryover) <- mediaSpendSortedFiltered
   if (!is.null(noSpendMedia) && !quiet) {
     message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
+    hist_carryover[noSpendMedia] <- 0
   }
   adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
   if (!quiet & adstocked) message("Adstocked results for date: ", paste(range(resp$date), collapse = ":"))
 
   ## Build constraints function with scenarios
   if ("max_historical_response" %in% scenario) {
-    expected_spend <- histSpendTotal
     expSpendUnitTotal <- histSpendUnitTotal
   }
 

@@ -168,22 +168,22 @@ robyn_response <- function(InputCollect = NULL,
     ))
   }
 
-  ## get use cases
-  if (is.null(metric_value) & is.null(date_range)) {
-    usecase <- "all_historical_vec"
-  } else if (is.null(metric_value) & !is.null(date_range)) {
-    usecase <- "selected_historical_vec"
-  } else if (length(metric_value) == 1 & is.null(date_range)) {
-    usecase <- "total_metric_default_last_1"
-  } else if (length(metric_value) == 1 & !is.null(date_range)) {
-    usecase <- "total_metric_selected_range"
-  } else if (length(metric_value) > 1 & is.null(date_range)) {
-    usecase <- "unit_metric_default_last_n"
-  } else {
-    usecase <- "unit_metric_selected_dates"
-  }
+  ## Get use case based on inputs
+  usecase <- dplyr::case_when(
+    # Case 1: raw historical spend and all dates -> model decomp as out of the model (no mean spends)
+    is.null(metric_value) & is.null(date_range) ~ "all_historical_vec",
+    # Case 2: same as case 1 for date_range
+    is.null(metric_value) & !is.null(date_range) ~ "selected_historical_vec",
+    ######### Simulations: use metric_value, not the historical real spend anymore
+    # Cases 3-4: metric_value for "total budget" for date_range period
+    length(metric_value) == 1 & is.null(date_range) ~ "total_metric_default_last_1",
+    length(metric_value) == 1 & !is.null(date_range) ~ "total_metric_selected_range",
+    # Cases 5-6: individual period values, not total; requires date_range to be the same length as metric_value
+    length(metric_value) > 1 & is.null(date_range) ~ "unit_metric_default_last_n",
+    TRUE ~ "unit_metric_selected_dates"
+  )
 
-  ## check inputs with usecases
+  ## Check inputs with usecases
   metric_type <- check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
   all_dates <- pull(dt_input, InputCollect$date_var)
   all_values <- pull(dt_input, metric_name)
