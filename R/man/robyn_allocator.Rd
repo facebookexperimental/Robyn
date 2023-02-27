@@ -56,7 +56,7 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 
 \item{scenario}{Character. Accepted options are: \code{"max_historical_response"}.
 Scenario \code{"max_historical_response"} simulates the scenario
-"What's the revenue lift potential with the same spend level in \code{"date_range"}
+"What's the revenue/conversions lift potential with the same spend level in \code{date_range}
 and what is the spend and expected response mix?".
 Deprecated scenario: \code{"max_response_expected_spend"}.}
 
@@ -80,8 +80,8 @@ per channel. Set one of: NULL, "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
 (i.e. \code{c("2022-01-01", "2022-12-31")}).}
 
-\item{total_budget}{Numeric. The total marketing budget for all channels for the period in
-date_range}
+\item{total_budget}{Numeric. Total marketing budget for all paid channels for the
+period in \code{date_range}.}
 
 \item{optim_algo}{Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
 Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},

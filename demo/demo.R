@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.9.0    ######################
+####################         Facebook MMM Open Source - Robyn 3.9.1    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -302,8 +302,8 @@ if (length(InputCollect$exposure_vars) > 0) {
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to (max available - 1)
-  iterations = 1500, # 2000 recommended for the dummy dataset with no calibration
-  trials = 1, # 5 recommended for the dummy dataset
+  iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
+  trials = 5, # 5 recommended for the dummy dataset
   ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
   add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
@@ -371,25 +371,57 @@ print(ExportedModel)
 print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
-# Run the "max_historical_response" scenario: "What's the revenue lift potential with the
-# same historical spend level and what is the spend mix?"
+# Run the "max_historical_response" scenario: "What's the potential revenue/conversions lift with the
+# same spend level in date_range and what is the spend and expected response mix?"
+# For this scenario, we have several use cases:
+
+# Case 1: date_range & total_budget both NULL (default for last month's spend)
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  scenario = "max_historical_response",
+  date_range = NULL, # When NULL, will take last month (30 days, 4 weeks, or 1 month)
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 10,
-  # date_range = "last_4",
-  total_budget = 5000000,
+  channel_constr_multiplier = 4,
+  scenario = "max_historical_response",
   export = create_files
 )
+# Print the allocator's output summary
 print(AllocatorCollect1)
-# plot(AllocatorCollect1)
-OutputCollect$xDecompAgg %>% filter(solID == select_model & !is.na(roi_mean)) %>%
-  select(matches("rn|spend|roi|mean_response")) %>% arrange(rn)
-AllocatorCollect1$mainPoints %>% filter(.data$type == "Initial") %>% mutate(roi_mean = response_point / mean_spend)
+# Plot the allocator one-pager
+plot(AllocatorCollect1)
+
+# Case 2: date_range defined, total_budget NULL (mean spend of date_range as initial spend)
+AllocatorCollect2 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
+  channel_constr_low = 0.7,
+  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_multiplier = 4,
+  scenario = "max_historical_response",
+  export = create_files
+)
+print(AllocatorCollect2)
+plot(AllocatorCollect2)
+
+# Case 3: date_range (defined or not defined) and total_budget defined
+AllocatorCollect3 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  # date_range = "last_4",
+  total_budget = 5000000,
+  channel_constr_low = 0.7,
+  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_multiplier = 4,
+  scenario = "max_historical_response",
+  export = create_files
+)
+print(AllocatorCollect3)
+# plot(AllocatorCollect3)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

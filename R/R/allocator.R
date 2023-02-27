@@ -30,7 +30,7 @@
 #' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
 #' @param scenario Character. Accepted options are: \code{"max_historical_response"}.
 #' Scenario \code{"max_historical_response"} simulates the scenario
-#' "What's the revenue lift potential with the same spend level in \code{"date_range"}
+#' "What's the revenue/conversions lift potential with the same spend level in \code{date_range}
 #' and what is the spend and expected response mix?".
 #' Deprecated scenario: \code{"max_response_expected_spend"}.
 #' @param channel_constr_low,channel_constr_up Numeric vectors. The lower and upper bounds
@@ -50,8 +50,8 @@
 #' per channel. Set one of: NULL, "all", "last", or "last_n" (where
 #' n is the last N dates available), date (i.e. "2022-03-27"), or date range
 #' (i.e. \code{c("2022-01-01", "2022-12-31")}).
-#' @param total_budget Numeric. The total marketing budget for all channels for the period in
-#' date_range
+#' @param total_budget Numeric. Total marketing budget for all paid channels for the
+#' period in \code{date_range}.
 #' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
@@ -241,20 +241,11 @@ robyn_allocator <- function(robyn_object = NULL,
   }
   initSpendUnitTotal <- sum(initSpendUnit)
   initSpendShare <- initSpendUnit / initSpendUnitTotal
-
   total_budget_unit <- ifelse(is.null(total_budget), initSpendUnitTotal, total_budget / unique(simulation_period))
 
-  #histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
-  # histSpendTotal <- sum(histSpend)
-  # histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
-  # histSpendUnit[is.nan(histSpendUnit)] <- 0
-  # histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
-  # histSpendShare <- histSpendUnit / histSpendUnitTotal
-  # histSpendUnitTotal <- histSpendTotal / nPeriod
-  # histSpendShare <- histSpend / histSpendTotal
-  # histSpendUnit <- histSpendUnitTotal * histSpendShare
-  # histSpendUnitRaw <- histSpendUnit
-
+  ## Get use case based on inputs
+  usecase <- which_usecase(initSpendUnit[1], date_range)
+  usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ mean_budget"))
 
   # Response values based on date range -> mean spend
   initResponseUnit <- NULL
@@ -269,7 +260,7 @@ robyn_allocator <- function(robyn_object = NULL,
         select_model = select_model,
         metric_name = mediaSpendSortedFiltered[i],
         metric_value = initSpendUnit[i],
-        # date_range = range(InputCollect$dt_modRollWind$ds),
+        date_range = date_range,
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
@@ -298,17 +289,12 @@ robyn_allocator <- function(robyn_object = NULL,
     initResponseUnit <- c(initResponseUnit, resp_simulate)
   }
   names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSortedFiltered
-  # if (!is.null(zero_spend_channel) && !quiet) {
-  #   message("Media variables with 0 spending during this date window: ", v2t(zero_spend_channel))
-  #   hist_carryover[zero_spend_channel] <- 0
-  # }
+  if (!is.null(zero_spend_channel) && !quiet) {
+    message("Media variables with 0 spending during this date window: ", v2t(zero_spend_channel))
+    hist_carryover[zero_spend_channel] <- 0
+  }
   # adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
   # if (!quiet & adstocked) message("Adstocked results for date: ", paste(range(resp$date), collapse = ":"))
-
-  ## Build constraints function with scenarios
-  # if ("max_historical_response" %in% scenario) {
-  #   expSpendUnitTotal <- histSpendUnitTotal
-  # }
 
   # Gather all values that will be used internally on optim (nloptr)
   eval_list <- list(
@@ -537,6 +523,7 @@ robyn_allocator <- function(robyn_object = NULL,
   mainPoints$mean_spend <- mainPoints$spend_point - temp_caov$spend_point
   mainPoints$mean_spend <- ifelse(mainPoints$type == "Carryover", mainPoints$spend_point, mainPoints$mean_spend)
   mainPoints$type <- factor(mainPoints$type, levels = c("Carryover", levs1))
+  mainPoints$roi_mean <- mainPoints$response_point / mainPoints$mean_spend
   eval_list[["mainPoints"]] <- mainPoints
 
   ## Plot allocator results
@@ -557,6 +544,7 @@ robyn_allocator <- function(robyn_object = NULL,
     nlsMod = nlsMod,
     plots = plots,
     scenario = scenario,
+    usecase = usecase,
     skipped = chn_coef0,
     no_spend = zero_spend_channel,
     ui = if (ui) plots else NULL
@@ -575,23 +563,20 @@ print.robyn_allocator <- function(x, ...) {
   print(glued(
     "
 Model ID: {x$dt_optimOut$solID[1]}
-Scenario: {scenario}
+Scenario: {x$scenario}
+Use case: {x$usecase}
+Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
+
 Dep. Variable Type: {temp$dep_var_type[1]}
 Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')} {no_spend}
 Relative Spend Increase: {spend_increase_p}% ({spend_increase})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
-Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
 Allocation Summary:
   {summary}
 ",
-    scenario = ifelse(
-      x$scenario == "max_historical_response",
-      "Maximum Historical Response",
-      "Maximum Response with Expected Spend"
-    ),
     no_spend = ifelse(!is.null(x$no_spend), paste("| (spend = 0):", v2t(x$no_spend, quotes = FALSE)), ""),
-    spend_increase_p = signif(100 * x$dt_optimOut$expSpendUnitDelta[1], 3),
+    spend_increase_p = signif(100 * x$dt_optimOut$optmSpendUnitTotalDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
       abbr = TRUE, sign = TRUE

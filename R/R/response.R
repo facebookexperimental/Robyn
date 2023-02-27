@@ -169,19 +169,7 @@ robyn_response <- function(InputCollect = NULL,
   }
 
   ## Get use case based on inputs
-  usecase <- dplyr::case_when(
-    # Case 1: raw historical spend and all dates -> model decomp as out of the model (no mean spends)
-    is.null(metric_value) & is.null(date_range) ~ "all_historical_vec",
-    # Case 2: same as case 1 for date_range
-    is.null(metric_value) & !is.null(date_range) ~ "selected_historical_vec",
-    ######### Simulations: use metric_value, not the historical real spend anymore
-    # Cases 3-4: metric_value for "total budget" for date_range period
-    length(metric_value) == 1 & is.null(date_range) ~ "total_metric_default_last_1",
-    length(metric_value) == 1 & !is.null(date_range) ~ "total_metric_selected_range",
-    # Cases 5-6: individual period values, not total; requires date_range to be the same length as metric_value
-    length(metric_value) > 1 & is.null(date_range) ~ "unit_metric_default_last_n",
-    TRUE ~ "unit_metric_selected_dates"
-  )
+  usecase <- which_usecase(metric_value, date_range)
 
   ## Check inputs with usecases
   metric_type <- check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
@@ -330,10 +318,27 @@ robyn_response <- function(InputCollect = NULL,
     response_total = response_total,
     response_carryover = response_carryover,
     response_immediate = response_immediate,
+    usecase = usecase,
     plot = p_res
   )
   class(ret) <- unique(c("robyn_response", class(ret)))
   return(ret)
+}
+
+which_usecase <- function(metric_value, date_range) {
+  dplyr::case_when(
+    # Case 1: raw historical spend and all dates -> model decomp as out of the model (no mean spends)
+    is.null(metric_value) & is.null(date_range) ~ "all_historical_vec",
+    # Case 2: same as case 1 for date_range
+    is.null(metric_value) & !is.null(date_range) ~ "selected_historical_vec",
+    ######### Simulations: use metric_value, not the historical real spend anymore
+    # Cases 3-4: metric_value for "total budget" for date_range period
+    length(metric_value) == 1 & is.null(date_range) ~ "total_metric_default_range",
+    length(metric_value) == 1 & !is.null(date_range) ~ "total_metric_selected_range",
+    # Cases 5-6: individual period values, not total; requires date_range to be the same length as metric_value
+    length(metric_value) > 1 & is.null(date_range) ~ "unit_metric_default_last_n",
+    TRUE ~ "unit_metric_selected_dates"
+  )
 }
 
 # ####### SCENARIOS CHECK FOR date_range
