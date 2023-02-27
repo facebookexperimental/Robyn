@@ -684,13 +684,25 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   optm_total_response_unbounded <- dt_optimOut$optmResponseTotalUnbound[1]
   optm_total_roi_unbounded <- optm_total_response_unbounded / optm_total_spend_unbounded
   optm_total_cpa_unbounded <- optm_total_spend_unbounded / optm_total_response_unbounded
-
   bound_mult <- dt_optimOut$unconstr_mult[1]
+
+  optm_topped_unbounded <- optm_topped_bounded <- any_topped <- FALSE
+  if (!is.null(eval_list$total_budget)) {
+    optm_topped_bounded <- round(optm_total_spend_bounded) < round(eval_list$total_budget)
+    optm_topped_unbounded <- round(optm_total_spend_unbounded) < round(eval_list$total_budget)
+    any_topped <- optm_topped_bounded || optm_topped_unbounded
+    if (optm_topped_bounded & !quiet) {
+      message("NOTE: Given the upper/lower constrains, the total budget can't be fully allocated (^)")
+    }
+  }
   levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
+  levs2 <- c("Initial",
+             paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
+             paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult))
 
   resp_metric <- data.frame(
     type = factor(levs1, levels = levs1),
-    type_lab = factor(levs1, levels = levs1),
+    type_lab = factor(levs2, levels = levs2),
     total_spend = c(init_total_spend, optm_total_spend_bounded, optm_total_spend_unbounded),
     total_response = c(init_total_response, optm_total_response_bounded, optm_total_response_unbounded),
     total_response_lift = c(
@@ -715,7 +727,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
   labs <- paste(
-    paste(levs1, "\n"),
+    paste(levs2, "\n"),
     paste("Spend:", formatNum(
       100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
       signif = 3, pos = "%", sign = TRUE
@@ -803,6 +815,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label),
       values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values)
     ) %>%
+    mutate(channel = factor(.data$channel, levels = rev(unique(.data$channel)))) %>%
     group_by(.data$name_label) %>%
     mutate(values_norm = lares::normalize(.data$values),
            values_norm = ifelse(is.nan(.data$values_norm), 0, .data$values_norm))
@@ -832,10 +845,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   mainPoints <- eval_list[["mainPoints"]] %>%
     left_join(constr_labels, "channel") %>%
     left_join(resp_metric, "type") %>%
-    mutate(type_lab = as.character(.data$type_lab)) %>%
-    mutate(type_lab = factor(ifelse(is.na(.data$type_lab), "Carryover", .data$type_lab),
-      levels = c("Carryover", levs1)
-    ))
+    mutate(
+      type = as.character(.data$type),
+      type = factor(ifelse(is.na(.data$type), "Carryover", .data$type),
+                    levels = c("Carryover", levs1))) %>%
+    mutate(
+      type_lab = as.character(.data$type_lab),
+      type_lab = factor(ifelse(is.na(.data$type_lab), "Carryover", .data$type_lab),
+                    levels = c("Carryover", levs2)))
   caov_points <- mainPoints %>%
     filter(.data$type == "Carryover") %>%
     select("channel", "caov_spend" = "spend_point")
@@ -851,6 +868,12 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       plot_lb = ifelse(is.na(.data$constr_low_abs), .data$constr_low_unb_abs, .data$constr_low_abs),
       plot_ub = ifelse(is.na(.data$constr_up_abs), .data$constr_up_unb_abs, .data$constr_up_abs)
     )
+
+  caption <- paste0(
+    ifelse(any_topped, "^ Given the upper/lower constrains, the total budget can't be fully allocated\n", ""),
+    paste("* Initial & optimised", formulax, "\n"),
+    paste("** Dotted lines show budget optimization bounded range per channel")
+  )
 
   outputs[["p3"]] <- p3 <- plotDT_scurve %>%
     filter(!is.na(.data$constr_label)) %>%
@@ -892,10 +915,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       x = sprintf("Spend** per %s (Mean Adstock Zone in Grey)", InputCollect$intervalType),
       y = sprintf("Total Response [%s]", InputCollect$dep_var_type),
       shape = NULL, color = NULL, fill = NULL,
-      caption = paste(
-        paste("* Initial & optimised", formulax, "\n"),
-        paste("** Dotted lines show budget optimization bounded range per channel")
-      )
+      caption = caption
     )
 
   # Gather all plots into a single one

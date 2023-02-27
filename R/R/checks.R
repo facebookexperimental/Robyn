@@ -796,7 +796,6 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
-
   if (length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_spends)) {
     stop(paste(
       "Input 'channel_constr_low' have to contain either only 1",

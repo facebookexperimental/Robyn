@@ -398,7 +398,7 @@ AllocatorCollect2 <- robyn_allocator(
   OutputCollect = OutputCollect,
   select_model = select_model,
   date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
-  channel_constr_low = 0.7,
+  channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 4,
   scenario = "max_historical_response",
@@ -421,7 +421,7 @@ AllocatorCollect3 <- robyn_allocator(
   export = create_files
 )
 print(AllocatorCollect3)
-# plot(AllocatorCollect3)
+plot(AllocatorCollect3)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R

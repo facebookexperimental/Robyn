@@ -128,17 +128,20 @@ robyn_allocator <- function(robyn_object = NULL,
 
   message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
+  # Exclude media with 0 as lower and upper constrains
+  skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
+  if (any(skip_these) && !quiet) {
+    message("Excluding variables (contrained to 0): ", InputCollect$paid_media_spends[skip_these])
+  }
+
   ## Set local data & params values
   if (TRUE) {
-    dt_mod <- InputCollect$dt_mod
-    paid_media_vars <- InputCollect$paid_media_vars
-    paid_media_spends <- InputCollect$paid_media_spends
-    startRW <- InputCollect$rollingWindowStartWhich
-    endRW <- InputCollect$rollingWindowEndWhich
-    adstock <- InputCollect$adstock
+    paid_media_spends <- InputCollect$paid_media_spends[!skip_these]
     media_order <- order(paid_media_spends)
-    mediaVarSorted <- paid_media_vars[media_order]
+    mediaVarSorted <- InputCollect$paid_media_vars[!skip_these][media_order]
     mediaSpendSorted <- paid_media_spends[media_order]
+    channel_constr_low <- channel_constr_low[!skip_these]
+    channel_constr_up <- channel_constr_up[!skip_these]
   }
 
   ## Check inputs and parameters
@@ -148,8 +151,6 @@ robyn_allocator <- function(robyn_object = NULL,
   )
 
   # Channels contrains
-  # channel_constr_low <- rep(0.8, length(paid_media_spends))
-  # channel_constr_up <- rep(1.2, length(paid_media_spends))
   if (length(channel_constr_low) == 1) {
     channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
   }
@@ -181,7 +182,7 @@ robyn_allocator <- function(robyn_object = NULL,
     chn_coef0 <- "None"
   }
   mediaSpendSortedFiltered <- mediaSpendSorted[coefSelectorSorted]
-  dt_hyppar <- select(dt_hyppar, hyper_names(adstock, mediaSpendSortedFiltered)) %>%
+  dt_hyppar <- select(dt_hyppar, hyper_names(InputCollect$adstock, mediaSpendSortedFiltered)) %>%
     select(sort(colnames(.)))
   dt_bestCoef <- dt_bestCoef[dt_bestCoef$rn %in% mediaSpendSortedFiltered, ]
   channelConstrLowSorted <- channel_constr_low[mediaSpendSortedFiltered]
@@ -199,7 +200,7 @@ robyn_allocator <- function(robyn_object = NULL,
   coefsFiltered <- hills$coefsFiltered
 
   # Spend values based on date range set
-  dt_optimCost <- slice(dt_mod, startRW:endRW)
+  dt_optimCost <- slice(InputCollect$dt_mod, InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich)
   new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE, is_allocator = TRUE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
@@ -302,6 +303,7 @@ robyn_allocator <- function(robyn_object = NULL,
     alphas = alphas,
     inflexions = inflexions,
     mediaSpendSortedFiltered = mediaSpendSortedFiltered,
+    total_budget = total_budget,
     total_budget_unit = total_budget_unit,
     hist_carryover = hist_carryover
   )
@@ -321,7 +323,6 @@ robyn_allocator <- function(robyn_object = NULL,
   if (!is.null(zero_spend_channel)) temp_ub[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
   x0 <- lb <- initSpendUnit * channelConstrLowSorted
   ub <- temp_ub * channelConstrUpSorted
-
   channelConstrLowSortedExt <- ifelse(
     1 - (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
@@ -547,6 +548,7 @@ robyn_allocator <- function(robyn_object = NULL,
     plots = plots,
     scenario = scenario,
     usecase = usecase,
+    total_budget = total_budget,
     skipped = chn_coef0,
     no_spend = zero_spend_channel,
     ui = if (ui) plots else NULL
@@ -760,8 +762,6 @@ get_hill_params <- function(InputCollect, OutputCollect = NULL, dt_hyppar, dt_co
   hillHypParVec <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))))
   alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
   gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
-  startRW <- InputCollect$rollingWindowStartWhich
-  endRW <- InputCollect$rollingWindowEndWhich
   if (is.null(chnAdstocked)) {
     chnAdstocked <- filter(
       OutputCollect$mediaVecCollect,
@@ -769,7 +769,7 @@ get_hill_params <- function(InputCollect, OutputCollect = NULL, dt_hyppar, dt_co
       .data$solID == select_model
     ) %>%
       select(all_of(mediaSpendSortedFiltered)) %>%
-      slice(startRW:endRW)
+      slice(InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich)
   }
   inflexions <- unlist(lapply(seq(ncol(chnAdstocked)), function(i) {
     c(range(chnAdstocked[, i]) %*% c(1 - gammas[i], gammas[i]))
