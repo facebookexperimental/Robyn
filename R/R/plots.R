@@ -870,7 +870,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   caption <- paste0(
-    ifelse(any_topped, "^ Given the upper/lower constrains, the total budget can't be fully allocated\n", ""),
+    ifelse(any_topped, sprintf(
+      "^ Given the upper/lower constrains, the total budget (%s) can't be fully allocated\n",
+      formatNum(eval_list$total_budget, abbr = TRUE)), ""),
     paste("* Initial & optimised", formulax, "\n"),
     paste("** Dotted lines show budget optimization bounded range per channel")
   )
