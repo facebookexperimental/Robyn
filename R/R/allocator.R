@@ -226,17 +226,17 @@ robyn_allocator <- function(robyn_object = NULL,
   simulation_period <- initial_mean_period <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), length))
   nDates <- lapply(mediaSpendSortedFiltered, function(x) histFiltered$ds)
   names(nDates) <- mediaSpendSortedFiltered
-  zero_spend_channel <- NULL
 
   if (any(histSpendWindow == 0)) {
     zero_spend_channel <- names(histSpendWindow[histSpendWindow == 0])
-    initSpendUnit[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
-    initial_mean_period[zero_spend_channel] <- length(unique(dt_optimCost$ds))
-    nDates[zero_spend_channel] <- lapply(zero_spend_channel, function(x) unique(dt_optimCost$ds))
-    message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, length(new_date_range$date_range_updated),
-                    InputCollect$intervalType))
-    message(sprintf("For channels with 0 spend in window, using historical mean: %s", paste(zero_spend_channel, collapse = ", ")))
+    # initSpendUnit[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
+    # initial_mean_period[zero_spend_channel] <- length(unique(dt_optimCost$ds))
+    # nDates[zero_spend_channel] <- lapply(zero_spend_channel, function(x) unique(dt_optimCost$ds))
+    # message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, length(new_date_range$date_range_updated),
+    #                 InputCollect$intervalType))
+    # message(sprintf("For channels with 0 spend in window, using historical mean: %s", paste(zero_spend_channel, collapse = ", ")))
   } else {
+    zero_spend_channel <- NULL
     message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, unique(initial_mean_period), InputCollect$intervalType))
   }
   initSpendUnitTotal <- sum(initSpendUnit)
@@ -251,7 +251,7 @@ robyn_allocator <- function(robyn_object = NULL,
   initResponseUnit <- NULL
   hist_carryover <- list()
   for (i in seq_along(mediaSpendSortedFiltered)) {
-    if (initSpendUnit[i] > 0) {
+    # if (initSpendUnit[i] >= 0) {
       # get simulated adstock
       resp <- robyn_response(
         json_file = json_file,
@@ -260,7 +260,7 @@ robyn_allocator <- function(robyn_object = NULL,
         select_model = select_model,
         metric_name = mediaSpendSortedFiltered[i],
         metric_value = initSpendUnit[i],
-        date_range = date_range,
+        # date_range = date_range,
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
@@ -282,16 +282,16 @@ robyn_allocator <- function(robyn_object = NULL,
         get_sum = FALSE
       )
       names(hist_carryover[[i]]) <- resp$date
-    } else {
-      resp_simulate <- 0
-      # zero_spend_channel <- c(zero_spend_channel, mediaSpendSortedFiltered[i])
-    }
+    # } else {
+    #   resp_simulate <- 0
+    #   # zero_spend_channel <- c(zero_spend_channel, mediaSpendSortedFiltered[i])
+    # }
     initResponseUnit <- c(initResponseUnit, resp_simulate)
   }
   names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSortedFiltered
   if (!is.null(zero_spend_channel) && !quiet) {
     message("Media variables with 0 spending during this date window: ", v2t(zero_spend_channel))
-    hist_carryover[zero_spend_channel] <- 0
+    # hist_carryover[zero_spend_channel] <- 0
   }
   # adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
   # if (!quiet & adstocked) message("Adstocked results for date: ", paste(range(resp$date), collapse = ":"))
@@ -317,8 +317,10 @@ robyn_allocator <- function(robyn_object = NULL,
   # [1] -6.590166e-07 -3.087475e-06 -2.316821e-02 -1.250144e-05
 
   ## Set initial values and bounds
+  temp_ub <- initSpendUnit
+  if (!is.null(zero_spend_channel)) temp_ub[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
   x0 <- lb <- initSpendUnit * channelConstrLowSorted
-  ub <- initSpendUnit * channelConstrUpSorted
+  ub <- temp_ub * channelConstrUpSorted
 
   channelConstrLowSortedExt <- ifelse(
     1 - (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
@@ -326,7 +328,7 @@ robyn_allocator <- function(robyn_object = NULL,
   )
   x0_ext <- lb_ext <- initSpendUnit * channelConstrLowSortedExt
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
-  ub_ext <- initSpendUnit * channelConstrUpSortedExt
+  ub_ext <- temp_ub * channelConstrUpSortedExt
 
   ## Set optim options
   if (optim_algo == "MMA_AUGLAG") {
