@@ -380,7 +380,7 @@ AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  date_range = NULL, # When NULL, will take last month (30 days, 4 weeks, or 1 month)
+  date_range = NULL, # When NULL, will set last month (30 days, 4 weeks, or 1 month)
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 4,

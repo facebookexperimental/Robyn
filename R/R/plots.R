@@ -696,9 +696,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     }
   }
   levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
-  levs2 <- c("Initial",
-             paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
-             paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult))
+  levs2 <- c(
+    "Initial",
+    paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
+    paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
+  )
 
   resp_metric <- data.frame(
     type = factor(levs1, levels = levs1),
@@ -817,8 +819,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ) %>%
     mutate(channel = factor(.data$channel, levels = rev(unique(.data$channel)))) %>%
     group_by(.data$name_label) %>%
-    mutate(values_norm = lares::normalize(.data$values),
-           values_norm = ifelse(is.nan(.data$values_norm), 0, .data$values_norm))
+    mutate(
+      values_norm = lares::normalize(.data$values),
+      values_norm = ifelse(is.nan(.data$values_norm), 0, .data$values_norm)
+    )
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
     ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
@@ -835,7 +839,6 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
-    filter(.data$initSpendUnit > 0) %>%
     mutate(constr_label = sprintf("%s [%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
     select(
       "channel" = "channels", "constr_label", "constr_low_abs",
@@ -848,11 +851,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     mutate(
       type = as.character(.data$type),
       type = factor(ifelse(is.na(.data$type), "Carryover", .data$type),
-                    levels = c("Carryover", levs1))) %>%
+        levels = c("Carryover", levs1)
+      )
+    ) %>%
     mutate(
       type_lab = as.character(.data$type_lab),
       type_lab = factor(ifelse(is.na(.data$type_lab), "Carryover", .data$type_lab),
-                    levels = c("Carryover", levs2)))
+        levels = c("Carryover", levs2)
+      )
+    )
   caov_points <- mainPoints %>%
     filter(.data$type == "Carryover") %>%
     select("channel", "caov_spend" = "spend_point")
@@ -872,13 +879,13 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   caption <- paste0(
     ifelse(any_topped, sprintf(
       "^ Given the upper/lower constrains, the total budget (%s) can't be fully allocated\n",
-      formatNum(eval_list$total_budget, abbr = TRUE)), ""),
+      formatNum(eval_list$total_budget, abbr = TRUE)
+    ), ""),
     paste("* Initial & optimised", formulax, "\n"),
     paste("** Dotted lines show budget optimization bounded range per channel")
   )
 
   outputs[["p3"]] <- p3 <- plotDT_scurve %>%
-    filter(!is.na(.data$constr_label)) %>%
     ggplot() +
     scale_x_abbr() +
     scale_y_abbr() +
@@ -886,7 +893,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     facet_wrap(.data$constr_label ~ ., scales = "free", ncol = 3) +
     geom_area(
       data = group_by(plotDT_scurve, .data$constr_label) %>%
-        filter(.data$spend <= .data$mean_carryover, !is.na(.data$constr_label)),
+        filter(.data$spend <= .data$mean_carryover),
       aes(x = .data$spend, y = .data$total_response, color = .data$constr_label),
       stat = "align", position = "stack", size = 0.1,
       fill = "grey50", alpha = 0.4, show.legend = FALSE

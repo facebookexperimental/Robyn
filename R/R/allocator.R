@@ -219,7 +219,7 @@ robyn_allocator <- function(robyn_object = NULL,
   histSpendWindowUnitTotal <- sum(histSpendWindowUnit)
   histSpendWindowShare <- histSpendWindowUnit / histSpendWindowUnitTotal
 
-  #histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
+  # histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
   simulation_period <- initial_mean_period <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), length))
   nDates <- lapply(mediaSpendSortedFiltered, function(x) histFiltered$ds)
   names(nDates) <- mediaSpendSortedFiltered
@@ -248,46 +248,40 @@ robyn_allocator <- function(robyn_object = NULL,
   initResponseUnit <- NULL
   hist_carryover <- list()
   for (i in seq_along(mediaSpendSortedFiltered)) {
-    # if (initSpendUnit[i] >= 0) {
-      # get simulated adstock
-      resp <- robyn_response(
-        json_file = json_file,
-        robyn_object = robyn_object,
-        select_build = select_build,
-        select_model = select_model,
-        metric_name = mediaSpendSortedFiltered[i],
-        metric_value = initSpendUnit[i],
-        # date_range = date_range,
-        dt_hyppar = OutputCollect$resultHypParam,
-        dt_coef = OutputCollect$xDecompAgg,
-        InputCollect = InputCollect,
-        OutputCollect = OutputCollect,
-        quiet = TRUE,
-        is_allocator = TRUE,
-        ...
-      )
-      # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
-      # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
-      hist_carryover[[i]] <- resp$input_carryover
-      # get simulated response
-      resp_simulate <- fx_objective(
-        x = initSpendUnit[i],
-        coeff = coefsFiltered[[mediaSpendSortedFiltered[i]]],
-        alpha = alphas[[paste0(mediaSpendSortedFiltered[i], "_alphas")]],
-        inflexion = inflexions[[paste0(mediaSpendSortedFiltered[i], "_gammas")]],
-        x_hist_carryover = mean(resp$input_carryover),
-        get_sum = FALSE
-      )
-      names(hist_carryover[[i]]) <- resp$date
-    # } else {
-    #   resp_simulate <- 0
-    #   # zero_spend_channel <- c(zero_spend_channel, mediaSpendSortedFiltered[i])
-    # }
+    resp <- robyn_response(
+      json_file = json_file,
+      robyn_object = robyn_object,
+      select_build = select_build,
+      select_model = select_model,
+      metric_name = mediaSpendSortedFiltered[i],
+      metric_value = initSpendUnit[i],
+      date_range = date_range,
+      dt_hyppar = OutputCollect$resultHypParam,
+      dt_coef = OutputCollect$xDecompAgg,
+      InputCollect = InputCollect,
+      OutputCollect = OutputCollect,
+      quiet = TRUE,
+      is_allocator = TRUE,
+      ...
+    )
+    # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
+    # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
+    hist_carryover[[i]] <- resp$input_carryover
+    # get simulated response
+    resp_simulate <- fx_objective(
+      x = initSpendUnit[i],
+      coeff = coefsFiltered[[mediaSpendSortedFiltered[i]]],
+      alpha = alphas[[paste0(mediaSpendSortedFiltered[i], "_alphas")]],
+      inflexion = inflexions[[paste0(mediaSpendSortedFiltered[i], "_gammas")]],
+      x_hist_carryover = mean(resp$input_carryover),
+      get_sum = FALSE
+    )
+    names(hist_carryover[[i]]) <- resp$date
     initResponseUnit <- c(initResponseUnit, resp_simulate)
   }
   names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSortedFiltered
   if (!is.null(zero_spend_channel) && !quiet) {
-    message("Media variables with 0 spending during this date window: ", v2t(zero_spend_channel))
+    message("Media variables with 0 spending during date range: ", v2t(zero_spend_channel))
     # hist_carryover[zero_spend_channel] <- 0
   }
   # adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
