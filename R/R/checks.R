@@ -835,15 +835,19 @@ check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, e
   return(metric_type)
 }
 
-check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL, quiet = FALSE, ...) {
+check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL, quiet = FALSE, is_allocator = FALSE, ...) {
   ## default using latest 30 days / 4 weeks / 1 month for spend level
   if (is.null(date_range)) {
     if (is.null(dayInterval)) stop("Input 'date_range' or 'dayInterval' must be defined")
-    date_range <- paste0("last_", dplyr::case_when(
-      dayInterval == 1 ~ 30,
-      dayInterval == 7 ~ 4,
-      dayInterval >= 30 & dayInterval <= 31 ~ 1,
-    ))
+    if (!is_allocator) {
+      date_range <- "last_1"
+    } else {
+      date_range <- paste0("last_", dplyr::case_when(
+        dayInterval == 1 ~ 30,
+        dayInterval == 7 ~ 4,
+        dayInterval >= 30 & dayInterval <= 31 ~ 1,
+      ))
+    }
     if (!quiet) message(sprintf("Automatically picked date_range = '%s'", date_range))
   }
   if (grepl("last|all", date_range[1])) {

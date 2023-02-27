@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.9.1    ######################
+####################         Facebook MMM Open Source - Robyn 3.9.0    ######################
 ####################                    Quick guide                   #######################
 #############################################################################################
 
@@ -302,8 +302,8 @@ if (length(InputCollect$exposure_vars) > 0) {
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to (max available - 1)
-  iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 5, # 5 recommended for the dummy dataset
+  iterations = 1500, # 2000 recommended for the dummy dataset with no calibration
+  trials = 1, # 5 recommended for the dummy dataset
   ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
   add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
@@ -345,7 +345,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_165_5" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_154_6" # Pick one of the models from OutputCollect to proceed
 
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
@@ -372,45 +372,24 @@ print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
 # Run the "max_historical_response" scenario: "What's the revenue lift potential with the
-# same spend level in date_range and what is the spend and expected response mix?"
-# For this scenario, we have several use cases:
-
-# Case 1: date_range & simulated_spend both NULL (default for last month's spend)
+# same historical spend level and what is the spend mix?"
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  date_range = NULL, # When NULL, will take last month (30 days, 4 weeks, or 1 month)
+  scenario = "max_historical_response",
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 4,
-  scenario = "max_historical_response",
+  channel_constr_multiplier = 10,
+  # date_range = "last_4",
+  total_budget = 5000000,
   export = create_files
 )
-# Print the allocator's output summary
 print(AllocatorCollect1)
-# Plot the allocator one-pager
-plot(AllocatorCollect1)
-
-# Case 2: date_range defined, simulated_spend NULL (mean spend of date_range as initial spend)
-AllocatorCollect2 <- robyn_allocator(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model,
-  date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
-  channel_constr_low = 0.7,
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 4,
-  scenario = "max_historical_response",
-  export = create_files
-)
-print(AllocatorCollect2)
-plot(AllocatorCollect2)
-
-# Case 3: date_range defined, one simulated_spend defined (simulated_spend as total budget
-# divided by periods of date_range to get the mean spend)
-
-##### Response curves
+# plot(AllocatorCollect1)
+OutputCollect$xDecompAgg %>% filter(solID == select_model & !is.na(roi_mean)) %>%
+  select(matches("rn|spend|roi|mean_response")) %>% arrange(rn)
+AllocatorCollect1$mainPoints %>% filter(.data$type == "Initial") %>% mutate(roi_mean = response_point / mean_spend)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -434,7 +413,7 @@ if (TRUE) {
     OutputCollect = OutputCollect,
     select_model = select_model,
     select_build = 0,
-    media_metric = select_media,
+    metric_name = select_media,
     metric_value = metric_value,
     metric_ds = NULL
   )
@@ -451,7 +430,7 @@ robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = select_media,
+  metric_name = select_media,
   metric_value = metric_value,
   metric_ds = "last_5"
 )
@@ -539,7 +518,7 @@ print(AllocatorCollect)
 ## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
 ## The robyn_response() function can now output response for both spends and exposures (imps,
 ## GRP, newsletter sendings etc.) as well as plotting individual saturation curves. New
-## argument names "media_metric" and "metric_value" instead of "paid_media_var" and "spend"
+## argument names "metric_name" and "metric_value" instead of "paid_media_var" and "spend"
 ## are now used to accommodate this change. Also the returned output is a list now and
 ## contains also the plot.
 ## ------------------------------------------------------------------------------------------ ##
@@ -550,9 +529,9 @@ Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "search_S",
-  metric_value = Spend1,
-  metric_ds = NULL
+  metric_name = "facebook_S",
+  metric_value = c(Spend1),
+  # date_range = "last_2"
 )
 Response1$response / Spend1 # ROI for search 80k
 Response1$plot
@@ -562,7 +541,7 @@ Response1$plot
 #   json_file = json_file,
 #   dt_input = dt_simulated_weekly,
 #   dt_holidays = dt_prophet_holidays,
-#   media_metric = "search_S",
+#   metric_name = "search_S",
 #   metric_value = Spend1,
 #   metric_ds = NULL
 # )
@@ -573,7 +552,7 @@ Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "search_S",
+  metric_name = "search_S",
   metric_value = Spend2,
   metric_ds = NULL
 )
@@ -589,7 +568,7 @@ response_imps <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "facebook_I",
+  metric_name = "facebook_I",
   metric_value = imps,
   metric_ds = NULL
 )
@@ -602,7 +581,7 @@ response_sending <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "newsletter",
+  metric_name = "newsletter",
   metric_value = sendings,
   metric_ds = NULL
 )
@@ -678,6 +657,6 @@ RobynRefresh <- robyn_refresh(
 robyn_response(
   InputCollect = InputCollectX,
   OutputCollect = OutputCollectX,
-  media_metric = "newsletter",
+  metric_name = "newsletter",
   metric_value = 50000
 )

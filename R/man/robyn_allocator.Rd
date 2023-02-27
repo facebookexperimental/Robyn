@@ -18,6 +18,7 @@ robyn_allocator(
   channel_constr_up = 2,
   channel_constr_multiplier = 3,
   date_range = NULL,
+  total_budget = NULL,
   optim_algo = "SLSQP_AUGLAG",
   maxeval = 1e+05,
   constr_mode = "eq",
@@ -78,6 +79,9 @@ interpretation and decision.}
 per channel. Set one of: NULL, "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
 (i.e. \code{c("2022-01-01", "2022-12-31")}).}
+
+\item{total_budget}{Numeric. The total marketing budget for all channels for the period in
+date_range}
 
 \item{optim_algo}{Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
 Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},

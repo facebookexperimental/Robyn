@@ -50,6 +50,8 @@
 #' per channel. Set one of: NULL, "all", "last", or "last_n" (where
 #' n is the last N dates available), date (i.e. "2022-03-27"), or date range
 #' (i.e. \code{c("2022-01-01", "2022-12-31")}).
+#' @param total_budget Numeric. The total marketing budget for all channels for the period in
+#' date_range
 #' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
@@ -87,6 +89,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             channel_constr_up = 2,
                             channel_constr_multiplier = 3,
                             date_range = NULL,
+                            total_budget = NULL,
                             optim_algo = "SLSQP_AUGLAG",
                             maxeval = 100000,
                             constr_mode = "eq",
@@ -197,7 +200,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Spend values based on date range set
   dt_optimCost <- slice(dt_mod, startRW:endRW)
-  new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE)
+  new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE, is_allocator = TRUE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
   check_daterange(date_min, date_max, dt_optimCost$ds)
@@ -207,27 +210,57 @@ robyn_allocator <- function(robyn_object = NULL,
   if (date_max > max(dt_optimCost$ds)) date_max <- max(dt_optimCost$ds)
   histFiltered <- filter(dt_optimCost, .data$ds >= date_min & .data$ds <= date_max)
 
-  nPeriod <- nrow(histFiltered)
-  nDates <- histFiltered$ds
-  message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, nPeriod, InputCollect$intervalType))
+  histSpendAll <- unlist(summarise_all(select(dt_optimCost, any_of(mediaSpendSortedFiltered)), sum))
+  histSpendAllTotal <- sum(histSpendAll)
+  histSpendAllUnit <- unlist(summarise_all(select(dt_optimCost, any_of(mediaSpendSortedFiltered)), mean))
+  histSpendAllUnitTotal <- sum(histSpendAllUnit)
+  histSpendAllShare <- histSpendAllUnit / histSpendAllUnitTotal
 
-  histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
-  histSpendTotal <- sum(histSpendB)
-  histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
+  histSpendWindow <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
+  histSpendWindowTotal <- sum(histSpendWindow)
+  initSpendUnit <- histSpendWindowUnit <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), mean))
+  histSpendWindowUnitTotal <- sum(histSpendWindowUnit)
+  histSpendWindowShare <- histSpendWindowUnit / histSpendWindowUnitTotal
+
+  #histSpend <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), sum))
+  simulation_period <- initial_mean_period <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSortedFiltered)), length))
+  nDates <- lapply(mediaSpendSortedFiltered, function(x) histFiltered$ds)
+  names(nDates) <- mediaSpendSortedFiltered
+  zero_spend_channel <- NULL
+
+  if (any(histSpendWindow == 0)) {
+    zero_spend_channel <- names(histSpendWindow[histSpendWindow == 0])
+    initSpendUnit[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
+    initial_mean_period[zero_spend_channel] <- length(unique(dt_optimCost$ds))
+    nDates[zero_spend_channel] <- lapply(zero_spend_channel, function(x) unique(dt_optimCost$ds))
+    message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, length(new_date_range$date_range_updated),
+                    InputCollect$intervalType))
+    message(sprintf("For channels with 0 spend in window, using historical mean: %s", paste(zero_spend_channel, collapse = ", ")))
+  } else {
+    message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, unique(initial_mean_period), InputCollect$intervalType))
+  }
+  initSpendUnitTotal <- sum(initSpendUnit)
+  initSpendShare <- initSpendUnit / initSpendUnitTotal
+
+  total_budget_unit <- ifelse(is.null(total_budget), initSpendUnitTotal, total_budget / unique(simulation_period))
+
+  #histSpendB <- select(histFiltered, any_of(mediaSpendSortedFiltered))
+  # histSpendTotal <- sum(histSpend)
   # histSpendUnit <- unlist(summarise_all(histSpendB, function(x) sum(x) / sum(x > 0)))
   # histSpendUnit[is.nan(histSpendUnit)] <- 0
   # histSpendUnitTotal <- sum(histSpendUnit, na.rm = TRUE)
   # histSpendShare <- histSpendUnit / histSpendUnitTotal
-  histSpendUnitTotal <- histSpendTotal / nPeriod
-  histSpendShare <- histSpend / histSpendTotal
-  histSpendUnit <- histSpendUnitTotal * histSpendShare
-  histSpendUnitRaw <- histSpendUnit
+  # histSpendUnitTotal <- histSpendTotal / nPeriod
+  # histSpendShare <- histSpend / histSpendTotal
+  # histSpendUnit <- histSpendUnitTotal * histSpendShare
+  # histSpendUnitRaw <- histSpendUnit
+
 
   # Response values based on date range -> mean spend
-  noSpendMedia <- histResponseUnitModel <- NULL
+  initResponseUnit <- NULL
   hist_carryover <- list()
   for (i in seq_along(mediaSpendSortedFiltered)) {
-    if (histSpendUnit[i] > 0) {
+    if (initSpendUnit[i] > 0) {
       # get simulated adstock
       resp <- robyn_response(
         json_file = json_file,
@@ -235,13 +268,14 @@ robyn_allocator <- function(robyn_object = NULL,
         select_build = select_build,
         select_model = select_model,
         metric_name = mediaSpendSortedFiltered[i],
-        metric_value = histSpendUnit[i],
+        metric_value = initSpendUnit[i],
         # date_range = range(InputCollect$dt_modRollWind$ds),
         dt_hyppar = OutputCollect$resultHypParam,
         dt_coef = OutputCollect$xDecompAgg,
         InputCollect = InputCollect,
         OutputCollect = OutputCollect,
         quiet = TRUE,
+        is_allocator = TRUE,
         ...
       )
       # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
@@ -249,7 +283,7 @@ robyn_allocator <- function(robyn_object = NULL,
       hist_carryover[[i]] <- resp$input_carryover
       # get simulated response
       resp_simulate <- fx_objective(
-        x = histSpendUnit[i],
+        x = initSpendUnit[i],
         coeff = coefsFiltered[[mediaSpendSortedFiltered[i]]],
         alpha = alphas[[paste0(mediaSpendSortedFiltered[i], "_alphas")]],
         inflexion = inflexions[[paste0(mediaSpendSortedFiltered[i], "_gammas")]],
@@ -259,22 +293,22 @@ robyn_allocator <- function(robyn_object = NULL,
       names(hist_carryover[[i]]) <- resp$date
     } else {
       resp_simulate <- 0
-      noSpendMedia <- c(noSpendMedia, mediaSpendSortedFiltered[i])
+      # zero_spend_channel <- c(zero_spend_channel, mediaSpendSortedFiltered[i])
     }
-    histResponseUnitModel <- c(histResponseUnitModel, resp_simulate)
+    initResponseUnit <- c(initResponseUnit, resp_simulate)
   }
-  names(histResponseUnitModel) <- names(hist_carryover) <- mediaSpendSortedFiltered
-  if (!is.null(noSpendMedia) && !quiet) {
-    message("Media variables with 0 spending during this date window: ", v2t(noSpendMedia))
-    hist_carryover[noSpendMedia] <- 0
-  }
-  adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
-  if (!quiet & adstocked) message("Adstocked results for date: ", paste(range(resp$date), collapse = ":"))
+  names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSortedFiltered
+  # if (!is.null(zero_spend_channel) && !quiet) {
+  #   message("Media variables with 0 spending during this date window: ", v2t(zero_spend_channel))
+  #   hist_carryover[zero_spend_channel] <- 0
+  # }
+  # adstocked <- isTRUE(!all(histSpendUnitRaw == histSpendUnit))
+  # if (!quiet & adstocked) message("Adstocked results for date: ", paste(range(resp$date), collapse = ":"))
 
   ## Build constraints function with scenarios
-  if ("max_historical_response" %in% scenario) {
-    expSpendUnitTotal <- histSpendUnitTotal
-  }
+  # if ("max_historical_response" %in% scenario) {
+  #   expSpendUnitTotal <- histSpendUnitTotal
+  # }
 
   # Gather all values that will be used internally on optim (nloptr)
   eval_list <- list(
@@ -282,7 +316,7 @@ robyn_allocator <- function(robyn_object = NULL,
     alphas = alphas,
     inflexions = inflexions,
     mediaSpendSortedFiltered = mediaSpendSortedFiltered,
-    expSpendUnitTotal = expSpendUnitTotal,
+    total_budget_unit = total_budget_unit,
     hist_carryover = hist_carryover
   )
   # So we can implicitly use these values within eval_f()
@@ -297,16 +331,16 @@ robyn_allocator <- function(robyn_object = NULL,
   # [1] -6.590166e-07 -3.087475e-06 -2.316821e-02 -1.250144e-05
 
   ## Set initial values and bounds
-  x0 <- lb <- histSpendUnit * channelConstrLowSorted
-  ub <- histSpendUnit * channelConstrUpSorted
+  x0 <- lb <- initSpendUnit * channelConstrLowSorted
+  ub <- initSpendUnit * channelConstrUpSorted
 
   channelConstrLowSortedExt <- ifelse(
     1 - (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
-  x0_ext <- lb_ext <- histSpendUnit * channelConstrLowSortedExt
+  x0_ext <- lb_ext <- initSpendUnit * channelConstrLowSortedExt
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
-  ub_ext <- histSpendUnit * channelConstrUpSortedExt
+  ub_ext <- initSpendUnit * channelConstrUpSortedExt
 
   ## Set optim options
   if (optim_algo == "MMA_AUGLAG") {
@@ -339,7 +373,7 @@ robyn_allocator <- function(robyn_object = NULL,
   optmSpendUnit <- nlsMod$solution
   optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
 
-  lb_carryover <- unlist(lapply(hist_carryover, mean))
+  # lb_carryover <- unlist(lapply(hist_carryover, mean))
   nlsModUnbound <- nloptr::nloptr(
     x0 = x0_ext,
     eval_f = eval_f,
@@ -364,53 +398,70 @@ robyn_allocator <- function(robyn_object = NULL,
     channels = mediaSpendSortedFiltered,
     date_min = date_min,
     date_max = date_max,
-    periods = sprintf("%s %ss", nPeriod, InputCollect$intervalType),
+    periods = sprintf("%s %ss", initial_mean_period, InputCollect$intervalType),
     constr_low = channelConstrLowSorted,
     constr_low_abs = lb,
     constr_up = channelConstrUpSorted,
     constr_up_abs = ub,
     unconstr_mult = channel_constr_multiplier,
+    constr_low_unb = channelConstrLowSortedExt,
     constr_low_unb_abs = lb_ext,
+    constr_up_unb = channelConstrUpSortedExt,
     constr_up_unb_abs = ub_ext,
-    # Initial
-    histSpend = histSpend,
-    histSpendTotal = histSpendTotal,
-    initSpendUnitTotal = histSpendUnitTotal,
-    initSpendUnitRaw = histSpendUnitRaw,
-    adstocked = adstocked,
-    adstocked_start_date = as.Date(ifelse(adstocked, head(resp$date, 1), NA), origin = "1970-01-01"),
-    adstocked_end_date = as.Date(ifelse(adstocked, tail(resp$date, 1), NA), origin = "1970-01-01"),
-    adstocked_periods = length(resp$date),
-    initSpendUnit = histSpendUnit,
-    initSpendShare = histSpendShare,
-    initResponseUnit = histResponseUnitModel,
-    initResponseUnitTotal = sum(histResponseUnitModel),
-    initResponseUnitShare = histResponseUnitModel / sum(histResponseUnitModel),
-    initRoiUnit = histResponseUnitModel / histSpendUnit,
-    # Expected
-    expSpendUnitTotal = expSpendUnitTotal,
-    expSpendUnitDelta = expSpendUnitTotal / histSpendUnitTotal - 1,
+    # Historical spends
+    histSpendAll = histSpendAll,
+    histSpendAllTotal = histSpendAllTotal,
+    histSpendAllUnit = histSpendAllUnit,
+    histSpendAllUnitTotal = histSpendAllUnitTotal,
+    histSpendAllShare = histSpendAllShare,
+    histSpendWindow = histSpendWindow,
+    histSpendWindowTotal = histSpendWindowTotal,
+    histSpendWindowUnit = histSpendWindowUnit,
+    histSpendWindowUnitTotal = histSpendWindowUnitTotal,
+    histSpendWindowShare = histSpendWindowShare,
+    # Initial spends for allocation
+    initSpendUnit = initSpendUnit,
+    initSpendUnitTotal = initSpendUnitTotal,
+    initSpendShare = initSpendShare,
+    initSpendTotal = initSpendUnitTotal * unique(simulation_period),
+    # initSpendUnitRaw = histSpendUnitRaw,
+    # adstocked = adstocked,
+    # adstocked_start_date = as.Date(ifelse(adstocked, head(resp$date, 1), NA), origin = "1970-01-01"),
+    # adstocked_end_date = as.Date(ifelse(adstocked, tail(resp$date, 1), NA), origin = "1970-01-01"),
+    # adstocked_periods = length(resp$date),
+    initResponseUnit = initResponseUnit,
+    initResponseUnitTotal = sum(initResponseUnit),
+    initResponseTotal = sum(initResponseUnit) * unique(simulation_period),
+    initResponseUnitShare = initResponseUnit / sum(initResponseUnit),
+    initRoiUnit = initResponseUnit / initSpendUnit,
+    # Budget change
+    total_budget_unit = total_budget_unit,
+    total_budget_unit_delta = total_budget_unit / initSpendUnitTotal - 1,
     # Optimized
     optmSpendUnit = optmSpendUnit,
-    optmSpendUnitDelta = (optmSpendUnit / histSpendUnit - 1),
+    optmSpendUnitDelta = (optmSpendUnit / initSpendUnit - 1),
     optmSpendUnitTotal = sum(optmSpendUnit),
-    optmSpendUnitTotalDelta = sum(optmSpendUnit) / histSpendUnitTotal - 1,
+    optmSpendUnitTotalDelta = sum(optmSpendUnit) / initSpendUnitTotal - 1,
     optmSpendShareUnit = optmSpendUnit / sum(optmSpendUnit),
+    optmSpendTotal = sum(optmSpendUnit) * unique(simulation_period),
     optmSpendUnitUnbound = optmSpendUnitUnbound,
-    optmSpendUnitDeltaUnbound = (optmSpendUnitUnbound / histSpendUnit - 1),
+    optmSpendUnitDeltaUnbound = (optmSpendUnitUnbound / initSpendUnit - 1),
     optmSpendUnitTotalUnbound = sum(optmSpendUnitUnbound),
-    optmSpendUnitTotalDeltaUnbound = sum(optmSpendUnitUnbound) / histSpendUnitTotal - 1,
+    optmSpendUnitTotalDeltaUnbound = sum(optmSpendUnitUnbound) / initSpendUnitTotal - 1,
     optmSpendShareUnitUnbound = optmSpendUnitUnbound / sum(optmSpendUnitUnbound),
+    optmSpendTotalUnbound = sum(optmSpendUnitUnbound) * unique(simulation_period),
     optmResponseUnit = optmResponseUnit,
     optmResponseUnitTotal = sum(optmResponseUnit),
+    optmResponseTotal = sum(optmResponseUnit) * unique(simulation_period),
     optmResponseUnitShare = optmResponseUnit / sum(optmResponseUnit),
     optmRoiUnit = optmResponseUnit / optmSpendUnit,
-    optmResponseUnitLift = (optmResponseUnit / histResponseUnitModel) - 1,
+    optmResponseUnitLift = (optmResponseUnit / initResponseUnit) - 1,
     optmResponseUnitUnbound = optmResponseUnitUnbound,
     optmResponseUnitTotalUnbound = sum(optmResponseUnitUnbound),
+    optmResponseTotalUnbound = sum(optmResponseUnitUnbound) * unique(simulation_period),
     optmResponseUnitShareUnbound = optmResponseUnitUnbound / sum(optmResponseUnitUnbound),
     optmRoiUnitUnbound = optmResponseUnitUnbound / optmSpendUnitUnbound,
-    optmResponseUnitLiftUnbound = (optmResponseUnitUnbound / histResponseUnitModel) - 1
+    optmResponseUnitLiftUnbound = (optmResponseUnitUnbound / initResponseUnit) - 1
   ) %>%
     mutate(
       optmResponseUnitTotalLift = (.data$optmResponseUnitTotal / .data$initResponseUnitTotal) - 1,
@@ -507,7 +558,7 @@ robyn_allocator <- function(robyn_object = NULL,
     plots = plots,
     scenario = scenario,
     skipped = chn_coef0,
-    no_spend = noSpendMedia,
+    no_spend = zero_spend_channel,
     ui = if (ui) plots else NULL
   )
 
@@ -691,7 +742,7 @@ fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover
 
 eval_g_eq <- function(X) {
   eval_list <- getOption("ROBYN_TEMP")
-  constr <- sum(X) - eval_list$expSpendUnitTotal
+  constr <- sum(X) - eval_list$total_budget_unit
   grad <- rep(1, length(X))
   return(list(
     "constraints" = constr,
@@ -701,7 +752,7 @@ eval_g_eq <- function(X) {
 
 eval_g_ineq <- function(X) {
   eval_list <- getOption("ROBYN_TEMP")
-  constr <- sum(X) - eval_list$expSpendUnitTotal
+  constr <- sum(X) - eval_list$total_budget_unit
   grad <- rep(1, length(X))
   return(list(
     "constraints" = constr,

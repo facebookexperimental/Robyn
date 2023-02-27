@@ -670,18 +670,18 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   }
 
   # 1. Response and spend comparison plot
-  init_total_spend <- dt_optimOut$initSpendUnitTotal[1]
-  init_total_response <- dt_optimOut$initResponseUnitTotal[1]
+  init_total_spend <- dt_optimOut$initSpendTotal[1]
+  init_total_response <- dt_optimOut$initResponseTotal[1]
   init_total_roi <- init_total_response / init_total_spend
   init_total_cpa <- init_total_spend / init_total_response
 
-  optm_total_spend_bounded <- dt_optimOut$optmSpendUnitTotal[1]
-  optm_total_response_bounded <- dt_optimOut$optmResponseUnitTotal[1]
+  optm_total_spend_bounded <- dt_optimOut$optmSpendTotal[1]
+  optm_total_response_bounded <- dt_optimOut$optmResponseTotal[1]
   optm_total_roi_bounded <- optm_total_response_bounded / optm_total_spend_bounded
   optm_total_cpa_bounded <- optm_total_spend_bounded / optm_total_response_bounded
 
-  optm_total_spend_unbounded <- dt_optimOut$optmSpendUnitTotalUnbound[1]
-  optm_total_response_unbounded <- dt_optimOut$optmResponseUnitTotalUnbound[1]
+  optm_total_spend_unbounded <- dt_optimOut$optmSpendTotalUnbound[1]
+  optm_total_response_unbounded <- dt_optimOut$optmResponseTotalUnbound[1]
   optm_total_roi_unbounded <- optm_total_response_unbounded / optm_total_spend_unbounded
   optm_total_cpa_unbounded <- optm_total_spend_unbounded / optm_total_response_unbounded
 
@@ -733,7 +733,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
-    labs(title = "Total Budget Optimization Result*", fill = NULL, y = NULL, x = NULL) +
+    labs(title = "Unit Budget Optimization Result*", fill = NULL, y = NULL, x = NULL) +
     scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
 
   # 2. Response and spend comparison per channel plot
@@ -822,7 +822,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
-    filter(.data$histSpend > 0) %>%
+    filter(.data$initSpendUnit > 0) %>%
     mutate(constr_label = sprintf("%s [%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
     select(
       "channel" = "channels", "constr_label", "constr_low_abs",
@@ -899,6 +899,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   # Gather all plots into a single one
+  min_period_loc <- which.min(as.integer(sapply(dt_optimOut$periods, function(x) str_split(x, " ")[[1]][1])))
   outputs[["plots"]] <- plots <- (p1 / p2 / p3) +
     plot_layout(heights = c(0.8, 0.2 + length(dt_optimOut$channels) * 0.2, ceiling(length(dt_optimOut$channels) / 3))) +
     plot_annotation(
@@ -908,7 +909,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         errors,
         dt_optimOut$date_min[1],
         dt_optimOut$date_max[1],
-        dt_optimOut$periods[1],
+        dt_optimOut$periods[min_period_loc],
         scenario
       ),
       theme = theme_lares(background = "white")
