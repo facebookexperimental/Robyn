@@ -375,7 +375,10 @@ print(ExportedModel)
 # same spend level in date_range and what is the spend and expected response mix?"
 # For this scenario, we have several use cases:
 
+
 # Case 1: date_range & total_budget both NULL (default for last month's spend)
+InputCollect$paid_media_spends # The order of constraints should follow this
+
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
@@ -383,7 +386,7 @@ AllocatorCollect1 <- robyn_allocator(
   date_range = NULL, # When NULL, will set last month (30 days, 4 weeks, or 1 month)
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 4,
+  channel_constr_multiplier = 3,
   scenario = "max_historical_response",
   export = create_files
 )
@@ -400,7 +403,7 @@ AllocatorCollect2 <- robyn_allocator(
   date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
   channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 4,
+  channel_constr_multiplier = 3,
   scenario = "max_historical_response",
   export = create_files
 )
@@ -413,7 +416,7 @@ AllocatorCollect3 <- robyn_allocator(
   OutputCollect = OutputCollect,
   select_model = select_model,
   # date_range = "last_4",
-  total_budget = 5000000,
+  total_budget = 2000000,
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 4,
