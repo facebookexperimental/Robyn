@@ -629,10 +629,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
   )
   metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
-  formulax <- ifelse(
+  formulax1 <- ifelse(
     metric == "ROAS",
     "ROAS = total response / raw spend | mROAS = marginal response / marginal spend",
     "CPA = raw spend / total response | mCPA =  marginal spend / marginal response"
+  )
+  formulax2 <- ifelse(
+    metric == "ROAS",
+    "When reallocating budget, mROAS converges across media within respective bounds",
+    "When reallocating budget, mCPA converges across media within respective bounds"
   )
 
   # Calculate errors for subtitles
@@ -747,7 +752,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
-    labs(title = "Total Budget Optimization Result*", fill = NULL, y = NULL, x = NULL) +
+    labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
     scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
 
   # 2. Response and spend comparison per channel plot
@@ -860,7 +865,6 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     theme_lares(legend = "none") +
     labs(
       title = "Budget Allocation per Channel*",
-      subtitle = paste0("m", metric, " converges across channels when being optimised"),
       fill = NULL, x = NULL, y = "Paid Channels"
     )
 
@@ -909,8 +913,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       "^ Given the upper/lower constrains, the total budget (%s) can't be fully allocated\n",
       formatNum(eval_list$total_budget, abbr = TRUE)
     ), ""),
-    paste("* Initial & optimised", formulax, "","\n"),
-    paste("** Dotted lines show budget optimization bounded range per channel")
+    paste0("* ", formulax1, "\n"),
+    paste0("* ", formulax2, "\n"),
+    paste("** Dotted lines show budget optimization lower-upper ranges per media")
   )
 
   outputs[["p3"]] <- p3 <- plotDT_scurve %>%
