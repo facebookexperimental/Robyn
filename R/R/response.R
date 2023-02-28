@@ -4,14 +4,14 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Response Function
+#' Response and Saturation Curves
 #'
 #' \code{robyn_response()} returns the response for a given
 #' spend level of a given \code{paid_media_vars} from a selected model
 #' result and selected model build (initial model, refresh model, etc.).
 #'
 #' @inheritParams robyn_allocator
-#' @param media_metric A character. Selected media variable for the response.
+#' @param metric_name A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
 #' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
@@ -30,7 +30,7 @@
 #' Response1 <- robyn_response(
 #'   InputCollect = InputCollect,
 #'   OutputCollect = OutputCollect,
-#'   media_metric = "search_S",
+#'   metric_name = "search_S",
 #'   metric_value = spend1
 #' )$response
 #' # Get ROI for 80k
@@ -41,7 +41,7 @@
 #' Response2 <- robyn_response(
 #'   InputCollect = InputCollect,
 #'   OutputCollect = OutputCollect,
-#'   media_metric = "search_S",
+#'   metric_name = "search_S",
 #'   metric_value = spend2
 #' )$response
 #'
@@ -57,7 +57,7 @@
 #' response_imps <- robyn_response(
 #'   InputCollect = InputCollect,
 #'   OutputCollect = OutputCollect,
-#'   media_metric = "facebook_I",
+#'   metric_name = "facebook_I",
 #'   metric_value = imps
 #' )$response
 #' response_per_1k_imps <- response_imps / imps * 1000
@@ -68,7 +68,7 @@
 #' robyn_response(
 #'   InputCollect = InputCollect,
 #'   OutputCollect = OutputCollect,
-#'   media_metric = "search_S",
+#'   metric_name = "search_S",
 #'   metric_value = 80000,
 #'   dt_hyppar = OutputCollect$resultHypParam,
 #'   dt_coef = OutputCollect$xDecompAgg
@@ -81,9 +81,10 @@ robyn_response <- function(InputCollect = NULL,
                            json_file = NULL,
                            robyn_object = NULL,
                            select_build = NULL,
-                           media_metric = NULL,
                            select_model = NULL,
+                           metric_name = NULL,
                            metric_value = NULL,
+                           date_range = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
                            quiet = FALSE,
@@ -157,6 +158,7 @@ robyn_response <- function(InputCollect = NULL,
     exposure_vars <- InputCollect$exposure_vars
     organic_vars <- InputCollect$organic_vars
     allSolutions <- unique(dt_hyppar$solID)
+    dayInterval <- InputCollect$dayInterval
   }
 
   if (!(select_model %in% allSolutions)) {
@@ -166,115 +168,191 @@ robyn_response <- function(InputCollect = NULL,
     ))
   }
 
-  ## Get media values
-  if (media_metric %in% paid_media_spends && length(media_metric) == 1) {
-    metric_type <- "spend"
-  } else if (media_metric %in% exposure_vars && length(media_metric) == 1) {
-    metric_type <- "exposure"
-  } else if (media_metric %in% organic_vars && length(media_metric) == 1) {
-    metric_type <- "organic"
-  } else {
-    stop(paste(
-      "Invalid 'media_metric' input. It must be any media variable from",
-      "paid_media_spends (spend), paid_media_vars (exposure),",
-      "or organic_vars (organic); NOT:", media_metric,
-      paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
-      paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
-      paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
-    ))
-  }
+  ## Get use case based on inputs
+  usecase <- which_usecase(metric_value, date_range)
 
-  if (any(is.nan(metric_value))) metric_value <- NULL
-  check_metric_value(metric_value, media_metric)
+  ## Check inputs with usecases
+  metric_type <- check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
+  all_dates <- pull(dt_input, InputCollect$date_var)
+  all_values <- pull(dt_input, metric_name)
+
+  if (usecase == "all_historical_vec") {
+    ds_list <- check_metric_dates(date_range = "all", all_dates, dayInterval, quiet, ...)
+    val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+  } else if (usecase == "unit_metric_default_last_n") {
+    ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates, dayInterval, quiet, ...)
+    val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+  } else {
+    ds_list <- check_metric_dates(date_range, all_dates, dayInterval, quiet, ...)
+  }
+  val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+  date_range_updated <- ds_list$date_range_updated
+  metric_value_updated <- val_list$metric_value_updated
+  all_values_updated <- val_list$all_values_updated
 
   ## Transform exposure to spend when necessary
   if (metric_type == "exposure") {
-    get_spend_name <- paid_media_spends[which(paid_media_vars == media_metric)]
-    expo_vec <- dt_input[, media_metric][[1]]
+    get_spend_name <- paid_media_spends[which(paid_media_vars == metric_name)]
+    # expo_vec <- dt_input[, metric_name][[1]]
     # Use non-0 mean as marginal level if metric_value not provided
-    if (is.null(metric_value)) {
-      metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
-      if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
-    }
+    # if (is.null(metric_value)) {
+    #   metric_value <- mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
+    #   if (!quiet) message("Input 'metric_value' not provided. Using mean of ", metric_name, " instead")
+    # }
     # Fit spend to exposure
-    spend_vec <- dt_input[, get_spend_name][[1]]
+    # spend_vec <- dt_input[, get_spend_name][[1]]
     if (is.null(spendExpoMod)) {
       stop("Can't calculate exposure to spend response. Please, recreate your InputCollect object")
     }
-    temp <- filter(spendExpoMod, .data$channel == media_metric)
+    temp <- filter(spendExpoMod, .data$channel == metric_name)
     nls_select <- temp$rsq_nls > temp$rsq_lm
     if (nls_select) {
-      Vmax <- spendExpoMod$Vmax[spendExpoMod$channel == media_metric]
-      Km <- spendExpoMod$Km[spendExpoMod$channel == media_metric]
-      media_vec <- mic_men(x = spend_vec, Vmax = Vmax, Km = Km, reverse = FALSE)
+      Vmax <- spendExpoMod$Vmax[spendExpoMod$channel == metric_name]
+      Km <- spendExpoMod$Km[spendExpoMod$channel == metric_name]
+      input_immediate <- mic_men(x = metric_value_updated, Vmax = Vmax, Km = Km, reverse = TRUE)
     } else {
-      coef_lm <- spendExpoMod$coef_lm[spendExpoMod$channel == media_metric]
-      media_vec <- spend_vec * coef_lm
+      coef_lm <- spendExpoMod$coef_lm[spendExpoMod$channel == metric_name]
+      input_immediate <- metric_value_updated / coef_lm
     }
+    all_values_updated[ds_list$metric_loc] <- input_immediate
     hpm_name <- get_spend_name
   } else {
-    media_vec <- dt_input[, media_metric][[1]]
     # use non-0 means marginal level if spend not provided
-    if (is.null(metric_value)) {
-      metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
-      if (!quiet) message("Input 'metric_value' not provided. Using mean of ", media_metric, " instead")
-    }
-    hpm_name <- media_metric
+    # if (is.null(metric_value)) {
+    #   metric_value <- mean(media_vec[startRW:endRW][media_vec[startRW:endRW] > 0])
+    #   if (!quiet) message("Input 'metric_value' not provided. Using mean of ", metric_name, " instead")
+    # }
+    input_immediate <- metric_value_updated
+    hpm_name <- metric_name
   }
 
-  ## Adstocking
+  ## Adstocking original
+  media_vec_origin <- dt_input[, metric_name][[1]]
+  theta <- scale <- shape <- NULL
   if (adstock == "geometric") {
-    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]]
-    x_list <- adstock_geometric(x = media_vec, theta = theta)
-  } else if (adstock == "weibull_cdf") {
-    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
-    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "cdf")
-  } else if (adstock == "weibull_pdf") {
-    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]]
-    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]]
-    x_list <- adstock_weibull(x = media_vec, shape = shape, scale = scale, type = "pdf")
+    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]][[1]]
   }
+  if (grepl("weibull", adstock)) {
+    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]][[1]]
+    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]][[1]]
+  }
+  x_list <- transform_adstock(media_vec_origin, adstock, theta = theta, shape = shape, scale = scale)
   m_adstocked <- x_list$x_decayed
+  # net_carryover_ref <- m_adstocked - media_vec_origin
+
+  ## Adstocking simulation
+  x_list_sim <- transform_adstock(all_values_updated, adstock, theta = theta, shape = shape, scale = scale)
+  media_vec_sim <- x_list_sim$x_decayed
+  input_total <- media_vec_sim[ds_list$metric_loc]
+  input_carryover <- input_total - input_immediate
 
   ## Saturation
   m_adstockedRW <- m_adstocked[startRW:endRW]
-  alpha <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]]
-  gamma <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]]
-  Saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = metric_value)
-  m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
+  alpha <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]], 1)
+  gamma <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]], 1)
+  metric_saturated_total <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = input_total)
+  metric_saturated_carryover <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma, x_marginal = input_carryover)
+  metric_saturated_immediate <- metric_saturated_total - metric_saturated_carryover
 
   ## Decomp
   coeff <- dt_coef[dt_coef$solID == select_model & dt_coef$rn == hpm_name, ][["coef"]]
-  response_vec <- m_saturated * coeff
-  Response <- as.numeric(Saturated * coeff)
+  m_saturated <- saturation_hill(x = m_adstockedRW, alpha = alpha, gamma = gamma)
+  m_resposne <- m_saturated * coeff
+  response_total <- as.numeric(metric_saturated_total * coeff)
+  response_carryover <- as.numeric(metric_saturated_carryover * coeff)
+  response_immediate <- response_total - response_carryover
+
+  dt_line <- data.frame(metric = m_adstockedRW, response = m_resposne, channel = metric_name)
+  dt_point <- data.frame(input = input_total, output = response_total, ds = date_range_updated)
+
+  # Reference non-adstocked data when using updated metric values
+  dt_point_caov <- data.frame(input = input_carryover, output = response_carryover)
+  dt_point_imme <- data.frame(input = input_immediate, output = response_immediate)
 
   ## Plot optimal response
-  media_type <- ifelse(metric_type == "organic", "organic", "paid")
-  dt_line <- data.frame(metric = m_adstockedRW, response = response_vec, channel = media_metric)
-  dt_point <- data.frame(input = metric_value, output = Response)
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
     geom_line(color = "steelblue") +
     geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
     labs(
       title = paste(
-        "Saturation curve of", media_type, "media:", media_metric,
+        "Saturation curve of",
+        ifelse(metric_type == "organic", "organic", "paid"),
+        "media:", metric_name,
+        ifelse(!is.null(date_range_updated), "adstocked", ""),
         ifelse(metric_type == "spend", "spend metric", "exposure metric")
       ),
-      subtitle = sprintf(
-        "Response of %s @ %s",
-        formatNum(dt_point$output, signif = 4),
-        formatNum(dt_point$input, signif = 4)
-      ),
-      x = "Metric", y = "Response"
+      subtitle = ifelse(length(unique(input_total)) == 1, sprintf(
+        paste(
+          "Carryover* Response: %s @ Input %s",
+          "Immediate Response: %s @ Input %s",
+          "Total (C+I) Response: %s @ Input %s",
+          sep = "\n"
+        ),
+        num_abbr(dt_point_caov$output), num_abbr(dt_point_caov$input),
+        num_abbr(dt_point_imme$output), num_abbr(dt_point_imme$input),
+        num_abbr(dt_point$output), num_abbr(dt_point$input)
+      ), ""),
+      x = "Input", y = "Response",
+      caption = sprintf(
+        "Response period: %s%s%s",
+        head(date_range_updated, 1),
+        ifelse(length(date_range_updated) > 1, paste(" to", tail(date_range_updated, 1)), ""),
+        ifelse(length(date_range_updated) > 1, paste0(" [", length(date_range_updated), " periods]"), "")
+      )
     ) +
     theme_lares() +
     scale_x_abbr() +
     scale_y_abbr()
+  p_res
+  if (length(unique(metric_value)) == 1) {
+    p_res <- p_res +
+      geom_point(data = dt_point_caov, aes(x = .data$input, y = .data$output), size = 3, shape = 8)
+  }
 
-  class(Response) <- unique(c("robyn_response", class(Response)))
-  return(list(
-    response = Response,
+  ret <- list(
+    metric_name = metric_name,
+    date = date_range_updated,
+    input_total = input_total,
+    input_carryover = input_carryover,
+    input_immediate = input_immediate,
+    response_total = response_total,
+    response_carryover = response_carryover,
+    response_immediate = response_immediate,
+    usecase = usecase,
     plot = p_res
-  ))
+  )
+  class(ret) <- unique(c("robyn_response", class(ret)))
+  return(ret)
 }
+
+which_usecase <- function(metric_value, date_range) {
+  dplyr::case_when(
+    # Case 1: raw historical spend and all dates -> model decomp as out of the model (no mean spends)
+    is.null(metric_value) & is.null(date_range) ~ "all_historical_vec",
+    # Case 2: same as case 1 for date_range
+    is.null(metric_value) & !is.null(date_range) ~ "selected_historical_vec",
+    ######### Simulations: use metric_value, not the historical real spend anymore
+    # Cases 3-4: metric_value for "total budget" for date_range period
+    length(metric_value) == 1 & is.null(date_range) ~ "total_metric_default_range",
+    length(metric_value) == 1 & !is.null(date_range) ~ "total_metric_selected_range",
+    # Cases 5-6: individual period values, not total; requires date_range to be the same length as metric_value
+    length(metric_value) > 1 & is.null(date_range) ~ "unit_metric_default_last_n",
+    TRUE ~ "unit_metric_selected_dates"
+  )
+}
+
+# ####### SCENARIOS CHECK FOR date_range
+# metric_value <- 71427
+# all_dates <- dt_input$DATE
+# check_metric_dates(metric_value, date_range = NULL, all_dates, quiet = FALSE)
+# check_metric_dates(metric_value, date_range = "last", all_dates, quiet = FALSE)
+# check_metric_dates(metric_value, date_range = "last_5", all_dates, quiet = FALSE)
+# check_metric_dates(metric_value, date_range = "all", all_dates, quiet = FALSE)
+# check_metric_dates(metric_value, date_range = c("2018-01-01"), all_dates, quiet = FALSE)
+# check_metric_dates(metric_value, date_range = c("2018-01-01", "2018-07-11"), all_dates, quiet = FALSE) # WARNING
+# check_metric_dates(metric_value, date_range = c("2018-01-01", "2018-07-09"), all_dates, quiet = FALSE)
+# check_metric_dates(c(50000, 60000), date_range = "last_4", all_dates, quiet = FALSE) # ERROR
+# check_metric_dates(c(50000, 60000), date_range = "last_2", all_dates, quiet = FALSE)
+# check_metric_dates(c(50000, 60000), date_range = c("2018-12-31", "2019-01-07"), all_dates, quiet = FALSE)
+# check_metric_dates(c(50000, 60000), date_range = c("2018-12-31"), all_dates, quiet = FALSE) # ERROR
+# check_metric_dates(0, date_range = c("2018-12-31"), all_dates, quiet = FALSE)

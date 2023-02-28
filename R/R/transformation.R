@@ -55,6 +55,7 @@ mic_men <- function(x, Vmax, Km, reverse = FALSE) {
 #' @rdname adstocks
 #' @export
 adstock_geometric <- function(x, theta) {
+  stopifnot(length(theta) == 1)
   if (length(x) > 1) {
     x_decayed <- c(x[1], rep(0, length(x) - 1))
     for (xi in 2:length(x_decayed)) {
@@ -68,7 +69,8 @@ adstock_geometric <- function(x, theta) {
     x_decayed <- x
     thetaVecCum <- theta
   }
-  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+  inflation_total <- sum(x_decayed) / sum(x)
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total))
 }
 
 
@@ -118,9 +120,14 @@ adstock_geometric <- function(x, theta) {
 #' @examples
 #' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "CDF")
 #' adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
+#'
+#' # Wrapped function for either adstock
+#' transform_adstock(rep(100, 10), "weibull_pdf", shape = 1, scale = 0.5)
 #' @rdname adstocks
 #' @export
 adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") {
+  stopifnot(length(shape) == 1)
+  stopifnot(length(scale) == 1)
   if (length(x) > 1) {
     check_opts(tolower(type), c("cdf", "pdf"))
     x_bin <- 1:windlen
@@ -147,7 +154,23 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     x_decayed <- x
     thetaVecCum <- 1
   }
-  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum))
+  inflation_total <- sum(x_decayed) / sum(x)
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total))
+}
+
+#' @rdname adstocks
+#' @param adstock Character. One of: "geometric", "weibull_cdf", "weibull_pdf".
+#' @export
+transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NULL, windlen = length(x)) {
+  check_adstock(adstock)
+  if (adstock == "geometric") {
+    x_list_sim <- adstock_geometric(x = x, theta = theta)
+  } else if (adstock == "weibull_cdf") {
+    x_list_sim <- adstock_weibull(x = x, shape = shape, scale = scale, windlen = windlen, type = "cdf")
+  } else if (adstock == "weibull_pdf") {
+    x_list_sim <- adstock_weibull(x = x, shape = shape, scale = scale, windlen = windlen, type = "pdf")
+  }
+  return(x_list_sim)
 }
 
 .normalize <- function(x) {
@@ -177,6 +200,8 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
 #' @return Numeric values. Transformed values.
 #' @export
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
+  stopifnot(length(alpha) == 1)
+  stopifnot(length(gamma) == 1)
   inflexion <- c(range(x) %*% c(1 - gamma, gamma)) # linear interpolation by dot product
   if (is.null(x_marginal)) {
     x_scurve <- x**alpha / (x**alpha + inflexion**alpha) # plot(x_scurve) summary(x_scurve)

@@ -3,12 +3,22 @@
 \name{adstock_geometric}
 \alias{adstock_geometric}
 \alias{adstock_weibull}
+\alias{transform_adstock}
 \alias{plot_adstock}
 \title{Adstocking Transformation (Geometric and Weibull)}
 \usage{
 adstock_geometric(x, theta)
 
 adstock_weibull(x, shape, scale, windlen = length(x), type = "cdf")
+
+transform_adstock(
+  x,
+  adstock,
+  theta = NULL,
+  shape = NULL,
+  scale = NULL,
+  windlen = length(x)
+)
 
 plot_adstock(plot = TRUE)
 }
@@ -31,6 +41,8 @@ C and S shape, while the peak value will always stay at the first period,
 meaning no lagged effect. PDF, or the probability density function, enables
 peak value occurring after the first period when shape >=1, allowing lagged
 effect.}
+
+\item{adstock}{Character. One of: "geometric", "weibull_cdf", "weibull_pdf".}
 
 \item{plot}{Boolean. Do you wish to return the plot?}
 }
@@ -78,6 +90,9 @@ Run \code{plot_adstock()} to see the difference visually.
 adstock_geometric(rep(100, 5), theta = 0.5)
 adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "CDF")
 adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
+
+# Wrapped function for either adstock
+transform_adstock(rep(100, 10), "weibull_pdf", shape = 1, scale = 0.5)
 }
 \seealso{
 Other Transformations: 

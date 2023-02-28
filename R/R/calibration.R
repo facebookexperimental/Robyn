@@ -51,18 +51,14 @@ robyn_calibrate <- function(calibration_input,
           ## 1. Adstock
           if (adstock == "geometric") {
             theta <- hypParamSam[paste0(get_channels[l_chn], "_thetas")][[1]][[1]]
-            x_list <- adstock_geometric(x = m_calib, theta = theta)
-          } else if (adstock == "weibull_cdf") {
-            shape <- hypParamSam[paste0(get_channels[l_chn], "_shapes")][[1]][[1]]
-            scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
-            x_list <- adstock_weibull(x = m_calib, shape = shape, scale = scale, windlen = length(m), type = "cdf")
-          } else if (adstock == "weibull_pdf") {
-            shape <- hypParamSam[paste0(get_channels[l_chn], "_shapes")][[1]][[1]]
-            scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
-            x_list <- adstock_weibull(x = m_calib, shape = shape, scale = scale, windlen = length(m), type = "pdf")
           }
-          m_calib_total_adst <- dt_modAdstocked[calib_pos, get_channels[l_chn]][[1]]
+          if (grepl("weibull", adstock)) {
+            shape <- hypParamSam[paste0(get_channels[l_chn], "_shapes")][[1]][[1]]
+            scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
+          }
+          x_list <- transform_adstock(m_calib, adstock, theta = theta, shape = shape, scale = scale)
           m_calib_imme_adst <- x_list$x_decayed
+          m_calib_total_adst <- dt_modAdstocked[calib_pos, get_channels[l_chn]][[1]]
           m_calib_hist_adst <- m_calib_total_adst - m_calib_imme_adst
           # Adapt for weibull_pdf with lags
           m_calib_imme_adst[m_calib_hist_adst < 0] <- m_calib_total_adst[m_calib_hist_adst < 0]

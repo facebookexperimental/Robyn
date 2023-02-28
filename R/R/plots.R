@@ -300,31 +300,37 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
     parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
-      plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
-      rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
-      rsq_val_plot <- round(plotMediaShareLoop$rsq_val[1], 4)
-      rsq_test_plot <- round(plotMediaShareLoop$rsq_test[1], 4)
-      nrmse_train_plot <- round(plotMediaShareLoop$nrmse_train[1], 4)
-      nrmse_val_plot <- round(plotMediaShareLoop$nrmse_val[1], 4)
-      nrmse_test_plot <- round(plotMediaShareLoop$nrmse_test[1], 4)
-      decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
-      mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input), round(plotMediaShareLoop$mape[1], 4), 0)
-      train_size <- round(plotMediaShareLoop$train_size[1], 4)
 
-      if (val) {
-        errors <- paste0(
-          "NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
-          "; [Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot, "]",
-          ";\nDECOMP.RSSD = ", decomp_rssd_plot,
-          "; MAPE = ", mape_lift_plot
+      if (TRUE) {
+        plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
+        rsq_train_plot <- round(plotMediaShareLoop$rsq_train[1], 4)
+        rsq_val_plot <- round(plotMediaShareLoop$rsq_val[1], 4)
+        rsq_test_plot <- round(plotMediaShareLoop$rsq_test[1], 4)
+        nrmse_train_plot <- round(plotMediaShareLoop$nrmse_train[1], 4)
+        nrmse_val_plot <- round(plotMediaShareLoop$nrmse_val[1], 4)
+        nrmse_test_plot <- round(plotMediaShareLoop$nrmse_test[1], 4)
+        decomp_rssd_plot <- round(plotMediaShareLoop$decomp.rssd[1], 4)
+        mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
+          round(plotMediaShareLoop$mape[1], 4), NA
         )
-      } else {
-        errors <- paste0(
-          "NRMSE train = ", nrmse_train_plot,
-          "; [Adj.R2 train = ", rsq_train_plot, "]",
-          "; DECOMP.RSSD = ", decomp_rssd_plot,
-          "; MAPE = ", mape_lift_plot
-        )
+        train_size <- round(plotMediaShareLoop$train_size[1], 4)
+        if (val) {
+          errors <- sprintf(
+            paste(
+              "Adj.R2: train = %s, val = %s, test = %s |",
+              "NRMSE: train = %s, val = %s, test = %s |",
+              "DECOMP.RSSD = %s | MAPE = %s"
+            ),
+            rsq_train_plot, rsq_val_plot, rsq_test_plot,
+            nrmse_train_plot, nrmse_val_plot, nrmse_test_plot,
+            decomp_rssd_plot, mape_lift_plot
+          )
+        } else {
+          errors <- sprintf(
+            "Adj.R2: train = %s | NRMSE: train = %s | DECOMP.RSSD = %s | MAPE = %s",
+            rsq_train_plot, nrmse_train_plot, decomp_rssd_plot, mape_lift_plot
+          )
+        }
       }
 
       ## 1. Spend x effect share comparison
@@ -364,7 +370,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Share of Spend VS Share of Effect with total ", type),
+          title = paste0("Total Spend% VS Effect% with total ", type),
           y = "Total Share by Channel", x = NULL, fill = NULL, color = NULL
         )
 
@@ -432,25 +438,34 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
           filter(
-            .data$spend < max(dt_scurvePlotMean$mean_spend) * trim_rate,
-            .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate
+            .data$spend < max(dt_scurvePlotMean$mean_spend_adstocked) * trim_rate,
+            .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate,
+            .data$channel %in% InputCollect$paid_media_spends
+          ) %>%
+          left_join(
+            dt_scurvePlotMean[, c("channel", "mean_carryover")], "channel"
           )
       }
       if (!"channel" %in% colnames(dt_scurvePlotMean)) {
         dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
       }
       p4 <- ggplot(
-        dt_scurvePlot[dt_scurvePlot$channel %in% InputCollect$paid_media_spends, ],
-        aes(x = .data$spend, y = .data$response, color = .data$channel)
+        dt_scurvePlot, aes(x = .data$spend, y = .data$response, color = .data$channel)
       ) +
         geom_line() +
+        geom_area(
+          data = group_by(dt_scurvePlot, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
+          aes(x = .data$spend, y = .data$response, color = .data$channel),
+          stat = "align", position = "stack", size = 0.1,
+          fill = "grey50", alpha = 0.4, show.legend = FALSE
+        ) +
         geom_point(data = dt_scurvePlotMean, aes(
-          x = .data$mean_spend, y = .data$mean_response, color = .data$channel
+          x = .data$mean_spend_adstocked, y = .data$mean_response, color = .data$channel
         )) +
         geom_text(
           data = dt_scurvePlotMean, aes(
-            x = .data$mean_spend, y = .data$mean_response, color = .data$channel,
-            label = formatNum(.data$mean_spend, 2, abbr = TRUE)
+            x = .data$mean_spend_adstocked, y = .data$mean_response, color = .data$channel,
+            label = formatNum(.data$mean_spend_adstocked, 2, abbr = TRUE)
           ),
           show.legend = FALSE, hjust = -0.2
         ) +
@@ -461,7 +476,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         ) +
         labs(
           title = "Response Curves and Mean Spends by Channel",
-          x = "Spend", y = "Response", color = NULL
+          x = "Spend (carryover + immediate)", y = "Response", color = NULL
         ) +
         scale_y_abbr() +
         scale_x_abbr()
@@ -601,16 +616,28 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 }
 
 allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model,
-                             scenario, export = TRUE, quiet = FALSE) {
+                             scenario, eval_list, export = TRUE, quiet = FALSE) {
   outputs <- list()
 
   subtitle <- sprintf(
     paste0(
-      "Total spend increase: %s%%",
+      "Total %sspend increase: %s%%",
       "\nTotal response increase: %s%% with optimised spend allocation"
     ),
+    ifelse(isTRUE(dt_optimOut$adstocked[1]), paste0("(adstocked**) ", ""), ""),
     round(mean(dt_optimOut$optmSpendUnitTotalDelta) * 100, 1),
     round(mean(dt_optimOut$optmResponseUnitTotalLift) * 100, 1)
+  )
+  metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
+  formulax1 <- ifelse(
+    metric == "ROAS",
+    "ROAS = total response / raw spend | mROAS = marginal response / marginal spend",
+    "CPA = raw spend / total response | mCPA =  marginal spend / marginal response"
+  )
+  formulax2 <- ifelse(
+    metric == "ROAS",
+    "When reallocating budget, mROAS converges across media within respective bounds",
+    "When reallocating budget, mCPA converges across media within respective bounds"
   )
 
   # Calculate errors for subtitles
@@ -619,7 +646,6 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     .data$solID == select_model,
     .data$rn %in% InputCollect$paid_media_spends
   )
-
   rsq_train_plot <- round(plotDT_scurveMeanResponse$rsq_train[1], 4)
   rsq_val_plot <- round(plotDT_scurveMeanResponse$rsq_val[1], 4)
   rsq_test_plot <- round(plotDT_scurveMeanResponse$rsq_test[1], 4)
@@ -630,143 +656,331 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   mape_lift_plot <- ifelse(!is.null(InputCollect$calibration_input),
     round(plotDT_scurveMeanResponse$mape[1], 4), NA
   )
-  if (OutputCollect$OutputModels$ts_validation) {
-    errors <- paste0(
-      "Adj.R2: train = ", rsq_train_plot, " | val = ", rsq_val_plot, " | test = ", rsq_test_plot,
-      " ### NRMSE: train = ", nrmse_train_plot, " | val = ", nrmse_val_plot, " | test = ", nrmse_test_plot,
-      " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+  if (isTRUE(OutputCollect$OutputModels$ts_validation)) {
+    errors <- sprintf(
+      paste(
+        "Adj.R2: train = %s, val = %s, test = %s |",
+        "NRMSE: train = %s, val = %s, test = %s |",
+        "DECOMP.RSSD = %s | MAPE = %s"
+      ),
+      rsq_train_plot, rsq_val_plot, rsq_test_plot,
+      nrmse_train_plot, nrmse_val_plot, nrmse_test_plot,
+      decomp_rssd_plot, mape_lift_plot
     )
   } else {
-    errors <- paste0(
-      "Adj.R2 train = ", rsq_train_plot, " ### NRMSE train = ", nrmse_train_plot,
-      " ### DECOMP.RSSD = ", decomp_rssd_plot, " ### MAPE = ", mape_lift_plot
+    errors <- sprintf(
+      "Adj.R2: train = %s | NRMSE: train = %s | DECOMP.RSSD = %s | MAPE = %s",
+      rsq_train_plot, nrmse_train_plot, decomp_rssd_plot, mape_lift_plot
     )
   }
 
-  # 1. Response comparison plot
-  plotDT_resp <- select(dt_optimOut, .data$channels, .data$initResponseUnit, .data$optmResponseUnit) %>%
-    mutate(channels = as.factor(.data$channels))
-  names(plotDT_resp) <- c("channel", "Initial Mean Response", "Optimised Mean Response")
-  plotDT_resp <- tidyr::gather(plotDT_resp, "variable", "response", -.data$channel)
-  outputs[["p12"]] <- p12 <- ggplot(plotDT_resp, aes(
-    y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$response,
-    fill = reorder(.data$variable, as.numeric(as.factor(.data$variable)))
-  )) +
-    geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
-    scale_fill_brewer(palette = 3) +
-    geom_text(aes(x = 0, label = formatNum(.data$response, 0), hjust = -0.1),
-      position = position_dodge2(width = 0.5, reverse = TRUE), fontface = "bold", show.legend = FALSE
-    ) +
-    theme_lares(legend = "top") +
-    scale_x_abbr() +
-    labs(
-      title = "Initial vs. Optimised Mean Response",
-      subtitle = subtitle,
-      fill = NULL, x = "Mean Response [#]", y = NULL
+  # 1. Response and spend comparison plot
+  init_total_spend <- dt_optimOut$initSpendTotal[1]
+  init_total_response <- dt_optimOut$initResponseTotal[1]
+  init_total_roi <- init_total_response / init_total_spend
+  init_total_cpa <- init_total_spend / init_total_response
+
+  optm_total_spend_bounded <- dt_optimOut$optmSpendTotal[1]
+  optm_total_response_bounded <- dt_optimOut$optmResponseTotal[1]
+  optm_total_roi_bounded <- optm_total_response_bounded / optm_total_spend_bounded
+  optm_total_cpa_bounded <- optm_total_spend_bounded / optm_total_response_bounded
+
+  optm_total_spend_unbounded <- dt_optimOut$optmSpendTotalUnbound[1]
+  optm_total_response_unbounded <- dt_optimOut$optmResponseTotalUnbound[1]
+  optm_total_roi_unbounded <- optm_total_response_unbounded / optm_total_spend_unbounded
+  optm_total_cpa_unbounded <- optm_total_spend_unbounded / optm_total_response_unbounded
+  bound_mult <- dt_optimOut$unconstr_mult[1]
+
+  optm_topped_unbounded <- optm_topped_bounded <- any_topped <- FALSE
+  if (!is.null(eval_list$total_budget)) {
+    optm_topped_bounded <- round(optm_total_spend_bounded) < round(eval_list$total_budget)
+    optm_topped_unbounded <- round(optm_total_spend_unbounded) < round(eval_list$total_budget)
+    any_topped <- optm_topped_bounded || optm_topped_unbounded
+    if (optm_topped_bounded & !quiet) {
+      message("NOTE: Given the upper/lower constrains, the total budget can't be fully allocated (^)")
+    }
+  }
+  levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
+  levs2 <- c(
+    "Initial",
+    paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
+    paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
+  )
+
+  resp_metric <- data.frame(
+    type = factor(levs1, levels = levs1),
+    type_lab = factor(levs2, levels = levs2),
+    total_spend = c(init_total_spend, optm_total_spend_bounded, optm_total_spend_unbounded),
+    total_response = c(init_total_response, optm_total_response_bounded, optm_total_response_unbounded),
+    total_response_lift = c(
+      0,
+      dt_optimOut$optmResponseUnitTotalLift[1],
+      dt_optimOut$optmResponseUnitTotalLiftUnbound[1]
+    ),
+    total_roi = c(init_total_roi, optm_total_roi_bounded, optm_total_roi_unbounded),
+    total_cpa = c(init_total_cpa, optm_total_cpa_bounded, optm_total_cpa_unbounded)
+  )
+  df_roi <- resp_metric %>%
+    mutate(spend = .data$total_spend, response = .data$total_response) %>%
+    select(.data$type, .data$spend, .data$response) %>%
+    pivot_longer(cols = !"type") %>%
+    left_join(resp_metric, "type") %>%
+    mutate(
+      name = factor(.data$name, levels = c("spend", "response")),
+      name_label = factor(
+        paste(.data$type, .data$name, sep = "\n"),
+        levels = paste(.data$type, .data$name, sep = "\n")
+      )
+    )
+  metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
+  labs <- paste(
+    paste(levs2, "\n"),
+    paste("Spend:", formatNum(
+      100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
+      signif = 3, pos = "%", sign = TRUE
+    )),
+    unique(paste("Resp:", formatNum(100 * df_roi$total_response_lift, signif = 3, pos = "%", sign = TRUE))),
+    paste(metric, ":", round(metric_vals, 2)),
+    sep = "\n"
+  )
+  df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
+
+  outputs[["p1"]] <- p1 <- df_roi %>%
+    ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$type)) +
+    facet_grid(. ~ .data$labs, scales = "free") +
+    scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
+    geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
+    geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
+    theme_lares(legend = "none") +
+    labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
+    scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
+
+  # 2. Response and spend comparison per channel plot
+  df_plots <- dt_optimOut %>%
+    mutate(
+      channel = as.factor(.data$channels), Initial = .data$initResponseUnitShare,
+      Bounded = .data$optmResponseUnitShare, Unbounded = .data$optmResponseUnitShareUnbound
+    ) %>%
+    select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
+    `colnames<-`(c("channel", levs1)) %>%
+    tidyr::pivot_longer(names_to = "type", values_to = "response_share", -.data$channel) %>%
+    left_join(
+      dt_optimOut %>%
+        mutate(
+          channel = as.factor(.data$channels),
+          Initial = .data$initSpendShare,
+          Bounded = .data$optmSpendShareUnit,
+          Unbounded = .data$optmSpendShareUnitUnbound
+        ) %>%
+        select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
+        `colnames<-`(c("channel", levs1)) %>%
+        tidyr::pivot_longer(names_to = "type", values_to = "spend_share", -.data$channel),
+      by = c("channel", "type")
+    ) %>%
+    left_join(
+      dt_optimOut %>%
+        mutate(
+          channel = as.factor(.data$channels), Initial = .data$initRoiUnit,
+          Bounded = .data$optmRoiUnit, Unbounded = .data$optmRoiUnitUnbound
+        ) %>%
+        select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
+        `colnames<-`(c("channel", levs1)) %>%
+        tidyr::pivot_longer(names_to = "type", values_to = "channel_roi", -.data$channel),
+      by = c("channel", "type")
+    ) %>%
+    left_join(
+      dt_optimOut %>%
+        mutate(
+          channel = as.factor(.data$channels),
+          Initial = dplyr::case_when(
+            metric == "ROAS" ~ .data$initResponseMargUnit,
+            TRUE ~ 1 / .data$initResponseMargUnit
+          ),
+          Bounded = dplyr::case_when(
+            metric == "ROAS" ~ .data$optmResponseMargUnit,
+            TRUE ~ 1 / .data$optmResponseMargUnit
+          ),
+          Unbounded = dplyr::case_when(
+            metric == "ROAS" ~ .data$optmResponseMargUnitUnbound,
+            TRUE ~ 1 / .data$optmResponseMargUnitUnbound
+          )
+        ) %>%
+        select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
+        `colnames<-`(c("channel", levs1)) %>%
+        tidyr::pivot_longer(names_to = "type", values_to = "marginal_roi", -.data$channel),
+      by = c("channel", "type")
+    ) %>%
+    left_join(resp_metric, by = "type")
+
+  df_plot_share <- bind_rows(
+    df_plots %>%
+      select(c("channel", "type", "type_lab", "spend_share")) %>%
+      mutate(metric = "spend") %>%
+      rename(values = .data$spend_share),
+    df_plots %>%
+      select(c("channel", "type", "type_lab", "response_share")) %>%
+      mutate(metric = "response") %>%
+      rename(values = .data$response_share),
+    df_plots %>%
+      select(c("channel", "type", "type_lab", "channel_roi")) %>%
+      mutate(metric = metric) %>%
+      rename(values = .data$channel_roi),
+    df_plots %>%
+      select(c("channel", "type", "type_lab", "marginal_roi")) %>%
+      mutate(metric = paste0("m", metric)) %>%
+      rename(values = .data$marginal_roi)
+  ) %>%
+    mutate(
+      type = factor(.data$type, levels = levs1),
+      name_label = factor(
+        paste(.data$type, .data$metric, sep = "\n"),
+        levels = unique(paste(.data$type, .data$metric, sep = "\n"))
+      ),
+      values = round(.data$values, 4),
+      # Deal with extreme cases divided by almost 0
+      values = ifelse((.data$values > 1e15 & .data$metric == "ROAS"), 0, .data$values),
+      values_label = dplyr::case_when(
+        .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
+        .data$metric %in% c("CPA", "mCPA") ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
+        TRUE ~ paste0(round(100 * .data$values, 1), "%")
+      ),
+      # Better fill scale colours
+      values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label),
+      values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values)
+    ) %>%
+    mutate(channel = factor(.data$channel, levels = rev(unique(.data$channel)))) %>%
+    group_by(.data$name_label) %>%
+    mutate(
+      values_norm = lares::normalize(.data$values),
+      values_norm = ifelse(is.nan(.data$values_norm), 0, .data$values_norm)
     )
 
-  # 2. Budget share comparison plot
-  plotDT_share <- select(dt_optimOut, .data$channels, .data$initSpendShare, .data$optmSpendShareUnit) %>%
-    mutate(channels = as.factor(.data$channels))
-  names(plotDT_share) <- c("channel", "Initial Avg. Spend Share", "Optimised Avg. Spend Share")
-  plotDT_share <- tidyr::gather(plotDT_share, "variable", "spend_share", -.data$channel)
-  outputs[["p13"]] <- p13 <- ggplot(plotDT_share, aes(
-    y = reorder(.data$channel, -as.integer(.data$channel)),
-    x = .data$spend_share, fill = .data$variable
-  )) +
-    geom_bar(stat = "identity", width = 0.5, position = position_dodge2(reverse = TRUE, padding = 0)) +
-    scale_fill_brewer(palette = 3) +
-    geom_text(aes(x = 0, label = formatNum(.data$spend_share * 100, 1, pos = "%"), hjust = -0.1),
-      position = position_dodge2(width = 0.5, reverse = TRUE), fontface = "bold", show.legend = FALSE
-    ) +
-    theme_lares(legend = "top") +
-    scale_x_percent() +
+  outputs[["p2"]] <- p2 <- df_plot_share %>%
+    ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
+    geom_tile(aes(alpha = .data$values_norm), color = "white") +
+    scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
+    scale_alpha_continuous(range = c(0.6, 1)) +
+    geom_text(aes(label = .data$values_label), colour = "black") +
+    facet_grid(. ~ .data$type_lab, scales = "free") +
+    theme_lares(legend = "none") +
     labs(
-      title = "Initial vs. Optimised Budget Allocation",
-      subtitle = subtitle,
-      fill = NULL, x = "Budget Allocation [%]", y = NULL
+      title = "Budget Allocation per Channel*",
+      fill = NULL, x = NULL, y = "Paid Channels"
     )
 
   ## 3. Response curves
-  plotDT_saturation <- OutputCollect$mediaVecCollect %>%
-    filter(.data$solID == select_model, .data$type == "saturatedSpendReversed") %>%
-    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
-    tidyr::gather("channel", "spend", -.data$ds)
-
-  plotDT_decomp <- OutputCollect$mediaVecCollect %>%
-    filter(.data$solID == select_model, .data$type == "decompMedia") %>%
-    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
-    tidyr::gather("channel", "response", -.data$ds)
-
-  plotDT_scurve <- data.frame(plotDT_saturation, response = plotDT_decomp$response) %>%
-    filter(.data$spend >= 0) %>%
-    as_tibble()
-
-  dt_optimOutScurve <- rbind(
-    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>% mutate(x = "Initial") %>% as.matrix(),
-    select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>% mutate(x = "Optimised") %>% as.matrix()
-  ) %>% as.data.frame()
-  colnames(dt_optimOutScurve) <- c("channels", "spend", "response", "type")
-  dt_optimOutScurve <- dt_optimOutScurve %>%
-    mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
-    group_by(.data$channels) %>%
+  constr_labels <- dt_optimOut %>%
+    mutate(constr_label = sprintf(
+      "%s [%s - %s][%s - %s]", .data$channels, .data$constr_low,
+      .data$constr_up, round(.data$constr_low_unb, 1), round(.data$constr_up_unb, 1)
+    )) %>%
+    select(
+      "channel" = "channels", "constr_label", "constr_low_abs",
+      "constr_up_abs", "constr_low_unb_abs", "constr_up_unb_abs"
+    )
+  plotDT_scurve <- eval_list[["plotDT_scurve"]] %>% left_join(constr_labels, "channel")
+  mainPoints <- eval_list[["mainPoints"]] %>%
+    left_join(constr_labels, "channel") %>%
+    left_join(resp_metric, "type") %>%
     mutate(
-      spend_dif = dplyr::last(.data$spend) - dplyr::first(.data$spend),
-      response_dif = dplyr::last(.data$response) - dplyr::first(.data$response)
+      type = as.character(.data$type),
+      type = factor(ifelse(is.na(.data$type), "Carryover", .data$type),
+        levels = c("Carryover", levs1)
+      )
+    ) %>%
+    mutate(
+      type_lab = as.character(.data$type_lab),
+      type_lab = factor(ifelse(is.na(.data$type_lab), "Carryover", .data$type_lab),
+        levels = c("Carryover", levs2)
+      )
+    )
+  caov_points <- mainPoints %>%
+    filter(.data$type == "Carryover") %>%
+    select("channel", "caov_spend" = "spend_point")
+  mainPoints <- mainPoints %>%
+    left_join(caov_points, "channel") %>%
+    mutate(
+      constr_low_abs = ifelse(.data$type == levs1[2], .data$constr_low_abs + .data$caov_spend, NA),
+      constr_up_abs = ifelse(.data$type == levs1[2], .data$constr_up_abs + .data$caov_spend, NA),
+      constr_low_unb_abs = ifelse(.data$type == levs1[3], .data$constr_low_unb_abs + .data$caov_spend, NA),
+      constr_up_unb_abs = ifelse(.data$type == levs1[3], .data$constr_up_unb_abs + .data$caov_spend, NA)
+    ) %>%
+    mutate(
+      plot_lb = ifelse(is.na(.data$constr_low_abs), .data$constr_low_unb_abs, .data$constr_low_abs),
+      plot_ub = ifelse(is.na(.data$constr_up_abs), .data$constr_up_unb_abs, .data$constr_up_abs)
     )
 
-  trim_rate <- 1.6 # maybe enable as a parameter
-  if (trim_rate > 0) {
-    plotDT_scurve <- plotDT_scurve %>%
-      filter(
-        .data$spend < max(dt_optimOutScurve$spend) * trim_rate,
-        .data$response < max(dt_optimOutScurve$response) * trim_rate
-      )
-  }
-  outputs[["p14"]] <- p14 <- ggplot(data = plotDT_scurve, aes(
-    x = .data$spend, y = .data$response, color = .data$channel
-  )) +
-    geom_line() +
-    geom_point(data = dt_optimOutScurve, aes(
-      x = .data$spend, y = .data$response,
-      color = .data$channels, shape = .data$type
-    ), size = 2.5) +
-    # geom_text(
-    #   data = dt_optimOutScurve, aes(
-    #     x = .data$spend, y = .data$response, color = .data$channels,
-    #     hjust = .data$hjust,
-    #     label = formatNum(.data$spend, 2, abbr = TRUE)
-    #   ),
-    #   show.legend = FALSE
-    # ) +
-    theme_lares(legend.position = c(0.9, 0), pal = 2) +
-    theme(
-      legend.position = c(0.87, 0.5),
-      legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90"),
-      legend.spacing.y = unit(0.2, "cm")
-    ) +
-    labs(
-      title = "Response Curve and Mean* Spend by Channel",
-      x = "Spend", y = "Response", shape = NULL, color = NULL,
-      caption = sprintf(
-        "*Based on date range: %s to %s (%s)",
-        dt_optimOut$date_min[1],
-        dt_optimOut$date_max[1],
-        dt_optimOut$periods[1]
-      )
-    ) +
+  caption <- paste0(
+    ifelse(any_topped, sprintf(
+      "^ Given the upper/lower constrains, the total budget (%s) can't be fully allocated\n",
+      formatNum(eval_list$total_budget, abbr = TRUE)
+    ), ""),
+    paste0("* ", formulax1, "\n"),
+    paste0("* ", formulax2, "\n"),
+    paste("** Dotted lines show budget optimization lower-upper ranges per media")
+  )
+
+  outputs[["p3"]] <- p3 <- plotDT_scurve %>%
+    ggplot() +
     scale_x_abbr() +
-    scale_y_abbr()
+    scale_y_abbr() +
+    geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE, size = 0.5) +
+    facet_wrap(.data$constr_label ~ ., scales = "free", ncol = 3) +
+    geom_area(
+      data = group_by(plotDT_scurve, .data$constr_label) %>%
+        filter(.data$spend <= .data$mean_carryover),
+      aes(x = .data$spend, y = .data$total_response, color = .data$constr_label),
+      stat = "align", position = "stack", size = 0.1,
+      fill = "grey50", alpha = 0.4, show.legend = FALSE
+    ) +
+    geom_errorbar(
+      data = filter(mainPoints, !is.na(.data$constr_label)),
+      mapping = aes(
+        x = .data$spend_point, y = .data$response_point,
+        xmin = .data$plot_lb, xmax = .data$plot_ub
+      ),
+      color = "black", linetype = "dotted"
+    ) +
+    geom_point(
+      data = filter(mainPoints, !is.na(.data$plot_lb), !is.na(.data$mean_spend)),
+      aes(x = .data$plot_lb, y = .data$response_point), shape = 18
+    ) +
+    geom_point(
+      data = filter(mainPoints, !is.na(.data$plot_ub), !is.na(.data$mean_spend)),
+      aes(x = .data$plot_ub, y = .data$response_point), shape = 18
+    ) +
+    geom_point(data = filter(mainPoints, !is.na(.data$constr_label)), aes(
+      x = .data$spend_point, y = .data$response_point, fill = .data$type_lab
+    ), size = 2.5, shape = 21) +
+    scale_fill_manual(values = c("white", "grey", "steelblue", "darkgoldenrod4")) +
+    theme_lares(legend = "top", pal = 2) +
+    labs(
+      title = "Simulated Response Curve for Selected Allocation Period",
+      x = sprintf("Spend** per %s (Mean Adstock Zone in Grey)", InputCollect$intervalType),
+      y = sprintf("Total Response [%s]", InputCollect$dep_var_type),
+      shape = NULL, color = NULL, fill = NULL,
+      caption = caption
+    )
 
   # Gather all plots into a single one
-  p13 <- p13 + labs(subtitle = NULL)
-  p12 <- p12 + labs(subtitle = NULL)
-  outputs[["plots"]] <- plots <- ((p13 + p12) / p14) + plot_annotation(
-    title = paste0("Budget Allocator Optimum Result for Model ID ", select_model),
-    subtitle = subtitle,
-    theme = theme_lares(background = "white")
-  )
+  min_period_loc <- which.min(as.integer(lapply(dt_optimOut$periods, function(x) str_split(x, " ")[[1]][1])))
+  outputs[["plots"]] <- plots <- (p1 / p2 / p3) +
+    plot_layout(heights = c(
+      0.8, 0.2 + length(dt_optimOut$channels) * 0.2,
+      ceiling(length(dt_optimOut$channels) / 3)
+    )) +
+    plot_annotation(
+      title = paste0("Budget Allocation Onepager for Model ID ", select_model),
+      subtitle = sprintf(
+        "%s\nSimulation date range: %s to %s (%s) | Scenario: %s",
+        errors,
+        dt_optimOut$date_min[1],
+        dt_optimOut$date_max[1],
+        dt_optimOut$periods[min_period_loc],
+        scenario
+      ),
+      theme = theme_lares(background = "white")
+    )
 
   # Gather all plots
   if (export) {
@@ -776,7 +990,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
-      dpi = 350, width = 15, height = 12
+      dpi = 350, width = 12, height = 10 + 2 * ceiling(length(dt_optimOut$channels) / 3)
     )
   }
 

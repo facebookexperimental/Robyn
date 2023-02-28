@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.9.0    ######################
-####################                    Quick guide                   #######################
+####################         Meta MMM Open Source: Robyn 3.10.0       #######################
+####################             Quick demo guide                     #######################
 #############################################################################################
 
 # Advanced marketing mix modeling using Meta Open Source project Robyn (Blueprint training)
@@ -31,6 +31,9 @@ packageVersion("Robyn")
 ## Force multi-core use when running RStudio
 Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
 options(future.fork.enable = TRUE)
+
+# Set to FALSE to avoid the creation of files locally
+create_files <- TRUE
 
 ## IMPORTANT: Must install and setup the python library "Nevergrad" once before using Robyn
 ## Guide: https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R
@@ -298,10 +301,10 @@ if (length(InputCollect$exposure_vars) > 0) {
 ## Run all trials and iterations. Use ?robyn_run to check parameter definition
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
-  cores = NULL, # NULL defaults to max available - 1
+  cores = NULL, # NULL defaults to (max available - 1)
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
-  ts_validation = FALSE, # 3-way-split time series for NRMSE validation.
+  ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
   add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
 print(OutputModels)
@@ -323,9 +326,9 @@ OutputCollect <- robyn_outputs(
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
-  plot_pareto = TRUE, # Set to FALSE to deactivate plotting and saving model one-pagers
-  plot_folder = robyn_object, # path for plots export
-  export = TRUE # this will create files locally
+  export = create_files, # this will create files locally
+  plot_folder = robyn_object, # path for plots exports and files creation
+  plot_pareto = create_files # Set to FALSE to deactivate plotting and saving model one-pagers
 )
 print(OutputCollect)
 
@@ -342,10 +345,10 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_115_2" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_154_6" # Pick one of the models from OutputCollect to proceed
 
-#### Since 3.7.1: JSON export and import (faster and lighter than RDS files)
-ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model)
+#### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
+ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
 print(ExportedModel)
 
 ###### DEPRECATED (<3.7.1) (might work)
@@ -368,39 +371,61 @@ print(ExportedModel)
 print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
-# Run the "max_historical_response" scenario: "What's the revenue lift potential with the
-# same historical spend level and what is the spend mix?"
+
+# NOTE: The order of constraints should follow:
+InputCollect$paid_media_spends
+
+# Scenario "max_historical_response": "What's the potential revenue/conversions lift with the
+# same spend level in date_range and what is the spend and expected response mix?"
+# For this scenario, we have several use cases:
+
+# Case 1: date_range & total_budget both NULL (default for last month's spend)
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  scenario = "max_historical_response",
+  date_range = NULL, # When NULL, will set last month (30 days, 4 weeks, or 1 month)
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  export = TRUE,
-  date_min = "2016-11-21",
-  date_max = "2018-08-20"
+  channel_constr_multiplier = 3,
+  scenario = "max_historical_response",
+  export = create_files
 )
+# Print the allocator's output summary
 print(AllocatorCollect1)
-# plot(AllocatorCollect1)
+# Plot the allocator one-pager
+plot(AllocatorCollect1)
 
-# Run the "max_response_expected_spend" scenario: "What's the maximum response for a given
-# total spend based on historical saturation and what is the spend mix?" "optmSpendShareUnit"
-# is the optimum spend share.
+# Case 2: date_range defined, total_budget NULL (mean spend of date_range as initial spend)
 AllocatorCollect2 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  scenario = "max_response_expected_spend",
-  channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
+  date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
+  channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  expected_spend = 1000000, # Total spend to be simulated
-  expected_spend_days = 7, # Duration of expected_spend in days
-  export = TRUE
+  channel_constr_multiplier = 3,
+  scenario = "max_historical_response",
+  export = create_files
 )
 print(AllocatorCollect2)
-AllocatorCollect2$dt_optimOut
-# plot(AllocatorCollect2)
+plot(AllocatorCollect2)
+
+# Case 3: date_range (defined or not defined) and total_budget defined
+AllocatorCollect3 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  # date_range = "last_4",
+  total_budget = 2000000,
+  channel_constr_low = 0.7,
+  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_multiplier = 4,
+  scenario = "max_historical_response",
+  export = create_files
+)
+print(AllocatorCollect3)
+plot(AllocatorCollect3)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -415,28 +440,18 @@ metric_value <- AllocatorCollect1$dt_optimOut$optmSpendUnit[
 # # For paid_media_vars and organic_vars, manually pick a value
 # metric_value <- 10000
 
-if (TRUE) {
-  optimal_response_allocator <- AllocatorCollect1$dt_optimOut$optmResponseUnit[
-    AllocatorCollect1$dt_optimOut$channels == select_media
-  ]
-  optimal_response <- robyn_response(
-    InputCollect = InputCollect,
-    OutputCollect = OutputCollect,
-    select_model = select_model,
-    select_build = 0,
-    media_metric = select_media,
-    metric_value = metric_value
-  )
-  plot(optimal_response$plot)
-  if (length(optimal_response_allocator) > 0) {
-    cat("QA if results from robyn_allocator and robyn_response agree: ")
-    cat(round(optimal_response_allocator) == round(optimal_response$response), "( ")
-    cat(optimal_response$response, "==", optimal_response_allocator, ")\n")
-  }
-}
+## Saturation curve for adstocked metric results (example)
+robyn_response(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  metric_name = select_media,
+  metric_value = metric_value,
+  metric_ds = "last_5"
+)
 
 ################################################################
-#### Step 6: Model refresh based on selected model and saved results "Alpha" [v3.7.1]
+#### Step 6: Model refresh based on selected model and saved results
 
 ## Must run robyn_write() (manually or automatically) to export any model first, before refreshing.
 ## The robyn_refresh() function is suitable for updating within "reasonable periods".
@@ -456,7 +471,7 @@ RobynRefresh <- robyn_refresh(
   refresh_iters = 1000, # 1k is an estimation
   refresh_trials = 1
 )
-
+# Now refreshing a refreshed model, following the same approach
 json_file_rf1 <- "~/Desktop/Robyn_202208231837_init/Robyn_202208231841_rf1/RobynModel-1_12_5.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file_rf1,
@@ -502,7 +517,8 @@ AllocatorCollect <- robyn_allocator(
   channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   expected_spend = 2000000, # Total spend to be simulated
-  expected_spend_days = 14 # Duration of expected_spend in days
+  expected_spend_days = 14, # Duration of expected_spend in days
+  export = FALSE
 )
 print(AllocatorCollect)
 # plot(AllocatorCollect)
@@ -517,7 +533,7 @@ print(AllocatorCollect)
 ## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
 ## The robyn_response() function can now output response for both spends and exposures (imps,
 ## GRP, newsletter sendings etc.) as well as plotting individual saturation curves. New
-## argument names "media_metric" and "metric_value" instead of "paid_media_var" and "spend"
+## argument names "metric_name" and "metric_value" instead of "paid_media_var" and "spend"
 ## are now used to accommodate this change. Also the returned output is a list now and
 ## contains also the plot.
 ## ------------------------------------------------------------------------------------------ ##
@@ -528,8 +544,9 @@ Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "search_S",
-  metric_value = Spend1
+  metric_name = "facebook_S",
+  metric_value = c(Spend1),
+  # date_range = "last_2"
 )
 Response1$response / Spend1 # ROI for search 80k
 Response1$plot
@@ -539,8 +556,9 @@ Response1$plot
 #   json_file = json_file,
 #   dt_input = dt_simulated_weekly,
 #   dt_holidays = dt_prophet_holidays,
-#   media_metric = "search_S",
-#   metric_value = Spend1
+#   metric_name = "search_S",
+#   metric_value = Spend1,
+#   metric_ds = NULL
 # )
 
 # Get response for +10%
@@ -549,8 +567,9 @@ Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "search_S",
-  metric_value = Spend2
+  metric_name = "search_S",
+  metric_value = Spend2,
+  metric_ds = NULL
 )
 Response2$response / Spend2 # ROI for search 81k
 Response2$plot
@@ -564,8 +583,9 @@ response_imps <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "facebook_I",
-  metric_value = imps
+  metric_name = "facebook_I",
+  metric_value = imps,
+  metric_ds = NULL
 )
 response_imps$response / imps * 1000
 response_imps$plot
@@ -576,8 +596,9 @@ response_sending <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  media_metric = "newsletter",
-  metric_value = sendings
+  metric_name = "newsletter",
+  metric_value = sendings,
+  metric_ds = NULL
 )
 response_sending$response / sendings * 1000
 response_sending$plot
@@ -617,7 +638,7 @@ InputCollectX <- robyn_inputs(
 OutputCollectX <- robyn_run(
   InputCollect = InputCollectX,
   json_file = json_file,
-  export = FALSE)
+  export = create_files)
 
 # Or re-create both by simply using robyn_recreate()
 RobynRecreated <- robyn_recreate(
@@ -633,7 +654,7 @@ myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
-myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = FALSE)
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = create_files)
 # myModelPlot$`1_204_5`$patches$plots[[6]]
 
 # Refresh any imported model
@@ -651,6 +672,6 @@ RobynRefresh <- robyn_refresh(
 robyn_response(
   InputCollect = InputCollectX,
   OutputCollect = OutputCollectX,
-  media_metric = "newsletter",
+  metric_name = "newsletter",
   metric_value = 50000
 )

@@ -11,16 +11,13 @@
 Using Shiny on top of Robyn users are enabled to both learn Robyn in a more efficient way, as well as develop end-to-end preliminary models with limited flexibility. All features of Robyn are represented in some capacity in the UI, and it remains the best way for those with limited Marketing Mix Modeling and/or coding experience to familiarize themselves with Robyn & MMM.
 }
 \author{
-\strong{Maintainer}: Kyle Goldberg \email{kylegoldberg@fb.com}
+\strong{Maintainer}: Kyle Goldberg \email{kylegoldberg@meta.com}
 
 Authors:
 \itemize{
-  \item Rotem Blinder \email{rblinder@fb.com}
-  \item Bernardo Lares \email{bernardolares@fb.com}
-  \item Gufeng Zhou \email{gufeng@fb.com}
-  \item Leonel Sentana \email{leonelsentana@fb.com}
-  \item Igor Skokan \email{igorskokan@fb.com}
-  \item Ruiyao Li \email{ruiyaoli@fb.com}
+  \item Rotem Blinder \email{rblinder@meta.com}
+  \item Bernardo Lares \email{bernardolares@meta.com}
+  \item Ruiyao Li \email{ruiyaoli@meta.com}
 }
 
 Other contributors:

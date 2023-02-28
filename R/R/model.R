@@ -459,9 +459,10 @@ robyn_mmm <- function(InputCollect,
   dt_spendShare <- data.frame(
     rn = paid_media_spends,
     total_spend = unlist(summarise_all(temp, sum)),
-    mean_spend = unlist(summarise_all(temp, function(x) {
-      ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
-    }))
+    # mean_spend = unlist(summarise_all(temp, function(x) {
+    #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
+    # }))
+    mean_spend = unlist(summarise_all(temp, mean))
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # When not refreshing, dt_spendShareRF = dt_spendShare
@@ -471,9 +472,10 @@ robyn_mmm <- function(InputCollect,
   dt_spendShareRF <- data.frame(
     rn = paid_media_spends,
     total_spend = unlist(summarise_all(temp, sum)),
-    mean_spend = unlist(summarise_all(temp, function(x) {
-      ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
-    }))
+    # mean_spend = unlist(summarise_all(temp, function(x) {
+    #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
+    # }))
+    mean_spend = unlist(summarise_all(temp, mean))
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # Join both dataframes into a single one
@@ -584,16 +586,12 @@ robyn_mmm <- function(InputCollect,
               m <- dt_modAdstocked[, all_media[v]][[1]]
               if (adstock == "geometric") {
                 theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
-                x_list <- adstock_geometric(x = m, theta = theta)
-              } else if (adstock == "weibull_cdf") {
-                shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
-                scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
-                x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
-              } else if (adstock == "weibull_pdf") {
-                shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
-                scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
-                x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
               }
+              if (grepl("weibull", adstock)) {
+                shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
+                scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
+              }
+              x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
               m_adstocked <- x_list$x_decayed
               mediaAdstocked[[v]] <- m_adstocked
               m_carryover <- m_adstocked - m
@@ -1216,7 +1214,7 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
   hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
   # Manually add other hyper-parameters
-  hypParamSamName <- c(hypParamSamName, other_hyps)
+  hypParamSamName <- c(hypParamSamName, HYPS_OTHERS)
 
   # Add penalty factor hyper-parameters names
   for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))

@@ -71,7 +71,7 @@ robyn_write <- function(InputCollect,
       select(starts_with("rsq_"), starts_with("nrmse"), .data$decomp.rssd, .data$mape)
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
-      select(contains(hyps_name), dplyr::ends_with("_penalty"), any_of(other_hyps)) %>%
+      select(contains(HYPS_NAMES), dplyr::ends_with("_penalty"), any_of(HYPS_OTHERS)) %>%
       select(order(colnames(.))) %>%
       as.list()
     outputs$hyper_updated <- OutputCollect$hyper_updated
@@ -84,7 +84,7 @@ robyn_write <- function(InputCollect,
     select_model <- "inputs"
   }
 
-  if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
+  if (!dir.exists(dir) & export) dir.create(dir, recursive = TRUE)
   filename <- sprintf("%s/RobynModel-%s.json", dir, select_model)
   filename <- gsub("//", "/", filename)
   class(ret) <- c("robyn_write", class(ret))
@@ -144,10 +144,10 @@ print.robyn_write <- function(x, ...) {
   ))
 
   # Nice and tidy table format for hyper-parameters
-  hyps_name <- c(hyps_name, "penalty")
-  regex <- paste(paste0("_", hyps_name), collapse = "|")
+  HYPS_NAMES <- c(HYPS_NAMES, "penalty")
+  regex <- paste(paste0("_", HYPS_NAMES), collapse = "|")
   hyper_df <- as.data.frame(x$ExportedModel$hyper_values) %>%
-    select(-contains("lambda"), -any_of(other_hyps)) %>%
+    select(-contains("lambda"), -any_of(HYPS_OTHERS)) %>%
     tidyr::gather() %>%
     tidyr::separate(.data$key,
       into = c("channel", "none"),
