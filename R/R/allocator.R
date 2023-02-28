@@ -361,18 +361,19 @@ robyn_allocator <- function(robyn_object = NULL,
 
   optmSpendUnit <- nlsMod$solution
   optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
+  x_hist_carryover <- unlist(lapply(hist_carryover, mean))
+
   optmResponseMargUnit <- mapply(
     fx_objective,
     x = optmSpendUnit + 1,
     coeff = coefsFiltered,
     alpha = alphas,
     inflexion = inflexions,
-    x_hist_carryover = sapply(hist_carryover, mean),
+    x_hist_carryover = x_hist_carryover,
     get_sum = FALSE,
     SIMPLIFY = TRUE
   ) - optmResponseUnit
 
-  # lb_carryover <- unlist(lapply(hist_carryover, mean))
   nlsModUnbound <- nloptr::nloptr(
     x0 = x0_ext,
     eval_f = eval_f,
@@ -395,7 +396,7 @@ robyn_allocator <- function(robyn_object = NULL,
     coeff = coefsFiltered,
     alpha = alphas,
     inflexion = inflexions,
-    x_hist_carryover = sapply(hist_carryover, mean),
+    x_hist_carryover = x_hist_carryover,
     get_sum = FALSE,
     SIMPLIFY = TRUE
   ) - optmResponseUnitUnbound
@@ -645,15 +646,11 @@ plot.robyn_allocator <- function(x, ...) plot(x$plots$plots, ...)
 eval_f <- function(X) {
   # eval_list <- get("eval_list", pos = as.environment(-1))
   eval_list <- getOption("ROBYN_TEMP")
-  # mm_lm_coefs <- eval_list[["mm_lm_coefs"]]
   coefsFiltered <- eval_list[["coefsFiltered"]]
   alphas <- eval_list[["alphas"]]
   inflexions <- eval_list[["inflexions"]]
   mediaSpendSortedFiltered <- eval_list[["mediaSpendSortedFiltered"]]
   hist_carryover <- eval_list[["hist_carryover"]]
-  # exposure_selectorSortedFiltered <- eval_list[["exposure_selectorSortedFiltered"]]
-  # vmaxVec <- eval_list[["vmaxVec"]]
-  # kmVec <- eval_list[["kmVec"]]
 
   objective <- -sum(mapply(
     fx_objective,
@@ -662,10 +659,6 @@ eval_f <- function(X) {
     alpha = alphas,
     inflexion = inflexions,
     x_hist_carryover = hist_carryover,
-    # chnName = mediaSpendSortedFiltered,
-    # vmax = vmaxVec,
-    # km = kmVec,
-    # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
 
@@ -676,10 +669,6 @@ eval_f <- function(X) {
     alpha = alphas,
     inflexion = inflexions,
     x_hist_carryover = hist_carryover,
-    # chnName = mediaSpendSortedFiltered,
-    # vmax = vmaxVec,
-    # km = kmVec,
-    # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   ))
 
@@ -690,10 +679,6 @@ eval_f <- function(X) {
     alpha = alphas,
     inflexion = inflexions,
     x_hist_carryover = hist_carryover,
-    # chnName = mediaSpendSortedFiltered,
-    # vmax = vmaxVec,
-    # km = kmVec,
-    # criteria = exposure_selectorSortedFiltered,
     SIMPLIFY = TRUE
   )
 

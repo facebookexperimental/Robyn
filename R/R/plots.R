@@ -963,9 +963,12 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   # Gather all plots into a single one
-  min_period_loc <- which.min(as.integer(sapply(dt_optimOut$periods, function(x) str_split(x, " ")[[1]][1])))
+  min_period_loc <- which.min(as.integer(lapply(dt_optimOut$periods, function(x) str_split(x, " ")[[1]][1])))
   outputs[["plots"]] <- plots <- (p1 / p2 / p3) +
-    plot_layout(heights = c(0.8, 0.2 + length(dt_optimOut$channels) * 0.2, ceiling(length(dt_optimOut$channels) / 3))) +
+    plot_layout(heights = c(
+      0.8, 0.2 + length(dt_optimOut$channels) * 0.2,
+      ceiling(length(dt_optimOut$channels) / 3)
+    )) +
     plot_annotation(
       title = paste0("Budget Allocation Onepager for Model ID ", select_model),
       subtitle = sprintf(
