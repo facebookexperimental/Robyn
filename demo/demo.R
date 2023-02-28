@@ -417,10 +417,10 @@ AllocatorCollect3 <- robyn_allocator(
   OutputCollect = OutputCollect,
   select_model = select_model,
   # date_range = "last_4",
-  total_budget = 2000000,
+  total_budget = 5000000,
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 4,
+  channel_constr_multiplier = 5,
   scenario = "max_historical_response",
   export = create_files
 )
