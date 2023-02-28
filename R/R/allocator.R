@@ -242,10 +242,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Get use case based on inputs
   usecase <- which_usecase(initSpendUnit[1], date_range)
-  usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ mean_budget"))
+  usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ historical_budget"))
 
   # Response values based on date range -> mean spend
   initResponseUnit <- NULL
+  initResponseMargUnit <- NULL
   hist_carryover <- list()
   for (i in seq_along(mediaSpendSortedFiltered)) {
     resp <- robyn_response(
@@ -276,8 +277,17 @@ robyn_allocator <- function(robyn_object = NULL,
       x_hist_carryover = mean(resp$input_carryover),
       get_sum = FALSE
     )
+    resp_simulate_plus1 <- fx_objective(
+      x = initSpendUnit[i] + 1,
+      coeff = coefsFiltered[[mediaSpendSortedFiltered[i]]],
+      alpha = alphas[[paste0(mediaSpendSortedFiltered[i], "_alphas")]],
+      inflexion = inflexions[[paste0(mediaSpendSortedFiltered[i], "_gammas")]],
+      x_hist_carryover = mean(resp$input_carryover),
+      get_sum = FALSE
+    )
     names(hist_carryover[[i]]) <- resp$date
     initResponseUnit <- c(initResponseUnit, resp_simulate)
+    initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
   names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSortedFiltered
   if (!is.null(zero_spend_channel) && !quiet) {
@@ -351,6 +361,16 @@ robyn_allocator <- function(robyn_object = NULL,
 
   optmSpendUnit <- nlsMod$solution
   optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
+  optmResponseMargUnit <- mapply(
+    fx_objective,
+    x = optmSpendUnit + 1,
+    coeff = coefsFiltered,
+    alpha = alphas,
+    inflexion = inflexions,
+    x_hist_carryover = sapply(hist_carryover, mean),
+    get_sum = FALSE,
+    SIMPLIFY = TRUE
+  ) - optmResponseUnit
 
   # lb_carryover <- unlist(lapply(hist_carryover, mean))
   nlsModUnbound <- nloptr::nloptr(
@@ -369,6 +389,16 @@ robyn_allocator <- function(robyn_object = NULL,
 
   optmSpendUnitUnbound <- nlsModUnbound$solution
   optmResponseUnitUnbound <- -eval_f(optmSpendUnitUnbound)[["objective.channel"]]
+  optmResponseMargUnitUnbound <- mapply(
+    fx_objective,
+    x = optmSpendUnitUnbound + 1,
+    coeff = coefsFiltered,
+    alpha = alphas,
+    inflexion = inflexions,
+    x_hist_carryover = sapply(hist_carryover, mean),
+    get_sum = FALSE,
+    SIMPLIFY = TRUE
+  ) - optmResponseUnitUnbound
 
   ## Collect output
   dt_optimOut <- data.frame(
@@ -410,6 +440,7 @@ robyn_allocator <- function(robyn_object = NULL,
     # adstocked_periods = length(resp$date),
     initResponseUnit = initResponseUnit,
     initResponseUnitTotal = sum(initResponseUnit),
+    initResponseMargUnit = initResponseMargUnit,
     initResponseTotal = sum(initResponseUnit) * unique(simulation_period),
     initResponseUnitShare = initResponseUnit / sum(initResponseUnit),
     initRoiUnit = initResponseUnit / initSpendUnit,
@@ -430,12 +461,14 @@ robyn_allocator <- function(robyn_object = NULL,
     optmSpendShareUnitUnbound = optmSpendUnitUnbound / sum(optmSpendUnitUnbound),
     optmSpendTotalUnbound = sum(optmSpendUnitUnbound) * unique(simulation_period),
     optmResponseUnit = optmResponseUnit,
+    optmResponseMargUnit = optmResponseMargUnit,
     optmResponseUnitTotal = sum(optmResponseUnit),
     optmResponseTotal = sum(optmResponseUnit) * unique(simulation_period),
     optmResponseUnitShare = optmResponseUnit / sum(optmResponseUnit),
     optmRoiUnit = optmResponseUnit / optmSpendUnit,
     optmResponseUnitLift = (optmResponseUnit / initResponseUnit) - 1,
     optmResponseUnitUnbound = optmResponseUnitUnbound,
+    optmResponseMargUnitUnbound = optmResponseMargUnitUnbound,
     optmResponseUnitTotalUnbound = sum(optmResponseUnitUnbound),
     optmResponseTotalUnbound = sum(optmResponseUnitUnbound) * unique(simulation_period),
     optmResponseUnitShareUnbound = optmResponseUnitUnbound / sum(optmResponseUnitUnbound),
@@ -517,6 +550,13 @@ robyn_allocator <- function(robyn_object = NULL,
   mainPoints$mean_spend <- ifelse(mainPoints$type == "Carryover", mainPoints$spend_point, mainPoints$mean_spend)
   mainPoints$type <- factor(mainPoints$type, levels = c("Carryover", levs1))
   mainPoints$roi_mean <- mainPoints$response_point / mainPoints$mean_spend
+  mresp_caov <- filter(mainPoints, .data$type == "Carryover")$response_point
+  mresp_init <- filter(mainPoints, .data$type == levels(mainPoints$type)[2])$response_point - mresp_caov
+  mresp_b <- filter(mainPoints, .data$type == levels(mainPoints$type)[3])$response_point - mresp_caov
+  mresp_unb <- filter(mainPoints, .data$type == levels(mainPoints$type)[4])$response_point - mresp_caov
+  mainPoints$marginal_response <- c(mresp_init, mresp_b, mresp_unb, rep(0, length(mresp_init)))
+  mainPoints$roi_marginal <- mainPoints$marginal_response / mainPoints$mean_spend
+  mainPoints$cpa_marginal <- mainPoints$mean_spend / mainPoints$marginal_response
   eval_list[["mainPoints"]] <- mainPoints
 
   ## Plot allocator results
@@ -578,17 +618,17 @@ Allocation Summary:
     summary = paste(sprintf(
       "
 - %s:
-  Optimizable Range (bounds): [%s%%, %s%%]
-  Mean Spend Share (avg): %s%% -> Optimized = %s%%
-  Mean Response: %s -> Optimized = %s
-  Mean Spend (per time unit): %s -> Optimized = %s [Delta = %s%%]",
+  Optimizable bound: [%s%%, %s%%],
+  Initial spend share: %s%% -> Optimized bounded: %s%%
+  Initial response share: %s%% -> Optimized bounded: %s%%
+  Initial abs. mean spend: %s -> Optimized: %s [Delta = %s%%]",
       temp$channels,
       100 * temp$constr_low - 100,
       100 * temp$constr_up - 100,
       signif(100 * temp$initSpendShare, 3),
       signif(100 * temp$optmSpendShareUnit, 3),
-      formatNum(temp$initResponseUnit, 0),
-      formatNum(temp$optmResponseUnit, 0),
+      signif(100 * temp$initResponseUnitShare, 3),
+      signif(100 * temp$optmResponseUnitShare, 3),
       formatNum(temp$initSpendUnit, 3, abbr = TRUE),
       formatNum(temp$optmSpendUnit, 3, abbr = TRUE),
       formatNum(100 * temp$optmSpendUnitDelta, signif = 2)

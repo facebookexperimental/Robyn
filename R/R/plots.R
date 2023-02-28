@@ -631,8 +631,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
   formulax <- ifelse(
     metric == "ROAS",
-    "ROAS = total response / raw spend (excl.carryover)",
-    "CPA = raw spend (excl.carryover) / total response"
+    "ROAS = total response / raw spend | mROAS = marginal response / marginal spend",
+    "CPA = raw spend / total response | mCPA =  marginal spend / marginal response"
   )
 
   # Calculate errors for subtitles
@@ -747,7 +747,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
-    labs(title = "Unit Budget Optimization Result*", fill = NULL, y = NULL, x = NULL) +
+    labs(title = "Total Budget Optimization Result*", fill = NULL, y = NULL, x = NULL) +
     scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
 
   # 2. Response and spend comparison per channel plot
@@ -783,6 +783,28 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         tidyr::pivot_longer(names_to = "type", values_to = "channel_roi", -.data$channel),
       by = c("channel", "type")
     ) %>%
+    left_join(
+      dt_optimOut %>%
+        mutate(
+          channel = as.factor(.data$channels),
+          Initial = dplyr::case_when(
+            metric == "ROAS" ~ .data$initResponseMargUnit,
+            TRUE ~ 1 / .data$initResponseMargUnit
+          ),
+          Bounded = dplyr::case_when(
+            metric == "ROAS" ~ .data$optmResponseMargUnit,
+            TRUE ~ 1 / .data$optmResponseMargUnit
+          ),
+          Unbounded = dplyr::case_when(
+            metric == "ROAS" ~ .data$optmResponseMargUnitUnbound,
+            TRUE ~ 1 / .data$optmResponseMargUnitUnbound
+          )
+        ) %>%
+        select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
+        `colnames<-`(c("channel", levs1)) %>%
+        tidyr::pivot_longer(names_to = "type", values_to = "marginal_roi", -.data$channel),
+      by = c("channel", "type")
+    ) %>%
     left_join(resp_metric, by = "type")
 
   df_plot_share <- bind_rows(
@@ -797,7 +819,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     df_plots %>%
       select(c("channel", "type", "type_lab", "channel_roi")) %>%
       mutate(metric = metric) %>%
-      rename(values = .data$channel_roi)
+      rename(values = .data$channel_roi),
+    df_plots %>%
+      select(c("channel", "type", "type_lab", "marginal_roi")) %>%
+      mutate(metric = paste0("m", metric)) %>%
+      rename(values = .data$marginal_roi)
   ) %>%
     mutate(
       type = factor(.data$type, levels = levs1),
@@ -809,8 +835,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       # Deal with extreme cases divided by almost 0
       values = ifelse((.data$values > 1e15 & .data$metric == "ROAS"), 0, .data$values),
       values_label = dplyr::case_when(
-        .data$metric == "ROAS" ~ paste0("x", round(.data$values, 2)),
-        .data$metric == "CPA" ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
+        .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
+        .data$metric %in% c("CPA", "mCPA") ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
       # Better fill scale colours
@@ -834,12 +860,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     theme_lares(legend = "none") +
     labs(
       title = "Budget Allocation per Channel*",
+      subtitle = paste0("m", metric, " converges across channels when being optimised"),
       fill = NULL, x = NULL, y = "Paid Channels"
     )
 
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
-    mutate(constr_label = sprintf("%s [%s - %s]", .data$channels, .data$constr_low, .data$constr_up)) %>%
+    mutate(constr_label = sprintf("%s [%s - %s][%s - %s]", .data$channels, .data$constr_low,
+                                  .data$constr_up, round(.data$constr_low_unb,1), round(.data$constr_up_unb,1))) %>%
     select(
       "channel" = "channels", "constr_label", "constr_low_abs",
       "constr_up_abs", "constr_low_unb_abs", "constr_up_unb_abs"
@@ -881,7 +909,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       "^ Given the upper/lower constrains, the total budget (%s) can't be fully allocated\n",
       formatNum(eval_list$total_budget, abbr = TRUE)
     ), ""),
-    paste("* Initial & optimised", formulax, "\n"),
+    paste("* Initial & optimised", formulax, "","\n"),
     paste("** Dotted lines show budget optimization bounded range per channel")
   )
 
