@@ -870,8 +870,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
-    mutate(constr_label = sprintf("%s [%s - %s][%s - %s]", .data$channels, .data$constr_low,
-                                  .data$constr_up, round(.data$constr_low_unb,1), round(.data$constr_up_unb,1))) %>%
+    mutate(constr_label = sprintf(
+      "%s [%s - %s][%s - %s]", .data$channels, .data$constr_low,
+      .data$constr_up, round(.data$constr_low_unb, 1), round(.data$constr_up_unb, 1)
+    )) %>%
     select(
       "channel" = "channels", "constr_label", "constr_low_abs",
       "constr_up_abs", "constr_low_unb_abs", "constr_up_unb_abs"

@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Facebook MMM Open Source - Robyn 3.9.1    ######################
-####################                    Quick guide                   #######################
+####################         Meta MMM Open Source: Robyn 3.10.0       #######################
+####################             Quick demo guide                     #######################
 #############################################################################################
 
 # Advanced marketing mix modeling using Meta Open Source project Robyn (Blueprint training)
@@ -371,14 +371,15 @@ print(ExportedModel)
 print(ExportedModel)
 
 # Run ?robyn_allocator to check parameter definition
-# Run the "max_historical_response" scenario: "What's the potential revenue/conversions lift with the
+
+# NOTE: The order of constraints should follow:
+InputCollect$paid_media_spends
+
+# Scenario "max_historical_response": "What's the potential revenue/conversions lift with the
 # same spend level in date_range and what is the spend and expected response mix?"
 # For this scenario, we have several use cases:
 
-
 # Case 1: date_range & total_budget both NULL (default for last month's spend)
-InputCollect$paid_media_spends # The order of constraints should follow this
-
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
@@ -438,27 +439,6 @@ metric_value <- AllocatorCollect1$dt_optimOut$optmSpendUnit[
 ]; metric_value
 # # For paid_media_vars and organic_vars, manually pick a value
 # metric_value <- 10000
-
-if (TRUE) {
-  optimal_response_allocator <- AllocatorCollect1$dt_optimOut$optmResponseUnit[
-    AllocatorCollect1$dt_optimOut$channels == select_media
-  ]
-  optimal_response <- robyn_response(
-    InputCollect = InputCollect,
-    OutputCollect = OutputCollect,
-    select_model = select_model,
-    select_build = 0,
-    metric_name = select_media,
-    metric_value = metric_value,
-    metric_ds = NULL
-  )
-  plot(optimal_response$plot)
-  if (length(optimal_response_allocator) > 0) {
-    cat("QA if results from robyn_allocator and robyn_response agree: ")
-    cat(round(optimal_response_allocator) == round(optimal_response$response), "( ")
-    cat(optimal_response$response, "==", optimal_response_allocator, ")\n")
-  }
-}
 
 ## Saturation curve for adstocked metric results (example)
 robyn_response(
