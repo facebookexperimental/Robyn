@@ -16,6 +16,7 @@ module.exports = {
       items: [
       'quick-start',
       'additional-materials',
+      'e-learning-course',
       ],
     },
     'analysts-guide-to-MMM',
