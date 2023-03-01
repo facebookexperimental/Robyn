@@ -823,9 +823,9 @@ check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, e
     metric_type <- "organic"
   } else {
     stop(paste(
-      "Invalid 'metric_name' input. It must be any media variable from",
-      "paid_media_spends (spend), paid_media_vars (exposure),",
-      "or organic_vars (organic); NOT:", metric_name,
+      "Invalid 'metric_name' input:", metric_name,
+      "\nInput should be any media variable from paid_media_spends (spend),",
+      "paid_media_vars (exposure), or organic_vars (organic):",
       paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
       paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
       paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
