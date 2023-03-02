@@ -22,7 +22,6 @@ Imports:
     lubridate,
     patchwork,
     Robyn (>= 3.6.3),
-    scales,
     shiny,
     shinycssloaders,
     shinyjs,

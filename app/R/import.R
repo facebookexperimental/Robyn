@@ -30,6 +30,6 @@
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyjs useShinyjs html runjs
 #' @importFrom stats coef cor end reorder
-#' @importFrom utils head packageDescription read.csv
+#' @importFrom utils head packageDescription packageVersion read.csv
 #' @importFrom tidyr pivot_longer
 "_PACKAGE"
