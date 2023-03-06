@@ -321,7 +321,7 @@ if (OutputModels$ts_validation) OutputModels$ts_validation_plot
 ## Calculate Pareto fronts, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
   InputCollect, OutputModels,
-  pareto_fronts = "auto", # automatically pick how many pareto-fronts to fill min_candidates
+  pareto_fronts = "auto", # automatically pick how many pareto-fronts to fill min_candidates (100)
   # min_candidates = 100, # top pareto models for clustering. Default to 100
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)

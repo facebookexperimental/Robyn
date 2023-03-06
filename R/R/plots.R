@@ -785,7 +785,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
-        tidyr::pivot_longer(names_to = "type", values_to = "channel_roi", -.data$channel),
+        tidyr::pivot_longer(names_to = "type",
+                            values_to = ifelse(metric == "ROAS", "channel_roi", "channel_cpa"),
+                            -.data$channel),
       by = c("channel", "type")
     ) %>%
     left_join(
@@ -807,7 +809,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
-        tidyr::pivot_longer(names_to = "type", values_to = "marginal_roi", -.data$channel),
+        tidyr::pivot_longer(names_to = "type",
+                            values_to = ifelse(metric == "ROAS", "marginal_roi", "marginal_cpa"),
+                            -.data$channel),
       by = c("channel", "type")
     ) %>%
     left_join(resp_metric, by = "type")
@@ -822,13 +826,13 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       mutate(metric = "response") %>%
       rename(values = .data$response_share),
     df_plots %>%
-      select(c("channel", "type", "type_lab", "channel_roi")) %>%
+      select(c("channel", "type", "type_lab", starts_with("channel_"))) %>%
       mutate(metric = metric) %>%
-      rename(values = .data$channel_roi),
+      rename(values = starts_with("channel_")),
     df_plots %>%
-      select(c("channel", "type", "type_lab", "marginal_roi")) %>%
+      select(c("channel", "type", "type_lab", starts_with("marginal_"))) %>%
       mutate(metric = paste0("m", metric)) %>%
-      rename(values = .data$marginal_roi)
+      rename(values = starts_with("marginal_"))
   ) %>%
     mutate(
       type = factor(.data$type, levels = levs1),
