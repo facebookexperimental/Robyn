@@ -792,6 +792,12 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (any(channel_constr_up > 5)) {
     warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
   }
+  if ("max_response_expected_spend" %in% scenario) {
+    stop(paste(
+      "Scenario 'max_response_expected_spend' has been deprecated.",
+      "Use scenario = 'max_historical_response' and new 'total_budget' parameter instead."
+    ))
+  }
   opts <- "max_historical_response" # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
