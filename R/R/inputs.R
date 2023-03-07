@@ -259,6 +259,11 @@ robyn_inputs <- function(dt_input = NULL,
     ## Check adstock
     adstock <- check_adstock(adstock)
 
+    ## Check hyperparameters (if passed)
+    hyperparameters <- check_hyperparameters(
+      hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
+    )
+
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
@@ -316,11 +321,6 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(hyperparameters)) {
       ### Conditional output 1.2
       ## Running robyn_inputs() for the 1st time & 'hyperparameters' provided --> run robyn_engineering()
-
-      ## Check hyperparameters
-      hyperparameters <- check_hyperparameters(
-        hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
-      )
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
   } else {
@@ -351,9 +351,7 @@ robyn_inputs <- function(dt_input = NULL,
       ## 'hyperparameters' provided --> run robyn_engineering()
       ## Update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
-      InputCollect$hyperparameters <- check_hyperparameters(
-        InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media
-      )
+      check_hyperparameters(InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media)
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
   }
@@ -420,7 +418,7 @@ Adstock: {x$adstock}
     },
     hyps = if (!is.null(x$hyperparameters)) {
       glued(
-        "Hyper-parameters ranges:\n{flatten_hyps(x$hyperparameters)}"
+        "Hyper-parameters for channel transformations:\n{flatten_hyps(x$hyperparameters)}"
       )
     } else {
       paste("Hyper-parameters:", "\033[0;31mNot set yet\033[0m")
@@ -516,14 +514,11 @@ Adstock: {x$adstock}
 #' @export
 hyper_names <- function(adstock, all_media) {
   adstock <- check_adstock(adstock)
+  global_name <- c("thetas", "shapes", "scales", "alphas", "gammas", "lambdas")
   if (adstock == "geometric") {
-    local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
-      grepl("thetas|alphas|gammas", HYPS_NAMES)
-    ]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("thetas|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
   } else if (adstock %in% c("weibull_cdf", "weibull_pdf")) {
-    local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
-      grepl("shapes|scales|alphas|gammas", HYPS_NAMES)
-    ]), 1, paste, collapse = "_"))
+    local_name <- sort(apply(expand.grid(all_media, global_name[grepl("shapes|scales|alphas|gammas", global_name)]), 1, paste, collapse = "_"))
   }
   return(local_name)
 }
@@ -544,7 +539,7 @@ hyper_limits <- function() {
     thetas = c(">=0", "<1"),
     alphas = c(">0", "<10"),
     gammas = c(">0", "<=1"),
-    shapes = c(">=0", "<20"),
+    shapes = c(">0", "<20"),
     scales = c(">=0", "<=1")
   )
 }
@@ -794,15 +789,9 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     ),
     daily.seasonality = FALSE # No hourly models allowed
   )
-  custom_params$yearly.seasonality <- custom_params$weekly.seasonality <- NULL
   prophet_params <- append(prophet_params, custom_params)
   modelRecurrence <- do.call(prophet, as.list(prophet_params))
-  if (use_monthly) {
-    modelRecurrence <- add_seasonality(
-      modelRecurrence,
-      name = "monthly", period = 30.5, fourier.order = 5
-    )
-  }
+  if (use_monthly) modelRecurrence <- prophet::add_seasonality(modelRecurrence, name='monthly', period=30.5, fourier.order=5)
 
   # dt_regressors <<- dt_regressors
   # modelRecurrence <<- modelRecurrence
@@ -827,8 +816,10 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     if (dayInterval == 1) {
       warning(
         "Currently, there's a known issue with prophet that may crash this use case.",
-        "\n Read more here: https://github.com/facebookexperimental/Robyn/issues/472"
+        "\n Read more here: https://github.com/facebook/prophet/pull/2252"
       )
+      # mod <<- mod
+      # dt_regressors <<- dt_regressors
     }
     mod <- fit.prophet(modelRecurrence, dt_regressors)
     forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)

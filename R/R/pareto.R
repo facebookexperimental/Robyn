@@ -39,14 +39,16 @@ robyn_pareto <- function(InputCollect, OutputModels,
     }
     for (df in df_names) {
       assign(df, get(df) %>% mutate(
-        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar
+        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
       ))
     }
   } else if (hyper_fixed & calibrated) {
     df_names <- "resultCalibration"
     for (df in df_names) {
       assign(df, get(df) %>% mutate(
-        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar
+        iterations = (.data$iterNG - 1) * OutputModels$cores + .data$iterPar,
+        solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")
       ))
     }
   }
@@ -75,22 +77,13 @@ robyn_pareto <- function(InputCollect, OutputModels,
             .data$nrmse <= nrmse_quantile90 &
             .data$decomp.rssd <= decomprssd_quantile90
       )
-    # Calculate Pareto-fronts (for "all" or pareto_fronts)
+
     resultHypParamPareto <- filter(resultHypParam, .data$mape.qt10 == TRUE)
-    paretoResults <- pareto_front(
-      x = resultHypParamPareto$nrmse,
-      y = resultHypParamPareto$decomp.rssd,
-      fronts = ifelse("auto" %in% pareto_fronts, Inf, pareto_fronts),
-      sort = FALSE
-    )
-    resultHypParamPareto <- resultHypParamPareto %>%
-      left_join(paretoResults, by = c("nrmse" = "x", "decomp.rssd" = "y")) %>%
-      rename("robynPareto" = "pareto_front") %>%
+    px <- rPref::low(resultHypParamPareto$nrmse) * rPref::low(resultHypParamPareto$decomp.rssd)
+    resultHypParamPareto <- rPref::psel(resultHypParamPareto, px, top = nrow(resultHypParamPareto)) %>%
       arrange(.data$iterNG, .data$iterPar, .data$nrmse) %>%
-      select(.data$solID, .data$robynPareto) %>%
-      group_by(.data$solID) %>%
-      arrange(.data$robynPareto) %>%
-      slice(1)
+      rename("robynPareto" = ".level") %>%
+      select(.data$solID, .data$robynPareto)
     resultHypParam <- left_join(resultHypParam, resultHypParamPareto, by = "solID")
   } else {
     resultHypParam <- mutate(resultHypParam, mape.qt10 = TRUE, robynPareto = 1, coef0 = NA)
@@ -111,7 +104,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
   # Prepare parallel loop
   if (TRUE) {
-    if (check_parallel() & OutputModels$cores > 1) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+    if (check_parallel()) registerDoParallel(OutputModels$cores) else registerDoSEQ()
     if (hyper_fixed) pareto_fronts <- 1
     # Get at least 100 candidates for better clustering
     if (nrow(resultHypParam) == 1) pareto_fronts <- 1
@@ -146,57 +139,50 @@ robyn_pareto <- function(InputCollect, OutputModels,
     respN <- NULL
   }
 
-  if (!quiet) {
-    message(sprintf(
-      ">>> Calculating response curves for all models' variables (%s)...",
-      nrow(decompSpendDistPar)
-    ))
-  }
-  run_dt_resp <- function(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...) {
-    get_solID <- decompSpendDistPar$solID[respN]
-    get_spendname <- decompSpendDistPar$rn[respN]
-    get_nPeriod <- nrow(InputCollect$dt_modRollWind)
-
-    get_resp <- robyn_response(
-      select_model = decompSpendDistPar$solID[respN],
-      metric_name = decompSpendDistPar$rn[respN],
-      metric_value = decompSpendDistPar$mean_spend[respN],
-      # date_range = range(InputCollect$dt_modRollWind$ds),
-      dt_hyppar = resultHypParamPar,
-      dt_coef = xDecompAggPar,
-      InputCollect = InputCollect,
-      OutputCollect = OutputModels,
-      quiet = TRUE,
-      ...
-    )
-    # Median value (but must be within the curve)
-    # med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total) / 2)]
-    mean_response <- get_resp$response_total
-    mean_spend_adstocked <- get_resp$input_total
-    mean_carryover <- get_resp$input_carryover
-
-    dt_resp <- data.frame(
-      mean_response = mean_response,
-      mean_spend_adstocked = mean_spend_adstocked,
-      mean_carryover = mean_carryover,
-      rn = decompSpendDistPar$rn[respN],
-      solID = decompSpendDistPar$solID[respN]
-    )
-    return(dt_resp)
-  }
   if (OutputModels$cores > 1) {
     resp_collect <- foreach(
-      respN = seq_along(decompSpendDistPar$rn), .combine = bind_rows
+      respN = seq_along(decompSpendDistPar$rn), .combine = rbind
     ) %dorng% {
-      run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
+      get_resp <- robyn_response(
+        media_metric = decompSpendDistPar$rn[respN],
+        select_model = decompSpendDistPar$solID[respN],
+        metric_value = decompSpendDistPar$mean_spend[respN],
+        dt_hyppar = resultHypParamPar,
+        dt_coef = xDecompAggPar,
+        InputCollect = InputCollect,
+        OutputCollect = OutputModels,
+        quiet = quiet
+      )$response
+      dt_resp <- data.frame(
+        mean_response = get_resp,
+        rn = decompSpendDistPar$rn[respN],
+        solID = decompSpendDistPar$solID[respN]
+      )
+      return(dt_resp)
     }
     stopImplicitCluster()
     registerDoSEQ()
     getDoParWorkers()
   } else {
-    resp_collect <- bind_rows(lapply(seq_along(decompSpendDistPar$rn), function(respN) {
-      run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
-    }))
+    resp_collect <- lapply(seq_along(decompSpendDistPar$rn), function(respN) {
+      get_resp <- robyn_response(
+        media_metric = decompSpendDistPar$rn[respN],
+        select_model = decompSpendDistPar$solID[respN],
+        metric_value = decompSpendDistPar$mean_spend[respN],
+        dt_hyppar = resultHypParamPar,
+        dt_coef = xDecompAggPar,
+        InputCollect = InputCollect,
+        OutputCollect = OutputModels,
+        quiet = quiet
+      )$response
+      dt_resp <- data.frame(
+        mean_response = get_resp,
+        rn = decompSpendDistPar$rn[respN],
+        solID = decompSpendDistPar$solID[respN]
+      )
+      return(dt_resp)
+    })
+    resp_collect <- bind_rows(resp_collect)
   }
 
   decompSpendDist <- left_join(
@@ -210,12 +196,12 @@ robyn_pareto <- function(InputCollect, OutputModels,
       cpa_mean = .data$mean_spend / .data$mean_response,
       cpa_total = .data$total_spend / .data$xDecompAgg
     )
-  # decompSpendDist %>% filter(solID == select_model) %>% arrange(rn) %>% select(rn, mean_spend, mean_response, roi_mean)
+
   xDecompAgg <- left_join(
     xDecompAgg,
     select(
-      decompSpendDist, .data$rn, .data$solID, .data$total_spend, .data$mean_spend, .data$mean_spend_adstocked, .data$mean_carryover,
-      .data$mean_response, .data$spend_share, .data$effect_share, .data$roi_mean, .data$roi_total, .data$cpa_total
+      decompSpendDist, .data$rn, .data$solID, .data$total_spend, .data$mean_spend,
+      .data$spend_share, .data$effect_share, .data$roi_mean, .data$roi_total, .data$cpa_total
     ),
     by = c("solID", "rn")
   )
@@ -223,12 +209,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
   # Pareto loop (no plots)
   mediaVecCollect <- list()
   xDecompVecCollect <- list()
+  meanResponseCollect <- list()
   plotDataCollect <- list()
   df_caov_pct_all <- dplyr::tibble()
-  dt_mod <- InputCollect$dt_mod
-  dt_modRollWind <- InputCollect$dt_modRollWind
-  rw_start_loc <- InputCollect$rollingWindowStartWhich
-  rw_end_loc <- InputCollect$rollingWindowEndWhich
 
   for (pf in pareto_fronts_vec) {
     plotMediaShare <- filter(
@@ -237,19 +220,17 @@ robyn_pareto <- function(InputCollect, OutputModels,
       .data$rn %in% InputCollect$paid_media_spends
     )
     uniqueSol <- unique(plotMediaShare$solID)
-    plotWaterfall <- xDecompAgg %>% filter(.data$robynPareto == pf)
+    plotWaterfall <- xDecompAgg[xDecompAgg$robynPareto == pf, ]
+    dt_mod <- InputCollect$dt_mod
+    dt_modRollWind <- InputCollect$dt_modRollWind
     if (!quiet & length(unique(xDecompAgg$solID)) > 1) {
       message(sprintf(">> Pareto-Front: %s [%s models]", pf, length(uniqueSol)))
     }
 
     # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
     temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
-    xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec))
-    if (!"solID" %in% colnames(xDecompVecImmCarr)) {
-      xDecompVecImmCarr <- xDecompVecImmCarr %>%
-        mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
-        filter(.data$solID %in% uniqueSol)
-    }
+    xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec)) %>%
+      filter(.data$solID %in% uniqueSol)
 
     # Calculations for pareto AND pareto plots
     for (sid in uniqueSol) {
@@ -345,7 +326,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ## 4. Spend response curve
       dt_transformPlot <- select(dt_mod, .data$ds, all_of(InputCollect$all_media)) # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_spends)]) # spends of indep vars
-      dt_transformSpendMod <- dt_transformPlot[rw_start_loc:rw_end_loc, ]
+      dt_transformSpendMod <- dt_transformPlot[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich, ]
       # update non-spend variables
       # if (length(InputCollect$exposure_vars) > 0) {
       #   for (expo in InputCollect$exposure_vars) {
@@ -355,7 +336,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       # }
       dt_transformAdstock <- dt_transformPlot
       dt_transformSaturation <- dt_transformPlot[
-        rw_start_loc:rw_end_loc,
+        InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich,
       ]
 
       m_decayRate <- list()
@@ -363,19 +344,22 @@ robyn_pareto <- function(InputCollect, OutputModels,
         med_select <- InputCollect$all_media[med]
         m <- dt_transformPlot[, med_select][[1]]
         # Adstocking
-        adstock <- InputCollect$adstock
-        if (adstock == "geometric") {
+        if (InputCollect$adstock == "geometric") {
           theta <- hypParam[paste0(InputCollect$all_media[med], "_thetas")][[1]]
-        }
-        if (grepl("weibull", adstock)) {
+          x_list <- adstock_geometric(x = m, theta = theta)
+        } else if (InputCollect$adstock == "weibull_cdf") {
           shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
           scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "cdf")
+        } else if (InputCollect$adstock == "weibull_pdf") {
+          shape <- hypParam[paste0(InputCollect$all_media[med], "_shapes")][[1]]
+          scale <- hypParam[paste0(InputCollect$all_media[med], "_scales")][[1]]
+          x_list <- adstock_weibull(x = m, shape = shape, scale = scale, type = "pdf")
         }
-        x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
         m_adstocked <- x_list$x_decayed
         dt_transformAdstock[med_select] <- m_adstocked
         m_adstockedRollWind <- m_adstocked[
-          rw_start_loc:rw_end_loc
+          InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
         ]
         ## Saturation
         alpha <- hypParam[paste0(InputCollect$all_media[med], "_alphas")][[1]]
@@ -391,7 +375,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
           dt_transformSaturationDecomp[InputCollect$all_media[i]]
       }
       dt_transformSaturationSpendReverse <- dt_transformAdstock[
-        rw_start_loc:rw_end_loc,
+        InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich,
       ]
 
       ## Reverse MM fitting
@@ -410,7 +394,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       #     dt_transformSaturationSpendReverse[, (chn) := .SD / coef_lm, .SDcols = chn]
       #   }
       # }
-      # dt_transformSaturationSpendReverse <- dt_transformSaturationSpendReverse[rw_start_loc:rw_end_loc]
+      # dt_transformSaturationSpendReverse <- dt_transformSaturationSpendReverse[InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich]
 
       dt_scurvePlot <- tidyr::gather(
         dt_transformSaturationDecomp, "channel", "response",
@@ -423,9 +407,38 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
       # Remove outlier introduced by MM nls fitting
       dt_scurvePlot <- dt_scurvePlot[dt_scurvePlot$spend >= 0, ]
-      dt_scurvePlotMean <- plotWaterfall %>%
-        filter(.data$solID == sid & !is.na(.data$mean_spend)) %>%
-        select(c(channel = "rn", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"))
+
+      dt_scurvePlotMean <- dt_transformSpend %>%
+        slice(InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich) %>%
+        select(-.data$ds) %>%
+        dplyr::summarise_all(function(x) ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))) %>%
+        tidyr::gather("channel", "mean_spend") %>%
+        mutate(mean_spend_scaled = 0, mean_response = 0, next_unit_response = 0)
+
+      for (med in 1:InputCollect$mediaVarCount) {
+        get_med <- InputCollect$paid_media_spends[med]
+        get_spend_mm <- get_spend <- dt_scurvePlotMean$mean_spend[dt_scurvePlotMean$channel == get_med]
+        m <- dt_transformAdstock[[get_med]][
+          InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
+        ]
+        # m <- m[m > 0] # remove outlier introduced by MM nls fitting
+        alpha <- hypParam[which(paste0(get_med, "_alphas") == names(hypParam))][[1]]
+        gamma <- hypParam[which(paste0(get_med, "_gammas") == names(hypParam))][[1]]
+        get_response <- saturation_hill(x = m, alpha = alpha, gamma = gamma, x_marginal = get_spend_mm)
+        get_response_marginal <- saturation_hill(x = m, alpha = alpha, gamma = gamma, x_marginal = get_spend_mm + 1)
+
+        coef <- plotWaterfallLoop$coef[plotWaterfallLoop$rn == get_med]
+        dt_scurvePlotMean$mean_spend_scaled[
+          dt_scurvePlotMean$channel == get_med
+        ] <- get_spend_mm
+        dt_scurvePlotMean$mean_response[
+          dt_scurvePlotMean$channel == get_med
+        ] <- get_response * coef
+        dt_scurvePlotMean$next_unit_response[
+          dt_scurvePlotMean$channel == get_med
+        ] <- get_response_marginal * coef - (get_response * coef)
+      }
+      dt_scurvePlotMean$solID <- sid
 
       # Exposure response curve
       plot4data <- list(
@@ -479,7 +492,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), -all_of(InputCollect$all_media)),
         xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), -all_of(InputCollect$all_media))
       )
-      this <- gsub("_MDI", "", colnames(vec_collect$xDecompVecImmediate))
+      this <- gsub("_MDI", "",  colnames(vec_collect$xDecompVecImmediate))
       colnames(vec_collect$xDecompVecImmediate) <- colnames(vec_collect$xDecompVecCarryover) <- this
       df_caov <- vec_collect$xDecompVecCarryover %>%
         group_by(.data$solID) %>%
@@ -491,7 +504,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         select(df_caov, .data$solID),
         select(df_caov, -.data$solID) / select(df_total, -.data$solID)
       ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
+        pivot_longer(cols = InputCollect$all_media, names_to = "channel", values_to = "carryover_pct")
       df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
       df_caov_pct_all <- bind_rows(df_caov_pct_all, df_caov_pct)
       # Gather everything in an aggregated format
@@ -501,13 +514,13 @@ robyn_pareto <- function(InputCollect, OutputModels,
         select(vec_collect$xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
           mutate(type = "Carryover")
       ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "rn") %>%
-        select(c("solID", "type", "rn", "value")) %>%
-        group_by(.data$solID, .data$rn, .data$type) %>%
+        pivot_longer(cols = InputCollect$all_media, names_to = "channel") %>%
+        select(c("solID", "type", "channel", "value")) %>%
+        group_by(.data$solID, .data$channel, .data$type) %>%
         summarise(response = sum(.data$value), .groups = "drop_last") %>%
         mutate(percentage = .data$response / sum(.data$response)) %>%
         replace(., is.na(.), 0) %>%
-        left_join(df_caov_pct, c("solID", "rn"))
+        left_join(df_caov_pct, c("solID", "channel"))
       if (length(unique(xDecompAgg$solID)) == 1) {
         xDecompVecImmeCaov$solID <- OutModels$trial1$resultCollect$resultHypParam$solID
       }
@@ -527,6 +540,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         mutate(dt_transformSaturationDecomp, type = "decompMedia", solID = sid)
       ))
       xDecompVecCollect <- bind_rows(xDecompVecCollect, xDecompVec)
+      meanResponseCollect <- bind_rows(meanResponseCollect, dt_scurvePlotMean)
       plotDataCollect[[sid]] <- list(
         plot1data = plot1data,
         plot2data = plot2data,
@@ -538,7 +552,14 @@ robyn_pareto <- function(InputCollect, OutputModels,
         # plot8data = plot8data
       )
     }
-  } # end pareto front loopdev
+  } # end pareto front loop
+
+  meanResponseCollect <- rename(meanResponseCollect, "rn" = "channel")
+  xDecompAgg <- left_join(xDecompAgg, select(
+    meanResponseCollect, .data$rn, .data$solID, .data$mean_response, .data$next_unit_response
+  ),
+  by = c("rn", "solID")
+  )
 
   pareto_results <- list(
     pareto_solutions = unique(xDecompVecCollect$solID),
@@ -556,21 +577,4 @@ robyn_pareto <- function(InputCollect, OutputModels,
   # close(pbplot)
 
   return(pareto_results)
-}
-
-pareto_front <- function(x, y, fronts = 1, sort = TRUE) {
-  stopifnot(length(x) == length(y))
-  d <- data.frame(x, y)
-  Dtemp <- D <- d[order(d$x, d$y, decreasing = FALSE), ]
-  df <- data.frame()
-  i <- 1
-  while (nrow(Dtemp) >= 1 & i <= max(fronts)) {
-    these <- Dtemp[which(!duplicated(cummin(Dtemp$y))), ]
-    these$pareto_front <- i
-    df <- rbind(df, these)
-    Dtemp <- Dtemp[!row.names(Dtemp) %in% row.names(these), ]
-    i <- i + 1
-  }
-  ret <- merge(x = d, y = df, by = c("x", "y"), all.x = TRUE, sort = sort)
-  return(ret)
 }
