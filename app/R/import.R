@@ -25,10 +25,11 @@
 #' radioButtons reactive reactiveValues renderImage renderPlot renderTable renderText renderUI
 #' req selectInput showModal shinyApp sidebarLayout sidebarPanel
 #' sliderInput splitLayout stopApp tabPanel tableOutput tabsetPanel tags textInput
-#' textOutput titlePanel uiOutput updateSelectInput updateTextInput updateNumericInput validate verbatimTextOutput showNotification
+#' textOutput titlePanel uiOutput updateSelectInput updateTextInput updateNumericInput
+#' validate verbatimTextOutput showNotification strong
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyjs useShinyjs html runjs
 #' @importFrom stats coef cor end reorder
-#' @importFrom utils head packageDescription read.csv
+#' @importFrom utils head packageDescription packageVersion read.csv
 #' @importFrom tidyr pivot_longer
 "_PACKAGE"

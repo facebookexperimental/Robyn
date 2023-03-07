@@ -691,22 +691,6 @@ robyn_mmm <- function(InputCollect,
               penalty.factor <- rep(1, ncol(x_train))
             }
 
-            glm_mod <- glmnet(
-              x_train,
-              y_train,
-              family = "gaussian",
-              alpha = 0, # 0 for ridge regression
-              lambda = lambda_scaled,
-              lower.limits = lower.limits,
-              upper.limits = upper.limits,
-              type.measure = "mse",
-              penalty.factor = penalty.factor
-            ) # plot(glm_mod); coef(glm_mod)
-
-            # # When we used CV instead of nevergrad
-            # lambda_range <- c(cvmod$lambda.min, cvmod$lambda.1se)
-            # lambda <- lambda_range[1] + (lambda_range[2]-lambda_range[1]) * lambda_control
-
             #####################################
             ## NRMSE: Model's fit error
 
@@ -717,7 +701,9 @@ robyn_mmm <- function(InputCollect,
               lambda = lambda_scaled,
               lower.limits = lower.limits,
               upper.limits = upper.limits,
-              intercept_sign = intercept_sign
+              intercept_sign = intercept_sign,
+              penalty.factor = penalty.factor,
+              ...
             )
             decompCollect <- model_decomp(
               coefs = mod_out$coefs,
@@ -1104,16 +1090,23 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   return(decompCollect)
 }
 
-model_refit <- function(x_train, y_train, lambda, lower.limits, upper.limits, intercept_sign = "non_negative") {
+
+model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
+                        lambda, lower.limits, upper.limits,
+                        intercept_sign = "non_negative",
+                        penalty.factor = rep(1, ncol(y_train)),
+                        ...) {
   mod <- glmnet(
     x_train,
     y_train,
     family = "gaussian",
     alpha = 0, # 0 for ridge regression
-    # https://stats.stackexchange.com/questions/138569/why-is-lambda-within-one-standard-error-from-the-minimum-is-a-recommended-valu
     lambda = lambda,
     lower.limits = lower.limits,
-    upper.limits = upper.limits
+    upper.limits = upper.limits,
+    type.measure = "mse",
+    penalty.factor = penalty.factor,
+    ...
   ) # coef(mod)
 
   df.int <- 1

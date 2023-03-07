@@ -12,7 +12,7 @@ Description: Using Shiny on top of Robyn users are enabled to both learn Robyn i
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 Imports: 
     corrr,
     dplyr,
@@ -22,7 +22,6 @@ Imports:
     lubridate,
     patchwork,
     Robyn (>= 3.6.3),
-    scales,
     shiny,
     shinycssloaders,
     shinyjs,

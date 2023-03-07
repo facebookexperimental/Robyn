@@ -792,6 +792,12 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (any(channel_constr_up > 5)) {
     warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
   }
+  if ("max_response_expected_spend" %in% scenario) {
+    stop(paste(
+      "Scenario 'max_response_expected_spend' has been deprecated.",
+      "Use scenario = 'max_historical_response' and new 'total_budget' parameter instead."
+    ))
+  }
   opts <- "max_historical_response" # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
@@ -823,9 +829,9 @@ check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, e
     metric_type <- "organic"
   } else {
     stop(paste(
-      "Invalid 'metric_name' input. It must be any media variable from",
-      "paid_media_spends (spend), paid_media_vars (exposure),",
-      "or organic_vars (organic); NOT:", metric_name,
+      "Invalid 'metric_name' input:", metric_name,
+      "\nInput should be any media variable from paid_media_spends (spend),",
+      "paid_media_vars (exposure), or organic_vars (organic):",
       paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
       paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
       paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))

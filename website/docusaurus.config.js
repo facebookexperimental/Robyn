@@ -110,14 +110,6 @@ module.exports = {
       // Please do not remove the credits, help to publicize Docusaurus :)
       copyright: `Copyright © ${new Date().getFullYear()} Facebook, Inc. Built with Docusaurus.`,
     },
-    googleAnalytics: {
-      trackingID: 'G-TMZK4YFDGL',
-      anonymizeIP: true,
-    },
-    gtag: {
-      trackingID: 'G-TMZK4YFDGL',
-      anonymizeIP: true,
-    },
   },
   presets: [
     [
@@ -127,6 +119,16 @@ module.exports = {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/facebookexperimental/Robyn/edit/main/website',
         },
+
+        googleAnalytics: {
+          trackingID: 'G-TMZK4YFDGL',
+          anonymizeIP: true,
+        },
+        gtag: {
+          trackingID: 'G-TMZK4YFDGL',
+          anonymizeIP: true,
+        },
+
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },

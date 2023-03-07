@@ -361,6 +361,13 @@ ui <- function() {
           (title <- "Budget Optimization - Scenario Planner"),
           sidebarLayout(
             sidebarPanel(
+              strong(sprintf(
+                "NOTE: not working correctly with Robyn >= v3.10.%s Expect update by 2023-H2",
+                ifelse(packageVersion("Robyn") >= "3.10",
+                       paste(" Please, downgrade version like this:",
+                             'remotes::install_github("facebookexperimental/Robyn/R", ref = "v3.9.0").'),
+                       ""))),
+              hr(),
               actionButton("run_opt", label = "Run Optimizer"),
               hr(),
               textInput("solID", label = h4(
