@@ -129,16 +129,17 @@ robyn_allocator <- function(robyn_object = NULL,
   message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
   # Exclude media with 0 as lower and upper constrains
+  check_allocator_constrains(channel_constr_low, channel_constr_up)
   skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
+  skipped_vars <- InputCollect$paid_media_spends[skip_these]
   if (any(skip_these) && !quiet) {
-    message("Excluding variables (contrained to 0): ", InputCollect$paid_media_spends[skip_these])
+    message("Excluded variables (constrained to 0): ", skipped_vars)
   }
 
   ## Set local data & params values
   if (TRUE) {
     paid_media_spends <- InputCollect$paid_media_spends[!skip_these]
     media_order <- order(paid_media_spends)
-    mediaVarSorted <- InputCollect$paid_media_vars[!skip_these][media_order]
     mediaSpendSorted <- paid_media_spends[media_order]
     if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
     if (length(channel_constr_up) == 1) channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
@@ -173,7 +174,7 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Filter and sort all variables by name that is essential for the apply function later
   if (!all(coefSelectorSorted)) {
     chn_coef0 <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
-    message("Excluded in optimiser because their coefficients are 0: ", paste(chn_coef0, collapse = ", "))
+    message("Excluded variables (coefficients are 0): ", paste(chn_coef0, collapse = ", "))
   } else {
     chn_coef0 <- "None"
   }
@@ -239,6 +240,15 @@ robyn_allocator <- function(robyn_object = NULL,
   initSpendUnitTotal <- sum(initSpendUnit)
   initSpendShare <- initSpendUnit / initSpendUnitTotal
   total_budget_unit <- ifelse(is.null(total_budget), initSpendUnitTotal, total_budget / unique(simulation_period))
+  total_budget_window <- total_budget_unit * unique(simulation_period)
+
+  ## Calculate budget "not optimizable" (coef = 0 and constrained @ 0)
+  skipped_budget <- select(histFiltered, any_of(sort(c(chn_coef0, skipped_vars))))
+  if (isTRUE(sum(skipped_budget) > 0) && !quiet) {
+    message(sprintf("Non-optimizable and excluded budget: %s [%s]",
+                    num_abbr(sum(skipped_budget)),
+                    formatNum(sum(skipped_budget) / total_budget_window * 100, pos = "%")))
+  }
 
   ## Get use case based on inputs
   usecase <- which_usecase(initSpendUnit[1], date_range)
@@ -580,7 +590,8 @@ robyn_allocator <- function(robyn_object = NULL,
     scenario = scenario,
     usecase = usecase,
     total_budget = total_budget,
-    skipped = chn_coef0,
+    skipped = c(chn_coef0, skipped_vars),
+    skipped_budget = sum(skipped_budget),
     no_spend = zero_spend_channel,
     ui = if (ui) plots else NULL
   )

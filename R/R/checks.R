@@ -778,20 +778,29 @@ check_class <- function(x, object) {
   if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }
 
+check_allocator_constrains <- function(low, upr) {
+  max_length <- max(c(length(low), length(upr)))
+  if (length(low) == 1) low <- rep(low, max_length)
+  if (length(upr) == 1) upr <- rep(upr, max_length)
+  if (any(low < 0)) {
+    stop("Inputs 'channel_constr_low' must be >= 0")
+  }
+  if (length(upr) != length(low)) {
+    stop("Inputs 'channel_constr_up' and 'channel_constr_low' must have the same length or length 1")
+  }
+  if (any(upr < low)) {
+    stop("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
+  }
+}
+
 check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
                             channel_constr_low, channel_constr_up, constr_mode) {
-  dt_hyppar <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == select_model, ]
+  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
       "Provided 'select_model' is not within the best results. Try any of: ",
       paste(OutputCollect$allSolutions, collapse = ", ")
     )
-  }
-  if (any(channel_constr_low < 0)) {
-    stop("Inputs 'channel_constr_low' must be >= 0")
-  }
-  if (any(channel_constr_up < channel_constr_low)) {
-    stop("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
   }
   if (any(channel_constr_up > 5)) {
     warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
