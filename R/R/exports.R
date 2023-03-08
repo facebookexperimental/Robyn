@@ -145,6 +145,7 @@ print.robyn_save <- function(x, ...) {
 
   print(x$summary %>%
     mutate(decomp = formatNum(100 * .data$decomp, pos = "%")) %>%
+    dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
     replace(., . == "NA", "-") %>% as.data.frame())
 

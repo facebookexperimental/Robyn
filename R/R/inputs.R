@@ -564,8 +564,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   if (!quiet) message(">> Running feature engineering...")
   InputCollect <- x
   check_InputCollect(InputCollect)
-  dt_input <- InputCollect$dt_input
-  dt_input <- select(dt_input, -all_of(InputCollect$unused_vars))
+  dt_input <- select(InputCollect$dt_input, -all_of(InputCollect$unused_vars))
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   factor_vars <- InputCollect$factor_vars

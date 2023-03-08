@@ -248,6 +248,10 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (spendVarCount != mediaVarCount) {
     stop("Input 'paid_media_spends' must have same length as 'paid_media_vars'")
   }
+  is_num <- unlist(lapply(dt_input[, paid_media_vars], is.numeric))
+  if (!all(is_num)) {
+    stop("All your 'paid_media_vars' must be numeric. Check: ", v2t(paid_media_vars[!is_num]))
+  }
   get_cols <- any(dt_input[, unique(c(paid_media_vars, paid_media_spends))] < 0)
   if (get_cols) {
     check_media_names <- unique(c(paid_media_vars, paid_media_spends))

@@ -136,6 +136,7 @@ print.robyn_write <- function(x, ...) {
     select(-contains("boot"), -contains("ci_")) %>%
     dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
     mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
+    dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
     replace(., . == "NA", "-") %>% as.data.frame())
 
