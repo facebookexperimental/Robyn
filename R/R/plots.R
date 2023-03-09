@@ -785,9 +785,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
-        tidyr::pivot_longer(names_to = "type",
-                            values_to = ifelse(metric == "ROAS", "channel_roi", "channel_cpa"),
-                            -.data$channel),
+        tidyr::pivot_longer(
+          names_to = "type",
+          values_to = ifelse(metric == "ROAS", "channel_roi", "channel_cpa"),
+          -.data$channel
+        ),
       by = c("channel", "type")
     ) %>%
     left_join(
@@ -809,9 +811,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
-        tidyr::pivot_longer(names_to = "type",
-                            values_to = ifelse(metric == "ROAS", "marginal_roi", "marginal_cpa"),
-                            -.data$channel),
+        tidyr::pivot_longer(
+          names_to = "type",
+          values_to = ifelse(metric == "ROAS", "marginal_roi", "marginal_cpa"),
+          -.data$channel
+        ),
       by = c("channel", "type")
     ) %>%
     left_join(resp_metric, by = "type")
