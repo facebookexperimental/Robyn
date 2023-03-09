@@ -254,7 +254,7 @@ robyn_allocator <- function(robyn_object = NULL,
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
   names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSorted
-  if (length(zero_spend_channel) == 0 && !quiet) {
+  if (length(zero_spend_channel) > 0 && !quiet) {
     message("Media variables with 0 spending during date range: ", v2t(zero_spend_channel))
     # hist_carryover[zero_spend_channel] <- 0
   }
@@ -603,8 +603,8 @@ robyn_allocator <- function(robyn_object = NULL,
     scenario = scenario,
     usecase = usecase,
     total_budget = total_budget,
-    skipped = c(zero_coef_channel, zero_constraint_channel),
-    # skipped_budget = sum(skipped_budget),
+    skipped_coef0 = zero_coef_channel,
+    skipped_constr = zero_constraint_channel,
     no_spend = zero_spend_channel,
     ui = if (ui) plots else NULL
   )
@@ -619,6 +619,12 @@ robyn_allocator <- function(robyn_object = NULL,
 #' @export
 print.robyn_allocator <- function(x, ...) {
   temp <- x$dt_optimOut[!is.nan(x$dt_optimOut$optmRoiUnit), ]
+  coef0 <- if (length(x$skipped_coef0) > 0) paste("Coefficient 0:", v2t(x$skipped_coef0, quotes = FALSE)) else NULL
+  constr <- if (length(x$skipped_constr) > 0) paste("Constrained @0:", v2t(x$skipped_constr, quotes = FALSE)) else NULL
+  nospend <- if (length(x$no_spend) > 0) paste("Spend = 0:", v2t(x$no_spend, quotes = FALSE)) else NULL
+  media_skipped <- paste(c(coef0, constr, nospend), collapse = ' | ')
+  media_skipped <- ifelse(is.null(media_skipped), "None", media_skipped)
+
   print(glued(
     "
 Model ID: {x$dt_optimOut$solID[1]}
@@ -627,14 +633,13 @@ Use case: {x$usecase}
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
 Dep. Variable Type: {temp$dep_var_type[1]}
-Media Skipped (coef = 0 | constrained @ 0): {v2t(x$skipped, quotes = FALSE)} {no_spend}
+Media Skipped: {media_skipped}
 Relative Spend Increase: {spend_increase_p}% ({spend_increase})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 
 Allocation Summary:
   {summary}
 ",
-    no_spend = ifelse(length(x$no_spend) > 0, paste("| (spend = 0):", v2t(x$no_spend, quotes = FALSE)), ""),
     spend_increase_p = num_abbr(100 * x$dt_optimOut$optmSpendUnitTotalDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
