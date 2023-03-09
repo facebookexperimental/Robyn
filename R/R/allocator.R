@@ -627,15 +627,15 @@ Use case: {x$usecase}
 Window: {x$dt_optimOut$date_min[1]}:{x$dt_optimOut$date_max[1]} ({x$dt_optimOut$periods[1]})
 
 Dep. Variable Type: {temp$dep_var_type[1]}
-Media Skipped (coef = 0): {paste0(x$skipped, collapse = ',')} {no_spend}
+Media Skipped (coef = 0 | constrained @ 0): {v2t(x$skipped, quotes = FALSE)} {no_spend}
 Relative Spend Increase: {spend_increase_p}% ({spend_increase})
 Total Response Increase (Optimized): {signif(100 * x$dt_optimOut$optmResponseUnitTotalLift[1], 3)}%
 
 Allocation Summary:
   {summary}
 ",
-    no_spend = ifelse(!is.null(x$no_spend), paste("| (spend = 0):", v2t(x$no_spend, quotes = FALSE)), ""),
-    spend_increase_p = signif(100 * x$dt_optimOut$optmSpendUnitTotalDelta[1], 3),
+    no_spend = ifelse(length(x$no_spend) > 0, paste("| (spend = 0):", v2t(x$no_spend, quotes = FALSE)), ""),
+    spend_increase_p = num_abbr(100 * x$dt_optimOut$optmSpendUnitTotalDelta[1], 3),
     spend_increase = formatNum(
       sum(x$dt_optimOut$optmSpendUnitTotal) - sum(x$dt_optimOut$initSpendUnitTotal),
       abbr = TRUE, sign = TRUE
