@@ -125,8 +125,12 @@ robyn_allocator <- function(robyn_object = NULL,
     InputCollect <- imported$InputCollect
     OutputCollect <- imported$OutputCollect
     select_model <- imported$select_model
-  } else if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
-    stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
+  } else {
+    if (is.null(select_model) && length(OutputCollect$allSolutions == 1))
+      select_model <- OutputCollect$allSolutions
+    if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
+      stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
+    }
   }
 
   message(paste(">>> Running budget allocator for model ID", select_model, "..."))
@@ -677,7 +681,7 @@ print.robyn_allocator <- function(x, ...) {
   coef0 <- if (length(x$skipped_coef0) > 0) paste("Coefficient 0:", v2t(x$skipped_coef0, quotes = FALSE)) else NULL
   constr <- if (length(x$skipped_constr) > 0) paste("Constrained @0:", v2t(x$skipped_constr, quotes = FALSE)) else NULL
   nospend <- if (length(x$no_spend) > 0) paste("Spend = 0:", v2t(x$no_spend, quotes = FALSE)) else NULL
-  media_skipped <- paste(c(coef0, constr, nospend), collapse = ' | ')
+  media_skipped <- paste(c(coef0, constr, nospend), collapse = " | ")
   media_skipped <- ifelse(is.null(media_skipped), "None", media_skipped)
 
   print(glued(
@@ -876,8 +880,8 @@ eval_g_eq_roas <- function(X, target_roas) {
     SIMPLIFY = TRUE
   )
 
-  #constr <- sum(X) - eval_list$total_budget_unit
-  #grad <- rep(1, length(X))
+  # constr <- sum(X) - eval_list$total_budget_unit
+  # grad <- rep(1, length(X))
   return(list(
     "constraints" = constr,
     "jacobian" = grad
