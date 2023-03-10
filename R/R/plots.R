@@ -700,12 +700,12 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       message("NOTE: Given the upper/lower constrains, the total budget can't be fully allocated (^)")
     }
   }
-  if (scenario == "max_historical_response") {
+  if (scenario == "max_response") {
     levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
     levs2 <- c("Initial",
                paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
                paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult))
-  } else if (scenario == "hit_roas_target") {
+  } else if (scenario == "target_roas") {
     levs1 <- levs2<- c("Initial", paste0("Hit ROAS x", eval_list$target_roas), "Hit ROAS x1")
   }
 
@@ -994,7 +994,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   # Gather all plots
   if (export) {
-    scenario <- ifelse(scenario == "max_historical_response", "hist", "roas")
+    scenario <- ifelse(scenario == "max_response", "resp", "roas")
     filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
     if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(

@@ -28,11 +28,22 @@
 #' Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
 #' short for "Methods of Moving Asymptotes". More details see the documentation of
 #' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
-#' @param scenario Character. Accepted options are: \code{"max_historical_response"}.
-#' Scenario \code{"max_historical_response"} simulates the scenario
-#' "What's the revenue/conversions lift potential with the same spend level in \code{date_range}
-#' and what is the spend and expected response mix?".
+#' @param scenario Character. Accepted options are: \code{"max_response"}, \code{"target_roi"}.
+#' Scenario \code{"max_response"} answers the question:
+#' "What's the potential revenue/conversions lift with the same (or custom) spend level
+#' in \code{date_range} and what is the allocation and expected response mix?"
+#' Scenario \code{"target_roi"} answers the question:
+#' "What's the potential revenue/conversions lift and spend levels based on a
+#' \code{target_roas} and what is the allocation and expected response mix?"
 #' Deprecated scenario: \code{"max_response_expected_spend"}.
+#' @param total_budget Numeric. Total marketing budget for all paid channels for the
+#' period in \code{date_range}.
+#' @param target_roas Numeric. When using the scenario \code{"target_roas"},
+#' set the lowest ROAS, while having no upper spend limit.
+#' @param date_range Character. Date(s) to apply adstocked transformations and pick mean spends
+#' per channel. Set one of: NULL, "all", "last", or "last_n" (where
+#' n is the last N dates available), date (i.e. "2022-03-27"), or date range
+#' (i.e. \code{c("2022-01-01", "2022-12-31")}). Default NULL will use last month's worth of data.
 #' @param channel_constr_low,channel_constr_up Numeric vectors. The lower and upper bounds
 #' for each paid media variable when maximizing total media response. For example,
 #' \code{channel_constr_low = 0.7} means minimum spend of the variable is 70% of historical
@@ -46,14 +57,6 @@
 #' The allocator will also show the optimum solution for a larger constraint range of
 #' 0.4 x 3 = 1.2, or 0.4 to 1.6, to show the optimization potential to support allocation
 #' interpretation and decision.
-#' @param date_range Character. Date(s) to apply adstocked transformations and pick mean spends
-#' per channel. Set one of: NULL, "all", "last", or "last_n" (where
-#' n is the last N dates available), date (i.e. "2022-03-27"), or date range
-#' (i.e. \code{c("2022-01-01", "2022-12-31")}).
-#' @param total_budget Numeric. Total marketing budget for all paid channels for the
-#' period in \code{date_range}.
-#' @param target_roas Numeric. When using the scenario "hit_roas_target", use this to
-#' set the lowest roas, while having no upper spend limit.
 #' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
@@ -66,7 +69,7 @@
 #'   InputCollect = InputCollect,
 #'   OutputCollect = OutputCollect,
 #'   select_model = "1_2_3",
-#'   scenario = "max_historical_response",
+#'   scenario = "max_response",
 #'   channel_constr_low = 0.7,
 #'   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
 #'   channel_constr_multiplier = 4,
@@ -86,13 +89,13 @@ robyn_allocator <- function(robyn_object = NULL,
                             OutputCollect = NULL,
                             select_model = NULL,
                             json_file = NULL,
-                            scenario = "max_historical_response",
+                            scenario = "max_response",
+                            total_budget = NULL,
+                            target_roas = 2,
+                            date_range = NULL,
                             channel_constr_low = NULL,
                             channel_constr_up = NULL,
                             channel_constr_multiplier = 3,
-                            date_range = NULL,
-                            total_budget = NULL,
-                            target_roas = 2,
                             optim_algo = "SLSQP_AUGLAG",
                             maxeval = 100000,
                             constr_mode = "eq",
@@ -274,7 +277,7 @@ robyn_allocator <- function(robyn_object = NULL,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
-  if (scenario == "hit_roas_target") {
+  if (scenario == "target_roas") {
     channelConstrLowSortedExt <- channelConstrLowSorted <- 0.1
     channelConstrUpSortedExt <- channelConstrUpSorted <- Inf
   }
@@ -360,7 +363,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Run optim
   x_hist_carryover <- unlist(lapply(hist_carryover_eval, mean))
-  if (scenario == "max_historical_response") {
+  if (scenario == "max_response") {
     ## bounded optimisation
     nlsMod <- nloptr::nloptr(
       x0 = x0,
@@ -393,7 +396,7 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   }
 
-  if (scenario == "hit_roas_target") {
+  if (scenario == "target_roas") {
     ## bounded optimisation
     total_response <- sum(OutputCollect$xDecompAgg$xDecompAgg)
     nlsMod <- nloptr::nloptr(
@@ -558,9 +561,9 @@ robyn_allocator <- function(robyn_object = NULL,
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Calculate curves and main points for each channel
-  if (scenario == "max_historical_response") {
+  if (scenario == "max_response") {
     levs1 <- c("Initial", "Bounded", paste0("Bounded x", channel_constr_multiplier))
-  } else if (scenario == "hit_roas_target") {
+  } else if (scenario == "target_roas") {
     levs1 <- c("Initial", paste0("Hit ROAS x", target_roas), "Hit ROAS x1")
   }
   dt_optimOutScurve <- rbind(

@@ -375,8 +375,8 @@ print(ExportedModel)
 # NOTE: The order of constraints should follow:
 InputCollect$paid_media_spends
 
-# Scenario "max_historical_response": "What's the potential revenue/conversions lift with the
-# same spend level in date_range and what is the spend and expected response mix?"
+# Scenario "max_response": "What's the potential revenue/conversions lift with the
+# same (or custom) spend level in date_range and what is the spend and expected response mix?"
 # For this scenario, we have several use cases:
 
 # Case 1: date_range & total_budget both NULL (default for last month's spend)
@@ -388,7 +388,7 @@ AllocatorCollect1 <- robyn_allocator(
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 3,
-  scenario = "max_historical_response",
+  scenario = "max_respose",
   export = create_files
 )
 # Print the allocator's output summary
@@ -405,7 +405,7 @@ AllocatorCollect2 <- robyn_allocator(
   channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 3,
-  scenario = "max_historical_response",
+  scenario = "max_respose",
   export = create_files
 )
 print(AllocatorCollect2)
@@ -421,7 +421,22 @@ AllocatorCollect3 <- robyn_allocator(
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 5,
-  scenario = "max_historical_response",
+  scenario = "max_respose",
+  export = create_files
+)
+print(AllocatorCollect3)
+plot(AllocatorCollect3)
+
+# Scenario "max_response": "What's the potential revenue/conversions lift and spend
+# levels based on a "target_roas" and what is the allocation and expected response mix?"
+
+AllocatorCollect4 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  date_range = "last_4",
+  scenario = "target_roas",
+  target_roas = 2,
   export = create_files
 )
 print(AllocatorCollect3)

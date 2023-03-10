@@ -805,11 +805,12 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (any(channel_constr_up > 5)) {
     warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
   }
-  opts <- c("max_historical_response", "hit_roas_target") # Deprecated: max_response_expected_spend
+  if ("max_historical_response" %in% scenario) scenario <- "max_response"
+  opts <- c("max_response", "target_roas") # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
-  if (!(scenario == "hit_roas_target" & is.null(channel_constr_low) & is.null(channel_constr_up))) {
+  if (!(scenario == "target_roas" & is.null(channel_constr_low) & is.null(channel_constr_up))) {
     if (length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_spends)) {
       stop(paste(
         "Input 'channel_constr_low' have to contain either only 1",
