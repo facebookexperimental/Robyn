@@ -700,12 +700,14 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       message("NOTE: Given the upper/lower constrains, the total budget can't be fully allocated (^)")
     }
   }
-  levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
-  levs2 <- c(
-    "Initial",
-    paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
-    paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
-  )
+  if (scenario == "max_historical_response") {
+    levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
+    levs2 <- c("Initial",
+               paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
+               paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult))
+  } else if (scenario == "hit_roas_target") {
+    levs1 <- levs2<- c("Initial", paste0("Hit ROAS x", eval_list$target_roas), "Hit ROAS x1")
+  }
 
   resp_metric <- data.frame(
     type = factor(levs1, levels = levs1),

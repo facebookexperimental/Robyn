@@ -87,8 +87,8 @@ robyn_allocator <- function(robyn_object = NULL,
                             select_model = NULL,
                             json_file = NULL,
                             scenario = "max_historical_response",
-                            channel_constr_low = 0.5,
-                            channel_constr_up = 2,
+                            channel_constr_low = NULL,
+                            channel_constr_up = NULL,
                             channel_constr_multiplier = 3,
                             date_range = NULL,
                             total_budget = NULL,
@@ -135,6 +135,8 @@ robyn_allocator <- function(robyn_object = NULL,
   paid_media_spends <- InputCollect$paid_media_spends
   media_order <- order(paid_media_spends)
   mediaSpendSorted <- paid_media_spends[media_order]
+  if (is.null(channel_constr_low)) channel_constr_low <- 0.5
+  if (is.null(channel_constr_up)) channel_constr_up <- 2
   if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
   if (length(channel_constr_up) == 1) channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
   names(channel_constr_low) <- paid_media_spends
@@ -268,6 +270,10 @@ robyn_allocator <- function(robyn_object = NULL,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
+  if (scenario == "hit_roas_target") {
+    channelConstrLowSortedExt <- channelConstrLowSorted <- 0.1
+    channelConstrUpSortedExt <- channelConstrUpSorted <- Inf
+  }
   temp_init <- temp_init_all <- initSpendUnit
   # if no spend within window as initial spend, use historical average
   if (length(zero_spend_channel) > 0) temp_init_all[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
@@ -363,7 +369,8 @@ robyn_allocator <- function(robyn_object = NULL,
         "xtol_rel" = 1.0e-10,
         "maxeval" = maxeval,
         "local_opts" = local_opts
-      )
+      ),
+      target_roas = NULL
     )
     ## unbounded optimisation
     nlsModUnbound <- nloptr::nloptr(
@@ -377,10 +384,10 @@ robyn_allocator <- function(robyn_object = NULL,
         "xtol_rel" = 1.0e-10,
         "maxeval" = maxeval,
         "local_opts" = local_opts
-      )
+      ),
+      target_roas = NULL
     )
   }
-
 
   if (scenario == "hit_roas_target") {
     ## bounded optimisation
@@ -547,7 +554,11 @@ robyn_allocator <- function(robyn_object = NULL,
   .Options$ROBYN_TEMP <- NULL # Clean auxiliary method
 
   ## Calculate curves and main points for each channel
-  levs1 <- c("Initial", "Bounded", paste0("Bounded x", channel_constr_multiplier))
+  if (scenario == "max_historical_response") {
+    levs1 <- c("Initial", "Bounded", paste0("Bounded x", channel_constr_multiplier))
+  } else if (scenario == "hit_roas_target") {
+    levs1 <- c("Initial", paste0("Hit ROAS x", target_roas), "Hit ROAS x1")
+  }
   dt_optimOutScurve <- rbind(
     select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
       mutate(x = levs1[1]) %>% as.matrix(),
@@ -560,10 +571,10 @@ robyn_allocator <- function(robyn_object = NULL,
     rbind(data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type = "Carryover")) %>%
     mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
     group_by(.data$channels)
-  plotDT_adstocked <- OutputCollect$mediaVecCollect %>%
-    filter(.data$solID == select_model, .data$type == "adstockedMedia") %>%
-    select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
-    tidyr::gather("channel", "spend", -.data$ds)
+  # plotDT_adstocked <- OutputCollect$mediaVecCollect %>%
+  #   filter(.data$solID == select_model, .data$type == "adstockedMedia") %>%
+  #   select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
+  #   tidyr::gather("channel", "spend", -.data$ds)
 
   plotDT_scurve <- list()
   for (i in channel_for_allocation) { # i <- channels[i]
@@ -817,7 +828,7 @@ fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover
   return(xOut)
 }
 
-eval_g_eq <- function(X) {
+eval_g_eq <- function(X, target_roas) {
   eval_list <- getOption("ROBYN_TEMP")
   constr <- sum(X) - eval_list$total_budget_unit
   grad <- rep(1, length(X))
@@ -827,7 +838,7 @@ eval_g_eq <- function(X) {
   ))
 }
 
-eval_g_ineq <- function(X) {
+eval_g_ineq <- function(X, target_roas) {
   eval_list <- getOption("ROBYN_TEMP")
   constr <- sum(X) - eval_list$total_budget_unit
   grad <- rep(1, length(X))
