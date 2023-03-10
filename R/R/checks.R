@@ -811,7 +811,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
       "Use scenario = 'max_historical_response' and new 'total_budget' parameter instead."
     ))
   }
-  opts <- "max_historical_response" # Deprecated: max_response_expected_spend
+  opts <- c("max_historical_response", "hit_roas_target") # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }

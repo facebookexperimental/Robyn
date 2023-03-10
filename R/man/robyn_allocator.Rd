@@ -19,6 +19,7 @@ robyn_allocator(
   channel_constr_multiplier = 3,
   date_range = NULL,
   total_budget = NULL,
+  target_roas = 2,
   optim_algo = "SLSQP_AUGLAG",
   maxeval = 1e+05,
   constr_mode = "eq",
@@ -82,6 +83,9 @@ n is the last N dates available), date (i.e. "2022-03-27"), or date range
 
 \item{total_budget}{Numeric. Total marketing budget for all paid channels for the
 period in \code{date_range}.}
+
+\item{target_roas}{Numeric. When using the scenario "hit_roas_target", use this to
+set the lowest roas, while having no upper spend limit.}
 
 \item{optim_algo}{Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
 Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},

@@ -52,6 +52,8 @@
 #' (i.e. \code{c("2022-01-01", "2022-12-31")}).
 #' @param total_budget Numeric. Total marketing budget for all paid channels for the
 #' period in \code{date_range}.
+#' @param target_roas Numeric. When using the scenario "hit_roas_target", use this to
+#' set the lowest roas, while having no upper spend limit.
 #' @param maxeval Integer. The maximum iteration of the global optimization algorithm.
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
@@ -90,6 +92,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             channel_constr_multiplier = 3,
                             date_range = NULL,
                             total_budget = NULL,
+                            target_roas = 2,
                             optim_algo = "SLSQP_AUGLAG",
                             maxeval = 100000,
                             constr_mode = "eq",
@@ -202,7 +205,7 @@ robyn_allocator <- function(robyn_object = NULL,
   initSpendUnitTotal <- sum(initSpendUnit)
   initSpendShare <- initSpendUnit / initSpendUnitTotal
   total_budget_unit <- ifelse(is.null(total_budget), initSpendUnitTotal, total_budget / unique(simulation_period))
-  # total_budget_window <- total_budget_unit * unique(simulation_period)
+  total_budget_window <- total_budget_unit * unique(simulation_period)
 
   ## Get use case based on inputs
   usecase <- which_usecase(initSpendUnit[1], date_range)
@@ -265,14 +268,14 @@ robyn_allocator <- function(robyn_object = NULL,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
-  temp_init_all <- initSpendUnit
+  temp_init <- temp_init_all <- initSpendUnit
   # if no spend within window as initial spend, use historical average
   if (length(zero_spend_channel) > 0) temp_init_all[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
   # Exclude channels with 0 coef from optimisation
-  temp_ub_all <- channelConstrUpSorted
-  temp_lb_all <- channelConstrLowSorted
-  temp_ub_ext_all <- channelConstrUpSortedExt
-  temp_lb_ext_all <- channelConstrLowSortedExt
+  temp_ub <- temp_ub_all <- channelConstrUpSorted
+  temp_lb <- temp_lb_all <- channelConstrLowSorted
+  temp_ub_ext <- temp_ub_ext_all <- channelConstrUpSortedExt
+  temp_lb_ext <- temp_lb_ext_all <- channelConstrLowSortedExt
 
   x0 <- x0_all <- lb <- lb_all <- temp_init_all * temp_lb_all
   ub <- ub_all <- temp_init_all * temp_ub_all
@@ -326,7 +329,8 @@ robyn_allocator <- function(robyn_object = NULL,
     # mediaSpendSortedFiltered = mediaSpendSorted,
     total_budget = total_budget,
     total_budget_unit = total_budget_unit,
-    hist_carryover_eval = hist_carryover_eval
+    hist_carryover_eval = hist_carryover_eval,
+    target_roas = target_roas
   )
   # So we can implicitly use these values within eval_f()
   options("ROBYN_TEMP" = eval_list)
@@ -345,23 +349,80 @@ robyn_allocator <- function(robyn_object = NULL,
   }
 
   ## Run optim
-  nlsMod <- nloptr::nloptr(
-    x0 = x0,
-    eval_f = eval_f,
-    eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
-    eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
-    lb = lb, ub = ub,
-    opts = list(
-      "algorithm" = "NLOPT_LD_AUGLAG",
-      "xtol_rel" = 1.0e-10,
-      "maxeval" = maxeval,
-      "local_opts" = local_opts
+  x_hist_carryover <- unlist(lapply(hist_carryover_eval, mean))
+  if (scenario == "max_historical_response") {
+    ## bounded optimisation
+    nlsMod <- nloptr::nloptr(
+      x0 = x0,
+      eval_f = eval_f,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
+      lb = lb, ub = ub,
+      opts = list(
+        "algorithm" = "NLOPT_LD_AUGLAG",
+        "xtol_rel" = 1.0e-10,
+        "maxeval" = maxeval,
+        "local_opts" = local_opts
+      )
     )
-  )
+    ## unbounded optimisation
+    nlsModUnbound <- nloptr::nloptr(
+      x0 = x0_ext,
+      eval_f = eval_f,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
+      lb = lb_ext, ub = ub_ext,
+      opts = list(
+        "algorithm" = "NLOPT_LD_AUGLAG",
+        "xtol_rel" = 1.0e-10,
+        "maxeval" = maxeval,
+        "local_opts" = local_opts
+      )
+    )
+  }
 
+
+  if (scenario == "hit_roas_target") {
+    ## bounded optimisation
+    total_response <- sum(OutputCollect$xDecompAgg$xDecompAgg)
+    nlsMod <- nloptr::nloptr(
+      x0 = x0,
+      eval_f = eval_f,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq_roas else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_roas else NULL,
+      lb = lb,
+      ub = rep(total_response, length(ub)),
+      opts = list(
+        "algorithm" = "NLOPT_LD_AUGLAG",
+        "xtol_rel" = 1.0e-10,
+        "maxeval" = maxeval,
+        "local_opts" = local_opts
+      ),
+      target_roas = target_roas
+    )
+    ## unbounded optimisation
+    nlsModUnbound <- nloptr::nloptr(
+      x0 = x0,
+      eval_f = eval_f,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq_roas else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_roas else NULL,
+      lb = lb,
+      ub = rep(total_response, length(ub)),
+      opts = list(
+        "algorithm" = "NLOPT_LD_AUGLAG",
+        "xtol_rel" = 1.0e-10,
+        "maxeval" = maxeval,
+        "local_opts" = local_opts
+      ),
+      target_roas = 1
+    )
+  }
+
+  ## get marginal
   optmSpendUnit <- nlsMod$solution
   optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
-  x_hist_carryover <- unlist(lapply(hist_carryover_eval, mean))
+  optmSpendUnitUnbound <- nlsModUnbound$solution
+  optmResponseUnitUnbound <- -eval_f(optmSpendUnitUnbound)[["objective.channel"]]
 
   optmResponseMargUnit <- mapply(
     fx_objective,
@@ -373,23 +434,6 @@ robyn_allocator <- function(robyn_object = NULL,
     get_sum = FALSE,
     SIMPLIFY = TRUE
   ) - optmResponseUnit
-
-  nlsModUnbound <- nloptr::nloptr(
-    x0 = x0_ext,
-    eval_f = eval_f,
-    eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
-    eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
-    lb = lb_ext, ub = ub_ext,
-    opts = list(
-      "algorithm" = "NLOPT_LD_AUGLAG",
-      "xtol_rel" = 1.0e-10,
-      "maxeval" = maxeval,
-      "local_opts" = local_opts
-    )
-  )
-
-  optmSpendUnitUnbound <- nlsModUnbound$solution
-  optmResponseUnitUnbound <- -eval_f(optmSpendUnitUnbound)[["objective.channel"]]
   optmResponseMargUnitUnbound <- mapply(
     fx_objective,
     x = optmSpendUnitUnbound + 1,
@@ -602,7 +646,7 @@ robyn_allocator <- function(robyn_object = NULL,
     plots = plots,
     scenario = scenario,
     usecase = usecase,
-    total_budget = total_budget,
+    total_budget = ifelse(is.null(total_budget), total_budget_window, total_budget),
     skipped_coef0 = zero_coef_channel,
     skipped_constr = zero_constraint_channel,
     no_spend = zero_spend_channel,
@@ -672,7 +716,7 @@ Allocation Summary:
 #' @export
 plot.robyn_allocator <- function(x, ...) plot(x$plots$plots, ...)
 
-eval_f <- function(X) {
+eval_f <- function(X, target_roas) {
   # eval_list <- get("eval_list", pos = as.environment(-1))
   eval_list <- getOption("ROBYN_TEMP")
   coefs_eval <- eval_list[["coefs_eval"]]
@@ -792,6 +836,43 @@ eval_g_ineq <- function(X) {
     "jacobian" = grad
   ))
 }
+
+eval_g_eq_roas <- function(X, target_roas) {
+  eval_list <- getOption("ROBYN_TEMP")
+  sum_response <- sum(mapply(
+    fx_objective,
+    x = X,
+    coeff = eval_list$coefs_eval,
+    alpha = eval_list$alphas_eval,
+    inflexion = eval_list$inflexions_eval,
+    x_hist_carryover = eval_list$hist_carryover_eval,
+    SIMPLIFY = TRUE
+  ))
+
+  if (is.null(target_roas)) {
+    constr <- sum(X) - sum_response / eval_list$target_roas
+  } else {
+    constr <- sum(X) - sum_response / target_roas
+  }
+
+  grad <- rep(1, length(X)) - mapply(
+    fx_gradient,
+    x = X,
+    coeff = eval_list$coefs_eval,
+    alpha = eval_list$alphas_eval,
+    inflexion = eval_list$inflexions_eval,
+    x_hist_carryover = eval_list$hist_carryover_eval,
+    SIMPLIFY = TRUE
+  )
+
+  #constr <- sum(X) - eval_list$total_budget_unit
+  #grad <- rep(1, length(X))
+  return(list(
+    "constraints" = constr,
+    "jacobian" = grad
+  ))
+}
+
 
 get_adstock_params <- function(InputCollect, dt_hyppar) {
   if (InputCollect$adstock == "geometric") {
