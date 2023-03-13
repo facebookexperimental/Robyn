@@ -828,6 +828,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (!(constr_mode %in% opts)) {
     stop("Input 'constr_mode' must be one of: ", paste(opts, collapse = ", "))
   }
+  return(scenario)
 }
 
 check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars) {

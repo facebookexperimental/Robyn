@@ -156,7 +156,7 @@ robyn_allocator <- function(robyn_object = NULL,
   dt_bestCoef <- filter(OutputCollect$xDecompAgg, .data$solID == select_model, .data$rn %in% paid_media_spends)
 
   ## Check inputs and parameters
-  check_allocator(
+  scenario <- check_allocator(
     OutputCollect, select_model, paid_media_spends, scenario,
     channel_constr_low, channel_constr_up, constr_mode
   )
@@ -280,7 +280,7 @@ robyn_allocator <- function(robyn_object = NULL,
   )
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
 
-  target_efficiency_ext <- target_value
+  target_value_ext <- target_value
   if (scenario == "target_efficiency") {
     channelConstrLowSortedExt <- channelConstrLowSorted <- 0.1
     channelConstrUpSortedExt <- channelConstrUpSorted <- Inf
@@ -288,7 +288,7 @@ robyn_allocator <- function(robyn_object = NULL,
       if (is.null(target_value)) {
         target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
       }
-      target_efficiency_ext <- ceiling(sum(initSpendUnit) / sum(initResponseUnit) * 2)
+      target_value_ext <- ceiling(sum(initSpendUnit) / sum(initResponseUnit) * 2)
     } else {
       if (is.null(target_value)) {
         target_value <- sum(initResponseUnit) / sum(initSpendUnit) * 0.8
