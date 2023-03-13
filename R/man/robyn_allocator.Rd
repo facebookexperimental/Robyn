@@ -61,7 +61,7 @@ Scenario \code{"max_response"} answers the question:
 in \code{date_range} and what is the allocation and expected response mix?"
 Scenario \code{"target_efficiency"} optimizes ROAS or CPA and answers the question:
 "What's the potential revenue/conversions lift and spend levels based on a
-\code{target_efficiency} and what is the allocation and expected response mix?"
+\code{target_value} for CPA/ROAS and what is the allocation and expected response mix?"
 Deprecated scenario: \code{"max_response_expected_spend"}.}
 
 \item{total_budget}{Numeric. Total marketing budget for all paid channels for the

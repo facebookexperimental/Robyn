@@ -388,7 +388,7 @@ AllocatorCollect1 <- robyn_allocator(
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 3,
-  scenario = "max_respose",
+  scenario = "max_response",
   export = create_files
 )
 # Print the allocator's output summary
@@ -405,7 +405,7 @@ AllocatorCollect2 <- robyn_allocator(
   channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 3,
-  scenario = "max_respose",
+  scenario = "max_response",
   export = create_files
 )
 print(AllocatorCollect2)
@@ -421,26 +421,27 @@ AllocatorCollect3 <- robyn_allocator(
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 5,
-  scenario = "max_respose",
+  scenario = "max_response",
   export = create_files
 )
 print(AllocatorCollect3)
 plot(AllocatorCollect3)
 
-# Scenario "max_response": "What's the potential revenue/conversions lift and spend
-# levels based on a "target_roas" and what is the allocation and expected response mix?"
+# Scenario "target_efficiency": "What's the potential revenue/conversions lift and spend
+# levels based on a "target_value" for CPA/ROAS and what is the allocation and expected response mix?"
 
+# Case 4: define target_value (CPA for conversions / ROAS for revene; check your InputCollect$dep_var_type)
 AllocatorCollect4 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
   date_range = "last_4",
-  scenario = "target_roas",
-  target_roas = 2,
+  scenario = "target_efficiency",
+  target_value = 2,
   export = create_files
 )
-print(AllocatorCollect3)
-plot(AllocatorCollect3)
+print(AllocatorCollect4)
+plot(AllocatorCollect4)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
