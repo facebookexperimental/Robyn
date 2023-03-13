@@ -107,7 +107,7 @@ function Home() {
       <header className={clsx('hero hero--primary', styles.heroBanner)}>
         <div className="container">
           <h1 className={clsx('hero__title', styles.heroTitle)}>{siteConfig.title}</h1>
-          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an experimental, ML-powered and semi-automatetd Marketing Mix Modeling (MMM) open source package.</p>
+          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an experimental, ML-powered and semi-automated Marketing Mix Modeling (MMM) open source package.</p>
           <div className={styles.buttons}>
             <Link
               className={clsx(
