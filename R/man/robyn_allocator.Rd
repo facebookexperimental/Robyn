@@ -15,7 +15,7 @@ robyn_allocator(
   json_file = NULL,
   scenario = "max_response",
   total_budget = NULL,
-  target_roas = 2,
+  target_value = NULL,
   date_range = NULL,
   channel_constr_low = NULL,
   channel_constr_up = NULL,
@@ -55,20 +55,20 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \item{json_file}{Character. JSON file to import previously exported inputs
 (needs \code{dt_input} and \code{dt_holidays} parameters too).}
 
-\item{scenario}{Character. Accepted options are: \code{"max_response"}, \code{"target_roi"}.
+\item{scenario}{Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"}.
 Scenario \code{"max_response"} answers the question:
 "What's the potential revenue/conversions lift with the same (or custom) spend level
 in \code{date_range} and what is the allocation and expected response mix?"
-Scenario \code{"target_roi"} answers the question:
+Scenario \code{"target_efficiency"} optimizes ROAS or CPA and answers the question:
 "What's the potential revenue/conversions lift and spend levels based on a
-\code{target_roas} and what is the allocation and expected response mix?"
+\code{target_efficiency} and what is the allocation and expected response mix?"
 Deprecated scenario: \code{"max_response_expected_spend"}.}
 
 \item{total_budget}{Numeric. Total marketing budget for all paid channels for the
 period in \code{date_range}.}
 
-\item{target_roas}{Numeric. When using the scenario \code{"target_roas"},
-set the lowest ROAS, while having no upper spend limit.}
+\item{target_value}{Numeric. When using the scenario \code{"target_efficiency"},
+target_value is the desired ROAS or CPA with no upper spend limit.}
 
 \item{date_range}{Character. Date(s) to apply adstocked transformations and pick mean spends
 per channel. Set one of: NULL, "all", "last", or "last_n" (where

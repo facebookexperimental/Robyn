@@ -148,7 +148,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
   if (!quiet) {
     message(sprintf(
-      ">>> Calculating response curves for all models' variables (%s)...",
+      ">>> Calculating response curves for all models' media variables (%s)...",
       nrow(decompSpendDistPar)
     ))
   }

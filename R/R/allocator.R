@@ -28,18 +28,18 @@
 #' Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
 #' short for "Methods of Moving Asymptotes". More details see the documentation of
 #' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
-#' @param scenario Character. Accepted options are: \code{"max_response"}, \code{"target_roi"}.
+#' @param scenario Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"}.
 #' Scenario \code{"max_response"} answers the question:
 #' "What's the potential revenue/conversions lift with the same (or custom) spend level
 #' in \code{date_range} and what is the allocation and expected response mix?"
-#' Scenario \code{"target_roi"} answers the question:
+#' Scenario \code{"target_efficiency"} optimizes ROAS or CPA and answers the question:
 #' "What's the potential revenue/conversions lift and spend levels based on a
-#' \code{target_roas} and what is the allocation and expected response mix?"
+#' \code{target_efficiency} and what is the allocation and expected response mix?"
 #' Deprecated scenario: \code{"max_response_expected_spend"}.
 #' @param total_budget Numeric. Total marketing budget for all paid channels for the
 #' period in \code{date_range}.
-#' @param target_roas Numeric. When using the scenario \code{"target_roas"},
-#' set the lowest ROAS, while having no upper spend limit.
+#' @param target_value Numeric. When using the scenario \code{"target_efficiency"},
+#' target_value is the desired ROAS or CPA with no upper spend limit.
 #' @param date_range Character. Date(s) to apply adstocked transformations and pick mean spends
 #' per channel. Set one of: NULL, "all", "last", or "last_n" (where
 #' n is the last N dates available), date (i.e. "2022-03-27"), or date range
@@ -91,7 +91,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             json_file = NULL,
                             scenario = "max_response",
                             total_budget = NULL,
-                            target_roas = 2,
+                            target_value = NULL,
                             date_range = NULL,
                             channel_constr_low = NULL,
                             channel_constr_up = NULL,
@@ -129,8 +129,9 @@ robyn_allocator <- function(robyn_object = NULL,
     OutputCollect <- imported$OutputCollect
     select_model <- imported$select_model
   } else {
-    if (is.null(select_model) && length(OutputCollect$allSolutions == 1))
+    if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
       select_model <- OutputCollect$allSolutions
+    }
     if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
       stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
     }
@@ -142,6 +143,7 @@ robyn_allocator <- function(robyn_object = NULL,
   paid_media_spends <- InputCollect$paid_media_spends
   media_order <- order(paid_media_spends)
   mediaSpendSorted <- paid_media_spends[media_order]
+  dep_var_type <- InputCollect$dep_var_type
   if (is.null(channel_constr_low)) channel_constr_low <- 0.5
   if (is.null(channel_constr_up)) channel_constr_up <- 2
   if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
@@ -277,9 +279,22 @@ robyn_allocator <- function(robyn_object = NULL,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
   channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
-  if (scenario == "target_roas") {
+
+  target_efficiency_ext <- target_value
+  if (scenario == "target_efficiency") {
     channelConstrLowSortedExt <- channelConstrLowSorted <- 0.1
     channelConstrUpSortedExt <- channelConstrUpSorted <- Inf
+    if (dep_var_type == "conversion") {
+      if (is.null(target_value)) {
+        target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
+      }
+      target_efficiency_ext <- ceiling(sum(initSpendUnit) / sum(initResponseUnit) * 2)
+    } else {
+      if (is.null(target_value)) {
+        target_value <- sum(initResponseUnit) / sum(initSpendUnit) * 0.8
+      }
+      target_value_ext <- 1
+    }
   }
   temp_init <- temp_init_all <- initSpendUnit
   # if no spend within window as initial spend, use historical average
@@ -343,7 +358,9 @@ robyn_allocator <- function(robyn_object = NULL,
     total_budget = total_budget,
     total_budget_unit = total_budget_unit,
     hist_carryover_eval = hist_carryover_eval,
-    target_roas = target_roas
+    target_value = target_value,
+    target_value_ext = target_value_ext,
+    dep_var_type = dep_var_type
   )
   # So we can implicitly use these values within eval_f()
   options("ROBYN_TEMP" = eval_list)
@@ -377,7 +394,7 @@ robyn_allocator <- function(robyn_object = NULL,
         "maxeval" = maxeval,
         "local_opts" = local_opts
       ),
-      target_roas = NULL
+      target_value = NULL
     )
     ## unbounded optimisation
     nlsModUnbound <- nloptr::nloptr(
@@ -392,11 +409,11 @@ robyn_allocator <- function(robyn_object = NULL,
         "maxeval" = maxeval,
         "local_opts" = local_opts
       ),
-      target_roas = NULL
+      target_value = NULL
     )
   }
 
-  if (scenario == "target_roas") {
+  if (scenario == "target_efficiency") {
     ## bounded optimisation
     total_response <- sum(OutputCollect$xDecompAgg$xDecompAgg)
     nlsMod <- nloptr::nloptr(
@@ -412,7 +429,7 @@ robyn_allocator <- function(robyn_object = NULL,
         "maxeval" = maxeval,
         "local_opts" = local_opts
       ),
-      target_roas = target_roas
+      target_value = target_value
     )
     ## unbounded optimisation
     nlsModUnbound <- nloptr::nloptr(
@@ -428,7 +445,7 @@ robyn_allocator <- function(robyn_object = NULL,
         "maxeval" = maxeval,
         "local_opts" = local_opts
       ),
-      target_roas = 1
+      target_value = target_value_ext
     )
   }
 
@@ -482,7 +499,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   dt_optimOut <- data.frame(
     solID = select_model,
-    dep_var_type = InputCollect$dep_var_type,
+    dep_var_type = dep_var_type,
     channels = mediaSpendSorted,
     date_min = date_min,
     date_max = date_max,
@@ -523,6 +540,7 @@ robyn_allocator <- function(robyn_object = NULL,
     initResponseTotal = sum(initResponseUnit) * unique(simulation_period),
     initResponseUnitShare = initResponseUnit / sum(initResponseUnit),
     initRoiUnit = initResponseUnit / initSpendUnit,
+    initCpaUnit = initSpendUnit / initResponseUnit,
     # Budget change
     total_budget_unit = total_budget_unit,
     total_budget_unit_delta = total_budget_unit / initSpendUnitTotal - 1,
@@ -545,6 +563,7 @@ robyn_allocator <- function(robyn_object = NULL,
     optmResponseTotal = sum(optmResponseUnitOut) * unique(simulation_period),
     optmResponseUnitShare = optmResponseUnitOut / sum(optmResponseUnitOut),
     optmRoiUnit = optmResponseUnitOut / optmSpendUnitOut,
+    optmCpaUnit = optmSpendUnitOut / optmResponseUnitOut,
     optmResponseUnitLift = (optmResponseUnitOut / initResponseUnit) - 1,
     optmResponseUnitUnbound = optmResponseUnitUnboundOut,
     optmResponseMargUnitUnbound = optmResponseMargUnitUnboundOut,
@@ -552,6 +571,7 @@ robyn_allocator <- function(robyn_object = NULL,
     optmResponseTotalUnbound = sum(optmResponseUnitUnboundOut) * unique(simulation_period),
     optmResponseUnitShareUnbound = optmResponseUnitUnboundOut / sum(optmResponseUnitUnboundOut),
     optmRoiUnitUnbound = optmResponseUnitUnboundOut / optmSpendUnitUnboundOut,
+    optmCpaUnitUnbound = optmSpendUnitUnboundOut / optmResponseUnitUnboundOut,
     optmResponseUnitLiftUnbound = (optmResponseUnitUnboundOut / initResponseUnit) - 1
   ) %>%
     mutate(
@@ -563,9 +583,22 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Calculate curves and main points for each channel
   if (scenario == "max_response") {
     levs1 <- c("Initial", "Bounded", paste0("Bounded x", channel_constr_multiplier))
-  } else if (scenario == "target_roas") {
-    levs1 <- c("Initial", paste0("Hit ROAS x", target_roas), "Hit ROAS x1")
+  } else if (scenario == "target_efficiency") {
+    if (dep_var_type == "revenue") {
+      levs1 <- c(
+        "Initial", paste0("Hit ROAS x", round(target_value, 2)),
+        paste0("Hit ROAS x", target_value_ext)
+      )
+    } else {
+      levs1 <- c(
+        "Initial", paste0("Hit CPA $", round(target_value, 2)),
+        paste0("Hit CPA $", target_value_ext)
+      )
+    }
   }
+  eval_list$levs1 <- levs1
+  options("ROBYN_TEMP" = eval_list)
+
   dt_optimOutScurve <- rbind(
     select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
       mutate(x = levs1[1]) %>% as.matrix(),
@@ -644,14 +677,15 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Plot allocator results
   plots <- allocation_plots(
     InputCollect, OutputCollect,
-    filter(dt_optimOut, .data$channels %in% channel_for_allocation),
+    dt_optimOut,
+    # filter(dt_optimOut, .data$channels %in% channel_for_allocation),
     select_model, scenario, eval_list, export, quiet
   )
 
   ## Export results into CSV
   if (export) {
     export_dt_optimOut <- dt_optimOut
-    if (InputCollect$dep_var_type == "conversion") {
+    if (dep_var_type == "conversion") {
       colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
     }
     write.csv(export_dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
@@ -734,7 +768,7 @@ Allocation Summary:
 #' @export
 plot.robyn_allocator <- function(x, ...) plot(x$plots$plots, ...)
 
-eval_f <- function(X, target_roas) {
+eval_f <- function(X, target_value) {
   # eval_list <- get("eval_list", pos = as.environment(-1))
   eval_list <- getOption("ROBYN_TEMP")
   coefs_eval <- eval_list[["coefs_eval"]]
@@ -835,7 +869,7 @@ fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover
   return(xOut)
 }
 
-eval_g_eq <- function(X, target_roas) {
+eval_g_eq <- function(X, target_value) {
   eval_list <- getOption("ROBYN_TEMP")
   constr <- sum(X) - eval_list$total_budget_unit
   grad <- rep(1, length(X))
@@ -845,7 +879,7 @@ eval_g_eq <- function(X, target_roas) {
   ))
 }
 
-eval_g_ineq <- function(X, target_roas) {
+eval_g_ineq <- function(X, target_value) {
   eval_list <- getOption("ROBYN_TEMP")
   constr <- sum(X) - eval_list$total_budget_unit
   grad <- rep(1, length(X))
@@ -855,7 +889,7 @@ eval_g_ineq <- function(X, target_roas) {
   ))
 }
 
-eval_g_eq_roas <- function(X, target_roas) {
+eval_g_eq_roas <- function(X, target_value) {
   eval_list <- getOption("ROBYN_TEMP")
   sum_response <- sum(mapply(
     fx_objective,
@@ -867,10 +901,18 @@ eval_g_eq_roas <- function(X, target_roas) {
     SIMPLIFY = TRUE
   ))
 
-  if (is.null(target_roas)) {
-    constr <- sum(X) - sum_response / eval_list$target_roas
+  if (is.null(target_value)) {
+    if (eval_list$dep_var_type == "conversion") {
+      constr <- sum(X) - sum_response * eval_list$target_value
+    } else {
+      constr <- sum(X) - sum_response / eval_list$target_value
+    }
   } else {
-    constr <- sum(X) - sum_response / target_roas
+    if (eval_list$dep_var_type == "conversion") {
+      constr <- sum(X) - sum_response * target_value
+    } else {
+      constr <- sum(X) - sum_response / target_value
+    }
   }
 
   grad <- rep(1, length(X)) - mapply(

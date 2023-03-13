@@ -700,13 +700,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       message("NOTE: Given the upper/lower constrains, the total budget can't be fully allocated (^)")
     }
   }
+  levs1 <- eval_list$levs1
   if (scenario == "max_response") {
-    levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
-    levs2 <- c("Initial",
-               paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
-               paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult))
-  } else if (scenario == "target_roas") {
-    levs1 <- levs2<- c("Initial", paste0("Hit ROAS x", eval_list$target_roas), "Hit ROAS x1")
+    levs2 <- c(
+      "Initial",
+      paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
+      paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
+    )
+  } else if (scenario == "target_efficiency") {
+    levs2 <- levs1
   }
 
   resp_metric <- data.frame(
@@ -782,8 +784,19 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     left_join(
       dt_optimOut %>%
         mutate(
-          channel = as.factor(.data$channels), Initial = .data$initRoiUnit,
-          Bounded = .data$optmRoiUnit, Unbounded = .data$optmRoiUnitUnbound
+          channel = as.factor(.data$channels),
+          Initial = dplyr::case_when(
+            metric == "ROAS" ~ .data$initRoiUnit,
+            TRUE ~ .data$initCpaUnit
+          ),
+          Bounded = dplyr::case_when(
+            metric == "ROAS" ~ .data$optmRoiUnit,
+            TRUE ~ .data$optmCpaUnit
+          ),
+          Unbounded = dplyr::case_when(
+            metric == "ROAS" ~ .data$optmRoiUnitUnbound,
+            TRUE ~ .data$optmCpaUnitUnbound
+          )
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
@@ -848,10 +861,10 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       ),
       values = round(.data$values, 4),
       # Deal with extreme cases divided by almost 0
-      values = ifelse((.data$values > 1e15 & .data$metric == "ROAS"), 0, .data$values),
+      values = ifelse((.data$values > 1e15 & .data$metric %in% c("ROAS", "mROAS")), 0, .data$values),
       values_label = dplyr::case_when(
         .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
-        .data$metric %in% c("CPA", "mCPA") ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
+        .data$metric %in% c("CPA", "mCPA") ~ formatNum(.data$values, 2, abbr = TRUE, pre = "$"),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
       # Better fill scale colours
@@ -994,8 +1007,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   # Gather all plots
   if (export) {
-    scenario <- ifelse(scenario == "max_response", "resp", "roas")
-    filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
+    suffix <- dplyr::case_when(
+      scenario == "max_response" & metric == "ROAS" ~ "best_roas",
+      scenario == "max_response" & metric == "CPA" ~ "best_cpa",
+      scenario == "target_efficiency" & metric == "ROAS" ~ "target_roas",
+      scenario == "target_efficiency" & metric == "CPA" ~ "target_cpa",
+      TRUE ~ "none"
+    )
+    # suffix <- ifelse(scenario == "max_response", "resp", "effi")
+    filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", suffix, ".png")
     if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(
       filename = filename,
