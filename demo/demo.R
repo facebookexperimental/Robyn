@@ -345,7 +345,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_154_6" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_103_7" # Pick one of the models from OutputCollect to proceed
 
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
@@ -375,73 +375,71 @@ print(ExportedModel)
 # NOTE: The order of constraints should follow:
 InputCollect$paid_media_spends
 
-# Scenario "max_response": "What's the potential revenue/conversions lift with the
-# same (or custom) spend level in date_range and what is the spend and expected response mix?"
-# For this scenario, we have several use cases:
-
-# Case 1: date_range & total_budget both NULL (default for last month's spend)
+# Scenario "max_response": "What's the max. return given certain spend?"
+# Example 1: max_response default setting: maximize response for latest month
 AllocatorCollect1 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  date_range = NULL, # When NULL, will set last month (30 days, 4 weeks, or 1 month)
+  # date_range = NULL, # Default last month as initial period
+  # total_budget = NULL, # When NULL, default is total spend in date_range
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 3,
+  # channel_constr_multiplier = 3,
   scenario = "max_response",
   export = create_files
 )
-# Print the allocator's output summary
+# Print & plot allocator's output
 print(AllocatorCollect1)
-# Plot the allocator one-pager
 plot(AllocatorCollect1)
 
-# Case 2: date_range defined, total_budget NULL (mean spend of date_range as initial spend)
+# Example 2: maximize response for latest 10 periods with given spend
 AllocatorCollect2 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  date_range = "last_26", # Last 26 periods, same as c("2018-07-09", "2018-12-31")
+  date_range = "last_10", # Last 10 periods, same as c("2018-10-22", "2018-12-31")
+  total_budget = 5000000, # Total budget for date_range period simulation
   channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 3,
+  channel_constr_multiplier = 5, # Customise bound extension for wider insights
   scenario = "max_response",
   export = create_files
 )
 print(AllocatorCollect2)
 plot(AllocatorCollect2)
 
-# Case 3: date_range (defined or not defined) and total_budget defined
+# Scenario "target_efficiency": "How much to spend to hit ROAS or CPA of x?"
+# Example 3: Use default ROAS target for revenue or CPA target for conversion
+# Check InputCollect$dep_var_type for revenue or conversion type
+# Two default ROAS targets: 0.8x of initial ROAS as well as ROAS = 1
+# Two default CPA targets: 1.2x and 2.4x of the initial CPA
 AllocatorCollect3 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  # date_range = "last_4",
-  total_budget = 5000000,
-  channel_constr_low = 0.7,
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  channel_constr_multiplier = 5,
-  scenario = "max_response",
+  # date_range = NULL, # Default last month as initial period
+  scenario = "target_efficiency",
+  # target_value = 2, # Customize target ROAS or CPA value
   export = create_files
 )
 print(AllocatorCollect3)
 plot(AllocatorCollect3)
 
-# Scenario "target_efficiency": "What's the potential revenue/conversions lift and spend
-# levels based on a "target_value" for CPA/ROAS and what is the allocation and expected response mix?"
-
-# Case 4: define target_value (CPA for conversions / ROAS for revene; check your InputCollect$dep_var_type)
+# Example 4: Customize target_value for ROAS or CPA using json_file
+json_file = "~/Desktop/Robyn_202303131448_init/RobynModel-1_103_7.json"
 AllocatorCollect4 <- robyn_allocator(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
+  # InputCollect = InputCollect,
+  # OutputCollect = OutputCollect,
+  json_file = json_file, # Using json file from robyn_write() for allocation
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
   select_model = select_model,
-  date_range = "last_4",
+  date_range = NULL, # Default last month as initial period
   scenario = "target_efficiency",
-  target_value = 2,
+  target_value = 2, # Customize target ROAS or CPA value
   export = create_files
 )
-print(AllocatorCollect4)
-plot(AllocatorCollect4)
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
@@ -658,7 +656,7 @@ OutputCollectX <- robyn_run(
 
 # Or re-create both by simply using robyn_recreate()
 RobynRecreated <- robyn_recreate(
-  json_file = json_file,
+  json_file = "/Users/gufengzhou/Desktop/Robyn_202303131448_init/RobynModel-1_103_7.json",
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   quiet = FALSE)
