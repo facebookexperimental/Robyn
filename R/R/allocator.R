@@ -108,7 +108,9 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ### Use previously exported model using json_file
   if (!is.null(json_file)) {
-    if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
+    if (is.null(InputCollect)) InputCollect <- robyn_inputs(
+      json_file = json_file, quiet = TRUE, ...
+    )
     if (is.null(OutputCollect)) {
       OutputCollect <- robyn_run(
         json_file = json_file, plot_folder = robyn_object, ...
@@ -288,7 +290,7 @@ robyn_allocator <- function(robyn_object = NULL,
       if (is.null(target_value)) {
         target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
       }
-      target_value_ext <- ceiling(sum(initSpendUnit) / sum(initResponseUnit) * 2)
+      target_value_ext <- target_value * 2
     } else {
       if (is.null(target_value)) {
         target_value <- sum(initResponseUnit) / sum(initSpendUnit) * 0.8
