@@ -32,6 +32,7 @@
 #' to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @param export Boolean. Export outcomes into local files?
+#' @param all_sol_json Logical. Add all solutions to json export.
 #' @param quiet Boolean. Keep messages off?
 #' @param refresh Boolean. Refresh mode
 #' @param ... Additional parameters passed to \code{robyn_clusters()}
@@ -47,6 +48,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           clusters = TRUE,
                           select_model = "clusters",
                           ui = FALSE, export = TRUE,
+                          all_sol_json = FALSE,
                           quiet = FALSE,
                           refresh = FALSE, ...) {
   if (is.null(plot_folder)) plot_folder <- getwd()
@@ -229,7 +231,15 @@ robyn_outputs <- function(InputCollect, OutputModels,
           )
         }
 
-        robyn_write(InputCollect, dir = OutputCollect$plot_folder, quiet = quiet)
+        if (all_sol_json) {
+          all_sol_json <- OutputCollect$resultHypParam %>%
+            filter(!is.na(.data$cluster)) %>%
+            select(c("solID", "cluster", "top_sol")) %>%
+            arrange(.data$cluster, -.data$top_sol, .data$solID)
+        } else {
+          all_sol_json <- NULL
+        }
+        robyn_write(InputCollect, dir = OutputCollect$plot_folder, quiet = quiet, all_sol_json = all_sol_json)
 
         # For internal use -> UI Code
         if (ui && plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers

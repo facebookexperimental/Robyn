@@ -21,6 +21,7 @@ robyn_outputs(
   select_model = "clusters",
   ui = FALSE,
   export = TRUE,
+  all_sol_json = FALSE,
   quiet = FALSE,
   refresh = FALSE,
   ...
@@ -80,6 +81,8 @@ wish to plot the one-pagers and export? Default will take top
 \item{ui}{Boolean. Save additional outputs for UI usage. List outcome.}
 
 \item{export}{Boolean. Export outcomes into local files?}
+
+\item{all_sol_json}{Logical. Add all solutions to json export.}
 
 \item{quiet}{Boolean. Keep messages off?}
 

@@ -108,9 +108,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ### Use previously exported model using json_file
   if (!is.null(json_file)) {
-    if (is.null(InputCollect)) InputCollect <- robyn_inputs(
-      json_file = json_file, quiet = TRUE, ...
-    )
+    if (is.null(InputCollect)) {
+      InputCollect <- robyn_inputs(
+        json_file = json_file, quiet = TRUE, ...
+      )
+    }
     if (is.null(OutputCollect)) {
       OutputCollect <- robyn_run(
         json_file = json_file, plot_folder = robyn_object, ...
@@ -146,10 +148,21 @@ robyn_allocator <- function(robyn_object = NULL,
   media_order <- order(paid_media_spends)
   mediaSpendSorted <- paid_media_spends[media_order]
   dep_var_type <- InputCollect$dep_var_type
-  if (is.null(channel_constr_low)) channel_constr_low <- 0.5
-  if (is.null(channel_constr_up)) channel_constr_up <- 2
+  if (is.null(channel_constr_low)) {
+    channel_constr_low <- dplyr::case_when(
+      scenario == "max_response" ~ 0.5,
+      scenario == "target_efficiency" ~ 0.1
+    )
+  }
+  if (is.null(channel_constr_up)) {
+    channel_constr_up <- dplyr::case_when(
+      scenario == "max_response" ~ 2,
+      scenario == "target_efficiency" ~ Inf
+    )
+  }
   if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
   if (length(channel_constr_up) == 1) channel_constr_up <- rep(channel_constr_up, length(paid_media_spends))
+  check_allocator_constrains(channel_constr_low, channel_constr_up)
   names(channel_constr_low) <- paid_media_spends
   names(channel_constr_up) <- paid_media_spends
   channel_constr_low <- channel_constr_low[media_order]
@@ -284,8 +297,8 @@ robyn_allocator <- function(robyn_object = NULL,
 
   target_value_ext <- target_value
   if (scenario == "target_efficiency") {
-    channelConstrLowSortedExt <- channelConstrLowSorted <- 0.1
-    channelConstrUpSortedExt <- channelConstrUpSorted <- Inf
+    channelConstrLowSortedExt <- channelConstrLowSorted
+    channelConstrUpSortedExt <- channelConstrUpSorted
     if (dep_var_type == "conversion") {
       if (is.null(target_value)) {
         target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
@@ -313,7 +326,6 @@ robyn_allocator <- function(robyn_object = NULL,
   ub_ext <- ub_ext_all <- temp_init_all * temp_ub_ext_all
 
   ## Exclude 0 coef and 0 constraint channels for the optimisation
-  check_allocator_constrains(channel_constr_low, channel_constr_up)
   skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
   zero_constraint_channel <- mediaSpendSorted[skip_these]
   if (any(skip_these) && !quiet) {

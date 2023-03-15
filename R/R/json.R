@@ -14,6 +14,7 @@
 #' @param select_model Character. Which model ID do you want to export
 #' into the JSON file?
 #' @param dir Character. Existing directory to export JSON file to.
+#' @param all_sol_json Dataframe. Add all pareto solutions to json.
 #' @param ... Additional parameters.
 #' @examples
 #' \dontrun{
@@ -32,7 +33,9 @@ robyn_write <- function(InputCollect,
                         select_model = NULL,
                         dir = OutputCollect$plot_folder,
                         export = TRUE,
-                        quiet = FALSE, ...) {
+                        quiet = FALSE,
+                        all_sol_json = NULL,
+                        ...) {
   # Checks
   stopifnot(inherits(InputCollect, "robyn_inputs"))
   if (!is.null(OutputCollect)) {
@@ -91,6 +94,14 @@ robyn_write <- function(InputCollect,
   attr(ret, "json_file") <- filename
   if (export) {
     if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
+    if (!is.null(all_sol_json)) {
+      all_c <- unique(all_sol_json$cluster)
+      all_sol_json <- lapply(all_c, function(x) {
+        (all_sol_json %>% filter(.data$cluster == x))$solID
+      })
+      names(all_sol_json) <- paste0("cluster", all_c)
+      ret[["all_sols"]] <- all_sol_json
+    }
     write_json(ret, filename, pretty = TRUE)
   }
   return(invisible(ret))

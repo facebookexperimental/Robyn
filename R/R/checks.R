@@ -780,8 +780,6 @@ check_class <- function(x, object) {
 
 check_allocator_constrains <- function(low, upr) {
   max_length <- max(c(length(low), length(upr)))
-  if (length(low) == 1) low <- rep(low, max_length)
-  if (length(upr) == 1) upr <- rep(upr, max_length)
   if (any(low < 0)) {
     stop("Inputs 'channel_constr_low' must be >= 0")
   }
@@ -801,9 +799,6 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
       "Provided 'select_model' is not within the best results. Try any of: ",
       paste(OutputCollect$allSolutions, collapse = ", ")
     )
-  }
-  if (any(channel_constr_up > 5)) {
-    warning("Inputs 'channel_constr_up' > 5 might cause unrealistic allocation")
   }
   if ("max_historical_response" %in% scenario) scenario <- "max_response"
   opts <- c("max_response", "target_efficiency") # Deprecated: max_response_expected_spend
