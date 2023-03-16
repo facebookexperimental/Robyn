@@ -730,7 +730,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     pivot_longer(cols = !"type") %>%
     left_join(resp_metric, "type") %>%
     mutate(
-      name = factor(.data$name, levels = c("spend", "response")),
+      name = factor(paste("total", .data$name), levels = c("total spend", "total response")),
       name_label = factor(
         paste(.data$type, .data$name, sep = "\n"),
         levels = paste(.data$type, .data$name, sep = "\n")
@@ -750,7 +750,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
 
   outputs[["p1"]] <- p1 <- df_roi %>%
-    ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$type)) +
+    ggplot(aes(x = .data$name, y = .data$value, fill = .data$type)) +
     facet_grid(. ~ .data$labs, scales = "free") +
     scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
@@ -862,16 +862,25 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       values = round(.data$values, 4),
       # Deal with extreme cases divided by almost 0
       values = ifelse((.data$values > 1e15 & .data$metric %in% c("ROAS", "mROAS")), 0, .data$values),
-      values_label = dplyr::case_when(
+      values_label = suppressWarnings(dplyr::case_when(
         .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
         .data$metric %in% c("CPA", "mCPA") ~ formatNum(.data$values, 2, abbr = TRUE, pre = "$"),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
-      ),
+      )),
       # Better fill scale colours
       values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label),
-      values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values)
+      values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values),
     ) %>%
-    mutate(channel = factor(.data$channel, levels = rev(unique(.data$channel)))) %>%
+    mutate(
+      channel = factor(.data$channel, levels = rev(unique(.data$channel))),
+      metric = factor(
+        dplyr::case_when(
+          .data$metric %in% c("spend", "response") ~ paste0(.data$metric, "%"),
+          TRUE ~ .data$metric
+        ),
+        levels = paste0(unique(.data$metric), c("%", "%", "", ""))
+      )
+    ) %>%
     group_by(.data$name_label) %>%
     mutate(
       values_norm = lares::normalize(.data$values),
@@ -879,7 +888,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
-    ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
+    ggplot(aes(x = .data$metric, y = .data$channel, fill = .data$type)) +
     geom_tile(aes(alpha = .data$values_norm), color = "white") +
     scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
     scale_alpha_continuous(range = c(0.6, 1)) +

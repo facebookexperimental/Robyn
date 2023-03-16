@@ -600,13 +600,13 @@ robyn_allocator <- function(robyn_object = NULL,
   } else if (scenario == "target_efficiency") {
     if (dep_var_type == "revenue") {
       levs1 <- c(
-        "Initial", paste0("Hit ROAS x", round(target_value, 2)),
-        paste0("Hit ROAS x", target_value_ext)
+        "Initial", paste0("Hit ROAS $", round(target_value, 2)),
+        paste0("Hit ROAS $", target_value_ext)
       )
     } else {
       levs1 <- c(
         "Initial", paste0("Hit CPA $", round(target_value, 2)),
-        paste0("Hit CPA $", target_value_ext)
+        paste0("Hit CPA $", round(target_value_ext, 2))
       )
     }
   }
