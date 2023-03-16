@@ -681,7 +681,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
           "Threshold (Minimum R2) =", threshold,
           "\n  Check: InputCollect$plotNLSCollect outputs"
         ),
-        "\n  Weak relationship for: ", v2t(these), "and their spend"
+        "\n  Weak relationship for: ", v2t(these), " and their spend"
       )
     }
   }
