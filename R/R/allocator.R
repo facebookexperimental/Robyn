@@ -115,7 +115,7 @@ robyn_allocator <- function(robyn_object = NULL,
     }
     if (is.null(OutputCollect)) {
       OutputCollect <- robyn_run(
-        json_file = json_file, plot_folder = robyn_object, ...
+        json_file = json_file, export = export, plot_folder = robyn_object, ...
       )
     }
     if (is.null(select_model)) select_model <- OutputCollect$selectID
@@ -611,7 +611,6 @@ robyn_allocator <- function(robyn_object = NULL,
     }
   }
   eval_list$levs1 <- levs1
-  options("ROBYN_TEMP" = eval_list)
 
   dt_optimOutScurve <- rbind(
     select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
@@ -625,10 +624,6 @@ robyn_allocator <- function(robyn_object = NULL,
     rbind(data.frame(channels = dt_optimOut$channels, spend = 0, response = 0, type = "Carryover")) %>%
     mutate(spend = as.numeric(.data$spend), response = as.numeric(.data$response)) %>%
     group_by(.data$channels)
-  # plotDT_adstocked <- OutputCollect$mediaVecCollect %>%
-  #   filter(.data$solID == select_model, .data$type == "adstockedMedia") %>%
-  #   select(.data$ds, all_of(InputCollect$paid_media_spends)) %>%
-  #   tidyr::gather("channel", "spend", -.data$ds)
 
   plotDT_scurve <- list()
   for (i in channel_for_allocation) { # i <- channels[i]

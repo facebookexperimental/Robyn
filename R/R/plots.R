@@ -862,11 +862,11 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       values = round(.data$values, 4),
       # Deal with extreme cases divided by almost 0
       values = ifelse((.data$values > 1e15 & .data$metric %in% c("ROAS", "mROAS")), 0, .data$values),
-      values_label = suppressWarnings(dplyr::case_when(
+      values_label = dplyr::case_when(
         .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
         .data$metric %in% c("CPA", "mCPA") ~ formatNum(.data$values, 2, abbr = TRUE, pre = "$"),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
-      )),
+      ),
       # Better fill scale colours
       values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label),
       values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values),
@@ -903,7 +903,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
     mutate(constr_label = sprintf(
-      "%s [%s - %s][%s - %s]", .data$channels, .data$constr_low,
+      "%s\n[%s - %s] & [%s - %s]", .data$channels, .data$constr_low,
       .data$constr_up, round(.data$constr_low_unb, 1), round(.data$constr_up_unb, 1)
     )) %>%
     select(

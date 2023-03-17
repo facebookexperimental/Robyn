@@ -345,7 +345,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_103_7" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_115_10" # Pick one of the models from OutputCollect to proceed
 
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
@@ -426,15 +426,14 @@ AllocatorCollect3 <- robyn_allocator(
 print(AllocatorCollect3)
 plot(AllocatorCollect3)
 
-# Example 4: Customize target_value for ROAS or CPA using json_file
-json_file = "~/Desktop/Robyn_202303131448_init/RobynModel-1_103_7.json"
+# Example 4: Customize target_value for ROAS or CPA (using json_file)
+json_file = "~/Desktop/Robyn_202302221206_init/RobynModel-1_117_11.json"
 AllocatorCollect4 <- robyn_allocator(
   # InputCollect = InputCollect,
   # OutputCollect = OutputCollect,
   json_file = json_file, # Using json file from robyn_write() for allocation
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
-  select_model = select_model,
   date_range = NULL, # Default last month as initial period
   scenario = "target_efficiency",
   target_value = 2, # Customize target ROAS or CPA value
