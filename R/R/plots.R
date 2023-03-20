@@ -863,8 +863,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       # Deal with extreme cases divided by almost 0
       values = ifelse((.data$values > 1e15 & .data$metric %in% c("ROAS", "mROAS")), 0, .data$values),
       values_label = dplyr::case_when(
-        .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
-        .data$metric %in% c("CPA", "mCPA") ~ formatNum(.data$values, 2, abbr = TRUE, pre = "$"),
+        #.data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
+        .data$metric %in% c("CPA", "mCPA", "ROAS", "mROAS") ~ formatNum(.data$values, 2, abbr = TRUE),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
       # Better fill scale colours

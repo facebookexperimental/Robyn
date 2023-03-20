@@ -39,7 +39,8 @@
 #' @param total_budget Numeric. Total marketing budget for all paid channels for the
 #' period in \code{date_range}.
 #' @param target_value Numeric. When using the scenario \code{"target_efficiency"},
-#' target_value is the desired ROAS or CPA with no upper spend limit.
+#' target_value is the desired ROAS or CPA with no upper spend limit. Default is set to 80% of
+#' initial ROAS or 120% of initial CPA, when \code{"target_value = NULL"}.
 #' @param date_range Character. Date(s) to apply adstocked transformations and pick mean spends
 #' per channel. Set one of: NULL, "all", "last", or "last_n" (where
 #' n is the last N dates available), date (i.e. "2022-03-27"), or date range
@@ -303,7 +304,7 @@ robyn_allocator <- function(robyn_object = NULL,
       if (is.null(target_value)) {
         target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
       }
-      target_value_ext <- target_value * 2
+      target_value_ext <- target_value * 1.5
     } else {
       if (is.null(target_value)) {
         target_value <- sum(initResponseUnit) / sum(initSpendUnit) * 0.8
@@ -433,8 +434,8 @@ robyn_allocator <- function(robyn_object = NULL,
     nlsMod <- nloptr::nloptr(
       x0 = x0,
       eval_f = eval_f,
-      eval_g_eq = if (constr_mode == "eq") eval_g_eq_roas else NULL,
-      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_roas else NULL,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
       lb = lb,
       ub = rep(total_response, length(ub)),
       opts = list(
@@ -449,8 +450,8 @@ robyn_allocator <- function(robyn_object = NULL,
     nlsModUnbound <- nloptr::nloptr(
       x0 = x0,
       eval_f = eval_f,
-      eval_g_eq = if (constr_mode == "eq") eval_g_eq_roas else NULL,
-      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_roas else NULL,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
       lb = lb,
       ub = rep(total_response, length(ub)),
       opts = list(
@@ -600,13 +601,13 @@ robyn_allocator <- function(robyn_object = NULL,
   } else if (scenario == "target_efficiency") {
     if (dep_var_type == "revenue") {
       levs1 <- c(
-        "Initial", paste0("Hit ROAS $", round(target_value, 2)),
-        paste0("Hit ROAS $", target_value_ext)
+        "Initial", paste0("Hit ROAS ", round(target_value, 2)),
+        paste0("Hit ROAS ", target_value_ext)
       )
     } else {
       levs1 <- c(
-        "Initial", paste0("Hit CPA $", round(target_value, 2)),
-        paste0("Hit CPA $", round(target_value_ext, 2))
+        "Initial", paste0("Hit CPA ", round(target_value, 2)),
+        paste0("Hit CPA ", round(target_value_ext, 2))
       )
     }
   }
@@ -833,7 +834,7 @@ fx_objective <- function(x, coeff, alpha, inflexion, x_hist_carryover, get_sum =
   # Adstock scales
   xAdstocked <- x + mean(x_hist_carryover)
   # Hill transformation
-  if (get_sum == TRUE) {
+  if (get_sum) {
     xOut <- coeff * sum((1 + inflexion**alpha / xAdstocked**alpha)**-1)
   } else {
     xOut <- coeff * ((1 + inflexion**alpha / xAdstocked**alpha)**-1)
@@ -898,7 +899,7 @@ eval_g_ineq <- function(X, target_value) {
   ))
 }
 
-eval_g_eq_roas <- function(X, target_value) {
+eval_g_eq_effi <- function(X, target_value) {
   eval_list <- getOption("ROBYN_TEMP")
   sum_response <- sum(mapply(
     fx_objective,
