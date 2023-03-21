@@ -859,9 +859,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         paste(.data$type, .data$metric, sep = "\n"),
         levels = unique(paste(.data$type, .data$metric, sep = "\n"))
       ),
-      values = round(.data$values, 4),
       # Deal with extreme cases divided by almost 0
-      values = ifelse((.data$values > 1e15 & .data$metric %in% c("ROAS", "mROAS")), 0, .data$values),
+      values = ifelse((.data$values > 1e15 | is.nan(.data$values)), 0, .data$values),
+      values = round(.data$values, 4),
       values_label = dplyr::case_when(
         #.data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
         .data$metric %in% c("CPA", "mCPA", "ROAS", "mROAS") ~ formatNum(.data$values, 2, abbr = TRUE),
