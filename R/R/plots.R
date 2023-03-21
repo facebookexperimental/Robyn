@@ -863,7 +863,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       values = ifelse((.data$values > 1e15 | is.nan(.data$values)), 0, .data$values),
       values = round(.data$values, 4),
       values_label = dplyr::case_when(
-        #.data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
+        # .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
         .data$metric %in% c("CPA", "mCPA", "ROAS", "mROAS") ~ formatNum(.data$values, 2, abbr = TRUE),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),

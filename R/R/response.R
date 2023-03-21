@@ -303,7 +303,6 @@ robyn_response <- function(InputCollect = NULL,
     theme_lares() +
     scale_x_abbr() +
     scale_y_abbr()
-  p_res
   if (length(unique(metric_value)) == 1) {
     p_res <- p_res +
       geom_point(data = dt_point_caov, aes(x = .data$input, y = .data$output), size = 3, shape = 8)

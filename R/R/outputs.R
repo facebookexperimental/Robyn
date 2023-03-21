@@ -117,7 +117,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     "refreshDepth" %in% names(InputCollect),
     InputCollect$refreshDepth,
     ifelse("refreshCounter" %in% names(InputCollect),
-           InputCollect$refreshCounter, 0
+      InputCollect$refreshCounter, 0
     )
   )
   folder_var <- ifelse(!as.integer(depth) > 0, "init", paste0("rf", depth))
