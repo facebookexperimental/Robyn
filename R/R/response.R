@@ -161,7 +161,7 @@ robyn_response <- function(InputCollect = NULL,
     dayInterval <- InputCollect$dayInterval
   }
 
-  if (!(select_model %in% allSolutions)) {
+  if (!isTRUE(select_model %in% allSolutions) || is.null(select_model)) {
     stop(paste0(
       "Input 'select_model' must be one of these values: ",
       paste(allSolutions, collapse = ", ")

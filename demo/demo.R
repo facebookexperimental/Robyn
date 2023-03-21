@@ -460,7 +460,7 @@ robyn_response(
   select_model = select_model,
   metric_name = select_media,
   metric_value = metric_value,
-  metric_ds = "last_5"
+  date_range = "last_5"
 )
 
 ################################################################
@@ -552,16 +552,16 @@ print(AllocatorCollect)
 ## ------------------------------------------------------------------------------------------ ##
 
 # Get response for 80k from result saved in robyn_object
-Spend1 <- 60000
+Spend1 <- 40000
 Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
   metric_name = "facebook_S",
-  metric_value = c(Spend1),
-  # date_range = "last_2"
+  metric_value = Spend1,
+  date_range = "last_1"
 )
-Response1$response / Spend1 # ROI for search 80k
+Response1$response_total / Spend1 # ROI for search 80k
 Response1$plot
 
 #### Or you can call a JSON file directly (a bit slower)
@@ -570,37 +570,34 @@ Response1$plot
 #   dt_input = dt_simulated_weekly,
 #   dt_holidays = dt_prophet_holidays,
 #   metric_name = "search_S",
-#   metric_value = Spend1,
-#   metric_ds = NULL
-# )
+#   metric_value = Spend1)
 
 # Get response for +10%
-Spend2 <- Spend1 * 1.1
+Spend2 <- Spend1 * 3
 Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  metric_name = "search_S",
+  metric_name = "tv_S",
   metric_value = Spend2,
-  metric_ds = NULL
+  date_range = "last_1"
 )
-Response2$response / Spend2 # ROI for search 81k
+Response2$response_total / Spend2 # ROI for search 81k
 Response2$plot
 
 # Marginal ROI of next 1000$ from 80k spend level for search
-(Response2$response - Response1$response) / (Spend2 - Spend1)
+(Response2$response_total - Response1$response_total) / (Spend2 - Spend1)
 
 ## Example of getting paid media exposure response curves
-imps <- 50000000
+imps <- 10000
 response_imps <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
   metric_name = "facebook_I",
-  metric_value = imps,
-  metric_ds = NULL
+  metric_value = imps
 )
-response_imps$response / imps * 1000
+response_imps$response_total / imps * 1000
 response_imps$plot
 
 ## Example of getting organic media exposure response curves
@@ -610,10 +607,9 @@ response_sending <- robyn_response(
   OutputCollect = OutputCollect,
   select_model = select_model,
   metric_name = "newsletter",
-  metric_value = sendings,
-  metric_ds = NULL
+  metric_value = sendings
 )
-response_sending$response / sendings * 1000
+response_sending$response_total / sendings * 1000
 response_sending$plot
 
 ################################################################
@@ -630,7 +626,6 @@ robyn_write(InputCollect, dir = "~/Desktop")
 
 # Manually create JSON file with inputs and specific model results
 robyn_write(InputCollect, OutputCollect, select_model)
-
 
 ############ READ ############
 # Recreate `InputCollect` and `OutputCollect` objects
