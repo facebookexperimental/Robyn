@@ -345,7 +345,7 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_115_10" # Pick one of the models from OutputCollect to proceed
+select_model <- "1_122_7" # Pick one of the models from OutputCollect to proceed
 
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
@@ -518,26 +518,9 @@ select_modelX <- RobynRefresh$listRefresh1$OutputCollect$selectID
 # report_media_transform_matrix.csv, all media transformation vectors
 # report_alldecomp_matrix.csv,all decomposition vectors of independent variables
 
-################################################################
-#### Step 7: Get budget allocation recommendation based on selected refresh runs
-
-# Run ?robyn_allocator to check parameter definition
-AllocatorCollect <- robyn_allocator(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model,
-  scenario = "max_response_expected_spend",
-  channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  expected_spend = 2000000, # Total spend to be simulated
-  expected_spend_days = 14, # Duration of expected_spend in days
-  export = FALSE
-)
-print(AllocatorCollect)
-# plot(AllocatorCollect)
 
 ################################################################
-#### Step 8: get marginal returns
+#### Step 7: get marginal returns
 
 ## Example of how to get marginal ROI of next 1000$ from the 80k spend level for search channel
 
@@ -551,54 +534,70 @@ print(AllocatorCollect)
 ## contains also the plot.
 ## ------------------------------------------------------------------------------------------ ##
 
-# Get response for 80k from result saved in robyn_object
-Spend1 <- 40000
+## Recreate original saturation curve
+Response <- robyn_response(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  metric_name = "facebook_S"
+)
+Response$plot
+
+## Or you can call a JSON file directly (a bit slower)
+# Response <- robyn_response(
+#   json_file = "your_json_path.json",
+#   dt_input = dt_simulated_weekly,
+#   dt_holidays = dt_prophet_holidays,
+#   metric_name = "facebook_S"
+# )
+
+## Get the "next 100 dollar" marginal response on Spend1
+Spend1 <- 20000
 Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
   metric_name = "facebook_S",
-  metric_value = Spend1,
-  date_range = "last_1"
+  metric_value = Spend1, # total budget for date_range
+  date_range = "last_1" # last two periods
 )
-Response1$response_total / Spend1 # ROI for search 80k
 Response1$plot
 
-#### Or you can call a JSON file directly (a bit slower)
-# Response1 <- robyn_response(
-#   json_file = json_file,
-#   dt_input = dt_simulated_weekly,
-#   dt_holidays = dt_prophet_holidays,
-#   metric_name = "search_S",
-#   metric_value = Spend1)
-
-# Get response for +10%
-Spend2 <- Spend1 * 3
+Spend2 <- Spend1 + 100
 Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  metric_name = "tv_S",
+  metric_name = "facebook_S",
   metric_value = Spend2,
   date_range = "last_1"
 )
-Response2$response_total / Spend2 # ROI for search 81k
-Response2$plot
-
-# Marginal ROI of next 1000$ from 80k spend level for search
+# ROAS for the 100$ from Spend1 level
 (Response2$response_total - Response1$response_total) / (Spend2 - Spend1)
 
-## Example of getting paid media exposure response curves
-imps <- 10000
-response_imps <- robyn_response(
+## Get response from for a given budget and date_range
+Spend3 <- 100000
+Response3 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  metric_name = "facebook_I",
-  metric_value = imps
+  metric_name = "facebook_S",
+  metric_value = Spend3, # total budget for date_range
+  date_range = "last_5" # last 5 periods
 )
-response_imps$response_total / imps * 1000
-response_imps$plot
+Response3$plot
+
+## Example of getting paid media exposure response curves
+# imps <- 10000000
+# response_imps <- robyn_response(
+#   InputCollect = InputCollect,
+#   OutputCollect = OutputCollect,
+#   select_model = select_model,
+#   metric_name = "facebook_I",
+#   metric_value = imps
+# )
+# response_imps$response_total / imps * 1000
+# response_imps$plot
 
 ## Example of getting organic media exposure response curves
 sendings <- 30000
@@ -609,6 +608,7 @@ response_sending <- robyn_response(
   metric_name = "newsletter",
   metric_value = sendings
 )
+# response per 1000 sendings
 response_sending$response_total / sendings * 1000
 response_sending$plot
 
