@@ -150,13 +150,13 @@ robyn_allocator <- function(robyn_object = NULL,
   mediaSpendSorted <- paid_media_spends[media_order]
   dep_var_type <- InputCollect$dep_var_type
   if (is.null(channel_constr_low)) {
-    channel_constr_low <- dplyr::case_when(
+    channel_constr_low <- case_when(
       scenario == "max_response" ~ 0.5,
       scenario == "target_efficiency" ~ 0.1
     )
   }
   if (is.null(channel_constr_up)) {
-    channel_constr_up <- dplyr::case_when(
+    channel_constr_up <- case_when(
       scenario == "max_response" ~ 2,
       scenario == "target_efficiency" ~ Inf
     )

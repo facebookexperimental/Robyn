@@ -325,7 +325,7 @@ robyn_response <- function(InputCollect = NULL,
 }
 
 which_usecase <- function(metric_value, date_range) {
-  dplyr::case_when(
+  case_when(
     # Case 1: raw historical spend and all dates -> model decomp as out of the model (no mean spends)
     is.null(metric_value) & is.null(date_range) ~ "all_historical_vec",
     # Case 2: same as case 1 for date_range

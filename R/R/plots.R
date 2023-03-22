@@ -785,15 +785,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       dt_optimOut %>%
         mutate(
           channel = as.factor(.data$channels),
-          Initial = dplyr::case_when(
+          Initial = case_when(
             metric == "ROAS" ~ .data$initRoiUnit,
             TRUE ~ .data$initCpaUnit
           ),
-          Bounded = dplyr::case_when(
+          Bounded = case_when(
             metric == "ROAS" ~ .data$optmRoiUnit,
             TRUE ~ .data$optmCpaUnit
           ),
-          Unbounded = dplyr::case_when(
+          Unbounded = case_when(
             metric == "ROAS" ~ .data$optmRoiUnitUnbound,
             TRUE ~ .data$optmCpaUnitUnbound
           )
@@ -811,15 +811,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       dt_optimOut %>%
         mutate(
           channel = as.factor(.data$channels),
-          Initial = dplyr::case_when(
+          Initial = case_when(
             metric == "ROAS" ~ .data$initResponseMargUnit,
             TRUE ~ 1 / .data$initResponseMargUnit
           ),
-          Bounded = dplyr::case_when(
+          Bounded = case_when(
             metric == "ROAS" ~ .data$optmResponseMargUnit,
             TRUE ~ 1 / .data$optmResponseMargUnit
           ),
-          Unbounded = dplyr::case_when(
+          Unbounded = case_when(
             metric == "ROAS" ~ .data$optmResponseMargUnitUnbound,
             TRUE ~ 1 / .data$optmResponseMargUnitUnbound
           )
@@ -862,7 +862,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       # Deal with extreme cases divided by almost 0
       values = ifelse((.data$values > 1e15 | is.nan(.data$values)), 0, .data$values),
       values = round(.data$values, 4),
-      values_label = dplyr::case_when(
+      values_label = case_when(
         # .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
         .data$metric %in% c("CPA", "mCPA", "ROAS", "mROAS") ~ formatNum(.data$values, 2, abbr = TRUE),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
@@ -874,7 +874,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     mutate(
       channel = factor(.data$channel, levels = rev(unique(.data$channel))),
       metric = factor(
-        dplyr::case_when(
+        case_when(
           .data$metric %in% c("spend", "response") ~ paste0(.data$metric, "%"),
           TRUE ~ .data$metric
         ),
@@ -1016,7 +1016,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   # Gather all plots
   if (export) {
-    suffix <- dplyr::case_when(
+    suffix <- case_when(
       scenario == "max_response" & metric == "ROAS" ~ "best_roas",
       scenario == "max_response" & metric == "CPA" ~ "best_cpa",
       scenario == "target_efficiency" & metric == "ROAS" ~ "target_roas",

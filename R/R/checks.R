@@ -853,7 +853,7 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
     if (!is_allocator) {
       date_range <- "last_1"
     } else {
-      date_range <- paste0("last_", dplyr::case_when(
+      date_range <- paste0("last_", case_when(
         dayInterval == 1 ~ 30,
         dayInterval == 7 ~ 4,
         dayInterval >= 30 & dayInterval <= 31 ~ 1,
