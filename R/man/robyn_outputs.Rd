@@ -7,6 +7,7 @@
 \alias{robyn_plots}
 \alias{robyn_onepagers}
 \alias{ts_validation}
+\alias{decomp_plot}
 \title{Evaluate Models and Output Results into Local Files}
 \usage{
 robyn_outputs(
@@ -49,6 +50,8 @@ robyn_onepagers(
 )
 
 ts_validation(OutputModels, quiet = FALSE, ...)
+
+decomp_plot(InputCollect, OutputCollect, solID = NULL, exclude = NULL)
 }
 \arguments{
 \item{InputCollect, OutputModels}{\code{robyn_inputs()} and \code{robyn_run()}
@@ -99,6 +102,10 @@ wish to plot the one-pagers and export? Default will take top
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
 \item{calibrated}{Logical}
+
+\item{solID}{Character vector. Model IDs to plot.}
+
+\item{exclude}{Character vector. Manually exclude variables from plot.}
 }
 \value{
 (Invisible) list. Class: \code{robyn_outputs}. Contains processed

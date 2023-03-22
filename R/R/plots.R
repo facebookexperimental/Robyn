@@ -1380,17 +1380,17 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     theme_lares() +
     scale_x_abbr()
 
-  pRSQ <- ggplot(resultHypParamLong, aes(
-    x = .data$i, y = .data$rsq,
-    colour = .data$dataset,
-    group = as.character(.data$trial)
-  )) +
-    geom_point(alpha = 0.5, size = 0.9) +
-    facet_grid(.data$trial ~ .) +
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
-    theme_lares(legend = "top", pal = 2) +
-    scale_x_abbr()
+  # pRSQ <- ggplot(resultHypParamLong, aes(
+  #   x = .data$i, y = .data$rsq,
+  #   colour = .data$dataset,
+  #   group = as.character(.data$trial)
+  # )) +
+  #   geom_point(alpha = 0.5, size = 0.9) +
+  #   facet_grid(.data$trial ~ .) +
+  #   geom_hline(yintercept = 0, linetype = "dashed") +
+  #   labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
+  #   theme_lares(legend = "top", pal = 2) +
+  #   scale_x_abbr()
 
   pNRMSE <- ggplot(resultHypParamLong, aes(
     x = .data$i, y = .data$nrmse,
@@ -1410,4 +1410,39 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
     theme_lares(legend = "top")
   return(pw)
+}
+
+
+#' @rdname robyn_outputs
+#' @param solID Character vector. Model IDs to plot.
+#' @param exclude Character vector. Manually exclude variables from plot.
+#' @export
+decomp_plot <- function(InputCollect, OutputCollect, solID = NULL, exclude = NULL) {
+  check_opts(solID, OutputCollect$allSolutions)
+  intType <- str_to_title(case_when(
+    InputCollect$intervalType %in% c("month", "week") ~ paste0(InputCollect$intervalType, "ly"),
+    InputCollect$intervalType == "day" ~ "daily",
+    TRUE ~ InputCollect$intervalType
+  ))
+  varType <- str_to_title(InputCollect$dep_var_type)
+  pal <- names(lares::lares_pal()$palette)
+  df <- OutputCollect$xDecompVecCollect[OutputCollect$xDecompVecCollect$solID %in% solID, ] %>%
+    select(
+      "solID", "ds", "dep_var", any_of("intercept"),
+      any_of(unique(OutputCollect$xDecompAgg$rn))
+    ) %>%
+    tidyr::gather("variable", "value", -.data$ds, -.data$solID, -.data$dep_var) %>%
+    filter(!.data$variable %in% exclude) %>%
+    mutate(variable = factor(.data$variable, levels = rev(unique(.data$variable))))
+  p <- ggplot(df, aes(x = .data$ds, y = .data$value, fill = .data$variable)) +
+    facet_grid(.data$solID ~ .) +
+    labs(
+      title = paste(varType, "Decomposition by Variable"),
+      x = NULL, y = paste(intType, varType), fill = NULL
+    ) +
+    geom_area() +
+    theme_lares(legend = "right") +
+    scale_fill_manual(values = rev(pal[seq(length(unique(df$variable)))])) +
+    scale_y_abbr()
+  return(p)
 }

@@ -39,8 +39,8 @@
 #' @param total_budget Numeric. Total marketing budget for all paid channels for the
 #' period in \code{date_range}.
 #' @param target_value Numeric. When using the scenario \code{"target_efficiency"},
-#' target_value is the desired ROAS or CPA with no upper spend limit. Default is set to 80% of
-#' initial ROAS or 120% of initial CPA, when \code{"target_value = NULL"}.
+#' target_value is the desired ROAS or CPA with no upper spend limit. Default is set to 80\% of
+#' initial ROAS or 120\% of initial CPA, when \code{"target_value = NULL"}.
 #' @param date_range Character. Date(s) to apply adstocked transformations and pick mean spends
 #' per channel. Set one of: NULL, "all", "last", or "last_n" (where
 #' n is the last N dates available), date (i.e. "2022-03-27"), or date range
