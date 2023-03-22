@@ -518,26 +518,9 @@ select_modelX <- RobynRefresh$listRefresh1$OutputCollect$selectID
 # report_media_transform_matrix.csv, all media transformation vectors
 # report_alldecomp_matrix.csv,all decomposition vectors of independent variables
 
-################################################################
-#### Step 7: Get budget allocation recommendation based on selected refresh runs
-
-# Run ?robyn_allocator to check parameter definition
-AllocatorCollect <- robyn_allocator(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model,
-  scenario = "max_response_expected_spend",
-  channel_constr_low = c(0.7, 0.7, 0.7, 0.7, 0.7),
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
-  expected_spend = 2000000, # Total spend to be simulated
-  expected_spend_days = 14, # Duration of expected_spend in days
-  export = FALSE
-)
-print(AllocatorCollect)
-# plot(AllocatorCollect)
 
 ################################################################
-#### Step 8: get marginal returns
+#### Step 7: get marginal returns
 
 ## Example of how to get marginal ROI of next 1000$ from the 80k spend level for search channel
 
