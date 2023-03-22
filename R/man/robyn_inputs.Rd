@@ -53,9 +53,9 @@ as "revenue" or "conversion". Will be used to calculate ROI or CPI,
 respectively. Only one allowed and case sensitive.}
 
 \item{prophet_vars}{Character vector. Include any of "trend",
-"season", "weekday", "holiday". Are case-sensitive. Highly recommended
+"season", "weekday", "holiday" or NULL. Highly recommended
 to use all for daily data and "trend", "season", "holiday" for
-weekly and above cadence.}
+weekly and above cadence. Set to NULL to skip prophet's functionality.}
 
 \item{prophet_signs}{Character vector. Choose any of
 "default", "positive", "negative". Control

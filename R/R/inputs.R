@@ -73,9 +73,9 @@
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor.
 #' @param prophet_vars Character vector. Include any of "trend",
-#' "season", "weekday", "holiday". Are case-sensitive. Highly recommended
+#' "season", "weekday", "holiday" or NULL. Highly recommended
 #' to use all for daily data and "trend", "season", "holiday" for
-#' weekly and above cadence.
+#' weekly and above cadence. Set to NULL to skip prophet's functionality.
 #' @param prophet_signs Character vector. Choose any of
 #' "default", "positive", "negative". Control
 #' the signs of coefficients for prophet variables. Must have same
@@ -237,7 +237,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check all vars
     all_media <- c(paid_media_spends, organic_vars)
-    all_ind_vars <- c(prophet_vars, context_vars, all_media)
+    all_ind_vars <- c(tolower(prophet_vars), context_vars, all_media)
     check_allvars(all_ind_vars)
 
     ## Check data dimension
@@ -285,7 +285,7 @@ robyn_inputs <- function(dt_input = NULL,
       intervalType = intervalType,
       dep_var = dep_var,
       dep_var_type = dep_var_type,
-      prophet_vars = prophet_vars,
+      prophet_vars = tolower(prophet_vars),
       prophet_signs = prophet_signs,
       prophet_country = prophet_country,
       context_vars = context_vars,
