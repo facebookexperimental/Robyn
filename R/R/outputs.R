@@ -22,6 +22,8 @@
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
 #' @param plot_folder Character. Path for saving plots. Default
 #' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
+#' @param plot_folder_sub Character. Sub path for saving plots. Will overwrite the
+#' default path with timestamp.
 #' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
 #' and saving model one-pagers. Used when testing models.
 #' @param clusters Boolean. Apply \code{robyn_clusters()} to output models?
@@ -32,6 +34,7 @@
 #' to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @param export Boolean. Export outcomes into local files?
+#' @param all_sol_json Logical. Add all solutions to json export.
 #' @param quiet Boolean. Keep messages off?
 #' @param refresh Boolean. Refresh mode
 #' @param ... Additional parameters passed to \code{robyn_clusters()}
@@ -42,11 +45,13 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           pareto_fronts = "auto",
                           calibration_constraint = 0.1,
                           plot_folder = NULL,
+                          plot_folder_sub = NULL,
                           plot_pareto = TRUE,
                           csv_out = "pareto",
                           clusters = TRUE,
                           select_model = "clusters",
                           ui = FALSE, export = TRUE,
+                          all_sol_json = FALSE,
                           quiet = FALSE,
                           refresh = FALSE, ...) {
   if (is.null(plot_folder)) plot_folder <- getwd()
@@ -108,15 +113,15 @@ robyn_outputs <- function(InputCollect, OutputModels,
   )
 
   # Set folder to save outputs: legacy plot_folder_sub
-  if (TRUE) {
-    depth <- ifelse(
-      "refreshDepth" %in% names(InputCollect),
-      InputCollect$refreshDepth,
-      ifelse("refreshCounter" %in% names(InputCollect),
-        InputCollect$refreshCounter, 0
-      )
+  depth <- ifelse(
+    "refreshDepth" %in% names(InputCollect),
+    InputCollect$refreshDepth,
+    ifelse("refreshCounter" %in% names(InputCollect),
+      InputCollect$refreshCounter, 0
     )
-    folder_var <- ifelse(!as.integer(depth) > 0, "init", paste0("rf", depth))
+  )
+  folder_var <- ifelse(!as.integer(depth) > 0, "init", paste0("rf", depth))
+  if (is.null(plot_folder_sub)) {
     plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
   }
 
@@ -229,7 +234,15 @@ robyn_outputs <- function(InputCollect, OutputModels,
           )
         }
 
-        robyn_write(InputCollect, dir = OutputCollect$plot_folder, quiet = quiet)
+        if (all_sol_json) {
+          all_sol_json <- OutputCollect$resultHypParam %>%
+            filter(!is.na(.data$cluster)) %>%
+            select(c("solID", "cluster", "top_sol")) %>%
+            arrange(.data$cluster, -.data$top_sol, .data$solID)
+        } else {
+          all_sol_json <- NULL
+        }
+        robyn_write(InputCollect, dir = OutputCollect$plot_folder, quiet = quiet, all_sol_json = all_sol_json)
 
         # For internal use -> UI Code
         if (ui && plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers
