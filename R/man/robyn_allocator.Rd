@@ -13,12 +13,13 @@ robyn_allocator(
   OutputCollect = NULL,
   select_model = NULL,
   json_file = NULL,
-  scenario = "max_historical_response",
-  channel_constr_low = 0.5,
-  channel_constr_up = 2,
-  channel_constr_multiplier = 3,
-  date_range = NULL,
+  scenario = "max_response",
   total_budget = NULL,
+  target_value = NULL,
+  date_range = NULL,
+  channel_constr_low = NULL,
+  channel_constr_up = NULL,
+  channel_constr_multiplier = 3,
   optim_algo = "SLSQP_AUGLAG",
   maxeval = 1e+05,
   constr_mode = "eq",
@@ -54,11 +55,26 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \item{json_file}{Character. JSON file to import previously exported inputs
 (needs \code{dt_input} and \code{dt_holidays} parameters too).}
 
-\item{scenario}{Character. Accepted options are: \code{"max_historical_response"}.
-Scenario \code{"max_historical_response"} simulates the scenario
-"What's the revenue/conversions lift potential with the same spend level in \code{date_range}
-and what is the spend and expected response mix?".
+\item{scenario}{Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"}.
+Scenario \code{"max_response"} answers the question:
+"What's the potential revenue/conversions lift with the same (or custom) spend level
+in \code{date_range} and what is the allocation and expected response mix?"
+Scenario \code{"target_efficiency"} optimizes ROAS or CPA and answers the question:
+"What's the potential revenue/conversions lift and spend levels based on a
+\code{target_value} for CPA/ROAS and what is the allocation and expected response mix?"
 Deprecated scenario: \code{"max_response_expected_spend"}.}
+
+\item{total_budget}{Numeric. Total marketing budget for all paid channels for the
+period in \code{date_range}.}
+
+\item{target_value}{Numeric. When using the scenario \code{"target_efficiency"},
+target_value is the desired ROAS or CPA with no upper spend limit. Default is set to 80\% of
+initial ROAS or 120\% of initial CPA, when \code{"target_value = NULL"}.}
+
+\item{date_range}{Character. Date(s) to apply adstocked transformations and pick mean spends
+per channel. Set one of: NULL, "all", "last", or "last_n" (where
+n is the last N dates available), date (i.e. "2022-03-27"), or date range
+(i.e. \code{c("2022-01-01", "2022-12-31")}). Default NULL will use last month's worth of data.}
 
 \item{channel_constr_low, channel_constr_up}{Numeric vectors. The lower and upper bounds
 for each paid media variable when maximizing total media response. For example,
@@ -74,14 +90,6 @@ and upper bound should be < 5.}
 The allocator will also show the optimum solution for a larger constraint range of
 0.4 x 3 = 1.2, or 0.4 to 1.6, to show the optimization potential to support allocation
 interpretation and decision.}
-
-\item{date_range}{Character. Date(s) to apply adstocked transformations and pick mean spends
-per channel. Set one of: NULL, "all", "last", or "last_n" (where
-n is the last N dates available), date (i.e. "2022-03-27"), or date range
-(i.e. \code{c("2022-01-01", "2022-12-31")}).}
-
-\item{total_budget}{Numeric. Total marketing budget for all paid channels for the
-period in \code{date_range}.}
 
 \item{optim_algo}{Character. Default to \code{"SLSQP_AUGLAG"}, short for "Sequential Least-Squares
 Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
@@ -120,7 +128,7 @@ AllocatorCollect <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = "1_2_3",
-  scenario = "max_historical_response",
+  scenario = "max_response",
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   channel_constr_multiplier = 4,

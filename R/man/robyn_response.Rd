@@ -50,7 +50,7 @@ Must be one value from paid_media_spends, paid_media_vars or organic_vars}
 \item{date_range}{Character. Date(s) to apply adstocked transformations and pick mean spends
 per channel. Set one of: NULL, "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
-(i.e. \code{c("2022-01-01", "2022-12-31")}).}
+(i.e. \code{c("2022-01-01", "2022-12-31")}). Default NULL will use last month's worth of data.}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along

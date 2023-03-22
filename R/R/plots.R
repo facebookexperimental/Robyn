@@ -700,12 +700,16 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       message("NOTE: Given the upper/lower constrains, the total budget can't be fully allocated (^)")
     }
   }
-  levs1 <- c("Initial", "Bounded", paste0("Bounded x", bound_mult))
-  levs2 <- c(
-    "Initial",
-    paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
-    paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
-  )
+  levs1 <- eval_list$levs1
+  if (scenario == "max_response") {
+    levs2 <- c(
+      "Initial",
+      paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
+      paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
+    )
+  } else if (scenario == "target_efficiency") {
+    levs2 <- levs1
+  }
 
   resp_metric <- data.frame(
     type = factor(levs1, levels = levs1),
@@ -726,7 +730,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     pivot_longer(cols = !"type") %>%
     left_join(resp_metric, "type") %>%
     mutate(
-      name = factor(.data$name, levels = c("spend", "response")),
+      name = factor(paste("total", .data$name), levels = c("total spend", "total response")),
       name_label = factor(
         paste(.data$type, .data$name, sep = "\n"),
         levels = paste(.data$type, .data$name, sep = "\n")
@@ -746,7 +750,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
 
   outputs[["p1"]] <- p1 <- df_roi %>%
-    ggplot(aes(x = .data$name_label, y = .data$value, fill = .data$type)) +
+    ggplot(aes(x = .data$name, y = .data$value, fill = .data$type)) +
     facet_grid(. ~ .data$labs, scales = "free") +
     scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
@@ -780,8 +784,19 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     left_join(
       dt_optimOut %>%
         mutate(
-          channel = as.factor(.data$channels), Initial = .data$initRoiUnit,
-          Bounded = .data$optmRoiUnit, Unbounded = .data$optmRoiUnitUnbound
+          channel = as.factor(.data$channels),
+          Initial = case_when(
+            metric == "ROAS" ~ .data$initRoiUnit,
+            TRUE ~ .data$initCpaUnit
+          ),
+          Bounded = case_when(
+            metric == "ROAS" ~ .data$optmRoiUnit,
+            TRUE ~ .data$optmCpaUnit
+          ),
+          Unbounded = case_when(
+            metric == "ROAS" ~ .data$optmRoiUnitUnbound,
+            TRUE ~ .data$optmCpaUnitUnbound
+          )
         ) %>%
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
@@ -796,15 +811,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       dt_optimOut %>%
         mutate(
           channel = as.factor(.data$channels),
-          Initial = dplyr::case_when(
+          Initial = case_when(
             metric == "ROAS" ~ .data$initResponseMargUnit,
             TRUE ~ 1 / .data$initResponseMargUnit
           ),
-          Bounded = dplyr::case_when(
+          Bounded = case_when(
             metric == "ROAS" ~ .data$optmResponseMargUnit,
             TRUE ~ 1 / .data$optmResponseMargUnit
           ),
-          Unbounded = dplyr::case_when(
+          Unbounded = case_when(
             metric == "ROAS" ~ .data$optmResponseMargUnitUnbound,
             TRUE ~ 1 / .data$optmResponseMargUnitUnbound
           )
@@ -844,19 +859,28 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         paste(.data$type, .data$metric, sep = "\n"),
         levels = unique(paste(.data$type, .data$metric, sep = "\n"))
       ),
-      values = round(.data$values, 4),
       # Deal with extreme cases divided by almost 0
-      values = ifelse((.data$values > 1e15 & .data$metric == "ROAS"), 0, .data$values),
-      values_label = dplyr::case_when(
-        .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
-        .data$metric %in% c("CPA", "mCPA") ~ formatNum(100 * .data$values, 2, abbr = TRUE, pre = "$"),
+      values = ifelse((.data$values > 1e15 | is.nan(.data$values)), 0, .data$values),
+      values = round(.data$values, 4),
+      values_label = case_when(
+        # .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
+        .data$metric %in% c("CPA", "mCPA", "ROAS", "mROAS") ~ formatNum(.data$values, 2, abbr = TRUE),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
       # Better fill scale colours
       values_label = ifelse(grepl("NA|NaN", .data$values_label), "-", .data$values_label),
-      values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values)
+      values = ifelse((is.nan(.data$values) | is.na(.data$values)), 0, .data$values),
     ) %>%
-    mutate(channel = factor(.data$channel, levels = rev(unique(.data$channel)))) %>%
+    mutate(
+      channel = factor(.data$channel, levels = rev(unique(.data$channel))),
+      metric = factor(
+        case_when(
+          .data$metric %in% c("spend", "response") ~ paste0(.data$metric, "%"),
+          TRUE ~ .data$metric
+        ),
+        levels = paste0(unique(.data$metric), c("%", "%", "", ""))
+      )
+    ) %>%
     group_by(.data$name_label) %>%
     mutate(
       values_norm = lares::normalize(.data$values),
@@ -864,7 +888,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     )
 
   outputs[["p2"]] <- p2 <- df_plot_share %>%
-    ggplot(aes(x = .data$name_label, y = .data$channel, fill = .data$type)) +
+    ggplot(aes(x = .data$metric, y = .data$channel, fill = .data$type)) +
     geom_tile(aes(alpha = .data$values_norm), color = "white") +
     scale_fill_manual(values = c("grey50", "steelblue", "darkgoldenrod4")) +
     scale_alpha_continuous(range = c(0.6, 1)) +
@@ -879,7 +903,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   ## 3. Response curves
   constr_labels <- dt_optimOut %>%
     mutate(constr_label = sprintf(
-      "%s [%s - %s][%s - %s]", .data$channels, .data$constr_low,
+      "%s\n[%s - %s] & [%s - %s]", .data$channels, .data$constr_low,
       .data$constr_up, round(.data$constr_low_unb, 1), round(.data$constr_up_unb, 1)
     )) %>%
     select(
@@ -992,8 +1016,15 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
 
   # Gather all plots
   if (export) {
-    scenario <- ifelse(scenario == "max_historical_response", "hist", "respo")
-    filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", scenario, ".png")
+    suffix <- case_when(
+      scenario == "max_response" & metric == "ROAS" ~ "best_roas",
+      scenario == "max_response" & metric == "CPA" ~ "best_cpa",
+      scenario == "target_efficiency" & metric == "ROAS" ~ "target_roas",
+      scenario == "target_efficiency" & metric == "CPA" ~ "target_cpa",
+      TRUE ~ "none"
+    )
+    # suffix <- ifelse(scenario == "max_response", "resp", "effi")
+    filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", suffix, ".png")
     if (!quiet) message("Exporting charts into file: ", filename)
     ggsave(
       filename = filename,
@@ -1349,17 +1380,17 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     theme_lares() +
     scale_x_abbr()
 
-  pRSQ <- ggplot(resultHypParamLong, aes(
-    x = .data$i, y = .data$rsq,
-    colour = .data$dataset,
-    group = as.character(.data$trial)
-  )) +
-    geom_point(alpha = 0.5, size = 0.9) +
-    facet_grid(.data$trial ~ .) +
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
-    theme_lares(legend = "top", pal = 2) +
-    scale_x_abbr()
+  # pRSQ <- ggplot(resultHypParamLong, aes(
+  #   x = .data$i, y = .data$rsq,
+  #   colour = .data$dataset,
+  #   group = as.character(.data$trial)
+  # )) +
+  #   geom_point(alpha = 0.5, size = 0.9) +
+  #   facet_grid(.data$trial ~ .) +
+  #   geom_hline(yintercept = 0, linetype = "dashed") +
+  #   labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
+  #   theme_lares(legend = "top", pal = 2) +
+  #   scale_x_abbr()
 
   pNRMSE <- ggplot(resultHypParamLong, aes(
     x = .data$i, y = .data$nrmse,
@@ -1379,4 +1410,39 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
     theme_lares(legend = "top")
   return(pw)
+}
+
+
+#' @rdname robyn_outputs
+#' @param solID Character vector. Model IDs to plot.
+#' @param exclude Character vector. Manually exclude variables from plot.
+#' @export
+decomp_plot <- function(InputCollect, OutputCollect, solID = NULL, exclude = NULL) {
+  check_opts(solID, OutputCollect$allSolutions)
+  intType <- str_to_title(case_when(
+    InputCollect$intervalType %in% c("month", "week") ~ paste0(InputCollect$intervalType, "ly"),
+    InputCollect$intervalType == "day" ~ "daily",
+    TRUE ~ InputCollect$intervalType
+  ))
+  varType <- str_to_title(InputCollect$dep_var_type)
+  pal <- names(lares::lares_pal()$palette)
+  df <- OutputCollect$xDecompVecCollect[OutputCollect$xDecompVecCollect$solID %in% solID, ] %>%
+    select(
+      "solID", "ds", "dep_var", any_of("intercept"),
+      any_of(unique(OutputCollect$xDecompAgg$rn))
+    ) %>%
+    tidyr::gather("variable", "value", -.data$ds, -.data$solID, -.data$dep_var) %>%
+    filter(!.data$variable %in% exclude) %>%
+    mutate(variable = factor(.data$variable, levels = rev(unique(.data$variable))))
+  p <- ggplot(df, aes(x = .data$ds, y = .data$value, fill = .data$variable)) +
+    facet_grid(.data$solID ~ .) +
+    labs(
+      title = paste(varType, "Decomposition by Variable"),
+      x = NULL, y = paste(intType, varType), fill = NULL
+    ) +
+    geom_area() +
+    theme_lares(legend = "right") +
+    scale_fill_manual(values = rev(pal[seq(length(unique(df$variable)))])) +
+    scale_y_abbr()
+  return(p)
 }
