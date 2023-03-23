@@ -112,7 +112,7 @@ plot_saturation(plot = FALSE)
 # transformed by adstock & saturation.
 # Run hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 # to get correct media hyperparameter names. All names in hyperparameters must equal
-# names from hyper_names(), case sensitive. Run ?hyper_names to check fucntion arguments
+# names from hyper_names(), case sensitive. Run ?hyper_names to check function arguments
 
 ## 3. Hyperparameter interpretation & recommendation:
 
