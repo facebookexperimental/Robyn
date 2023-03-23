@@ -103,7 +103,7 @@ hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 ## Time series validation parameter (train_size).
 
 ## 1. IMPORTANT: set plot = TRUE to create example plots for adstock & saturation
-## hyperparameters and their influence in curve transformation
+## hyperparameters and their influence in curve transformation.
 plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
@@ -112,7 +112,7 @@ plot_saturation(plot = FALSE)
 # transformed by adstock & saturation.
 # Run hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 # to get correct media hyperparameter names. All names in hyperparameters must equal
-# names from hyper_names(), case sensitive. Run ?hyper_names to check fucntion arguments
+# names from hyper_names(), case sensitive. Run ?hyper_names to check function arguments.
 
 ## 3. Hyperparameter interpretation & recommendation:
 
