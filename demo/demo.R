@@ -302,8 +302,8 @@ if (length(InputCollect$exposure_vars) > 0) {
 OutputModels <- robyn_run(
   InputCollect = InputCollect, # feed in all model specification
   cores = NULL, # NULL defaults to (max available - 1)
-  iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
-  trials = 5, # 5 recommended for the dummy dataset
+  iterations = 1000, # 2000 recommended for the dummy dataset with no calibration
+  trials = 1, # 5 recommended for the dummy dataset
   ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
   add_penalty_factor = FALSE # Experimental feature. Use with caution.
 )
@@ -350,6 +350,14 @@ select_model <- "1_122_7" # Pick one of the models from OutputCollect to proceed
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
 ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
 print(ExportedModel)
+
+# To plot any model's one-pager:
+myOnePager <- robyn_onepagers(InputCollect, OutputCollect, select_model, export = FALSE)
+
+# To check each of the one-pager's plots
+# myOnePager[[select_model]]$patches$plots[[1]]
+# myOnePager[[select_model]]$patches$plots[[2]]
+# myOnePager[[select_model]]$patches$plots[[3]] # ...
 
 ###### DEPRECATED (<3.7.1) (might work)
 # ExportedModelOld <- robyn_save(
