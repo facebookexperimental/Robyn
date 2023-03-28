@@ -20,6 +20,7 @@ More details in post: [Hitting ROAS target using Robyn’s budget allocator](htt
 
 ## 3.10.0 (2023-03-03)
 ### v3.10.0: Allocator upgrade
+More details in post: [The convergence of marginal ROAS in the budget allocation in Robyn](https://medium.com/@gufengzhou/the-convergence-of-marginal-roas-in-the-budget-allocation-in-robyn-5d407aebf021)
 * **Feat**: all new one-pager for `robyn_allocator()` showing initial, bounded and less-bounded scenarios, using last month's worth of data by default. Relevant changes from previous versions: initial spend is now mean of date range selected, not non-zero mean anymore + deprecated "max_response_expected_spend" scenario + carryover information is now provided in the curves + inform user when budget is topped and can't be fully allocated + added mROAS / mCPA for better understanding of allocation. And one step closer to the forecast functionality. #600
 * **Feat**: `robyn_response()` now requires date or date range for adstocking (last period by default) and accepts single or multiple values to return different use cases and scenarios.
 * **Feat**: new `transform_adstock()` exported wrapper function.
