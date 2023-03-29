@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Meta MMM Open Source: Robyn 3.10.0       #######################
+####################         Meta MMM Open Source: Robyn 3.10.1       #######################
 ####################             Quick demo guide                     #######################
 #############################################################################################
 
@@ -52,17 +52,14 @@ data("dt_prophet_holidays")
 head(dt_prophet_holidays)
 
 # Directory where you want to export results to (will create new folders)
-robyn_object <- "~/Desktop"
-
-### DEPRECATED: It must have extension .RDS. The object name can be different than Robyn:
-# robyn_object <- "~/Desktop/MyRobyn.RDS"
+robyn_directory <- "~/Desktop"
 
 ################################################################
 #### Step 2a: For first time user: Model specification in 4 steps
 
 #### 2a-1: First, specify input variables
 
-## NOTE (>3.6.1): All sign control are now automatically provided: "positive" for media & organic
+## All sign control are now automatically provided: "positive" for media & organic
 ## variables and "default" for all others. User can still customise signs if necessary.
 ## Documentation is available, access it anytime by running: ?robyn_inputs
 
@@ -89,7 +86,7 @@ print(InputCollect)
 
 #### 2a-2: Second, define and add hyperparameters
 
-## NOTE (>3.6.1): Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
+## Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
 ## Also, calibration_input are required to be spend names.
 ## hyperparameter names are based on paid_media_spends names too. See right hyperparameter names:
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
@@ -97,10 +94,10 @@ hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 ## Guide to setup & understand hyperparameters
 
 ## Robyn's hyperparameters have four components:
-## Adstock parameters (theta or shape/scale).
-## Saturation parameters (alpha/gamma).
-## Regularisation parameter (lambda). No need to specify manually.
-## Time series validation parameter (train_size).
+## - Adstock parameters (theta or shape/scale)
+## - Saturation parameters (alpha/gamma)
+## - Regularisation parameter (lambda). No need to specify manually
+## - Time series validation parameter (train_size)
 
 ## 1. IMPORTANT: set plot = TRUE to create example plots for adstock & saturation
 ## hyperparameters and their influence in curve transformation.
@@ -327,7 +324,7 @@ OutputCollect <- robyn_outputs(
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
   export = create_files, # this will create files locally
-  plot_folder = robyn_object, # path for plots exports and files creation
+  plot_folder = robyn_directory, # path for plots exports and files creation
   plot_pareto = create_files # Set to FALSE to deactivate plotting and saving model one-pagers
 )
 print(OutputCollect)
@@ -358,16 +355,6 @@ myOnePager <- robyn_onepagers(InputCollect, OutputCollect, select_model, export 
 # myOnePager[[select_model]]$patches$plots[[1]]
 # myOnePager[[select_model]]$patches$plots[[2]]
 # myOnePager[[select_model]]$patches$plots[[3]] # ...
-
-###### DEPRECATED (<3.7.1) (might work)
-# ExportedModelOld <- robyn_save(
-#   robyn_object = robyn_object, # model object location and name
-#   select_model = select_model, # selected model ID
-#   InputCollect = InputCollect,
-#   OutputCollect = OutputCollect
-# )
-# print(ExportedModelOld)
-# # plot(ExportedModelOld)
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -508,18 +495,6 @@ InputCollectX <- RobynRefresh$listRefresh1$InputCollect
 OutputCollectX <- RobynRefresh$listRefresh1$OutputCollect
 select_modelX <- RobynRefresh$listRefresh1$OutputCollect$selectID
 
-###### DEPRECATED (<3.7.1) (might work)
-# # Run ?robyn_refresh to check parameter definition
-# Robyn <- robyn_refresh(
-#   robyn_object = robyn_object,
-#   dt_input = dt_simulated_weekly,
-#   dt_holidays = dt_prophet_holidays,
-#   refresh_steps = 4,
-#   refresh_mode = "manual",
-#   refresh_iters = 1000, # 1k is estimation. Use refresh_mode = "manual" to try out.
-#   refresh_trials = 1
-# )
-
 ## Besides plots: there are 4 CSV outputs saved in the folder for further usage
 # report_hyperparameters.csv, hyperparameters of all selected model for reporting
 # report_aggregated.csv, aggregated decomposition per independent variable
@@ -534,13 +509,11 @@ select_modelX <- RobynRefresh$listRefresh1$OutputCollect$selectID
 
 # Run ?robyn_response to check parameter definition
 
-## -------------------------------- NOTE v3.6.0 CHANGE !!! ---------------------------------- ##
 ## The robyn_response() function can now output response for both spends and exposures (imps,
 ## GRP, newsletter sendings etc.) as well as plotting individual saturation curves. New
 ## argument names "metric_name" and "metric_value" instead of "paid_media_var" and "spend"
 ## are now used to accommodate this change. Also the returned output is a list now and
 ## contains also the plot.
-## ------------------------------------------------------------------------------------------ ##
 
 ## Recreate original saturation curve
 Response <- robyn_response(
@@ -621,7 +594,7 @@ response_sending$response_total / sendings * 1000
 response_sending$plot
 
 ################################################################
-#### Optional: recreate old models and replicate results [v3.7.1]
+#### Optional: recreate old models and replicate results
 
 # From an exported JSON file (which is created automatically when exporting a model)
 # we can re-create a previously trained model and outputs. Note: we need to provide
