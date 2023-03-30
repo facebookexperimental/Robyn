@@ -1120,20 +1120,22 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
 
   df.int <- 1
 
-  ## drop intercept if negative and intercept_sign == "non_negative"
+  ## Drop intercept if negative and intercept_sign == "non_negative"
   if (intercept_sign == "non_negative" && coef(mod)[1] < 0) {
     mod <- glmnet(
       x_train,
       y_train,
       family = "gaussian",
-      alpha = 0 # 0 for ridge regression
-      , lambda = lambda,
+      alpha = 0, # 0 for ridge regression
+      lambda = lambda,
       lower.limits = lower.limits,
       upper.limits = upper.limits,
-      intercept = FALSE
+      penalty.factor = penalty.factor,
+      intercept = FALSE,
+      ...
     ) # coef(mod)
     df.int <- 0
-  } # ; plot(mod); print(mod)
+  } # plot(mod); print(mod)
 
   # Calculate all Adjusted R2
   y_train_pred <- as.vector(predict(mod, s = lambda, newx = x_train))
