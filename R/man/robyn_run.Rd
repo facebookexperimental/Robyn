@@ -18,6 +18,7 @@ robyn_run(
   cores = NULL,
   trials = 5,
   iterations = 2000,
+  rssd_0eff = TRUE,
   nevergrad_algo = "TwoPointsDE",
   intercept_sign = "non_negative",
   lambda_control = NULL,
@@ -67,6 +68,9 @@ except one). Set to 1 if you want to turn parallel computing off.}
 
 \item{iterations}{Integer. Recommended 2000 for default when using
 \code{nevergrad_algo = "TwoPointsDE"}.}
+
+\item{rssd_0eff}{Logical. When TRUE, the objective function DECOMP.RSSD will
+penalize models with more 0 media effects additionally.}
 
 \item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",

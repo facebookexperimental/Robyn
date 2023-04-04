@@ -14,6 +14,7 @@ robyn_mmm(
   ts_validation = TRUE,
   add_penalty_factor = FALSE,
   dt_hyper_fixed = NULL,
+  rssd_0eff = TRUE,
   refresh = FALSE,
   trial = 1L,
   seed = 123L,
@@ -59,6 +60,9 @@ more iterations to converge.}
 \item{dt_hyper_fixed}{data.frame or named list. Only provide when loading
 old model results. It consumes hyperparameters from saved csv
 \code{pareto_hyperparameters.csv} or JSON file to replicate a model.}
+
+\item{rssd_0eff}{Logical. When TRUE, the objective function DECOMP.RSSD will
+penalize models with more 0 media effects additionally.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 

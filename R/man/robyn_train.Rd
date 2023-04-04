@@ -15,6 +15,7 @@ robyn_train(
   dt_hyper_fixed = NULL,
   ts_validation = TRUE,
   add_penalty_factor = FALSE,
+  rssd_0eff = TRUE,
   refresh = FALSE,
   seed = 123,
   quiet = FALSE
@@ -63,6 +64,9 @@ function.}
 glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
 this feature might add too much hyperparameter space and probably requires
 more iterations to converge.}
+
+\item{rssd_0eff}{Logical. When TRUE, the objective function DECOMP.RSSD will
+penalize models with more 0 media effects additionally.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
