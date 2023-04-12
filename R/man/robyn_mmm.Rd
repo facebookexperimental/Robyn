@@ -14,7 +14,7 @@ robyn_mmm(
   ts_validation = TRUE,
   add_penalty_factor = FALSE,
   dt_hyper_fixed = NULL,
-  rssd_0eff = TRUE,
+  rssd_zero_penalty = TRUE,
   refresh = FALSE,
   trial = 1L,
   seed = 123L,
@@ -61,8 +61,11 @@ more iterations to converge.}
 old model results. It consumes hyperparameters from saved csv
 \code{pareto_hyperparameters.csv} or JSON file to replicate a model.}
 
-\item{rssd_0eff}{Logical. When TRUE, the objective function DECOMP.RSSD will
-penalize models with more 0 media effects additionally.}
+\item{rssd_zero_penalty}{Boolean. When TRUE, the objective function
+DECOMP.RSSD will penalize models with more 0 media effects additionally.
+In other words, given the same DECOMP.RSSD score, a model with 50% 0-coef
+variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
+another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 

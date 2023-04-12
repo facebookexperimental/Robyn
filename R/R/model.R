@@ -42,8 +42,11 @@
 #' "unconstrained". By default, if intercept is negative, Robyn will drop intercept
 #' and refit the model. Consider changing intercept_sign to "unconstrained" when
 #' there are \code{context_vars} with large positive values.
-#' @param rssd_0eff Logical. When TRUE, the objective function DECOMP.RSSD will
-#' penalize models with more 0 media effects additionally.
+#' @param rssd_zero_penalty Boolean. When TRUE, the objective function
+#' DECOMP.RSSD will penalize models with more 0 media effects additionally.
+#' In other words, given the same DECOMP.RSSD score, a model with 50% 0-coef
+#' variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
+#' another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param outputs Boolean. Process results with \code{robyn_outputs()}?
 #' @param lambda_control Deprecated in v3.6.0.
@@ -75,7 +78,7 @@ robyn_run <- function(InputCollect = NULL,
                       cores = NULL,
                       trials = 5,
                       iterations = 2000,
-                      rssd_0eff = TRUE,
+                      rssd_zero_penalty = TRUE,
                       nevergrad_algo = "TwoPointsDE",
                       intercept_sign = "non_negative",
                       lambda_control = NULL,
@@ -152,7 +155,7 @@ robyn_run <- function(InputCollect = NULL,
     dt_hyper_fixed = dt_hyper_fixed,
     ts_validation = ts_validation,
     add_penalty_factor = add_penalty_factor,
-    rssd_0eff = rssd_0eff,
+    rssd_zero_penalty = rssd_zero_penalty,
     refresh, seed, quiet
   )
 
@@ -280,7 +283,7 @@ robyn_train <- function(InputCollect, hyper_collect,
                         dt_hyper_fixed = NULL,
                         ts_validation = TRUE,
                         add_penalty_factor = FALSE,
-                        rssd_0eff = TRUE,
+                        rssd_zero_penalty = TRUE,
                         refresh = FALSE, seed = 123,
                         quiet = FALSE) {
   hyper_fixed <- hyper_collect$all_fixed
@@ -297,7 +300,7 @@ robyn_train <- function(InputCollect, hyper_collect,
       dt_hyper_fixed = dt_hyper_fixed,
       ts_validation = ts_validation,
       add_penalty_factor = add_penalty_factor,
-      rssd_0eff = rssd_0eff,
+      rssd_zero_penalty = rssd_zero_penalty,
       seed = seed,
       quiet = quiet
     )
@@ -332,7 +335,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         intercept_sign = intercept_sign,
         ts_validation = ts_validation,
         add_penalty_factor = add_penalty_factor,
-        rssd_0eff = rssd_0eff,
+        rssd_zero_penalty = rssd_zero_penalty,
         refresh = refresh,
         trial = ngt,
         seed = seed + ngt,
@@ -390,7 +393,7 @@ robyn_mmm <- function(InputCollect,
                       add_penalty_factor = FALSE,
                       dt_hyper_fixed = NULL,
                       # lambda_fixed = NULL,
-                      rssd_0eff = TRUE,
+                      rssd_zero_penalty = TRUE,
                       refresh = FALSE,
                       trial = 1L,
                       seed = 123L,
@@ -458,7 +461,7 @@ robyn_mmm <- function(InputCollect,
     add_penalty_factor <- add_penalty_factor
     intercept_sign <- intercept_sign
     i <- NULL # For parallel iterations (globalVar)
-    rssd_0eff <- rssd_0eff
+    rssd_zero_penalty <- rssd_zero_penalty
   }
 
   ################################################
@@ -798,8 +801,8 @@ robyn_mmm <- function(InputCollect,
             )
             if (!refresh) {
               decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
-              # Penality for models with more 0 coefficients
-              if (rssd_0eff) {
+              # Penalty for models with more 0-coefficients
+              if (rssd_zero_penalty) {
                 is_0eff <- round(dt_decompSpendDist$effect_share, 4) == 0
                 share_0eff <- sum(is_0eff) / length(dt_decompSpendDist$effect_share)
                 decomp.rssd <- decomp.rssd * (1 + share_0eff)
