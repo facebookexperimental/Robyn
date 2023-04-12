@@ -352,6 +352,14 @@ robyn_train <- function(InputCollect, hyper_collect,
     }
   }
   names(OutputModels) <- paste0("trial", seq_along(OutputModels))
+  OutputModels <- lapply(OutputModels, function(x) {
+    x$resultCollect$resultHypParam <- dplyr::select(
+      x$resultCollect$resultHypParam,
+      -c("lambda_max", "lambda_min_ratio", "df.int")
+    )
+    return(x)
+  })
+
   return(OutputModels)
 }
 
