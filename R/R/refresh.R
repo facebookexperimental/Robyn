@@ -294,9 +294,9 @@ robyn_refresh <- function(json_file = NULL,
       ...
     )
 
-    ## Select winner model for current refresh
+    ## Select winner model for current refresh (the higher error_score the better)
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
-      arrange(.data$solID, desc(.data$error_score)) %>%
+      arrange(desc(.data$error_score)) %>%
       select(.data$solID, everything()) %>%
       ungroup()
     bestMod <- OutputCollectRF$resultHypParam$solID[1]
