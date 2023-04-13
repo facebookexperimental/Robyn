@@ -569,74 +569,12 @@ robyn_mmm <- function(InputCollect,
             #### Get hyperparameter sample
             hypParamSam <- hypParamSamNG[i, ]
             adstock <- check_adstock(adstock)
+
             #### Transform media for model fitting
-            dt_modAdstocked <- select(dt_mod, -.data$ds)
-            mediaAdstocked <- list()
-            mediaImmediate <- list()
-            mediaCarryover <- list()
-            mediaVecCum <- list()
-            mediaSaturated <- list()
-            mediaSaturatedImmediate <- list()
-            mediaSaturatedCarryover <- list()
-
-            for (v in seq_along(all_media)) {
-              ################################################
-              ## 1. Adstocking (whole data)
-              # Decayed/adstocked response = Immediate response + Carryover response
-              m <- dt_modAdstocked[, all_media[v]][[1]]
-              if (adstock == "geometric") {
-                theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
-              }
-              if (grepl("weibull", adstock)) {
-                shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
-                scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
-              }
-              x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
-              m_adstocked <- x_list$x_decayed
-              mediaAdstocked[[v]] <- m_adstocked
-              m_carryover <- m_adstocked - m
-              m[m_carryover < 0] <- m_adstocked[m_carryover < 0] # adapt for weibull_pdf with lags
-              m_carryover[m_carryover < 0] <- 0 # adapt for weibull_pdf with lags
-              mediaImmediate[[v]] <- m
-              mediaCarryover[[v]] <- m_carryover
-              mediaVecCum[[v]] <- x_list$thetaVecCum
-
-              ################################################
-              ## 2. Saturation (only window data)
-              # Saturated response = Immediate response + carryover response
-              m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
-              m_carryoverRollWind <- m_carryover[rollingWindowStartWhich:rollingWindowEndWhich]
-
-              alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
-              gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
-              mediaSaturated[[v]] <- saturation_hill(
-                m_adstockedRollWind,
-                alpha = alpha, gamma = gamma
-              )
-              mediaSaturatedCarryover[[v]] <- saturation_hill(
-                m_adstockedRollWind,
-                alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind
-              )
-              mediaSaturatedImmediate[[v]] <- mediaSaturated[[v]] - mediaSaturatedCarryover[[v]]
-              # plot(m_adstockedRollWind, mediaSaturated[[1]])
-            }
-
-            names(mediaAdstocked) <- names(mediaImmediate) <- names(mediaCarryover) <- names(mediaVecCum) <-
-              names(mediaSaturated) <- names(mediaSaturatedImmediate) <- names(mediaSaturatedCarryover) <-
-              all_media
-            dt_modAdstocked <- dt_modAdstocked %>%
-              select(-all_of(all_media)) %>%
-              bind_cols(mediaAdstocked)
-            dt_mediaImmediate <- bind_cols(mediaImmediate)
-            dt_mediaCarryover <- bind_cols(mediaCarryover)
-            mediaVecCum <- bind_cols(mediaVecCum)
-            dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
-              select(-all_of(all_media)) %>%
-              bind_cols(mediaSaturated)
-            dt_saturatedImmediate <- bind_cols(mediaSaturatedImmediate)
-            dt_saturatedImmediate[is.na(dt_saturatedImmediate)] <- 0
-            dt_saturatedCarryover <- bind_cols(mediaSaturatedCarryover)
-            dt_saturatedCarryover[is.na(dt_saturatedCarryover)] <- 0
+            temp <- run_transformations(InputCollect, hypParamSam, adstock)
+            dt_modSaturated <- temp$dt_modSaturated
+            dt_saturatedImmediate <- temp$dt_saturatedImmediate
+            dt_saturatedCarryover <- temp$dt_saturatedCarryover
 
             #####################################
             #### Split train & test and prepare data for modelling
@@ -729,11 +667,10 @@ robyn_mmm <- function(InputCollect,
             )
             decompCollect <- model_decomp(
               coefs = mod_out$coefs,
-              dt_modSaturated = dt_modSaturated,
               y_pred = mod_out$y_pred,
+              dt_modSaturated = dt_modSaturated,
               dt_saturatedImmediate = dt_saturatedImmediate,
               dt_saturatedCarryover = dt_saturatedCarryover,
-              i = i,
               dt_modRollWind = dt_modRollWind,
               refreshAddedStart = refreshAddedStart
             )
@@ -847,16 +784,6 @@ robyn_mmm <- function(InputCollect,
               bind_cols(common[, (split_common + 1):total_common]) %>%
               dplyr::mutate_all(unlist)
 
-            mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
-            colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
-            mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -.data$ds, -.data$y)
-            colnames(mediaDecompCarryover) <- paste0(colnames(mediaDecompCarryover), "_MDC")
-            resultCollect[["xDecompVec"]] <- bind_cols(
-              decompCollect$xDecompVec,
-              mediaDecompImmediate,
-              mediaDecompCarryover
-            ) %>% mutate(trial = trial, iterNG = lng, iterPar = i)
-
             resultCollect[["xDecompAgg"]] <- decompCollect$xDecompAgg %>%
               mutate(train_size = train_size) %>%
               bind_cols(common)
@@ -952,11 +879,11 @@ robyn_mmm <- function(InputCollect,
     })
   ))
 
-  resultCollect[["xDecompVec"]] <- as_tibble(bind_rows(
-    lapply(resultCollectNG, function(x) {
-      bind_rows(lapply(x, function(y) y$xDecompVec))
-    })
-  ))
+  # resultCollect[["xDecompVec"]] <- as_tibble(bind_rows(
+  #   lapply(resultCollectNG, function(x) {
+  #     bind_rows(lapply(x, function(y) y$xDecompVec))
+  #   })
+  # ))
 
   resultCollect[["xDecompAgg"]] <- as_tibble(bind_rows(
     lapply(resultCollectNG, function(x) {
@@ -994,8 +921,10 @@ robyn_mmm <- function(InputCollect,
   ))
 }
 
-model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
-                         dt_saturatedCarryover, i, dt_modRollWind, refreshAddedStart) {
+model_decomp <- function(coefs, y_pred,
+                         dt_modSaturated, dt_saturatedImmediate,
+                         dt_saturatedCarryover, dt_modRollWind,
+                         refreshAddedStart) {
   ## Input for decomp
   y <- dt_modSaturated$dep_var
   # x <- data.frame(x)
@@ -1013,8 +942,8 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   xDecompOut <- cbind(data.frame(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
   ## Decomp immediate & carryover response
-  sel_coef <- rownames(coefs) %in% names(dt_saturatedImmediate)
-  coefs_media <- coefs[sel_coef, ]
+  sel_coef <- names(coefs) %in% names(dt_saturatedImmediate)
+  coefs_media <- coefs[sel_coef]
   names(coefs_media) <- rownames(coefs)[sel_coef]
   mediaDecompImmediate <- data.frame(mapply(function(regressor, coeff) {
     regressor * coeff
@@ -1023,26 +952,8 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
     regressor * coeff
   }, regressor = dt_saturatedCarryover, coeff = coefs_media))
 
-  ## QA decomp
-  check_split <- all(round(xDecomp[, names(coefs_media)], 2) ==
-    round(mediaDecompImmediate + mediaDecompCarryover, 2))
-  if (!check_split) {
-    message(paste0(
-      "Attention for loop ", i,
-      ": immediate & carryover decomp don't sum up to total"
-    ))
-  }
-  y_hat <- rowSums(xDecomp, na.rm = TRUE)
-  errorTerm <- y_hat - y_pred
-  # if (prod(round(y_pred) == round(y_hat)) == 0) {
-  #   message(paste0(
-  #     "Attention for loop ", i,
-  #     ": manual decomp is not matching linear model prediction. ",
-  #     "Deviation is ", round(mean(errorTerm / y) * 100, 2), "%"
-  #   ))
-  # }
-
   ## Output decomp
+  y_hat <- rowSums(xDecomp, na.rm = TRUE)
   y_hat.scaled <- rowSums(abs(xDecomp), na.rm = TRUE)
   xDecompOutPerc.scaled <- abs(xDecomp) / y_hat.scaled
   xDecompOut.scaled <- y_hat * xDecompOutPerc.scaled
@@ -1067,13 +978,13 @@ model_decomp <- function(coefs, dt_modSaturated, y_pred, dt_saturatedImmediate,
   xDecompOutAggMeanNon0RF[is.nan(xDecompOutAggMeanNon0RF)] <- 0
   xDecompOutAggMeanNon0PercRF <- xDecompOutAggMeanNon0RF / sum(xDecompOutAggMeanNon0RF)
 
-  coefsOutCat <- coefsOut <- data.frame(rn = rownames(coefs), coefs)
+  coefsOutCat <- coefsOut <- data.frame(rn = names(coefs), coefs)
   if (length(x_factor) > 0) {
     coefsOut$rn <- sapply(x_factor, function(x) str_replace(coefsOut$rn, paste0(x, ".*"), x))
   }
   coefsOut <- coefsOut %>%
     group_by(.data$rn) %>%
-    summarise(s0 = mean(.data$s0)) %>%
+    summarise(s0 = mean(.data$coefs)) %>%
     rename("coef" = "s0") %>%
     .[match(rownames(coefsOut), .$rn), ]
 

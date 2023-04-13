@@ -242,14 +242,14 @@ robyn_pareto <- function(InputCollect, OutputModels,
       message(sprintf(">> Pareto-Front: %s [%s models]", pf, length(uniqueSol)))
     }
 
-    # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
-    temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
-    xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec))
-    if (!"solID" %in% colnames(xDecompVecImmCarr)) {
-      xDecompVecImmCarr <- xDecompVecImmCarr %>%
-        mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
-        filter(.data$solID %in% uniqueSol)
-    }
+    # # To recreate "xDecompVec", "xDecompVecImmediate", "xDecompVecCarryover" for each model
+    # temp <- OutputModels[names(OutputModels) %in% paste0("trial", 1:OutputModels$trials)]
+    # xDecompVecImmCarr <- bind_rows(lapply(temp, function(x) x$resultCollect$xDecompVec))
+    # if (!"solID" %in% colnames(xDecompVecImmCarr)) {
+    #   xDecompVecImmCarr <- xDecompVecImmCarr %>%
+    #     mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
+    #     filter(.data$solID %in% uniqueSol)
+    # }
 
     # Calculations for pareto AND pareto plots
     for (sid in uniqueSol) {
@@ -473,7 +473,29 @@ robyn_pareto <- function(InputCollect, OutputModels,
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
       ## 7. Immediate vs carryover response
-      temp <- filter(xDecompVecImmCarr, .data$solID == sid)
+      # temp <- filter(xDecompVecImmCarr, .data$solID == sid)
+      hypParamSam <- resultHypParam[resultHypParam$solID == sid, ]
+      dt_saturated_dfs <- run_transformations(InputCollect, hypParamSam, adstock)
+      coefs <- xDecompAgg$coef[xDecompAgg$solID == sid]
+      names(coefs) <- xDecompAgg$rn[xDecompAgg$solID == sid]
+      decompCollect <- model_decomp(
+        coefs = coefs,
+        y_pred = dt_saturated_dfs$dt_modSaturated$dep_var, # IS THIS RIGHT?
+        dt_modSaturated = dt_saturated_dfs$dt_modSaturated,
+        dt_saturatedImmediate = dt_saturated_dfs$dt_saturatedImmediate,
+        dt_saturatedCarryover = dt_saturated_dfs$dt_saturatedCarryover,
+        dt_modRollWind = dt_modRollWind,
+        refreshAddedStart = InputCollect$refreshAddedStart
+      )
+      mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
+      colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
+      mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -.data$ds, -.data$y)
+      colnames(mediaDecompCarryover) <- paste0(colnames(mediaDecompCarryover), "_MDC")
+      temp <- bind_cols(
+        decompCollect$xDecompVec,
+        mediaDecompImmediate,
+        mediaDecompCarryover
+      ) %>% mutate(solID = sid)
       vec_collect <- list(
         xDecompVec = select(temp, -dplyr::ends_with("_MDI"), -dplyr::ends_with("_MDC")),
         xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), -all_of(InputCollect$all_media)),

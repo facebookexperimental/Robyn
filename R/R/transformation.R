@@ -350,3 +350,84 @@ plot_saturation <- function(plot = TRUE) {
     return(p1 + p2)
   }
 }
+
+#### Transform media for model fitting
+run_transformations <- function(InputCollect, hypParamSam, adstock) {
+  all_media <- InputCollect$all_media
+  rollingWindowStartWhich <- InputCollect$rollingWindowStartWhich
+  rollingWindowEndWhich <- InputCollect$rollingWindowEndWhich
+  dt_modAdstocked <- select(InputCollect$dt_mod, -.data$ds)
+
+  mediaAdstocked <- list()
+  mediaImmediate <- list()
+  mediaCarryover <- list()
+  mediaVecCum <- list()
+  mediaSaturated <- list()
+  mediaSaturatedImmediate <- list()
+  mediaSaturatedCarryover <- list()
+
+  for (v in seq_along(all_media)) {
+    ################################################
+    ## 1. Adstocking (whole data)
+    # Decayed/adstocked response = Immediate response + Carryover response
+    m <- dt_modAdstocked[, all_media[v]][[1]]
+    if (adstock == "geometric") {
+      theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
+    }
+    if (grepl("weibull", adstock)) {
+      shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
+      scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
+    }
+    x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
+    m_adstocked <- x_list$x_decayed
+    mediaAdstocked[[v]] <- m_adstocked
+    m_carryover <- m_adstocked - m
+    m[m_carryover < 0] <- m_adstocked[m_carryover < 0] # adapt for weibull_pdf with lags
+    m_carryover[m_carryover < 0] <- 0 # adapt for weibull_pdf with lags
+    mediaImmediate[[v]] <- m
+    mediaCarryover[[v]] <- m_carryover
+    mediaVecCum[[v]] <- x_list$thetaVecCum
+
+    ################################################
+    ## 2. Saturation (only window data)
+    # Saturated response = Immediate response + carryover response
+    m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
+    m_carryoverRollWind <- m_carryover[rollingWindowStartWhich:rollingWindowEndWhich]
+
+
+    alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
+    gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
+    mediaSaturated[[v]] <- saturation_hill(
+      m_adstockedRollWind,
+      alpha = alpha, gamma = gamma
+    )
+    mediaSaturatedCarryover[[v]] <- saturation_hill(
+      m_adstockedRollWind,
+      alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind
+    )
+    mediaSaturatedImmediate[[v]] <- mediaSaturated[[v]] - mediaSaturatedCarryover[[v]]
+    # plot(m_adstockedRollWind, mediaSaturated[[1]])
+  }
+
+  names(mediaAdstocked) <- names(mediaImmediate) <- names(mediaCarryover) <- names(mediaVecCum) <-
+    names(mediaSaturated) <- names(mediaSaturatedImmediate) <- names(mediaSaturatedCarryover) <-
+    all_media
+  dt_modAdstocked <- dt_modAdstocked %>%
+    select(-all_of(all_media)) %>%
+    bind_cols(mediaAdstocked)
+  dt_mediaImmediate <- bind_cols(mediaImmediate)
+  dt_mediaCarryover <- bind_cols(mediaCarryover)
+  mediaVecCum <- bind_cols(mediaVecCum)
+  dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
+    select(-all_of(all_media)) %>%
+    bind_cols(mediaSaturated)
+  dt_saturatedImmediate <- bind_cols(mediaSaturatedImmediate)
+  dt_saturatedImmediate[is.na(dt_saturatedImmediate)] <- 0
+  dt_saturatedCarryover <- bind_cols(mediaSaturatedCarryover)
+  dt_saturatedCarryover[is.na(dt_saturatedCarryover)] <- 0
+  return(list(
+    dt_modSaturated = dt_modSaturated,
+    dt_saturatedImmediate = dt_saturatedImmediate,
+    dt_saturatedCarryover = dt_saturatedCarryover
+  ))
+}

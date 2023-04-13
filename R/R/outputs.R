@@ -91,15 +91,6 @@ robyn_outputs <- function(InputCollect, OutputModels,
   pareto_fronts <- pareto_results$pareto_fronts
   allSolutions <- pareto_results$pareto_solutions
 
-  # Reduce the size of xDecompVec with only pareto-front models and create solID
-  for (i in seq(OutputModels$trials)) {
-    OutputModels[names(OutputModels) %in% paste0("trial", i)][[1]]$resultCollect$xDecompVec <-
-      OutputModels[names(OutputModels) %in% paste0("trial", i)][[1]]$resultCollect$xDecompVec %>%
-      mutate(solID = paste(.data$trial, .data$iterNG, .data$iterPar, sep = "_")) %>%
-      filter(.data$solID %in% pareto_results$pareto_solutions) %>%
-      select(-c("iterNG", "iterPar"))
-  }
-
   #####################################
   #### Gather the results into output object
 
