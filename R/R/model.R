@@ -942,7 +942,7 @@ model_decomp <- function(coefs, y_pred,
   xDecompOut <- cbind(data.frame(ds = dt_modRollWind$ds, y = y, y_pred = y_pred), xDecomp)
 
   ## Decomp immediate & carryover response
-  sel_coef <- names(coefs) %in% names(dt_saturatedImmediate)
+  sel_coef <- c(rownames(coefs), names(coefs)) %in% names(dt_saturatedImmediate)
   coefs_media <- coefs[sel_coef]
   names(coefs_media) <- rownames(coefs)[sel_coef]
   mediaDecompImmediate <- data.frame(mapply(function(regressor, coeff) {
@@ -978,15 +978,14 @@ model_decomp <- function(coefs, y_pred,
   xDecompOutAggMeanNon0RF[is.nan(xDecompOutAggMeanNon0RF)] <- 0
   xDecompOutAggMeanNon0PercRF <- xDecompOutAggMeanNon0RF / sum(xDecompOutAggMeanNon0RF)
 
-  coefsOutCat <- coefsOut <- data.frame(rn = names(coefs), coefs)
+  coefsOutCat <- coefsOut <- data.frame(rn = c(rownames(coefs), names(coefs)), coefs)
   if (length(x_factor) > 0) {
     coefsOut$rn <- sapply(x_factor, function(x) str_replace(coefsOut$rn, paste0(x, ".*"), x))
   }
   coefsOut <- coefsOut %>%
     group_by(.data$rn) %>%
-    summarise(s0 = mean(.data$coefs)) %>%
-    rename("coef" = "s0") %>%
-    .[match(rownames(coefsOut), .$rn), ]
+    rename("coef" = 2) %>%
+    summarise(coef = mean(.data$coef))
 
   decompOutAgg <- as_tibble(cbind(coefsOut, data.frame(
     xDecompAgg = xDecompOutAgg,
@@ -1068,7 +1067,6 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
   } else {
     nrmse_val <- nrmse_test <- y_val_pred <- y_test_pred <- NA
   }
-
 
   mod_out <- list(
     rsq_train = rsq_train,
