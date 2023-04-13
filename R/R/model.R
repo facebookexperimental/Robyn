@@ -827,16 +827,14 @@ robyn_mmm <- function(InputCollect,
               mape = mape,
               lambda = lambda_scaled,
               lambda_hp = lambda_hp,
-              lambda_max = lambda_max,
-              lambda_min_ratio = lambda_min_ratio,
               solID = paste(trial, lng, i, sep = "_"),
               trial = trial,
               iterNG = lng,
-              iterPar = i,
-              df.int = df.int
+              iterPar = i
             )
+
             total_common <- ncol(common)
-            split_common <- which(colnames(common) == "lambda_min_ratio")
+            split_common <- which(colnames(common) == "lambda_hp")
 
             resultCollect[["resultHypParam"]] <- as_tibble(hypParamSam) %>%
               select(-.data$lambda) %>%
