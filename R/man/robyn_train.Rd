@@ -67,7 +67,7 @@ more iterations to converge.}
 
 \item{rssd_zero_penalty}{Boolean. When TRUE, the objective function
 DECOMP.RSSD will penalize models with more 0 media effects additionally.
-In other words, given the same DECOMP.RSSD score, a model with 50% 0-coef
+In other words, given the same DECOMP.RSSD score, a model with 50\% 0-coef
 variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
 another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
 
