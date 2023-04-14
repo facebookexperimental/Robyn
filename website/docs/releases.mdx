@@ -5,6 +5,19 @@ title: Releases
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
+## 3.10.2 (2023-04-14)
+### v3.10.2: Refresh model selection and small bugs
+More details in post: [Hitting ROAS target using Robyn’s budget allocator](https://medium.com/@gufengzhou/hitting-roas-target-using-robyns-budget-allocator-274ace3add4f)
+
+- **Fix**: when running `robyn_refresh()`, select the refresh model by error_score value correctly #674
+- **Fix**: pass `penalty.factor` when dropping intercept too
+- **Fix**: when importing holidays data, force date values as dates #663 by @richin13
+- **Docs**: update several documentations across functions and site
+
+**Full Changelog**: https://github.com/facebookexperimental/Robyn/compare/v3.10.1...v3.10.2
+
+---
+
 ## 3.10.1 (2023-03-27)
 ### v3.10.1 - New “Target Efficiency” scenario for budget allocator
 More details in post: [Hitting ROAS target using Robyn’s budget allocator](https://medium.com/@gufengzhou/hitting-roas-target-using-robyns-budget-allocator-274ace3add4f)
