@@ -310,7 +310,7 @@ errors_scores <- function(df, balance = rep(1, 3)) {
     mutate(error_score = errors_scores(., balance)) %>%
     replace(., is.na(.), 0) %>%
     group_by(.data$cluster) %>%
-    arrange(.data$cluster, .data$solID, desc(.data$error_score)) %>%
+    arrange(.data$cluster, desc(.data$error_score)) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())
