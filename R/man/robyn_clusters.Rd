@@ -14,6 +14,7 @@ robyn_clusters(
   dim_red = "PCA",
   quiet = FALSE,
   export = FALSE,
+  seed = 123,
   ...
 )
 }
@@ -41,6 +42,8 @@ Pass any of: \code{c("PCA", "tSNE", "all", "none")}.}
 \item{quiet}{Boolean. Keep quiet? If not, print messages.}
 
 \item{export}{Export plots into local files?}
+
+\item{seed}{Numeric. Seed for reproducibility}
 
 \item{...}{Additional parameters passed to \code{lares::clusterKmeans()}.}
 }

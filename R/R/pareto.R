@@ -97,7 +97,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
   }
 
   # Calculate combined weighted error scores
-  resultHypParam$error_score <- errors_scores(resultHypParam)
+  resultHypParam$error_score <- errors_scores(resultHypParam, ts_validation = OutputModels$ts_validation, ...)
 
   # Bind robynPareto results
   xDecompAgg <- left_join(xDecompAgg, select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")

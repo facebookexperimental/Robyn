@@ -177,7 +177,7 @@ robyn_refresh <- function(json_file = NULL,
       ## Model selection from previous build
       if (!"error_score" %in% names(listOutputPrev$resultHypParam)) {
         listOutputPrev$resultHypParam <- as.data.frame(listOutputPrev$resultHypParam) %>%
-          mutate(error_score = errors_scores(.))
+          mutate(error_score = errors_scores(., ts_validation = listOutputPrev$OutputModels$ts_validation, ...))
       }
       which_bestModRF <- which.max(listOutputPrev$resultHypParam$error_score)[1]
       listOutputPrev$resultHypParam <- listOutputPrev$resultHypParam[which_bestModRF, ]

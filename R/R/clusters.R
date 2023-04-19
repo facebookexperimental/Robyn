@@ -39,8 +39,9 @@
 #' @export
 robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
-                           quiet = FALSE, export = FALSE,
+                           quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
+  set.seed(seed)
   if ("robyn_outputs" %in% class(input)) {
     if (is.null(all_media)) {
       aux <- colnames(input$mediaVecCollect)
@@ -64,7 +65,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     }
   }
 
-  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "pareto")
+  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "pareto")
 
   # Auto K selected by less than 5% WSS variance (convergence)
   min_clusters <- 3
@@ -72,7 +73,8 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
   if ("auto" %in% k) {
     cls <- tryCatch(
       {
-        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
+        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore,
+                      dim_red = dim_red, quiet = TRUE, seed = seed) # , ...)
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -244,13 +246,14 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
   ))
 }
 
-errors_scores <- function(df, balance = rep(1, 3)) {
+errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   stopifnot(length(balance) == 3)
-  error_cols <- c("nrmse", "decomp.rssd", "mape")
+  error_cols <- c(ifelse(ts_validation, "nrmse_test", "nrmse_train"), "decomp.rssd", "mape")
   stopifnot(all(error_cols %in% colnames(df)))
   balance <- balance / sum(balance)
   scores <- df %>%
     select(all_of(error_cols)) %>%
+    rename("nrmse" = 1) %>%
     mutate(
       nrmse = ifelse(is.infinite(.data$nrmse), max(is.finite(.data$nrmse)), .data$nrmse),
       decomp.rssd = ifelse(is.infinite(.data$decomp.rssd), max(is.finite(.data$decomp.rssd)), .data$decomp.rssd),
@@ -290,7 +293,8 @@ errors_scores <- function(df, balance = rep(1, 3)) {
 
   outcome <- removenacols(outcome, all = FALSE)
   outcome <- select(outcome, any_of(c("solID", all_media)))
-  errors <- distinct(x, .data$solID, .data$nrmse, .data$decomp.rssd, .data$mape)
+  errors <- distinct(x, .data$solID, .data$nrmse, .data$nrmse_test,
+                     .data$nrmse_train, .data$decomp.rssd, .data$mape)
   outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   return(outcome)
 }
@@ -305,9 +309,9 @@ errors_scores <- function(df, balance = rep(1, 3)) {
   (max - min) * (x - a) / (b - a) + min
 }
 
-.clusters_df <- function(df, all_paid, balance = rep(1, 3), limit = 1) {
+.clusters_df <- function(df, all_paid, balance = rep(1, 3), limit = 1, ts_validation = TRUE, ...) {
   df %>%
-    mutate(error_score = errors_scores(., balance)) %>%
+    mutate(error_score = errors_scores(., balance, ts_validation = ts_validation, ...)) %>%
     replace(., is.na(.), 0) %>%
     group_by(.data$cluster) %>%
     arrange(.data$cluster, desc(.data$error_score)) %>%
