@@ -1001,10 +1001,13 @@ model_decomp <- function(coefs, y_pred,
   if (length(x_factor) > 0) {
     coefsOut$rn <- sapply(x_factor, function(x) str_replace(coefsOut$rn, paste0(x, ".*"), x))
   }
+  rn_order <- names(xDecompOutAgg)
+  rn_order[rn_order=="intercept"] <- "(Intercept)"
   coefsOut <- coefsOut %>%
     group_by(.data$rn) %>%
     rename("coef" = 2) %>%
-    summarise(coef = mean(.data$coef))
+    summarise(coef = mean(.data$coef)) %>%
+    arrange(match(.data$rn, rn_order))
 
   decompOutAgg <- as_tibble(cbind(coefsOut, data.frame(
     xDecompAgg = xDecompOutAgg,
