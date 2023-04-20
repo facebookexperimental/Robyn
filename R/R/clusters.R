@@ -106,7 +106,8 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
-  top_sols <- .clusters_df(cls$df, all_paid, weights, limit)
+  ts_validation <- ifelse(all(is.na(cls$df$nrmse_test)), FALSE, TRUE)
+  top_sols <- .clusters_df(df = cls$df, all_paid, balance = weights, limit, ts_validation)
 
   # Build in-cluster CI with bootstrap
   ci_list <- confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, ...)
@@ -273,7 +274,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
       mape_w = balance[3] * .data$mape_n
     ) %>%
     # Calculate error score
-    mutate(error_score = (.data$nrmse_w^2 + .data$decomp.rssd_w^2 + .data$mape_w^2)^-(1 / 2)) %>%
+    mutate(error_score = sqrt(.data$nrmse_w^2 + .data$decomp.rssd_w^2 + .data$mape_w^2)) %>%
     pull(.data$error_score)
   return(scores)
 }
@@ -314,7 +315,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
     mutate(error_score = errors_scores(., balance, ts_validation = ts_validation, ...)) %>%
     replace(., is.na(.), 0) %>%
     group_by(.data$cluster) %>%
-    arrange(.data$cluster, desc(.data$error_score)) %>%
+    arrange(.data$cluster, .data$error_score) %>%
     slice(1:limit) %>%
     mutate(rank = row_number()) %>%
     select(.data$cluster, .data$rank, everything())
