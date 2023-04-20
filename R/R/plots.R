@@ -456,7 +456,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         geom_area(
           data = group_by(dt_scurvePlot, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
           aes(x = .data$spend, y = .data$response, color = .data$channel),
-          stat = "align", position = "stack", size = 0.1,
+          stat = "identity", position = "stack", size = 0.1,
           fill = "grey50", alpha = 0.4, show.legend = FALSE
         ) +
         geom_point(data = dt_scurvePlotMean, aes(
