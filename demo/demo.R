@@ -631,20 +631,20 @@ OutputCollectX <- robyn_run(
 
 # Or re-create both by simply using robyn_recreate()
 RobynRecreated <- robyn_recreate(
-  json_file = "/Users/gufengzhou/Desktop/Robyn_202303131448_init/RobynModel-1_103_7.json",
+  json_file = "~/Desktop/Robyn_202303131448_init/RobynModel-1_103_7.json",
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   quiet = FALSE)
 InputCollectX <- RobynRecreated$InputCollect
 OutputCollectX <- RobynRecreated$OutputCollect
 
-# Re-export model and check summary (will get exported in your current working directory)
-myModel <- robyn_write(InputCollectX, OutputCollectX, dir = "~/Desktop")
+# Re-export or rebuild a model and check summary
+myModel <- robyn_write(InputCollectX, OutputCollectX, export = FALSE, dir = "~/Desktop")
 print(myModel)
 
 # Re-create one-pager
-myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, select_model = NULL, export = create_files)
-# myModelPlot$`1_204_5`$patches$plots[[6]]
+myModelPlot <- robyn_onepagers(InputCollectX, OutputCollectX, export = FALSE)
+# myModelPlot[[1]]$patches$plots[[7]]
 
 # Refresh any imported model
 RobynRefresh <- robyn_refresh(
