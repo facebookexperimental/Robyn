@@ -132,7 +132,11 @@ robyn_refresh <- function(json_file = NULL,
       listInit$InputCollect$refreshDepth <- refreshDepth <- length(attr(chainData, "chain"))
       listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
       Robyn[["listInit"]] <- listInit
-      objectPath <- json$ExportedModel$plot_folder
+      if (is.null(plot_folder)) {
+        objectPath <- json$ExportedModel$plot_folder
+      } else {
+        objectPath <- plot_folder
+      }
       refreshCounter <- 1 # Dummy for now (legacy)
     }
     if (!is.null(robyn_object)) {
