@@ -288,7 +288,7 @@ In the Robyn code, analysts can simply add time series baselines with Prophet. I
 - <em>Holiday/Event</em>: Holidays or other events that highly impact your dependent variable. (e.g. national holiday, mega sales day, etc.)
 
 
-<img alt="prophetcomponents" src={useBaseUrl('/img/prophetcomponents.png')} />
+<img alt="prophet_decomp" src={useBaseUrl('/img/prophet_decomp.png')} />
 
 If you do not already have trend/seasonality data of your own, we would recommend you consider using Prophet for at least the trend and seasonality components. However as the complexity of the model and industry being measured increases, it may be worthwhile exploring additional ways to account for time-based trends e.g. collecting other data sources.
 
@@ -395,7 +395,7 @@ Due to the great flexibility of Weibull PDF and more freedom in hyperparameter s
 
 If the description above is too complicated, you can access the adstock helper plot in Robyn which visualizes how the three adstock options Geometric, Weibull CDF & Weibull PDF are transforming the data as the parameter changes. See below for example charts:
 
-<img alt="ad stock curves" src={useBaseUrl('/img/adstockshapes.png')} />
+<img alt="ad stock curves" src={useBaseUrl('/img/adstock-qs.png')} />
 
 
 <em>Saturation</em>
@@ -406,7 +406,7 @@ Robyn utilizes the Hill function to reflect the saturation of each media channel
 
 You can also access the helper plot to see how the Hill function transforms as the parameter changes - see below for some example saturation charts:
 
-<img alt="hill curves" src={useBaseUrl('/img/hillfunctionshapes.png')} />
+<img alt="hill curves" src={useBaseUrl('/img/hillFunction1.png')} />
 
 
 ### Modeling Techniques ​
@@ -449,7 +449,7 @@ Robyn provides a semi-automated model selection process by automatically returni
 
 The chart below elaborates how Nevergrad eliminates the majority of "bad models" (larger prediction error and/or unrealistic media effect). Each dot in the chart represents an explored model solution (one unit of hyperparameter sampling), while the lower-left corner lines are Pareto-fronts 1-3 and contain the best possible model results from all iterations. The two axes (NRMSE on x and DECOMP.RSSD on y) are the two objective functions to be minimized. As the iteration increases, a trend down the lower-left corner of the coordinate can be clearly observed. This is proof of Nevergrad's ability to drive the model result towards an optimal direction.
 
-<img alt="paretooptimalresults" src={useBaseUrl('/img/paretooptimalresults.png')} />
+<img alt="pareto_front" src={useBaseUrl('/img/pareto_front.png')} />
 
 At the end of the modeling process, Robyn will generate a series of models as initial outputs based on the NRMSE & DECOMP.RSSD function. After reviewing charts and considering the user’s business knowledge and requirement, a final model should be selected by the user to continue with the next steps. You can find more information on how to interpret outputs [here](https://facebookexperimental.github.io/Robyn/docs/features#outputs--diagnostics).
 
@@ -504,7 +504,7 @@ For example, when updating the initial build with 4 weeks of new data:
 
 The example below shows mode refreshes for 5 different periods of time, based on an initial time period covering 2017-2018:
 
-<img alt="refreshchart" src={useBaseUrl('/img/refreshchart.png')} />
+<img alt="refresh-window" src={useBaseUrl('/img/refresh-window.png')} />
 
 A set of results for each refresh period will also be produced, which will include ROI and effects from each of the variables within the model. Note that the baseline variable will be the sum of all Prophet variables (e.g. trend, seasonality, weekday and holiday) plus the intercept. Based on this plot, you can get an idea of how the impact from different business levers changes over time. The charts are based on simulated data and do not have real-life implications:
 
@@ -540,7 +540,7 @@ Models with a low R squared values can likely be improved upon. Common ways to i
 <img alt="modelfitchart" src={useBaseUrl('/img/modelfitchart.png')} />
 
 
-<em>Volume Contribution</em>: In addition to being able to compare actual vs. modeled data, we can also see the incremental volume contributions from each modelled independent variable. The chart below shows an example of Facebook’s volume contributions to sales vs. all other variables that were included in this model. For example in the chart below, 2.74% for Facebook means that 2.74% of the total sales is being driven by Facebook.
+<em>Volume Contribution</em>: In addition to being able to compare actual vs. modeled data, we can also see the incremental volume contributions from each modelled independent variable. The chart below shows an example of Facebook’s volume contributions to sales vs. all other variables that were included in this model. For example in the chart below, 2.2% for Facebook means that 2.2% of the total sales is being driven by Facebook.
 
 <img alt="modeldecompchart" src={useBaseUrl('/img/modeldecompchart.png')} />
 
