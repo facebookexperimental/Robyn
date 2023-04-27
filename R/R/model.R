@@ -621,8 +621,9 @@ robyn_mmm <- function(InputCollect,
             x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
             names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
             check_factor <- unlist(lapply(dt_sign, is.factor))
-            lower.limits <- upper.limits <- NULL
-            for (s in seq_along(check_factor)) {
+            lower.limits <- rep(0, length(prophet_signs))
+            upper.limits <- rep(1, length(prophet_signs))
+            for (s in (length(prophet_signs)+1):length(x_sign)) {
               if (check_factor[s] == TRUE) {
                 level.n <- length(levels(unlist(dt_sign[, s, with = FALSE])))
                 if (level.n <= 1) {
