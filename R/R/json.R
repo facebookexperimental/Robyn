@@ -11,6 +11,7 @@
 #'
 #' @inheritParams robyn_outputs
 #' @param InputCollect \code{robyn_inputs()} output.
+#' @param OutputModels \code{robyn_run()} output.
 #' @param select_model Character. Which model ID do you want to export
 #' into the JSON file?
 #' @param dir Character. Existing directory to export JSON file to.
@@ -30,6 +31,7 @@
 #' @export
 robyn_write <- function(InputCollect,
                         OutputCollect = NULL,
+                        OutputModels = NULL,
                         select_model = NULL,
                         dir = OutputCollect$plot_folder,
                         export = TRUE,
@@ -51,7 +53,12 @@ robyn_write <- function(InputCollect,
   ret <- list()
   skip <- which(unlist(lapply(InputCollect, function(x) is.list(x) | is.null(x))))
   skip <- skip[!names(skip) %in% c("calibration_input", "hyperparameters", "custom_params")]
-  ret[["InputCollect"]] <- inputs <- InputCollect[-skip]
+  ret[["InputCollect"]] <- InputCollect[-skip]
+  conv_msg <- mapply(function(x) x[[1]], x = gregexpr(":", OutputModels$convergence$conv_msg),
+                     SIMPLIFY = FALSE)
+  conv_msg <- mapply(function(x, y) substr(x, 1, y-1), x = OutputModels$convergence$conv_msg,
+                     y = conv_msg, USE.NAMES = FALSE)
+  ret[["OutputCollect"]][["conv_msg"]] <- conv_msg
   # toJSON(inputs, pretty = TRUE)
 
   # ExportedModel JSON
@@ -100,7 +107,7 @@ robyn_write <- function(InputCollect,
         (all_sol_json %>% filter(.data$cluster == x))$solID
       })
       names(all_sol_json) <- paste0("cluster", all_c)
-      ret[["all_sols"]] <- all_sol_json
+      ret[["OutputCollect"]][["all_sols"]] <- all_sol_json
     }
     write_json(ret, filename, pretty = TRUE)
   }

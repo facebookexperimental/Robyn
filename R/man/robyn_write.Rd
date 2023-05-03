@@ -11,6 +11,7 @@
 robyn_write(
   InputCollect,
   OutputCollect = NULL,
+  OutputModels = NULL,
   select_model = NULL,
   dir = OutputCollect$plot_folder,
   export = TRUE,
@@ -31,6 +32,8 @@ robyn_recreate(json_file, quiet = FALSE, ...)
 \item{InputCollect}{\code{robyn_inputs()} output.}
 
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
+
+\item{OutputModels}{\code{robyn_run()} output.}
 
 \item{select_model}{Character. Which model ID do you want to export
 into the JSON file?}

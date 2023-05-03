@@ -236,6 +236,8 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
       boot_ci = sprintf("[%s, %s]", round(.data$ci_low, 2), round(.data$ci_up, 2)),
       ci_low = .data$ci_low,
       ci_up = .data$ci_up,
+      sd = boot_se * sqrt(.data$n - 1),
+      dist100 = (.data$ci_up - .data$ci_low + 2 * boot_se * sqrt(.data$n - 1)) / 99,
       .groups = "drop"
     ) %>%
     ungroup()
