@@ -328,7 +328,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
           ) %>%
             mutate(halflife = which.min(abs(.data$decay_accumulated - 0.5)))
           max_non0 <- max(which(dt_weibull$decay_accumulated > 0.001))
-          dt_weibull$cut_time <- floor(max_non0 + max_non0 / 3)
+          dt_weibull$cut_time <- ifelse(max_non0 <= 5, max_non0 * 2, floor(max_non0 + max_non0 / 3))
           weibullCollect[[n]] <- dt_weibull
           n <- n + 1
         }
