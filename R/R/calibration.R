@@ -6,7 +6,6 @@
 robyn_calibrate <- function(calibration_input,
                             df_raw, # df_raw = InputCollect$dt_mod
                             dayInterval, # dayInterval = InputCollect$dayInterval
-                            dt_modAdstocked, # dt_modAdstocked = InputCollect$dt_mod (?)
                             xDecompVec, # xDecompVec = decompCollect$xDecompVec
                             coefs, # coefs = decompCollect$coefsOutCat
                             hypParamSam,
@@ -43,10 +42,10 @@ robyn_calibrate <- function(calibration_input,
 
       l_chn_collect <- list()
       l_chn_total_collect <- list()
-      for (l_chn in seq_along(get_channels)) {
+      for (l_chn in seq_along(get_channels)) { # l_chn =1
         if (scope == "immediate") {
           m <- df_raw[, get_channels[l_chn]][[1]]
-          m_calib <- df_raw[calib_pos, get_channels[l_chn]][[1]]
+          # m_calib <- df_raw[calib_pos, get_channels[l_chn]][[1]]
 
           ## 1. Adstock
           if (adstock == "geometric") {
@@ -56,25 +55,26 @@ robyn_calibrate <- function(calibration_input,
             shape <- hypParamSam[paste0(get_channels[l_chn], "_shapes")][[1]][[1]]
             scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
           }
-          x_list <- transform_adstock(m_calib, adstock, theta = theta, shape = shape, scale = scale)
-          m_calib_imme_adst <- x_list$x_decayed
-          m_calib_total_adst <- dt_modAdstocked[calib_pos, get_channels[l_chn]][[1]]
-          m_calib_hist_adst <- m_calib_total_adst - m_calib_imme_adst
+          x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
+          m_imme <- x_list$x
+          m_total <- x_list$x_decayed
+          m_caov <- m_total - m_imme
           # Adapt for weibull_pdf with lags
-          m_calib_imme_adst[m_calib_hist_adst < 0] <- m_calib_total_adst[m_calib_hist_adst < 0]
-          m_calib_hist_adst[m_calib_hist_adst < 0] <- 0
+          m_imme[m_caov < 0] <- 0
+          m_caov[m_caov < 0] <- m_total[m_caov < 0]
 
           ## 2. Saturation
-          m_adstocked_rw <- dt_modAdstocked[wind_start:wind_end, get_channels[l_chn]][[1]]
+          m_caov_calib <- m_caov[calib_pos]
+          m_total_rw <- m_total[wind_start:wind_end]
           alpha <- hypParamSam[paste0(get_channels[l_chn], "_alphas")][[1]][[1]]
           gamma <- hypParamSam[paste0(get_channels[l_chn], "_gammas")][[1]][[1]]
-          m_calib_hist_sat <- saturation_hill(
-            m_adstocked_rw,
-            alpha = alpha, gamma = gamma, x_marginal = m_calib_hist_adst
+          m_calib_caov_sat <- saturation_hill(
+            m_total_rw,
+            alpha = alpha, gamma = gamma, x_marginal = m_caov_calib
           )
-          m_calib_hist_decomp <- m_calib_hist_sat * coefs$s0[coefs$rn == get_channels[l_chn]]
+          m_calib_caov_decomp <- m_calib_caov_sat * coefs$s0[coefs$rn == get_channels[l_chn]]
           m_calib_total_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
-          m_calib_decomp <- m_calib_total_decomp - m_calib_hist_decomp
+          m_calib_decomp <- m_calib_total_decomp - m_calib_caov_decomp
         }
         if (scope == "total") {
           m_calib_decomp <- m_calib_total_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]

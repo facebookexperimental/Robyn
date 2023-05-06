@@ -702,7 +702,6 @@ robyn_mmm <- function(InputCollect,
                 wind_start = rollingWindowStartWhich,
                 wind_end = rollingWindowEndWhich,
                 dayInterval = InputCollect$dayInterval,
-                dt_modAdstocked = InputCollect$dt_mod,
                 adstock = adstock,
                 xDecompVec = decompCollect$xDecompVec,
                 coefs = decompCollect$coefsOutCat
