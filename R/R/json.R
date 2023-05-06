@@ -31,9 +31,9 @@
 #' @export
 robyn_write <- function(InputCollect,
                         OutputCollect = NULL,
-                        OutputModels = NULL,
                         select_model = NULL,
                         dir = OutputCollect$plot_folder,
+                        OutputModels = NULL,
                         export = TRUE,
                         quiet = FALSE,
                         all_sol_json = NULL,
@@ -54,6 +54,7 @@ robyn_write <- function(InputCollect,
   skip <- which(unlist(lapply(InputCollect, function(x) is.list(x) | is.null(x))))
   skip <- skip[!names(skip) %in% c("calibration_input", "hyperparameters", "custom_params")]
   ret[["InputCollect"]] <- InputCollect[-skip]
+  if (is.null(OutputModels)) { OutputModels <- OutputCollect$OutputModels }
   conv_msg <- mapply(function(x) x[[1]], x = gregexpr(":", OutputModels$convergence$conv_msg),
                      SIMPLIFY = FALSE)
   conv_msg <- mapply(function(x, y) substr(x, 1, y-1), x = OutputModels$convergence$conv_msg,
