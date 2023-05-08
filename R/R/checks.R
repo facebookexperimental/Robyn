@@ -421,9 +421,12 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
 }
 
 check_adstock <- function(adstock) {
+  if (is.null(adstock)) {
+    stop("Input 'adstock' can't be NULL. Set any of: 'geometric', 'weibull_cdf' or 'weibull_pdf'")
+  }
   if (adstock == "weibull") adstock <- "weibull_cdf"
   if (!adstock %in% c("geometric", "weibull_cdf", "weibull_pdf")) {
-    stop("'adstock' must be 'geometric', 'weibull_cdf' or 'weibull_pdf'")
+    stop("Input 'adstock' must be 'geometric', 'weibull_cdf' or 'weibull_pdf'")
   }
   return(adstock)
 }
