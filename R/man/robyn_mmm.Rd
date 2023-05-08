@@ -10,6 +10,7 @@ robyn_mmm(
   iterations,
   cores,
   nevergrad_algo,
+  intercept = TRUE,
   intercept_sign,
   ts_validation = TRUE,
   add_penalty_factor = FALSE,
@@ -18,7 +19,8 @@ robyn_mmm(
   refresh = FALSE,
   trial = 1L,
   seed = 123L,
-  quiet = FALSE
+  quiet = FALSE,
+  ...
 )
 }
 \arguments{
@@ -37,6 +39,9 @@ except one). Set to 1 if you want to turn parallel computing off.}
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
 "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
 "cGA", "RandomSearch")}.}
+
+\item{intercept}{Boolean. Should intercept(s) be fitted (default=TRUE) or
+set to zero (FALSE).}
 
 \item{intercept_sign}{Character. Choose one of "non_negative" (default) or
 "unconstrained". By default, if intercept is negative, Robyn will drop intercept
@@ -74,6 +79,8 @@ another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
 \item{seed}{Integer. For reproducible results when running nevergrad.}
 
 \item{quiet}{Boolean. Keep messages off?}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
 List. MMM results with hyperparameters values.

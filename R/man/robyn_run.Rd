@@ -20,6 +20,7 @@ robyn_run(
   iterations = 2000,
   rssd_zero_penalty = TRUE,
   nevergrad_algo = "TwoPointsDE",
+  intercept = TRUE,
   intercept_sign = "non_negative",
   lambda_control = NULL,
   ...
@@ -79,6 +80,9 @@ another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
 "DiscreteOnePlusOne", "PortfolioDiscreteOnePlusOne", "NaiveTBPSA",
 "cGA", "RandomSearch")}.}
+
+\item{intercept}{Boolean. Should intercept(s) be fitted (default=TRUE) or
+set to zero (FALSE).}
 
 \item{intercept_sign}{Character. Choose one of "non_negative" (default) or
 "unconstrained". By default, if intercept is negative, Robyn will drop intercept

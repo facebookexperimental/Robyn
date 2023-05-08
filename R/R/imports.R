@@ -26,7 +26,7 @@
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges geom_density_ridges_gradient
-#' @importFrom glmnet cv.glmnet glmnet
+#' @importFrom glmnet glmnet
 #' @importFrom jsonlite fromJSON toJSON write_json read_json
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued num_abbr ohse removenacols
 #' theme_lares `%>%` scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t

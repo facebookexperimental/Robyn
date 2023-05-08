@@ -11,6 +11,7 @@ robyn_train(
   iterations,
   trials,
   intercept_sign,
+  intercept,
   nevergrad_algo,
   dt_hyper_fixed = NULL,
   ts_validation = TRUE,
@@ -41,6 +42,9 @@ except one). Set to 1 if you want to turn parallel computing off.}
 "unconstrained". By default, if intercept is negative, Robyn will drop intercept
 and refit the model. Consider changing intercept_sign to "unconstrained" when
 there are \code{context_vars} with large positive values.}
+
+\item{intercept}{Boolean. Should intercept(s) be fitted (default=TRUE) or
+set to zero (FALSE).}
 
 \item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",
