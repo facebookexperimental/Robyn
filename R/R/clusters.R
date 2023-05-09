@@ -73,8 +73,10 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
   if ("auto" %in% k) {
     cls <- tryCatch(
       {
-        clusterKmeans(df, k = NULL, limit = limit_clusters, ignore = ignore,
-                      dim_red = dim_red, quiet = TRUE, seed = seed) # , ...)
+        clusterKmeans(df,
+          k = NULL, limit = limit_clusters, ignore = ignore,
+          dim_red = dim_red, quiet = TRUE, seed = seed
+        ) # , ...)
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -296,8 +298,10 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
   outcome <- removenacols(outcome, all = FALSE)
   outcome <- select(outcome, any_of(c("solID", all_media)))
-  errors <- distinct(x, .data$solID, .data$nrmse, .data$nrmse_test,
-                     .data$nrmse_train, .data$decomp.rssd, .data$mape)
+  errors <- distinct(
+    x, .data$solID, .data$nrmse, .data$nrmse_test,
+    .data$nrmse_train, .data$decomp.rssd, .data$mape
+  )
   outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   return(outcome)
 }

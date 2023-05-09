@@ -380,7 +380,7 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
       scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
     }
     x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
-    if (adstock == "weibull_pdf") {m_imme <- x_list$x_imme} else {m_imme <- m}
+    m_imme <- if (adstock == "weibull_pdf") x_list$x_imme else m
     m_adstocked <- x_list$x_decayed
     mediaAdstocked[[v]] <- m_adstocked
     m_carryover <- m_adstocked - m_imme

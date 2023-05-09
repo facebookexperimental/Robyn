@@ -233,8 +233,10 @@ robyn_outputs <- function(InputCollect, OutputModels,
         } else {
           all_sol_json <- NULL
         }
-        robyn_write(InputCollect = InputCollect, OutputModels = OutputModels,
-                    dir = OutputCollect$plot_folder, quiet = quiet, all_sol_json = all_sol_json)
+        robyn_write(
+          InputCollect = InputCollect, OutputModels = OutputModels,
+          dir = OutputCollect$plot_folder, quiet = quiet, all_sol_json = all_sol_json
+        )
 
         # For internal use -> UI Code
         if (ui && plot_pareto) OutputCollect$UI$pareto_onepagers <- pareto_onepagers

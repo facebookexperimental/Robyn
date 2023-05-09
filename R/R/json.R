@@ -54,11 +54,17 @@ robyn_write <- function(InputCollect,
   skip <- which(unlist(lapply(InputCollect, function(x) is.list(x) | is.null(x))))
   skip <- skip[!names(skip) %in% c("calibration_input", "hyperparameters", "custom_params")]
   ret[["InputCollect"]] <- InputCollect[-skip]
-  if (is.null(OutputModels)) { OutputModels <- OutputCollect$OutputModels }
-  conv_msg <- mapply(function(x) x[[1]], x = gregexpr(":", OutputModels$convergence$conv_msg),
-                     SIMPLIFY = FALSE)
-  conv_msg <- mapply(function(x, y) substr(x, 1, y-1), x = OutputModels$convergence$conv_msg,
-                     y = conv_msg, USE.NAMES = FALSE)
+  if (is.null(OutputModels)) {
+    OutputModels <- OutputCollect$OutputModels
+  }
+  conv_msg <- mapply(function(x) x[[1]],
+    x = gregexpr(":", OutputModels$convergence$conv_msg),
+    SIMPLIFY = FALSE
+  )
+  conv_msg <- mapply(function(x, y) substr(x, 1, y - 1),
+    x = OutputModels$convergence$conv_msg,
+    y = conv_msg, USE.NAMES = FALSE
+  )
   ret[["OutputCollect"]][["conv_msg"]] <- conv_msg
   # toJSON(inputs, pretty = TRUE)
 

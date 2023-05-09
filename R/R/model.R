@@ -628,7 +628,7 @@ robyn_mmm <- function(InputCollect,
             check_factor <- unlist(lapply(dt_sign, is.factor))
             lower.limits <- rep(0, length(prophet_signs))
             upper.limits <- rep(1, length(prophet_signs))
-            for (s in (length(prophet_signs)+1):length(x_sign)) {
+            for (s in (length(prophet_signs) + 1):length(x_sign)) {
               if (check_factor[s] == TRUE) {
                 level.n <- length(levels(unlist(dt_sign[, s, with = FALSE])))
                 if (level.n <= 1) {
