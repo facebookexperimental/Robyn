@@ -148,7 +148,7 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
         x.prod <- x.vec * thetaVecCumLag
         return(x.prod)
       }, x_val = x, x_pos = seq_along(x))
-      x_imme <- mapply(function(pos) {x_decayed[pos, pos]}, pos = seq_along(x), SIMPLIFY = TRUE)
+      x_imme <- diag(x_decayed)
       x_decayed <- rowSums(x_decayed)[seq_along(x)]
     }
   } else {
