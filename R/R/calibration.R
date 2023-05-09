@@ -56,12 +56,9 @@ robyn_calibrate <- function(calibration_input,
             scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
           }
           x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
-          m_imme <- x_list$x
+          if (adstock == "weibull_pdf") {m_imme <- x_list$x_imme} else {m_imme <- m}
           m_total <- x_list$x_decayed
           m_caov <- m_total - m_imme
-          # Adapt for weibull_pdf with lags
-          m_imme[m_caov < 0] <- 0
-          m_caov[m_caov < 0] <- m_total[m_caov < 0]
 
           ## 2. Saturation
           m_caov_calib <- m_caov[calib_pos]

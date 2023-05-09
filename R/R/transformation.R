@@ -147,15 +147,16 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
         thetaVecCumLag <- lag(thetaVecCum, x_pos - 1, default = 0)
         x.prod <- x.vec * thetaVecCumLag
         return(x.prod)
-      }, x_val = x, x_pos = x_bin[seq_along(x)])
+      }, x_val = x, x_pos = seq_along(x))
+      x_imme <- mapply(function(pos) {x_decayed[pos, pos]}, pos = seq_along(x), SIMPLIFY = TRUE)
       x_decayed <- rowSums(x_decayed)[seq_along(x)]
     }
   } else {
-    x_decayed <- x
+    x_decayed <- x_imme <- x
     thetaVecCum <- 1
   }
   inflation_total <- sum(x_decayed) / sum(x)
-  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total))
+  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total, x_imme = x_imme))
 }
 
 #' @rdname adstocks
@@ -379,12 +380,11 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
       scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
     }
     x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
+    if (adstock == "weibull_pdf") {m_imme <- x_list$x_imme} else {m_imme <- m}
     m_adstocked <- x_list$x_decayed
     mediaAdstocked[[v]] <- m_adstocked
-    m_carryover <- m_adstocked - m
-    m[m_carryover < 0] <- m_adstocked[m_carryover < 0] # adapt for weibull_pdf with lags
-    m_carryover[m_carryover < 0] <- 0 # adapt for weibull_pdf with lags
-    mediaImmediate[[v]] <- m
+    m_carryover <- m_adstocked - m_imme
+    mediaImmediate[[v]] <- m_imme
     mediaCarryover[[v]] <- m_carryover
     mediaVecCum[[v]] <- x_list$thetaVecCum
 
@@ -393,7 +393,6 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
     # Saturated response = Immediate response + carryover response
     m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
     m_carryoverRollWind <- m_carryover[rollingWindowStartWhich:rollingWindowEndWhich]
-
 
     alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
     gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
