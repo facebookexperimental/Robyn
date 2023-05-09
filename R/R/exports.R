@@ -16,6 +16,9 @@ robyn_save <- function(InputCollect,
                        robyn_object = NULL,
                        select_model = NULL,
                        quiet = FALSE) {
+  warning(paste(
+    "Function robyn_save() is not supported anymore.",
+    "Please migrate to robyn_write() and robyn_read()"))
   check_robyn_name(robyn_object, quiet)
   if (is.null(select_model)) select_model <- OutputCollect[["selectID"]]
   if (!select_model %in% OutputCollect$allSolutions) {
