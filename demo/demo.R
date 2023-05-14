@@ -252,6 +252,17 @@ print(InputCollect)
 #   # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
 #   calibration_scope = c("immediate", "immediate", "immediate", "immediate")
 # )
+
+calibration_input <- data.frame(
+  channel = c("facebook_S",  "tv_S"),
+  liftStartDate = as.Date(c('2017-10-06', '2017-10-06')),
+  liftEndDate = as.Date(c('2017-12-07', '2017-12-07')),
+  liftAbs = c(44200, 1017900),
+  spend = c(149099, 113658),
+  confidence = c(0.83, 0.83),
+  metric = c("revenue", "revenue"),
+  calibration_scope = c("total", "total"))
+
 # InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
 
 

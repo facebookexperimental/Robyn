@@ -135,6 +135,7 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     if (shape == 0 | scale == 0) {
       x_decayed <- x
       thetaVecCum <- thetaVec <- rep(0, windlen)
+      x_imme <- NULL
     } else {
       if ("cdf" %in% tolower(type)) {
         thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
@@ -156,7 +157,13 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     thetaVecCum <- 1
   }
   inflation_total <- sum(x_decayed) / sum(x)
-  return(list(x = x, x_decayed = x_decayed, thetaVecCum = thetaVecCum, inflation_total = inflation_total, x_imme = x_imme))
+  return(list(
+    x = x,
+    x_decayed = x_decayed,
+    thetaVecCum = thetaVecCum,
+    inflation_total = inflation_total,
+    x_imme = x_imme)
+  )
 }
 
 #' @rdname adstocks
@@ -264,7 +271,9 @@ plot_adstock <- function(plot = TRUE) {
         for (v2 in seq_along(scaleVec)) {
           dt_weibull <- data.frame(
             x = 1:100,
-            decay_accumulated = adstock_weibull(1:100, shape = shapeVec[v1], scale = scaleVec[v2], type = tolower(types[t]))$thetaVecCum,
+            decay_accumulated = adstock_weibull(
+              1:100, shape = shapeVec[v1], scale = scaleVec[v2],
+              type = tolower(types[t]))$thetaVecCum,
             shape = paste0("shape=", shapeVec[v1]),
             scale = as.factor(scaleVec[v2]),
             type = types[t]

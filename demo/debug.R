@@ -85,7 +85,6 @@ df_raw = dt_mod
 wind_start = rollingWindowStartWhich
 wind_end = rollingWindowEndWhich
 dayInterval = InputCollect$dayInterval
-dt_modAdstocked = dt_modAdstocked
 #adstock = adstock
 xDecompVec = decompCollect$xDecompVec
 coefs = decompCollect$coefsOutCat
