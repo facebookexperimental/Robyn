@@ -31,13 +31,20 @@ check_nas <- function(df) {
   }
 }
 
-check_novar <- function(dt_input) {
+check_novar <- function(dt_input, InputCollect = NULL) {
   novar <- lares::zerovar(dt_input)
   if (length(novar) > 0) {
-    stop(sprintf(
+    msg <- sprintf(
       "There are %s column(s) with no-variance: %s. \nPlease, remove variable(s) to proceed...",
       length(novar), v2t(novar)
-    ))
+    )
+    if (!is.null(InputCollect)) msg <- sprintf(
+      "%s\nNote that there's no variance when filtering the modeling window (%s:%s)",
+      msg,
+      InputCollect$window_start,
+      InputCollect$window_end
+    )
+    stop(msg)
   }
 }
 

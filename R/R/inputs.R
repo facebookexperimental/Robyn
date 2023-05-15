@@ -362,7 +362,7 @@ robyn_inputs <- function(dt_input = NULL,
       select(-all_of(InputCollect$unused_vars)) %>%
       filter(.data$ds >= InputCollect$window_start,
              .data$ds <= InputCollect$window_end)
-    check_novar(dt_mod_model_window)
+    check_novar(dt_mod_model_window, InputCollect)
   }
 
   if (!is.null(json_file)) {
