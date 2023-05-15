@@ -4,7 +4,14 @@
 \alias{robyn_converge}
 \title{Check Models Convergence}
 \usage{
-robyn_converge(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...)
+robyn_converge(
+  OutputModels,
+  n_cuts = 20,
+  sd_qtref = 3,
+  med_lowb = 2,
+  nrmse_win = c(0, 0.998),
+  ...
+)
 }
 \arguments{
 \item{OutputModels}{List. Output from \code{robyn_run()}.}
@@ -16,6 +23,9 @@ for standard deviation (Criteria #1). Defaults to 3.}
 
 \item{med_lowb}{Integer. Lower bound distance of the error convergence rule
 for median. (Criteria #2). Default to 3.}
+
+\item{nrmse_win}{Numeric vector. Lower and upper quantiles thresholds to
+winsorize NRMSE. Set values within [0,1]; default: c(0, 0.998) which is 1/500.}
 
 \item{...}{Additional parameters}
 }
@@ -39,7 +49,7 @@ Both mentioned criteria have to be satisfied to consider MOO convergence.
 \examples{
 \dontrun{
 # Having OutputModels results
-robyn_converge(
+MOO <- robyn_converge(
   OutputModels,
   n_cuts = 10,
   sd_qtref = 3,

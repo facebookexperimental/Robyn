@@ -25,11 +25,13 @@
 #' for standard deviation (Criteria #1). Defaults to 3.
 #' @param med_lowb Integer. Lower bound distance of the error convergence rule
 #' for median. (Criteria #2). Default to 3.
+#' @param nrmse_win Numeric vector. Lower and upper quantiles thresholds to
+#' winsorize NRMSE. Set values within [0,1]; default: c(0, 0.998) which is 1/500.
 #' @param ... Additional parameters
 #' @examples
 #' \dontrun{
 #' # Having OutputModels results
-#' robyn_converge(
+#' MOO <- robyn_converge(
 #'   OutputModels,
 #'   n_cuts = 10,
 #'   sd_qtref = 3,
@@ -38,7 +40,9 @@
 #' }
 #' @return List. Plots and MOO convergence results.
 #' @export
-robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2, ...) {
+robyn_converge <- function(OutputModels,
+                           n_cuts = 20, sd_qtref = 3, med_lowb = 2,
+                           nrmse_win = c(0, 0.998), ...) {
   stopifnot(n_cuts > min(c(sd_qtref, med_lowb)) + 1)
 
   # Gather all trials
@@ -115,24 +119,6 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
   }
   message(paste(paste("-", conv_msg), collapse = "\n"))
 
-  # # Moving average
-  # dt_objfunc_cvg %>%
-  #   group_by(trial, error_type) %>%
-  #   mutate(value_ma = zoo::rollapply(value, 50, mean, fill = NA)) %>%
-  #   ggplot(aes(x = iter, y = value_ma, colour = as.character(trial), group = error_type)) +
-  #   geom_line(na.rm = TRUE) +
-  #   facet_grid(. ~ error_type, scales = "free") +
-  #   theme_lares(legend = "top") +
-  #   labs(colour = "Trial", x = "Iterations", y = NULL)
-
-  # # Elbow plot (like ROI's) looks weird
-  # dt_objfunc_cvg %>%
-  #   ggplot(aes(x = iter, y = value, colour = as.character(trial), group = error_type)) +
-  #   geom_line() +
-  #   facet_grid(. ~ error_type, scales = "free") +
-  #   theme_lares(legend = "top") +
-  #   labs(colour = "Trial", x = "Iterations", y = NULL)
-
   subtitle <- sprintf(
     "%s trial%s with %s iterations%s using %s",
     max(df$trial), ifelse(max(df$trial) > 1, "s", ""), max(dt_objfunc_cvg$cuts),
@@ -142,6 +128,8 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
   moo_distrb_plot <- dt_objfunc_cvg %>%
     mutate(id = as.integer(.data$cuts)) %>%
     mutate(cuts = factor(.data$cuts, levels = rev(levels(.data$cuts)))) %>%
+    group_by(.data$error_type) %>%
+    mutate(value = lares::winsorize(.data$value, nrmse_win)) %>%
     ggplot(aes(x = .data$value, y = .data$cuts, fill = -.data$id)) +
     ggridges::geom_density_ridges(
       scale = 2.5, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7
@@ -157,7 +145,9 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
       caption = paste(conv_msg, collapse = "\n")
     )
 
-  moo_cloud_plot <- ggplot(df, aes(
+  moo_cloud_plot <- df %>%
+    mutate(nrmse = lares::winsorize(.data$nrmse, nrmse_win)) %>%
+    ggplot(aes(
     x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum
   )) +
     scale_colour_gradient(low = "skyblue", high = "navyblue") +
@@ -166,7 +156,7 @@ robyn_converge <- function(OutputModels, n_cuts = 20, sd_qtref = 3, med_lowb = 2
         "Multi-objective evolutionary performance with calibration"
       ),
       subtitle = subtitle,
-      x = "NRMSE",
+      x = ifelse(max(nrmse_win) == 1, "NRMSE", sprintf("NRMSE [Winsorized %s]", paste(nrmse_win, collapse = "-"))),
       y = "DECOMP.RSSD",
       colour = "Time [s]",
       size = "MAPE",
