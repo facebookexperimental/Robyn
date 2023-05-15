@@ -270,7 +270,7 @@ robyn_inputs <- function(dt_input = NULL,
       dep_var, date_var, context_vars, paid_media_vars, paid_media_spends, organic_vars
     )]
 
-    # Check for no-variance columns (after removing not-used)
+    # Check for no-variance columns on raw data (after removing not-used)
     check_novar(select(dt_input, -all_of(unused_vars)))
 
     ## Collect input
@@ -356,6 +356,13 @@ robyn_inputs <- function(dt_input = NULL,
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
+
+    # Check for no-variance columns (after filtering modeling window)
+    dt_mod_model_window <- InputCollect$dt_mod %>%
+      select(-all_of(InputCollect$unused_vars)) %>%
+      filter(.data$ds >= InputCollect$window_start,
+             .data$ds <= InputCollect$window_end)
+    check_novar(dt_mod_model_window)
   }
 
   if (!is.null(json_file)) {

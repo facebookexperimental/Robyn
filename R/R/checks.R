@@ -35,7 +35,7 @@ check_novar <- function(dt_input) {
   novar <- lares::zerovar(dt_input)
   if (length(novar) > 0) {
     stop(sprintf(
-      "There are %s column(s) with no-variance: %s. \nPlease, remove them to proceed",
+      "There are %s column(s) with no-variance: %s. \nPlease, remove variable(s) to proceed...",
       length(novar), v2t(novar)
     ))
   }
