@@ -178,10 +178,10 @@ robyn_response <- function(InputCollect = NULL,
 
   if (usecase == "all_historical_vec") {
     ds_list <- check_metric_dates(date_range = "all", all_dates, dayInterval, quiet, ...)
-    val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+    #val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else if (usecase == "unit_metric_default_last_n") {
     ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates, dayInterval, quiet, ...)
-    val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+    #val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else {
     ds_list <- check_metric_dates(date_range, all_dates, dayInterval, quiet, ...)
   }
@@ -243,7 +243,9 @@ robyn_response <- function(InputCollect = NULL,
   ## Adstocking simulation
   x_list_sim <- transform_adstock(all_values_updated, adstock, theta = theta, shape = shape, scale = scale)
   media_vec_sim <- x_list_sim$x_decayed
+  media_vec_sim_imme <- if (adstock == "weibull_pdf") x_list_sim$x_imme else x_list_sim$x
   input_total <- media_vec_sim[ds_list$metric_loc]
+  input_immediate <- media_vec_sim_imme[ds_list$metric_loc]
   input_carryover <- input_total - input_immediate
 
   ## Saturation
