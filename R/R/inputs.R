@@ -359,7 +359,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     # Check for no-variance columns (after filtering modeling window)
     dt_mod_model_window <- InputCollect$dt_mod %>%
-      select(-all_of(InputCollect$unused_vars)) %>%
+      select(-any_of(InputCollect$unused_vars)) %>%
       filter(.data$ds >= InputCollect$window_start,
              .data$ds <= InputCollect$window_end)
     check_novar(dt_mod_model_window, InputCollect)
@@ -571,7 +571,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   if (!quiet) message(">> Running feature engineering...")
   InputCollect <- x
   check_InputCollect(InputCollect)
-  dt_input <- select(InputCollect$dt_input, -all_of(InputCollect$unused_vars))
+  dt_input <- select(InputCollect$dt_input, -any_of(InputCollect$unused_vars))
   paid_media_vars <- InputCollect$paid_media_vars
   paid_media_spends <- InputCollect$paid_media_spends
   factor_vars <- InputCollect$factor_vars
