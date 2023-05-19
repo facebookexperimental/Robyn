@@ -24,8 +24,8 @@ robyn_clusters(
 \item{dep_var_type}{Character. For dep_var_type 'revenue', ROI is used for clustering.
 For conversion', CPA is used for clustering.}
 
-\item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
-Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}
+\item{all_media}{Character vector. Default to \code{InputCollect$all_media}.
+Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.}
 
 \item{k}{Integer. Number of clusters}
 

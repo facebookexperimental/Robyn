@@ -7,11 +7,11 @@
 hyper_names(adstock, all_media)
 }
 \arguments{
-\item{adstock}{A character. Default to \code{InputCollect$adstock}.
+\item{adstock}{Character. Default to \code{InputCollect$adstock}.
 Accepts "geometric", "weibull_cdf" or "weibull_pdf"}
 
-\item{all_media}{A character vector. Default to \code{InputCollect$all_media}.
-Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.}
+\item{all_media}{Character vector. Default to \code{InputCollect$all_media}.
+Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.}
 }
 \value{
 Character vector. Names of hyper-parameters that should be defined.

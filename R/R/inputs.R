@@ -40,20 +40,21 @@
 #' @param dep_var_type Character. Type of dependent variable
 #' as "revenue" or "conversion". Will be used to calculate ROI or CPI,
 #' respectively. Only one allowed and case sensitive.
-#' @param paid_media_spends Character vector. When using exposure level
-#' metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
-#' corresponding spends for ROAS calculation. For spend metrics in
-#' \code{paid_media_vars}, use the same name. \code{media_spend_vars} must
-#' have same order and same length as \code{paid_media_vars}.
-#' @param paid_media_vars Character vector. Recommended to use exposure
-#' level metrics (impressions, clicks, GRP etc) other than spend. Also
-#' recommended to split media channel into sub-channels
-#' (e.g. fb_retargeting, fb_prospecting, etc.) to gain more variance.
-#' \code{paid_media_vars} only accepts numerical variable.
+#' @param paid_media_spends Character vector. Names of the paid media variables.
+#' The values on each of these variables must be numeric. Also,
+#' \code{paid_media_spends} must have same order and length as
+#' \code{paid_media_vars} respectively.
+#' @param paid_media_vars Character vector. Names of the paid media variables'
+#' exposure level metrics (impressions, clicks, GRP etc) other than spend.
+#' The values on each of these variables must be numeric. These variables are not
+#' being used to train the model but to check relationship and recommend to
+#' split media channels into sub-channels (e.g. fb_retargeting, fb_prospecting,
+#' etc.) to gain more variance. \code{paid_media_vars} must have same
+#' order and length as \code{paid_media_spends} respectively and is not required.
 #' @param paid_media_signs Character vector. Choose any of
 #' \code{c("default", "positive", "negative")}. Control
-#' the signs of coefficients for paid_media_vars. Must have same
-#' order and same length as \code{paid_media_vars}. By default it's
+#' the signs of coefficients for \code{paid_media_vars}. Must have same
+#' order and same length as \code{paid_media_vars}. By default, all values are
 #' set to 'positive'.
 #' @param context_vars Character vector. Typically competitors,
 #' price & promotion, temperature, unemployment rate, etc.
@@ -63,12 +64,12 @@
 #' order and same length as \code{context_vars}. By default it's
 #' set to 'defualt'.
 #' @param organic_vars Character vector. Typically newsletter sendings,
-#' push-notifications, social media posts etc. Compared to paid_media_vars
-#' organic_vars are often  marketing activities without clear spends.
+#' push-notifications, social media posts etc. Compared to \code{paid_media_vars}
+#' \code{organic_vars} are often marketing activities without clear spends.
 #' @param organic_signs Character vector. Choose any of
 #' "default", "positive", "negative". Control
-#' the signs of coefficients for organic_signs. Must have same
-#' order and same length as \code{organic_vars}. By default it's
+#' the signs of coefficients for \code{organic_vars} Must have same
+#' order and same length as \code{organic_vars}. By default, all values are
 #' set to "positive".
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor.
@@ -78,8 +79,8 @@
 #' weekly and above cadence. Set to NULL to skip prophet's functionality.
 #' @param prophet_signs Character vector. Choose any of
 #' "default", "positive", "negative". Control
-#' the signs of coefficients for prophet variables. Must have same
-#' order and same length as \code{prophet_vars}. By default it's
+#' the signs of coefficients for \code{prophet_vars}. Must have same
+#' order and same length as \code{prophet_vars}. By default, all values are
 #' set to "default".
 #' @param prophet_country Character. Only one country allowed once.
 #' Including national holidays for 59 countries, whose list can
@@ -150,21 +151,21 @@
 #' Class: \code{robyn_inputs}.
 #' @export
 robyn_inputs <- function(dt_input = NULL,
-                         dt_holidays = Robyn::dt_prophet_holidays,
-                         date_var = "auto",
                          dep_var = NULL,
                          dep_var_type = NULL,
-                         prophet_vars = NULL,
-                         prophet_signs = NULL,
-                         prophet_country = NULL,
-                         context_vars = NULL,
-                         context_signs = NULL,
+                         date_var = "auto",
                          paid_media_spends = NULL,
                          paid_media_vars = NULL,
                          paid_media_signs = NULL,
                          organic_vars = NULL,
                          organic_signs = NULL,
+                         context_vars = NULL,
+                         context_signs = NULL,
                          factor_vars = NULL,
+                         dt_holidays = Robyn::dt_prophet_holidays,
+                         prophet_vars = NULL,
+                         prophet_signs = NULL,
+                         prophet_country = NULL,
                          adstock = NULL,
                          hyperparameters = NULL,
                          window_start = NULL,
@@ -480,10 +481,10 @@ Adstock: {x$adstock}
 #' helping you understand hill/alpha/gamma transformation}
 #' }
 #'
-#' @param adstock A character. Default to \code{InputCollect$adstock}.
+#' @param adstock Character. Default to \code{InputCollect$adstock}.
 #' Accepts "geometric", "weibull_cdf" or "weibull_pdf"
-#' @param all_media A character vector. Default to \code{InputCollect$all_media}.
-#' Includes \code{InputCollect$paid_media_vars} and \code{InputCollect$organic_vars}.
+#' @param all_media Character vector. Default to \code{InputCollect$all_media}.
+#' Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.
 #' @examples
 #' \donttest{
 #' media <- c("facebook_S", "print_S", "tv_S")

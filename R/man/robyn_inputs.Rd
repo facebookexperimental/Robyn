@@ -7,21 +7,21 @@
 \usage{
 robyn_inputs(
   dt_input = NULL,
-  dt_holidays = Robyn::dt_prophet_holidays,
-  date_var = "auto",
   dep_var = NULL,
   dep_var_type = NULL,
-  prophet_vars = NULL,
-  prophet_signs = NULL,
-  prophet_country = NULL,
-  context_vars = NULL,
-  context_signs = NULL,
+  date_var = "auto",
   paid_media_spends = NULL,
   paid_media_vars = NULL,
   paid_media_signs = NULL,
   organic_vars = NULL,
   organic_signs = NULL,
+  context_vars = NULL,
+  context_signs = NULL,
   factor_vars = NULL,
+  dt_holidays = Robyn::dt_prophet_holidays,
+  prophet_vars = NULL,
+  prophet_signs = NULL,
+  prophet_country = NULL,
   adstock = NULL,
   hyperparameters = NULL,
   window_start = NULL,
@@ -38,34 +38,45 @@ robyn_inputs(
 \item{dt_input}{data.frame. Raw input data. Load simulated
 dataset using \code{data("dt_simulated_weekly")}}
 
-\item{dt_holidays}{data.frame. Raw input holiday data. Load standard
-Prophet holidays using \code{data("dt_prophet_holidays")}}
-
-\item{date_var}{Character. Name of date variable. Daily, weekly
-and monthly data supported. Weekly requires week-start of Monday or Sunday.
-\code{date_var} must have format "2020-01-01" (YYY-MM-DD).
-Default to automatic date detection.}
-
 \item{dep_var}{Character. Name of dependent variable. Only one allowed}
 
 \item{dep_var_type}{Character. Type of dependent variable
 as "revenue" or "conversion". Will be used to calculate ROI or CPI,
 respectively. Only one allowed and case sensitive.}
 
-\item{prophet_vars}{Character vector. Include any of "trend",
-"season", "weekday", "holiday" or NULL. Highly recommended
-to use all for daily data and "trend", "season", "holiday" for
-weekly and above cadence. Set to NULL to skip prophet's functionality.}
+\item{date_var}{Character. Name of date variable. Daily, weekly
+and monthly data supported. Weekly requires week-start of Monday or Sunday.
+\code{date_var} must have format "2020-01-01" (YYY-MM-DD).
+Default to automatic date detection.}
 
-\item{prophet_signs}{Character vector. Choose any of
+\item{paid_media_spends}{Character vector. Names of the paid media variables.
+The values on each of these variables must be numeric. Also,
+\code{paid_media_spends} must have same order and length as
+\code{paid_media_vars} respectively.}
+
+\item{paid_media_vars}{Character vector. Names of the paid media variables'
+exposure level metrics (impressions, clicks, GRP etc) other than spend.
+The values on each of these variables must be numeric. These variables are not
+being used to train the model but to check relationship and recommend to
+split media channels into sub-channels (e.g. fb_retargeting, fb_prospecting,
+etc.) to gain more variance. \code{paid_media_vars} must have same
+order and length as \code{paid_media_spends} respectively and is not required.}
+
+\item{paid_media_signs}{Character vector. Choose any of
+\code{c("default", "positive", "negative")}. Control
+the signs of coefficients for \code{paid_media_vars}. Must have same
+order and same length as \code{paid_media_vars}. By default, all values are
+set to 'positive'.}
+
+\item{organic_vars}{Character vector. Typically newsletter sendings,
+push-notifications, social media posts etc. Compared to \code{paid_media_vars}
+\code{organic_vars} are often marketing activities without clear spends.}
+
+\item{organic_signs}{Character vector. Choose any of
 "default", "positive", "negative". Control
-the signs of coefficients for prophet variables. Must have same
-order and same length as \code{prophet_vars}. By default it's
-set to "default".}
-
-\item{prophet_country}{Character. Only one country allowed once.
-Including national holidays for 59 countries, whose list can
-be found loading \code{data("dt_prophet_holidays")}.}
+the signs of coefficients for \code{organic_vars} Must have same
+order and same length as \code{organic_vars}. By default, all values are
+set to "positive".}
 
 \item{context_vars}{Character vector. Typically competitors,
 price & promotion, temperature, unemployment rate, etc.}
@@ -76,36 +87,26 @@ the signs of coefficients for context_vars. Must have same
 order and same length as \code{context_vars}. By default it's
 set to 'defualt'.}
 
-\item{paid_media_spends}{Character vector. When using exposure level
-metrics (impressions, clicks, GRP etc) in \code{paid_media_vars}, provide
-corresponding spends for ROAS calculation. For spend metrics in
-\code{paid_media_vars}, use the same name. \code{media_spend_vars} must
-have same order and same length as \code{paid_media_vars}.}
-
-\item{paid_media_vars}{Character vector. Recommended to use exposure
-level metrics (impressions, clicks, GRP etc) other than spend. Also
-recommended to split media channel into sub-channels
-(e.g. fb_retargeting, fb_prospecting, etc.) to gain more variance.
-\code{paid_media_vars} only accepts numerical variable.}
-
-\item{paid_media_signs}{Character vector. Choose any of
-\code{c("default", "positive", "negative")}. Control
-the signs of coefficients for paid_media_vars. Must have same
-order and same length as \code{paid_media_vars}. By default it's
-set to 'positive'.}
-
-\item{organic_vars}{Character vector. Typically newsletter sendings,
-push-notifications, social media posts etc. Compared to paid_media_vars
-organic_vars are often  marketing activities without clear spends.}
-
-\item{organic_signs}{Character vector. Choose any of
-"default", "positive", "negative". Control
-the signs of coefficients for organic_signs. Must have same
-order and same length as \code{organic_vars}. By default it's
-set to "positive".}
-
 \item{factor_vars}{Character vector. Specify which of the provided
 variables in organic_vars or context_vars should be forced as a factor.}
+
+\item{dt_holidays}{data.frame. Raw input holiday data. Load standard
+Prophet holidays using \code{data("dt_prophet_holidays")}}
+
+\item{prophet_vars}{Character vector. Include any of "trend",
+"season", "weekday", "holiday" or NULL. Highly recommended
+to use all for daily data and "trend", "season", "holiday" for
+weekly and above cadence. Set to NULL to skip prophet's functionality.}
+
+\item{prophet_signs}{Character vector. Choose any of
+"default", "positive", "negative". Control
+the signs of coefficients for \code{prophet_vars}. Must have same
+order and same length as \code{prophet_vars}. By default, all values are
+set to "default".}
+
+\item{prophet_country}{Character. Only one country allowed once.
+Including national holidays for 59 countries, whose list can
+be found loading \code{data("dt_prophet_holidays")}.}
 
 \item{adstock}{Character. Choose any of "geometric", "weibull_cdf",
 "weibull_pdf". Weibull adstock is a two-parametric function and thus more
