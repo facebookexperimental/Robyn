@@ -735,7 +735,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         paste(.data$type, .data$name, sep = "\n"),
         levels = paste(.data$type, .data$name, sep = "\n")
       )
-    )
+    ) %>%
+    group_by(.data$name) %>%
+    mutate(value_norm = .data$value / dplyr::first(.data$value))
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
   labs <- paste(
     paste(levs2, "\n"),
@@ -750,8 +752,6 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
 
   outputs[["p1"]] <- p1 <- df_roi %>%
-    group_by(.data$name) %>%
-    mutate(value_norm = .data$value / dplyr::first(.data$value)) %>%
     ggplot(aes(x = .data$name, y = .data$value_norm, fill = .data$type)) +
     facet_grid(. ~ .data$labs, scales = "free") +
     scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
@@ -759,6 +759,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
     labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
+    scale_y_continuous(limits = c(0, max(df_roi$value_norm * 1.2))) +
     theme(axis.text.y = element_blank())
 
   # 2. Response and spend comparison per channel plot
