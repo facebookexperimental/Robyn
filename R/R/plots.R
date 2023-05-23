@@ -750,14 +750,16 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   df_roi$labs <- factor(rep(labs, each = 2), levels = labs)
 
   outputs[["p1"]] <- p1 <- df_roi %>%
-    ggplot(aes(x = .data$name, y = .data$value, fill = .data$type)) +
+    group_by(.data$name) %>%
+    mutate(value_norm = .data$value / dplyr::first(.data$value)) %>%
+    ggplot(aes(x = .data$name, y = .data$value_norm, fill = .data$type)) +
     facet_grid(. ~ .data$labs, scales = "free") +
     scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(legend = "none") +
     labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
-    scale_y_abbr(limits = c(0, max(df_roi$value * 1.2)))
+    theme(axis.text.y = element_blank())
 
   # 2. Response and spend comparison per channel plot
   df_plots <- dt_optimOut %>%
