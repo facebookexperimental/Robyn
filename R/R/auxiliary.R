@@ -10,11 +10,8 @@ get_rsq <- function(true, predicted, p = NULL, df.int = NULL, n_train = NULL) {
   rsq <- 1 - sse / sst # rsq interpreted as variance explained
   rsq_out <- rsq
   if (!is.null(p) && !is.null(df.int)) {
-    if (!is.null(n_train)) {
-      n <- n_train # for oos dataset, use n from train set for adj. rsq
-    } else {
-      n <- length(true)
-    }
+    # for oos dataset, use n from train set for adj. rsq
+    n <- if (!is.null(n_train)) n_train else length(true)
     rdf <- n - p - 1
     rsq_adj <- 1 - (1 - rsq) * ((n - df.int) / rdf)
     rsq_out <- rsq_adj
