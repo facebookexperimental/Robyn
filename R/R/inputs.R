@@ -790,7 +790,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     mutate(ds = as.Date(.data$ds))
 
   prophet_params <- list(
-    holidays = if (use_holiday) holidays[holidays$country == prophet_country, ] else NULL,
+    holidays = if (use_holiday) holidays[holidays$country %in% prophet_country, ] else NULL,
     yearly.seasonality = ifelse("yearly.seasonality" %in% names(custom_params),
       custom_params[["yearly.seasonality"]],
       use_season
