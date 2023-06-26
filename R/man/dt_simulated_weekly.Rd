@@ -3,7 +3,7 @@
 \docType{data}
 \name{dt_simulated_weekly}
 \alias{dt_simulated_weekly}
-\title{Robyn Dataset: Time series}
+\title{Robyn Dataset: MMM Demo Data}
 \format{
 An object of class \code{"data.frame"}
 \describe{
@@ -23,7 +23,7 @@ data.frame
 Dataframe. Contains simulated dummy dataset to test and run demo.
 }
 \description{
-Describe the dataset. Input time series should be daily, weekly or monthly.
+Simulated MMM data. Input time series should be daily, weekly or monthly.
 }
 \examples{
 data(dt_simulated_weekly)

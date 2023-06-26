@@ -3,14 +3,14 @@
 \docType{data}
 \name{dt_prophet_holidays}
 \alias{dt_prophet_holidays}
-\title{Robyn Dataset: Time series}
+\title{Robyn Dataset: Holidays by Country}
 \format{
 An object of class \code{"data.frame"}
 \describe{
   \item{ds}{Date}
-  \item{holiday}{Daily total revenue}
-  \item{country}{Television}
-  \item{year}{Out of home}
+  \item{holiday}{Name of celebrated holiday}
+  \item{country}{Code for the country (Alpha-2)}
+  \item{year}{Year of \code{ds}}
 }
 }
 \usage{
@@ -22,8 +22,9 @@ data.frame
 Dataframe. Contains \code{prophet}'s default holidays by country.
 }
 \description{
-Describe the dataset. When using own holidays, please keep the
-header \code{c("ds", "holiday", "country", "year")}.
+Contains \code{prophet}'s "new" default holidays by country.
+When using own holidays, please keep the header
+\code{c("ds", "holiday", "country", "year")}.
 }
 \examples{
 data(dt_prophet_holidays)

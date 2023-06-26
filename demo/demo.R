@@ -69,7 +69,7 @@ InputCollect <- robyn_inputs(
   dep_var = "revenue", # there should be only one dependent variable
   dep_var_type = "revenue", # "revenue" (ROI) or "conversion" (CPA)
   prophet_vars = c("trend", "season", "holiday"), # "trend","season", "weekday" & "holiday"
-  prophet_country = "DE", # input one country. dt_prophet_holidays includes 59 countries by default
+  prophet_country = "DE", # input country code. Check: dt_prophet_holidays
   context_vars = c("competitor_sales_B", "events"), # e.g. competitors, discount, unemployment etc
   paid_media_spends = c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S"), # mandatory input
   paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"), # mandatory.

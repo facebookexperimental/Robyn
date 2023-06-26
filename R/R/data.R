@@ -4,9 +4,9 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Robyn Dataset: Time series
+#' Robyn Dataset: MMM Demo Data
 #'
-#' Describe the dataset. Input time series should be daily, weekly or monthly.
+#' Simulated MMM data. Input time series should be daily, weekly or monthly.
 #'
 #' @family Dataset
 #' @docType data
@@ -32,10 +32,12 @@
 # save(dt_simulated_weekly, file = "data/dt_simulated_weekly.RData", version = 2)
 
 ####################################################################
-#' Robyn Dataset: Time series
+#' Robyn Dataset: Holidays by Country
 #'
-#' Describe the dataset. When using own holidays, please keep the
-#' header \code{c("ds", "holiday", "country", "year")}.
+#' Contains \code{prophet}'s "new" default holidays by country.
+#' When using own holidays, please keep the header
+#' \code{c("ds", "holiday", "country", "year")}.
+#'
 #'
 #' @family Dataset
 #' @docType data
@@ -44,9 +46,9 @@
 #' @format An object of class \code{"data.frame"}
 #' \describe{
 #'   \item{ds}{Date}
-#'   \item{holiday}{Daily total revenue}
-#'   \item{country}{Television}
-#'   \item{year}{Out of home}
+#'   \item{holiday}{Name of celebrated holiday}
+#'   \item{country}{Code for the country (Alpha-2)}
+#'   \item{year}{Year of \code{ds}}
 #' }
 #' @examples
 #' data(dt_prophet_holidays)
@@ -54,5 +56,8 @@
 #' @return Dataframe. Contains \code{prophet}'s default holidays by country.
 "dt_prophet_holidays"
 
+# dt_prophet_holidays <- read.csv("~/Desktop/generated_holidays.csv")
 # dt_prophet_holidays <- as_tibble(dt_prophet_holidays)
+# lares::missingness(dt_prophet_holidays)
+# dt_prophet_holidays <- dplyr::filter(dt_prophet_holidays, !is.na(country))
 # save(dt_prophet_holidays, file = "data/dt_prophet_holidays.RData", version = 2)
