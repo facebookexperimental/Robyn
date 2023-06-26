@@ -163,19 +163,27 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
   } else {
     prophet_vars <- tolower(prophet_vars)
     opts <- c("trend", "season", "monthly", "weekday", "holiday")
+    if (!"holiday" %in% prophet_vars) {
+      if (!is.null(prophet_country)) warning(paste(
+        "Input 'prophet_country' is defined as", prophet_country,
+        "but 'holiday' is not setup within 'prophet_vars' parameter"))
+      prophet_country <- NULL
+    }
     if (!all(prophet_vars %in% opts)) {
       stop("Allowed values for 'prophet_vars' are: ", paste(opts, collapse = ", "))
     }
     if ("weekday" %in% prophet_vars && dayInterval > 7) {
       warning("Ignoring prophet_vars = 'weekday' input given your data granularity")
     }
-    if (is.null(prophet_country) || length(prophet_country) > 1 |
-      !prophet_country %in% unique(dt_holidays$country)) {
+    if ("holiday" %in% prophet_vars && (
+      is.null(prophet_country) || length(prophet_country) > 1 |
+      isTRUE(!prophet_country %in% unique(dt_holidays$country)))) {
       stop(paste(
         "You must provide 1 country code in 'prophet_country' input.",
         length(unique(dt_holidays$country)), "countries are included:",
         paste(unique(dt_holidays$country), collapse = ", "),
-        "\nIf your country is not available, please manually add it to 'dt_holidays'"
+        "\nIf your country is not available, manually include data to 'dt_holidays'",
+        "or remove 'holidays' from 'prophet_vars' input."
       ))
     }
     if (is.null(prophet_signs)) {

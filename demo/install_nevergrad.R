@@ -25,7 +25,10 @@ Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate/bin/python")
 # 5. Check python path
 py_config() # If the first path is not as 4, do 6
 # 6. Restart R session, run #4 first, then load library("reticulate"), check
-#    py_config() again, python should have path as in #4
+#    py_config() again, python should have path as in #4.
+#    If you see: "NOTE: Python version was forced by RETICULATE_PYTHON_FALLBACK"
+#    if you're using RStudio, go to Global Options > Python, and uncheck the
+#    box for "Automatically activate project-local Python environments".
 # 7. Install numpy if py_config shows it's not available
 py_install("numpy", pip = TRUE)
 # 8. Install nevergrad
