@@ -82,8 +82,8 @@
 #' the signs of coefficients for \code{prophet_vars}. Must have same
 #' order and same length as \code{prophet_vars}. By default, all values are
 #' set to "default".
-#' @param prophet_country Character. Only one country allowed once.
-#' Including national holidays for 59 countries, whose list can
+#' @param prophet_country Character. Only one country allowed.
+#' Includes national holidays for all countries, whose list can
 #' be found loading \code{data("dt_prophet_holidays")}.
 #' @param adstock Character. Choose any of "geometric", "weibull_cdf",
 #' "weibull_pdf". Weibull adstock is a two-parametric function and thus more
