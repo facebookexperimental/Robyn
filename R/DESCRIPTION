@@ -8,7 +8,7 @@ Authors@R: c(
     person("Igor", "Skokan", , "igorskokan@meta.com", c("aut")),
     person("Bernardo", "Lares", , "laresbernardo@gmail.com", c("cre","aut")),
     person("Meta Platforms, Inc.", role = c("cph", "fnd")))
-Maintainer: Bernardo Lares <bernardolares@meta.com>
+Maintainer: Bernardo Lares <laresbernardo@gmail.com>
 Description: Semi-Automated Marketing Mix Modeling (MMM) aiming to reduce human bias by means of ridge regression and evolutionary algorithms, enables actionable decision making providing a budget allocation and diminishing returns curves and allows ground-truth calibration to account for causation.
 Depends:
     R (>= 4.0.0)
