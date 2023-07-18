@@ -345,14 +345,17 @@ robyn_pareto <- function(InputCollect, OutputModels,
       ## 4. Spend response curve
       dt_transformPlot <- select(dt_mod, .data$ds, all_of(InputCollect$all_media)) # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_spends)]) # spends of indep vars
-      dt_transformSpendMod <- dt_transformPlot[rw_start_loc:rw_end_loc, ]
-      # update non-spend variables
-      # if (length(InputCollect$exposure_vars) > 0) {
-      #   for (expo in InputCollect$exposure_vars) {
-      #     sel_nls <- ifelse(InputCollect$modNLSCollect[channel == expo, rsq_nls > rsq_lm], "nls", "lm")
-      #     dt_transformSpendMod[, (expo) := InputCollect$yhatNLSCollect[channel == expo & models == sel_nls, yhat]]
-      #   }
-      # }
+      dt_transformVars <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_vars)])
+      dt_transformSpendMod <- tibble(ds = select(InputCollect$dt_mod,.data$ds))
+      for (i in seq_along(InputCollect$paid_media_vars)) {
+        channel <- InputCollect$paid_media_vars[i]
+        col_name <- InputCollect$paid_media_spends[i]
+        dt_transformSpendMod[col_name] <- InputCollect$modNLS$yhat[InputCollect$modNLS$yhat$models == 'nls' & InputCollect$modNLS$yhat$channel == channel,"yhat"]
+      }
+      for (organic_var in InputCollect$organic_vars) {
+        dt_transformSpendMod[[organic_var]] <- NA
+      }
+
       dt_transformAdstock <- dt_transformPlot
       dt_transformSaturation <- dt_transformPlot[
         rw_start_loc:rw_end_loc,
@@ -540,7 +543,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
       # Gather all results
       mediaVecCollect <- bind_rows(mediaVecCollect, list(
-        mutate(dt_transformPlot, type = "rawMedia", solID = sid),
+        mutate(dt_transformVars, type = "rawMedia", solID = sid),
         mutate(dt_transformSpend, type = "rawSpend", solID = sid),
         mutate(dt_transformSpendMod, type = "predictedExposure", solID = sid),
         mutate(dt_transformAdstock, type = "adstockedMedia", solID = sid),
