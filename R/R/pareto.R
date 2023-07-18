@@ -346,7 +346,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       dt_transformPlot <- select(dt_mod, .data$ds, all_of(InputCollect$all_media)) # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_spends)]) # spends of indep vars
       dt_transformVars <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_vars)])
-      dt_transformSpendMod <- tibble(ds = select(InputCollect$dt_mod,.data$ds))
+      dt_transformSpendMod <- data.frame(ds = select(InputCollect$dt_mod,.data$ds))
       for (i in seq_along(InputCollect$paid_media_vars)) {
         channel <- InputCollect$paid_media_vars[i]
         col_name <- InputCollect$paid_media_spends[i]
