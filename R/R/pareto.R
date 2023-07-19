@@ -346,6 +346,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
       dt_transformPlot <- select(dt_mod, .data$ds, all_of(InputCollect$all_media)) # independent variables
       dt_transformSpend <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_spends)]) # spends of indep vars
       dt_transformVars <- cbind(dt_transformPlot[, "ds"], InputCollect$dt_input[, c(InputCollect$paid_media_vars)])
+      colnames(dt_transformVars) <- append (c("ds"), InputCollect$paid_media_spends) 
       dt_transformSpendMod <- data.frame(ds = select(InputCollect$dt_mod,.data$ds))
       for (i in seq_along(InputCollect$paid_media_vars)) {
         channel <- InputCollect$paid_media_vars[i]
@@ -353,7 +354,8 @@ robyn_pareto <- function(InputCollect, OutputModels,
         dt_transformSpendMod[col_name] <- InputCollect$modNLS$yhat[InputCollect$modNLS$yhat$models == 'nls' & InputCollect$modNLS$yhat$channel == channel,"yhat"]
       }
       for (organic_var in InputCollect$organic_vars) {
-        dt_transformSpendMod[[organic_var]] <- NA
+        dt_transformSpendMod[[organic_var]] <- dt_transformPlot[[organic_var]]
+        dt_transformVars[[organic_var]] <- dt_transformPlot[[organic_var]]
       }
 
       dt_transformAdstock <- dt_transformPlot
