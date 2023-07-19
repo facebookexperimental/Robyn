@@ -222,12 +222,13 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
     }
   } # End of !hyper_fixed
 
+  get_height <- ceiling(12 * OutputCollect$OutputModels$trials / 3)
   if (isTRUE(OutputCollect$OutputModels$ts_validation)) {
     ts_validation_plot <- ts_validation(OutputCollect$OutputModels, quiet = TRUE, ...)
     ggsave(
       paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
       plot = ts_validation_plot, dpi = 300,
-      width = 10, height = 12, limitsize = FALSE
+      width = 10, height = get_height, limitsize = FALSE
     )
   }
 
@@ -1408,9 +1409,10 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     theme_lares(background = "white", legend = "top", pal = 2) +
     scale_x_abbr()
 
+  get_height <- max(resultHypParam$trial)
   pw <- (pNRMSE / pIters) +
     patchwork::plot_annotation(title = "Time-series validation & Convergence") +
-    patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
+    patchwork::plot_layout(heights = c(get_height, 1), guides = "collect") &
     theme_lares(background = "white", legend = "top")
   return(pw)
 }

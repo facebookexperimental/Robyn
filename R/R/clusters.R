@@ -142,15 +142,12 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     write.csv(output$data, file = paste0(path, "pareto_clusters.csv"))
     write.csv(output$df_cluster_ci, file = paste0(path, "pareto_clusters_ci.csv"))
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
-    db <- wrap_plots(
-      A = output$plot_clusters_ci,
-      B = output$plot_models_rois,
-      C = output$plot_models_errors,
-      design = "AA\nBC"
-    )
+    get_height <- ceiling(k / 2) / 2
+    db <- (output$plot_clusters_ci / (output$plot_models_rois + output$plot_models_errors)) +
+      patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages
     suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
-      plot = db, dpi = 500, width = 12, height = 14
+      plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2
     ))
   }
 
