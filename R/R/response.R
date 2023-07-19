@@ -302,7 +302,7 @@ robyn_response <- function(InputCollect = NULL,
         ifelse(length(date_range_updated) > 1, paste0(" [", length(date_range_updated), " periods]"), "")
       )
     ) +
-    theme_lares() +
+    theme_lares(background = "white") +
     scale_x_abbr() +
     scale_y_abbr()
   if (length(unique(metric_value)) == 1) {

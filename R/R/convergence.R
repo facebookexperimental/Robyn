@@ -137,7 +137,7 @@ robyn_converge <- function(OutputModels,
     facet_grid(. ~ .data$error_type, scales = "free") +
     scale_fill_distiller(palette = "GnBu") +
     guides(fill = "none") +
-    theme_lares() +
+    theme_lares(background = "white", ) +
     labs(
       x = "Objective functions", y = "Iterations [#]",
       title = "Objective convergence by iterations quantiles",
@@ -163,7 +163,7 @@ robyn_converge <- function(OutputModels,
       alpha = NULL,
       caption = paste(conv_msg, collapse = "\n")
     ) +
-    theme_lares()
+    theme_lares(background = "white", )
 
   if (calibrated) {
     moo_cloud_plot <- moo_cloud_plot +

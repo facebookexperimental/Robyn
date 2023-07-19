@@ -30,7 +30,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
         geom_line(color = "steelblue") +
         facet_wrap(~ .data$variable, scales = "free", ncol = 1) +
         labs(title = "Prophet decomposition", x = NULL, y = NULL) +
-        theme_lares() +
+        theme_lares(background = "white", ) +
         scale_y_abbr()
 
       if (export) {
@@ -84,7 +84,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
           aes(x = .data$value, y = .data$channel, color = .data$channel, fill = .data$channel),
           alpha = .8, size = 0
         ) +
-        theme_lares(legend = "none", pal = 1) +
+        theme_lares(background = "white", legend = "none", pal = 1) +
         labs(
           title = "Hyperparameters Optimization Distributions",
           subtitle = paste0(
@@ -132,7 +132,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
           size = "MAPE",
           alpha = NULL
         ) +
-        theme_lares()
+        theme_lares(background = "white", )
       # Add MAPE dimension when calibrated
       if (calibrated) {
         pParFront <- pParFront +
@@ -206,7 +206,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
           geom_density_ridges(scale = 4, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7) +
           facet_wrap(~ .data$variables, scales = "free") +
           guides(fill = "none", linetype = "none") +
-          theme_lares() +
+          theme_lares(background = "white", ) +
           labs(
             x = paste(metric, "by Channel"), y = NULL,
             title = paste(metric, "Distribution over Iteration Buckets")
@@ -366,7 +366,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         ) +
         scale_y_percent() +
         coord_flip() +
-        theme_lares(axis.text.x = element_blank(), legend = "top", grid = "Xx") +
+        theme_lares(background = "white", axis.text.x = element_blank(), legend = "top", grid = "Xx") +
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
@@ -385,7 +385,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
           scale_y_percent() +
           scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" = "#E5586E")) +
-          theme_lares(legend = "top") +
+          theme_lares(background = "white", legend = "top") +
           geom_text(mapping = aes(
             label = paste0(
               formatNum(.data$xDecompAgg, abbr = TRUE),
@@ -405,7 +405,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         dt_geometric <- temp[[sid]]$plot3data$dt_geometric
         p3 <- ggplot(dt_geometric, aes(x = .data$channels, y = .data$thetas, fill = "coral")) +
           geom_bar(stat = "identity", width = 0.5) +
-          theme_lares(legend = "none", grid = "Xx") +
+          theme_lares(background = "white", legend = "none", grid = "Xx") +
           coord_flip() +
           geom_text(aes(label = formatNum(100 * .data$thetas, 1, pos = "%")),
             hjust = -.1, position = position_dodge(width = 0.5), fontface = "bold"
@@ -424,7 +424,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           facet_wrap(~ .data$channel) +
           geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
           geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
-          theme_lares(legend = "none", grid = "Xx") +
+          theme_lares(background = "white", legend = "none", grid = "Xx") +
           labs(
             title = paste("Weibull", wb_type, "Adstock: Flexible Rate Over Time"),
             x = sprintf("Time unit [%ss]", InputCollect$intervalType), y = NULL
@@ -469,7 +469,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           ),
           show.legend = FALSE, hjust = -0.2
         ) +
-        theme_lares(pal = 2) +
+        theme_lares(background = "white", pal = 2) +
         theme(
           legend.position = c(0.9, 0.2),
           legend.background = element_rect(fill = alpha("grey98", 0.6), color = "grey90")
@@ -493,7 +493,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         aes(x = .data$ds, y = .data$value, color = .data$variable)
       ) +
         geom_path(aes(linetype = .data$linetype), size = 0.6) +
-        theme_lares(legend = "top", pal = 2) +
+        theme_lares(background = "white", legend = "top", pal = 2) +
         scale_y_abbr() +
         guides(linetype = "none") +
         labs(
@@ -535,7 +535,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         geom_hline(yintercept = 0) +
         geom_smooth(se = TRUE, method = "loess", formula = "y ~ x") +
         scale_x_abbr() + scale_y_abbr() +
-        theme_lares() +
+        theme_lares(background = "white", ) +
         labs(x = "Fitted", y = "Residual", title = "Fitted vs. Residual")
 
       ## 7. Immediate vs carryover
@@ -550,7 +550,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
         geom_text(position = position_stack(vjust = 0.5)) +
         scale_fill_manual(values = c("Immediate" = "#59B3D2", "Carryover" = "coral")) +
         scale_x_percent() +
-        theme_lares(legend = "top", grid = "Xx") +
+        theme_lares(background = "white", legend = "top", grid = "Xx") +
         labs(
           x = "% Response", y = NULL, fill = NULL,
           title = "Immediate vs. Carryover Response Percentage"
@@ -570,7 +570,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
           geom_errorbar(aes(ymin = .data$ci_low, ymax = .data$ci_up), width = 0.25) +
           labs(title = paste("In-cluster bootstrapped", metric, "with 95% CI & mean"), x = NULL, y = NULL) +
           coord_flip() +
-          theme_lares()
+          theme_lares(background = "white", )
         if (metric == "ROI") {
           p8 <- p8 + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
         }
@@ -586,7 +586,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       pg <- wrap_plots(p2, p5, p1, p8, p3, p7, p4, p6, ncol = 2) +
         plot_annotation(
           title = onepagerTitle, subtitle = errors,
-          theme = theme_lares(background = "white"),
+          theme = theme_lares(background = "white", ),
           caption = onepagerCaption
         )
       all_plots[[sid]] <- pg
@@ -757,7 +757,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     scale_fill_manual(values = c("grey", "steelblue", "darkgoldenrod4")) +
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
-    theme_lares(legend = "none") +
+    theme_lares(background = "white", legend = "none") +
     labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
     scale_y_continuous(limits = c(0, max(df_roi$value_norm * 1.2))) +
     theme(axis.text.y = element_blank())
@@ -897,7 +897,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
     scale_alpha_continuous(range = c(0.6, 1)) +
     geom_text(aes(label = .data$values_label), colour = "black") +
     facet_grid(. ~ .data$type_lab, scales = "free") +
-    theme_lares(legend = "none") +
+    theme_lares(background = "white", legend = "none") +
     labs(
       title = "Budget Allocation per Channel*",
       fill = NULL, x = NULL, y = "Paid Channels"
@@ -988,7 +988,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       x = .data$spend_point, y = .data$response_point, fill = .data$type_lab
     ), size = 2.5, shape = 21) +
     scale_fill_manual(values = c("white", "grey", "steelblue", "darkgoldenrod4")) +
-    theme_lares(legend = "top", pal = 2) +
+    theme_lares(background = "white", legend = "top", pal = 2) +
     labs(
       title = "Simulated Response Curve for Selected Allocation Period",
       x = sprintf("Spend** per %s (Mean Adstock Zone in Grey)", InputCollect$intervalType),
@@ -1014,7 +1014,7 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
         dt_optimOut$periods[min_period_loc],
         scenario
       ),
-      theme = theme_lares(background = "white")
+      theme = theme_lares(background = "white", )
     )
 
   # Gather all plots
@@ -1095,7 +1095,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
       panel.background = element_blank(), # legend.position = c(0.1, 0.8),
       legend.background = element_rect(fill = alpha("white", 0.4)),
     ) +
-    theme_lares() +
+    theme_lares(background = "white", ) +
     scale_fill_brewer(palette = "BuGn") +
     geom_text(data = dt_refreshDates, mapping = aes(
       x = .data$refreshStart, y = max(xDecompVecReportMelted$value),
@@ -1150,7 +1150,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
   ) +
     geom_bar(alpha = 0.8, position = "dodge", stat = "identity", na.rm = TRUE) +
     facet_wrap(~ .data$refreshStatus, scales = "free") +
-    theme_lares(grid = "X") +
+    theme_lares(background = "white", grid = "X") +
     scale_fill_manual(values = robyn_palette()$fill) +
     geom_text(aes(label = paste0(round(.data$percentage * 100, 1), "%")),
       size = 3, na.rm = TRUE,
@@ -1252,7 +1252,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
       label = .data$label,
       angle = 270, hjust = 0, vjust = -0.2
     ), color = "gray40") +
-    theme_lares(legend = "top", pal = 2) +
+    theme_lares(background = "white", legend = "top", pal = 2) +
     scale_y_abbr() +
     guides(linetype = "none", fill = "none") +
     labs(
@@ -1318,7 +1318,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
       ),
       x = NULL, y = NULL
     ) +
-    theme_lares(grid = "Y") +
+    theme_lares(background = "white", grid = "Y") +
     theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
   if (export) {
@@ -1380,7 +1380,7 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     # geom_smooth() +
     labs(y = "Train Size", x = "Iteration") +
     scale_y_percent() +
-    theme_lares() +
+    theme_lares(background = "white", ) +
     scale_x_abbr()
 
   # pRSQ <- ggplot(resultHypParamLong, aes(
@@ -1392,7 +1392,7 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
   #   facet_grid(.data$trial ~ .) +
   #   geom_hline(yintercept = 0, linetype = "dashed") +
   #   labs(y = "Adjusted R2 [1% Winsorized]", x = "Iteration", colour = "Dataset") +
-  #   theme_lares(legend = "top", pal = 2) +
+  #   theme_lares(background = "white", legend = "top", pal = 2) +
   #   scale_x_abbr()
 
   pNRMSE <- ggplot(resultHypParamLong, aes(
@@ -1405,13 +1405,13 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(y = "NRMSE [Upper 1% Winsorized]", x = "Iteration", colour = "Dataset") +
-    theme_lares(legend = "top", pal = 2) +
+    theme_lares(background = "white", legend = "top", pal = 2) +
     scale_x_abbr()
 
   pw <- (pNRMSE / pIters) +
     patchwork::plot_annotation(title = "Time-series validation & Convergence") +
     patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
-    theme_lares(legend = "top")
+    theme_lares(background = "white", legend = "top")
   return(pw)
 }
 
@@ -1444,7 +1444,7 @@ decomp_plot <- function(InputCollect, OutputCollect, solID = NULL, exclude = NUL
       x = NULL, y = paste(intType, varType), fill = NULL
     ) +
     geom_area() +
-    theme_lares(legend = "right") +
+    theme_lares(background = "white", legend = "right") +
     scale_fill_manual(values = rev(pal[seq(length(unique(df$variable)))])) +
     scale_y_abbr()
   return(p)

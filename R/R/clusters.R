@@ -123,7 +123,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     sim_n = ci_list$sim_n,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
-    wss = cls$nclusters_plot,
+    wss = cls$nclusters_plot + theme_lares(blackground = "white"),
     # Grouped correlations per cluster
     corrs = cls$correlations + labs(title = "Top Correlations by Cluster", subtitle = NULL),
     # Mean ROI per cluster
@@ -353,7 +353,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         formatNum(sim_n, abbr = TRUE)
       )
     ) +
-    theme_lares(legend = "none")
+    theme_lares(background = "white", legend = "none")
   if (temp == "ROAS") {
     p <- p + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
   }
@@ -382,7 +382,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         round(100 * balance[1]), round(100 * balance[2]), round(100 * balance[3])
       )
     ) +
-    theme_lares()
+    theme_lares(background = "white", )
 }
 
 .plot_topsols_rois <- function(df, top_sols, all_media, limit = 1) {
@@ -402,7 +402,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
       title = paste("Top Performing Models"),
       x = NULL, y = "Mean metric per media"
     ) +
-    theme_lares()
+    theme_lares(background = "white", )
 }
 
 .bootci <- function(samp, boot_n, seed = 1, ...) {

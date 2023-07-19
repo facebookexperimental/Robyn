@@ -258,7 +258,7 @@ plot_adstock <- function(plot = TRUE) {
         x = "Time unit",
         y = "Media decay accumulated"
       ) +
-      theme_lares(pal = 2)
+      theme_lares(background = "white", pal = 2)
 
     ## Plot weibull
     weibullCollect <- list()
@@ -299,7 +299,7 @@ plot_adstock <- function(plot = TRUE) {
         x = "Time unit",
         y = "Media decay accumulated"
       ) +
-      theme_lares(pal = 2)
+      theme_lares(background = "white", pal = 2)
     return(wrap_plots(A = p1, B = p2, design = "ABB"))
   }
 }
@@ -336,7 +336,7 @@ plot_saturation <- function(plot = TRUE) {
         title = "Cost response with hill function",
         subtitle = "Alpha changes while gamma = 0.5"
       ) +
-      theme_lares(pal = 2)
+      theme_lares(background = "white", pal = 2)
 
     ## Plot gammas
     hillGammaCollect <- list()
@@ -355,7 +355,7 @@ plot_saturation <- function(plot = TRUE) {
         title = "Cost response with hill function",
         subtitle = "Gamma changes while alpha = 2"
       ) +
-      theme_lares(pal = 2)
+      theme_lares(background = "white", pal = 2)
 
     return(p1 + p2)
   }
