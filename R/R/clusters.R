@@ -123,7 +123,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     sim_n = ci_list$sim_n,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
-    wss = cls$nclusters_plot,
+    wss = cls$nclusters_plot + theme_lares(background = "white"),
     # Grouped correlations per cluster
     corrs = cls$correlations + labs(title = "Top Correlations by Cluster", subtitle = NULL),
     # Mean ROI per cluster
@@ -142,15 +142,12 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     write.csv(output$data, file = paste0(path, "pareto_clusters.csv"))
     write.csv(output$df_cluster_ci, file = paste0(path, "pareto_clusters_ci.csv"))
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
-    db <- wrap_plots(
-      A = output$plot_clusters_ci,
-      B = output$plot_models_rois,
-      C = output$plot_models_errors,
-      design = "AA\nBC"
-    )
+    get_height <- ceiling(k / 2) / 2
+    db <- (output$plot_clusters_ci / (output$plot_models_rois + output$plot_models_errors)) +
+      patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages
     suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
-      plot = db, dpi = 500, width = 12, height = 14
+      plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2
     ))
   }
 
@@ -353,7 +350,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         formatNum(sim_n, abbr = TRUE)
       )
     ) +
-    theme_lares(legend = "none")
+    theme_lares(background = "white", legend = "none")
   if (temp == "ROAS") {
     p <- p + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
   }
@@ -382,7 +379,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         round(100 * balance[1]), round(100 * balance[2]), round(100 * balance[3])
       )
     ) +
-    theme_lares()
+    theme_lares(background = "white", )
 }
 
 .plot_topsols_rois <- function(df, top_sols, all_media, limit = 1) {
@@ -402,7 +399,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
       title = paste("Top Performing Models"),
       x = NULL, y = "Mean metric per media"
     ) +
-    theme_lares()
+    theme_lares(background = "white", )
 }
 
 .bootci <- function(samp, boot_n, seed = 1, ...) {
