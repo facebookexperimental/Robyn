@@ -351,7 +351,12 @@ robyn_pareto <- function(InputCollect, OutputModels,
       for (i in seq_along(InputCollect$paid_media_vars)) {
         channel <- InputCollect$paid_media_vars[i]
         col_name <- InputCollect$paid_media_spends[i]
-        dt_transformSpendMod[col_name] <- InputCollect$modNLS$yhat[InputCollect$modNLS$yhat$models == 'nls' & InputCollect$modNLS$yhat$channel == channel,"yhat"]
+        if(channel!=col_name){
+          dt_transformSpendMod[col_name] <- InputCollect$modNLS$yhat[InputCollect$modNLS$yhat$models == 'nls' & InputCollect$modNLS$yhat$channel == channel,"yhat"]
+        }
+        else{
+          dt_transformSpendMod[col_name] <- dt_transformPlot[[col_name]]
+        }
       }
       for (organic_var in InputCollect$organic_vars) {
         dt_transformSpendMod[[organic_var]] <- dt_transformPlot[[organic_var]]
