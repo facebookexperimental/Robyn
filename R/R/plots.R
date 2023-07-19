@@ -584,10 +584,13 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
-      pg <- wrap_plots(p2, p5, p1, p8, p3, p7, p4, p6, ncol = 2) +
+      get_height <-  length(unique(dt_geometric$channels)) / 5
+      pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
+        patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1), guides = "collect") +
+      #pg <- wrap_plots(p2, p5, p1, p8, p3, p7, p4, p6, ncol = 2) +
         plot_annotation(
           title = onepagerTitle, subtitle = errors,
-          theme = theme_lares(background = "white", ),
+          theme = theme_lares(background = "white", legend = "none"),
           caption = onepagerCaption
         )
       all_plots[[sid]] <- pg

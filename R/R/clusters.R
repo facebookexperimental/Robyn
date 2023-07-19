@@ -123,7 +123,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
     sim_n = ci_list$sim_n,
     errors_weights = weights,
     # Within Groups Sum of Squares Plot
-    wss = cls$nclusters_plot + theme_lares(blackground = "white"),
+    wss = cls$nclusters_plot + theme_lares(background = "white"),
     # Grouped correlations per cluster
     corrs = cls$correlations + labs(title = "Top Correlations by Cluster", subtitle = NULL),
     # Mean ROI per cluster
