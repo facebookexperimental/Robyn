@@ -12,7 +12,7 @@
 # https://www.facebookblueprint.com/student/path/253121-marketing-mix-models?utm_source=demo
 
 ################################################################
-#### Step 0: Setup environment
+#### Step 0: Setup environment xxxx
 
 ## Install, load, and check (latest) Robyn version, using one of these 2 sources:
 ## A) Install the latest stable version from CRAN:
