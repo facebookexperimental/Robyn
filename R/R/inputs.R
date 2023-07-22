@@ -646,7 +646,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
             caption = caption,
             color = "Model"
           ) +
-          theme_lares(legend = "top") +
+          theme_lares(background = "white", legend = "top") +
           scale_x_abbr() +
           scale_y_abbr()
 
