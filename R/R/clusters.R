@@ -17,6 +17,7 @@
 #' @param input \code{robyn_export()}'s output or \code{pareto_aggregated.csv} results.
 #' @param dep_var_type Character. For dep_var_type 'revenue', ROI is used for clustering.
 #' For conversion', CPA is used for clustering.
+#' @param cluster_by Character. Any of: "performance" or "hyperparameters".
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
@@ -37,11 +38,15 @@
 #' }
 #' @return List. Clustering results as labeled data.frames and plots.
 #' @export
-robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", limit = 1,
+robyn_clusters <- function(input, dep_var_type,
+                           cluster_by = "hyperparameters",
+                           all_media = NULL,
+                           k = "auto", limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
   set.seed(seed)
+  check_opts(cluster_by, c("performance", "hyperparameters"))
   if ("robyn_outputs" %in% class(input)) {
     if (is.null(all_media)) {
       aux <- colnames(input$mediaVecCollect)
@@ -51,18 +56,15 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
       path <- paste0(getwd(), "/")
     }
     # Pareto and ROI data
-    xDecompAgg <- input$xDecompAgg
-    df <- .prepare_df(xDecompAgg, all_media, dep_var_type)
+    x <- xDecompAgg <- input$xDecompAgg
+    if (cluster_by %in% "hyperparameters") x <- input$resultHypParam
+    df <- .prepare_df(x, all_media, dep_var_type, cluster_by)
   } else {
-    if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) && is.data.frame(input)) {
-      df <- .prepare_df(input, all_media, dep_var_type)
-    } else {
-      stop(paste(
-        "You must run robyn_outputs(..., clusters = TRUE) or",
-        "pass a valid data.frame (sames as pareto_aggregated.csv output)",
-        "in order to use robyn_clusters()"
-      ))
-    }
+    stop(paste(
+      "You must run robyn_outputs(..., clusters = TRUE) or",
+      "pass a valid data.frame (sames as pareto_aggregated.csv output)",
+      "in order to use robyn_clusters()"
+    ))
   }
 
   ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "pareto")
@@ -281,25 +283,35 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 }
 
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
-.prepare_df <- function(x, all_media, dep_var_type) {
-  check_opts(all_media, unique(x$rn))
-
-  if (dep_var_type == "revenue") {
-    outcome <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
-      tidyr::spread(key = .data$rn, value = .data$roi_total)
+.prepare_df <- function(x, all_media, dep_var_type, cluster_by) {
+  if (cluster_by == "performance") {
+    check_opts(all_media, unique(x$rn))
+    if (dep_var_type == "revenue") {
+      outcome <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
+        tidyr::spread(key = .data$rn, value = .data$roi_total) %>%
+        removenacols(all = FALSE) %>%
+        select(any_of(c("solID", all_media)))
+    }
+    if (dep_var_type == "conversion") {
+      outcome <- select(x, .data$solID, .data$rn, .data$cpa_total) %>%
+        filter(is.finite(.data$cpa_total)) %>%
+        tidyr::spread(key = .data$rn, value = .data$cpa_total) %>%
+        removenacols(all = FALSE) %>%
+        select(any_of(c("solID", all_media)))
+    }
+    errors <- distinct(
+      x, .data$solID, .data$nrmse, .data$nrmse_test,
+      .data$nrmse_train, .data$decomp.rssd, .data$mape
+    )
+    outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   } else {
-    outcome <- select(x, .data$solID, .data$rn, .data$cpa_total) %>%
-      filter(is.finite(.data$cpa_total)) %>%
-      tidyr::spread(key = .data$rn, value = .data$cpa_total)
+    if (cluster_by == "hyperparameters") {
+      outcome <- select(
+        x, .data$solID, contains(HYPS_NAMES),
+        contains(c("nrmse", "decomp.rssd", "mape"))) %>%
+        removenacols(all = FALSE)
+    }
   }
-
-  outcome <- removenacols(outcome, all = FALSE)
-  outcome <- select(outcome, any_of(c("solID", all_media)))
-  errors <- distinct(
-    x, .data$solID, .data$nrmse, .data$nrmse_test,
-    .data$nrmse_train, .data$decomp.rssd, .data$mape
-  )
-  outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   return(outcome)
 }
 

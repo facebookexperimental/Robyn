@@ -7,6 +7,7 @@
 robyn_clusters(
   input,
   dep_var_type,
+  cluster_by = "hyperparameters",
   all_media = NULL,
   k = "auto",
   limit = 1,
@@ -23,6 +24,8 @@ robyn_clusters(
 
 \item{dep_var_type}{Character. For dep_var_type 'revenue', ROI is used for clustering.
 For conversion', CPA is used for clustering.}
+
+\item{cluster_by}{Character. Any of: "performance" or "hyperparameters".}
 
 \item{all_media}{Character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.}
