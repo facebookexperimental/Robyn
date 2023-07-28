@@ -54,6 +54,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           all_sol_json = FALSE,
                           quiet = FALSE,
                           refresh = FALSE, ...) {
+  t0 <- Sys.time()
   if (is.null(plot_folder)) plot_folder <- getwd()
   plot_folder <- check_dir(plot_folder)
 
@@ -249,6 +250,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   }
 
   if (!is.null(OutputModels$hyper_updated)) OutputCollect$hyper_updated <- OutputModels$hyper_updated
+  attr(OutputCollect, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
   return(invisible(OutputCollect))
 }

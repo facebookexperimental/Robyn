@@ -78,7 +78,7 @@ robyn_clusters <- function(input, dep_var_type,
         clusterKmeans(df,
           k = NULL, limit = limit_clusters, ignore = ignore,
           dim_red = dim_red, quiet = TRUE, seed = seed
-        ) # , ...)
+        )
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -106,7 +106,9 @@ robyn_clusters <- function(input, dep_var_type,
 
   # Build clusters
   stopifnot(k %in% min_clusters:30)
-  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
+  cls <- clusterKmeans(
+    df, k = k, limit = limit_clusters, ignore = ignore,
+    dim_red = dim_red, quiet = TRUE, seed = seed)
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
@@ -114,7 +116,7 @@ robyn_clusters <- function(input, dep_var_type,
   top_sols <- .clusters_df(df = cls$df, all_paid, balance = weights, limit, ts_validation)
 
   # Build in-cluster CI with bootstrap
-  ci_list <- confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, ...)
+  ci_list <- confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, ...)
 
   output <- list(
     # Data and parameters
@@ -156,7 +158,9 @@ robyn_clusters <- function(input, dep_var_type,
   return(output)
 }
 
-confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n = 1000, sim_n = 10000, ...) {
+confidence_calcs <- function(
+    xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by,
+    boot_n = 1000, sim_n = 10000, ...) {
   df_clusters_outcome <- xDecompAgg %>%
     filter(!is.na(.data$total_spend)) %>%
     left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = "solID") %>%
@@ -174,6 +178,8 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
     if (length(unique(df_outcome$solID)) < 3) {
       warning(paste("Cluster", j, "does not contain enough models to calculate CI"))
     } else {
+      if (cluster_by == "hyperparameters")
+        all_paid <- unique(gsub(paste(paste0("_", HYPS_NAMES), collapse = "|"), "", all_paid))
       for (i in all_paid) {
         # Bootstrap CI
         if (dep_var_type == "conversion") {
