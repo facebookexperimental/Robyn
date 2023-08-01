@@ -104,7 +104,7 @@ Defaults to 100000.}
 indicating constraints with equality or inequality.}
 
 \item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
-default path with timestamp or, for allocator, simply overwrite files.}
+default path with timestamp or, for the allocator, simply overwrite files.}
 
 \item{export}{Boolean. Export outcomes into local files?}
 

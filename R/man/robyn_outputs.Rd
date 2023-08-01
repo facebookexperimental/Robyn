@@ -71,7 +71,7 @@ selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
 
 \item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
-default path with timestamp or, for allocator, simply overwrite files.}
+default path with timestamp or, for the allocator, simply overwrite files.}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}
