@@ -100,6 +100,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             optim_algo = "SLSQP_AUGLAG",
                             maxeval = 100000,
                             constr_mode = "eq",
+                            plot_folder_sub = NULL,
                             export = TRUE,
                             quiet = FALSE,
                             ui = FALSE,
@@ -698,7 +699,8 @@ robyn_allocator <- function(robyn_object = NULL,
     if (dep_var_type == "conversion") {
       colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
     }
-    write.csv(export_dt_optimOut, paste0(OutputCollect$plot_folder, select_model, "_reallocated.csv"))
+    plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
+    write.csv(export_dt_optimOut, paste0(plot_folder, select_model, "_reallocated.csv"))
   }
 
   output <- list(
