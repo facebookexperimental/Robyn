@@ -685,23 +685,29 @@ robyn_allocator <- function(robyn_object = NULL,
   mainPoints$cpa_marginal <- mainPoints$mean_spend / mainPoints$marginal_response
   eval_list[["mainPoints"]] <- mainPoints
 
+  # Exporting directory
+  if (export) {
+    plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
+    if (!dir.exists(plot_folder)) {
+      message("Creating directory: ", plot_folder)
+      dir.create(plot_folder)
+    }
+    ## Export results into CSV
+    export_dt_optimOut <- dt_optimOut
+    if (dep_var_type == "conversion") {
+      colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
+    }
+    write.csv(export_dt_optimOut, paste0(plot_folder, select_model, "_reallocated.csv"))
+  }
+
   ## Plot allocator results
   plots <- allocation_plots(
     InputCollect, OutputCollect,
     dt_optimOut,
     # filter(dt_optimOut, .data$channels %in% channel_for_allocation),
-    select_model, scenario, eval_list, export, quiet
+    select_model, scenario, eval_list,
+    export, plot_folder, quiet
   )
-
-  ## Export results into CSV
-  if (export) {
-    export_dt_optimOut <- dt_optimOut
-    if (dep_var_type == "conversion") {
-      colnames(export_dt_optimOut) <- gsub("Roi", "CPA", colnames(export_dt_optimOut))
-    }
-    plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
-    write.csv(export_dt_optimOut, paste0(plot_folder, select_model, "_reallocated.csv"))
-  }
 
   output <- list(
     dt_optimOut = dt_optimOut,

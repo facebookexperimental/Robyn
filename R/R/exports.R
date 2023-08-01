@@ -9,13 +9,16 @@
 #' Use \code{robyn_save()} to select and save as .RDS file the initial model.
 #'
 #' @inheritParams robyn_allocator
+#' @inheritParams robyn_outputs
+#' @inheritParams robyn_write
 #' @return (Invisible) list with filename and summary. Class: \code{robyn_save}.
 #' @export
 robyn_save <- function(InputCollect,
                        OutputCollect,
                        robyn_object = NULL,
                        select_model = NULL,
-                       quiet = FALSE) {
+                       dir = OutputCollect$plot_folder,
+                       quiet = FALSE, ...) {
   warning(paste(
     "Function robyn_save() is not supported anymore.",
     "Please migrate to robyn_write() and robyn_read()"
@@ -30,7 +33,7 @@ robyn_save <- function(InputCollect,
   }
 
   # Export as JSON file
-  json <- robyn_write(InputCollect, OutputCollect, select_model)
+  json <- robyn_write(InputCollect, OutputCollect, select_model, ...)
 
   summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
     select(
@@ -68,7 +71,9 @@ robyn_save <- function(InputCollect,
     adstock = InputCollect$adstock,
     plot = robyn_onepagers(InputCollect, OutputCollect,
       select_model,
-      quiet = TRUE, export = FALSE
+      quiet = TRUE,
+      export = FALSE,
+      ...
     )
   )
   output <- append(output, values)

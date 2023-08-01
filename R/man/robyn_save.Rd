@@ -12,7 +12,9 @@ robyn_save(
   OutputCollect,
   robyn_object = NULL,
   select_model = NULL,
-  quiet = FALSE
+  dir = OutputCollect$plot_folder,
+  quiet = FALSE,
+  ...
 )
 
 \method{print}{robyn_save}(x, ...)
@@ -37,11 +39,13 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
 
+\item{dir}{Character. Existing directory to export JSON file to.}
+
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{x}{\code{robyn_save()} output.}
-
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
+
+\item{x}{\code{robyn_save()} output.}
 
 \item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
 selects the initial model. \code{select_build = 1} selects the first refresh model.}
