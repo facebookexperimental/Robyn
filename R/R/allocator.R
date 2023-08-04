@@ -62,6 +62,7 @@
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
 #' indicating constraints with equality or inequality.
+#' @param plots Boolean. Generate plots?
 #' @return A list object containing allocator result.
 #' @examples
 #' \dontrun{
@@ -100,6 +101,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             optim_algo = "SLSQP_AUGLAG",
                             maxeval = 100000,
                             constr_mode = "eq",
+                            plots = TRUE,
                             plot_folder_sub = NULL,
                             export = TRUE,
                             quiet = FALSE,
@@ -143,7 +145,7 @@ robyn_allocator <- function(robyn_object = NULL,
     }
   }
 
-  message(paste(">>> Running budget allocator for model ID", select_model, "..."))
+  if (!quiet) message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
   ## Set local data & params values
   paid_media_spends <- InputCollect$paid_media_spends
@@ -227,7 +229,9 @@ robyn_allocator <- function(robyn_object = NULL,
   simulation_period <- initial_mean_period <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSorted)), length))
   nDates <- lapply(mediaSpendSorted, function(x) histFiltered$ds)
   names(nDates) <- mediaSpendSorted
-  message(sprintf("Date Window: %s:%s (%s %ss)", date_min, date_max, unique(initial_mean_period), InputCollect$intervalType))
+  if (!quiet) message(sprintf(
+    "Date Window: %s:%s (%s %ss)",
+    date_min, date_max, unique(initial_mean_period), InputCollect$intervalType))
   zero_spend_channel <- names(histSpendWindow[histSpendWindow == 0])
 
   initSpendUnitTotal <- sum(initSpendUnit)
@@ -335,7 +339,9 @@ robyn_allocator <- function(robyn_object = NULL,
   }
   if (!all(coefSelectorSorted)) {
     zero_coef_channel <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
-    message("Excluded variables (coefficients are 0): ", paste(zero_coef_channel, collapse = ", "))
+    if (!quiet) message(
+      "Excluded variables (coefficients are 0): ",
+      paste(zero_coef_channel, collapse = ", "))
   } else {
     zero_coef_channel <- as.character()
   }
@@ -701,13 +707,15 @@ robyn_allocator <- function(robyn_object = NULL,
   }
 
   ## Plot allocator results
-  plots <- allocation_plots(
-    InputCollect, OutputCollect,
-    dt_optimOut,
-    # filter(dt_optimOut, .data$channels %in% channel_for_allocation),
-    select_model, scenario, eval_list,
-    export, plot_folder, quiet
-  )
+  if (plots) {
+    plots <- allocation_plots(
+      InputCollect, OutputCollect,
+      dt_optimOut,
+      # filter(dt_optimOut, .data$channels %in% channel_for_allocation),
+      select_model, scenario, eval_list,
+      export, plot_folder, quiet
+    )
+  } else plots <- NULL
 
   output <- list(
     dt_optimOut = dt_optimOut,
