@@ -177,13 +177,13 @@ robyn_response <- function(InputCollect = NULL,
   all_values <- pull(dt_input, metric_name)
 
   if (usecase == "all_historical_vec") {
-    ds_list <- check_metric_dates(date_range = "all", all_dates, dayInterval, quiet, ...)
+    ds_list <- check_metric_dates(date_range = "all", all_dates[1:endRW], dayInterval, quiet, ...)
     #val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else if (usecase == "unit_metric_default_last_n") {
-    ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates, dayInterval, quiet, ...)
+    ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates[1:endRW], dayInterval, quiet, ...)
     #val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else {
-    ds_list <- check_metric_dates(date_range, all_dates, dayInterval, quiet, ...)
+    ds_list <- check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet, ...)
   }
   val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   date_range_updated <- ds_list$date_range_updated
