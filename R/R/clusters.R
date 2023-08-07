@@ -151,7 +151,7 @@ robyn_clusters <- function(input, dep_var_type,
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages
     suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
-      plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2
+      plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
     ))
   }
 
