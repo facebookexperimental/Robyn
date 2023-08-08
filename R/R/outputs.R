@@ -23,7 +23,7 @@
 #' @param plot_folder Character. Path for saving plots. Default
 #' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
 #' @param plot_folder_sub Character. Sub path for saving plots. Will overwrite the
-#' default path with timestamp.
+#' default path with timestamp or, for refresh and allocator, simply overwrite files.
 #' @param plot_pareto Boolean. Set to \code{FALSE} to deactivate plotting
 #' and saving model one-pagers. Used when testing models.
 #' @param clusters Boolean. Apply \code{robyn_clusters()} to output models?
@@ -54,6 +54,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           all_sol_json = FALSE,
                           quiet = FALSE,
                           refresh = FALSE, ...) {
+  t0 <- Sys.time()
   if (is.null(plot_folder)) plot_folder <- getwd()
   plot_folder <- check_dir(plot_folder)
 
@@ -220,8 +221,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
           pareto_onepagers <- robyn_onepagers(
             InputCollect, OutputCollect,
             select_model = select_model,
-            quiet = quiet,
-            export = export
+            quiet = quiet, export = export, ...
           )
         }
 
@@ -249,6 +249,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   }
 
   if (!is.null(OutputModels$hyper_updated)) OutputCollect$hyper_updated <- OutputModels$hyper_updated
+  attr(OutputCollect, "runTime") <- round(difftime(Sys.time(), t0, units = "mins"), 2)
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))
   return(invisible(OutputCollect))
 }

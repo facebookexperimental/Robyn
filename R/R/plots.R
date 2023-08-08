@@ -9,7 +9,9 @@
 #' @rdname robyn_outputs
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
-robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
+robyn_plots <- function(
+    InputCollect, OutputCollect,
+    export = TRUE, plot_folder = OutputCollect$plot_folder, ...) {
   check_class("robyn_outputs", OutputCollect)
   pareto_fronts <- OutputCollect$pareto_fronts
   hyper_fixed <- OutputCollect$hyper_fixed
@@ -35,7 +37,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
 
       if (export) {
         ggsave(
-          paste0(OutputCollect$plot_folder, "prophet_decomp.png"),
+          paste0(plot_folder, "prophet_decomp.png"),
           plot = pProphet, limitsize = FALSE,
           dpi = 600, width = 12, height = 3 * length(unique(dt_plotProphet$variable))
         )
@@ -53,7 +55,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
     #       theme = theme(plot.title = element_text(hjust = 0.5))
     #     )
     #   if (export) ggsave(
-    #     paste0(OutputCollect$plot_folder, "spend_exposure_fitting.png"),
+    #     paste0(plot_folder, "spend_exposure_fitting.png"),
     #     plot = pSpendExposure, dpi = 600, width = 12, limitsize = FALSE,
     #     height = ceiling(length(InputCollect$plotNLSCollect) / 3) * 7
     #   )
@@ -96,7 +98,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
         )
       if (export) {
         ggsave(
-          paste0(OutputCollect$plot_folder, "hypersampling.png"),
+          paste0(plot_folder, "hypersampling.png"),
           plot = all_plots$pSamp, dpi = 600, width = 12, height = 7, limitsize = FALSE
         )
       }
@@ -161,7 +163,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
       all_plots[["pParFront"]] <- pParFront
       if (export) {
         ggsave(
-          paste0(OutputCollect$plot_folder, "pareto_front.png"),
+          paste0(plot_folder, "pareto_front.png"),
           plot = pParFront, limitsize = FALSE,
           dpi = 600, width = 12, height = 8
         )
@@ -213,7 +215,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
           )
         if (export) {
           suppressMessages(ggsave(
-            paste0(OutputCollect$plot_folder, metric, "_convergence", pl, ".png"),
+            paste0(plot_folder, metric, "_convergence", pl, ".png"),
             plot = pRidges, dpi = 600, width = 12, limitsize = FALSE,
             height = ceiling(length(loop_vars) / 3) * 6
           ))
@@ -226,7 +228,7 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
   if (isTRUE(OutputCollect$OutputModels$ts_validation)) {
     ts_validation_plot <- ts_validation(OutputCollect$OutputModels, quiet = TRUE, ...)
     ggsave(
-      paste0(OutputCollect$plot_folder, "ts_validation", ".png"),
+      paste0(plot_folder, "ts_validation", ".png"),
       plot = ts_validation_plot, dpi = 300,
       width = 10, height = get_height, limitsize = FALSE
     )
@@ -242,7 +244,10 @@ robyn_plots <- function(InputCollect, OutputCollect, export = TRUE, ...) {
 #' @rdname robyn_outputs
 #' @return Invisible list with \code{patchwork} plot(s).
 #' @export
-robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, quiet = FALSE, export = TRUE) {
+robyn_onepagers <- function(
+    InputCollect, OutputCollect,
+    select_model = NULL, quiet = FALSE,
+    export = TRUE, plot_folder = OutputCollect$plot_folder, ...) {
   check_class("robyn_outputs", OutputCollect)
   if (TRUE) {
     pareto_fronts <- OutputCollect$pareto_fronts
@@ -597,7 +602,7 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
 
       if (export) {
         ggsave(
-          filename = paste0(OutputCollect$plot_folder, "/", sid, ".png"),
+          filename = paste0(plot_folder, "/", sid, ".png"),
           plot = pg, limitsize = FALSE,
           dpi = 400, width = 17, height = 19
         )
@@ -619,8 +624,11 @@ robyn_onepagers <- function(InputCollect, OutputCollect, select_model = NULL, qu
   return(invisible(parallelResult[[1]]))
 }
 
-allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_model,
-                             scenario, eval_list, export = TRUE, quiet = FALSE) {
+allocation_plots <- function(
+    InputCollect, OutputCollect,
+    dt_optimOut, select_model, scenario, eval_list,
+    export = TRUE, plot_folder = OutputCollect$plot_folder,
+    quiet = FALSE, ...) {
   outputs <- list()
 
   subtitle <- sprintf(
@@ -1031,8 +1039,8 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
       TRUE ~ "none"
     )
     # suffix <- ifelse(scenario == "max_response", "resp", "effi")
-    filename <- paste0(OutputCollect$plot_folder, select_model, "_reallocated_", suffix, ".png")
-    if (!quiet) message("Exporting charts into file: ", filename)
+    filename <- paste0(plot_folder, select_model, "_reallocated_", suffix, ".png")
+    if (!quiet) message("Exporting charts as: ", filename)
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
@@ -1043,7 +1051,9 @@ allocation_plots <- function(InputCollect, OutputCollect, dt_optimOut, select_mo
   return(invisible(outputs))
 }
 
-refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE) {
+refresh_plots <- function(
+    InputCollectRF, OutputCollectRF, ReportCollect,
+    export = TRUE, plot_folder = OutputCollectRF$plot_folder, ...) {
   selectID <- tail(ReportCollect$selectIDs, 1)
   if (is.null(selectID)) selectID <- tail(ReportCollect$resultHypParamReport$solID, 1)
   message(">> Plotting refresh results for model: ", v2t(selectID))
@@ -1120,7 +1130,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
 
   if (export) {
     ggsave(
-      filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
+      filename = paste0(plot_folder, "report_actual_fitted.png"),
       plot = pFitRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
@@ -1196,7 +1206,7 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
 
   if (export) {
     ggsave(
-      filename = paste0(OutputCollectRF$plot_folder, "report_decomposition.png"),
+      filename = paste0(plot_folder, "report_decomposition.png"),
       plot = pBarRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
@@ -1204,7 +1214,10 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
   return(invisible(outputs))
 }
 
-refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
+refresh_plots_json <- function(
+    OutputCollectRF, json_file,
+    export = TRUE,
+    plot_folder = OutputCollectRF$plot_folder, ...) {
   outputs <- list()
   chainData <- robyn_chain(json_file)
   solID <- tail(names(chainData), 1)
@@ -1267,7 +1280,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 
   if (export) {
     ggsave(
-      filename = paste0(OutputCollectRF$plot_folder, "report_actual_fitted.png"),
+      filename = paste0(plot_folder, "report_actual_fitted.png"),
       plot = pFitRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )
@@ -1327,7 +1340,9 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE) {
 
   if (export) {
     ggsave(
-      filename = paste0(chainData[[length(chainData)]]$ExportedModel$plot_folder, "report_decomposition.png"),
+      filename = paste0(
+        chainData[[length(chainData)]]$ExportedModel$plot_folder,
+        "report_decomposition.png"),
       plot = pBarRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )

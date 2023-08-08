@@ -57,15 +57,6 @@ robyn_write <- function(InputCollect,
   if (is.null(OutputModels)) {
     OutputModels <- OutputCollect$OutputModels
   }
-  conv_msg <- mapply(function(x) x[[1]],
-    x = gregexpr(":", OutputModels$convergence$conv_msg),
-    SIMPLIFY = FALSE
-  )
-  conv_msg <- mapply(function(x, y) substr(x, 1, y - 1),
-    x = OutputModels$convergence$conv_msg,
-    y = conv_msg, USE.NAMES = FALSE
-  )
-  ret[["OutputCollect"]][["conv_msg"]] <- conv_msg
   # toJSON(inputs, pretty = TRUE)
 
   # ExportedModel JSON
@@ -73,6 +64,12 @@ robyn_write <- function(InputCollect,
     outputs <- list()
     outputs$select_model <- select_model
     outputs$ts_validation <- OutputCollect$OutputModels$ts_validation
+    outputs$run_time <- sprintf("%s min", attr(OutputCollect$OutputModels, "runTime"))
+    outputs$outputs_time <- sprintf("%s min", attr(OutputCollect, "runTime"))
+    outputs$total_time <- sprintf(
+      "%s min",
+      attr(OutputCollect, "runTime") + attr(OutputCollect$OutputModels, "runTime"))
+    outputs$conv_msg <- gsub("\\:.*", "", OutputCollect$OutputModels$convergence$conv_msg)
     outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
       mutate(
         metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),

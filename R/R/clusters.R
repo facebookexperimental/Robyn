@@ -17,6 +17,7 @@
 #' @param input \code{robyn_export()}'s output or \code{pareto_aggregated.csv} results.
 #' @param dep_var_type Character. For dep_var_type 'revenue', ROI is used for clustering.
 #' For conversion', CPA is used for clustering.
+#' @param cluster_by Character. Any of: "performance" or "hyperparameters".
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
@@ -37,11 +38,15 @@
 #' }
 #' @return List. Clustering results as labeled data.frames and plots.
 #' @export
-robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", limit = 1,
+robyn_clusters <- function(input, dep_var_type,
+                           cluster_by = "hyperparameters",
+                           all_media = NULL,
+                           k = "auto", limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
   set.seed(seed)
+  check_opts(cluster_by, c("performance", "hyperparameters"))
   if ("robyn_outputs" %in% class(input)) {
     if (is.null(all_media)) {
       aux <- colnames(input$mediaVecCollect)
@@ -51,18 +56,15 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
       path <- paste0(getwd(), "/")
     }
     # Pareto and ROI data
-    xDecompAgg <- input$xDecompAgg
-    df <- .prepare_df(xDecompAgg, all_media, dep_var_type)
+    x <- xDecompAgg <- input$xDecompAgg
+    if (cluster_by %in% "hyperparameters") x <- input$resultHypParam
+    df <- .prepare_df(x, all_media, dep_var_type, cluster_by)
   } else {
-    if (all(c("solID", "mape", "nrmse", "decomp.rssd") %in% names(input)) && is.data.frame(input)) {
-      df <- .prepare_df(input, all_media, dep_var_type)
-    } else {
-      stop(paste(
-        "You must run robyn_outputs(..., clusters = TRUE) or",
-        "pass a valid data.frame (sames as pareto_aggregated.csv output)",
-        "in order to use robyn_clusters()"
-      ))
-    }
+    stop(paste(
+      "You must run robyn_outputs(..., clusters = TRUE) or",
+      "pass a valid data.frame (sames as pareto_aggregated.csv output)",
+      "in order to use robyn_clusters()"
+    ))
   }
 
   ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "pareto")
@@ -76,7 +78,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
         clusterKmeans(df,
           k = NULL, limit = limit_clusters, ignore = ignore,
           dim_red = dim_red, quiet = TRUE, seed = seed
-        ) # , ...)
+        )
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -104,7 +106,9 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
 
   # Build clusters
   stopifnot(k %in% min_clusters:30)
-  cls <- clusterKmeans(df, k, limit = limit_clusters, ignore = ignore, dim_red = dim_red, quiet = TRUE) # , ...)
+  cls <- clusterKmeans(
+    df, k = k, limit = limit_clusters, ignore = ignore,
+    dim_red = dim_red, quiet = TRUE, seed = seed)
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
@@ -112,7 +116,7 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
   top_sols <- .clusters_df(df = cls$df, all_paid, balance = weights, limit, ts_validation)
 
   # Build in-cluster CI with bootstrap
-  ci_list <- confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, ...)
+  ci_list <- confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, ...)
 
   output <- list(
     # Data and parameters
@@ -147,14 +151,16 @@ robyn_clusters <- function(input, dep_var_type, all_media = NULL, k = "auto", li
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages
     suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
-      plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2
+      plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
     ))
   }
 
   return(output)
 }
 
-confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n = 1000, sim_n = 10000, ...) {
+confidence_calcs <- function(
+    xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by,
+    boot_n = 1000, sim_n = 10000, ...) {
   df_clusters_outcome <- xDecompAgg %>%
     filter(!is.na(.data$total_spend)) %>%
     left_join(y = dplyr::select(cls$df, c("solID", "cluster")), by = "solID") %>%
@@ -172,6 +178,8 @@ confidence_calcs <- function(xDecompAgg, cls, all_paid, dep_var_type, k, boot_n 
     if (length(unique(df_outcome$solID)) < 3) {
       warning(paste("Cluster", j, "does not contain enough models to calculate CI"))
     } else {
+      if (cluster_by == "hyperparameters")
+        all_paid <- unique(gsub(paste(paste0("_", HYPS_NAMES), collapse = "|"), "", all_paid))
       for (i in all_paid) {
         # Bootstrap CI
         if (dep_var_type == "conversion") {
@@ -281,25 +289,35 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 }
 
 # ROIs data.frame for clustering (from xDecompAgg or pareto_aggregated.csv)
-.prepare_df <- function(x, all_media, dep_var_type) {
-  check_opts(all_media, unique(x$rn))
-
-  if (dep_var_type == "revenue") {
-    outcome <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
-      tidyr::spread(key = .data$rn, value = .data$roi_total)
+.prepare_df <- function(x, all_media, dep_var_type, cluster_by) {
+  if (cluster_by == "performance") {
+    check_opts(all_media, unique(x$rn))
+    if (dep_var_type == "revenue") {
+      outcome <- select(x, .data$solID, .data$rn, .data$roi_total) %>%
+        tidyr::spread(key = .data$rn, value = .data$roi_total) %>%
+        removenacols(all = FALSE) %>%
+        select(any_of(c("solID", all_media)))
+    }
+    if (dep_var_type == "conversion") {
+      outcome <- select(x, .data$solID, .data$rn, .data$cpa_total) %>%
+        filter(is.finite(.data$cpa_total)) %>%
+        tidyr::spread(key = .data$rn, value = .data$cpa_total) %>%
+        removenacols(all = FALSE) %>%
+        select(any_of(c("solID", all_media)))
+    }
+    errors <- distinct(
+      x, .data$solID, .data$nrmse, .data$nrmse_test,
+      .data$nrmse_train, .data$decomp.rssd, .data$mape
+    )
+    outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   } else {
-    outcome <- select(x, .data$solID, .data$rn, .data$cpa_total) %>%
-      filter(is.finite(.data$cpa_total)) %>%
-      tidyr::spread(key = .data$rn, value = .data$cpa_total)
+    if (cluster_by == "hyperparameters") {
+      outcome <- select(
+        x, .data$solID, contains(HYPS_NAMES),
+        contains(c("nrmse", "decomp.rssd", "mape"))) %>%
+        removenacols(all = FALSE)
+    }
   }
-
-  outcome <- removenacols(outcome, all = FALSE)
-  outcome <- select(outcome, any_of(c("solID", all_media)))
-  errors <- distinct(
-    x, .data$solID, .data$nrmse, .data$nrmse_test,
-    .data$nrmse_train, .data$decomp.rssd, .data$mape
-  )
-  outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   return(outcome)
 }
 

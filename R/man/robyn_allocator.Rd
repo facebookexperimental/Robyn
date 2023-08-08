@@ -23,6 +23,8 @@ robyn_allocator(
   optim_algo = "SLSQP_AUGLAG",
   maxeval = 1e+05,
   constr_mode = "eq",
+  plots = TRUE,
+  plot_folder_sub = NULL,
   export = TRUE,
   quiet = FALSE,
   ui = FALSE,
@@ -101,6 +103,11 @@ Defaults to 100000.}
 
 \item{constr_mode}{Character. Options are \code{"eq"} or \code{"ineq"},
 indicating constraints with equality or inequality.}
+
+\item{plots}{Boolean. Generate plots?}
+
+\item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
+default path with timestamp or, for refresh and allocator, simply overwrite files.}
 
 \item{export}{Boolean. Export outcomes into local files?}
 

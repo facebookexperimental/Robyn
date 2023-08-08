@@ -19,6 +19,7 @@ robyn_refresh(
   plot_pareto = TRUE,
   version_prompt = FALSE,
   export = TRUE,
+  plot_folder_sub = NULL,
   calibration_input = NULL,
   ...
 )
@@ -72,6 +73,9 @@ If \code{TRUE}, a prompt will be presented to the user to select one of the refr
 models (one-pagers and Pareto CSV files will already be generated).}
 
 \item{export}{Boolean. Export outcomes into local files?}
+
+\item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
+default path with timestamp or, for refresh and allocator, simply overwrite files.}
 
 \item{calibration_input}{data.frame. Optional. Provide experimental results to
 calibrate. Your input should include the following values for each experiment:

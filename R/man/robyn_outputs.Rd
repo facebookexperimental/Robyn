@@ -39,14 +39,22 @@ robyn_csv(
   calibrated = FALSE
 )
 
-robyn_plots(InputCollect, OutputCollect, export = TRUE, ...)
+robyn_plots(
+  InputCollect,
+  OutputCollect,
+  export = TRUE,
+  plot_folder = OutputCollect$plot_folder,
+  ...
+)
 
 robyn_onepagers(
   InputCollect,
   OutputCollect,
   select_model = NULL,
   quiet = FALSE,
-  export = TRUE
+  export = TRUE,
+  plot_folder = OutputCollect$plot_folder,
+  ...
 )
 
 ts_validation(OutputModels, quiet = FALSE, ...)
@@ -71,7 +79,7 @@ selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
 
 \item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
-default path with timestamp.}
+default path with timestamp or, for refresh and allocator, simply overwrite files.}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting
 and saving model one-pagers. Used when testing models.}

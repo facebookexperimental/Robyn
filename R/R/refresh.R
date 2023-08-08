@@ -36,6 +36,7 @@
 #' @inheritParams robyn_allocator
 #' @inheritParams robyn_outputs
 #' @inheritParams robyn_inputs
+#' @inheritParams robyn_outputs
 #' @param dt_input data.frame. Should include all previous data and newly added
 #' data for the refresh.
 #' @param dt_holidays data.frame. Raw input holiday data. Load standard
@@ -108,6 +109,7 @@ robyn_refresh <- function(json_file = NULL,
                           plot_pareto = TRUE,
                           version_prompt = FALSE,
                           export = TRUE,
+                          plot_folder_sub = NULL,
                           calibration_input = NULL,
                           ...) {
   refreshControl <- TRUE
@@ -449,17 +451,22 @@ robyn_refresh <- function(json_file = NULL,
         select_model = selectID,
         export = TRUE, quiet = TRUE, ...
       )
-      plots <- refresh_plots_json(OutputCollectRF, json_file = attr(json_temp, "json_file"), export = export)
+      plots <- refresh_plots_json(OutputCollectRF, json_file = attr(json_temp, "json_file"), export, ...)
     } else {
-      plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export = export))
+      plots <- try(refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export, ...))
     }
 
     if (export) {
       message(paste(">>> Exporting refresh CSVs into directory..."))
-      write.csv(resultHypParamReport, paste0(OutputCollectRF$plot_folder, "report_hyperparameters.csv"))
-      write.csv(xDecompAggReport, paste0(OutputCollectRF$plot_folder, "report_aggregated.csv"))
-      write.csv(mediaVecReport, paste0(OutputCollectRF$plot_folder, "report_media_transform_matrix.csv"))
-      write.csv(xDecompVecReport, paste0(OutputCollectRF$plot_folder, "report_alldecomp_matrix.csv"))
+      plot_folder <- gsub("//+", "/", paste0(OutputCollectRF$plot_folder, "/", plot_folder_sub, "/"))
+      if (!dir.exists(plot_folder)) {
+        message("Creating directory: ", plot_folder)
+        dir.create(plot_folder)
+      }
+      write.csv(resultHypParamReport, paste0(plot_folder, "report_hyperparameters.csv"))
+      write.csv(xDecompAggReport, paste0(plot_folder, "report_aggregated.csv"))
+      write.csv(mediaVecReport, paste0(plot_folder, "report_media_transform_matrix.csv"))
+      write.csv(xDecompVecReport, paste0(plot_folder, "report_alldecomp_matrix.csv"))
     }
 
     if (refreshLooper == 0) {
