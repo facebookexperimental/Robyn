@@ -60,15 +60,18 @@ robyn_write <- function(InputCollect,
   # toJSON(inputs, pretty = TRUE)
 
   # ExportedModel JSON
+  run_time <- sprintf("%s min", attr(OutputCollect$OutputModels, "runTime"))
+  outputs_time <- sprintf("%s min", attr(OutputCollect, "runTime"))
+  total_time <- sprintf(
+    "%s min",
+    attr(OutputCollect, "runTime") + attr(OutputCollect$OutputModels, "runTime"))
   if (!is.null(OutputCollect)) {
     outputs <- list()
     outputs$select_model <- select_model
     outputs$ts_validation <- OutputCollect$OutputModels$ts_validation
-    outputs$run_time <- sprintf("%s min", attr(OutputCollect$OutputModels, "runTime"))
-    outputs$outputs_time <- sprintf("%s min", attr(OutputCollect, "runTime"))
-    outputs$total_time <- sprintf(
-      "%s min",
-      attr(OutputCollect, "runTime") + attr(OutputCollect$OutputModels, "runTime"))
+    outputs$run_time <- run_time
+    outputs$outputs_time <- outputs_time
+    outputs$total_time <- total_time
     outputs$conv_msg <- gsub("\\:.*", "", OutputCollect$OutputModels$convergence$conv_msg)
     outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
       mutate(
@@ -111,6 +114,8 @@ robyn_write <- function(InputCollect,
         (all_sol_json %>% filter(.data$cluster == x))$solID
       })
       names(all_sol_json) <- paste0("cluster", all_c)
+      ret[["InputCollect"]][["total_time"]] <- total_time
+      ret[["InputCollect"]][["total_iters"]] <- OutputModels$iterations * OutputModels$trials
       ret[["OutputCollect"]][["all_sols"]] <- all_sol_json
     }
     write_json(ret, filename, pretty = TRUE)
@@ -155,12 +160,12 @@ print.robyn_write <- function(x, ...) {
   print(glued("\n\nSummary Values on Selected Model:"))
 
   print(x$ExportedModel$summary %>%
-    select(-contains("boot"), -contains("ci_")) %>%
-    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
-    mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
-    dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
-    dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
-    replace(., . == "NA", "-") %>% as.data.frame())
+          select(-contains("boot"), -contains("ci_")) %>%
+          dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
+          mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
+          dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
+          dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
+          replace(., . == "NA", "-") %>% as.data.frame())
 
   print(glued(
     "\n\nHyper-parameters:\n    Adstock: {x$InputCollect$adstock}"
@@ -173,8 +178,8 @@ print.robyn_write <- function(x, ...) {
     select(-contains("lambda"), -any_of(HYPS_OTHERS)) %>%
     tidyr::gather() %>%
     tidyr::separate(.data$key,
-      into = c("channel", "none"),
-      sep = regex, remove = FALSE
+                    into = c("channel", "none"),
+                    sep = regex, remove = FALSE
     ) %>%
     mutate(hyperparameter = gsub("^.*_", "", .data$key)) %>%
     select(.data$channel, .data$hyperparameter, .data$value) %>%
