@@ -117,6 +117,11 @@ robyn_allocator <- function(robyn_object = NULL,
       )
     }
     if (is.null(OutputCollect)) {
+      if (is.null(plot_folder)) {
+        json <- robyn_read(json_file, step = 2, quiet = TRUE)
+        plot_folder <- dirname(json$ExportedModel$plot_folder)
+        if (!is.null(plot_folder_sub)) plot_folder_sub <- NULL
+      }
       OutputCollect <- robyn_run(
         json_file = json_file, export = export, plot_folder = plot_folder, plot_folder_sub = plot_folder_sub, ...
       )
@@ -125,24 +130,24 @@ robyn_allocator <- function(robyn_object = NULL,
   }
 
   ## Collect inputs
-  if (!is.null(robyn_object) && (is.null(InputCollect) && is.null(OutputCollect))) {
-    if ("robyn_exported" %in% class(robyn_object)) {
-      imported <- robyn_object
-      robyn_object <- imported$robyn_object
-    } else {
-      imported <- robyn_load(robyn_object, select_build, quiet)
-    }
-    InputCollect <- imported$InputCollect
-    OutputCollect <- imported$OutputCollect
-    select_model <- imported$select_model
-  } else {
+  # if (!is.null(robyn_object) && (is.null(InputCollect) && is.null(OutputCollect))) {
+  #   if ("robyn_exported" %in% class(robyn_object)) {
+  #     imported <- robyn_object
+  #     robyn_object <- imported$robyn_object
+  #   } else {
+  #     imported <- robyn_load(robyn_object, select_build, quiet)
+  #   }
+  #   InputCollect <- imported$InputCollect
+  #   OutputCollect <- imported$OutputCollect
+  #   select_model <- imported$select_model
+  # } else {
     if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
       select_model <- OutputCollect$allSolutions
     }
     if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
       stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
     }
-  }
+  # }
 
   if (!quiet) message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
@@ -249,7 +254,7 @@ robyn_allocator <- function(robyn_object = NULL,
   for (i in seq_along(mediaSpendSorted)) {
     resp <- robyn_response(
       json_file = json_file,
-      robyn_object = robyn_object,
+      # robyn_object = robyn_object,
       select_build = select_build,
       select_model = select_model,
       metric_name = mediaSpendSorted[i],
@@ -692,11 +697,21 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Exporting directory
   if (export) {
-    if (is.null(plot_folder)) {
-      plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
-    } else {
+    if (is.null(json_file) & !is.null(plot_folder)) {
+      if (is.null(plot_folder_sub)) plot_folder_sub <- basename(OutputCollect$plot_folder)
       plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
+    } else {
+      plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/"))
     }
+
+    # if (!is.null(json_file)) {
+    #   plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/"))
+    # } else if (is.null(json_file) & is.null(plot_folder) & is.null(plot_folder_sub)) {
+    #   plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/"))
+    # } else {
+    #   if (is.null(plot_folder_sub)) plot_folder_sub <- basename(OutputCollect$plot_folder)
+    #   plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
+    # }
     if (!dir.exists(plot_folder)) {
       message("Creating directory: ", plot_folder)
       dir.create(plot_folder)
