@@ -118,7 +118,7 @@ robyn_allocator <- function(robyn_object = NULL,
     }
     if (is.null(OutputCollect)) {
       OutputCollect <- robyn_run(
-        json_file = json_file, export = export, plot_folder = robyn_object, ...
+        json_file = json_file, export = export, plot_folder = plot_folder, plot_folder_sub = plot_folder_sub, ...
       )
     }
     if (is.null(select_model)) select_model <- OutputCollect$selectID
@@ -692,8 +692,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Exporting directory
   if (export) {
-    if (is.null(plot_folder))
+    if (is.null(plot_folder)) {
       plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
+    } else {
+      plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
+    }
     if (!dir.exists(plot_folder)) {
       message("Creating directory: ", plot_folder)
       dir.create(plot_folder)
