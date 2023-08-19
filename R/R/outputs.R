@@ -20,7 +20,7 @@
 #' @param calibration_constraint Numeric. Default to 0.1 and allows 0.01-0.1. When
 #' calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 #' selection. Lower \code{calibration_constraint} increases calibration accuracy.
-#' @param plot_folder Character. Path for saving plots. Default
+#' @param plot_folder Character. Path for saving plots and files. Default
 #' to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.
 #' @param plot_folder_sub Character. Sub path for saving plots. Will overwrite the
 #' default path with timestamp or, for refresh and allocator, simply overwrite files.

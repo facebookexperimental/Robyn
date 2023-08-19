@@ -102,13 +102,12 @@ robyn_allocator <- function(robyn_object = NULL,
                             maxeval = 100000,
                             constr_mode = "eq",
                             plots = TRUE,
+                            plot_folder = NULL,
                             plot_folder_sub = NULL,
                             export = TRUE,
                             quiet = FALSE,
                             ui = FALSE,
                             ...) {
-  #####################################
-  #### Set local environment
 
   ### Use previously exported model using json_file
   if (!is.null(json_file)) {
@@ -693,7 +692,8 @@ robyn_allocator <- function(robyn_object = NULL,
 
   # Exporting directory
   if (export) {
-    plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
+    if (is.null(plot_folder))
+      plot_folder <- gsub("//+", "/", paste0(OutputCollect$plot_folder, "/", plot_folder_sub, "/"))
     if (!dir.exists(plot_folder)) {
       message("Creating directory: ", plot_folder)
       dir.create(plot_folder)
