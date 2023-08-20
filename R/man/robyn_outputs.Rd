@@ -75,7 +75,7 @@ candidates. To customize this threshold, set value with \code{min_candidates}.}
 calibrating, 0.1 means top 10% calibrated models are used for pareto-optimal
 selection. Lower \code{calibration_constraint} increases calibration accuracy.}
 
-\item{plot_folder}{Character. Path for saving plots. Default
+\item{plot_folder}{Character. Path for saving plots and files. Default
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
 
 \item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the

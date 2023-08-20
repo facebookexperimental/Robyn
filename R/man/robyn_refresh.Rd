@@ -61,7 +61,7 @@ still needs to be investigated.}
 \item{refresh_trials}{Integer. Trials per refresh. Defaults to 5 trials.
 More reliable recommendation still needs to be investigated.}
 
-\item{plot_folder}{Character. Path for saving plots. Default
+\item{plot_folder}{Character. Path for saving plots and files. Default
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
 
 \item{plot_pareto}{Boolean. Set to \code{FALSE} to deactivate plotting

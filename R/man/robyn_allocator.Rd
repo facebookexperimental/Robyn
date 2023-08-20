@@ -24,6 +24,7 @@ robyn_allocator(
   maxeval = 1e+05,
   constr_mode = "eq",
   plots = TRUE,
+  plot_folder = NULL,
   plot_folder_sub = NULL,
   export = TRUE,
   quiet = FALSE,
@@ -105,6 +106,9 @@ Defaults to 100000.}
 indicating constraints with equality or inequality.}
 
 \item{plots}{Boolean. Generate plots?}
+
+\item{plot_folder}{Character. Path for saving plots and files. Default
+to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
 
 \item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
 default path with timestamp or, for refresh and allocator, simply overwrite files.}
