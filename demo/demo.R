@@ -423,14 +423,14 @@ plot(AllocatorCollect3)
 # Example 4: Customize target_value for ROAS or CPA (using json_file)
 json_file = "~/Desktop/Robyn_202302221206_init/RobynModel-1_117_11.json"
 AllocatorCollect4 <- robyn_allocator(
-  # InputCollect = InputCollect,
-  # OutputCollect = OutputCollect,
   json_file = json_file, # Using json file from robyn_write() for allocation
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   date_range = NULL, # Default last month as initial period
   scenario = "target_efficiency",
   target_value = 2, # Customize target ROAS or CPA value
+  plot_folder = "~/Desktop/my_dir",
+  plot_folder_sub = "my_subdir",
   export = create_files
 )
 
