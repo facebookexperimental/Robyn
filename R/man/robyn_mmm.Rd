@@ -14,6 +14,7 @@ robyn_mmm(
   intercept_sign,
   ts_validation = TRUE,
   add_penalty_factor = FALSE,
+  objective_weights = NULL,
   dt_hyper_fixed = NULL,
   rssd_zero_penalty = TRUE,
   refresh = FALSE,
@@ -61,6 +62,11 @@ function.}
 glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
 this feature might add too much hyperparameter space and probably requires
 more iterations to converge.}
+
+\item{objective_weights}{Numeric. Default to NULL that gives equal weights
+to all objective functions. Set c(2, 1) to give double weight to the 1st.
+This is an experimental feature. There's no research on optimal weight
+setting. Subjective weights might strongly bias modelling result.}
 
 \item{dt_hyper_fixed}{data.frame or named list. Only provide when loading
 old model results. It consumes hyperparameters from saved csv

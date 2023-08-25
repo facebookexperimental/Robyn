@@ -49,6 +49,10 @@
 #' In other words, given the same DECOMP.RSSD score, a model with 50\% 0-coef
 #' variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
 #' another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.
+#' @param objective_weights Numeric. Default to NULL that gives equal weights
+#' to all objective functions. Set c(2, 1) to give double weight to the 1st.
+#' This is an experimental feature. There's no research on optimal weight
+#' setting. Subjective weights might strongly bias modelling result.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param outputs Boolean. Process results with \code{robyn_outputs()}?
 #' @param lambda_control Deprecated in v3.6.0.
@@ -81,6 +85,7 @@ robyn_run <- function(InputCollect = NULL,
                       trials = 5,
                       iterations = 2000,
                       rssd_zero_penalty = TRUE,
+                      objective_weights = NULL,
                       nevergrad_algo = "TwoPointsDE",
                       intercept = TRUE,
                       intercept_sign = "non_negative",
@@ -160,6 +165,7 @@ robyn_run <- function(InputCollect = NULL,
     ts_validation = ts_validation,
     add_penalty_factor = add_penalty_factor,
     rssd_zero_penalty = rssd_zero_penalty,
+    objective_weights = objective_weights,
     refresh, seed, quiet
   )
 
@@ -290,6 +296,7 @@ robyn_train <- function(InputCollect, hyper_collect,
                         dt_hyper_fixed = NULL,
                         ts_validation = TRUE,
                         add_penalty_factor = FALSE,
+                        objective_weights = NULL,
                         rssd_zero_penalty = TRUE,
                         refresh = FALSE, seed = 123,
                         quiet = FALSE) {
@@ -309,6 +316,7 @@ robyn_train <- function(InputCollect, hyper_collect,
       ts_validation = ts_validation,
       add_penalty_factor = add_penalty_factor,
       rssd_zero_penalty = rssd_zero_penalty,
+      objective_weights = objective_weights,
       seed = seed,
       quiet = quiet
     )
@@ -345,6 +353,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         ts_validation = ts_validation,
         add_penalty_factor = add_penalty_factor,
         rssd_zero_penalty = rssd_zero_penalty,
+        objective_weights = objective_weights,
         refresh = refresh,
         trial = ngt,
         seed = seed + ngt,
@@ -401,6 +410,7 @@ robyn_mmm <- function(InputCollect,
                       intercept_sign,
                       ts_validation = TRUE,
                       add_penalty_factor = FALSE,
+                      objective_weights = NULL,
                       dt_hyper_fixed = NULL,
                       # lambda_fixed = NULL,
                       rssd_zero_penalty = TRUE,
@@ -529,11 +539,24 @@ robyn_mmm <- function(InputCollect,
     my_tuple <- tuple(hyper_count)
     instrumentation <- ng$p$Array(shape = my_tuple, lower = 0, upper = 1)
     optimizer <- ng$optimizers$registry[optimizer_name](instrumentation, budget = iterTotal, num_workers = cores)
+
     # Set multi-objective dimensions for objective functions (errors)
     if (is.null(calibration_input)) {
       optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1))
+      if (is.null(objective_weights)) {
+        objective_weights <- tuple(1, 1)
+      } else {
+        objective_weights <- tuple(objective_weights[1], objective_weights[2])
+      }
+      optimizer$set_objective_weights(objective_weights)
     } else {
       optimizer$tell(ng$p$MultiobjectiveReference(), tuple(1, 1, 1))
+      if (is.null(objective_weights)) {
+        objective_weights <- tuple(1, 1, 1)
+      } else {
+        objective_weights <- tuple(objective_weights[1], objective_weights[2], objective_weights[3])
+      }
+      optimizer$set_objective_weights(objective_weights)
     }
   }
 
