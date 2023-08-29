@@ -278,11 +278,15 @@ Adstock: {a$adstock}
 robyn_recreate <- function(json_file, quiet = FALSE, ...) {
   json <- robyn_read(json_file, quiet = TRUE)
   message(">>> Recreating model ", json$ExportedModel$select_model)
-  InputCollect <- robyn_inputs(
-    json_file = json_file,
-    quiet = quiet,
-    ...
-  )
+  if (!"InputCollect" %in% names(list(...))) {
+    InputCollect <- robyn_inputs(
+      json_file = json_file,
+      quiet = quiet,
+      ...
+    )
+  } else {
+    InputCollect <- list(...)[["InputCollect"]]
+  }
   OutputCollect <- robyn_run(
     InputCollect = InputCollect,
     json_file = json_file,
