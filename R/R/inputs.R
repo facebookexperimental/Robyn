@@ -733,6 +733,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       prophet_signs = InputCollect$prophet_signs,
       factor_vars = factor_vars,
       context_vars = InputCollect$context_vars,
+      organic_vars = InputCollect$organic_vars,
       paid_media_spends = paid_media_spends,
       intervalType = InputCollect$intervalType,
       dayInterval = InputCollect$dayInterval,
@@ -773,7 +774,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
 #' @return A list containing all prophet decomposition output.
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
-                           factor_vars, context_vars, paid_media_spends,
+                           factor_vars, context_vars, organic_vars, paid_media_spends,
                            intervalType, dayInterval, custom_params) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
   recurrence <- select(dt_transform, .data$ds, .data$dep_var) %>% rename("y" = "dep_var")
@@ -785,7 +786,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- bind_cols(recurrence, select(
-    dt_transform, all_of(c(context_vars, paid_media_spends))
+    dt_transform, all_of(c(paid_media_spends, context_vars, organic_vars))
   )) %>%
     mutate(ds = as.Date(.data$ds))
 
