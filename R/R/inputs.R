@@ -687,7 +687,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
         paste(
           "NOTE: potential improvement on splitting channels for better exposure fitting.",
           "Threshold (Minimum R2) =", threshold,
-          "\n  Check: InputCollect$plotNLSCollect outputs"
+          "\n  Check: InputCollect$modNLS$plots outputs"
         ),
         "\n  Weak relationship for: ", v2t(these), " and their spend"
       )
