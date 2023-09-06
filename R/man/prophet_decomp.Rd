@@ -12,6 +12,7 @@ prophet_decomp(
   prophet_signs,
   factor_vars,
   context_vars,
+  organic_vars,
   paid_media_spends,
   intervalType,
   dayInterval,
@@ -27,6 +28,10 @@ Must contain \code{ds} column for time variable values and
 Prophet holidays using \code{data("dt_prophet_holidays")}}
 
 \item{context_vars, paid_media_spends, intervalType, dayInterval, prophet_country, prophet_vars, prophet_signs, factor_vars}{As included in \code{InputCollect}}
+
+\item{organic_vars}{Character vector. Typically newsletter sendings,
+push-notifications, social media posts etc. Compared to \code{paid_media_vars}
+\code{organic_vars} are often marketing activities without clear spends.}
 
 \item{custom_params}{List. Custom parameters passed to \code{prophet()}}
 }
