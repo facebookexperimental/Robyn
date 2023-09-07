@@ -118,7 +118,7 @@ robyn_write <- function(InputCollect,
       ret[["InputCollect"]][["total_iters"]] <- OutputModels$iterations * OutputModels$trials
       ret[["OutputCollect"]][["all_sols"]] <- all_sol_json
     }
-    write_json(ret, filename, pretty = TRUE)
+    write_json(ret, filename, pretty = TRUE, digits = 10)
   }
   return(invisible(ret))
 }
