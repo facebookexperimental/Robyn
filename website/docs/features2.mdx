@@ -5,12 +5,12 @@ title: Features
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
-An in-depth discussion of both the implementation and technical underpinnings of Robyn follows -
+An in-depth discussion of both the implementation and technical underpinnings of Robyn follows.
 
+---
 ## Model Inputs
 
 The function `robyn_inputs()` mainly captures all model specification for the dataset. Here we break down some of the underlying concepts
-
 
 ```
 InputCollect <- robyn_inputs(
@@ -20,10 +20,10 @@ InputCollect <- robyn_inputs(
   ,dep_var = "revenue" # there should be only one dependent variable
   ,dep_var_type = "revenue" # "revenue" or "conversion"
   ,prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday" & "holiday"
-  ,prophet_country = "DE"# input one country. dt_prophet_holidays includes 59 countries by default
+  ,prophet_country = "DE"# select only one country
   ,context_vars = c("competitor_sales_B", "events") # e.g. competitors, discount, unemployment etc
-  ,paid_media_spends = c("tv_S","ooh_S","print_S","facebook_S", "search_S")
-  ,paid_media_vars = c("tv_S", "ooh_S","print_S","facebook_I","search_clicks_P")
+  ,paid_media_spends = c("tv_S","ooh_S","print_S","facebook_S", "search_S") # Media spend
+  ,paid_media_vars = c("tv_S", "ooh_S","print_S","facebook_I","search_clicks_P") # Media exposure metrics. Use the same as paid_media_spends if not available
   ,organic_vars = c("newsletter") # marketing activity without media spend
   ,factor_vars = c("events") # specify which variables in context_vars or organic_vars are factorial
   ,window_start = "2016-01-01"
@@ -36,38 +36,39 @@ InputCollect <- robyn_inputs(
 
 Refer to the [Data Collection](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-collection) section of the Analyst's Guide to MMM for a detailed discussion on best practices for selecting your paid media variables.
 
-For paid media variables, we currently require that users designate both `paid_media_vars` and `paid_media_spends`. These vectors should be of the same length, and the elements in the same positions in each list should correspond (e.g. if element 2 in paid_media_vars is your tv variable, then element 2 in paid_media_spends should be your spend that corresponds to that tv data)
+For paid media variables, we currently require that users designate both `paid_media_vars` and `paid_media_spends`. `paid_media_vars` refers to media exposure metrics, e.g. TV GRP, search clicks or Facebook impressions. `paid_media_spends` refers to media spending. The two vectors must have the same length and the same order of media. When exposure metrics are not available, use the same as in `paid_media_spends`.
 
-When exposure metrics are provided in `paid_media_vars`, Robyn will fit them against their corresponding spend using the Michaelis-Menten nonlinear fitting. If the fit is low, it indicates that exposure metrics have different underlying pattern than their spends. Therefore, Robyn will recommend to splitting the channel for potentially better modelling result. Take Meta as example, retargeting and prospecting campaigns might have very different CPMs and efficiencies. In which case, it would be meaningful to split Meta by retargeting and prospecting.
+**Note**: Robyn currently fits the main model using only media spend. Exposure as modelling varibale is deprecated due to the uncertainty it introduces to the budget allocation. Robyn uses the Michaelis-Menten function to translate between spend and exposure. Despite the nonlinear flexibility this function provides, the relationship between spend and exposure is often too complex for a univariate transformation. In earlier versions, this inaccuracy in spend-exposure translation has caused unreliable budget allocation. Even though we understand the narrative of using exposure metrics, we've decided to trade it off against the reliability of budget allocation. We'll re-introduce exposure fitting as soon as we have a working solution.
 
-Ensure that the paid media data is complete and accurate before proceeding. We will talk more about the variable transformations paid media variables will be subject to in the Variable Transformation section.
+Despite the deprecation mentioned above, there's still value in providing exposure metrics in Robyn. If there's weak association detected between spend & exposure, it indicates that exposure metrics have different underlying pattern than spends. In this case, Robyn will recommend to splitting the channel for potentially better modelling result. Take Meta as example, retargeting and prospecting campaigns might have very different CPMs and efficiencies. In which case, it would be meaningful to split Meta by retargeting and prospecting.
 
+In general, it's important to ensure that the paid media data is complete and accurate before proceeding. We will talk more about the variable transformations paid media variables will be subject to in the Variable Transformation section.
 
 ### Organic Variables
 
-Robyn enables users to specify `organic_vars` to model marketing activities without direct spend. Typically, this may include newsletter, push notification, social media posts, among other efforts. Moreover, organic variables are expected to have similar carryover (adstock) and saturating behavior as paid media variables. The respective transformation techniques such as geometric or Weibull transformation for adstock; or Hill transformation for saturation, are also applied to organic variables. More on these transformations in the following section -
+Robyn enables users to specify `organic_vars` to model marketing activities without direct spend. Typically, this may include newsletter, push notification, social media post stats, among others. Moreover, organic variables are expected to have carryover (adstock) and saturating behavior as paid media variables. The respective transformation techniques are also applied to organic variables. More on these transformations in the following section.
 
----
 
 #### Examples of typical organic variables
-- Reach / Impressions on blog posts
+- Reach / impressions on blog posts
 - Impressions on organic & unpaid social media
 - SEO improvements
 - Email campaigns
 - Reach on UGC
 
-Below a chart showing the different types of organic variables that could be modeled
-
-<img alt="organic media" src={useBaseUrl('/img/organic-media.png')} />
-
----
 
 ### Contextual Variables
 
 All contextual variables must be specified as elements in `context_vars`. For a detailed discussion on potential contextual variables to include in your model, see the [Data Collection](https://facebookexperimental.github.io/Robyn/docs/analysts-guide-to-MMM#data-collection) section of the Analyst's guide to MMM.
 
----
 
+### The "demand map"
+
+A demand map is a very helpful practise to identify all relevant factors influencing our business performance. It's strongly recommended to do this exercise, esp. when running MMM for the first time. It's also helpful to revisit your hypothesis regularly.
+
+<img alt="organic media" src={useBaseUrl('/img/organic-media.png')} />
+
+---
 
 ## Variable Transformations
 
@@ -79,16 +80,21 @@ Robyn conducts two types of transformation to account for these hypothesis:
 1. Adstock transformation
 2. Saturation transformation
 
----
 
 ### Adstock
 
 Adstock refers to the hypothesis of ads carryover and reflects the theory that the effects of advertising can lag and
 decay following initial exposure. It's also related to certain brand equity metrics like ad-recall or campaign awareness. The logical narrative is "I saw the ads X days ago before I bought the product". Usually, it's assumed that this "memory" decays as time passes. But there're also cases when it's legitimate to assume that the effect of this "memory" will increase first before decreasing. For example, expensive products like cars or credits are unlikely to be purchased directly after the ads, esp. for offline channels. Therefore, it's usual to assume lagged effect with later peaks for offline channels for these products. At the same time, online conversions from digital channels might be suitable without lagged peaks and only deal with decay.
 
+The formula for adstock can be simplified as:
+
+$$
+mediaAdstocked_i,j = mediaRaw_i,j + decayRate_j *  mediaRaw_i-1,j
+$$
+
 There are three adstock transformation options you can choose in Robyn:
 
-#### Geometric:
+#### Geometric
    The one-parametric exponential decay function is used with theta as the fixed-rate decay parameter. For example, an adstock of theta =
    0.75 means that 75% of the ads in Period 1 carryover to Period 2. Robyn's implementation of Geometric transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L57) and is shown conceptually as followed:
 
@@ -101,8 +107,9 @@ There are three adstock transformation options you can choose in Robyn:
 Another useful property of Geometric decay is that the limit of the inifinite sum is equal to `1 / (1 - theta)`. For example, when theta = 0.75, its infinite sum is 4. Because Robyn conducts adstock transformation on spends, it can give you a quick and inituitive idea of how much "inflation" the adstock transformation will add on your raw data.
 
 
-#### Weibull PDF & CDF:
-Robyn offers the two-parametric Weibull function in the formats of PDF and CDF. Compared to the one-parametric Geometric function where theta is equal to the fixed decay rate, Weibull produces time-varying decay rates through more flexibility in the transformation with the parameters shape and scale. Robyn's implementation of Weibull transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L123) and is shown conceptually as followed. Note that the theta from Weibull is time-dependent.
+#### Weibull PDF & CDF
+
+Robyn offers the two-parametric Weibull function in the formats of PDF and CDF. Compared to the one-parametric Geometric function where theta is equal to the fixed decay rate, Weibull produces time-varying decay rates through more flexibility in the transformation with the parameters shape and scale. Robyn's implementation of Weibull transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L128) and is shown conceptually as followed. Note that the theta from Weibull is time-dependent.
 
 <img alt="Weibull Formula" src={useBaseUrl('img/weibull.png')} />
 
