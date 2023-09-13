@@ -1117,8 +1117,8 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
   # Calculate all NRMSE
   nrmse_train <- sqrt(mean((y_train - y_train_pred)^2)) / (max(y_train) - min(y_train))
   if (!is.null(x_val)) {
-    nrmse_val <- sqrt(mean(sum((y_val - y_val_pred)^2))) / (max(y_val) - min(y_val))
-    nrmse_test <- sqrt(mean(sum((y_test - y_test_pred)^2))) / (max(y_test) - min(y_test))
+    nrmse_val <- sqrt(mean((y_val - y_val_pred)^2)) / (max(y_val) - min(y_val))
+    nrmse_test <- sqrt(mean((y_test - y_test_pred)^2)) / (max(y_test) - min(y_test))
   } else {
     nrmse_val <- nrmse_test <- y_val_pred <- y_test_pred <- NA
   }
