@@ -337,9 +337,9 @@ robyn_response <- function(InputCollect = NULL,
 }
 
 which_usecase <- function(metric_value, date_range) {
-  case_when(
+  usecase <- case_when(
     # Case 1: raw historical spend and all dates -> model decomp as out of the model (no mean spends)
-    (is.null(metric_value) & is.null(date_range)) | (date_range == "all") ~ "all_historical_vec",
+    is.null(metric_value) & is.null(date_range) ~ "all_historical_vec",
     # Case 2: same as case 1 for date_range
     is.null(metric_value) & !is.null(date_range) ~ "selected_historical_vec",
     ######### Simulations: use metric_value, not the historical real spend anymore
@@ -350,6 +350,12 @@ which_usecase <- function(metric_value, date_range) {
     length(metric_value) > 1 & is.null(date_range) ~ "unit_metric_default_last_n",
     TRUE ~ "unit_metric_selected_dates"
   )
+  if (!is.null(date_range)) {
+    if (date_range == "all") {
+      usecase <- "all_historical_vec"
+    }
+  }
+  return(usecase)
 }
 
 # ####### SCENARIOS CHECK FOR date_range
