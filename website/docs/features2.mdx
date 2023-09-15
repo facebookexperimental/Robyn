@@ -86,104 +86,105 @@ Robyn conducts two types of transformation to account for these hypothesis:
 Adstock refers to the hypothesis of ads carryover and reflects the theory that the effects of advertising can lag and
 decay following initial exposure. It's also related to certain brand equity metrics like ad-recall or campaign awareness. The logical narrative is "I saw the ads X days ago before I bought the product". Usually, it's assumed that this "memory" decays as time passes. But there're also cases when it's legitimate to assume that the effect of this "memory" will increase first before decreasing. For example, expensive products like cars or credits are unlikely to be purchased directly after the ads, esp. for offline channels. Therefore, it's usual to assume lagged effect with later peaks for offline channels for these products. At the same time, online conversions from digital channels might be suitable without lagged peaks and only deal with decay.
 
-The formula for adstock can be simplified as:
+The formula for adstock can be generalised as:
 
-$$
-mediaAdstocked_i,j = mediaRaw_i,j + decayRate_j *  mediaRaw_i-1,j
-$$
+`media_adstocked_i = media_raw_i + decay_rate *  media_raw_i-1`, where `i` is a given time period.
 
 There are three adstock transformation options you can choose in Robyn:
 
 #### Geometric
-   The one-parametric exponential decay function is used with theta as the fixed-rate decay parameter. For example, an adstock of theta =
-   0.75 means that 75% of the ads in Period 1 carryover to Period 2. Robyn's implementation of Geometric transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L57) and is shown conceptually as followed:
+The one-parametric exponential decay function is used with theta as the fixed-rate decay parameter. For example, an adstock of `theta = 0.75` means that 75% of the ads in Period 1 carryover to Period 2. Robyn's implementation of Geometric transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L57) and is shown conceptually as followed:
 
-<img alt="Geometric Formula" src={useBaseUrl('img/geometric.png')} />
+`media_adstocked_ij = media_raw_ij + decay_rate_j *  media_raw_i-1_j`, where `i` is a given time period and `j` depicts a media variable. The `decay_rate_j` is a constant value per media variable and equal to the Geometric parameter `theta`.
 
-  Some rule of thumb estimates we have found from historically building weekly-level models are that  TV has tended to have adstock between 0.3 - 0.8, OOH/Print/Radio has had 0.1-0.4, and Digital has had 0.0 - 0.3. This is anecdotal advice so please use your best judgement when building your own models.
+Some rule of thumb estimates we have found from historically building weekly-level models are that  TV has tended to have adstock between 0.3 - 0.8, OOH/Print/Radio has had 0.1-0.4, and Digital has had 0.0 - 0.3. This is anecdotal advice so please use your best judgement when building your own models.
 
 <img alt="Example Geometric Adstocks" src={useBaseUrl('img/adstockintro.png')} />
 
-Another useful property of Geometric decay is that the limit of the inifinite sum is equal to `1 / (1 - theta)`. For example, when theta = 0.75, its infinite sum is 4. Because Robyn conducts adstock transformation on spends, it can give you a quick and inituitive idea of how much "inflation" the adstock transformation will add on your raw data.
+Another useful property of Geometric decay is that the limit of the inifinite sum is equal to `1 / (1 - theta)`. For example, when `theta = 0.75`, its infinite sum is `1 / (1 - 0.75) = 4`. Because Robyn conducts adstock transformation on spends, it can give you a quick and inituitive idea of how much "inflation" the adstock transformation will add on your raw data. On the other hand, Geometric decay is not able to capture more flexible time-varying decay, nor the lagging effect, which are solved by the Weibull adstock below.
 
 
 #### Weibull PDF & CDF
 
-Robyn offers the two-parametric Weibull function in the formats of PDF and CDF. Compared to the one-parametric Geometric function where theta is equal to the fixed decay rate, Weibull produces time-varying decay rates through more flexibility in the transformation with the parameters shape and scale. Robyn's implementation of Weibull transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L128) and is shown conceptually as followed. Note that the theta from Weibull is time-dependent.
+Robyn offers the two-parametric Weibull function in the formats of PDF and CDF. Compared to the one-parametric Geometric function where theta is equal to the fixed decay rate, Weibull produces a vector of time-varying decay rates through more flexibility in the transformation with the parameters `shape` and `scale`. Robyn's implementation of Weibull transformation can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L128) and is shown conceptually as followed:
 
-<img alt="Weibull Formula" src={useBaseUrl('img/weibull.png')} />
+`media_adstocked_ij = media_raw_ij + decay_rate_ij *  media_raw_i-1_j`, where `i` is a given time period and `j` depicts a media variable. Note that the `decay_rate_ij` specific to time period `i` of the media variable `j`, compared to the fixed decay rate from Geometric.
 
-The plot below shows the flexibility of Weibull adstocks with regard to the two parameters shape and scale. This flexibility does come at a cost of more computational power due to the extra hyperparameter. Especially Weibull PDF is strongly recommmended when the product is considered to have longer conversion window. We've seen Weibulll PDF leading to considerabaly better fit in some cases.
+The plot below shows the flexibility of Weibull adstocks with regard to the two parameters `shape` and `scale`. This flexibility does come at a cost of more computational power due to the extra hyperparameters. **Weibull PDF is strongly recommmended for products with longer conversion window.** We've seen Weibulll PDF leading to considerabaly better fit in some cases.
 
-<img alt="Example Weibull Adstocks" src={useBaseUrl('img/weibulladstocks.png')} />
+<img alt="Example Weibull Adstocks" width="800" src={useBaseUrl('img/weibulladstocks.png')} />
 
  **Weibull CDF adstock:** The Cumulative Distribution Function of Weibull has two parmeters
-, shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
-decay rate. The shape parameter controls the shape of the decay curve. Recommended
-bound is c(0.0001, 2). The larger the shape, the more S-shape. The smaller, the more
-L-shape. Scale controls the inflexion point of the decay curve. We recommend very
-conservative bounce of c(0, 0.1), because scale increases the adstock half-life greatly.
+`shape` & `scale` that enables flexible decay rate, compared to Geometric adstock with fixed
+decay rate. The `shape` parameter controls the curvature of the decay curve. Recommended
+bound is `c(0.0001, 2)`. The larger the shape, the more S-form the curve becomes. The smaller
+the shape, the more L-form. `scale` controls the inflexion point of the curve. We recommend
+very conservative bounce of `c(0, 0.1)`, because scale increases the adstock half-life greatly.
 
 **Weibull PDF adstock:** The Probability Density Function of the Weibull also has two
-parameters, shape & scale, and also has flexible decay rate as Weibull CDF. The
-difference is that Weibull PDF offers lagged effect. When shape > 2, the curve peaks
+parameters, `shape` & `scale`, and also provides flexible decay rate as Weibull CDF. The
+difference is that Weibull PDF offers lagged effect. When `shape > 2`, the curve peaks
 after x = 0 and has NULL slope at x = 0, enabling lagged effect and sharper increase and
 decrease of adstock, while the scale parameter indicates the limit of the relative
-position of the peak at x axis; when 1 < shape < 2, the curve peaks after x = 0 and has
+position of the peak at x axis; when `1 < shape < 2`, the curve peaks after x = 0 and has
 infinite positive slope at x = 0, enabling lagged effect and slower increase and decrease
-of adstock, while scale has the same effect as above; when shape = 1, the curve peaks at
+of adstock, while scale has the same effect as above; when `shape = 1`, the curve peaks at
 x = 0 and reduces to exponential decay, while scale controls the inflexion point; when
-0 < shape < 1, the curve peaks at x = 0 and has increasing decay, while scale controls
-the inflexion point. When all possible shapes are relevant, we recommend c(0.0001, 10)
-as bounds for shape; when only strong lagged effect is of interest, we recommend
-c(2.0001, 10) as bound for shape. In all cases, we recommend conservative bound of
-c(0, 0.1) for scale. Due to the great flexibility of Weibull PDF, meaning more freedom
+`0 < shape < 1`, the curve peaks at x = 0 and has increasing decay, while scale controls
+the inflexion point. When all possible shapes are relevant, we recommend `c(0.0001, 10)`
+as bounds for `shape`; when only strong lagged effect is of interest, we recommend
+`c(2.0001, 10)` as bound for `shape`. In all cases, we recommend conservative bound of
+`c(0, 0.1)` for `scale`. Due to the great flexibility of Weibull PDF, meaning more freedom
 in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
 to converge.
 
-
-**Implementation of adstocking is done in a few steps**
-1. In `InputCollect` set `adstock` equal to the distribution you plan to use (geometric, weibull_cdf, weibull_pdf)
-2. Run `hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)` to identify the hyperparameters that will need to be set up correctly in order to begin the modeling process. All paid and organic media variables will have hyper parameters that need to be set up.
-3. Set ranges for each hyperparameter
 ---
 
 ### Diminishing returns (Saturation)
 
 The theory of diminishing returns holds that each additional unit of advertising
-increases the response, but at a declining rate. This key marketing principle is
-reflected in marketing mix models as a variable transformation.
+investment increases the response at a declining rate. This hypothesis is implemented as
+variable transformation in marketing mix models.
 
 <img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns1.png')}
 />
 
 The nonlinear response to a media variable on the dependent variable can be
-modelled using a variety of functions. For example, we can use a simple
-logarithm transformation (taking the log of the units of advertising log(x) ),
-or a power transformation (x^alpha). In the case of a power transformation, the
-modeler tests the different variables (different levels of parameter alpha) for the
-highest significance of the variable in the model and the highest significance
-of the equation overall. However, the most common approach is to use the
-flexible S-curve (Hill) transformation:
+modelled in different ways. Common approaches include transforming the media variable
+by the logarithm transformation, the power transformation or any sigmoid-shape
+functions. A common trait of these transformation is that they are all continuous
+and differentiable, which is important for the budget allocation with any nonlinear
+optimisation algorithms.
 
-<img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns2.png')}
-/>
+Robyn uses the latter and implements the Hill function for a flexible
+transformation into S- or L-shape saturation. The implementation of Hill function
+in Robyn can be found [here](https://github.com/facebookexperimental/Robyn/blob/main/R/R/transformation.R#L210)
+and is shown conceptually as followed:
 
-Note that the gamma in the equation is scaled to the inflexion point of variable in question. The variations of the parameters give modelers full flexibility on the look of the S-curve, specifically the shape and the inflection points:
+`media_saturated_j = 1 / (1 + (gamma_j / media_adstocked_j) ^ alpha_j)`, where
+`j` depicts a media variable.
+
+Note that `gamma_j` above is scaled to the inflexion point of the variable. By
+varying the values of `alpha` and `gamma`, changes in curvature and inflexion point
+of the saturation curve can be observed below:
 
 <img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns3.png')}
 />
 
-To understand these charts, on the x axis we have spend, and on the y-axis we have response. So as the spend rises, the response changes and depending on the curve we understand what the marginal response is. These curves are extremely useful in the end stages of MMM where we seek to understand how we can more optimally allocate budgets between all of our media channels.
+In this plot, x axis depicts spend and y response. `alpha` controls the shape of
+the curve between C- and S-shape. Recommended bound for `alpha` is `c(0.5, 3)`.
+The larger the alpha, the more S-shape. The smaller, the more C-shape. `gamma`
+controls the inflexion point of the curve. Recommended bounce of `gamma` is
+`c(0.3, 1)`. The larger the gamma, the later the inflection point in the response
+curve.
 
-Hill function for saturation: The Hill function is a two-parametric function in Robyn with
-alpha and gamma. Alpha controls the shape of the curve between exponential and s-shape.
-Recommended bound is c(0.5, 3). The larger the alpha, the more S-shape. The smaller, the
-more C-shape. Gamma controls the inflection point. Recommended range is c(0.3, 1). The
-larger the gamma, the later the inflection point in the response curve.
-
-**Implementation in Robyn is all done in hyper parameter setting**
-1. Ensure you have a alpha and gamma hyper parameter for each paid media variable with a range specified
+Another important term that's related to saturation is the marginal response. In
+mathematical term, the marginal response is equal to the first derivative of a given
+point at the nonlinear curve. In layman's term, it's the "next dollar response" on
+a given spend level. For example, if the average weekly spend is 1000$, "what is the
+return from the 1001th dollar?" This is the foundation of understanding how nonlinear
+budget allocation works. For more details in marginal response, see **[this article](https://medium.com/@gufengzhou/the-convergence-of-marginal-roas-in-the-budget-allocation-in-robyn-5d407aebf021): "The convergence
+of marginal ROAS in the budget allocation in Robyn"**.
 
 ---
 
