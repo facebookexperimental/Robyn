@@ -423,14 +423,14 @@ When you run robyn_clusters() you'll get a list of results: the data used to cal
 
 ### Budget Allocation
 
-Once you have analyzed the optimal model results plots and have chosen your model, you may introduce the model unique ID from the results in the previous section. E.g setting select_model = "1_92_12" could be an example of a selected model from the list of best models in 'OutputCollect$allSolutions' results object. Once you run the budget allocator, results will be plotted and saved under the same folder where the model plots had been saved. The result would look like the following:
+Once you have analyzed the optimal model results plots and have chosen your model, you may introduce the model unique ID from the results in the previous section. E.g setting select_model = "1_143_2" could be an example of a selected model from the list of best models in 'OutputCollect$allSolutions' results object. Once you run the budget allocator, results will be plotted and saved under the same folder where the model plots had been saved. The result would look like the following:
 
 <img alt="budget allocator chart" src={useBaseUrl('/img/optimizer_new.png')} />
 
-You may encounter three charts as in the example above:
-1. **Initial vs. optimized budget allocation:** This channel shows the original spend share vs. the new optimized recommended one. If optimized share is greater than original, this would mean you will need to proportionally increase budgets for that channel according to the difference between both shares. And you would reduce budgets in the case spend share would be greater than optimized share.
-2. **Initial vs. optimized mean response:** Similar to the chart above, we have initial and optimized shares, but this time over the total expected response E.g. Sales. The optimized response is the total increase in sales that we are expecting you to have if you switch budgets following the chart we explained above, increasing those with better share for optimized spend and decreasing spend for those with lower optimized spend than the initial.
-3. **Response curve and mean spend by channel:** These again are the diminishing returns response curves from hill function. They represent how saturated a channel is and therefore, may suggest potential budget reallocation strategies. The faster the curves reach to an inflection point and to a horizontal/flat slope, the quicker they will saturate with each extra ($) spent. The initial mean spend is represented by a circle and the optimized one by the triangle.
+For the interpretation of the budget allocation onepager, please refer to the
+following deepdive articles:
+- **"The convergence of marginal ROAS in the budget allocation in Robyn"**: [here](https://medium.com/@gufengzhou/the-convergence-of-marginal-roas-in-the-budget-allocation-in-robyn-5d407aebf021)
+- **"Hitting ROAS target using Robyn’s budget allocator"**: [here](https://medium.com/@gufengzhou/hitting-roas-target-using-robyns-budget-allocator-274ace3add4f)
 
 ---
 
