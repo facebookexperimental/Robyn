@@ -38,9 +38,9 @@ Refer to the [Data Collection](https://facebookexperimental.github.io/Robyn/docs
 
 For paid media variables, we currently require that users designate both `paid_media_vars` and `paid_media_spends`. `paid_media_vars` refers to media exposure metrics, e.g. TV GRP, search clicks or Facebook impressions. `paid_media_spends` refers to media spending. The two vectors must have the same length and the same order of media. When exposure metrics are not available, use the same as in `paid_media_spends`.
 
-**Note**: Robyn currently fits the main model using only media spend. Exposure as modelling varibale is deprecated due to the uncertainty it introduces to the budget allocation. Robyn uses the Michaelis-Menten function to translate between spend and exposure. Despite the nonlinear flexibility this function provides, the relationship between spend and exposure is often too complex for a univariate transformation. In earlier versions, this inaccuracy in spend-exposure translation has caused unreliable budget allocation. Even though we understand the narrative of using exposure metrics, we've decided to trade it off against the reliability of budget allocation. We'll re-introduce exposure fitting as soon as we have a working solution.
+**Note**: Robyn currently fits the main model using only media spend. Exposure as modeling varibale is deprecated due to the uncertainty it introduces to the budget allocation. Robyn uses the Michaelis-Menten function to translate between spend and exposure. Despite the nonlinear flexibility this function provides, the relationship between spend and exposure is often too complex for a univariate transformation. In earlier versions, this inaccuracy in spend-exposure translation has caused unreliable budget allocation. Even though we understand the narrative of using exposure metrics, we've decided to trade it off against the reliability of budget allocation. We'll re-introduce exposure fitting as soon as we have a working solution.
 
-Despite the deprecation mentioned above, there's still value in providing exposure metrics in Robyn. If there's weak association detected between spend & exposure, it indicates that exposure metrics have different underlying pattern than spends. In this case, Robyn will recommend to splitting the channel for potentially better modelling result. Take Meta as example, retargeting and prospecting campaigns might have very different CPMs and efficiencies. In which case, it would be meaningful to split Meta by retargeting and prospecting.
+Despite the deprecation mentioned above, there's still value in providing exposure metrics in Robyn. If there's weak association detected between spend & exposure, it indicates that exposure metrics have different underlying pattern than spends. In this case, Robyn will recommend to splitting the channel for potentially better modeling result. Take Meta as example, retargeting and prospecting campaigns might have very different CPMs and efficiencies. In which case, it would be meaningful to split Meta by retargeting and prospecting.
 
 In general, it's important to ensure that the paid media data is complete and accurate before proceeding. We will talk more about the variable transformations paid media variables will be subject to in the Variable Transformation section.
 
@@ -138,13 +138,11 @@ as bounds for `shape`; when only strong lagged effect is of interest, we recomme
 in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
 to converge.
 
----
+### Saturation
 
-### Diminishing returns (Saturation)
-
-The theory of diminishing returns holds that each additional unit of advertising
-investment increases the response at a declining rate. This hypothesis is implemented as
-variable transformation in marketing mix models.
+The theory of diminishing returns (also called saturation) holds that each additional
+unit of advertising investment increases the response at a declining rate. This
+hypothesis is implemented as variable transformation in marketing mix models.
 
 <img alt="Diminishing returns1" src={useBaseUrl('img/diminishingreturns1.png')}
 />
@@ -188,29 +186,22 @@ of marginal ROAS in the budget allocation in Robyn"**.
 
 ---
 
-## Meta Prophet
+## Trend & seasonality decomposition with Prophet
 
-### Automated trend, seasonality and holiday effect decomposition
+As for any real-life time-series problems, it's fundamental to understand trend
+and seasonality in the data for better fitting. In conventional MMM, this is often
+done separately and manually using simple assumptions like linear trend or dummy
+variable for seasonality. With the purpose of reducing human bias in the modeling
+process, Robyn provides trend, season, holiday & weekday decomposition out of the
+box using Prophet, a popular time-series forecast package by Meta. In many cases,
+this has proven to be increasing the model fit greatly. More details on how time-series
+decomposition works can be found in [Prophet's documentaion](https://facebook.github.io/prophet/docs/trend_changepoints.html).
 
----
-
-**Prophet** has been included in the code in order to improve the fit and forecast of
-time-series by decomposing the effect of trend, seasonality and holiday
-components in the response variable (Sales, conversions, etc.).
-
-**Prophet** is a Meta original procedure for **forecasting time
-series** data, based on a model where **non-linear trends** are fit with yearly,
-weekly, and daily seasonality, plus holiday effects. It works best with time
-series that have strong seasonal effects and several seasons of historical data.
-More details can be found [here](https://facebook.github.io/prophet/docs/).
-
----
-
-### Prophet decomposition plot example
-Trend, season, holiday and an extra regressor ("events" in this case) decomposition by Prophet.
-Weekday is not used because the sample data is weekly (not daily).
-Robyn uses Prophet to also decompose categorical variables as an extra regressor which can simplify later programming.
-For technical details of decomposition, please refer to Prophet's documentation [here](https://facebook.github.io/prophet/docs/trend_changepoints.html).
+### Exemplary time-series decomposition
+In the plot below, the dependent variable "revenue" from Robyn's weekly [sample data](https://github.com/facebookexperimental/Robyn/tree/main/R/data) is decomposed into trend, season and holiday components. Note that
+weekday is not included because it's only available for daily data. Note that the "event"
+variable is included as an extra regressor. With this, Robyn "converts" a categorical
+variable to a continuous one, which simplifies later calculation.
 
 <img alt="prophet 2" src={useBaseUrl('/img/prophet_decomp.png')} />
 
