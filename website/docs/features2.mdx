@@ -322,50 +322,62 @@ A time series validation parameter `train_size` is included as one of Robyn's hy
 
 ---
 
-## Calibration with Experiments
+## Calibration with causal experiments
 
-By applying results from randomized controlled-experiments, you may improve the
-accuracy of your marketing mix models dramatically. It is recommended to run
-these on a recurrent basis to keep the model calibrated permanently. In general,
-we want to compare the experiment result with the MMM estimation of a marketing
-channel. Conceptually, this method is like a Bayesian method, in which we use
-experiment results as a prior to shrink the coefficients of media variables. A
-good example of these types of experiments is Facebook’s conversion lift tool
-which can help guide the model towards a specific range of incremental values.
+Randomised controlled trial (RCT) is an established academic gold standard to infer causality in science. By applying results from RCT in ads measurement that are considered ground truth, you can introduce causality into your marketing mix models. Robyn implements the MMM calibration as an objective function in the multi-objective optimization by parameterizing the difference between causal results and predicted media contribution.
 
 <img alt="Calibration chart" src={useBaseUrl('/img/calibration1.png')} />
 
-The figure illustrates the calibration process for one MMM candidate model.
-[**Facebook’s Nevergrad gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/) allows us to include the **MAPE(cal,fb)** as a third optimization score besides Normalized Root Mean Square Error (**NRMSE**) and **decomp.RSSD** ratio (Please refer to the automated hyperparameter selection and optimization for further details) providing a set of **Pareto optimal model solutions** that minimize and converge to a set of Pareto optimal model candidates. This calibration method can be applied to other media channels which run experiments, the more channels that are calibrated, the more accurate the MMM model.
+The chart above illustrates the calibration concept. The calibration error **MAPE.LIFT** is implemented as the third objective function besides the prediction error and the business error (please refer to [details above](#multi-objective-hyperparameter-optimization-with-nevergrad)) and depicts the difference between predicted media contribution and the ground truth, as shown in the equation in the chart.
 
-**Implementation of calibration is as follows**
+### Key findings of calibration
 
-1. Create a data file corresponding to your experimental results - here is an example
+- According to an third party whitepaper ["The Value of Calibrating MMM with Lift Experiments"](https://analytic-edge.com/blog/the-value-of-calibrating-mmm-with-lift-experiments/) by Analytic Edge, **uncalibrated models show 25% average difference to the ground truth**.
+- Another [simulated experiment](https://medium.com/@gufengzhou/calibrated-mmm-better-predicts-true-roas-d5adfc8abdc4) conducted by the the winners of the [Robyn 2022 Hackathon](https://apac-robyn2022.devpost.com/) has found out that:
+  - **Calibrated models are better**: All calibrated models show predicted ROAS closer to true ROAS with smaller MAPE than uncalibrated models.
+  - **Good for one, good for all**: When only calibrating one from both simulated channels (TV & FB), the other channel also predicts better towards true ROAS than uncalibrated.
+  - **The more calibrated channels, the better**: Calibrating both simulated channels (TV & FB) shows the lowest error to true ROAS. This is expected, because Robyn’s calibration is designed to recover the true ROAS by having the calibration error (MAPE.LIFT) as an objective function within Robyn’s multi-objective optimisation capacity.
+  - **The more studies to calibrate, the better**: The true ROAS prediction improves strongly with up-to 10 studies per channel.
+
+### Types of experiments
+
+There're two major types of experiements in ads measurement, as pointed out by this WARC article ["A step-by-step guide to calibrating marketing mix models with experiments"](https://www.warc.com/content/paywall/article/a-step-by-step-guide-to-calibrating-marketing-mix-models-with-experiments/en-GB/152212).
+
+- **Sales experiments**: These experiments aim to measure the impact of marketing activities on sales such as online conversion. Examples are [Meta’s Conversion Lift](https://www.facebook.com/business/m/one-sheeters/conversion-lift) or [Google’s Conversion Lift](https://support.google.com/google-ads/answer/12003020?hl=en). These experiments work by comparing the conversion rates between a test group and a control group, and help estimate the causal effect of marketing.
+  - **Pros**: Provide direct insight into sales impact, relatively straightforward to plan and execute.
+  - **Cons**: Limited to measuring conversion-related outcomes, may overlook non-conversion effects. Only applicable to digital channels.
+- **Geo experiments**: Geo experiments analyze the impact of marketing activities in specific geographic regions such as DMAs, states or cities. By comparing the outcomes in regions exposed to marketing interventions with those in control regions, the spatial variation in response can be quantified.
+  - **Pros**: Capture spatial variations and market-specific responses, useful for localized marketing. Possibility to run offline. Same test for cross channel. Can estimate groups of channels (e.g. all digital). Might even be applicable for offline channels like addressable TV or OOH.
+  - **Cons**: Could get affected by potential spillover effects across regions, requiring careful design to ensure comparability.
+
+#### Using calibration in Robyn
+
+Robyn accepts a dataframe as calibration input in the `robyn_inputs()` function. An example dataframe is shown below. The function usage can be found in the [demo](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R#L262).
 
 ```
 calibration_input <- data.frame(
   # channel name must in paid_media_vars
   channel = c("facebook_S",  "tv_S", "facebook_S"),
+
   # liftStartDate must be within input data range
   liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01")),
+
   # liftEndDate must be within input data range
   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20")),
+
   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
   liftAbs = c(400000, 300000, 200000),
+
   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
   spend = c(421000, 7100, 240000),
+
   # Confidence: if frequentist experiment, you may use 1 - pvalue
   confidence = c(0.85, 0.8, 0.99),
+
   # KPI measured: must match your dep_var
   metric = c("revenue", "revenue", "revenue")
 )
 ```
-
-2. Set `calibration_input <- dt_calibration` (or whatever you name your calibration data frame) within InputCollect
-
-3. Increase your iteration count by at least 1000 to account for needing to optimize 3 objective functions (NRMSE, Decomp.RSSD, MAPE.lift) rather than 2 (NRMSE, Decomp.RSSD)
-
-4. Run model
 
 ---
 
