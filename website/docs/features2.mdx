@@ -283,7 +283,7 @@ The cardinality of hyperparameters increases when adding more paid and organic m
 
 
 
-Using the concept of Pareto-optimality balancing all objective functions, Robyn always outputs a set of pareto-optimum model candidates that are considered "the best". Please find below an example of an example chart of the Pareto model solutions.
+Using the concept of [**Pareto-optimality**](https://en.wikipedia.org/wiki/Pareto_efficiency) balancing all objective functions, Robyn always outputs a set of pareto-optimum model candidates that are considered "the best". Please find below an example of an example chart of the Pareto model solutions.
 Each dot in the chart represents an explored model solution, while the lower-left corner lines are Pareto-fronts 1-3 and contains the best possible model results from all iterations.
 The two axes (NRMSE on x and DECOMP.RSSD on y) are the two objective functions to be minimized.
 As the iteration increases, a trend down the lower-left corner of the coordinate can be clearly observed.
@@ -380,44 +380,31 @@ calibration_input <- data.frame(
 ```
 
 ---
-
 ## Outputs & Diagnostics
 
-The MMM code will automatically generate a set of plots under the folder you specify on the ‘model_output_collect’ object. Each of these plots represents one of the optimal model solutions as a result of the multi-objective optimization Pareto optimal process mentioned in the **‘Automated hyperparameter selection and optimization’** section. Please find below an example of the model output:
+Robyn automatically exports various graphical and tabular outputs into the specified path to aid result interpretation and further custom analysis.
+
+### Model onepager
+
+An onepager per pareto-optimal model is exported after running the `robyn_outputs()` function. An example:
 
 <img alt="ModelResults1 chart" src={useBaseUrl('/img/modelresults2.png')} />
 
-As you may observe we have 6 different charts above:
-1. **Response decomposition waterfall by predictor:** This chart reflects the percentage of each of the variables effect (Baseline and Media variables + intercept) on the response variable. E.g. If newsletter effect says it's 9.6% that means that 9.6% of the total sales can be attributed to newsletter activations.
+1. **Response decomposition waterfall:** This chart depicts the absolute as well as percentage contribution of all of independent variables. The percentages sum up to 100% and can be interpreted as "x% of the revenue can be explained by variable A". **The concept "baseline"** might come up in the context of total decomposition. While there's no clear definition of baseline, we define baseline as "non-steerable variables". All marketing-related variables (paid, organic, price, promotion etc.) are considered steerable. The rest of seasonal (trend, season, holiday etc.), external variables (competitors, weather etc.) and intercept are considered baseline.
 
-	Tip: Intercept, and Prophet vars like trend can constitute a large portion of your decomp. This makes sense if your brand is established, as it is basically saying that you would still have a large baseline of sales without paid media spend.
+2. **Actual vs. predicted response:** This chart shows the actual response variable (e.g. revenue) vs. the predicted value from the model. The goodness of fit can be observed visually. In this example, the R-squared is considerably high (close to 0.9), while both actual and predicted lines are visually well aligned. Moreover, this plot helps the interpretation of "unmatched events", e.g. the peak mid 2018 is not captured by the model at all. Was there a special event that's not accounted for in the model?
 
-2. **Share of spend vs. share of effect:** This plot reflects the comparison of the total effect each channel had by means of the decomposition of the coefficients into the response variable divided by the total effect. As well as, the total spend (cost or investment) each channel had and its relative share over total marketing spend. We also plot the return on investment (ROI) each channel had which can give you an idea over the most profitable channels.
+3. **Share of spend vs. share of effect:** This plot shows the comparison between the total effect share and total spend share for all paid media variables within the entire modeling window. This is the visualization of the objective function [DECOMP.RSSD](#objective-functions). Moreover, the total return on investment (ROAS) of each media variable are also plotted. Note that the percentage of effect will sum up to 100% for media variable only in this plot, as opposed to the waterfall plot that contains all variabes.
 
-	Tip: Decomp.RSSD is one of the objective functions we minimize which corresponds to the distance between share of spend and share of effect. So in essence we do not want to see extreme distances between share of spend and share of effect because it does not make realistic business sense to optimize to. Consider this when comparing model solutions.
+4. **In-cluster bootstrapped confidence interval**: Robyn uses bootstrapping to calculate uncertainty of ROAS or CPA. After obtaining all pareto-optimal model candidates, the K-means clustering is applied to find clusters of models with similar hyperparameters. In the context of [MOO](#multi-objective-hyperparameter-optimization-with-nevergrad), we consider these clusters sub-population in different local optima. Then we bootstrap the efficiency metrics (ROAS or CPA) to obtain the distribution and the 95% interval.
 
-3. **Average adstock decay rate:** This chart represents, on average, what is the percentage decay rate each channel had. The higher the decay rate, the longer the effect in time for that specific channel media exposure. This is a simple calculation for Geometric adstocks, with average adstock decay rate = theta. For Weibull adstocks this calculation is a bit more complicated.
+5. **Adstock decay rate:** This chart represents the carryover effect of each media variable (paid & organic). For Geometric adstock, the barchart depicts the fixed decay rate. The higher the value, the stronger the carryover into the future. For Weibull adstock, each sub-chart depicts the time-varying decay rate for each media variable, which might also include lag effect. A common hypothesis of adstock is that offline channels have stronger the carryover.
 
-	Tip: It can be useful to look at the adstock rates in comparison to each other. For example, how do your upper funnel channel adstocks compare to your lower funnel channel adstocks. There are some logical conclusions to make about upper funnel having longer adstocks than lower funnel, so keep an eye out for cases where it doesn't seem to be the case. This isn't a hard and fast rule, but can be a way to differentiate between solutions.
+6. **Immediate vs. carryover**: Robyn splits the media contribution into two parts: immediate contribution and carryover contribution. Immediate is the effect of the direct media spend of a given period, while carryover is the effect of historical spend "leaked" (also called adstock) into the given period. Conceptually, the carryover effect can be understood as the effect of upper-/mid-funnel brand equity metrics like "ad recall" or "campaign awareness". Note that we avoid using the terms "short-term" and "long-term", because we believe, without any agreed definition, that the "long-term effect" should describe media impact on baseline sales. In comparison, adstocking only addresses media's direct impact on the response and says nothing about the interaction with baseline. Note that it's possible to have a channel with higher carryover but lower adstock, as seen in this example above with `ooh_S` vs `tv_S`. The reason lies in the different saturation curves per media (explained below) that also have impact on the carryover decomposition.
 
-4. **Actual vs. predicted response:** This plot shows the actual data for the response variable E.g sales, and how the modeled predicted data for that response variable is capturing the real curve. We aim for models that can capture most of the variance from the actual data and therefore the R-squared is closer to 1 while NRMSE is low.
+7. **Saturation curves:** Saturation curve has many synonyms, like response curve or diminishing return. Robyn calculates one saturation curve ([one set of Hill parameters](#saturation)) per media variable. The grey area depicts the historical carryover, as explained in point 6 above: The end of grey area projected on the Y-axis is the carryover effect, while the dot (average spend) projected on Y is the total effect. The difference between these two is the immediate effect. Use your business context to make sense of these curves. For example, an over-spending media variable would expect the dot on the flatter area of the curve, representing lower **marginal ROAS** or **mROAS**, the most important metric for budget allocation. For more details see this article ["The convergence of marginal ROAS in the budget allocation in Robyn"](https://medium.com/@gufengzhou/the-convergence-of-marginal-roas-in-the-budget-allocation-in-robyn-5d407aebf021). Tip: You can also use the `robyn_response()` function in to recreate these response curves. For details see the [demo](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R#L518).
 
-	Tip: Look for specific periods where the model is predicting worse/better. For example, if one notices the model is predicting noticeably worse around certain periods related to promotions periods, it may be a good way to identify a contextual variable that should be included in the model
-
-5. **Response curves and mean spend by channel:** These are the diminishing returns response curves from hill function. They represent how saturated a channel is and therefore, may suggest potential budget reallocation strategies. The faster the curves reach to an inflection point and to a horizontal/flat slope, the quicker they will saturate with each extra ($) spent.
-
-	Tip: You can use the `robyn_response` function in a loop to recreate these response curves. For example, creating a loop around an execution like this:
-	```
-	Spend1 <- 60000
-	Response1 <- robyn_response(
-  	robyn_object = robyn_object
-  	#, select_build = 1 # 2 means the second refresh model. 0 means the initial model
-  	, media_metric = "search_S"
-  	, metric_value = Spend1)
-	Response1$response/Spend1 # ROI for search 80k
-	```
-
-6. **Fitted vs. residual:** This chart shows the relationship between fitted and residual values. A residual value is a measure of how much a regression line vertically misses a data point.  A residual plot is typically used to find problems with a regression. Some data sets are not good candidates for regression, such as points at widely varying distances from the line. If the points in a residual plot are randomly dispersed around the horizontal axis, a linear regression model is appropriate for the data; otherwise, a nonlinear model is more appropriate.
+8. **Fitted vs. residual:** This chart shows the relationship between fitted and residual values. For a good fitting model, this plot is expected to show rather horizontal trend line with the dots evenly scattered around the X-axis. On the contrary, visible patterns (funnle shape, waves, groupped outliers) indicate missing variable in the model.
 
 ### Model Solution Clustering
 
