@@ -258,24 +258,30 @@ optimisation and Nevergrad see below.
 
 ##  Multi-Objective Hyperparameter Optimization with Nevergrad
 
+Every MMM practitioner knows this "sanity check": When facing multiple model candidates, it's common to prefer a model that's more "plausible", meaning one with slightly less fit but better alignment with current spend allocation. For example, for a dataset with 2 channels splitting 90%/10% media spend, a model that produces the contribution of 10%/90% is considered rather implausible, no matter how good the model fit is. In comparison, another model with 70%/30% contribution split would be considered more pausible.
 
-One of the most important innovation in Robyn is the implementation of multi-objective hyperparameter optimization in MMM. This enables us to automate the selection of adstocking, saturation, regularization penalty and even training size for time-series validation. At the same time, the ability to optimise towards multiple "goals", implemented as objective functions, provides us the edge to produce model candidates with great predictive power as well as more realistic effect decomposition.
+In other words, a good MMM needs to be both predictive and interpretable. This is the frequently cited conflict of science and craft. At team Robyn, we considered this a multi-objective optimisation problem, because the reality is never simply prediction. We believe it's important to include the "sanity check" into the optimisation through parameterization in the form of extra objective functions. **The implementation of multi-objective hyperparameter optimization is considered the most important innovation in Robyn.** At the same time, the usage of hyperparameters enables stronger automation of the parameter selection for adstocking, saturation, regularization penalty and even training size of time-series validation.
 
-Robyn uses [**Nevergrad, Meta’s gradient-free optimization platform**](https://facebookresearch.github.io/nevergrad/), to perform this task with its **ask** and **tell** interface. In other words, Robyn "asks" Nevergrad for the mutating hyperparameter values by "telling" it which values have better scores (objective functions).
+Robyn uses [**Nevergrad**](https://facebookresearch.github.io/nevergrad/), Meta’s gradient-free optimization platform to perform this task with its so-called "ask & tell"" interface. Simply explained, Robyn "asks" Nevergrad for the mutating hyperparameter values by "telling" it which values have better scores (objective functions).
 
-**Hyperparameters**
+### Objective Functions
+
+Robyn implements three objective functions as the "goals" for hyperparameter optimisation currently.
+- **NRMSE**: The Normalized Root Mean Square Error is also referred to as the **prediction error**. Robyn allows time-series validation with the spitting of the dataset into train / validation / test. When fitting without the time-series validation, the training error `nrmse_train` is objective function for the evolving iterations. With time-series validation, the validation error `nrmse_val` becomes the objective function, while `nrmse_test` is used to assess the out-of-sample preditive performance.
+- **DECOMP.RSSD**: The Decomposition Root Sum of Squared Distance is also referred to as the **business error** and is a key invention of Robyn. It represents the difference between share of spend and share of effect for paid media variables. We're aware that this metric is controvertial because of the convergence of media ROAS. In the reality, multiple objectives always "work together" and trade off each other in the optimisation process. DECOMP.RSSD rules out models with extreme decomposition and helps narrowing down model selection.
+- **MAPE.LIFT**: The Mean Absolute Percentage Error for experiments is activated when calibrating and is referred to as the **calibration error**. It's a key invention of Robyn and allows Robyn to minimise the difference between predicted effect and causal effect.
+
+### Hyperparameters
+
 There're four types of hyperparameters in Robyn at the moment.
 - **Adstocking**: `theta` when selecting Geometric adstocking, or `shape` & `scale` when selecting Weibull adstocking
 - **Saturation**: `alpha` & `gamma` for Hill function
 - **Regularization**: `lambda` for the penalty term in ridge regression
 - **Validation**: `train_size` for the percentage of training data
+
 The cardinality of hyperparameters increases when adding more paid and organic media variables, because Robyn performs adstocking & saturation transformation for each media variable individually. For example, if using 10 media variables with Geometric adstock, the total amount of hyperparameters is 32: 10 thetas + 10 alphas + 10 gammas + 1 lambda + 1 train_size. With Weibull adstock, it's 42: 10 shapes + 10 scales + 10 alphas + 10 gammas + 1 lambda + 1 train_size. Adding hyperparameters will give Robyn more flexibility to find optimum solutions, but it will trade-off model runtime because it needs longer to converge.
 
-**Objective Functions**
-Robyn implements three objective functions as the "goals" for hyperparameter optimisation at the moment.
-- **NRMSE**: The Normalized Root Mean Square Error is also referred to as the **prediction error**. Robyn allows time-series validation with the spitting of the dataset into train / validation / test. To be precise, the validation NRMSE `nrmse_val` is the objective function, while `nrmse_test` is used to assess the out-of-sample preditive performance.
-- **DECOMP.RSSD**: The Decomposition Root Sum of Squared Distance is also referred to as the **business error** and is a key invention of Robyn. It represents the difference between share of spend and share of effect for paid media variables. We're aware that the hypothesis of driving homogenuous shares between spend & effect is controvertial. In the reality, DECOMP.RSSD can rule out the most extreme decomposition results and thus is helpful for narrowing down model selection. It's important to remember that all objective functions "work together" and the results are always balanced.
-- **MAPE.LIFT**: The Mean Absolute Percentage Error for experiments is activated when calibrating and is referred to as the **calibration error**. It's a key invention of Robyn and allows Robyn to minimise the difference between predicted effect and causal effect.
+
 
 Using the concept of Pareto-optimality balancing all objective functions, Robyn always outputs a set of pareto-optimum model candidates that are considered "the best". Please find below an example of an example chart of the Pareto model solutions.
 Each dot in the chart represents an explored model solution, while the lower-left corner lines are Pareto-fronts 1-3 and contains the best possible model results from all iterations.
@@ -298,14 +304,10 @@ Last quantile's absolute median < absolute first quantile's absolute median - 2 
 
 The quantiles are ordered by the iterations of the model, so if we ran 1000 iterations, the first 200 iterations would make up the first quantile. These two criteria represent an effort to demonstrate that both the standard deviation and the mean for both NRMSE and DECOMP.RSSD have improved relative to where they began, and they are not as variable.
 
-After the modeling is complete, you can run:
+Alternatively, run the following code to observe the convergence of your multi-objective optimization in the ridgeline visualization.
 
 `OutputModels$convergence$moo_distrb_plot`
 
-`OutputModels$convergence$moo_cloud_plot`
-
-To investigate the convergence of your multi-objective optimization. See below for examples of these graphs.
-<img alt="moo distrb plot" src={useBaseUrl('img/moo_distrb_plot.png')} />
 <img alt="moo cloud plot" src={useBaseUrl('img/moo_cloud_plot.png')} />
 
 ---
