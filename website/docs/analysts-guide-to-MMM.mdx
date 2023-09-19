@@ -1,11 +1,12 @@
 ---
 id: analysts-guide-to-MMM
-title: Analysts guide to MMM
+title: An Analyst's Guide to MMM
 ---
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
-## Before getting started
+## Background
+---
 
 ### What is MMM?
 Marketing mix modeling (MMM) is a privacy-friendly, highly resilient, data-driven statistical analysis that quantifies the incremental sales impact and ROI of marketing and non-marketing activities.
@@ -106,6 +107,7 @@ Some common questions that are best answered by MMM include:
 For those questions and hypotheses that are best answered by MMM, this will influence and determine the input variables and model structure. For example - if an advertiser wants to answer question #3 above, then granular data at the executional or creative level will need to be collected and used as an input in the model (more on this later). Hence this is a very important upfront step to ensure that you will get the most value out of your MMM.
 
 ## Pre-Modeling Phase
+---
 ### Data Collection
 
 Once you’ve collected all your business questions and understand which ones will be specifically answered by MMM, it’s time to get started on data collection.
@@ -267,6 +269,7 @@ Ultimately at the end of the data review process, we want to feel confident that
 
 
 ## Modeling Phase
+---
 
 If you have successfully collected and reviewed the data required for modeling based on the guide from previous sections, congratulations! You can assume that you are approximately halfway through your Robyn journey. While data collection and review is one of the most important but time consuming steps, using Robyn means that you can now benefit from its core features without developing them by yourself. Robyn provides end-to-end scripts for modeling, which can be taken as a whole or in part to empower other MMM projects. If your data inputs are ready to go and in the [required template](https://github.com/facebookexperimental/Robyn/blob/main/R/data/dt_simulated_weekly.RData) and you follow the [step by step demo script](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R), you can complete the modeling phase.
 While Robyn aims to increase automation and minimize human bias, it does not mean that it can successfully run without any intervention. Rather, analysts still need to play a very important role by fine-tuning parameters, executing different modeling techniques, and interpreting results to develop actionable recommendations that will improve marketing practices. Therefore, in this section, we will cover analyst considerations and caveats when running Marketing Mix Modeling with Robyn.
@@ -588,4 +591,4 @@ As a result of using the budget allocator function, three charts will be produce
 - <em>Initial vs. optimized mean response</em>: Similar to above, this chart shows the original and optimised expected response. The difference in original and optimized response is the total change in sales that is expected if you switch budgets as shown in the previous bullet point.
 - <em>Response curve and mean spend by channel</em>: As described in the <u>Interpreting Marketing Mix Outputs</u> part, the response curves show how saturated a channel is and where a channel is on the curve for the original and optimised spends.
 
-<img alt="modelresultschart" src={useBaseUrl('/img/modelresultschart.png')} />
+<img alt="budget allocator chart" src={useBaseUrl('/img/optimizer_new.png')} />
