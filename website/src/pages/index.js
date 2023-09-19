@@ -107,15 +107,15 @@ function Home() {
       <header className={clsx('hero hero--primary', styles.heroBanner)}>
         <div className="container">
           <h1 className={clsx('hero__title', styles.heroTitle)}>{siteConfig.title}</h1>
-          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an experimental, ML-powered and semi-automated Marketing Mix Modeling (MMM) open source package.</p>
+          <p className={clsx('hero__subtitle', styles.heroSubtitle)}>Robyn is an experimental, AI/ML-powered and open sourced Marketing Mix Modeling (MMM) package from Meta Marketing Science.</p>
           <div className={styles.buttons}>
             <Link
               className={clsx(
                 'button button--secondary button--lg'
               )}
-              to={useBaseUrl('docs/quick-start/')}
+              to={useBaseUrl('docs/installation/')}
             >
-              Install Robyn
+              Getting Started
             </Link>
           </div>
         </div>
@@ -157,23 +157,6 @@ function Home() {
               </div>
             </section>
           )}
-        <div className="container padding-vert--xl">
-          <div className="row">
-            <div className="col col--6 col--offset-3 text--center">
-              <h2>Robyn Code Walkthrough Video</h2>
-              <p className={styles.descriptionSectionText}>Please watch this walkthrough video to understand better how the code works</p>
-              <iframe
-                title="Robyn walkthrough video"
-                width="560"
-                height="315"
-                src="https://www.youtube.com/embed/aIiadcfL4uw"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen
-              />
-            </div>
-          </div>
-        </div>
       </main>
     </Layout>
   );

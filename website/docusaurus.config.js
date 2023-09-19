@@ -9,7 +9,7 @@
 
 module.exports = {
   title: 'Robyn',
-  tagline: 'Robyn aims to reduce human bias in the modeling process, esp. by automating modelers decisions like adstocking, saturation, trend & seasonality as well as model validation. Moreover, the budget allocator & calibration enable actionability and causality of the results.',
+  tagline: 'Our mission is to democratise modeling knowledge, inspire the industry through innovation, reduce human bias in the modeling process & build a strong open source marketing science community.',
   url: 'https://facebookexperimental.github.io',
   baseUrl: '/Robyn/',
   onBrokenLinks: 'throw',
