@@ -33,13 +33,23 @@ module.exports = {
       },
       items: [
         {
-          to: 'docs/quick-start/',
-          label: 'Docs',
+          to: 'docs/welcome/',
+          label: 'Documentation',
           position: 'left',
         },
         {
-          to: 'docs/about',
-          label: 'About',
+          to: 'docs/installation/',
+          label: 'Getting Started',
+          position: 'left',
+        },
+        {
+          to: 'docs/case-studies',
+          label: 'Case Studies',
+          position: 'left',
+        },
+        {
+          to: 'docs/resources',
+          label: 'Resources',
           position: 'left',
         },
         // Please keep GitHub link to the right for consistency.
