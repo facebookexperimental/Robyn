@@ -303,7 +303,11 @@ robyn_allocator <- function(robyn_object = NULL,
     1 - (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
-  channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
+  channelConstrUpSortedExt <- ifelse(
+    1 + (channelConstrUpSorted - 1) * channel_constr_multiplier < 0,
+    channelConstrUpSorted * channel_constr_multiplier,
+    1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
+  )
 
   target_value_ext <- target_value
   if (scenario == "target_efficiency") {
