@@ -75,10 +75,11 @@ robyn_clusters <- function(input, dep_var_type,
   if ("auto" %in% k) {
     cls <- tryCatch(
       {
-        clusterKmeans(df,
-          k = NULL, limit = limit_clusters, ignore = ignore,
-          dim_red = dim_red, quiet = TRUE, seed = seed
-        )
+        suppressMessages(
+          clusterKmeans(df,
+                        k = NULL, limit = limit_clusters, ignore = ignore,
+                        dim_red = dim_red, quiet = TRUE, seed = seed
+          ))
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -106,9 +107,11 @@ robyn_clusters <- function(input, dep_var_type,
 
   # Build clusters
   stopifnot(k %in% min_clusters:30)
-  cls <- clusterKmeans(
-    df, k = k, limit = limit_clusters, ignore = ignore,
-    dim_red = dim_red, quiet = TRUE, seed = seed)
+  suppressMessages(
+    cls <- clusterKmeans(
+      df, k = k, limit = limit_clusters, ignore = ignore,
+      dim_red = dim_red, quiet = TRUE, seed = seed)
+  )
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))

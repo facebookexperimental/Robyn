@@ -339,7 +339,8 @@ robyn_allocator <- function(robyn_object = NULL,
   skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
   zero_constraint_channel <- mediaSpendSorted[skip_these]
   if (any(skip_these) && !quiet) {
-    message("Excluded variables (constrained to 0): ", zero_constraint_channel)
+    message("Excluded variables (constrained to 0): ",
+            paste(zero_constraint_channel, collapse = ", "))
   }
   if (!all(coefSelectorSorted)) {
     zero_coef_channel <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
@@ -349,9 +350,9 @@ robyn_allocator <- function(robyn_object = NULL,
   } else {
     zero_coef_channel <- as.character()
   }
-  channel_for_allocation_loc <- mediaSpendSorted %in% c(zero_coef_channel, zero_constraint_channel)
-  channel_for_allocation <- mediaSpendSorted[!channel_for_allocation_loc]
-  if (length(zero_coef_channel) > 0) {
+  channel_to_drop_loc <- mediaSpendSorted %in% c(zero_coef_channel, zero_constraint_channel)
+  channel_for_allocation <- mediaSpendSorted[!channel_to_drop_loc]
+  if (any(channel_to_drop_loc)) {
     temp_init <- temp_init_all[channel_for_allocation]
     temp_ub <- temp_ub_all[channel_for_allocation]
     temp_lb <- temp_lb_all[channel_for_allocation]
@@ -510,18 +511,18 @@ robyn_allocator <- function(robyn_object = NULL,
   optmSpendUnitOut <- optmResponseUnitOut <- optmResponseMargUnitOut <-
     optmSpendUnitUnboundOut <- optmResponseUnitUnboundOut <-
     optmResponseMargUnitUnboundOut <- initSpendUnit
-  optmSpendUnitOut[channel_for_allocation_loc] <-
-    optmResponseUnitOut[channel_for_allocation_loc] <-
-    optmResponseMargUnitOut[channel_for_allocation_loc] <-
-    optmSpendUnitUnboundOut[channel_for_allocation_loc] <-
-    optmResponseUnitUnboundOut[channel_for_allocation_loc] <-
-    optmResponseMargUnitUnboundOut[channel_for_allocation_loc] <- 0
-  optmSpendUnitOut[!channel_for_allocation_loc] <- optmSpendUnit
-  optmResponseUnitOut[!channel_for_allocation_loc] <- optmResponseUnit
-  optmResponseMargUnitOut[!channel_for_allocation_loc] <- optmResponseMargUnit
-  optmSpendUnitUnboundOut[!channel_for_allocation_loc] <- optmSpendUnitUnbound
-  optmResponseUnitUnboundOut[!channel_for_allocation_loc] <- optmResponseUnitUnbound
-  optmResponseMargUnitUnboundOut[!channel_for_allocation_loc] <- optmResponseMargUnitUnbound
+  optmSpendUnitOut[channel_to_drop_loc] <-
+    optmResponseUnitOut[channel_to_drop_loc] <-
+    optmResponseMargUnitOut[channel_to_drop_loc] <-
+    optmSpendUnitUnboundOut[channel_to_drop_loc] <-
+    optmResponseUnitUnboundOut[channel_to_drop_loc] <-
+    optmResponseMargUnitUnboundOut[channel_to_drop_loc] <- 0
+  optmSpendUnitOut[!channel_to_drop_loc] <- optmSpendUnit
+  optmResponseUnitOut[!channel_to_drop_loc] <- optmResponseUnit
+  optmResponseMargUnitOut[!channel_to_drop_loc] <- optmResponseMargUnit
+  optmSpendUnitUnboundOut[!channel_to_drop_loc] <- optmSpendUnitUnbound
+  optmResponseUnitUnboundOut[!channel_to_drop_loc] <- optmResponseUnitUnbound
+  optmResponseMargUnitUnboundOut[!channel_to_drop_loc] <- optmResponseMargUnitUnbound
 
   dt_optimOut <- data.frame(
     solID = select_model,
