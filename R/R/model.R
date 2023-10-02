@@ -561,7 +561,7 @@ robyn_mmm <- function(InputCollect,
               for (hypNameLoop in hyper_bound_list_updated_name) {
                 index <- which(hypNameLoop == hyper_bound_list_updated_name)
                 channelBound <- unlist(hyper_bound_list_updated[hypNameLoop])
-                hyppar_value <- signif(nevergrad_hp_val[[co]][index], 6)
+                hyppar_value <- signif(nevergrad_hp_val[[co]][index], 10)
                 if (length(channelBound) > 1) {
                   hypParamSamNG[hypNameLoop] <- qunif(hyppar_value, min(channelBound), max(channelBound))
                 } else {
