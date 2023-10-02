@@ -1,0 +1,45 @@
+---
+id: installation
+title: Installation
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+## Installing R
+---
+
+Robyn is built in R-only at the moment and requries the [R 4.0.0 version (or higher)](https://www.r-project.org/). The recommended IDE is [RStudio](https://www.rstudio.com/products/rstudio/download/).
+
+
+## Installing Robyn
+---
+
+There're two versions of Robyn: The stable version on CRAN and the dev version on GitHub.
+
+Install latest stable CRAN version, run:
+```
+install.packages("Robyn")
+```
+Install latest dev version, run:
+
+```
+remotes::install_github("facebookexperimental/Robyn/R")
+```
+**NOTE**: Robyn requires an one-time installation of the Python library [Nevergrad](https://facebookresearch.github.io/nevergrad/) using the R package `reticulate`. Please refer to this [Nevergrad installation](https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R) guide for R.
+
+## Getting started
+---
+
+The usage guide is detailed in the script [demo.R](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R), where you will see working examples of all major functions, including:
+- Model input
+- Hyperparameter setting
+- Calibration input
+- Model run
+- Model output
+- Model selection and export
+- Budget allocator
+- Model refresh
+- Recreate models
+- Getting response and more...
+
+---

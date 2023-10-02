@@ -9,21 +9,18 @@
 
 module.exports = {
   someSidebar:[
+    'welcome',
     {
       type: 'category',
-      label: 'How-to guide',
+      label: 'Getting Started',
       collapsed: false,
       items: [
-      'quick-start',
-      'additional-materials',
-      'e-learning-course',
+      'installation',
+      'analysts-guide-to-MMM',
+      'features',
       ],
     },
-    'analysts-guide-to-MMM',
-    'features',
-    'releases',
-    'success-stories',
-    'contributing',
-    'about',
+    'case-studies',
+    'resources'
     ]
 };
