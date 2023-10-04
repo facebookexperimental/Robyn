@@ -207,7 +207,8 @@ robyn_allocator <- function(robyn_object = NULL,
   coefs_sorted <- hills$coefs_sorted
 
   # Spend values based on date range set
-  dt_optimCost <- slice(InputCollect$dt_mod, InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich)
+  ndates_loc <- InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
+  dt_optimCost <- slice(InputCollect$dt_mod, ndates_loc)
   new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE, is_allocator = TRUE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
@@ -258,7 +259,7 @@ robyn_allocator <- function(robyn_object = NULL,
       select_build = select_build,
       select_model = select_model,
       metric_name = mediaSpendSorted[i],
-      metric_value = initSpendUnit[i],
+      metric_value = initSpendUnit[i] * simulation_period[i],
       date_range = date_range,
       dt_hyppar = OutputCollect$resultHypParam,
       dt_coef = OutputCollect$xDecompAgg,
@@ -270,14 +271,16 @@ robyn_allocator <- function(robyn_object = NULL,
     )
     # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
     # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
-    hist_carryover[[i]] <- resp$input_carryover
+    hist_carryover_temp <- resp$input_carryover[ndates_loc]
+    names(hist_carryover_temp) <- resp$date[ndates_loc]
+    hist_carryover[[i]] <- hist_carryover_temp
     # get simulated response
     resp_simulate <- fx_objective(
       x = initSpendUnit[i],
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
-      x_hist_carryover = mean(resp$input_carryover),
+      x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
     resp_simulate_plus1 <- fx_objective(
@@ -285,10 +288,9 @@ robyn_allocator <- function(robyn_object = NULL,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
-      x_hist_carryover = mean(resp$input_carryover),
+      x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
-    names(hist_carryover[[i]]) <- resp$date
     initResponseUnit <- c(initResponseUnit, resp_simulate)
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
@@ -303,7 +305,11 @@ robyn_allocator <- function(robyn_object = NULL,
     1 - (1 - channelConstrLowSorted) * channel_constr_multiplier < 0,
     0, 1 - (1 - channelConstrLowSorted) * channel_constr_multiplier
   )
-  channelConstrUpSortedExt <- 1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
+  channelConstrUpSortedExt <- ifelse(
+    1 + (channelConstrUpSorted - 1) * channel_constr_multiplier < 0,
+    channelConstrUpSorted * channel_constr_multiplier,
+    1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
+  )
 
   target_value_ext <- target_value
   if (scenario == "target_efficiency") {
@@ -339,7 +345,8 @@ robyn_allocator <- function(robyn_object = NULL,
   skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
   zero_constraint_channel <- mediaSpendSorted[skip_these]
   if (any(skip_these) && !quiet) {
-    message("Excluded variables (constrained to 0): ", zero_constraint_channel)
+    message("Excluded variables (constrained to 0): ",
+            paste(zero_constraint_channel, collapse = ", "))
   }
   if (!all(coefSelectorSorted)) {
     zero_coef_channel <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
@@ -349,9 +356,9 @@ robyn_allocator <- function(robyn_object = NULL,
   } else {
     zero_coef_channel <- as.character()
   }
-  channel_for_allocation_loc <- mediaSpendSorted %in% c(zero_coef_channel, zero_constraint_channel)
-  channel_for_allocation <- mediaSpendSorted[!channel_for_allocation_loc]
-  if (length(zero_coef_channel) > 0) {
+  channel_to_drop_loc <- mediaSpendSorted %in% c(zero_coef_channel, zero_constraint_channel)
+  channel_for_allocation <- mediaSpendSorted[!channel_to_drop_loc]
+  if (any(channel_to_drop_loc)) {
     temp_init <- temp_init_all[channel_for_allocation]
     temp_ub <- temp_ub_all[channel_for_allocation]
     temp_lb <- temp_lb_all[channel_for_allocation]
@@ -510,18 +517,18 @@ robyn_allocator <- function(robyn_object = NULL,
   optmSpendUnitOut <- optmResponseUnitOut <- optmResponseMargUnitOut <-
     optmSpendUnitUnboundOut <- optmResponseUnitUnboundOut <-
     optmResponseMargUnitUnboundOut <- initSpendUnit
-  optmSpendUnitOut[channel_for_allocation_loc] <-
-    optmResponseUnitOut[channel_for_allocation_loc] <-
-    optmResponseMargUnitOut[channel_for_allocation_loc] <-
-    optmSpendUnitUnboundOut[channel_for_allocation_loc] <-
-    optmResponseUnitUnboundOut[channel_for_allocation_loc] <-
-    optmResponseMargUnitUnboundOut[channel_for_allocation_loc] <- 0
-  optmSpendUnitOut[!channel_for_allocation_loc] <- optmSpendUnit
-  optmResponseUnitOut[!channel_for_allocation_loc] <- optmResponseUnit
-  optmResponseMargUnitOut[!channel_for_allocation_loc] <- optmResponseMargUnit
-  optmSpendUnitUnboundOut[!channel_for_allocation_loc] <- optmSpendUnitUnbound
-  optmResponseUnitUnboundOut[!channel_for_allocation_loc] <- optmResponseUnitUnbound
-  optmResponseMargUnitUnboundOut[!channel_for_allocation_loc] <- optmResponseMargUnitUnbound
+  optmSpendUnitOut[channel_to_drop_loc] <-
+    optmResponseUnitOut[channel_to_drop_loc] <-
+    optmResponseMargUnitOut[channel_to_drop_loc] <-
+    optmSpendUnitUnboundOut[channel_to_drop_loc] <-
+    optmResponseUnitUnboundOut[channel_to_drop_loc] <-
+    optmResponseMargUnitUnboundOut[channel_to_drop_loc] <- 0
+  optmSpendUnitOut[!channel_to_drop_loc] <- optmSpendUnit
+  optmResponseUnitOut[!channel_to_drop_loc] <- optmResponseUnit
+  optmResponseMargUnitOut[!channel_to_drop_loc] <- optmResponseMargUnit
+  optmSpendUnitUnboundOut[!channel_to_drop_loc] <- optmSpendUnitUnbound
+  optmResponseUnitUnboundOut[!channel_to_drop_loc] <- optmResponseUnitUnbound
+  optmResponseMargUnitUnboundOut[!channel_to_drop_loc] <- optmResponseMargUnitUnbound
 
   dt_optimOut <- data.frame(
     solID = select_model,
