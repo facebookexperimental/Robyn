@@ -601,11 +601,13 @@ robyn_onepagers <- function(
       all_plots[[sid]] <- pg
 
       if (export) {
+        filename <- paste0(plot_folder, "/", sid, ".png")
         ggsave(
-          filename = paste0(plot_folder, "/", sid, ".png"),
+          filename = filename,
           plot = pg, limitsize = FALSE,
           dpi = 400, width = 17, height = 19
         )
+        if (!quiet) message("Exporting charts as: ", filename)
       }
       if (check_parallel_plot() && !quiet && count_mod_out > 1) {
         cnt <- cnt + 1

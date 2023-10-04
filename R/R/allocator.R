@@ -207,7 +207,8 @@ robyn_allocator <- function(robyn_object = NULL,
   coefs_sorted <- hills$coefs_sorted
 
   # Spend values based on date range set
-  dt_optimCost <- slice(InputCollect$dt_mod, InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich)
+  window_loc <- InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
+  dt_optimCost <- slice(InputCollect$dt_mod, window_loc)
   new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE, is_allocator = TRUE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
@@ -245,6 +246,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Get use case based on inputs
   usecase <- which_usecase(initSpendUnit[1], date_range)
+  if (usecase == "all_historical_vec") {
+    ndates_loc <- which(InputCollect$dt_mod$ds %in% histFiltered$ds)
+  } else {
+    ndates_loc <- 1:length(histFiltered$ds)
+  }
   usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ historical_budget"))
 
   # Response values based on date range -> mean spend
@@ -270,14 +276,16 @@ robyn_allocator <- function(robyn_object = NULL,
     )
     # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
     # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
-    hist_carryover[[i]] <- resp$input_carryover
+    hist_carryover_temp <- resp$input_carryover[ndates_loc]
+    names(hist_carryover_temp) <- resp$date[ndates_loc]
+    hist_carryover[[i]] <- hist_carryover_temp
     # get simulated response
     resp_simulate <- fx_objective(
       x = initSpendUnit[i],
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
-      x_hist_carryover = mean(resp$input_carryover),
+      x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
     resp_simulate_plus1 <- fx_objective(
@@ -285,10 +293,9 @@ robyn_allocator <- function(robyn_object = NULL,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
-      x_hist_carryover = mean(resp$input_carryover),
+      x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
-    names(hist_carryover[[i]]) <- resp$date
     initResponseUnit <- c(initResponseUnit, resp_simulate)
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
