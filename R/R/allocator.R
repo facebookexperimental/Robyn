@@ -280,8 +280,13 @@ robyn_allocator <- function(robyn_object = NULL,
     names(hist_carryover_temp) <- resp$date[ndates_loc]
     hist_carryover[[i]] <- hist_carryover_temp
     # get simulated response
+    if (resp$input_immediate[1] == initSpendUnit[i]) {
+      x_input <- initSpendUnit[i]
+    } else {
+      x_input <- mean(resp$input_immediate)
+    }
     resp_simulate <- fx_objective(
-      x = initSpendUnit[i],
+      x = x_input,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
@@ -289,7 +294,7 @@ robyn_allocator <- function(robyn_object = NULL,
       get_sum = FALSE
     )
     resp_simulate_plus1 <- fx_objective(
-      x = initSpendUnit[i] + 1,
+      x = x_input + 1,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
