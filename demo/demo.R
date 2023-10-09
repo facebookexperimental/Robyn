@@ -469,14 +469,16 @@ robyn_response(
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
 # It can be any model, initial or a refresh model
-json_file <- "~/Desktop/Robyn_202211211853_init/RobynModel-1_100_6.json"
+json_file <- "/Users/bernardo/Desktop/Robyn_202308310907_init/RobynModel-1_290_2.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
+  plot_folder_sub = "test4",
   refresh_steps = 13,
-  refresh_iters = 1000, # 1k is an estimation
-  refresh_trials = 1
+  refresh_iters = 200, # 1k is an estimation
+  refresh_trials = 1,
+  pareto_fronts = 1
 )
 # Now refreshing a refreshed model, following the same approach
 json_file_rf1 <- "~/Desktop/Robyn_202208231837_init/Robyn_202208231841_rf1/RobynModel-1_12_5.json"
