@@ -121,10 +121,12 @@ robyn_refresh <- function(json_file = NULL,
     if (!is.null(json_file)) {
       Robyn <- list()
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
+      if (is.null(plot_folder)) plot_folder <- json$ExportedModel$plot_folder
       listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
+        plot_folder = plot_folder,
         quiet = FALSE, ...
       ))
       listInit$InputCollect$refreshSourceID <- json$ExportedModel$select_model
@@ -133,9 +135,6 @@ robyn_refresh <- function(json_file = NULL,
       listInit$InputCollect$refreshDepth <- refreshDepth <- length(attr(chainData, "chain"))
       listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
       Robyn[["listInit"]] <- listInit
-      if (is.null(plot_folder)) {
-        plot_folder <- json$ExportedModel$plot_folder
-      }
       refreshCounter <- 1 # Dummy for now (legacy)
     }
     if (!is.null(robyn_object)) {

@@ -117,8 +117,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
     plot_folder_sub <- paste("Robyn", format(Sys.time(), "%Y%m%d%H%M"), folder_var, sep = "_")
   }
   plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
-  if (!dir.exists(plot_folder)) {
-    message("Creating directory: ", plot_folder)
+  if (!dir.exists(plot_folder) && export) {
+    message("Creating directory for outputs: ", plot_folder)
     dir.create(plot_folder)
   }
 

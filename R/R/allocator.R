@@ -730,7 +730,7 @@ robyn_allocator <- function(robyn_object = NULL,
     #   plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
     # }
     if (!dir.exists(plot_folder)) {
-      message("Creating directory: ", plot_folder)
+      message("Creating directory for allocator: ", plot_folder)
       dir.create(plot_folder)
     }
     ## Export results into CSV

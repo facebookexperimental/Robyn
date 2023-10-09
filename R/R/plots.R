@@ -607,7 +607,6 @@ robyn_onepagers <- function(
           plot = pg, limitsize = FALSE,
           dpi = 400, width = 17, height = 19
         )
-        # if (!quiet) message("Exporting charts as: ", filename)
       }
       if (check_parallel_plot() && !quiet && count_mod_out > 1) {
         cnt <- cnt + 1
@@ -1040,9 +1039,7 @@ allocation_plots <- function(
       scenario == "target_efficiency" & metric == "CPA" ~ "target_cpa",
       TRUE ~ "none"
     )
-    # suffix <- ifelse(scenario == "max_response", "resp", "effi")
     filename <- paste0(plot_folder, select_model, "_reallocated_", suffix, ".png")
-    if (!quiet) message("Exporting charts as: ", filename)
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
