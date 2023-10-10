@@ -322,7 +322,7 @@ robyn_refresh <- function(json_file = NULL,
         selectID <- bestMod
         message(
           "Selected model ID: ", selectID, " for refresh model #",
-          depth, " based on the smallest combined normalised errors"
+          depth, " based on the smallest combined normalized errors"
         )
       }
       if (!isTRUE(selectID %in% OutputCollectRF$allSolutions)) {
