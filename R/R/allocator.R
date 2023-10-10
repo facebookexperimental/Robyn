@@ -149,6 +149,10 @@ robyn_allocator <- function(robyn_object = NULL,
     }
   # }
 
+  if (length(InputCollect$paid_media_spends) <= 1) {
+    stop("Must have a valid model with at least two 'paid_media_spends'")
+  }
+
   if (!quiet) message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
   ## Set local data & params values
