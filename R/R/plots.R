@@ -589,10 +589,10 @@ robyn_onepagers <- function(
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
-      get_height <-  length(unique(plotMediaShareLoopLine$rn)) / 5
+      get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1), guides = "collect") +
-      #pg <- wrap_plots(p2, p5, p1, p8, p3, p7, p4, p6, ncol = 2) +
+        # pg <- wrap_plots(p2, p5, p1, p8, p3, p7, p4, p6, ncol = 2) +
         plot_annotation(
           title = onepagerTitle, subtitle = errors,
           theme = theme_lares(background = "white", legend = "none"),
@@ -1339,7 +1339,8 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     ggsave(
       filename = paste0(
         chainData[[length(chainData)]]$ExportedModel$plot_folder,
-        "report_decomposition.png"),
+        "report_decomposition.png"
+      ),
       plot = pBarRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )

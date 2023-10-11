@@ -38,12 +38,14 @@ check_novar <- function(dt_input, InputCollect = NULL) {
       "There are %s column(s) with no-variance: %s. \nPlease, remove the variable(s) to proceed...",
       length(novar), v2t(novar)
     )
-    if (!is.null(InputCollect)) msg <- sprintf(
-      "%s\n>>> Note: there's no variance on these variables because of the modeling window filter (%s:%s)",
-      msg,
-      InputCollect$window_start,
-      InputCollect$window_end
-    )
+    if (!is.null(InputCollect)) {
+      msg <- sprintf(
+        "%s\n>>> Note: there's no variance on these variables because of the modeling window filter (%s:%s)",
+        msg,
+        InputCollect$window_start,
+        InputCollect$window_end
+      )
+    }
     stop(msg)
   }
 }
@@ -164,9 +166,12 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     prophet_vars <- tolower(prophet_vars)
     opts <- c("trend", "season", "monthly", "weekday", "holiday")
     if (!"holiday" %in% prophet_vars) {
-      if (!is.null(prophet_country)) warning(paste(
-        "Input 'prophet_country' is defined as", prophet_country,
-        "but 'holiday' is not setup within 'prophet_vars' parameter"))
+      if (!is.null(prophet_country)) {
+        warning(paste(
+          "Input 'prophet_country' is defined as", prophet_country,
+          "but 'holiday' is not setup within 'prophet_vars' parameter"
+        ))
+      }
       prophet_country <- NULL
     }
     if (!all(prophet_vars %in% opts)) {
@@ -177,7 +182,7 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     }
     if ("holiday" %in% prophet_vars && (
       is.null(prophet_country) || length(prophet_country) > 1 |
-      isTRUE(!prophet_country %in% unique(dt_holidays$country)))) {
+        isTRUE(!prophet_country %in% unique(dt_holidays$country)))) {
       stop(paste(
         "You must provide 1 country code in 'prophet_country' input.",
         length(unique(dt_holidays$country)), "countries are included:",
@@ -651,16 +656,16 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
 
 check_obj_weight <- function(calibration_input, objective_weights, refresh) {
   obj_len <- ifelse(is.null(calibration_input), 2, 3)
-  if(!is.null(objective_weights)) {
-    if((length(objective_weights) != obj_len)) {
+  if (!is.null(objective_weights)) {
+    if ((length(objective_weights) != obj_len)) {
       stop(paste0("objective_weights must have length of ", obj_len))
     }
-    if(any(objective_weights < 0) | any(objective_weights > 10)) {
+    if (any(objective_weights < 0) | any(objective_weights > 10)) {
       stop("objective_weights must be >= 0 & <= 10")
     }
   }
-  if(is.null(objective_weights) & refresh) {
-    if(obj_len == 2) {
+  if (is.null(objective_weights) & refresh) {
+    if (obj_len == 2) {
       objective_weights <- c(1, 10)
     } else {
       objective_weights <- c(1, 10, 10)

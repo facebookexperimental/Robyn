@@ -450,10 +450,13 @@ robyn_refresh <- function(json_file = NULL,
         export = TRUE, quiet = TRUE, ...
       )
       plots <- refresh_plots_json(
-        OutputCollectRF, json_file = attr(json_temp, "json_file"), export, ...)
+        OutputCollectRF,
+        json_file = attr(json_temp, "json_file"), export, ...
+      )
     } else {
       plots <- try(refresh_plots(
-        InputCollectRF, OutputCollectRF, ReportCollect, export, ...))
+        InputCollectRF, OutputCollectRF, ReportCollect, export, ...
+      ))
     }
 
     if (export) {

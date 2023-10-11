@@ -108,7 +108,6 @@ robyn_allocator <- function(robyn_object = NULL,
                             quiet = FALSE,
                             ui = FALSE,
                             ...) {
-
   ### Use previously exported model using json_file
   if (!is.null(json_file)) {
     if (is.null(InputCollect)) {
@@ -141,12 +140,12 @@ robyn_allocator <- function(robyn_object = NULL,
   #   OutputCollect <- imported$OutputCollect
   #   select_model <- imported$select_model
   # } else {
-    if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
-      select_model <- OutputCollect$allSolutions
-    }
-    if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
-      stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
-    }
+  if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
+    select_model <- OutputCollect$allSolutions
+  }
+  if (any(is.null(InputCollect), is.null(OutputCollect), is.null(select_model))) {
+    stop("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
+  }
   # }
 
   if (length(InputCollect$paid_media_spends) <= 1) {
@@ -238,9 +237,12 @@ robyn_allocator <- function(robyn_object = NULL,
   simulation_period <- initial_mean_period <- unlist(summarise_all(select(histFiltered, any_of(mediaSpendSorted)), length))
   nDates <- lapply(mediaSpendSorted, function(x) histFiltered$ds)
   names(nDates) <- mediaSpendSorted
-  if (!quiet) message(sprintf(
-    "Date Window: %s:%s (%s %ss)",
-    date_min, date_max, unique(initial_mean_period), InputCollect$intervalType))
+  if (!quiet) {
+    message(sprintf(
+      "Date Window: %s:%s (%s %ss)",
+      date_min, date_max, unique(initial_mean_period), InputCollect$intervalType
+    ))
+  }
   zero_spend_channel <- names(histSpendWindow[histSpendWindow == 0])
 
   initSpendUnitTotal <- sum(initSpendUnit)
@@ -359,14 +361,19 @@ robyn_allocator <- function(robyn_object = NULL,
   skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
   zero_constraint_channel <- mediaSpendSorted[skip_these]
   if (any(skip_these) && !quiet) {
-    message("Excluded variables (constrained to 0): ",
-            paste(zero_constraint_channel, collapse = ", "))
+    message(
+      "Excluded variables (constrained to 0): ",
+      paste(zero_constraint_channel, collapse = ", ")
+    )
   }
   if (!all(coefSelectorSorted)) {
     zero_coef_channel <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
-    if (!quiet) message(
-      "Excluded variables (coefficients are 0): ",
-      paste(zero_coef_channel, collapse = ", "))
+    if (!quiet) {
+      message(
+        "Excluded variables (coefficients are 0): ",
+        paste(zero_coef_channel, collapse = ", ")
+      )
+    }
   } else {
     zero_coef_channel <- as.character()
   }
@@ -754,7 +761,9 @@ robyn_allocator <- function(robyn_object = NULL,
       select_model, scenario, eval_list,
       export, plot_folder, quiet
     )
-  } else plots <- NULL
+  } else {
+    plots <- NULL
+  }
 
   output <- list(
     dt_optimOut = dt_optimOut,
