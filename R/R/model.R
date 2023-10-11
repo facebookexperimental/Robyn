@@ -140,6 +140,7 @@ robyn_run <- function(InputCollect = NULL,
   check_run_inputs(cores, iterations, trials, intercept_sign, nevergrad_algo)
   check_iteration(InputCollect$calibration_input, iterations, trials, hyps_fixed, refresh)
   init_msgs_run(InputCollect, refresh, lambda_control = NULL, quiet)
+  check_obj_weight(InputCollect$calibration_input, objective_weights)
 
   #####################################
   #### Prepare hyper-parameters
