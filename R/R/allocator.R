@@ -255,7 +255,7 @@ robyn_allocator <- function(robyn_object = NULL,
   if (usecase == "all_historical_vec") {
     ndates_loc <- which(InputCollect$dt_mod$ds %in% histFiltered$ds)
   } else {
-    ndates_loc <- 1:length(histFiltered$ds)
+    ndates_loc <- seq_along(histFiltered$ds)
   }
   usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ historical_budget"))
 
