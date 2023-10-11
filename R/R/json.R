@@ -214,7 +214,7 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       if (!"ExportedModel" %in% names(json) && step == 2) {
         stop("JSON file must contain ExportedModel element")
       }
-      if (!quiet) message("Imported JSON file succesfully: ", json_file)
+      if (!quiet) message("Imported JSON file successfully: ", json_file)
       class(json) <- c("robyn_read", class(json))
       return(json)
     }
