@@ -149,6 +149,10 @@ robyn_allocator <- function(robyn_object = NULL,
     }
   # }
 
+  if (length(InputCollect$paid_media_spends) <= 1) {
+    stop("Must have a valid model with at least two 'paid_media_spends'")
+  }
+
   if (!quiet) message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
   ## Set local data & params values
@@ -207,8 +211,8 @@ robyn_allocator <- function(robyn_object = NULL,
   coefs_sorted <- hills$coefs_sorted
 
   # Spend values based on date range set
-  ndates_loc <- InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
-  dt_optimCost <- slice(InputCollect$dt_mod, ndates_loc)
+  window_loc <- InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
+  dt_optimCost <- slice(InputCollect$dt_mod, window_loc)
   new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE, is_allocator = TRUE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
@@ -246,6 +250,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Get use case based on inputs
   usecase <- which_usecase(initSpendUnit[1], date_range)
+  if (usecase == "all_historical_vec") {
+    ndates_loc <- which(InputCollect$dt_mod$ds %in% histFiltered$ds)
+  } else {
+    ndates_loc <- 1:length(histFiltered$ds)
+  }
   usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ historical_budget"))
 
   # Response values based on date range -> mean spend
@@ -275,8 +284,13 @@ robyn_allocator <- function(robyn_object = NULL,
     names(hist_carryover_temp) <- resp$date[ndates_loc]
     hist_carryover[[i]] <- hist_carryover_temp
     # get simulated response
+    if (resp$input_immediate[1] == initSpendUnit[i]) {
+      x_input <- initSpendUnit[i]
+    } else {
+      x_input <- mean(resp$input_immediate)
+    }
     resp_simulate <- fx_objective(
-      x = initSpendUnit[i],
+      x = x_input,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
@@ -284,7 +298,7 @@ robyn_allocator <- function(robyn_object = NULL,
       get_sum = FALSE
     )
     resp_simulate_plus1 <- fx_objective(
-      x = initSpendUnit[i] + 1,
+      x = x_input + 1,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
       alpha = alphas[[paste0(mediaSpendSorted[i], "_alphas")]],
       inflexion = inflexions[[paste0(mediaSpendSorted[i], "_gammas")]],
@@ -720,7 +734,7 @@ robyn_allocator <- function(robyn_object = NULL,
     #   plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
     # }
     if (!dir.exists(plot_folder)) {
-      message("Creating directory: ", plot_folder)
+      message("Creating directory for allocator: ", plot_folder)
       dir.create(plot_folder)
     }
     ## Export results into CSV
