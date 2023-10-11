@@ -649,9 +649,9 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
   return(calibration_input)
 }
 
-check_obj_weight <- function(calibration_input, objective_weights) {
+check_obj_weight <- function(calibration_input, objective_weights, refresh) {
+  obj_len <- ifelse(is.null(calibration_input), 2, 3)
   if(!is.null(objective_weights)) {
-    obj_len <- ifelse(is.null(calibration_input), 2, 3)
     if((length(objective_weights) != obj_len)) {
       stop(paste0("objective_weights must have length of ", obj_len))
     }
@@ -659,6 +659,14 @@ check_obj_weight <- function(calibration_input, objective_weights) {
       stop("objective_weights must be >= 0 & <= 10")
     }
   }
+  if(is.null(objective_weights) & refresh) {
+    if(obj_len == 2) {
+      objective_weights <- c(1, 10)
+    } else {
+      objective_weights <- c(1, 10, 10)
+    }
+  }
+  return(objective_weights)
 }
 
 check_iteration <- function(calibration_input, iterations, trials, hyps_fixed, refresh) {

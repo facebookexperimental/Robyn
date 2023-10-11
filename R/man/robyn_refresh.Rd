@@ -20,6 +20,7 @@ robyn_refresh(
   version_prompt = FALSE,
   export = TRUE,
   calibration_input = NULL,
+  objective_weights = NULL,
   ...
 )
 
@@ -80,6 +81,11 @@ You can calibrate any spend or organic variable with a well designed experiment.
 You can also use experimental results from multiple channels; to do so,
 provide concatenated channel value, i.e. "channel_A+channel_B".
 Check "Guide for calibration source" section.}
+
+\item{objective_weights}{Numeric. Default to NULL that gives equal weights
+to all objective functions. Set c(2, 1) to give double weight to the 1st.
+This is an experimental feature. There's no research on optimal weight
+setting. Subjective weights might strongly bias modelling result.}
 
 \item{...}{Additional parameters to overwrite original custom parameters
 passed into initial model.}
