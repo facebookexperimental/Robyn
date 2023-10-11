@@ -149,6 +149,10 @@ robyn_allocator <- function(robyn_object = NULL,
     }
   # }
 
+  if (length(InputCollect$paid_media_spends) <= 1) {
+    stop("Must have a valid model with at least two 'paid_media_spends'")
+  }
+
   if (!quiet) message(paste(">>> Running budget allocator for model ID", select_model, "..."))
 
   ## Set local data & params values
@@ -730,7 +734,7 @@ robyn_allocator <- function(robyn_object = NULL,
     #   plot_folder <- gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
     # }
     if (!dir.exists(plot_folder)) {
-      message("Creating directory: ", plot_folder)
+      message("Creating directory for allocator: ", plot_folder)
       dir.create(plot_folder)
     }
     ## Export results into CSV

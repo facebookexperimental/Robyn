@@ -601,13 +601,13 @@ robyn_onepagers <- function(
       all_plots[[sid]] <- pg
 
       if (export) {
-        filename <- paste0(plot_folder, "/", sid, ".png")
+        filename <- paste0(plot_folder, sid, ".png")
         ggsave(
           filename = filename,
           plot = pg, limitsize = FALSE,
           dpi = 400, width = 17, height = 19
         )
-        if (!quiet) message("Exporting charts as: ", filename)
+        if (count_mod_out == 1) message("Exporting charts as: ", filename)
       }
       if (check_parallel_plot() && !quiet && count_mod_out > 1) {
         cnt <- cnt + 1
@@ -1040,9 +1040,7 @@ allocation_plots <- function(
       scenario == "target_efficiency" & metric == "CPA" ~ "target_cpa",
       TRUE ~ "none"
     )
-    # suffix <- ifelse(scenario == "max_response", "resp", "effi")
     filename <- paste0(plot_folder, select_model, "_reallocated_", suffix, ".png")
-    if (!quiet) message("Exporting charts as: ", filename)
     ggsave(
       filename = filename,
       plot = plots, limitsize = FALSE,
@@ -1053,14 +1051,13 @@ allocation_plots <- function(
   return(invisible(outputs))
 }
 
-refresh_plots <- function(
-    InputCollectRF, OutputCollectRF, ReportCollect,
-    export = TRUE, plot_folder = OutputCollectRF$plot_folder, ...) {
+refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export = TRUE, ...) {
   selectID <- tail(ReportCollect$selectIDs, 1)
   if (is.null(selectID)) selectID <- tail(ReportCollect$resultHypParamReport$solID, 1)
   message(">> Plotting refresh results for model: ", v2t(selectID))
   xDecompVecReport <- filter(ReportCollect$xDecompVecReport, .data$solID %in% selectID)
   xDecompAggReport <- filter(ReportCollect$xDecompAggReport, .data$solID %in% selectID)
+  plot_folder <- OutputCollectRF$plot_folder
   outputs <- list()
 
   ## 1. Actual vs fitted
@@ -1216,16 +1213,14 @@ refresh_plots <- function(
   return(invisible(outputs))
 }
 
-refresh_plots_json <- function(
-    OutputCollectRF, json_file,
-    export = TRUE,
-    plot_folder = OutputCollectRF$plot_folder, ...) {
+refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
   outputs <- list()
   chainData <- robyn_chain(json_file)
   solID <- tail(names(chainData), 1)
   dayInterval <- chainData[[solID]]$InputCollect$dayInterval
   intervalType <- chainData[[solID]]$InputCollect$intervalType
   rsq <- chainData[[solID]]$ExportedModel$errors$rsq_train
+  plot_folder <- OutputCollectRF$plot_folder
 
   ## 1. Fitted vs actual
   temp <- OutputCollectRF$allPareto$plotDataCollect[[solID]]
