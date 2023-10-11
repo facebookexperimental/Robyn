@@ -607,6 +607,7 @@ robyn_onepagers <- function(
           plot = pg, limitsize = FALSE,
           dpi = 400, width = 17, height = 19
         )
+        if (count_mod_out == 1) message("Exporting charts as: ", filename)
       }
       if (check_parallel_plot() && !quiet && count_mod_out > 1) {
         cnt <- cnt + 1
