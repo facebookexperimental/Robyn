@@ -179,10 +179,10 @@ robyn_response <- function(InputCollect = NULL,
   if (usecase == "all_historical_vec") {
     ds_list <- check_metric_dates(date_range = "all", all_dates[1:endRW], dayInterval, quiet, ...)
     metric_value <- NULL
-    #val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+    # val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else if (usecase == "unit_metric_default_last_n") {
     ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates[1:endRW], dayInterval, quiet, ...)
-    #val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+    # val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   } else {
     ds_list <- check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet, ...)
   }
@@ -351,7 +351,7 @@ which_usecase <- function(metric_value, date_range) {
     TRUE ~ "unit_metric_selected_dates"
   )
   if (!is.null(date_range)) {
-    if (length(date_range) ==1 & date_range[1] == "all") {
+    if (length(date_range) == 1 & date_range[1] == "all") {
       usecase <- "all_historical_vec"
     }
   }

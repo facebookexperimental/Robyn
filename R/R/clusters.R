@@ -77,9 +77,10 @@ robyn_clusters <- function(input, dep_var_type,
       {
         suppressMessages(
           clusterKmeans(df,
-                        k = NULL, limit = limit_clusters, ignore = ignore,
-                        dim_red = dim_red, quiet = TRUE, seed = seed
-          ))
+            k = NULL, limit = limit_clusters, ignore = ignore,
+            dim_red = dim_red, quiet = TRUE, seed = seed
+          )
+        )
       },
       error = function(err) {
         message(paste("Couldn't automatically create clusters:", err))
@@ -109,8 +110,10 @@ robyn_clusters <- function(input, dep_var_type,
   stopifnot(k %in% min_clusters:30)
   suppressMessages(
     cls <- clusterKmeans(
-      df, k = k, limit = limit_clusters, ignore = ignore,
-      dim_red = dim_red, quiet = TRUE, seed = seed)
+      df,
+      k = k, limit = limit_clusters, ignore = ignore,
+      dim_red = dim_red, quiet = TRUE, seed = seed
+    )
   )
 
   # Select top models by minimum (weighted) distance to zero
@@ -181,8 +184,9 @@ confidence_calcs <- function(
     if (length(unique(df_outcome$solID)) < 3) {
       warning(paste("Cluster", j, "does not contain enough models to calculate CI"))
     } else {
-      if (cluster_by == "hyperparameters")
+      if (cluster_by == "hyperparameters") {
         all_paid <- unique(gsub(paste(paste0("_", HYPS_NAMES), collapse = "|"), "", all_paid))
+      }
       for (i in all_paid) {
         # Bootstrap CI
         if (dep_var_type == "conversion") {
@@ -317,7 +321,8 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
     if (cluster_by == "hyperparameters") {
       outcome <- select(
         x, .data$solID, contains(HYPS_NAMES),
-        contains(c("nrmse", "decomp.rssd", "mape"))) %>%
+        contains(c("nrmse", "decomp.rssd", "mape"))
+      ) %>%
         removenacols(all = FALSE)
     }
   }

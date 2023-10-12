@@ -16,6 +16,7 @@ robyn_train(
   dt_hyper_fixed = NULL,
   ts_validation = TRUE,
   add_penalty_factor = FALSE,
+  objective_weights = NULL,
   rssd_zero_penalty = TRUE,
   refresh = FALSE,
   seed = 123,
@@ -68,6 +69,11 @@ function.}
 glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
 this feature might add too much hyperparameter space and probably requires
 more iterations to converge.}
+
+\item{objective_weights}{Numeric. Default to NULL that gives equal weights
+to all objective functions. Set c(2, 1) to give double weight to the 1st.
+This is an experimental feature. There's no research on optimal weight
+setting. Subjective weights might strongly bias modelling result.}
 
 \item{rssd_zero_penalty}{Boolean. When TRUE, the objective function
 DECOMP.RSSD will penalize models with more 0 media effects additionally.
