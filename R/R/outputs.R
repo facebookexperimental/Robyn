@@ -75,7 +75,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
   #### Run robyn_pareto on OutputModels
 
   totalModels <- OutputModels$iterations * OutputModels$trials
-  if (!isTRUE(attr(OutputModels, "hyper_fixed"))) {
+  if (!isTRUE(OutputModels$hyper_fixed)) {
     message(sprintf(
       ">>> Running Pareto calculations for %s models on %s front%s...",
       totalModels, pareto_fronts, ifelse(pareto_fronts > 1, "s", "")
@@ -146,7 +146,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     seed = OutputModels$seed,
     UI = NULL,
     pareto_fronts = pareto_fronts,
-    hyper_fixed = attr(OutputModels, "hyper_fixed"),
+    hyper_fixed = OutputModels$hyper_fixed,
     plot_folder = plot_folder
   )
   class(OutputCollect) <- c("robyn_outputs", class(OutputCollect))

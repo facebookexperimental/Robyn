@@ -184,6 +184,7 @@ robyn_run <- function(InputCollect = NULL,
     OutputModels$ts_validation <- ts_validation
     OutputModels$add_penalty_factor <- add_penalty_factor
     OutputModels$hyper_updated <- hyper_collect$hyper_list_all
+    OutputModels$hyper_fixed <- hyper_collect$all_fixed
   }
 
   # Not direct output & not all fixed hyperparameters
