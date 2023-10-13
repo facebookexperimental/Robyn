@@ -110,6 +110,7 @@ robyn_refresh <- function(json_file = NULL,
                           version_prompt = FALSE,
                           export = TRUE,
                           calibration_input = NULL,
+                          objective_weights = NULL,
                           ...) {
   refreshControl <- TRUE
   while (refreshControl) {
@@ -293,6 +294,7 @@ robyn_refresh <- function(json_file = NULL,
       outputs = TRUE, # So we end up with OutputCollect instead of OutputModels
       export = export,
       plot_pareto = plot_pareto,
+      objective_weights = objective_weights,
       ...
     )
 
@@ -448,10 +450,13 @@ robyn_refresh <- function(json_file = NULL,
         export = TRUE, quiet = TRUE, ...
       )
       plots <- refresh_plots_json(
-        OutputCollectRF, json_file = attr(json_temp, "json_file"), export, ...)
+        OutputCollectRF,
+        json_file = attr(json_temp, "json_file"), export, ...
+      )
     } else {
       plots <- try(refresh_plots(
-        InputCollectRF, OutputCollectRF, ReportCollect, export, ...))
+        InputCollectRF, OutputCollectRF, ReportCollect, export, ...
+      ))
     }
 
     if (export) {

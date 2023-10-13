@@ -19,8 +19,8 @@ robyn_refresh(
   plot_pareto = TRUE,
   version_prompt = FALSE,
   export = TRUE,
-  plot_folder_sub = NULL,
   calibration_input = NULL,
+  objective_weights = NULL,
   ...
 )
 
@@ -74,9 +74,6 @@ models (one-pagers and Pareto CSV files will already be generated).}
 
 \item{export}{Boolean. Export outcomes into local files?}
 
-\item{plot_folder_sub}{Character. Sub path for saving plots. Will overwrite the
-default path with timestamp or, for refresh and allocator, simply overwrite files.}
-
 \item{calibration_input}{data.frame. Optional. Provide experimental results to
 calibrate. Your input should include the following values for each experiment:
 channel, liftStartDate, liftEndDate, liftAbs, spend, confidence, metric.
@@ -84,6 +81,11 @@ You can calibrate any spend or organic variable with a well designed experiment.
 You can also use experimental results from multiple channels; to do so,
 provide concatenated channel value, i.e. "channel_A+channel_B".
 Check "Guide for calibration source" section.}
+
+\item{objective_weights}{Numeric. Default to NULL that gives equal weights
+to all objective functions. Set c(2, 1) to give double weight to the 1st.
+This is an experimental feature. There's no research on optimal weight
+setting. Subjective weights might strongly bias modelling result.}
 
 \item{...}{Additional parameters to overwrite original custom parameters
 passed into initial model.}

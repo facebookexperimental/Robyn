@@ -19,6 +19,7 @@ robyn_run(
   trials = 5,
   iterations = 2000,
   rssd_zero_penalty = TRUE,
+  objective_weights = NULL,
   nevergrad_algo = "TwoPointsDE",
   intercept = TRUE,
   intercept_sign = "non_negative",
@@ -75,6 +76,11 @@ DECOMP.RSSD will penalize models with more 0 media effects additionally.
 In other words, given the same DECOMP.RSSD score, a model with 50\% 0-coef
 variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
 another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
+
+\item{objective_weights}{Numeric. Default to NULL that gives equal weights
+to all objective functions. Set c(2, 1) to give double weight to the 1st.
+This is an experimental feature. There's no research on optimal weight
+setting. Subjective weights might strongly bias modelling result.}
 
 \item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",

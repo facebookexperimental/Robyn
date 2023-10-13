@@ -148,8 +148,8 @@ robyn_converge <- function(OutputModels,
   moo_cloud_plot <- df %>%
     mutate(nrmse = lares::winsorize(.data$nrmse, nrmse_win)) %>%
     ggplot(aes(
-    x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum
-  )) +
+      x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum
+    )) +
     scale_colour_gradient(low = "skyblue", high = "navyblue") +
     labs(
       title = ifelse(!calibrated, "Multi-objective evolutionary performance",
