@@ -110,14 +110,20 @@ robyn_write <- function(InputCollect,
   if (export) {
     if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
     if (!is.null(all_sol_json)) {
-      all_c <- unique(all_sol_json$cluster)
-      all_sol_json <- lapply(all_c, function(x) {
-        (all_sol_json %>% filter(.data$cluster == x))$solID
-      })
-      names(all_sol_json) <- paste0("cluster", all_c)
-      ret[["InputCollect"]][["total_time"]] <- total_time
-      ret[["InputCollect"]][["total_iters"]] <- OutputModels$iterations * OutputModels$trials
-      ret[["OutputCollect"]][["all_sols"]] <- all_sol_json
+      if (!all(c("solID", "cluster") %in% names(all_sol_json))) {
+        warning(paste(
+          "Input 'all_sol_json' is not a valid data.frame;",
+          "must contain 'solID' and 'cluster' columns."))
+      } else {
+        all_c <- unique(all_sol_json$cluster)
+        all_sol_json_out <- lapply(all_c, function(x) {
+          (all_sol_json %>% filter(.data$cluster == x))$solID
+        })
+        names(all_sol_json_out) <- paste0("cluster", all_c)
+        ret[["InputCollect"]][["total_time"]] <- total_time
+        ret[["InputCollect"]][["total_iters"]] <- OutputModels$iterations * OutputModels$trials
+        ret[["OutputCollect"]][["all_sols"]] <- all_sol_json_out
+      }
     }
     write_json(ret, filename, pretty = TRUE, digits = 10)
   }
