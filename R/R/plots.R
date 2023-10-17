@@ -1046,6 +1046,7 @@ allocation_plots <- function(
       plot = plots, limitsize = FALSE,
       dpi = 350, width = 12, height = 10 + 2 * ceiling(length(dt_optimOut$channels) / 3)
     )
+    if(!quiet) message("Exporting to: ", filename)
   }
 
   return(invisible(outputs))
