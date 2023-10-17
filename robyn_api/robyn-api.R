@@ -114,7 +114,7 @@ function(InputCollect, jsonRunArgs) {
   # list > tibble
   vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
   for (var in vars_to_tibble) {
-    InputCollect[[var]] <- as_tibble(InputCollect_fromAPI[[var]])
+    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
   }
   # Null Treatment
   for (var in names(InputCollect)) {
@@ -145,7 +145,7 @@ function(InputCollect, OutputModels, jsonRunArgs, onePagers=FALSE) {
   # list > tibble
   vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
   for (var in vars_to_tibble) {
-    InputCollect[[var]] <- as_tibble(InputCollect_fromAPI[[var]])
+    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
   }
   # Null Treatment
   for (var in names(InputCollect)) {
@@ -180,7 +180,7 @@ function(InputCollect, OutputCollect, select_model, dpi=900, width=17, height=19
   # list > tibble
   vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
   for (var in vars_to_tibble) {
-    InputCollect[[var]] <- as_tibble(InputCollect_fromAPI[[var]])
+    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
   }
   # Null Treatment
   for (var in names(InputCollect)) {
