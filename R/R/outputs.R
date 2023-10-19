@@ -228,18 +228,18 @@ robyn_outputs <- function(InputCollect, OutputModels,
         }
 
         if (all_sol_json) {
-          all_sol_json <- OutputCollect$resultHypParam %>%
+          pareto_df <- OutputCollect$resultHypParam %>%
             filter(!is.na(.data$cluster)) %>%
             select(c("solID", "cluster", "top_sol")) %>%
             arrange(.data$cluster, -.data$top_sol, .data$solID)
         } else {
-          all_sol_json <- NULL
+          pareto_df <- NULL
         }
         robyn_write(
           InputCollect = InputCollect,
           OutputModels = OutputModels,
           dir = plot_folder, quiet = quiet,
-          all_sol_json = all_sol_json
+          pareto_df = pareto_df, ...
         )
 
         # For internal use -> UI Code
