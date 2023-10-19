@@ -712,6 +712,7 @@ robyn_allocator <- function(robyn_object = NULL,
   temp_caov <- mainPoints %>% filter(.data$type == "Carryover")
   mainPoints$mean_spend <- mainPoints$spend_point - temp_caov$spend_point
   mainPoints$mean_spend <- ifelse(mainPoints$type == "Carryover", mainPoints$spend_point, mainPoints$mean_spend)
+  if (levs1[2] == levs1[3]) levs1[3] <- paste0(levs1[3], ".")
   mainPoints$type <- factor(mainPoints$type, levels = c("Carryover", levs1))
   mainPoints$roi_mean <- mainPoints$response_point / mainPoints$mean_spend
   mresp_caov <- filter(mainPoints, .data$type == "Carryover")$response_point
