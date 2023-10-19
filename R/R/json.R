@@ -88,6 +88,9 @@ robyn_write <- function(InputCollect,
       )
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
       select(starts_with("rsq_"), starts_with("nrmse"), .data$decomp.rssd, .data$mape)
+    if ("clusters" %in% names(OutputCollect)) {
+      outputs$clusters <- OutputCollect$clusters$n_clusters
+    }
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
       select(contains(HYPS_NAMES), dplyr::ends_with("_penalty"), any_of(HYPS_OTHERS)) %>%
