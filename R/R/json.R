@@ -70,6 +70,7 @@ robyn_write <- function(InputCollect,
     outputs <- list()
     outputs$select_model <- select_model
     outputs$ts_validation <- OutputCollect$OutputModels$ts_validation
+    outputs$export_timestamp <- Sys.time()
     outputs$run_time <- run_time
     outputs$outputs_time <- outputs_time
     outputs$total_time <- total_time

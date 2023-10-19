@@ -274,6 +274,11 @@ robyn_inputs <- function(dt_input = NULL,
     # Check for no-variance columns on raw data (after removing not-used)
     check_novar(select(dt_input, -all_of(unused_vars)))
 
+    # Calculate total media spend used to model
+    paid_media_total <- dt_input[
+      rollingWindowEndWhich:rollingWindowLength, ] %>%
+      select(paid_media_vars) %>% sum()
+
     ## Collect input
     InputCollect <- list(
       dt_input = dt_input,
@@ -294,6 +299,7 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_vars = paid_media_vars,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
+      paid_media_total = paid_media_total,
       mediaVarCount = mediaVarCount,
       exposure_vars = exposure_vars,
       organic_vars = organic_vars,
@@ -307,6 +313,7 @@ robyn_inputs <- function(dt_input = NULL,
       window_end = window_end,
       rollingWindowEndWhich = rollingWindowEndWhich,
       rollingWindowLength = rollingWindowLength,
+      totalObservations = nrow(dt_input),
       refreshAddedStart = refreshAddedStart,
       adstock = adstock,
       hyperparameters = hyperparameters,
