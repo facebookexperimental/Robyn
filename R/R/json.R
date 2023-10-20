@@ -15,7 +15,7 @@
 #' @param select_model Character. Which model ID do you want to export
 #' into the JSON file?
 #' @param dir Character. Existing directory to export JSON file to.
-#' @param all_sol_json Dataframe. Add all pareto solutions to json.
+#' @param pareto_df Dataframe. Save all pareto solutions to json file.
 #' @param ... Additional parameters.
 #' @examples
 #' \dontrun{
@@ -36,7 +36,7 @@ robyn_write <- function(InputCollect,
                         OutputModels = NULL,
                         export = TRUE,
                         quiet = FALSE,
-                        all_sol_json = NULL,
+                        pareto_df = NULL,
                         ...) {
   # Checks
   stopifnot(inherits(InputCollect, "robyn_inputs"))
@@ -70,6 +70,7 @@ robyn_write <- function(InputCollect,
     outputs <- list()
     outputs$select_model <- select_model
     outputs$ts_validation <- OutputCollect$OutputModels$ts_validation
+    outputs$export_timestamp <- Sys.time()
     outputs$run_time <- run_time
     outputs$outputs_time <- outputs_time
     outputs$total_time <- total_time
@@ -87,6 +88,9 @@ robyn_write <- function(InputCollect,
       )
     outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
       select(starts_with("rsq_"), starts_with("nrmse"), .data$decomp.rssd, .data$mape)
+    if ("clusters" %in% names(OutputCollect)) {
+      outputs$clusters <- OutputCollect$clusters$n_clusters
+    }
     outputs$hyper_values <- OutputCollect$resultHypParam %>%
       filter(.data$solID == select_model) %>%
       select(contains(HYPS_NAMES), dplyr::ends_with("_penalty"), any_of(HYPS_OTHERS)) %>%
@@ -109,15 +113,21 @@ robyn_write <- function(InputCollect,
   attr(ret, "json_file") <- filename
   if (export) {
     if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
-    if (!is.null(all_sol_json)) {
-      all_c <- unique(all_sol_json$cluster)
-      all_sol_json <- lapply(all_c, function(x) {
-        (all_sol_json %>% filter(.data$cluster == x))$solID
-      })
-      names(all_sol_json) <- paste0("cluster", all_c)
-      ret[["InputCollect"]][["total_time"]] <- total_time
-      ret[["InputCollect"]][["total_iters"]] <- OutputModels$iterations * OutputModels$trials
-      ret[["OutputCollect"]][["all_sols"]] <- all_sol_json
+    if (!is.null(pareto_df)) {
+      if (!all(c("solID", "cluster") %in% names(pareto_df))) {
+        warning(paste(
+          "Input 'pareto_df' is not a valid data.frame;",
+          "must contain 'solID' and 'cluster' columns."))
+      } else {
+        all_c <- unique(pareto_df$cluster)
+        pareto_df <- lapply(all_c, function(x) {
+          (pareto_df %>% filter(.data$cluster == x))$solID
+        })
+        names(pareto_df) <- paste0("cluster", all_c)
+        ret[["InputCollect"]][["total_time"]] <- total_time
+        ret[["InputCollect"]][["total_iters"]] <- OutputModels$iterations * OutputModels$trials
+        ret[["OutputCollect"]][["all_sols"]] <- pareto_df
+      }
     }
     write_json(ret, filename, pretty = TRUE, digits = 10)
   }

@@ -175,6 +175,7 @@ robyn_run <- function(InputCollect = NULL,
   attr(OutputModels, "refresh") <- refresh
 
   if (TRUE) {
+    OutputModels$train_timestamp <- Sys.time()
     OutputModels$cores <- cores
     OutputModels$iterations <- iterations
     OutputModels$trials <- trials
