@@ -1,5 +1,6 @@
 suppressPackageStartupMessages(library(arrow))
 library(ggplot2)
+library(dplyr)
 library(patchwork)
 library(Robyn)
 library(plumber)
@@ -7,12 +8,13 @@ library(jsonlite)
 library(tibble)
 
 #* Convert hex data back to raw bytes
+#* This function is called to import the table data such as dt_simulated_weekly, dt_prophet_holidays
 hex_to_raw <- function(x) {
   chars <- strsplit(x, "")[[1]]
   as.raw(strtoi(paste0(chars[c(TRUE, FALSE)], chars[c(FALSE, TRUE)]), base=16L))
 }
 
-#* Serialises a ggplot into a hex string by first converting to png
+#* Serialize a ggplot into a hex string by first converting to png
 ggplot_serialize <- function(plot,dpi,width,height) {
   temp_file <- tempfile(fileext = ".png")
   ggsave(temp_file, plot, device = "png", dpi = dpi, width = width, height = height, limitsize = FALSE)
@@ -47,6 +49,49 @@ recursive_ggplot_serialize <- function(obj,dpi=900,width=12,height=8) {
   return(obj)
 }
 
+### Robyn functions expect data/objects to be R unique one, but if bypassing data/obj via REST API, we need to convert these into R unique type like tibble or factor.
+#* transform InputCollect from API
+transform_InputCollect <- function(InputCollect) {
+
+  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
+
+  # String > Date
+  InputCollect <- convert_dates_to_Date(InputCollect)
+
+  # list > tibble
+  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
+  for (var in vars_to_tibble) {
+    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
+  }
+
+  # Null Treatment
+  for (var in names(InputCollect)) {
+    if(length(InputCollect[[var]])==0) {
+      InputCollect[[var]] <- NULL
+    }
+  }
+
+  return(InputCollect)
+}
+
+#* transform OutputCollect from API
+transform_OutputCollect <- function(OutputCollect, select_model) {
+
+  OutputCollect <- jsonlite::fromJSON(OutputCollect)
+
+  # Add class name which is used as a checker in Robyn
+  class(OutputCollect) <- c("robyn_outputs", "list")
+
+  # convert only target model data
+  OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] <-
+    OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] %>%
+    as_tibble() %>%
+    mutate(across(where(is.character), as.factor))
+
+  return(OutputCollect)
+}
+
+### ToDo: This function may not needed. Check later.
 #* Convert YYYY-MM-DD format string into date
 convert_dates_to_Date <- function(json_data) {
   # Helper function to recursively traverse and convert date strings to Date objects
@@ -108,21 +153,7 @@ function(modelData, holidayData, jsonInput) {
 #* @post /robyn_run
 function(InputCollect, jsonRunArgs) {
 
-  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
-  # String > Date
-  InputCollect <- convert_dates_to_Date(InputCollect)
-  # list > tibble
-  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
-  for (var in vars_to_tibble) {
-    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
-  }
-  # Null Treatment
-  for (var in names(InputCollect)) {
-    if(length(InputCollect[[var]])==0) {
-      InputCollect[[var]] <- NULL
-    }
-  }
-
+  InputCollect <- transform_InputCollect(InputCollect)
   argsRun <- jsonlite::fromJSON(jsonRunArgs)
 
   OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect), argsRun))
@@ -139,23 +170,8 @@ function(InputCollect, jsonRunArgs) {
 #* @post /robyn_outputs
 function(InputCollect, OutputModels, jsonRunArgs, onePagers=FALSE) {
 
-  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
-  # String > Date
-  InputCollect <- convert_dates_to_Date(InputCollect)
-  # list > tibble
-  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
-  for (var in vars_to_tibble) {
-    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
-  }
-  # Null Treatment
-  for (var in names(InputCollect)) {
-    if(length(InputCollect[[var]])==0) {
-      InputCollect[[var]] <- NULL
-    }
-  }
-
+  InputCollect <- transform_InputCollect(InputCollect)
   OutputModels <- jsonlite::fromJSON(OutputModels)
-
   argsRun <- jsonlite::fromJSON(jsonRunArgs)
 
   OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect, OutputModels = OutputModels), argsRun))
@@ -172,31 +188,56 @@ function(InputCollect, OutputModels, jsonRunArgs, onePagers=FALSE) {
 #* @param width
 #* @param height
 #* @post /robyn_onepagers
-function(InputCollect, OutputCollect, select_model, dpi=900, width=17, height=19) {
+function(InputCollect, OutputCollect, select_model, dpi=dpi, width=width, height=height) {
 
-  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
-  # String > Date
-  InputCollect <- convert_dates_to_Date(InputCollect)
-  # list > tibble
-  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
-  for (var in vars_to_tibble) {
-    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
-  }
-  # Null Treatment
-  for (var in names(InputCollect)) {
-    if(length(InputCollect[[var]])==0) {
-      InputCollect[[var]] <- NULL
-    }
-  }
+  InputCollect <- transform_InputCollect(InputCollect)
+  OutputCollect <- transform_OutputCollect(OutputCollect, select_model)
 
-  OutputCollect <- jsonlite::fromJSON(OutputCollect)
-  class(OutputCollect) <- c("robyn_outputs", "list")
+  onepager <- robyn_onepagers(InputCollect, OutputCollect,
+                              select_model = select_model,
+                              export = FALSE)
 
-  onepager <- robyn_onepagers(InputCollect, OutputCollect, select_model = select_model, export = FALSE)
-
-  return(recursive_ggplot_serialize(onepager, dpi=900, width=17, height=19))
+  dpi <- dpi %>% as.numeric()
+  width <- width %>% as.numeric()
+  height <- height %>% as.numeric()
+  return(recursive_ggplot_serialize(onepager, dpi=dpi, width=width, height=height))
 
 }
+
+
+#* Call back allocator
+#* @param InputCollect
+#* @param OutputCollect
+#* @param select_model
+#* @param dpi
+#* @param width
+#* @param height
+#* @post /robyn_allocator
+function(InputCollect, OutputCollect, select_model, dpi=dpi, width=width, height=height) {
+
+  InputCollect <- transform_InputCollect(InputCollect)
+  OutputCollect <- transform_OutputCollect(OutputCollect, select_model)
+
+  AllocatorCollect <- robyn_allocator(
+    InputCollect = InputCollect,
+    OutputCollect = OutputCollect,
+    select_model = select_model,
+    date_range = NULL, # Default last month as initial period
+    total_budget = NULL, # When NULL, default is total spend in date_range
+    channel_constr_low = 0.7,
+    channel_constr_up = 1.2,
+    channel_constr_multiplier = 3,
+    scenario = "max_response",
+    export = FALSE
+  )
+
+  dpi <- dpi %>% as.numeric()
+  width <- width %>% as.numeric()
+  height <- height %>% as.numeric()
+  return(ggplot_serialize(AllocatorCollect$plots$plots, dpi=dpi, width=width, height=height))
+
+}
+
 
 #* Create and post back a .zip of Robyn_YYYYMMDDHHMM_init/
 #* @serializer contentType list(type="application/zip")
