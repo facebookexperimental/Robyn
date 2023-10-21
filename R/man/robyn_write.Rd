@@ -16,7 +16,7 @@ robyn_write(
   OutputModels = NULL,
   export = TRUE,
   quiet = FALSE,
-  all_sol_json = NULL,
+  pareto_df = NULL,
   ...
 )
 
@@ -44,7 +44,7 @@ into the JSON file?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
-\item{all_sol_json}{Dataframe. Add all pareto solutions to json.}
+\item{pareto_df}{Dataframe. Save all pareto solutions to json file.}
 
 \item{...}{Additional parameters.}
 
