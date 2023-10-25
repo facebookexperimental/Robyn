@@ -1,17 +1,22 @@
-suppressPackageStartupMessages(library(arrow))
-library(ggplot2)
-library(dplyr)
-library(patchwork)
-library(Robyn)
-library(plumber)
-library(jsonlite)
-library(tibble)
+# Import necessary libraries
+suppressPackageStartupMessages({
+  library(arrow)
+  library(ggplot2)
+  library(dplyr)
+  library(patchwork)
+  library(Robyn)
+  library(plumber)
+  library(jsonlite)
+  library(tibble)
+})
 
-#* Convert hex data back to raw bytes
+### FUNCTIONS ###
+
+#* Convert hex data to raw bytes
 #* This function is called to import the table data such as dt_simulated_weekly, dt_prophet_holidays
 hex_to_raw <- function(x) {
-  chars <- strsplit(x, "")[[1]]
-  as.raw(strtoi(paste0(chars[c(TRUE, FALSE)], chars[c(FALSE, TRUE)]), base=16L))
+  chars <- unlist(regmatches(x, gregexpr("..", x)))
+  as.raw(strtoi(chars, base=16L))
 }
 
 #* Serialize a ggplot into a hex string by first converting to png
@@ -53,10 +58,10 @@ recursive_ggplot_serialize <- function(obj,dpi=900,width=12,height=8) {
 #* transform InputCollect from API
 transform_InputCollect <- function(InputCollect) {
 
-  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
+  InputCollect <- jsonlite::fromJSON(InputCollect)
 
   # String > Date
-  InputCollect <- convert_dates_to_Date(InputCollect)
+  # InputCollect <- convert_dates_to_Date(InputCollect)
 
   # list > tibble
   vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
@@ -91,25 +96,8 @@ transform_OutputCollect <- function(OutputCollect, select_model) {
   return(OutputCollect)
 }
 
-### ToDo: This function may not needed. Check later.
-#* Convert YYYY-MM-DD format string into date
-convert_dates_to_Date <- function(json_data) {
-  # Helper function to recursively traverse and convert date strings to Date objects
-  recursive_convert <- function(x) {
-    if (is.list(x)) {
-      lapply(x, recursive_convert)
-    } else if (is.character(x) && length(x) == 1 && grepl("^\\d{4}-\\d{2}-\\d{2}$", x)) {
-      as.Date(x)
-    } else {
-      x
-    }
-  }
-
-  # Recursively convert date strings to Date objects
-  converted_data <- recursive_convert(json_data)
-
-  return(converted_data)
-}
+#* @apiTitle Robyn API
+#* @apiDescription A set of API endpoints to work with the Robyn library.
 
 #* Fetch demo data
 #* @post /dt_simulated_weekly
@@ -139,9 +127,8 @@ function(modelData, holidayData, jsonInput) {
   argsInp <- jsonlite::fromJSON(jsonInput)
 
   InputCollect <- robyn_inputs(dt_input = dt_input,
-                               dt_holidays = dt_prophet_holidays,
-                               json_file = argsInp
-  )
+                               dt_holidays = dt_holiday,
+                               json_file = argsInp)
 
   return(recursive_ggplot_serialize(InputCollect))
 
@@ -163,18 +150,24 @@ function(InputCollect, jsonRunArgs) {
 }
 
 
+# Error
+# Failed exporting results, but returned model results anyways:
+#   Error in robyn_write(InputCollect = InputCollect, OutputModels = OutputModels, : inherits(InputCollect, "robyn_inputs") is not TRUE
+
 #* Run a model selection and post back output collect
 #* @param InputCollect
 #* @param OutputModels
-#* @param jsonRunArgs Additional parameters for robyn_output in json format
+#* @param jsonOutputsArgs Additional parameters for robyn_outputs() in json format
 #* @post /robyn_outputs
-function(InputCollect, OutputModels, jsonRunArgs, onePagers=FALSE) {
+function(InputCollect, OutputModels, jsonOutputsArgs, onePagers=FALSE) {
 
   InputCollect <- transform_InputCollect(InputCollect)
   OutputModels <- jsonlite::fromJSON(OutputModels)
-  argsRun <- jsonlite::fromJSON(jsonRunArgs)
+  argsOutputs <- jsonlite::fromJSON(jsonOutputsArgs)
 
-  OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect, OutputModels = OutputModels), argsRun))
+  OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect, 
+                                                 OutputModels = OutputModels),
+                                            argsOutputs))
 
   return(recursive_ggplot_serialize(OutputCollect))
 
@@ -183,23 +176,29 @@ function(InputCollect, OutputModels, jsonRunArgs, onePagers=FALSE) {
 #* Call back onepager
 #* @param InputCollect
 #* @param OutputCollect
-#* @param select_model
+#* @param jsonOnepagersArgs Additional parameters for robyn_outputs() in json format
 #* @param dpi
 #* @param width
 #* @param height
 #* @post /robyn_onepagers
-function(InputCollect, OutputCollect, select_model, dpi=dpi, width=width, height=height) {
-
+function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=dpi, width=width, height=height) {
+  
+  argsOonepagers <- jsonlite::fromJSON(jsonOnepagersArgs)
   InputCollect <- transform_InputCollect(InputCollect)
-  OutputCollect <- transform_OutputCollect(OutputCollect, select_model)
-
-  onepager <- robyn_onepagers(InputCollect, OutputCollect,
-                              select_model = select_model,
-                              export = FALSE)
+  OutputCollect <- transform_OutputCollect(OutputCollect, argsOonepagers[["select_model"]])
+  
+  onepager <- do.call(robyn_onepagers, c(list(InputCollect = InputCollect, 
+                                              OutputCollect = OutputCollect),
+                                         argsOonepagers))
+  
+  # onepager <- robyn_onepagers(InputCollect, OutputCollect,
+  #                             select_model = select_model,
+  #                             export = FALSE)
 
   dpi <- dpi %>% as.numeric()
   width <- width %>% as.numeric()
   height <- height %>% as.numeric()
+  
   return(recursive_ggplot_serialize(onepager, dpi=dpi, width=width, height=height))
 
 }
@@ -239,24 +238,24 @@ function(InputCollect, OutputCollect, select_model, dpi=dpi, width=width, height
 }
 
 
-#* Create and post back a .zip of Robyn_YYYYMMDDHHMM_init/
-#* @serializer contentType list(type="application/zip")
-#* @get /download_outputs_folder
-function(res) {
-  # Call the function to create the ZIP file
-  zip_file_path <- '/Users/yuyatanaka/Downloads/test.zip'
-
-  # Read the ZIP file as binary
-  zip_content <- readBin(zip_file_path, "raw", file.info(zip_file_path)$size)
-
-  # Set the response type to application/zip
-  res$setHeader("Content-Type", "application/zip")
-  # Set the filename for the downloaded ZIP file
-  res$setHeader("Content-Disposition", paste("attachment; filename=downloaded_file.zip"))
-
-  # Return the ZIP content
-  as.raw(zip_content)
-}
+# #* Create and post back a .zip of Robyn_YYYYMMDDHHMM_init/
+# #* @serializer contentType list(type="application/zip")
+# #* @get /download_outputs_folder
+# function(res) {
+#   # Call the function to create the ZIP file
+#   zip_file_path <- '/Users/yuyatanaka/Downloads/test.zip'
+# 
+#   # Read the ZIP file as binary
+#   zip_content <- readBin(zip_file_path, "raw", file.info(zip_file_path)$size)
+# 
+#   # Set the response type to application/zip
+#   res$setHeader("Content-Type", "application/zip")
+#   # Set the filename for the downloaded ZIP file
+#   res$setHeader("Content-Disposition", paste("attachment; filename=downloaded_file.zip"))
+# 
+#   # Return the ZIP content
+#   as.raw(zip_content)
+# }
 
 
 # #* Run a model and post back output collect
