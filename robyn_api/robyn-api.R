@@ -54,20 +54,42 @@ recursive_ggplot_serialize <- function(obj,dpi=900,width=12,height=8) {
   return(obj)
 }
 
+#* Convert YYYY-MM-DD format string into date
+convert_dates_to_Date <- function(json_data) {
+  # Helper function to recursively traverse and convert date strings to Date objects
+  recursive_convert <- function(x) {
+    if (is.list(x)) {
+      lapply(x, recursive_convert)
+    } else if (is.character(x) && length(x) == 1 && grepl("^\\d{4}-\\d{2}-\\d{2}$", x)) {
+      as.Date(x)
+    } else {
+      x
+    }
+  }
+  
+  # Recursively convert date strings to Date objects
+  converted_data <- recursive_convert(json_data)
+  
+  return(converted_data)
+}
+
 ### Robyn functions expect data/objects to be R unique one, but if bypassing data/obj via REST API, we need to convert these into R unique type like tibble or factor.
 #* transform InputCollect from API
 transform_InputCollect <- function(InputCollect) {
 
-  InputCollect <- jsonlite::fromJSON(InputCollect)
-
-  # String > Date
-  # InputCollect <- convert_dates_to_Date(InputCollect)
+  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
 
   # list > tibble
-  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind")
+  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind", "calibration_input")
   for (var in vars_to_tibble) {
     InputCollect[[var]] <- as_tibble(InputCollect[[var]])
-  }
+    InputCollect[[var]][] <- lapply(InputCollect[[var]], function(col) {
+      if (all(grepl("^\\d{4}-\\d{2}-\\d{2}$", col))) {
+        return(as.Date(col))
+        }
+      return(col)
+      })
+    }
 
   # Null Treatment
   for (var in names(InputCollect)) {
@@ -112,31 +134,39 @@ function() {
 }
 
 #* Input parameters, hyperparameters, and datasets for models and post back InputCollects
-#* @param modelData Model data feather file in hex format
-#* @param holidayData Holiday data feather file in hex format
-#* @param jsonInput Additional parameters for robyninputs in json format
+# * @param modelData Model data feather file in hex format
+# * @param holidayData Holiday data feather file in hex format
+# * @param jsonInputArgs Additional parameters for robyn_inputs() in json format
+# * @param InputCollect
 #* @post /robyn_inputs
-function(modelData, holidayData, jsonInput) {
-
-  dt_input_bytes <- hex_to_raw(modelData)
-  dt_input <- arrow::read_feather(dt_input_bytes)
-
-  dt_holiday_bytes <- hex_to_raw(holidayData)
-  dt_holiday <- arrow::read_feather(dt_holiday_bytes)
-
-  argsInp <- jsonlite::fromJSON(jsonInput)
-
-  InputCollect <- robyn_inputs(dt_input = dt_input,
-                               dt_holidays = dt_holiday,
-                               json_file = argsInp)
-
+function(modelData=FALSE, holidayData=FALSE, jsonInputArgs=FALSE, InputCollect=FALSE, calibration_input=FALSE) {
+  
+  # logic needs to be reviewed as it's MECE.
+  if(!modelData==FALSE && !holidayData==FALSE && InputCollect==FALSE && calibration_input==FALSE){
+    dt_input <- modelData %>% hex_to_raw() %>% arrow::read_feather()
+    dt_holiday <- holidayData %>% hex_to_raw() %>% arrow::read_feather()
+    argsInput <- jsonlite::fromJSON(jsonInputArgs)
+    InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input, dt_holidays = dt_holiday), argsInput))
+  }
+  else if(modelData==FALSE && holidayData==FALSE && !InputCollect==FALSE && calibration_input==FALSE){
+    InputCollect <- transform_InputCollect(InputCollect)
+    argsInput <- jsonlite::fromJSON(jsonInputArgs)
+    InputCollect <- do.call(robyn_inputs, c(list(InputCollect = InputCollect), argsInput))
+  }
+  else if(modelData==FALSE && holidayData==FALSE && !InputCollect==FALSE && !calibration_input==FALSE){
+      InputCollect <- transform_InputCollect(InputCollect)
+      calibration_input <- calibration_input %>% hex_to_raw() %>% arrow::read_feather()
+      InputCollect <- do.call(robyn_inputs, c(list(InputCollect = InputCollect, calibration_input = calibration_input)))
+  }
+  
   return(recursive_ggplot_serialize(InputCollect))
 
 }
 
+# Get error when using calibration
 #* Run a model and post back output models
 #* @param InputCollect
-#* @param jsonRunArgs Additional parameters for robynrun in json format
+#* @param jsonRunArgs Additional parameters for robyn_run() in json format
 #* @post /robyn_run
 function(InputCollect, jsonRunArgs) {
 
@@ -173,10 +203,12 @@ function(InputCollect, OutputModels, jsonOutputsArgs, onePagers=FALSE) {
 
 }
 
+# Memo
+# Which should we return, ggplot_serialize or recursive_ggplot_serialize? = list obj which contains hex string or only hex string
 #* Call back onepager
 #* @param InputCollect
 #* @param OutputCollect
-#* @param jsonOnepagersArgs Additional parameters for robyn_outputs() in json format
+#* @param jsonOnepagersArgs Additional parameters for robyn_onepagers() in json format
 #* @param dpi
 #* @param width
 #* @param height
@@ -191,106 +223,45 @@ function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=dpi, width=width, h
                                               OutputCollect = OutputCollect),
                                          argsOonepagers))
   
-  # onepager <- robyn_onepagers(InputCollect, OutputCollect,
-  #                             select_model = select_model,
-  #                             export = FALSE)
-
   dpi <- dpi %>% as.numeric()
   width <- width %>% as.numeric()
   height <- height %>% as.numeric()
   
-  return(recursive_ggplot_serialize(onepager, dpi=dpi, width=width, height=height))
-
-}
+  return(ggplot_serialize(onepager[[argsOonepagers[["select_model"]]]], dpi=dpi, width=width, height=height))
+  
+  }
 
 
 #* Call back allocator
-#* @param InputCollect
-#* @param OutputCollect
-#* @param select_model
-#* @param dpi
-#* @param width
-#* @param height
+# * @param InputCollect
+# * @param OutputCollect
+# * @param dpi
+# * @param width
+# * @param height
 #* @post /robyn_allocator
-function(InputCollect, OutputCollect, select_model, dpi=dpi, width=width, height=height) {
+function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi=dpi, width=width, height=height) {
 
+  argsAllocator <- jsonlite::fromJSON(jsonAllocatorArgs)
   InputCollect <- transform_InputCollect(InputCollect)
-  OutputCollect <- transform_OutputCollect(OutputCollect, select_model)
-
+  OutputCollect <- transform_OutputCollect(OutputCollect, argsAllocator[["select_model"]])
+  
+  # AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect), argsAllocator))
+  
   AllocatorCollect <- robyn_allocator(
     InputCollect = InputCollect,
     OutputCollect = OutputCollect,
-    select_model = select_model,
-    date_range = NULL, # Default last month as initial period
-    total_budget = NULL, # When NULL, default is total spend in date_range
-    channel_constr_low = 0.7,
-    channel_constr_up = 1.2,
-    channel_constr_multiplier = 3,
-    scenario = "max_response",
-    export = FALSE
+    select_model = argsAllocator[["select_model"]],
+    date_range = argsAllocator[["date_range"]],
+    total_budget = argsAllocator[["total_budget"]],
+    channel_constr_low = argsAllocator[["channel_constr_low"]],
+    channel_constr_up = argsAllocator[["channel_constr_up"]],
+    channel_constr_multiplier = argsAllocator[["channel_constr_multiplier"]],
+    scenario = argsAllocator[["scenario"]],
+    export = argsAllocator[["export"]]
   )
 
   dpi <- dpi %>% as.numeric()
   width <- width %>% as.numeric()
   height <- height %>% as.numeric()
   return(ggplot_serialize(AllocatorCollect$plots$plots, dpi=dpi, width=width, height=height))
-
 }
-
-
-# #* Create and post back a .zip of Robyn_YYYYMMDDHHMM_init/
-# #* @serializer contentType list(type="application/zip")
-# #* @get /download_outputs_folder
-# function(res) {
-#   # Call the function to create the ZIP file
-#   zip_file_path <- '/Users/yuyatanaka/Downloads/test.zip'
-# 
-#   # Read the ZIP file as binary
-#   zip_content <- readBin(zip_file_path, "raw", file.info(zip_file_path)$size)
-# 
-#   # Set the response type to application/zip
-#   res$setHeader("Content-Type", "application/zip")
-#   # Set the filename for the downloaded ZIP file
-#   res$setHeader("Content-Disposition", paste("attachment; filename=downloaded_file.zip"))
-# 
-#   # Return the ZIP content
-#   as.raw(zip_content)
-# }
-
-
-# #* Run a model and post back output collect
-# #* @param modelData Model data feather file in hex format
-# #* @param jsonInput Additional parameters for robyninputs in json format
-# #* @param jsonRunArgs Additional parameters for robynrun in json format
-# #* @param onePagers Build the one pager files
-# #* @post /robynrun
-# function(modelData,jsonInput,jsonRunArgs,onePagers=FALSE) {
-#
-#   dt_input_bytes <- hex_to_raw(modelData)
-#   dt_input <- arrow::read_feather(dt_input_bytes)
-#   data("dt_prophet_holidays")
-#
-#   argsInp <- jsonlite::fromJSON(jsonInput)
-#   argsRun <- jsonlite::fromJSON(jsonRunArgs)
-#
-#   InputCollect <- robyn_inputs(
-#     dt_input = dt_input,
-#     dt_holidays = dt_prophet_holidays,
-#     json_file = argsInp
-#   )
-#
-#   OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect),argsRun))
-#
-#   OutputCollect <- robyn_outputs(InputCollect, OutputModels, export=FALSE)
-#
-#   if(onePagers){
-#     one_pagers <- list()
-#     for (select_model in OutputCollect$clusters$models$solID) {
-#       one_pagers[[select_model]] <- recursive_ggplot_serialize(robyn_onepagers(InputCollect, OutputCollect, select_model = select_model, export = FALSE),dpi=900,width=17,height=19)
-#     }
-#     OutputCollect$clusters$models$onepagers <- one_pagers
-#   }
-#
-#   return(recursive_ggplot_serialize(OutputCollect))
-#
-# }
