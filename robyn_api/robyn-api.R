@@ -81,9 +81,12 @@ convert_dates_to_Date <- function(json_data) {
 ### Robyn functions expect data/objects to be R unique one, but if bypassing data/obj via REST API, we need to convert these into R unique type like tibble or factor.
 #* transform InputCollect from API
 transform_InputCollect <- function(InputCollect) {
-
+  
   InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
-
+  
+  # Add class name which is used as a checker in Robyn
+  class(InputCollect) <- c("robyn_inputs", "list")
+  
   # list > tibble
   vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind", "calibration_input")
   for (var in vars_to_tibble) {
@@ -91,35 +94,37 @@ transform_InputCollect <- function(InputCollect) {
     InputCollect[[var]][] <- lapply(InputCollect[[var]], function(col) {
       if (all(grepl("^\\d{4}-\\d{2}-\\d{2}$", col))) {
         return(as.Date(col))
-        }
+      }
       return(col)
-      })
-    }
-
+    })
+  }
+  
   # Null Treatment
   for (var in names(InputCollect)) {
     if(length(InputCollect[[var]])==0) {
       InputCollect[[var]] <- NULL
     }
   }
-
+  
   return(InputCollect)
 }
 
 #* transform OutputCollect from API
-transform_OutputCollect <- function(OutputCollect, select_model) {
-
+transform_OutputCollect <- function(OutputCollect, select_model=FALSE) {
+  
   OutputCollect <- jsonlite::fromJSON(OutputCollect)
-
+  
   # Add class name which is used as a checker in Robyn
   class(OutputCollect) <- c("robyn_outputs", "list")
-
+  
   # convert only target model data
-  OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] <-
-    OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] %>%
-    as_tibble() %>%
-    mutate(across(where(is.character), as.factor))
-
+  if (!select_model==FALSE) {
+    OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] <-
+      OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] %>%
+      as_tibble() %>%
+      mutate(across(where(is.character), as.factor))
+  }
+  
   return(OutputCollect)
 }
 
@@ -146,26 +151,40 @@ function() {
 #* @post /robyn_inputs
 function(modelData=FALSE, holidayData=FALSE, jsonInputArgs=FALSE, InputCollect=FALSE, calibration_input=FALSE) {
   
-  # logic needs to be reviewed as it's MECE.
-  if(!modelData==FALSE && !holidayData==FALSE && InputCollect==FALSE && calibration_input==FALSE){
+  if(!modelData==FALSE) {
     dt_input <- modelData %>% hex_to_raw() %>% arrow::read_feather()
+  } else {
+    dt_input <- NULL
+  }
+  if (!holidayData==FALSE) {
     dt_holiday <- holidayData %>% hex_to_raw() %>% arrow::read_feather()
-    argsInput <- jsonlite::fromJSON(jsonInputArgs)
-    InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input, dt_holidays = dt_holiday), argsInput))
+  } else {
+    dt_holiday <- NULL
   }
-  else if(modelData==FALSE && holidayData==FALSE && !InputCollect==FALSE && calibration_input==FALSE){
+  if (!InputCollect==FALSE) {
     InputCollect <- transform_InputCollect(InputCollect)
-    argsInput <- jsonlite::fromJSON(jsonInputArgs)
-    InputCollect <- do.call(robyn_inputs, c(list(InputCollect = InputCollect), argsInput))
+  } else {
+    InputCollect <- NULL
   }
-  else if(modelData==FALSE && holidayData==FALSE && !InputCollect==FALSE && !calibration_input==FALSE){
-      InputCollect <- transform_InputCollect(InputCollect)
-      calibration_input <- calibration_input %>% hex_to_raw() %>% arrow::read_feather()
-      InputCollect <- do.call(robyn_inputs, c(list(InputCollect = InputCollect, calibration_input = calibration_input)))
+  if (!calibration_input==FALSE) {
+    calibration_input <- calibration_input %>% hex_to_raw() %>% arrow::read_feather()
+  } else {
+    calibration_input <- NULL
+  }
+  if (!jsonInputArgs==FALSE) {
+    argsInput <- jsonlite::fromJSON(jsonInputArgs)
+  } else {
+    argsInput <- NULL
   }
   
+  InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input,
+                                               dt_holidays = dt_holiday,
+                                               InputCollect = InputCollect,
+                                               calibration_input = calibration_input
+  ), argsInput))
+  
   return(recursive_ggplot_serialize(InputCollect))
-
+  
 }
 
 # Get error when using calibration
@@ -174,14 +193,14 @@ function(modelData=FALSE, holidayData=FALSE, jsonInputArgs=FALSE, InputCollect=F
 #* @param jsonRunArgs Additional parameters for robyn_run() in json format
 #* @post /robyn_run
 function(InputCollect, jsonRunArgs) {
-
+  
   InputCollect <- transform_InputCollect(InputCollect)
   argsRun <- jsonlite::fromJSON(jsonRunArgs)
-
+  
   OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect), argsRun))
-
+  
   return(recursive_ggplot_serialize(OutputModels))
-
+  
 }
 
 
@@ -195,17 +214,17 @@ function(InputCollect, jsonRunArgs) {
 #* @param jsonOutputsArgs Additional parameters for robyn_outputs() in json format
 #* @post /robyn_outputs
 function(InputCollect, OutputModels, jsonOutputsArgs, onePagers=FALSE) {
-
+  
   InputCollect <- transform_InputCollect(InputCollect)
   OutputModels <- jsonlite::fromJSON(OutputModels)
   argsOutputs <- jsonlite::fromJSON(jsonOutputsArgs)
-
+  
   OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect, 
                                                  OutputModels = OutputModels),
                                             argsOutputs))
-
+  
   return(recursive_ggplot_serialize(OutputCollect))
-
+  
 }
 
 # Memo
@@ -234,7 +253,7 @@ function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=dpi, width=width, h
   
   return(ggplot_serialize(onepager[[argsOonepagers[["select_model"]]]], dpi=dpi, width=width, height=height))
   
-  }
+}
 
 
 #* Call back allocator
@@ -245,28 +264,41 @@ function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=dpi, width=width, h
 # * @param height
 #* @post /robyn_allocator
 function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi=dpi, width=width, height=height) {
-
+  
   argsAllocator <- jsonlite::fromJSON(jsonAllocatorArgs)
   InputCollect <- transform_InputCollect(InputCollect)
   OutputCollect <- transform_OutputCollect(OutputCollect, argsAllocator[["select_model"]])
   
-  # AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect), argsAllocator))
+  # 2 options to give args 
+  AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect), argsAllocator))
   
-  AllocatorCollect <- robyn_allocator(
-    InputCollect = InputCollect,
-    OutputCollect = OutputCollect,
-    select_model = argsAllocator[["select_model"]],
-    date_range = argsAllocator[["date_range"]],
-    total_budget = argsAllocator[["total_budget"]],
-    channel_constr_low = argsAllocator[["channel_constr_low"]],
-    channel_constr_up = argsAllocator[["channel_constr_up"]],
-    channel_constr_multiplier = argsAllocator[["channel_constr_multiplier"]],
-    scenario = argsAllocator[["scenario"]],
-    export = argsAllocator[["export"]]
-  )
-
   dpi <- dpi %>% as.numeric()
   width <- width %>% as.numeric()
   height <- height %>% as.numeric()
   return(ggplot_serialize(AllocatorCollect$plots$plots, dpi=dpi, width=width, height=height))
+}
+
+#* @post /robyn_write
+function(InputCollect, OutputCollect, OutputModels, jsonWriteArgs) {
+  
+  writeArgs <- jsonlite::fromJSON(jsonWriteArgs)
+  InputCollect <- transform_InputCollect(InputCollect)
+  OutputModels <- jsonlite::fromJSON(OutputModels)
+  # OutputCollect <- transform_OutputCollect(OutputCollect, argsAllocator[["select_model"]])
+  OutputCollect <- transform_OutputCollect(OutputCollect)
+  
+  do.call(robyn_write, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect, OutputModels = OutputModels), writeArgs))
+  
+}
+
+#* @post /robyn_recreate
+function(dt_input, dt_holidays, jsonRecreateArgs) {
+  
+  recreateArgs <- jsonlite::fromJSON(jsonRecreateArgs)
+  dt_input <- dt_input %>% hex_to_raw() %>% arrow::read_feather()
+  dt_holidays <- dt_holidays %>% hex_to_raw() %>% arrow::read_feather()
+  
+  RobynRecreated <- do.call(robyn_recreate, c(list(dt_input = dt_input, dt_holidays = dt_holidays), recreateArgs))
+  
+  return(recursive_ggplot_serialize(RobynRecreated)) 
 }
