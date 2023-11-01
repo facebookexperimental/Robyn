@@ -1,14 +1,19 @@
+
 # Import necessary libraries
 suppressPackageStartupMessages({
   library(arrow)
   library(ggplot2)
   library(dplyr)
   library(patchwork)
+  library("reticulate")
+  use_condaenv("r-reticulate")
   library(Robyn)
   library(plumber)
   library(jsonlite)
   library(tibble)
 })
+
+
 
 ### FUNCTIONS ###
 
