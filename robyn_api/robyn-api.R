@@ -1,3 +1,18 @@
+##Function to locate and load required virtual environment used to install nevergrad
+load_pythonenv <- function(env="r-reticulate"){
+  tryCatch(
+    {
+      library("reticulate")
+      if(reticulate::condaenv_exists(env)) {use_condaenv(env)}
+      else if (reticulate::virtualenv_exists(env)) {use_virtualenv(env, required = TRUE)}
+      else {message('Install nevergrad to proceed')}
+    },
+    error=function(e) {
+      message('Install nevergrad to proceed')
+    }
+  )
+}
+
 
 # Import necessary libraries
 suppressPackageStartupMessages({
@@ -5,8 +20,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(dplyr)
   library(patchwork)
-  library("reticulate")
-  use_condaenv("r-reticulate")
+  load_pythonenv()
   library(Robyn)
   library(plumber)
   library(jsonlite)
