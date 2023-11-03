@@ -191,14 +191,20 @@ function(modelData=FALSE, holidayData=FALSE, jsonInputArgs=FALSE, InputCollect=F
     argsInput <- NULL
   }
   
+  # dt_input <- ifelse(!isFALSE(modelData), modelData %>% hex_to_raw() %>% arrow::read_feather(), NULL)
+  # dt_holiday <- ifelse(!isFALSE(holidayData), holidayData %>% hex_to_raw() %>% arrow::read_feather(), NULL)
+  # InputCollect <- ifelse(!isFALSE(InputCollect), transform_InputCollect(InputCollect), NULL)
+  # calibration_input <- ifelse(!isFALSE(calibration_input), calibration_input %>% hex_to_raw() %>% arrow::read_feather(), NULL)
+  # argsInput <- ifelse(!isFALSE(jsonInputArgs), jsonlite::fromJSON(jsonInputArgs), NULL)
+  
   InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input,
                                                dt_holidays = dt_holiday,
                                                InputCollect = InputCollect,
                                                calibration_input = calibration_input
-  ), argsInput))
+                                               ), argsInput))
   
   return(recursive_ggplot_serialize(InputCollect))
-  
+
 }
 
 # Get error when using calibration
@@ -317,3 +323,10 @@ function(dt_input, dt_holidays, jsonRecreateArgs) {
   return(recursive_ggplot_serialize(RobynRecreated)) 
 }
 
+#* @post /hyper_names
+function(adstock, all_media) {
+  
+  hyper_names_list <- hyper_names(adstock = adstock, all_media = jsonlite::fromJSON(all_media))
+  
+  return(hyper_names_list)
+}
