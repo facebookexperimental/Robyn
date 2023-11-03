@@ -351,7 +351,7 @@ which_usecase <- function(metric_value, date_range) {
     TRUE ~ "unit_metric_selected_dates"
   )
   if (!is.null(date_range)) {
-    if (length(date_range) == 1 & date_range[1] == "all") {
+    if (length(date_range) == 1 & as.character(date_range[1]) == "all") {
       usecase <- "all_historical_vec"
     }
   }
