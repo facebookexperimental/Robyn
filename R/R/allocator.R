@@ -263,6 +263,7 @@ robyn_allocator <- function(robyn_object = NULL,
   initResponseUnit <- NULL
   initResponseMargUnit <- NULL
   hist_carryover <- list()
+  qa_carryover <- list()
   for (i in seq_along(mediaSpendSorted)) {
     resp <- robyn_response(
       json_file = json_file,
@@ -270,8 +271,8 @@ robyn_allocator <- function(robyn_object = NULL,
       select_build = select_build,
       select_model = select_model,
       metric_name = mediaSpendSorted[i],
-      metric_value = initSpendUnit[i] * simulation_period[i],
-      date_range = date_range,
+      #metric_value = initSpendUnit[i] * simulation_period[i],
+      #date_range = date_range,
       dt_hyppar = OutputCollect$resultHypParam,
       dt_coef = OutputCollect$xDecompAgg,
       InputCollect = InputCollect,
@@ -282,8 +283,9 @@ robyn_allocator <- function(robyn_object = NULL,
     )
     # val <- sort(resp$response_total)[round(length(resp$response_total) / 2)]
     # histSpendUnit[i] <- resp$input_immediate[which(resp$response_total == val)]
-    hist_carryover_temp <- resp$input_carryover[ndates_loc]
-    names(hist_carryover_temp) <- resp$date[ndates_loc]
+    hist_carryover_temp <- resp$input_carryover[window_loc]
+    qa_carryover[[i]] <- round(resp$input_total[window_loc])
+    names(hist_carryover_temp) <- resp$date[window_loc]
     hist_carryover[[i]] <- hist_carryover_temp
     # get simulated response
     # if (resp$input_immediate[1] == initSpendUnit[i]) {
@@ -311,7 +313,13 @@ robyn_allocator <- function(robyn_object = NULL,
     initResponseUnit <- c(initResponseUnit, resp_simulate)
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
-  names(initResponseUnit) <- names(hist_carryover) <- mediaSpendSorted
+  qa_carryover <- do.call(cbind, qa_carryover) %>% as.data.frame()
+  names(initResponseUnit) <- names(hist_carryover) <- names(qa_carryover) <- mediaSpendSorted
+  # QA adstock: simulated adstock should be identical to model adstock
+  # qa_carryover_origin <- OutputCollect$mediaVecCollect %>%
+  #   filter(.data$solID == select_model & .data$type == "adstockedMedia") %>%
+  #   select(mediaSpendSorted) %>% slice(window_loc) %>% round %>% as.data.frame()
+  # identical(qa_carryover, qa_carryover_origin)
   if (length(zero_spend_channel) > 0 && !quiet) {
     message("Media variables with 0 spending during date range: ", v2t(zero_spend_channel))
     # hist_carryover[zero_spend_channel] <- 0
@@ -1021,8 +1029,8 @@ get_adstock_params <- function(InputCollect, dt_hyppar) {
 
 get_hill_params <- function(InputCollect, OutputCollect = NULL, dt_hyppar, dt_coef, mediaSpendSorted, select_model, chnAdstocked = NULL) {
   hillHypParVec <- unlist(select(dt_hyppar, na.omit(str_extract(names(dt_hyppar), ".*_alphas|.*_gammas"))))
-  alphas <- hillHypParVec[str_which(names(hillHypParVec), "_alphas")]
-  gammas <- hillHypParVec[str_which(names(hillHypParVec), "_gammas")]
+  alphas <- hillHypParVec[paste0(mediaSpendSorted, "_alphas")]
+  gammas <- hillHypParVec[paste0(mediaSpendSorted, "_gammas")]
   if (is.null(chnAdstocked)) {
     chnAdstocked <- filter(
       OutputCollect$mediaVecCollect,
