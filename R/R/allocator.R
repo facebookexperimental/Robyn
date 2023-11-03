@@ -286,11 +286,12 @@ robyn_allocator <- function(robyn_object = NULL,
     names(hist_carryover_temp) <- resp$date[ndates_loc]
     hist_carryover[[i]] <- hist_carryover_temp
     # get simulated response
-    if (resp$input_immediate[1] == initSpendUnit[i]) {
-      x_input <- initSpendUnit[i]
-    } else {
-      x_input <- mean(resp$input_immediate)
-    }
+    # if (resp$input_immediate[1] == initSpendUnit[i]) {
+    #   x_input <- initSpendUnit[i]
+    # } else {
+    #   x_input <- mean(resp$input_immediate)
+    # }
+    x_input <- initSpendUnit[i]
     resp_simulate <- fx_objective(
       x = x_input,
       coeff = coefs_sorted[[mediaSpendSorted[i]]],
