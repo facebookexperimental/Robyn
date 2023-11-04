@@ -54,7 +54,6 @@
 #' This is an experimental feature. There's no research on optimal weight
 #' setting. Subjective weights might strongly bias modelling result.
 #' @param seed Integer. For reproducible results when running nevergrad.
-#' @param outputs Boolean. Process results with \code{robyn_outputs()}?
 #' @param lambda_control Deprecated in v3.6.0.
 #' @param ... Additional parameters passed to \code{robyn_outputs()}.
 #' @return List. Class: \code{robyn_models}. Contains the results of all trials
@@ -66,8 +65,7 @@
 #'   InputCollect = InputCollect,
 #'   cores = 2,
 #'   iterations = 200,
-#'   trials = 1,
-#'   outputs = FALSE
+#'   trials = 1
 #' )
 #' }
 #' @return List. Contains all trained models. Class: \code{robyn_models}.
@@ -79,7 +77,6 @@ robyn_run <- function(InputCollect = NULL,
                       add_penalty_factor = FALSE,
                       refresh = FALSE,
                       seed = 123L,
-                      outputs = FALSE,
                       quiet = FALSE,
                       cores = NULL,
                       trials = 5,
@@ -188,7 +185,7 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Not direct output & not all fixed hyperparameters
-  if (!outputs & is.null(dt_hyper_fixed)) {
+  if (is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
     # Direct output & not all fixed hyperparameters, including refresh mode
