@@ -66,7 +66,7 @@ robyn_plots <- function(
     ## Hyperparameter sampling distribution
     if (length(temp_all) > 0) {
       resultHypParam <- temp_all$resultHypParam
-      hpnames_updated <- c(names(OutputCollect$OutputModels$hyper_updated))
+      hpnames_updated <- names(InputCollect$hyperparameters)
       hpnames_updated <- str_replace(hpnames_updated, "lambda", "lambda_hp")
       resultHypParam.melted <- resultHypParam %>%
         dplyr::select(any_of(hpnames_updated)) %>%

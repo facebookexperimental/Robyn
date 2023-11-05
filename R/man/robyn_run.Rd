@@ -13,7 +13,6 @@ robyn_run(
   add_penalty_factor = FALSE,
   refresh = FALSE,
   seed = 123L,
-  outputs = FALSE,
   quiet = FALSE,
   cores = NULL,
   trials = 5,
@@ -24,6 +23,7 @@ robyn_run(
   intercept = TRUE,
   intercept_sign = "non_negative",
   lambda_control = NULL,
+  outputs = FALSE,
   ...
 )
 
@@ -57,8 +57,6 @@ more iterations to converge.}
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
 \item{seed}{Integer. For reproducible results when running nevergrad.}
-
-\item{outputs}{Boolean. Process results with \code{robyn_outputs()}?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
@@ -97,6 +95,10 @@ there are \code{context_vars} with large positive values.}
 
 \item{lambda_control}{Deprecated in v3.6.0.}
 
+\item{outputs}{Boolean. If set to TRUE, will run \code{robyn_run()} and
+\code{robyn_outputs()}, returning a list with OutputModels and
+OutputCollect results.}
+
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 
 \item{x}{\code{robyn_models()} output.}
@@ -114,12 +116,11 @@ runs \code{robyn_mmm()}, and collects all modeling results.
 \examples{
 \dontrun{
 # Having InputCollect results
-OutputCollect <- robyn_run(
+OutputModels <- robyn_run(
   InputCollect = InputCollect,
   cores = 2,
   iterations = 200,
-  trials = 1,
-  outputs = FALSE
+  trials = 1
 )
 }
 }
