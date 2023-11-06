@@ -1,3 +1,4 @@
+options(warn=-1)
 ##Function to locate and load required virtual environment used to install nevergrad
 load_pythonenv <- function(env="r-reticulate"){
   tryCatch(
@@ -12,6 +13,7 @@ load_pythonenv <- function(env="r-reticulate"){
     }
   )
 }
+
 
 
 # Import necessary libraries
@@ -223,10 +225,6 @@ function(InputCollect, jsonRunArgs) {
   
 }
 
-
-# Error
-# Failed exporting results, but returned model results anyways:
-#   Error in robyn_write(InputCollect = InputCollect, OutputModels = OutputModels, : inherits(InputCollect, "robyn_inputs") is not TRUE
 
 #* Run a model selection and post back output collect
 #* @param InputCollect
