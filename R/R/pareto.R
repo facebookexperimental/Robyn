@@ -179,10 +179,15 @@ robyn_pareto <- function(InputCollect, OutputModels,
     mean_spend_adstocked <- mean(get_resp$input_total[startRW:endRW])
     mean_carryover <- mean(get_resp$input_carryover[startRW:endRW])
     dt_hyppar <- resultHypParamPar %>% filter(.data$solID == get_solID)
-    chnAdstocked <- data.frame(v1 = get_resp$input_total[startRW:endRW]) %>% rename("{get_spendname}" := "v1")
-    dt_coef <- xDecompAggPar %>% filter(.data$solID == get_solID & rn == get_spendname) %>% select(c("rn", "coef"))
+    chnAdstocked <- data.frame(v1 = get_resp$input_total[startRW:endRW])
+    colnames(chnAdstocked) <- get_spendname
+    dt_coef <- xDecompAggPar %>%
+      filter(.data$solID == get_solID & .data$rn == get_spendname) %>%
+      select(c("rn", "coef"))
     hills <- get_hill_params(
-      InputCollect, NULL, dt_hyppar, dt_coef, mediaSpendSorted = get_spendname, select_model = get_solID, chnAdstocked
+      InputCollect, NULL, dt_hyppar, dt_coef,
+      mediaSpendSorted = get_spendname,
+      select_model = get_solID, chnAdstocked
     )
     mean_response <- fx_objective(
       x = decompSpendDistPar$mean_spend[respN],

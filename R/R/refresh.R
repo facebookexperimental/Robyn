@@ -177,7 +177,7 @@ robyn_refresh <- function(json_file = NULL,
       InputCollectRF <- Robyn[[listName]][["InputCollect"]]
       listOutputPrev <- Robyn[[listName]][["OutputCollect"]]
       listReportPrev <- Robyn[[listName]][["ReportCollect"]]
-      ## Model selection from previous build
+      ## Model selection from previous build (new normalization range for error_score)
       if (!"error_score" %in% names(listOutputPrev$resultHypParam)) {
         listOutputPrev$resultHypParam <- as.data.frame(listOutputPrev$resultHypParam) %>%
           mutate(error_score = errors_scores(., ts_validation = listOutputPrev$OutputModels$ts_validation, ...))
@@ -283,15 +283,18 @@ robyn_refresh <- function(json_file = NULL,
     } else {
       rf_cal_constr <- 1
     }
-    OutputCollectRF <- robyn_run(
+    OutputModelsRF <- robyn_run(
       InputCollect = InputCollectRF,
-      plot_folder = plot_folder,
-      calibration_constraint = rf_cal_constr,
-      add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
       iterations = refresh_iters,
       trials = refresh_trials,
       refresh = TRUE,
-      outputs = TRUE, # So we end up with OutputCollect instead of OutputModels
+      add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
+      ...
+    )
+    OutputCollectRF <- robyn_outputs(
+      InputCollectRF, OutputModelsRF,
+      plot_folder = plot_folder,
+      calibration_constraint = rf_cal_constr,
       export = export,
       plot_pareto = plot_pareto,
       objective_weights = objective_weights,
@@ -300,10 +303,11 @@ robyn_refresh <- function(json_file = NULL,
 
     ## Select winner model for current refresh (the lower error_score the better)
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
+      ungroup() %>%
       arrange(.data$error_score) %>%
-      select(.data$solID, everything()) %>%
-      ungroup()
+      select(.data$solID, everything())
     bestMod <- OutputCollectRF$resultHypParam$solID[1]
+    # OutputCollectRF$clusters$data %>% filter(solID == bestMod)
 
     # Pick best model (and don't crash if not valid)
     selectID <- NULL

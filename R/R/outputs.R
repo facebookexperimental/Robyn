@@ -34,7 +34,7 @@
 #' to "all" will output all iterations as csv. Set NULL to skip exports into CSVs.
 #' @param ui Boolean. Save additional outputs for UI usage. List outcome.
 #' @param export Boolean. Export outcomes into local files?
-#' @param all_sol_json Logical. Add all solutions to json export.
+#' @param all_sol_json Logical. Add all pareto solutions to json export?
 #' @param quiet Boolean. Keep messages off?
 #' @param refresh Boolean. Refresh mode
 #' @param ... Additional parameters passed to \code{robyn_clusters()}
@@ -235,9 +235,11 @@ robyn_outputs <- function(InputCollect, OutputModels,
         } else {
           pareto_df <- NULL
         }
+        attr(OutputCollect, "runTime") <- round(
+          difftime(Sys.time(), t0, units = "mins"), 2)
         robyn_write(
           InputCollect = InputCollect,
-          OutputModels = OutputModels,
+          OutputCollect = OutputCollect,
           dir = plot_folder, quiet = quiet,
           pareto_df = pareto_df, ...
         )

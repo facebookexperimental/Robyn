@@ -54,20 +54,21 @@
 #' This is an experimental feature. There's no research on optimal weight
 #' setting. Subjective weights might strongly bias modelling result.
 #' @param seed Integer. For reproducible results when running nevergrad.
-#' @param outputs Boolean. Process results with \code{robyn_outputs()}?
 #' @param lambda_control Deprecated in v3.6.0.
+#' @param outputs Boolean. If set to TRUE, will run \code{robyn_run()} and
+#' \code{robyn_outputs()}, returning a list with OutputModels and
+#' OutputCollect results.
 #' @param ... Additional parameters passed to \code{robyn_outputs()}.
 #' @return List. Class: \code{robyn_models}. Contains the results of all trials
 #' and iterations modeled.
 #' @examples
 #' \dontrun{
 #' # Having InputCollect results
-#' OutputCollect <- robyn_run(
+#' OutputModels <- robyn_run(
 #'   InputCollect = InputCollect,
 #'   cores = 2,
 #'   iterations = 200,
-#'   trials = 1,
-#'   outputs = FALSE
+#'   trials = 1
 #' )
 #' }
 #' @return List. Contains all trained models. Class: \code{robyn_models}.
@@ -79,7 +80,6 @@ robyn_run <- function(InputCollect = NULL,
                       add_penalty_factor = FALSE,
                       refresh = FALSE,
                       seed = 123L,
-                      outputs = FALSE,
                       quiet = FALSE,
                       cores = NULL,
                       trials = 5,
@@ -90,7 +90,37 @@ robyn_run <- function(InputCollect = NULL,
                       intercept = TRUE,
                       intercept_sign = "non_negative",
                       lambda_control = NULL,
+                      outputs = FALSE,
                       ...) {
+
+  if (isTRUE(outputs)) {
+    OutputModels <- robyn_run(
+      InputCollect = InputCollect,
+      dt_hyper_fixed = dt_hyper_fixed,
+      json_file = json_file,
+      add_penalty_factor = add_penalty_factor,
+      ts_validation = ts_validation,
+      refresh = refresh,
+      seed = seed,
+      quiet = quiet,
+      cores = cores,
+      trials = trials,
+      iterations = iterations,
+      rssd_zero_penalty = rssd_zero_penalty,
+      objective_weights = objective_weights,
+      nevergrad_algo = nevergrad_algo,
+      intercept = intercept,
+      intercept_sign = intercept_sign,
+      lambda_control = lambda_control,
+      outputs = FALSE,
+      ...
+    )
+    OutputCollect <- robyn_outputs(InputCollect, OutputModels, ...)
+    return(list(
+      OutputModels = OutputModels,
+      OutputCollect = OutputCollect))
+  }
+
   t0 <- Sys.time()
 
   ### Use previously exported model using json_file
@@ -189,7 +219,7 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Not direct output & not all fixed hyperparameters
-  if (!outputs & is.null(dt_hyper_fixed)) {
+  if (is.null(dt_hyper_fixed)) {
     output <- OutputModels
   } else if (!hyper_collect$all_fixed) {
     # Direct output & not all fixed hyperparameters, including refresh mode

@@ -6,7 +6,7 @@
 ############# Auxiliary non-exported functions #############
 
 OPTS_PDN <- c("positive", "negative", "default")
-HYPS_NAMES <- c("thetas", "shapes", "scales", "alphas", "gammas")
+HYPS_NAMES <- c("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
 HYPS_OTHERS <- c("lambda", "train_size")
 LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
 

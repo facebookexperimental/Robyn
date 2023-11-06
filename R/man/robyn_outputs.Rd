@@ -97,7 +97,7 @@ wish to plot the one-pagers and export? Default will take top
 
 \item{export}{Boolean. Export outcomes into local files?}
 
-\item{all_sol_json}{Logical. Add all solutions to json export.}
+\item{all_sol_json}{Logical. Add all pareto solutions to json export?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
