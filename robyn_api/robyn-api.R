@@ -1,4 +1,3 @@
-options(warn=-1)
 ##Function to locate and load required virtual environment used to install nevergrad
 load_pythonenv <- function(env="r-reticulate"){
   tryCatch(
@@ -160,20 +159,21 @@ function() {
 }
 
 #* Input parameters, hyperparameters, and datasets for models and post back InputCollects
-# * @param modelData Model data feather file in hex format
-# * @param holidayData Holiday data feather file in hex format
-# * @param jsonInputArgs Additional parameters for robyn_inputs() in json format
-# * @param InputCollect
+#* @param dt_input Model data feather file in hex format
+#* @param dt_holiday Holiday data feather file in hex format
+#* @param jsonInputArgs Additional parameters for robyn_inputs() in json format
+#* @param InputCollect Model input json created by robyn_inputs()
+#* @param calibration_input Calibration data file in hex format
 #* @post /robyn_inputs
-function(modelData=FALSE, holidayData=FALSE, jsonInputArgs=FALSE, InputCollect=FALSE, calibration_input=FALSE) {
+function(dt_input=FALSE, dt_holiday=FALSE, jsonInputArgs=FALSE, InputCollect=FALSE, calibration_input=FALSE) {
   
-  if(!modelData==FALSE) {
-    dt_input <- modelData %>% hex_to_raw() %>% arrow::read_feather()
+  if(!dt_input==FALSE) {
+    dt_input <- dt_input %>% hex_to_raw() %>% arrow::read_feather()
   } else {
     dt_input <- NULL
   }
-  if (!holidayData==FALSE) {
-    dt_holiday <- holidayData %>% hex_to_raw() %>% arrow::read_feather()
+  if (!dt_holiday==FALSE) {
+    dt_holiday <- dt_holiday %>% hex_to_raw() %>% arrow::read_feather()
   } else {
     dt_holiday <- NULL
   }
@@ -209,9 +209,8 @@ function(modelData=FALSE, holidayData=FALSE, jsonInputArgs=FALSE, InputCollect=F
 
 }
 
-# Get error when using calibration
 #* Run a model and post back output models
-#* @param InputCollect
+#* @param InputCollect Model input json created by robyn_inputs()
 #* @param jsonRunArgs Additional parameters for robyn_run() in json format
 #* @post /robyn_run
 function(InputCollect, jsonRunArgs) {
@@ -227,8 +226,8 @@ function(InputCollect, jsonRunArgs) {
 
 
 #* Run a model selection and post back output collect
-#* @param InputCollect
-#* @param OutputModels
+#* @param InputCollect Model input json created by robyn_inputs()
+#* @param OutputModels Models json by created by robyn_run()
 #* @param jsonOutputsArgs Additional parameters for robyn_outputs() in json format
 #* @post /robyn_outputs
 function(InputCollect, OutputModels, jsonOutputsArgs, onePagers=FALSE) {
@@ -245,15 +244,13 @@ function(InputCollect, OutputModels, jsonOutputsArgs, onePagers=FALSE) {
   
 }
 
-# Memo
-# Which should we return, ggplot_serialize or recursive_ggplot_serialize? = list obj which contains hex string or only hex string
 #* Call back onepager
-#* @param InputCollect
-#* @param OutputCollect
+#* @param InputCollect Model input json created by robyn_inputs()
+#* @param OutputModels Models json by created by robyn_run()
 #* @param jsonOnepagersArgs Additional parameters for robyn_onepagers() in json format
-#* @param dpi
-#* @param width
-#* @param height
+#* @param dpi dpi of image to be returned
+#* @param width width of image to be returned
+#* @param height height of image to be returned
 #* @post /robyn_onepagers
 function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=dpi, width=width, height=height) {
   
@@ -273,13 +270,12 @@ function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=dpi, width=width, h
   
 }
 
-
 #* Call back allocator
-# * @param InputCollect
-# * @param OutputCollect
-# * @param dpi
-# * @param width
-# * @param height
+#* @param InputCollect Model input json created by robyn_inputs()
+#* @param OutputCollect Model output json created by robyn_outputs()
+#* @param dpi dpi of image to be returned
+#* @param width width of image to be returned
+#* @param height height of image to be returned
 #* @post /robyn_allocator
 function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi=dpi, width=width, height=height) {
   
@@ -287,7 +283,6 @@ function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi=dpi, width=width, h
   InputCollect <- transform_InputCollect(InputCollect)
   OutputCollect <- transform_OutputCollect(OutputCollect, argsAllocator[["select_model"]])
   
-  # 2 options to give args 
   AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect), argsAllocator))
   
   dpi <- dpi %>% as.numeric()
@@ -296,19 +291,27 @@ function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi=dpi, width=width, h
   return(ggplot_serialize(AllocatorCollect$plots$plots, dpi=dpi, width=width, height=height))
 }
 
+#* dump out model data as json
+#* @param InputCollect Model input json created by robyn_inputs()
+#* @param OutputCollect Model output json created by robyn_outputs()
+#* @param OutputModels Models json by created by robyn_run()
+#* @param jsonWriteArgs Additional parameters for robyn_write() in json format
 #* @post /robyn_write
 function(InputCollect, OutputCollect, OutputModels, jsonWriteArgs) {
   
   writeArgs <- jsonlite::fromJSON(jsonWriteArgs)
   InputCollect <- transform_InputCollect(InputCollect)
   OutputModels <- jsonlite::fromJSON(OutputModels)
-  # OutputCollect <- transform_OutputCollect(OutputCollect, argsAllocator[["select_model"]])
   OutputCollect <- transform_OutputCollect(OutputCollect)
   
   do.call(robyn_write, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect, OutputModels = OutputModels), writeArgs))
   
 }
 
+#* recreate model with json file
+#* @param dt_input Model data feather file in hex format
+#* @param dt_holiday Holiday data feather file in hex format
+#* @param jsonRecreateArgs Additional parameters for robyn_recreate() in json format
 #* @post /robyn_recreate
 function(dt_input, dt_holidays, jsonRecreateArgs) {
   
@@ -321,6 +324,9 @@ function(dt_input, dt_holidays, jsonRecreateArgs) {
   return(recursive_ggplot_serialize(RobynRecreated)) 
 }
 
+#* return hyper parametors names
+#* @param adstock atstock name, string
+#* @param all_media list of paid_media_spends
 #* @post /hyper_names
 function(adstock, all_media) {
   
