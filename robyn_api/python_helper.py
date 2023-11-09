@@ -91,7 +91,7 @@ def plot_outputgraphs(OutputJson,argumenttype,graphtype,max_size=(1000, 1500)):
             image = Image.open(io.BytesIO(image_data))
             image.thumbnail(max_size, Image.Resampling.LANCZOS)
             display(image)
-    elif(grapthtype in ['allocator']):
+    elif(graphtype in ['allocator']):
         image_data = binascii.unhexlify("".join(argumenttype))
         image = Image.open(io.BytesIO(image_data))
         image.thumbnail(max_size, Image.Resampling.LANCZOS)
