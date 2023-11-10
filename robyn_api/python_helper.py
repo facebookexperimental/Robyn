@@ -83,8 +83,13 @@ def render_spendexposure(InputJson,max_size=(1000, 1500)):
             display(image)
 
 def plot_outputgraphs(OutputJson,argumenttype,graphtype,max_size=(1000, 1500)):
-    if(graphtype in ['moo_distrb_plot','moo_cloud_plot']):
+    if(graphtype in ['moo_distrb_plot']):
         image_data = binascii.unhexlify("".join(OutputJson['convergence']['moo_distrb_plot']))
+        image = Image.open(io.BytesIO(image_data))
+        image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        display(image)
+    elif(graphtype in ['moo_cloud_plot']):
+        image_data = binascii.unhexlify("".join(OutputJson['convergence']['moo_cloud_plot']))
         image = Image.open(io.BytesIO(image_data))
         image.thumbnail(max_size, Image.Resampling.LANCZOS)
         display(image)
