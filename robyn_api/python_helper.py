@@ -1,3 +1,6 @@
+### Copyright (c) Meta Platforms, Inc. and its affiliates.  
+### This source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree.
+
 import pandas as pd
 import json
 import requests
@@ -60,7 +63,7 @@ def pandas_builder(jsondata):
     returndf = pd.DataFrame(jsondata)
     return returndf
 
-def robyn_response(argument,payload=0,api='http://127.0.0.1:9999/{}'):
+def robyn_api(argument,payload=0,api='http://127.0.0.1:9999/{}'):
     #if no api string is provided the function with default to "http://127.0.0.1:9999/{}" i.e. localhost at port 9999
     if(payload==0):
         response = requests.get(api.format(argument))
