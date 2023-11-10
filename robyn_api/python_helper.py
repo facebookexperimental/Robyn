@@ -121,7 +121,7 @@ def load_modeldata(sol_id,InputJson,OutputJson):
     }
 
     # Get response
-    onepager = robyn_response('robyn_onepagers',payload=payload)
+    onepager = robyn_api('robyn_onepagers',payload=payload)
     return onepager
 
 def create_robyn_directory(path):
@@ -183,7 +183,7 @@ def write_robynmodel(sol,path,InputJson,OutputJson,OutputModels):
         }
 
         # Get response
-        respJson =  robyn_response('robyn_write',payload=payload)
+        respJson =  robyn_api('robyn_write',payload=payload)
         print('File written to specified path')
 
 
