@@ -18,6 +18,7 @@ module.exports = {
       'installation',
       'analysts-guide-to-MMM',
       'features',
+      'robyn-api'
       ],
     },
     'case-studies',

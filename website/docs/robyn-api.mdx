@@ -1,0 +1,15 @@
+---
+id: robyn-api
+title: Robyn API for Python
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+Enabling Robyn for Python has been a long-standing ask from the community. Robyn has started as an experimental R package. While we understand the needs of the users, it's difficult to maintain a natively translated Python package during active development on the R-side. 
+
+The idea of a plumber API for Python is originally proposed by [Alex Rowley](https://www.facebook.com/groups/robynmmm/posts/1493036524797809/) from the Robyn community in August 2023. The Robyn team has assessed the proposal that is not only a great work-around for Python users to start with Robyn, but it actually allows API calls from any languages. We're very grateful for the collective wisdom of the open source community.
+
+#### Robyn API for Python beta release
+The first version of the API is released on Nov.22nd 2023 on the [Meta OST summit](https://metaostsummit23.splashthat.com/?fbclid=IwAR1SRBTZGw0GIoaF0XJq_eCWFZsZbyK0KP7P4RLKoee1IVbs8H56so3giwg). This [Jupyter notebook](https://github.com/facebookexperimental/Robyn/blob/main/robyn_api/robyn_python_notebook.ipynb) shows how to call the API from Python. In the beta version, the user needs to have the Robyn R package successfully installed first. We'll work on the migitation of installation friction in the future.  
+
+<img alt="Robyn API for Python Architecture" src={useBaseUrl('/img/robyn_api_architecture.png')} />
