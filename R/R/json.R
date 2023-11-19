@@ -229,9 +229,6 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       if (!"InputCollect" %in% names(json) && step == 1) {
         stop("JSON file must contain InputCollect element")
       }
-      if (!"ModelsCollect" %in% names(json) && step == 2) {
-        stop("JSON file must contain ModelsCollect element")
-      }
       if (!"ExportedModel" %in% names(json) && step == 2) {
         stop("JSON file must contain ExportedModel element")
       }
