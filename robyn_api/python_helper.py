@@ -298,7 +298,7 @@ def write_robynmodel(sol,path,InputJson,OutputJson,OutputModels):
         }
 
         # Get response
-        respJson =  robyn_api('robyn_write',payload=payload)
+        respJson = robyn_api('robyn_write',payload=payload)
         print('File written to path: ',updatedPath)
 
 

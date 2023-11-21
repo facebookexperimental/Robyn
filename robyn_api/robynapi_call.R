@@ -14,7 +14,7 @@ thisPath <- function() {
     normalizePath(dirname(cmdArgs[grep("^-f", cmdArgs) + 1]))[1]
   } else if (length(grep("^--file=", cmdArgs)) > 0) {
     # Rscript/R console option
-    scriptPath <- normalizePath(dirname(sub("^--file=", "", cmdArgs[grep("^--file=", cmdArgs)])))[1]
+    normalizePath(dirname(sub("^--file=", "", cmdArgs[grep("^--file=", cmdArgs)])))[1]
   } else if (Sys.getenv("RSTUDIO") == "1") {
     # RStudio
     dirname(rstudioapi::getSourceEditorContext()$path)
