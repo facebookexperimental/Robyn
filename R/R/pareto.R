@@ -10,7 +10,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
                          quiet = FALSE,
                          calibrated = FALSE,
                          ...) {
-  hyper_fixed <- attr(OutputModels, "hyper_fixed")
+  hyper_fixed <- OutputModels$hyper_fixed
   OutModels <- OutputModels[unlist(lapply(OutputModels, function(x) "resultCollect" %in% names(x)))]
 
   resultHypParam <- bind_rows(lapply(OutModels, function(x) {
