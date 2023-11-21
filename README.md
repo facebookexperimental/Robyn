@@ -10,7 +10,7 @@
   
   * **Why are we doing this?**: MMM used to be a resource-intensive technique that was only affordable for "big players". As the privacy needs of the measurement landscape evolve, there's a clear trend of increasing demand for modern MMM as a privacy-safe solution. At Meta Marketing Science, our mission is to help all businesses grow by transforming marketing practices grounded in data and science. It's highly aligned with our mission to democratizing MMM and making it accessible for advertisers of all sizes. With Project Robyn, we want to contribute to the measurement landscape, inspire the industry and build a community for exchange and innovation around the future of MMM and Marketing Science in general.
   
-## Quick start (R only)
+## Quick start for R
 
 **1. Installing the package**
   
@@ -44,9 +44,9 @@ remotes::install_github("facebookexperimental/Robyn/R")
   
   * Take Meta's [official Robyn blueprint course](https://www.facebookblueprint.com/student/path/253121-marketing-mix-models?utm_source=readme) online 
   
-## Quick start (Python): TBA
+## Quick start Python (Robyn API for Python beta)
 
-Work in progress. Expect a Python wrapper soon.
+The Robyn API for Python (beta), first released on Nov.22nd 2023, is a plumber-based solution that requires the installation of the Robyn R pacakge first. Please see the usage guide [here](https://github.com/facebookexperimental/Robyn/blob/main/robyn_api/robyn_python_notebook.ipynb).
 
 ## License
 
@@ -58,7 +58,5 @@ Meta's Robyn is MIT licensed, as found in the LICENSE file.
 
 ## Contact
 
-* gufeng@meta.com, Gufeng Zhou, Marketing Science Partner
-* leonelsentana@meta.com, Leonel Sentana, Marketing Science Partner
-* igorskokan@meta.com, Igor Skokan, Marketing Science Partner
-* bernardolares@meta.com, Bernardo Lares, Marketing Science Partner
+* gufeng@meta.com, Gufeng Zhou, Marketing Science, Robyn creator
+* igorskokan@meta.com, Igor Skokan, Marketing Science Director, open source
