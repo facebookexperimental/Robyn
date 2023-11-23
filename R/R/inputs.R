@@ -986,7 +986,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
     }
     holidays <- dt_holidays %>%
       # mutate(ds = cut(.data$ds, intervalType)) %>%
-      mutate(ds = cut(.data$ds, intervalType)) %>%
+      mutate(ds = cut(as.Date(.data$ds, origin = "1970-01-01"), intervalType)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
       group_by(.data$ds, .data$country, .data$year) %>%
       summarise(holiday = paste(.data$holiday, collapse = ", "), n = n())
