@@ -50,6 +50,12 @@ check_novar <- function(dt_input, InputCollect = NULL) {
   }
 }
 
+check_allneg <- function(df) {
+  all_negative <- unlist(lapply(df, function(x) all(x <= 0)))
+  df <- mutate_at(df, names(which(all_negative)), function(x) abs(x))
+  return(df)
+}
+
 check_varnames <- function(dt_input, dt_holidays,
                            dep_var, date_var,
                            context_vars, paid_media_spends,
