@@ -186,11 +186,10 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
     dt_input <- as_tibble(dt_input)
-    # if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays) %>%
-    # mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
-    ## Check for NA values
+    ## Check for NA and all negative values
+    dt_input <- check_allneg(dt_input)
     check_nas(dt_input)
     check_nas(dt_holidays)
 
@@ -199,8 +198,7 @@ robyn_inputs <- function(dt_input = NULL,
       dt_input, dt_holidays,
       dep_var, date_var,
       context_vars, paid_media_spends,
-      organic_vars
-    )
+      organic_vars)
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
