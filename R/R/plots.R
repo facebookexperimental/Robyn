@@ -1385,8 +1385,8 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
         select(.data$nrmse)) %>%
       # group_by(.data$trial, .data$dataset) %>%
       mutate(
-        rsq = lares::winsorize(.data$rsq, thresh = c(0.01, 0.99)),
-        nrmse = lares::winsorize(.data$nrmse, thresh = c(0.00, 0.99)),
+        rsq = lares::winsorize(.data$rsq, thresh = c(0.01, 0.99), na.rm = TRUE),
+        nrmse = lares::winsorize(.data$nrmse, thresh = c(0.00, 0.99), na.rm = TRUE),
         dataset = gsub("rsq_", "", .data$dataset)
       ) %>%
       ungroup()
