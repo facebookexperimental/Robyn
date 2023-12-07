@@ -339,6 +339,16 @@ print(OutputCollect)
 ################################################################
 #### Step 4: Select and save the any model
 
+### Using lares >= 5.2.4, you can try this to help you pick a model:
+### (Update dev version with lares::updateLares())
+# lares::robyn_modelselector(
+#   InputCollect,
+#   OutputCollect,
+#   metrics = c("rsq_train", "performance", "potential_improvement",
+#               "non_zeroes", "incluster_models"),
+#   wt = c(2, 1, 1, 1, 0.1)
+# )
+
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
 select_model <- "1_122_7" # Pick one of the models from OutputCollect to proceed
