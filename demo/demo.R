@@ -340,7 +340,7 @@ print(OutputCollect)
 #### Step 4: Select and save the any model
 
 ### Using lares >= 5.2.4, you can try this to help you pick a model:
-### (Update dev version with lares::updateLares())
+### (Update to stable or dev version using lares::updateLares())
 # lares::robyn_modelselector(
 #   InputCollect,
 #   OutputCollect,
