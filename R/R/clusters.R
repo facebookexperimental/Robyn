@@ -155,10 +155,11 @@ robyn_clusters <- function(input, dep_var_type,
     get_height <- ceiling(k / 2) / 2
     db <- (output$plot_clusters_ci / (output$plot_models_rois + output$plot_models_errors)) +
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
-    # Suppressing "Picking joint bandwidth of x" messages
-    suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
+    # Suppressing "Picking joint bandwidth of x" messages +
+    # In min(data$x, na.rm = TRUE) : no non-missing arguments to min; returning Inf warnings
+    suppressMessages(suppressWarnings(ggsave(paste0(path, "pareto_clusters_detail.png"),
       plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
-    ))
+    )))
   }
 
   return(output)
@@ -331,12 +332,18 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
 .min_max_norm <- function(x, min = 0, max = 1) {
   x <- x[is.finite(x)]
-  if (length(x) == 1) {
+  x <- x[!is.na(x)]
+  if (length(x) <= 1) {
     return(x)
-  } # return((max - min) / 2)
+  }
   a <- min(x, na.rm = TRUE)
   b <- max(x, na.rm = TRUE)
-  (max - min) * (x - a) / (b - a) + min
+  den <- ((b - a) + min)
+  if (den != 0) {
+    return((max - min) * (x - a) / den)
+  } else {
+    return(x)
+  }
 }
 
 .clusters_df <- function(df, all_paid, balance = rep(1, 3), limit = 1, ts_validation = TRUE, ...) {
