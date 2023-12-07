@@ -198,9 +198,9 @@ confidence_calcs <- function(
           v_samp <- df_chn$roi_total
         }
         boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
-        boot_mean <- mean(boot_res$boot_means)
+        boot_mean <- mean(boot_res$boot_means, na.rm = TRUE)
         boot_se <- boot_res$se
-        ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
+        ci_low <- ifelse(boot_res$ci[1] <= 0, 0, boot_res$ci[1])
         ci_up <- boot_res$ci[2]
 
         # Collect loop results
@@ -218,7 +218,7 @@ confidence_calcs <- function(
           rn = i,
           n = length(v_samp),
           boot_mean = boot_mean,
-          x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
+          x_sim = suppressWarnings(rnorm(sim_n, mean = boot_mean, sd = boot_se))
         ) %>%
           mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
       }
@@ -430,8 +430,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
 .bootci <- function(samp, boot_n, seed = 1, ...) {
   set.seed(seed)
-
-  if (length(samp) > 1) {
+  if (length(samp[!is.na(samp)]) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)
     boot_sample <- matrix(
@@ -451,6 +450,6 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
-    return(list(boot_means = samp, ci = c(NA, NA), se = NA))
+    return(list(boot_means = samp, ci = c(samp, samp), se = 0))
   }
 }
