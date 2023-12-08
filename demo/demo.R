@@ -200,6 +200,15 @@ hyperparameters <- list(
 # facebook_S_shapes = c(0, 10)
 # facebook_S_scales = c(0, 0.1)
 
+### Using lares >= 5.2.4, you can build default hyperparameters for paid media and organic vars
+### (Update to stable or dev version using lares::updateLares())
+# hyperparameters <- lares::robyn_hypsbuilder(
+#   channels = c(InputCollect$paid_media_spends, InputCollect$organic_vars),
+#   media_type = c("offline", "offline", "offline", "online", "online", "online"),
+#   adstock = InputCollect$adstock,
+#   date_type = paste0(InputCollect$intervalType, "ly"),
+#   lagged = FALSE)
+
 #### 2a-3: Third, add hyperparameters into robyn_inputs()
 
 InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hyperparameters)
@@ -346,7 +355,7 @@ print(OutputCollect)
 #   OutputCollect,
 #   metrics = c("rsq_train", "performance", "potential_improvement",
 #               "non_zeroes", "incluster_models"),
-#   wt = c(2, 1, 1, 1, 0.1)
+#   wt = c(3, 1, 1, 1, 0.1)
 # )
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
