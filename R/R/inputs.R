@@ -177,7 +177,10 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 3: running robyn_inputs() with json_file
   if (!is.null(json_file)) {
     json <- robyn_read(json_file, step = 1, ...)
-    if (is.null(dt_input) || is.null(dt_holidays)) stop("Provide 'dt_input' and 'dt_holidays'")
+    if (is.null(dt_input)) stop("Must provide 'dt_input' input; 'dt_holidays' input optional")
+    if (!is.null(hyperparameters)) {
+      warning("Replaced hyperparameters input with json_file's fixed hyperparameters values")
+    }
     for (i in seq_along(json$InputCollect)) {
       assign(names(json$InputCollect)[i], json$InputCollect[[i]])
     }
