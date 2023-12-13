@@ -54,6 +54,7 @@ robyn_onepagers(
   quiet = FALSE,
   export = TRUE,
   plot_folder = OutputCollect$plot_folder,
+  baseline_level = 0,
   ...
 )
 
@@ -110,6 +111,12 @@ wish to plot the one-pagers and export? Default will take top
 \item{OutputCollect}{\code{robyn_run(..., export = FALSE)} output.}
 
 \item{calibrated}{Logical}
+
+\item{baseline_level}{Integer, from 0 to 5. Aggregate baseline variables,
+depending on the level of aggregation you need. Default is 0 for no
+aggregation. 1 for Intercept only. 2 adding trend. 3 adding all prophet
+decomposition variables. 4. Adding contextual variables. 5 Adding organic
+variables. Results will be reflected on the waterfall chart.}
 
 \item{solID}{Character vector. Model IDs to plot.}
 
