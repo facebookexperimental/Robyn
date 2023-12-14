@@ -338,9 +338,8 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   }
   a <- min(x, na.rm = TRUE)
   b <- max(x, na.rm = TRUE)
-  den <- ((b - a) + min)
-  if (den != 0) {
-    return((max - min) * (x - a) / den)
+  if (b - a != 0) {
+    return((max - min) * (x - a) / (b - a) + min)
   } else {
     return(x)
   }
