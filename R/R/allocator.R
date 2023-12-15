@@ -212,7 +212,7 @@ robyn_allocator <- function(robyn_object = NULL,
   # Spend values based on date range set
   window_loc <- InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich
   dt_optimCost <- slice(InputCollect$dt_mod, window_loc)
-  new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = FALSE, is_allocator = TRUE)
+  new_date_range <- check_metric_dates(date_range, dt_optimCost$ds, InputCollect$dayInterval, quiet = quiet, is_allocator = TRUE)
   date_min <- head(new_date_range$date_range_updated, 1)
   date_max <- tail(new_date_range$date_range_updated, 1)
   check_daterange(date_min, date_max, dt_optimCost$ds)

@@ -242,12 +242,18 @@ robyn_plots <- function(
 #' Generate and Export Robyn One-Pager Plots
 #'
 #' @rdname robyn_outputs
+#' @param baseline_level Integer, from 0 to 5. Aggregate baseline variables,
+#' depending on the level of aggregation you need. Default is 0 for no
+#' aggregation. 1 for Intercept only. 2 adding trend. 3 adding all prophet
+#' decomposition variables. 4. Adding contextual variables. 5 Adding organic
+#' variables. Results will be reflected on the waterfall chart.
 #' @return Invisible list with \code{patchwork} plot(s).
 #' @export
 robyn_onepagers <- function(
     InputCollect, OutputCollect,
     select_model = NULL, quiet = FALSE,
-    export = TRUE, plot_folder = OutputCollect$plot_folder, ...) {
+    export = TRUE, plot_folder = OutputCollect$plot_folder,
+    baseline_level = 0, ...) {
   check_class("robyn_outputs", OutputCollect)
   if (TRUE) {
     pareto_fronts <- OutputCollect$pareto_fronts
@@ -265,6 +271,9 @@ robyn_onepagers <- function(
       message(">> Generating only cluster results one-pagers (", nrow(resultHypParam), ")...")
     }
   }
+
+  # Baseline variables
+  bvars <- baseline_vars(InputCollect, baseline_level)
 
   # Prepare for parallel plotting
   if (check_parallel_plot() && OutputCollect$cores > 1) registerDoParallel(OutputCollect$cores) else registerDoSEQ()
@@ -381,7 +390,22 @@ robyn_onepagers <- function(
         )
 
       ## 2. Waterfall
-      plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop
+      plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop %>%
+        mutate(rn = ifelse(
+          .data$rn %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$rn))) %>%
+        group_by(.data$rn) %>%
+        summarise(xDecompAgg = sum(.data$xDecompAgg, na.rm = TRUE),
+                  xDecompPerc = sum(.data$xDecompPerc, na.rm = TRUE)) %>%
+        arrange(.data$xDecompPerc) %>%
+        mutate(
+          end = 1 - cumsum(.data$xDecompPerc),
+          start = lag(.data$end),
+          start = ifelse(is.na(.data$start), 1, .data$start),
+          id = row_number(),
+          rn = as.factor(as.character(.data$rn)),
+          sign = as.factor(ifelse(.data$xDecompPerc >= 0, "Positive", "Negative"))
+        )
+
       p2 <- suppressWarnings(
         ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
           geom_rect(aes(

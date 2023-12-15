@@ -43,7 +43,7 @@ into the JSON file?}
 
 \item{pareto_df}{Dataframe. Save all pareto solutions to json file.}
 
-\item{...}{Additional parameters.}
+\item{...}{Additional parameters to export into a custom Extras element.}
 
 \item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
 

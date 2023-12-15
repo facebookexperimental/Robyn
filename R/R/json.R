@@ -19,7 +19,7 @@
 #' into the JSON file?
 #' @param dir Character. Existing directory to export JSON file to.
 #' @param pareto_df Dataframe. Save all pareto solutions to json file.
-#' @param ... Additional parameters.
+#' @param ... Additional parameters to export into a custom Extras element.
 #' @examples
 #' \dontrun{
 #' InputCollectJSON <- robyn_inputs(
@@ -44,7 +44,6 @@ robyn_write <- function(InputCollect,
   stopifnot(inherits(InputCollect, "robyn_inputs"))
   if (!is.null(OutputCollect)) {
     stopifnot(inherits(OutputCollect, "robyn_outputs"))
-    stopifnot(select_model %in% OutputCollect$allSolutions)
     if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
       select_model <- OutputCollect$allSolutions
     }
@@ -85,6 +84,7 @@ robyn_write <- function(InputCollect,
 
     # Model associated data
     if (length(select_model) == 1) {
+      stopifnot(select_model %in% OutputCollect$allSolutions)
       outputs <- list()
       outputs$select_model <- select_model
       outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
@@ -112,6 +112,10 @@ robyn_write <- function(InputCollect,
     }
   } else {
     select_model <- "inputs"
+  }
+
+  if (length(list(...)) > 0) {
+    ret[["Extras"]] <- list(...)
   }
 
   if (!dir.exists(dir) & export) dir.create(dir, recursive = TRUE)

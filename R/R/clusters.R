@@ -155,10 +155,11 @@ robyn_clusters <- function(input, dep_var_type,
     get_height <- ceiling(k / 2) / 2
     db <- (output$plot_clusters_ci / (output$plot_models_rois + output$plot_models_errors)) +
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
-    # Suppressing "Picking joint bandwidth of x" messages
-    suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
+    # Suppressing "Picking joint bandwidth of x" messages +
+    # In min(data$x, na.rm = TRUE) : no non-missing arguments to min; returning Inf warnings
+    suppressMessages(suppressWarnings(ggsave(paste0(path, "pareto_clusters_detail.png"),
       plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
-    ))
+    )))
   }
 
   return(output)
@@ -198,9 +199,9 @@ confidence_calcs <- function(
           v_samp <- df_chn$roi_total
         }
         boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
-        boot_mean <- mean(boot_res$boot_means)
+        boot_mean <- mean(boot_res$boot_means, na.rm = TRUE)
         boot_se <- boot_res$se
-        ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
+        ci_low <- ifelse(boot_res$ci[1] <= 0, 0, boot_res$ci[1])
         ci_up <- boot_res$ci[2]
 
         # Collect loop results
@@ -218,7 +219,7 @@ confidence_calcs <- function(
           rn = i,
           n = length(v_samp),
           boot_mean = boot_mean,
-          x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
+          x_sim = suppressWarnings(rnorm(sim_n, mean = boot_mean, sd = boot_se))
         ) %>%
           mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
       }
@@ -331,12 +332,17 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
 .min_max_norm <- function(x, min = 0, max = 1) {
   x <- x[is.finite(x)]
-  if (length(x) == 1) {
+  x <- x[!is.na(x)]
+  if (length(x) <= 1) {
     return(x)
-  } # return((max - min) / 2)
+  }
   a <- min(x, na.rm = TRUE)
   b <- max(x, na.rm = TRUE)
-  (max - min) * (x - a) / (b - a) + min
+  if (b - a != 0) {
+    return((max - min) * (x - a) / (b - a) + min)
+  } else {
+    return(x)
+  }
 }
 
 .clusters_df <- function(df, all_paid, balance = rep(1, 3), limit = 1, ts_validation = TRUE, ...) {
@@ -430,8 +436,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
 .bootci <- function(samp, boot_n, seed = 1, ...) {
   set.seed(seed)
-
-  if (length(samp) > 1) {
+  if (length(samp[!is.na(samp)]) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)
     boot_sample <- matrix(
@@ -451,6 +456,6 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
-    return(list(boot_means = samp, ci = c(NA, NA), se = NA))
+    return(list(boot_means = samp, ci = c(samp, samp), se = 0))
   }
 }
