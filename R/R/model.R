@@ -897,8 +897,7 @@ robyn_mmm <- function(InputCollect,
               registerDoSEQ()
             }
             suppressPackageStartupMessages(
-              doparCollect <- foreach(i = 1:iterPar, .inorder = TRUE, ...) %dorng%
-                force(robyn_iterations(i))
+              doparCollect <- foreach(i = 1:iterPar, ...) %dorng% robyn_iterations(i)
             )
           }
 
