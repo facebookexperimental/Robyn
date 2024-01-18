@@ -385,8 +385,8 @@ robyn_onepagers <- function(
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Total Spend% VS Effect% with total ", type),
-          y = "Total Share by Channel", x = NULL, fill = NULL, color = NULL
+          title = paste0("Share of Sum of Spend, Sum of Effect & Total ", type, " in Modeling Window*"),
+          x = NULL, fill = NULL, color = NULL
         )
 
       ## 2. Waterfall
@@ -613,6 +613,8 @@ robyn_onepagers <- function(
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
+      onepagerCaption <- paste0(onepagerCaption,
+                                "\n*Total ROI = sum of response / sum of spend in the modeling window")
       get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1)) +
@@ -669,9 +671,11 @@ allocation_plots <- function(
   metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
   formulax1 <- ifelse(
     metric == "ROAS",
-    "ROAS = total response / raw spend | mROAS = marginal response / marginal spend",
-    "CPA = raw spend / total response | mCPA =  marginal spend / marginal response"
+    "Mean ROAS = mean response / raw spend | mROAS = marginal response / marginal spend",
+    "Mean CPA = raw spend / mean response | mCPA =  marginal spend / marginal response"
   )
+  formulax1 <- paste0("Mean response refers to the response from mean spend in allocation date range and differs from share of total response in the onepager\n",
+                      formulax1)
   formulax2 <- ifelse(
     metric == "ROAS",
     "When reallocating budget, mROAS converges across media within respective bounds",
@@ -879,15 +883,15 @@ allocation_plots <- function(
   df_plot_share <- bind_rows(
     df_plots %>%
       select(c("channel", "type", "type_lab", "spend_share")) %>%
-      mutate(metric = "spend") %>%
+      mutate(metric = "mean\nspend") %>%
       rename(values = .data$spend_share),
     df_plots %>%
       select(c("channel", "type", "type_lab", "response_share")) %>%
-      mutate(metric = "response") %>%
+      mutate(metric = "mean\nresponse") %>%
       rename(values = .data$response_share),
     df_plots %>%
       select(c("channel", "type", "type_lab", starts_with("channel_"))) %>%
-      mutate(metric = metric) %>%
+      mutate(metric = paste0("mean\n", metric)) %>%
       rename(values = starts_with("channel_")),
     df_plots %>%
       select(c("channel", "type", "type_lab", starts_with("marginal_"))) %>%
@@ -904,8 +908,7 @@ allocation_plots <- function(
       values = ifelse((.data$values > 1e15 | is.nan(.data$values)), 0, .data$values),
       values = round(.data$values, 4),
       values_label = case_when(
-        # .data$metric %in% c("ROAS", "mROAS") ~ paste0("x", round(.data$values, 2)),
-        .data$metric %in% c("CPA", "mCPA", "ROAS", "mROAS") ~ formatNum(.data$values, 2, abbr = TRUE),
+        .data$metric %in% c("mean\nROAS", "mROAS", "mean\nCPA", "mCPA") ~ formatNum(.data$values, 2, abbr = TRUE),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
       # Better fill scale colours
@@ -916,7 +919,7 @@ allocation_plots <- function(
       channel = factor(.data$channel, levels = rev(unique(.data$channel))),
       metric = factor(
         case_when(
-          .data$metric %in% c("spend", "response") ~ paste0(.data$metric, "%"),
+          .data$metric %in% c("mean\nspend", "mean\nresponse") ~ paste0(.data$metric, "%"),
           TRUE ~ .data$metric
         ),
         levels = paste0(unique(.data$metric), c("%", "%", "", ""))

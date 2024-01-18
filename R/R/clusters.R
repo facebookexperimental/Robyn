@@ -67,7 +67,7 @@ robyn_clusters <- function(input, dep_var_type,
     ))
   }
 
-  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "pareto")
+  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto")
 
   # Auto K selected by less than 5% WSS variance (convergence)
   min_clusters <- 3
@@ -152,7 +152,7 @@ robyn_clusters <- function(input, dep_var_type,
     write.csv(output$data, file = paste0(path, "pareto_clusters.csv"))
     write.csv(output$df_cluster_ci, file = paste0(path, "pareto_clusters_ci.csv"))
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
-    get_height <- ceiling(k / 2) / 2
+    get_height <- ceiling(k / 2) / 6
     db <- (output$plot_clusters_ci / (output$plot_models_rois + output$plot_models_errors)) +
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages +
@@ -230,6 +230,7 @@ confidence_calcs <- function(
   sim_collect <- bind_rows(lapply(cluster_collect, function(x) {
     bind_rows(lapply(x$sim_collect, function(y) y))
   })) %>%
+    filter(.data$n > 0) %>%
     mutate(cluster_title = sprintf("Cl.%s (n=%s)", .data$cluster, .data$n)) %>%
     ungroup() %>%
     as_tibble()
@@ -360,7 +361,8 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_ci <- df_ci[complete.cases(df_ci), ]
   p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
-    facet_wrap(~ .data$cluster_title) +
+    facet_wrap(~ .data$cluster_title, scales = "free_x") +
+    xlim(range(sim_collect$x_sim)) +
     geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01, size = 0.1) +
     geom_text(
       data = df_ci,
@@ -382,7 +384,8 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         formatNum(sim_n, abbr = TRUE)
       )
     ) +
-    theme_lares(background = "white", legend = "none")
+    theme_lares(background = "white", legend = "none") +
+    theme(axis.line.x = element_line())
   if (temp == "ROAS") {
     p <- p + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
   }
