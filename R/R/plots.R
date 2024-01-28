@@ -671,16 +671,14 @@ allocation_plots <- function(
   metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
   formulax1 <- ifelse(
     metric == "ROAS",
-    "Mean ROAS = mean response / raw spend | mROAS = marginal response / marginal spend",
-    "Mean CPA = raw spend / mean response | mCPA =  marginal spend / marginal response"
+    "* Mean ROAS = mean response / raw spend | mROAS = marginal response / marginal spend",
+    "* Mean CPA = raw spend / mean response | mCPA =  marginal spend / marginal response"
   )
-  formulax1 <- paste0("Mean response refers to the response from mean spend in allocation date range and differs from share of total response in the onepager\n",
-                      formulax1)
-  formulax2 <- ifelse(
-    metric == "ROAS",
-    "When reallocating budget, mROAS converges across media within respective bounds",
-    "When reallocating budget, mCPA converges across media within respective bounds"
-  )
+  formulax1 <- paste0(
+    "The allocator 'mean response' = curve response of adstocked mean spend in date range, ",
+    "while the model onepager 'sum of effect' = sum of curve responses of all adstocked spends in modeling window\n",
+    formulax1)
+  formulax2 <- sprintf("When reallocating budget, m%s converges across media within respective bounds", metric)
 
   # Calculate errors for subtitles
   plotDT_scurveMeanResponse <- filter(
@@ -779,7 +777,8 @@ allocation_plots <- function(
       )
     ) %>%
     group_by(.data$name) %>%
-    mutate(value_norm = .data$value / dplyr::first(.data$value))
+    mutate(value_norm = if(metric == "ROAS") {.data$value} else {
+      .data$value / dplyr::first(.data$value)})
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
   labs <- paste(
     paste(levs2, "\n"),
@@ -800,15 +799,18 @@ allocation_plots <- function(
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(background = "white", legend = "none") +
-    labs(title = "Total Budget Optimization Result", fill = NULL, y = NULL, x = NULL) +
+    labs(title = paste0("Total Budget Optimization Result (scaled up to",
+                        unique(dt_optimOut$periods), ")"), fill = NULL, y = NULL, x = NULL) +
     scale_y_continuous(limits = c(0, max(df_roi$value_norm * 1.2))) +
     theme(axis.text.y = element_blank())
 
   # 2. Response and spend comparison per channel plot
   df_plots <- dt_optimOut %>%
     mutate(
-      channel = as.factor(.data$channels), Initial = .data$initResponseUnitShare,
-      Bounded = .data$optmResponseUnitShare, Unbounded = .data$optmResponseUnitShareUnbound
+      channel = as.factor(.data$channels),
+      Initial = .data$initResponseUnitShare,
+      Bounded = .data$optmResponseUnitShare,
+      Unbounded = .data$optmResponseUnitShareUnbound
     ) %>%
     select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
     `colnames<-`(c("channel", levs1)) %>%
@@ -824,6 +826,19 @@ allocation_plots <- function(
         select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
         `colnames<-`(c("channel", levs1)) %>%
         tidyr::pivot_longer(names_to = "type", values_to = "spend_share", -.data$channel),
+      by = c("channel", "type")
+    ) %>%
+    left_join(
+      dt_optimOut %>%
+        mutate(
+          channel = as.factor(.data$channels),
+          Initial = .data$initSpendUnit,
+          Bounded = .data$optmSpendUnit,
+          Unbounded = .data$optmSpendUnitUnbound
+        ) %>%
+        select(.data$channel, .data$Initial, .data$Bounded, .data$Unbounded) %>%
+        `colnames<-`(c("channel", levs1)) %>%
+        tidyr::pivot_longer(names_to = "type", values_to = "mean_spend", -.data$channel),
       by = c("channel", "type")
     ) %>%
     left_join(
@@ -882,6 +897,10 @@ allocation_plots <- function(
 
   df_plot_share <- bind_rows(
     df_plots %>%
+      select(c("channel", "type", "type_lab", "mean_spend")) %>%
+      mutate(metric = "abs.mean\nspend") %>%
+      rename(values = .data$mean_spend),
+    df_plots %>%
       select(c("channel", "type", "type_lab", "spend_share")) %>%
       mutate(metric = "mean\nspend") %>%
       rename(values = .data$spend_share),
@@ -909,6 +928,7 @@ allocation_plots <- function(
       values = round(.data$values, 4),
       values_label = case_when(
         .data$metric %in% c("mean\nROAS", "mROAS", "mean\nCPA", "mCPA") ~ formatNum(.data$values, 2, abbr = TRUE),
+        .data$metric == "abs.mean\nspend" ~ formatNum(.data$values, 1, abbr = TRUE),
         TRUE ~ paste0(round(100 * .data$values, 1), "%")
       ),
       # Better fill scale colours
@@ -922,7 +942,7 @@ allocation_plots <- function(
           .data$metric %in% c("mean\nspend", "mean\nresponse") ~ paste0(.data$metric, "%"),
           TRUE ~ .data$metric
         ),
-        levels = paste0(unique(.data$metric), c("%", "%", "", ""))
+        levels = paste0(unique(.data$metric), c("", "%", "%", "", ""))
       )
     ) %>%
     group_by(.data$name_label) %>%
@@ -940,8 +960,9 @@ allocation_plots <- function(
     facet_grid(. ~ .data$type_lab, scales = "free") +
     theme_lares(background = "white", legend = "none") +
     labs(
-      title = "Budget Allocation per Channel*",
-      fill = NULL, x = NULL, y = "Paid Channels"
+      title = paste0("Budget Allocation per Paid Media Variable per ",
+                     str_to_title(InputCollect$intervalType), "*"),
+      fill = NULL, x = NULL, y = "Paid Media"
     )
 
   ## 3. Response curves
@@ -1031,8 +1052,8 @@ allocation_plots <- function(
     scale_fill_manual(values = c("white", "grey", "steelblue", "darkgoldenrod4")) +
     theme_lares(background = "white", legend = "top", pal = 2) +
     labs(
-      title = "Simulated Response Curve for Selected Allocation Period",
-      x = sprintf("Spend** per %s (Mean Adstock Zone in Grey)", InputCollect$intervalType),
+      title = paste0("Simulated Response Curve per ", str_to_title(InputCollect$intervalType)),
+      x = sprintf("Spend** per %s (grey area: mean historical carryover)", InputCollect$intervalType),
       y = sprintf("Total Response [%s]", InputCollect$dep_var_type),
       shape = NULL, color = NULL, fill = NULL,
       caption = caption
