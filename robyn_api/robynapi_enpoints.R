@@ -101,9 +101,6 @@ transform_InputCollect <- function(InputCollect) {
   
   InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
   
-  # Add class name which is used as a checker in Robyn
-  class(InputCollect) <- c("robyn_inputs", "list")
-  
   # list > tibble
   vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind", "calibration_input")
   for (var in vars_to_tibble) {
@@ -120,8 +117,15 @@ transform_InputCollect <- function(InputCollect) {
   for (var in names(InputCollect)) {
     if(length(InputCollect[[var]])==0) {
       InputCollect[[var]] <- NULL
+      named_list <- setNames(alist(x=NULL), var)
+      InputCollect <- c(InputCollect, named_list)
+      
     }
   }
+  
+  # Add class name which is used as a checker in Robyn
+  class(InputCollect) <- c("robyn_inputs", "list")
+  
   
   return(InputCollect)
 }
