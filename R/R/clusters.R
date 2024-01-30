@@ -363,7 +363,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
     facet_wrap(~ .data$cluster_title, scales = "free_x") +
     xlim(range(sim_collect$x_sim)) +
-    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01, size = 0.1) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
     geom_text(
       data = df_ci,
       aes(x = .data$boot_mean, y = .data$rn, label = .data$boot_ci),
