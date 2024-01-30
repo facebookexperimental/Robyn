@@ -798,7 +798,7 @@ allocation_plots <- function(
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(background = "white", legend = "none") +
-    labs(title = paste0("Total Budget Optimization Result (scaled up to",
+    labs(title = paste0("Total Budget Optimization Result (scaled up to ",
                         unique(dt_optimOut$periods), ")"), fill = NULL, y = NULL, x = NULL) +
     scale_y_continuous(limits = c(0, max(df_roi$value_norm * 1.2))) +
     theme(axis.text.y = element_blank())
