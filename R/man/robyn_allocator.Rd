@@ -16,7 +16,7 @@ robyn_allocator(
   scenario = "max_response",
   total_budget = NULL,
   target_value = NULL,
-  date_range = NULL,
+  date_range = "all",
   channel_constr_low = NULL,
   channel_constr_up = NULL,
   channel_constr_multiplier = 3,
@@ -75,9 +75,9 @@ target_value is the desired ROAS or CPA with no upper spend limit. Default is se
 initial ROAS or 120\% of initial CPA, when \code{"target_value = NULL"}.}
 
 \item{date_range}{Character. Date(s) to apply adstocked transformations and pick mean spends
-per channel. Set one of: NULL, "all", "last", or "last_n" (where
+per channel. Set one of: "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
-(i.e. \code{c("2022-01-01", "2022-12-31")}). Default NULL will use last month's worth of data.}
+(i.e. \code{c("2022-01-01", "2022-12-31")}). Default to "all".}
 
 \item{channel_constr_low, channel_constr_up}{Numeric vectors. The lower and upper bounds
 for each paid media variable when maximizing total media response. For example,
