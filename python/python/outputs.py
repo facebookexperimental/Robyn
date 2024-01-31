@@ -1,0 +1,208 @@
+import os
+import time
+import pandas as pd
+
+
+import message
+import robyn_plots
+import robyn_csv
+import robyn_onepagers
+import robyn_write
+import difftime
+import round
+import sys
+
+def robyn_outputs(input_collect,
+                  output_models,
+                  pareto_fronts="auto",
+                  calibration_constraint=0.1,
+                  plot_folder=None,
+                  plot_folder_sub=None,
+                  plot_pareto=True,
+                  csv_out="pareto",
+                  clusters=True,
+                  select_model="clusters",
+                  ui=False,
+                  export=True,
+                  all_sol_json=False,
+                  quiet=False,
+                  refresh=False):
+    t0 = time.time()
+
+    if plot_folder is None:
+        plot_folder = os.getcwd()
+
+    plot_folder = check_dir(plot_folder)
+
+    # Check calibration constrains
+    calibrated = input_collect.calibration_input is not None
+    all_fixed = len(output_models.trial1.hyperBoundFixed) == len(output_models.hyper_updated)
+    if not all_fixed:
+        calibration_constraint = check_calibconstr(calibration_constraint, output_models.iterations, output_models.trials, input_collect.calibration_input, refresh=refresh)
+
+    #####################################
+    #### Run robyn_pareto on OutputModels
+
+    total_models = output_models.iterations * output_models.trials
+    if not isinstance(output_models.hyper_fixed, bool):
+        print(f"Running Pareto calculations for {total_models} models on {pareto_fronts} fronts...")
+
+    pareto_results = robyn_pareto(input_collect, output_models, pareto_fronts=pareto_fronts, calibration_constraint=calibration_constraint, quiet=quiet, calibrated=calibrated, refresh=refresh)
+    pareto_fronts = pareto_results.pareto_fronts
+    all_solutions = pareto_results.pareto_solutions
+
+    #####################################
+    #### Gather the results into output object
+
+    all_pareto = {
+        "resultHypParam": pareto_results.resultHypParam,
+        "xDecompAgg": pareto_results.xDecompAgg,
+        "resultCalibration": pareto_results.resultCalibration,
+        "plotDataCollect": pareto_results.plotDataCollect,
+        "df_caov_pct": pareto_results.df_caov_pct_all
+    }
+
+    # Set folder to save outputs
+    depth = 0 if "refreshDepth" in input_collect else input_collect.refreshDepth
+    folder_var = "init" if depth > 0 else paste0("rf", depth)
+    plot_folder = gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
+    if not dir.exists(plot_folder) and export:
+        print("Creating directory for outputs: ", plot_folder)
+        dir.create(plot_folder)
+
+    # Final results object
+    OutputCollect = {
+        "resultHypParam": pareto_results["resultHypParam"].loc[pareto_results["solID"].isin(allSolutions)],
+        "xDecompAgg": pareto_results["xDecompAgg"].loc[pareto_results["solID"].isin(allSolutions)],
+        "mediaVecCollect": pareto_results["mediaVecCollect"],
+        "xDecompVecCollect": pareto_results["xDecompVecCollect"],
+        "resultCalibration": None if not calibrated else pareto_results["resultCalibration"].loc[pareto_results["solID"].isin(allSolutions)],
+        "allSolutions": allSolutions,
+        "allPareto": allPareto,
+        "calibration_constraint": calibration_constraint,
+        "OutputModels": OutputModels,
+        "cores": OutputModels["cores"],
+        "iterations": OutputModels["iterations"],
+        "trials": OutputModels["trials"],
+        "intercept_sign": OutputModels["intercept_sign"],
+        "nevergrad_algo": OutputModels["nevergrad_algo"],
+        "add_penalty_factor": OutputModels["add_penalty_factor"],
+        "seed": OutputModels["seed"],
+        "UI": None,
+        "pareto_fronts": pareto_fronts,
+        "hyper_fixed": attr(OutputModels, "hyper_fixed"),
+        "plot_folder": plot_folder
+    }
+    OutputCollect.keys()
+
+    # Cluster results and amend cluster output
+    if clusters:
+        if not quiet:
+            print(">>> Calculating clusters for model selection using Pareto fronts...")
+        clusterCollect = robyn_clusters(
+            OutputCollect,
+            dep_var_type=InputCollect["dep_var_type"],
+            quiet=quiet,
+            export=export,
+            ...
+        )
+        OutputCollect["resultHypParam"] = pd.merge(
+            OutputCollect["resultHypParam"],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            on="solID"
+        )
+        OutputCollect["xDecompAgg"] = pd.merge(
+            OutputCollect["xDecompAgg"],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            on="solID"
+        )
+        OutputCollect["mediaVecCollect"] = pd.merge(
+            OutputCollect["mediaVecCollect"],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            on="solID"
+        )
+        OutputCollect["xDecompVecCollect"] = pd.merge(
+            OutputCollect["xDecompVecCollect"],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            on="solID"
+        )
+        if calibrated:
+            OutputCollect["resultCalibration"] = pd.merge(
+                OutputCollect["resultCalibration"],
+                clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+                on="solID"
+            )
+        OutputCollect["clusters"] = clusterCollect
+
+    if export:
+        try:
+            message(">>> Collecting {} pareto-optimum results into: {}".format(len(all_solutions), plot_folder))
+            all_plots = robyn_plots(input_collect, output_collect, export=export, quiet=quiet)
+            message(">> Exporting general plots into directory...")
+            if csv_out in ["all", "pareto"]:
+                message(">> Exporting {} results as CSVs into directory...".format(csv_out))
+                robyn_csv(input_collect, output_collect, csv_out, export=export, calibrated=calibrated)
+            if plot_pareto:
+                message(">>> Exporting pareto one-pagers into directory...")
+                select_model = select_model if not clusters or output_collect["clusters"] is None else None
+                pareto_onepagers = robyn_onepagers(input_collect, output_collect, select_model=select_model, quiet=quiet, export=export)
+            if all_sol_json:
+                pareto_df = output_collect["resultHypParam"].filter(pandas.notnull(pandas.Series(["cluster"]))).select(["solID", "cluster", "top_sol"]).sort_values(by=["cluster", "top_sol"], ascending=False).drop(columns=["solID"])
+            else:
+                pareto_df = None
+            attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
+            robyn_write(input_collect, output_collect, dir=plot_folder, quiet=quiet, pareto_df=pareto_df, export=export)
+            if ui and plot_pareto:
+                output_collect["UI"] = {"pareto_onepagers": pareto_onepagers}
+            output_collect["UI"] = output_collect.get("UI", pandas.DataFrame()) if ui else None
+        except Exception as e:
+            message("Failed exporting results, but returned model results anyways: {}".format(e))
+    if not is.null(output_models["hyper_updated"]):
+        output_collect["hyper_updated"] = output_models["hyper_updated"]
+    attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
+    class(output_collect) = ["robyn_outputs", class(output_collect)]
+    return(invisible(output_collect))
+
+
+
+def print_robyn_outputs(x, *args, **kwargs):
+    print("Plot Folder: {x.plot_folder}")
+    print("Calibration Constraint: {x.calibration_constraint}")
+    print("Hyper-parameters fixed: {x.hyper_fixed}")
+    print("Pareto-front ({x.pareto_fronts}) All solutions ({len(x.allSolutions)}): {', '.join(x.allSolutions)}")
+    if "clusters" in x.keys():
+        print("Clusters (k = {x.clusters.n_clusters}): {', '.join(x.clusters.models.solID)}")
+    else:
+        print("")
+
+
+def robyn_csv(input_collect, output_collect, csv_out=None, export=True, calibrated=False):
+    if export:
+        # Check that OutputCollect has the correct class
+        assert isinstance(output_collect, robyn_outputs)
+
+        # Get the temp all dataframe
+        temp_all = output_collect.allPareto
+
+        # Get the plot folder
+        plot_folder = output_collect.plot_folder
+
+        # Write the pareto hyperparameters and aggregated data to CSV
+        if "pareto" in csv_out:
+            pd.write_csv(output_collect.resultHypParam, os.path.join(plot_folder, "pareto_hyperparameters.csv"))
+            pd.write_csv(output_collect.xDecompAgg, os.path.join(plot_folder, "pareto_aggregated.csv"))
+            if calibrated:
+                pd.write_csv(output_collect.resultCalibration, os.path.join(plot_folder, "pareto_calibration.csv"))
+
+        # Write the all hyperparameters and aggregated data to CSV
+        if "all" in csv_out:
+            pd.write_csv(temp_all.resultHypParam, os.path.join(plot_folder, "all_hyperparameters.csv"))
+            pd.write_csv(temp_all.xDecompAgg, os.path.join(plot_folder, "all_aggregated.csv"))
+            if calibrated:
+                pd.write_csv(temp_all.resultCalibration, os.path.join(plot_folder, "all_calibration.csv"))
+
+        # Write the raw data and transformation matrices to CSV
+        if not is.null(csv_out):
+            pd.write_csv(input_collect.dt_input, os.path.join(plot_folder, "raw_data.csv"))
+            pd.write_csv(output_collect.mediaVecCollect, os.path.join(plot_folder, "pareto_media_transform_matrix.csv"))
+            pd.write_csv(output_collect.xDecompVecCollect, os.path.join(plot_folder, "pareto_alldecomp_matrix.csv"))
