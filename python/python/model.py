@@ -9,8 +9,9 @@ import multiprocessing
 from functools import partial
 from tqdm import tqdm
 import re
-from glmnet import glmnet
-from inputs import hyper_names
+#from glmnet import glmnet
+from sklearn.linear_model import Ridge
+from .inputs import hyper_names
 from check import check_hyper_fixed
 import logging
 
@@ -97,7 +98,7 @@ def robyn_run(InputCollect=None,
             globals()[key] = value
 
     # Handling cores
-    max_cores = max(1, detectCores(), na.rm=True)
+    max_cores = max(1, detectCores(), na_rm=True)
     if cores is None:
         cores = max_cores - 1  # Leave at least one core free
     elif cores > max_cores:
@@ -111,7 +112,7 @@ def robyn_run(InputCollect=None,
         trials = iterations = 1
     check_run_inputs(cores, iterations, trials, intercept_sign, nevergrad_algo)
     check_iteration(InputCollect['calibration_input'], iterations, trials, hyps_fixed, refresh)
-    init_msgs_run(InputCollect, refresh, lambda_control=None, quiet)
+    init_msgs_run(InputCollect, refresh, quiet, lambda_control=None)
     objective_weights = check_obj_weight(InputCollect['calibration_input'], objective_weights, refresh)
 
     # Prepare hyper-parameters
@@ -120,8 +121,8 @@ def robyn_run(InputCollect=None,
         hyper_in=InputCollect['hyperparameters'],
         ts_validation=ts_validation,
         add_penalty_factor=add_penalty_factor,
-        dt_hyper_fixed=dt_hyper_fixed,
-        cores=cores
+        cores=cores,
+        dt_hyper_fixed=dt_hyper_fixed
     )
     InputCollect['hyper_updated'] = hyper_collect['hyper_list_all']
 
@@ -269,8 +270,8 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
             iterations=iterations,
             cores=cores,
             nevergrad_algo=nevergrad_algo,
-            intercept=intercept,
             intercept_sign=intercept_sign,
+            intercept=intercept,
             dt_hyper_fixed=dt_hyper_fixed,
             ts_validation=ts_validation,
             add_penalty_factor=add_penalty_factor,
@@ -304,8 +305,8 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
                 iterations=iterations,
                 cores=cores,
                 nevergrad_algo=nevergrad_algo,
-                intercept=intercept,
                 intercept_sign=intercept_sign,
+                intercept=intercept,
                 ts_validation=ts_validation,
                 add_penalty_factor=add_penalty_factor,
                 rssd_zero_penalty=rssd_zero_penalty,
@@ -356,8 +357,8 @@ def robyn_mmm(InputCollect,
               iterations,
               cores,
               nevergrad_algo,
-              intercept=True,
               intercept_sign,
+              intercept=True,
               ts_validation=True,
               add_penalty_factor=False,
               objective_weights=None,
@@ -544,7 +545,7 @@ def robyn_mmm(InputCollect,
             else:
                 hypParamSamNG = dt_hyper_fixed_mod[hypParamSamName]
 
-            def robyn_iterations(i, ...):  # i=1
+            def robyn_iterations(i, *args):  # i=1
                 t1 = time.time()
 
                 # Get hyperparameter sample
@@ -625,7 +626,8 @@ def robyn_mmm(InputCollect,
                     upper_limits,
                     intercept,
                     intercept_sign,
-                    penalty_factor
+                    penalty_factor,
+                    *args
                 )
 
                 decompCollect = model_decomp(
@@ -948,16 +950,20 @@ def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
     if penalty_factor is None:
         penalty_factor = np.ones(x_train.shape[1])
 
-    mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
-                 lower_limits=lower_limits, upper_limits=upper_limits,
-                 penalty_factor=penalty_factor, standardize=False, intr=True, **kwargs)
+    #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
+    #             lower_limits=lower_limits, upper_limits=upper_limits,
+    #             penalty_factor=penalty_factor, standardize=False, intr=True, **kwargs)
+    mod = Ridge(alpha=lambda_, fit_intercept=intercept, solver='auto')
+    mod.fit(x_train, y_train)
 
     df_int = 1
 
     if intercept_sign == "non_negative" and mod['beta'][0] < 0:
-        mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
-                     lower_limits=lower_limits, upper_limits=upper_limits,
-                     penalty_factor=penalty_factor, standardize=False, intr=False, **kwargs)
+        #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
+        #             lower_limits=lower_limits, upper_limits=upper_limits,
+        #             penalty_factor=penalty_factor, standardize=False, intr=False, **kwargs)
+        mod = Ridge(alpha=lambda_, fit_intercept=False, normalize=False, solver='lsqr')
+        mod.fit(x_train, y_train)
         df_int = 0
 
     y_train_pred = np.array(mod.predict(x_train, s=lambda_))
@@ -1040,7 +1046,7 @@ def lambda_seq(x, y, seq_len=100, lambda_min_ratio=0.0001):
     return lambdas
 
 
-def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, dt_hyper_fixed=None, cores):
+def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, cores, dt_hyper_fixed=None):
     # Fetch hyper-parameters based on media
     hypParamSamName = hyper_names(adstock=InputCollect['adstock'], all_media=InputCollect['all_media'])
 
@@ -1125,7 +1131,7 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, d
     }
 
 
-def init_msgs_run(InputCollect, refresh, lambda_control=None, quiet=False):
+def init_msgs_run(InputCollect, refresh, quiet=False, lambda_control=None):
     if lambda_control is not None:
         logging.info("Input 'lambda_control' deprecated in v3.6.0; lambda is now selected by hyperparameter optimization")
 

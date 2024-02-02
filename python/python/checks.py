@@ -5,7 +5,7 @@ import datetime
 import warnings
 import inspect
 import os
-import lares
+#import lares
 from datetime import datetime, timedelta
 
 OPTS_PDN = ["positive", "negative", "default"]

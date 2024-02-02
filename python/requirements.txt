@@ -1,0 +1,10 @@
+pandas
+numpy>=1.20.0
+matplotlib
+scikit-learn
+prophet
+scipy
+lmfit
+plotnine
+nevergrad
+glmnet

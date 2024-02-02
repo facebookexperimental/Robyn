@@ -1,6 +1,6 @@
 ## import robyn ## Manual, no need
-from robyn import data, inputs, checks ## Manual, Added manually
-from robyn import transformation
+from python import data, inputs, checks ## Manual, Added manually
+from python import transformation
 import numpy as np
 import pandas as pd
 

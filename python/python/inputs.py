@@ -260,7 +260,6 @@ def robyn_inputs(
             InputCollect = robyn_engineering(InputCollect, ...)
 
     else:
-
         # Check for legacy (deprecated) inputs
         check_legacy_input(InputCollect)
 
@@ -537,8 +536,11 @@ def robyn_engineering(x, quiet=False):
 
         # bind_rows
         mod_nls_collect = pd.concat(mod_nls_collect)
-        plot_nls_collect = pd.concat(plot_nls_collect)
+        #plot_nls_collect = pd.concat(plot_nls_collect)
         yhat_collect = pd.concat(yhat_collect)
+        repeat_factor = len(yhat_collect) // len(dt_transform_roll_wind)
+        yhat_collect['ds'] = dt_transform_roll_wind['ds'].repeat(repeat_factor).reset_index(drop=True)
+
     else: ## Manually added else case wasn't translated, possibly due to large function.
         mod_nls_collect = None
         plot_nls_collect = None
@@ -553,9 +555,10 @@ def robyn_engineering(x, quiet=False):
         final_print = None ## False
         ## metrics = ["R2 (nls)", "R2 (lm)"]
         ## names = ["rsq_nls", "rsq_lm"]
-        metrics = {"rsq_nls" : "R2 (nls)", "rsq_lm" : "R2 (lm)"}
+        metrics = ["rsq_nls", "rsq_lm"]
         for m in range(len(metrics)):
-            temp = np.where(x[names[m]] < threshold)[0]
+            metric_name = metrics[m]
+            temp = np.where(mod_nls_collect[metric_name] < threshold)[0]
             if len(temp) > 0:
                 final_print = True
                 ## these = x.iloc[temp, 0]
@@ -569,36 +572,67 @@ def robyn_engineering(x, quiet=False):
             print(f"Weak relationship for: {v2t(these)} and their spend")
 
     # Clean & aggregate data
-    factor_vars = ["var1", "var2", "var3"]  # Replace with actual factor variables
-    if len(factor_vars) > 0:
-        x = pd.get_dummies(x, drop_first=True, columns=factor_vars)
+    #factor_vars = ["var1", "var2", "var3"]  # Replace with actual factor variables
+    #if len(factor_vars) > 0:
+    #    x = pd.get_dummies(x, drop_first=True, columns=factor_vars)
+    x_df = pd.DataFrame(x['dt_input'])
+    for col in factor_vars:
+        if col in x_df.columns:
+            x_df[col] = x_df[col].astype('category')
+
 
     # Initialize empty lists to store custom parameters and prophet arguments
     custom_params = list()
     prophet_args = list()
 
     # Extract prophet variables and custom parameters from InputCollect
-    prophet_vars = InputCollect["prophet_vars"]
-    custom_params = InputCollect.get("custom_params", [])
+    prophet_vars = input_collect["prophet_vars"]
+    custom_params = input_collect.get("custom_params", [])
 
     # Remove empty strings and ellipsis from custom parameters
     custom_params = [param for param in custom_params if param != "" and param != "..."]
 
     # Compute prophet arguments
-    prophet_args = setdiff(
-        unique(
-            [
-                names(args(robyn_run)),
-                names(args(robyn_outputs)),
-                names(args(robyn_inputs)),
-                names(args(robyn_refresh)),
-            ]
-        ),
-        ["", "..."],
+    robyn_run_args = {
+        "InputCollect", "dt_hyper_fixed", "json_file", "ts_validation",
+        "add_penalty_factor", "refresh", "seed", "quiet", "cores", "trials",
+        "iterations", "rssd_zero_penalty", "objective_weights",
+        "nevergrad_algo", "intercept", "intercept_sign", "lambda_control", "outputs"
+    }
+    robyn_outputs_args = {
+        "input_collect", "output_models", "pareto_fronts",
+        "calibration_constraint", "plot_folder", "plot_folder_sub",
+        "plot_pareto", "csv_out", "clusters", "select_model",
+        "ui", "export", "all_sol_json", "quiet", "refresh"
+    }
+    robyn_inputs_args = {
+        "dt_input", "dep_var", "dep_var_type", "date_var",
+        "paid_media_spends", "paid_media_vars", "paid_media_signs",
+        "organic_vars", "organic_signs", "context_vars", "context_signs",
+        "factor_vars", "dt_holidays", "prophet_vars", "prophet_signs",
+        "prophet_country", "adstock", "hyperparameters", "window_start",
+        "window_end", "calibration_input", "json_file", "InputCollect"
+    }
+    robyn_refresh_args = {
+        "json_file", "robyn_object", "dt_input", "dt_holidays",
+        "refresh_steps", "refresh_mode", "refresh_iters", "refresh_trials",
+        "plot_folder", "plot_pareto", "version_prompt", "export",
+        "calibration_input", "objective_weights"
+    }
+
+    combined_args = (
+        robyn_run_args |
+        robyn_outputs_args |
+        robyn_inputs_args |
+        robyn_refresh_args
     )
 
+    exclude_set = {"", "..."}
+
+    robyn_args = combined_args - exclude_set
+
     # Compute custom prophet arguments
-    prophet_custom_args = setdiff(custom_params, prophet_args)
+    prophet_custom_args = set(custom_params) - set(robyn_args)
 
     # Print message with custom prophet parameters
     if len(prophet_custom_args) > 0:
@@ -607,33 +641,33 @@ def robyn_engineering(x, quiet=False):
     # Decompose data using prophet
     dt_transform = prophet_decomp(
         dt_transform=x,
-        dt_holidays=InputCollect["dt_holidays"],
-        prophet_country=InputCollect["prophet_country"],
+        dt_holidays=input_collect["dt_holidays"],
+        prophet_country=input_collect["prophet_country"],
         prophet_vars=prophet_vars,
-        prophet_signs=InputCollect["prophet_signs"],
-        factor_vars=InputCollect["factor_vars"],
-        context_vars=InputCollect["context_vars"],
-        organic_vars=InputCollect["organic_vars"],
-        paid_media_spends=InputCollect["paid_media_spends"],
-        intervalType=InputCollect["intervalType"],
-        dayInterval=InputCollect["dayInterval"],
+        prophet_signs=input_collect["prophet_signs"],
+        factor_vars=input_collect["factor_vars"],
+        context_vars=input_collect["context_vars"],
+        organic_vars=input_collect["organic_vars"],
+        paid_media_spends=input_collect["paid_media_spends"],
+        intervalType=input_collect["intervalType"],
+        dayInterval=input_collect["dayInterval"],
         custom_params=custom_params,
     )
 
     # Finalize enriched input
     dt_transform = dt_transform.subset(
-        select=["ds", "dep_var", InputCollect["all_ind_vars"]]
+        select=["ds", "dep_var", input_collect["all_ind_vars"]]
     )
-    InputCollect["dt_mod"] = dt_transform
-    InputCollect["dt_modRollWind"] = dt_transform[
+    input_collect["dt_mod"] = dt_transform
+    input_collect["dt_modRollWind"] = dt_transform[
         rollingWindowStartWhich:rollingWindowEndWhich,
     ]
-    InputCollect["dt_inputRollWind"] = dt_inputRollWind
-    InputCollect["modNLS"] = dict[  ## Manual: added dict.
+    input_collect["dt_inputRollWind"] = dt_inputRollWind
+    input_collect["modNLS"] = dict[  ## Manual: added dict.
         "results":modNLSCollect, "yhat":yhatNLSCollect, "plots":plotNLSCollect
     ]
 
-    return InputCollect
+    return input_collect
 
 
 def prophet_decomp(
@@ -657,9 +691,13 @@ def prophet_decomp(
 
     # Recurrence
     ## recurrence = dt_transform.select(["y" = "dep_var"]).rename(columns={"y": "dep_var"}) ## how to do select ???
-    recurrence = dt_transform.loc(dt_transform.y == dt_transform.dep_var).rename(
+    dt_transform_df = pd.DataFrame.from_dict(dt_transform)
+    recurrence = dt_transform_df.loc[dt_transform_df['y'] == dt_transform_df['dep_var']].rename(
         columns={"y": "dep_var"}
     )
+    #recurrence = dt_transform.loc(dt_transform.y == dt_transform.dep_var).rename(
+    #    columns={"y": "dep_var"}
+    #)
 
     # Holidays
     holidays = set_holidays(dt_transform, dt_holidays, intervalType)
