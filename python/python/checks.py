@@ -685,11 +685,11 @@ def check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_va
                       window_start, window_end, paid_media_spends, organic_vars):
     ## To be debugged when calibration_input provided
     if calibration_input is not None:
-        calibration_input = pd.DataFrame(calibration_input)
+        ## calibration_input = pd.DataFrame(calibration_input)
         these = ["channel", "liftStartDate", "liftEndDate", "liftAbs", "spend", "confidence", "metric", "calibration_scope"]
-        if not all(these in calibration_input.columns.values): ## Added values
+        if not all([True if this in calibration_input.columns.values else False for this in these]): ## Added values
             raise ValueError("Input 'calibration_input' must contain columns: " + str(these) + ". Check the demo script for instruction.")
-        if not calibration_input["liftAbs"].apply(lambda x: isinstance(x, float) and not np.isnan(x)).all():
+        if not all(calibration_input["liftAbs"].apply(lambda x: isinstance(x, float) and not np.isnan(x))):
             raise ValueError("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
         all_media = paid_media_spends + organic_vars
         cal_media = [item.strip() for item in calibration_input["channel"].str.split("+|,|;|\s")]

@@ -2,14 +2,16 @@ import os
 import time
 import pandas as pd
 
-import message
-import robyn_plots
-import robyn_csv
-import robyn_onepagers
-import robyn_write
-import difftime
-import round
-import sys
+##import message
+##import robyn_plots
+##import robyn_csv
+##import robyn_onepagers
+##import robyn_write
+##import round
+##import sys
+
+from .json import robyn_write
+from .cluster import robyn_clusters
 
 def robyn_outputs(input_collect,
                   output_models,
@@ -102,8 +104,8 @@ def robyn_outputs(input_collect,
             OutputCollect,
             dep_var_type=InputCollect["dep_var_type"],
             quiet=quiet,
-            export=export,
-            ...
+            export=export ##,
+            ##...
         )
         OutputCollect["resultHypParam"] = pd.merge(
             OutputCollect["resultHypParam"],
@@ -149,18 +151,23 @@ def robyn_outputs(input_collect,
                 pareto_df = output_collect["resultHypParam"].filter(pandas.notnull(pandas.Series(["cluster"]))).select(["solID", "cluster", "top_sol"]).sort_values(by=["cluster", "top_sol"], ascending=False).drop(columns=["solID"])
             else:
                 pareto_df = None
-            attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
+            ##attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
+            output_collect["runTime"] = round(difftime(sys.time(), t0, units="mins"), 2)
             robyn_write(input_collect, output_collect, dir=plot_folder, quiet=quiet, pareto_df=pareto_df, export=export)
             if ui and plot_pareto:
                 output_collect["UI"] = {"pareto_onepagers": pareto_onepagers}
             output_collect["UI"] = output_collect.get("UI", pandas.DataFrame()) if ui else None
         except Exception as e:
             message("Failed exporting results, but returned model results anyways: {}".format(e))
-    if not is.null(output_models["hyper_updated"]):
+    ##if not is.null(output_models["hyper_updated"]):
+    if output_models["hyper_updated"] is not None:
         output_collect["hyper_updated"] = output_models["hyper_updated"]
-    attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
-    class(output_collect) = ["robyn_outputs", class(output_collect)]
-    return(invisible(output_collect))
+    ##attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
+    output_collect["runTime"] = round(difftime(sys.time(), t0, units="mins"), 2)
+    ##class(output_collect) = ["robyn_outputs", class(output_collect)]
+    ##??output_collect["robyn_outputs"] = output_collect
+    ##return(invisible(output_collect))
+    return output_collect
 
 
 
@@ -201,7 +208,8 @@ def robyn_csv(input_collect, output_collect, csv_out=None, export=True, calibrat
                 pd.write_csv(temp_all.resultCalibration, os.path.join(plot_folder, "all_calibration.csv"))
 
         # Write the raw data and transformation matrices to CSV
-        if not is.null(csv_out):
+        ## if not is.null(csv_out):
+        if csv_out is not None:
             pd.write_csv(input_collect.dt_input, os.path.join(plot_folder, "raw_data.csv"))
             pd.write_csv(output_collect.mediaVecCollect, os.path.join(plot_folder, "pareto_media_transform_matrix.csv"))
             pd.write_csv(output_collect.xDecompVecCollect, os.path.join(plot_folder, "pareto_alldecomp_matrix.csv"))

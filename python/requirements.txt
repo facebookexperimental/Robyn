@@ -9,3 +9,5 @@ plotnine
 nevergrad
 glmnet
 PyQt6
+nevergrad
+seaborn

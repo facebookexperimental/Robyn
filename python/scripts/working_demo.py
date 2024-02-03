@@ -100,21 +100,21 @@ print(input_collect)
 
 calibration_input = pd.DataFrame({
   # channel name must in paid_media_vars
-  channel = ["facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"],
+  "channel": ["facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"],
   # liftStartDate must be within input data range
-  liftStartDate = pd.to_datetime(["2018-05-01", "2018-04-03", "2018-07-01", "2017-12-01"]),
+  "liftStartDate": pd.to_datetime(["2018-05-01", "2018-04-03", "2018-07-01", "2017-12-01"]),
   # liftEndDate must be within input data range
-  liftEndDate = pd.to_datetime(["2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31"]),
+  "liftEndDate": pd.to_datetime(["2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31"]),
   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
-  liftAbs = [400000, 300000, 700000, 200],
+  "liftAbs": [400000, 300000, 700000, 200],
   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
-  spend = [421000, 7100, 350000, 0],
+  "spend": [421000, 7100, 350000, 0],
   # Confidence: if frequentist experiment, you may use 1 - pvalue
-  confidence = [0.85, 0.8, 0.99, 0.95],
+  "confidence": [0.85, 0.8, 0.99, 0.95],
   # KPI measured: must match your dep_var
-  metric = ["revenue", "revenue", "revenue", "revenue"],
+  "metric": ["revenue", "revenue", "revenue", "revenue"],
   # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
-  calibration_scope = ["immediate", "immediate", "immediate", "immediate"]
+  "calibration_scope": ["immediate", "immediate", "immediate", "immediate"]
 })
 
 input_collect = inputs.robyn_inputs(
@@ -127,7 +127,8 @@ print(input_collect)
 
 # Check spend exposure fit if available
 if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
-    ## input_collect['modNLS']['plots']
+    for plot in input_collect['modNLS']['plots']:
+        plot.show()
 
 # Define the input collector
 output_models = model.robny_run(

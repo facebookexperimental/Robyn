@@ -1,57 +1,33 @@
 import pandas as pd
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import re
+
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import resample
-from sklearn.linear_model import LinearRegression
-from sklearn.stats import bootstrap
-from sklearn.plot_utils import plot_layout
-
-
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
-from sklearn.metrics import mean_squared_error
+##from sklearn.stats import bootstrap
+##from sklearn.bootstrapping import Bootstrap
+## from sklearn.plot_utils import plot_layout
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.cluster import KMeans
-from sklearn.model_selection import train_test_split
-from sklearn.bootstrapping import Bootstrap
-
-import statsmodels.api as sm
-
-import pandas as pd
-import numpy as np
-import re
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.preprocessing import StandardScaler
+from sklearn.utils.class_weight import compute_class_weight
+from sklearn.metrics import f1_score
+from matplotlib.ticker import FormatStrFormatter
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import Dropna
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+## from sklearn.preprocessing import Dropna
 from scipy.stats import norm
+
+## Manual imports
+
 
 def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=None, k='auto', limit=1, weights=None, dim_red='PCA', quiet=False, export=False, seed=123):
     # Set seed for reproducibility
@@ -98,7 +74,7 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     # Select top models by minimum (weighted) distance to zero
     all_paid = setdiff(names(input.df), [ignore, 'cluster'])
     ts_validation = np.isfinite(input.df['nrmse_test'])
-    top_sols = .clusters_df(df=input.df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
+    top_sols = clusters_df(df=input.df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
 
     # Build in-cluster CI with bootstrap
     ci_list = confidence_calcs(xDecompAgg, input, all_paid, dep_var_type, k, cluster_by, seed=seed)
@@ -128,7 +104,7 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         sns.heatmap(output['wss'], annot=True, cmap='coolwarm', xticks=range(k), yticks=range(k), square=True)
         plt.savefig(f'{path}pareto_clusters_wss.png', dpi=500, bbox_inches='tight')
         get_height = int(np.ceil(k/2)/2)
-        db = (output['plot_clusters_ci'] / (output['plot_models_rois'] + output['plot_models_errors'])) + plot_layout(heights=[get_height, 1], guides='collect')
+        db = (output['plot_clusters_ci'] / (output['plot_models_rois'] + output['plot_models_errors'])) ## TODO: + plot_layout(heights=[get_height, 1], guides='collect')
         suppress_messages(plt.savefig(f'{path}pareto_clusters_detail.png', dpi=500, bbox_inches='tight', width=12, height=4+len(all_paid)*2, limitsize=False))
 
     return output
@@ -164,7 +140,8 @@ def confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, boo
                 all_paid = unique(gsub(paste(paste0("_", HYPS_NAMES), collapse='|'), '', all_paid))
             for i in all_paid:
                 # Drop CPA == Inf
-                df_chn = df_outcome[df_outcome['rn'] == i & is.finite(df_outcome['cpa_total'])]
+                ##df_chn = df_outcome[df_outcome['rn'] == i & is.finite(df_outcome['cpa_total'])]
+                df_chn = df_outcome[df_outcome['rn'] == i and np.isfinite(df_outcome['cpa_total'])]
                 v_samp = df_chn['cpa_total']
                 if dep_var_type == 'conversion':
                     df_chn = df_outcome[df_outcome['rn'] == i]
@@ -290,7 +267,11 @@ def min_max_norm(x, min=0, max=1):
     return (max - min) * (x - a) / (b - a) + min
 
 
-def clusters_df(df, all_paid, balance=rep(1, 3), limit=1, ts_validation=True, **kwargs):
+##def clusters_df(df, all_paid, balance=rep(1, 3), limit=1, ts_validation=True, **kwargs):
+def clusters_df(df, all_paid, balance=None, limit=1, ts_validation=True, **kwargs):
+    if balance is None:
+        balance = np.repeat(1, 3)
+
     df = df.replace(np.nan, 0)
     df['error_score'] = errors_scores(df, balance, ts_validation=ts_validation, **kwargs)
     df = df.groupby('cluster').agg({'error_score': 'mean'})
@@ -308,42 +289,31 @@ def plot_clusters_ci(sim_collect, df_ci, dep_var_type, boot_n, sim_n):
     # Filter complete cases in df_ci
     df_ci = df_ci.dropna()
 
-    # Create a ggplot object
-    p = plt.ggplot(sim_collect, aes(x='x_sim', y='rn')) \
-        + plt.facet_wrap(~df_ci['cluster_title']) \
-        + plt.geom_density_ridges_gradient(scale=3, rel_min_height=0.01, size=0.1) \
-        + plt.geom_text(data=df_ci, aes(x='boot_mean', y='rn', label='boot_ci'),
-                        position=plt.PositionNudge(x=-0.02, y=0.1),
-                        colour='grey30', size=3.5) \
-        + plt.geom_vline(xintercept=1, linetype='dashed', size=0.5, colour='grey75')
+    # Create a ggplot object TODO: use plotnine to make it work
+    ## p = plt.ggplot(sim_collect, aes(x='x_sim', y='rn')) \
+    ##    + plt.facet_wrap(~df_ci['cluster_title']) \
+    ##    + plt.geom_density_ridges_gradient(scale=3, rel_min_height=0.01, size=0.1) \
+    ##    + plt.geom_text(data=df_ci, aes(x='boot_mean', y='rn', label='boot_ci'),
+    ##                    position=plt.PositionNudge(x=-0.02, y=0.1),
+    ##                    colour='grey30', size=3.5) \
+    ##    + plt.geom_vline(xintercept=1, linetype='dashed', size=0.5, colour='grey75')
 
     # Add a title, subtitle, and labels
-    p += plt.labs(title=f"In-Cluster {temp} & bootstrapped 95% CI",
-                   subtitle="Sampling distribution of cluster mean",
-                   x=temp, y="Density", fill=temp,
-                   caption=f"Based on {boot_n} bootstrap results with {sim_n} simulations")
+    ## TODO: use plotnine to make it work
+    ##p += plt.labs(title=f"In-Cluster {temp} & bootstrapped 95% CI",
+    ##               subtitle="Sampling distribution of cluster mean",
+    ##               x=temp, y="Density", fill=temp,
+    ##               caption=f"Based on {boot_n} bootstrap results with {sim_n} simulations")
 
     # Add a horizontal line for ROAS
-    if temp == "ROAS":
-        p += plt.geom_hline(yintercept=1, alpha=0.5, colour='grey50', linetype='dashed')
+    ##if temp == "ROAS":
+    ##    p += plt.geom_hline(yintercept=1, alpha=0.5, colour='grey50', linetype='dashed')
 
     # Set theme
-    p += plt.theme_lares(background='white', legend='none')
+    ##p += plt.theme_lares(background='white', legend='none')
 
-    return p
+    ##return p
 
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import f1_score
 
 def plot_topsols_errors(df, top_sols, limit=1, balance=None):
     # Calculate balance
@@ -393,15 +363,15 @@ def plot_topsols_rois(df, top_sols, all_media, limit=1):
     # Remove the 'real_' prefix from the media column
     top_sols['media'] = top_sols['media'].str.replace('real_', '')
 
-    # Plot the data
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x=reorder(top_sols['media'], top_sols['roi']), y=top_sols['roi'], data=top_sols)
-    plt.facet_grid(top_sols['label'] ~ ., scale='free', space='free')
-    plt.geom_col(color='blue', size=10)
-    plt.coord_flip()
-    plt.labs(title='Top Performing Models', x=None, y='Mean metric per media')
-    plt.theme_lares(background='white')
-    plt.show()
+    # Plot the data TODO: ggplot?
+    ##plt.figure(figsize=(10, 6))
+    ##sns.barplot(x=reorder(top_sols['media'], top_sols['roi']), y=top_sols['roi'], data=top_sols)
+    ##plt.facet_grid(top_sols['label'] ~ ., scale='free', space='free')
+    ##plt.geom_col(color='blue', size=10)
+    ##plt.coord_flip()
+    ##plt.labs(title='Top Performing Models', x=None, y='Mean metric per media')
+    ##plt.theme_lares(background='white')
+    ##plt.show()
 
 
 

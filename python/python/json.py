@@ -24,13 +24,15 @@ def robyn_write(InputCollect, OutputCollect=None, select_model=None, dir=None, e
         os.makedirs(dir, exist_ok=True)
 
     # InputCollect JSON
-    ret = {}
+    ## ret = {}
+    ret = dict()
     skip = [x for x in range(len(InputCollect)) if isinstance(InputCollect[x], (list, np.ndarray)) or (isinstance(InputCollect[x], str) and InputCollect[x].startswith("robyn_"))]
     ret["InputCollect"] = InputCollect[:len(InputCollect)-len(skip)]
 
     # ExportedModel JSON
     if OutputCollect:
-        collect = {}
+        ##collect = {}
+        collect = dict()
         collect["ts_validation"] = OutputCollect.ts_validation
         collect["train_timestamp"] = OutputCollect.train_timestamp
         collect["export_timestamp"] = pd.Timestamp.now()
@@ -62,15 +64,21 @@ def robyn_write(InputCollect, OutputCollect=None, select_model=None, dir=None, e
 
     filename = f"{dir}/RobynModel-{select_model}.json"
     filename = re.sub(r"//", "/", filename)
-    ret.class = ["robyn_write", ret.class]
-    ret.attr("json_file") = filename
-    if export and not quiet:
-        print(f">> Exported model {select_model} as {filename}")
-    if pareto_df and export:
-        all_c = unique(pareto_df.cluster)
-        pareto_df = [pareto_df[pareto_df.cluster == x] for x in all_c]
-        names(pareto_df) = paste0("cluster", all_c)
-        ret["OutputCollect"]["all_sols"] = pareto_df
+    ## ret.class = ["robyn_write", ret.class]
+    ##ret.attr("json_file") = filename
+    if export is not None:
+        if quiet is False:
+            print(f">> Exported model {select_model} as {filename}")
+
+        if pareto_df is not None:
+            if not all([x in pareto_df.columns for x in ("solID", "cluster")]):
+                warnings.warn("Input 'pareto_df' is not a valid data.frame; must contain 'solID' and 'cluster' columns.")
+            else:
+                all_c = set(pareto_df['cluster'])
+                pareto_df = [pareto_df[pareto_df.cluster == x] for x in all_c]
+                ## names(pareto_df) = paste0("cluster", all_c)
+                pareto_df.rename(columns={"cluster": "cluster"}, inplace=True)
+                ret["OutputCollect"]["all_sols"] = pareto_df
 
     write_json(ret, filename, pretty=True, digits=10)
     return ret
@@ -235,7 +243,7 @@ def robyn_chain(json_file):
     base_dir = re.sub(f'/{chain}', '', plot_folder)
 
     # Initialize list to store chain data
-    chain_data = []
+    chain_data = dict()
 
     # Iterate over chain and read JSON files
     for i in range(len(chain)):
@@ -247,7 +255,7 @@ def robyn_chain(json_file):
             json_new = json.load(open(filename, 'r'))
 
         # Add JSON data to chain data
-        chain_data.append(json_new)
+        chain_data[json_new['ExportedModel']['select_model']] = json_new
 
     # Reverse chain data
     chain_data = chain_data[::-1]
@@ -259,13 +267,13 @@ def robyn_chain(json_file):
     json_files = [os.path.join(dir, f'RobynModel-{name}.json') for dir, name in zip(dirs, chain_data)]
 
     # Add JSON file names to chain data
-    chain_data.attr('json_files') = json_files
+    chain_data['json_files'] = json_files
 
     # Add chain to chain data
-    chain_data.attr('chain') = ids
+    chain_data['chain'] = ids
 
     # Check if chain and chain data match
     if len(ids) != len(chain_data):
-        warning('Can\'t replicate chain-like results if you don\'t follow Robyn\'s chain structure')
+        warnings.warn('Can\'t replicate chain-like results if you don\'t follow Robyn\'s chain structure')
 
     return chain_data

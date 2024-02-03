@@ -309,9 +309,12 @@ def robyn_inputs(
             InputCollect = robyn_engineering(InputCollect)
 
         # Check for no-variance columns (after filtering modeling window)
-        dt_mod_model_window = InputCollect.dt_mod.select(
-            -InputCollect.unused_vars
-        ).filter(ds >= InputCollect.window_start, ds <= InputCollect.window_end)
+        select_columns = [col for col in InputCollect['dt_mod'].columns.values if col not in InputCollect['unused_vars']]
+        temp_df = InputCollect['dt_mod'][select_columns]
+        dt_mod_model_window = temp_df.loc[temp_df['ds'] >= InputCollect['window_start']].loc[temp_df['ds'] <= InputCollect['window_end']]
+        ##dt_mod_model_window = InputCollect['dt_mod'].select(
+        ##    -InputCollect.unused_vars
+        ##).filter(ds >= InputCollect.window_start, ds <= InputCollect.window_end)
 
         check_novar(dt_mod_model_window, InputCollect)
 

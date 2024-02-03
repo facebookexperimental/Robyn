@@ -11,13 +11,15 @@ from tqdm import tqdm
 import re
 #from glmnet import glmnet
 from sklearn.linear_model import Ridge
-from .inputs import hyper_names
-from checks import check_hyper_fixed, check_legacy_input
-from json import robyn_read ## name conflict?
 import logging
 
+## Robyn imports
+from .inputs import hyper_names
+from .checks import check_hyper_fixed, check_legacy_input
+from .json import robyn_read ## name conflict?
+from .outputs import robyn_outputs
+
 ## Manually added
-from outputs import robyn_outputs
 from time import gmtime, strftime
 
 def robyn_run(InputCollect=None,
