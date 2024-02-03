@@ -1,33 +1,34 @@
 import numpy as np
 import pandas as pd
-import datetime
-from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
+import datetime as dt
+from prophet import Prophet
+
+import matplotlib
+## Prevents plot windows showing up.
+matplotlib.use('qtagg')
 
 ## from sklearn.model_selection import AIC, BIC ## Manual, there are no AIC or BIC functions in sklearn
 ## from sklearn.metrics import r2_score
 
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import scale
 
-from prophet import Prophet
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
-
-## Manually added curve_fit for nlsLM fitting
-from scipy.optimize import curve_fit
 ## Added lmfit to use nlsLM in Python.
-from scipy.stats import linregress
+## Manually added curve_fit for nlsLM fitting
+## lmfit for nonlinear least squares fitting
 from lmfit import create_params, fit_report, minimize
+## Uses from scipy.optimize import curve_fit
+## from scipy.stats import linregress
 from lmfit.models import LinearModel
 
 ## Manually added ggplot
 from plotnine import ggplot, aes, labs, geom_point, geom_line, theme_gray, scale_x_continuous, scale_y_continuous
 
 ## Manually added imports
+##check_nas, check_varnames, check_datevar, check_depvar, check_prophet, check_context, check_paidmedia, check_organicvars, check_factorvars
 from .checks import *
 
-##check_nas, check_varnames, check_datevar, check_depvar, check_prophet, check_context, check_paidmedia, check_organicvars, check_factorvars
+
 
 def robyn_inputs(
     dt_input=None,
@@ -247,7 +248,7 @@ def robyn_inputs(
             "adstock": adstock,
             "hyperparameters": hyperparameters,
             "calibration_input": calibration_input,
-            "custom_params": list(),  ## custom_params, it is an empty list in original code
+            "custom_params": dict(),  ## custom_params, it is an empty list in original code
         }
 
         # Check hyperparameters
@@ -364,7 +365,7 @@ def print_robyn_inputs(
     if custom_params is None:
         custom_params = ""
     else:
-        custom_params = ", ".join(x.custom_params)
+        custom_params = ", ".join(x["custom_params"])
 
     # Set prophet
     if prophet is None:
@@ -582,15 +583,21 @@ def robyn_engineering(x, quiet=False):
 
 
     # Initialize empty lists to store custom parameters and prophet arguments
-    custom_params = list()
+    custom_params = dict()
     prophet_args = list()
 
     # Extract prophet variables and custom parameters from InputCollect
     prophet_vars = input_collect["prophet_vars"]
-    custom_params = input_collect.get("custom_params", [])
+    custom_params = input_collect.get("custom_params", dict())
 
     # Remove empty strings and ellipsis from custom parameters
-    custom_params = [param for param in custom_params if param != "" and param != "..."]
+    ## custom_params = [param for name, param in custom_params.items() if param != "" and param != "..."]
+    temp = dict()
+    for param, val in custom_params.items():
+        if not (param != "" and param != "..."):
+            temp[param] = val
+
+    custom_params = temp
 
     # Compute prophet arguments
     robyn_run_args = {
@@ -632,7 +639,7 @@ def robyn_engineering(x, quiet=False):
     robyn_args = combined_args - exclude_set
 
     # Compute custom prophet arguments
-    prophet_custom_args = set(custom_params) - set(robyn_args)
+    prophet_custom_args = set(custom_params.keys()) - set(robyn_args)
 
     # Print message with custom prophet parameters
     if len(prophet_custom_args) > 0:
@@ -640,7 +647,7 @@ def robyn_engineering(x, quiet=False):
 
     # Decompose data using prophet
     dt_transform = prophet_decomp(
-        dt_transform=x,
+        dt_transform=dt_transform,
         dt_holidays=input_collect["dt_holidays"],
         prophet_country=input_collect["prophet_country"],
         prophet_vars=prophet_vars,
@@ -655,17 +662,20 @@ def robyn_engineering(x, quiet=False):
     )
 
     # Finalize enriched input
-    dt_transform = dt_transform.subset(
-        select=["ds", "dep_var", input_collect["all_ind_vars"]]
-    )
+    ## dt_transform = dt_transform.subset(select=["ds", "dep_var", input_collect["all_ind_vars"]])
+    subset = input_collect["all_ind_vars"]
+    subset.append("ds")
+    subset.append("dep_var")
+    dt_transform = dt_transform[subset]
+
     input_collect["dt_mod"] = dt_transform
-    input_collect["dt_modRollWind"] = dt_transform[
-        rollingWindowStartWhich:rollingWindowEndWhich,
-    ]
-    input_collect["dt_inputRollWind"] = dt_inputRollWind
-    input_collect["modNLS"] = dict[  ## Manual: added dict.
-        "results":modNLSCollect, "yhat":yhatNLSCollect, "plots":plotNLSCollect
-    ]
+    input_collect["dt_modRollWind"] = dt_transform.iloc[(rolling_window_start_which-1):(rolling_window_end_which-1),]
+    input_collect["dt_inputRollWind"] = dt_input_roll_wind
+    input_collect["modNLS"] = {  ## Manual: added dict.
+        "results": mod_nls_collect,
+        "yhat": yhat_collect,
+        "plots": plot_nls_collect
+    }
 
     return input_collect
 
@@ -682,7 +692,7 @@ def prophet_decomp(
     paid_media_spends,
     intervalType,
     dayInterval,
-    custom_params,
+    custom_params = dict(),
 ):
     # Check prophet
     check_prophet(
@@ -691,34 +701,29 @@ def prophet_decomp(
 
     # Recurrence
     ## recurrence = dt_transform.select(["y" = "dep_var"]).rename(columns={"y": "dep_var"}) ## how to do select ???
-    dt_transform_df = pd.DataFrame.from_dict(dt_transform)
-    recurrence = dt_transform_df.loc[dt_transform_df['y'] == dt_transform_df['dep_var']].rename(
-        columns={"y": "dep_var"}
-    )
-    #recurrence = dt_transform.loc(dt_transform.y == dt_transform.dep_var).rename(
-    #    columns={"y": "dep_var"}
-    #)
+    recurrence = dt_transform[["ds", "dep_var"]]
+    recurrence.rename(columns={"dep_var": "y"}, inplace=True)
 
     # Holidays
     holidays = set_holidays(dt_transform, dt_holidays, intervalType)
 
     # Use trend, holiday, season, monthly, weekday, and weekly seasonality
-    use_trend = "trend" in prophet_vars
-    use_holiday = "holiday" in prophet_vars
-    use_season = "season" in prophet_vars or "yearly.seasonality" in prophet_vars
-    use_monthly = "monthly" in prophet_vars
-    use_weekday = "weekday" in prophet_vars or "weekly.seasonality" in prophet_vars
+    use_trend = True if "trend" in prophet_vars else False
+    use_holiday = True if "holiday" in prophet_vars else False
+    use_season = True if "season" in prophet_vars or "yearly.seasonality" in prophet_vars else False
+    use_monthly = True if "monthly" in prophet_vars else False
+    ## use_weekday = "weekday" in prophet_vars or "weekly.seasonality" in prophet_vars
+    use_weekday = True if "weekday" in prophet_vars or "weekly.seasonality" in prophet_vars else False
 
     # Bind columns
-    dt_regressors = pd.concat(
-        [
-            recurrence,
-            pd.select(
-                dt_transform, all_of(c(paid_media_spends, context_vars, organic_vars))
-            ),
-        ],
-        axis=1,
-    )
+    ## dt_regressors = pd.concat([recurrence,
+    ##        pd.select(
+    ##            dt_transform, all_of(c(paid_media_spends, context_vars, organic_vars))
+    ##        ),
+    ##    ],
+    ##    axis=1,
+    ##)
+    dt_regressors = pd.concat([recurrence, dt_transform[paid_media_spends + context_vars + organic_vars]], axis=1)
 
     # Mutate date column
     dt_regressors["ds"] = pd.to_datetime(dt_regressors["ds"])
@@ -726,36 +731,69 @@ def prophet_decomp(
     # Prophet parameters
     prophet_params = {
         "holidays": holidays[holidays["country"] == prophet_country],
-        "yearly.seasonality": custom_params.get("yearly.seasonality", use_season),
-        "weekly.seasonality": custom_params.get("weekly.seasonality", use_weekday),
-        "daily.seasonality": False,
+        "yearly_seasonality": custom_params["yearly_seasonality"] if "yearly_seasonality" in custom_params.keys() else use_season,
+        "weekly_seasonality": custom_params["weekly_seasonality"] if "weekly_seasonality" in custom_params.keys() else use_weekday,
+        "daily_seasonality": False, ## No hourly model allowed
     }
 
+    custom_params["yearly_seasonality"] = None
+    custom_params["weekly_seasonality"] = None
     # Append custom parameters
-    prophet_params.update(custom_params)
+    ## prophet_params.update(custom_params)
 
     # Create prophet model
+    ## https://facebook.github.io/prophet/docs/quick_start.html#python-api
     modelRecurrence = Prophet(**prophet_params)
 
     # Add seasonality
     if use_monthly:
         modelRecurrence.add_seasonality(name="monthly", period=30.5, fourier_order=5)
 
-    # Fit model
-    mod = modelRecurrence.fit(dt_regressors)
+    ## Manually added this section
+    if factor_vars is not None and len(factor_vars) > 0:
+        dt_ohse_temp = dt_regressors[factor_vars]
+        dt_ohse = pd.get_dummies(dt_ohse_temp, columns=factor_vars, drop_first=False, dtype=int)
 
-    # Forecast
-    forecastRecurrence = mod.predict(dt_regressors)
+        temp_names = [col for col in dt_ohse.columns if not col.endswith('_na')]
+        dt_ohse = dt_ohse[temp_names]
+        ohe_names = list(dt_ohse.columns)
+
+        for addreg in ohe_names:
+            modelRecurrence.add_regressor(addreg)
+
+        temp_names = [col for col in dt_regressors.columns if col not in factor_vars]
+        dt_ohe = pd.concat([dt_regressors[temp_names], dt_ohse], axis=1)
+
+        mod_ohe = modelRecurrence.fit(dt_ohe)
+        dt_forecastRegressor = mod_ohe.predict(dt_ohe)
+        select_columns = [column for column in dt_forecastRegressor.columns.values if not "_lower" in column or not "_upper" in column]
+        forecastRecurrence = dt_forecastRegressor[select_columns]
+        for aggreg in factor_vars:
+            ohRegNames = [var for var in forecastRecurrence.columns.values if var.startswith(aggreg)]
+            get_reg = forecastRecurrence[ohRegNames].sum(axis=1)
+            dt_transform[aggreg] = scale(get_reg)
+    else:
+        if dayInterval == 1:
+            warnings.warn("Currently, there's a known issue with prophet that may crash this use case.\n Read more here: https://github.com/facebookexperimental/Robyn/issues/472")
+
+        # Fit model
+        mod = modelRecurrence.fit(dt_regressors)
+
+        # Forecast
+        forecastRecurrence = mod.predict(dt_regressors)
+
 
     # Add trend, season, monthly, and weekday features
     if use_trend:
-        dt_transform["trend"] = forecastRecurrence.trend
+        dt_transform["trend"] = forecastRecurrence['trend']
     if use_season:
-        dt_transform["season"] = forecastRecurrence.yearly
+        dt_transform["season"] = forecastRecurrence['yearly']
     if use_monthly:
-        dt_transform["monthly"] = forecastRecurrence.monthly
+        dt_transform["monthly"] = forecastRecurrence["monthly"]
     if use_weekday:
-        dt_transform["weekday"] = forecastRecurrence.weekly
+        dt_transform["weekday"] = forecastRecurrence["weekly"]
+    if use_holiday:
+        dt_transform["holiday"] = forecastRecurrence["holidays"]
 
     # Return transformed dataframe
     return dt_transform
@@ -904,31 +942,50 @@ def set_holidays(dt_transform, dt_holidays, intervalType):
     if intervalType == "day":
         holidays = dt_holidays
     elif intervalType == "week":
-        week_start = dt_transform.ds.dt.weekday(1)
+        ## week_start = dt_transform.ds.dt.weekday(1)
+        week_start = dt_transform['ds'].dt.dayofweek[0] + 1
         if week_start not in [1, 7]:
             raise ValueError("Week start has to be Monday or Sunday")
-        holidays = dt_holidays.dt.floor(
-            dt.Date(dt_transform.ds.dt.strftime("%Y-%m-%d"), origin="1970-01-01"),
-            unit="week",
-            week_start=week_start,
-        )
-        holidays = holidays.dt.select(
-            holidays.ds, holidays.holiday, holidays.country, holidays.year
-        )
-        holidays = holidays.dt.groupby(
-            holidays.ds, holidays.country, holidays.year
-        ).agg({"holiday": lambda x: ", ".join(x), "n": "count"})
+
+        ## holidays = dt_holidays['ds'].dt.floor(
+        ##    dt.Date(dt_transform.ds.dt.strftime("%Y-%m-%d"), origin="1970-01-01"),
+        ##    unit="week",
+        ##    week_start=week_start,
+        ##)
+        dt_holidays['ds'] = dt_holidays['ds'] - pd.to_timedelta(dt_holidays['ds'].dt.dayofweek, unit='d')
+
+        ## holidays = holidays.dt.select(
+        ##    holidays.ds, holidays.holiday, holidays.country, holidays.year
+        ##)
+        holidays = dt_holidays[['ds', 'holiday', 'country', 'year']]
+
+        ##holidays = holidays.dt.groupby(
+        ##    holidays.ds, holidays.country, holidays.year
+        ##).agg({"holiday": lambda x: ", ".join(x), "n": "count"})
+
+        holidays = holidays.groupby(['ds', 'country', 'year']).agg({'holiday':[' ,'.join, 'count']}).reset_index()
+        temp = pd.DataFrame()
+        temp['ds'] = holidays['ds']
+        temp['country'] = holidays['country']
+        temp['year'] = holidays['year']
+        temp['holiday'] = holidays['holiday']['join']
+        temp['n'] = holidays['holiday']['count']
+        holidays = temp
+
     elif intervalType == "month":
-        if not all(dt_transform.ds.dt.day == 1):
+        if not all(dt_transform['ds'].dt.is_month_start):
             raise ValueError(
                 "Monthly data should have first day of month as datestampe, e.g.'2020-01-01'"
             )
-        holidays = dt_holidays.dt.cut(intervalType)
-        holidays = holidays.dt.select(
-            holidays.ds, holidays.holiday, holidays.country, holidays.year
-        )
-        holidays = holidays.dt.groupby(
-            holidays.ds, holidays.country, holidays.year
-        ).agg({"holiday": lambda x: ", ".join(x), "n": "count"})
+        dt_holidays['ds'] = dt_holidays['ds'] - pd.to_timedelta(dt_holidays['ds'].dt.days_in_month, unit='d')
+        holidays = holidays[['ds', 'holiday', 'country', 'year']]
+        holidays = holidays.groupby(['ds', 'country', 'year']).agg({'holiday':[' ,'.join, 'count']}).reset_index()
+        temp = df.DataFrame()
+        temp['ds'] = holidays['ds']
+        temp['country'] = holidays['country']
+        temp['year'] = holidays['year']
+        temp['holiday'] = holidays['holiday']['join']
+        temp['n'] = holidays['holiday']['count']
+        holidays = temp
 
     return holidays

@@ -12,8 +12,13 @@ import re
 #from glmnet import glmnet
 from sklearn.linear_model import Ridge
 from .inputs import hyper_names
-from check import check_hyper_fixed
+from checks import check_hyper_fixed, check_legacy_input
+from json import robyn_read ## name conflict?
 import logging
+
+## Manually added
+from outputs import robyn_outputs
+from time import gmtime, strftime
 
 def robyn_run(InputCollect=None,
               dt_hyper_fixed=None,
@@ -33,7 +38,9 @@ def robyn_run(InputCollect=None,
               intercept_sign="non_negative",
               lambda_control=None,
               outputs=False,
-              *args, **kwargs):
+              *args,
+              **kwargs
+              ):
 
     if outputs:
         OutputModels = robyn_run(
@@ -54,22 +61,24 @@ def robyn_run(InputCollect=None,
             intercept=intercept,
             intercept_sign=intercept_sign,
             lambda_control=lambda_control,
-            outputs=False,
-            *args, **kwargs
+            outputs=False
         )
-        OutputCollect = robyn_outputs(InputCollect, OutputModels, *args, **kwargs)
+        OutputCollect = robyn_outputs(InputCollect, OutputModels) ##, *args, **kwargs)
+
         return {
             "OutputModels": OutputModels,
             "OutputCollect": OutputCollect
         }
 
-    t0 = time.time()
+    ## t0 = time.time()
+    t0 = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
     # Use previously exported model using json_file
     if json_file is not None:
         # InputCollect <- robyn_inputs(json_file = json_file, dt_input = dt_input, dt_holidays = dt_holidays)
         if InputCollect is None:
-            InputCollect = robyn_inputs(json_file=json_file, *args, **kwargs)
+            InputCollect = robyn_inputs(json_file=json_file) ##, *args, **kwargs)
+
         json_data = robyn_read(json_file, step=2, quiet=True)
         dt_hyper_fixed = json_data['ExportedModel']['hyper_values']
         for key, value in json_data['ExportedModel'].items():
@@ -86,7 +95,7 @@ def robyn_run(InputCollect=None,
     #### Set local environment
 
     # Check for 'hyperparameters' in InputCollect
-    if "hyperparameters" not in InputCollect or InputCollect['hyperparameters'] is None:
+    if "hyperparameters" not in InputCollect.keys() or InputCollect['hyperparameters'] is None:
         raise ValueError("Must provide 'hyperparameters' in robyn_inputs()'s output first")
 
     # Check and warn on legacy inputs

@@ -8,3 +8,4 @@ lmfit
 plotnine
 nevergrad
 glmnet
+PyQt6
