@@ -56,7 +56,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           refresh = FALSE, ...) {
   t0 <- Sys.time()
   if (is.null(plot_folder)) plot_folder <- getwd()
-  plot_folder <- check_dir(plot_folder)
+  if (export) plot_folder <- check_dir(plot_folder)
 
   # Check calibration constrains
   calibrated <- !is.null(InputCollect$calibration_input)

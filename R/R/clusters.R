@@ -41,7 +41,7 @@
 robyn_clusters <- function(input, dep_var_type,
                            cluster_by = "hyperparameters",
                            all_media = NULL,
-                           k = "auto", limit = 1,
+                           k = "auto", wss_var = 0.05, limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
@@ -88,20 +88,19 @@ robyn_clusters <- function(input, dep_var_type,
       }
     )
     # if (is.null(cls)) return(NULL)
-    min_var <- 0.05
     k <- cls$nclusters %>%
       mutate(
         pareto = .data$wss / .data$wss[1],
         dif = lag(.data$pareto) - .data$pareto
       ) %>%
-      filter(.data$dif > min_var) %>%
+      filter(.data$dif > wss_var) %>%
       pull(.data$n) %>%
       max(., na.rm = TRUE)
     if (k < min_clusters) k <- min_clusters
     if (!quiet) {
       message(sprintf(
         ">> Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
-        k, min_var * 100
+        k, wss_var * 100
       ))
     }
   }
@@ -363,7 +362,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
     facet_wrap(~ .data$cluster_title, scales = "free_x") +
     xlim(range(sim_collect$x_sim)) +
-    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01, size = 0.1) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
     geom_text(
       data = df_ci,
       aes(x = .data$boot_mean, y = .data$rn, label = .data$boot_ci),
