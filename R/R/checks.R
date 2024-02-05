@@ -279,6 +279,10 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (!all(is_num)) {
     stop("All your 'paid_media_vars' must be numeric. Check: ", v2t(paid_media_vars[!is_num]))
   }
+  is_num <- unlist(lapply(dt_input[, paid_media_spends], is.numeric))
+  if (!all(is_num)) {
+    stop("All your 'paid_media_spends' must be numeric. Check: ", v2t(paid_media_spends[!is_num]))
+  }
   get_cols <- any(dt_input[, unique(c(paid_media_vars, paid_media_spends))] < 0)
   if (get_cols) {
     check_media_names <- unique(c(paid_media_vars, paid_media_spends))
@@ -319,14 +323,17 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
   if (length(organic_signs) != length(organic_vars)) {
     stop("Input 'organic_signs' must have same length as 'organic_vars'")
   }
+  is_num <- unlist(lapply(dt_input[, organic_vars], is.numeric))
+  if (!all(is_num)) {
+    stop("All your 'organic_vars' must be numeric. Check: ", v2t(organic_vars[!is_num]))
+  }
   return(invisible(list(organic_signs = organic_signs)))
 }
 
-check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL, organic_vars = NULL) {
+check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL) {
   check_vector(factor_vars)
   check_vector(context_vars)
-  check_vector(organic_vars)
-  temp <- select(dt_input, all_of(c(context_vars, organic_vars)))
+  temp <- select(dt_input, all_of(context_vars))
   are_not_numeric <- !sapply(temp, is.numeric)
   if (any(are_not_numeric)) {
     these <- are_not_numeric[!names(are_not_numeric) %in% factor_vars]
@@ -337,8 +344,8 @@ check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL, 
     }
   }
   if (!is.null(factor_vars)) {
-    if (!all(factor_vars %in% c(context_vars, organic_vars))) {
-      stop("Input 'factor_vars' must be any from 'context_vars' or 'organic_vars' inputs")
+    if (!all(factor_vars %in% context_vars)) {
+      stop("Input 'factor_vars' must be any from 'context_vars' inputs")
     }
   }
   return(factor_vars)

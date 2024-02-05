@@ -235,7 +235,7 @@ robyn_inputs <- function(dt_input = NULL,
     organic_signs <- organic$organic_signs
 
     ## Check factor_vars
-    factor_vars <- check_factorvars(dt_input, factor_vars, context_vars, organic_vars)
+    factor_vars <- check_factorvars(dt_input, factor_vars, context_vars)
 
     ## Check all vars
     all_media <- c(paid_media_spends, organic_vars)
