@@ -224,12 +224,13 @@ robyn_plots <- function(
     }
   } # End of !hyper_fixed
 
+  # Time series and errors convergence validation
   get_height <- ceiling(12 * OutputCollect$OutputModels$trials / 3)
-  if (isTRUE(OutputCollect$OutputModels$ts_validation)) {
-    ts_validation_plot <- ts_validation(OutputCollect$OutputModels, quiet = TRUE, ...)
+  all_plots[["ts_validation"]] <- ts_validation(OutputCollect$OutputModels, quiet = TRUE, ...)
+  if (export) {
     ggsave(
       paste0(plot_folder, "ts_validation", ".png"),
-      plot = ts_validation_plot, dpi = 300,
+      plot = all_plots[["ts_validation"]], dpi = 300,
       width = 10, height = get_height, limitsize = FALSE
     )
   }
@@ -1400,10 +1401,10 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
 
 
 ####################################################################
-#' Generate Plots for Time-Series Validation
+#' Generate Plots for Time-Series Validation and Convergence
 #'
 #' Create a plot to visualize the convergence for each of the datasets
-#' when time-series validation is enabled when running \code{robyn_run()}.
+#' when running \code{robyn_run()}, especially useful for when using ts_validation.
 #' As a reference, the closer the test and validation convergence points are,
 #' the better, given the time-series wasn't overfitted.
 #'
@@ -1411,9 +1412,6 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
 ts_validation <- function(OutputModels, quiet = FALSE, ...) {
-  if (!isTRUE(OutputModels$ts_validation)) {
-    return(NULL)
-  }
   resultHypParam <- bind_rows(
     lapply(OutputModels[
       which(names(OutputModels) %in% paste0("trial", seq(OutputModels$trials)))
@@ -1466,8 +1464,8 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
     colour = .data$dataset
     # group = as.character(.data$trial)
   )) +
-    geom_point(alpha = 0.2, size = 0.9) +
-    geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
+    geom_point(alpha = 0.2, size = 0.9, na.rm = TRUE) +
+    geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), na.rm = TRUE) +
     facet_grid(.data$trial ~ .) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(y = "NRMSE [Upper 1% Winsorized]", x = "Iteration", colour = "Dataset") +
