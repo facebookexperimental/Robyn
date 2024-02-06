@@ -147,7 +147,6 @@ def robyn_inputs(
         ## all_ind_vars = [tolower(prophet_vars), context_vars, all_media]
         ## all_ind_vars = [prophet_vars, context_vars, all_media], this creates multip dimensional data, need list
         all_ind_vars = prophet_vars + context_vars + all_media
-
         check_allvars(all_ind_vars)
 
         # Check data dimension
@@ -308,9 +307,9 @@ def robyn_inputs(
             InputCollect = robyn_engineering(InputCollect)
 
         # Check for no-variance columns (after filtering modeling window)
-        select_columns = [col for col in InputCollect['dt_mod'].columns.values if col not in InputCollect['unused_vars']]
+        select_columns = list(set([col for col in InputCollect['dt_mod'].columns.values if col not in InputCollect['unused_vars']]))
         temp_df = InputCollect['dt_mod'][select_columns]
-        dt_mod_model_window = temp_df.loc[temp_df['ds'] >= InputCollect['window_start']].loc[temp_df['ds'] <= InputCollect['window_end']]
+        dt_mod_model_window = temp_df.loc[(temp_df['ds'] >= InputCollect['window_start']) & (temp_df['ds'] <= InputCollect['window_end'])]
         ##dt_mod_model_window = InputCollect['dt_mod'].select(
         ##    -InputCollect.unused_vars
         ##).filter(ds >= InputCollect.window_start, ds <= InputCollect.window_end)
@@ -668,6 +667,7 @@ def robyn_engineering(x, quiet=False):
     subset = input_collect["all_ind_vars"]
     subset.append("ds")
     subset.append("dep_var")
+    subset = list(set(subset))
     dt_transform = dt_transform[subset]
 
     input_collect["dt_mod"] = dt_transform

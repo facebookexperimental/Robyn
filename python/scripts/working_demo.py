@@ -122,16 +122,14 @@ input_collect = inputs.robyn_inputs(
     calibration_input = calibration_input
 )
 
-print(input_collect)
-
 # Check spend exposure fit if available
 if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
     for plot in input_collect['modNLS']['plots']:
         plot.show()
 
 # Define the input collector
-output_models = model.robny_run(
-    InputCollect=input_collect,
+output_models = model.robyn_run(
+    InputCollect=input_collect['robyn_inputs'],
     # Feed in all model specification
     ## model_specs=['my_model'],
     # Set to NULL to use all available CPU cores

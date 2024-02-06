@@ -811,7 +811,7 @@ def check_calibconstr(calibration_constraint, iterations, trials, calibration_in
 
 def check_hyper_fixed(input_collect, dt_hyper_fixed, add_penalty_factor):
     hyper_fixed = False if dt_hyper_fixed is None else True ## manually fixed
-    hyp_param_sam_name = hyper_names(adstock=input_collect.adstock, all_media=input_collect.all_media)
+    hyp_param_sam_name = hyper_names(adstock=input_collect['adstock'], all_media=input_collect['all_media'])
     hyp_param_sam_name = np.concatenate((hyp_param_sam_name, HYPS_OTHERS))
     if add_penalty_factor:
         for_penalty = np.array(input_collect.dt_mod.columns)[np.logical_not(np.isin(input_collect.dt_mod.columns, ['ds', 'dep_var']))]
@@ -822,7 +822,7 @@ def check_hyper_fixed(input_collect, dt_hyper_fixed, add_penalty_factor):
             raise ValueError("Provide only 1 model / 1 row from OutputCollect$resultHypParam or pareto_hyperparameters.csv from previous runs")
         if not all(hyp_param_sam_name in dt_hyper_fixed.columns):
             raise ValueError("Input 'dt_hyper_fixed' is invalid. Please provide 'OutputCollect$resultHypParam' result from previous runs or 'pareto_hyperparameters.csv' data with desired model ID. Missing values for:", hyp_param_sam_name)
-    return hyper_fixed
+    return {'hyper_fixed': hyper_fixed, 'hyp_param_sam_name': hyp_param_sam_name}
 
 
 def check_parallel():

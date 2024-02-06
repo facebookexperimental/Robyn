@@ -15,7 +15,7 @@ import logging
 
 ## Robyn imports
 from .inputs import hyper_names
-from .checks import check_hyper_fixed, check_legacy_input
+from .checks import check_hyper_fixed, check_legacy_input, check_run_inputs, check_iteration, check_obj_weight, LEGACY_PARAMS, HYPS_OTHERS
 from .json import robyn_read ## name conflict?
 from .outputs import robyn_outputs
 
@@ -109,7 +109,7 @@ def robyn_run(InputCollect=None,
             globals()[key] = value
 
     # Handling cores
-    max_cores = max(1, detectCores(), na_rm=True)
+    max_cores = max(1, multiprocessing.cpu_count())
     if cores is None:
         cores = max_cores - 1  # Leave at least one core free
     elif cores > max_cores:
@@ -1072,11 +1072,11 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, c
 
     # Check hyper_fixed condition + add lambda + penalty factor hyper-parameters names
     all_fixed = check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
-    hypParamSamName = getattr(all_fixed, "hypParamSamName")
-
-    if not all_fixed:
+    hypParamSamName = all_fixed['hyp_param_sam_name']
+    if not all_fixed['hyper_fixed']:
         hyper_bound_list = {}
         for param_name in hypParamSamName:
+            print("====== param name: {}".format(param_name))
             hyper_bound_list[param_name] = hyper_in[param_name]
 
         # Add unfixed lambda hyperparameter manually
