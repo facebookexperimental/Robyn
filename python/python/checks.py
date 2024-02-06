@@ -4,6 +4,7 @@ import re
 import datetime
 import warnings
 import inspect
+from itertools import chain
 import os
 #import lares
 from datetime import datetime, timedelta
@@ -689,12 +690,15 @@ def check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_va
         these = ["channel", "liftStartDate", "liftEndDate", "liftAbs", "spend", "confidence", "metric", "calibration_scope"]
         if not all([True if this in calibration_input.columns.values else False for this in these]): ## Added values
             raise ValueError("Input 'calibration_input' must contain columns: " + str(these) + ". Check the demo script for instruction.")
+        ## Convert int64 values into float
+        calibration_input["liftAbs"] = calibration_input["liftAbs"].astype(float)
         if not all(calibration_input["liftAbs"].apply(lambda x: isinstance(x, float) and not np.isnan(x))):
             raise ValueError("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
         all_media = paid_media_spends + organic_vars
-        cal_media = [item.strip() for item in calibration_input["channel"].str.split("+|,|;|\s")]
-        if not all([item in all_media for item in cal_media]):
-            these = [item for item in cal_media if item not in all_media]
+        cal_media = calibration_input["channel"].apply(lambda x: re.split(r'[^\w_]+', x)).tolist()
+        cal_media_flat = list(chain.from_iterable(cal_media))
+        if not all(item in all_media for item in cal_media_flat):
+            these = [item for item in cal_media_flat if item not in all_media]
             raise ValueError("All channels from 'calibration_input' must be any of: " + str(all_media) + ". Check: " + str(these))
         for i in range(len(calibration_input)):
             temp = calibration_input.iloc[i]
@@ -708,9 +712,9 @@ def check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_va
                 temp2 = cal_media[i]
                 if all([item in organic_vars for item in temp2]):
                     continue
-                dt_input_spend = dt_input.loc[dt_input[date_var] >= temp["liftStartDate"] & dt_input[date_var] <= temp["liftEndDate"], temp2].sum().round(0)
-                if dt_input_spend > temp["spend"] * 1.1 or dt_input_spend < temp["spend"] * 0.9:
-                    warnings.warn("Your calibration's spend (" + str(temp["spend"]) + ") for " + temp["channel"] + " between " + temp["liftStartDate"] + " and " + temp["liftEndDate"] + " does not match your dt_input spend (~" + str(dt_input_spend) + "). Please, check again your dates or split your media inputs into separate media channels.")
+                dt_input_spend = dt_input.loc[(dt_input[date_var] >= temp["liftStartDate"]) & (dt_input[date_var] <= temp["liftEndDate"]), temp2].sum().round(0)
+                if (dt_input_spend > temp["spend"] * 1.1).any() or (dt_input_spend < temp["spend"] * 0.9).any():
+                    warnings.warn("Your calibration's spend (" + str(temp["spend"]) + ") for " + temp["channel"] + " between " + temp["liftStartDate"].strftime('%Y-%m-%d') + " and " + temp["liftEndDate"].strftime('%Y-%m-%d') + " does not match your dt_input spend (~" + str(dt_input_spend) + "). Please, check again your dates or split your media inputs into separate media channels.")
         if "confidence" in calibration_input.columns:
             for i in range(len(calibration_input)):
                 temp = calibration_input.iloc[i]

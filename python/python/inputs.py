@@ -263,7 +263,6 @@ def robyn_inputs(
     else:
         # Check for legacy (deprecated) inputs
         check_legacy_input(InputCollect)
-
         # Check calibration data
         ## Manually corrected access to dict
         calibration_input = check_calibration(

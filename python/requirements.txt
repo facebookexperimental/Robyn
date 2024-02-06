@@ -7,7 +7,6 @@ scipy
 lmfit
 plotnine
 nevergrad
-glmnet
 PyQt6
 nevergrad
 seaborn

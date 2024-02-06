@@ -116,7 +116,6 @@ calibration_input = pd.DataFrame({
   # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
   "calibration_scope": ["immediate", "immediate", "immediate", "immediate"]
 })
-
 input_collect = inputs.robyn_inputs(
     InputCollect = input_collect['robyn_inputs'],
     hyperparameters = hyperparameters,

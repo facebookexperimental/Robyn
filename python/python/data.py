@@ -7,10 +7,10 @@ import pandas as pd
 
 
 def dt_simulated_weekly():
-    csv_file = os.getcwd() + "/../data/dt_simulated_weekly.csv"
+    csv_file = os.getcwd() + "/data/dt_simulated_weekly.csv"
     return pd.read_csv(csv_file)
 
 
 def dt_prophet_holidays():
-    csv_file = os.getcwd() + "/../data/dt_prophet_holidays.csv"
+    csv_file = os.getcwd() + "/data/dt_prophet_holidays.csv"
     return pd.read_csv(csv_file)
