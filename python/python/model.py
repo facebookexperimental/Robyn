@@ -1,5 +1,5 @@
 import time
-from pandas import DataFrame
+import pandas as pd
 import numpy as np
 import nevergrad as ng
 from sklearn.linear_model import lasso_path
@@ -380,12 +380,13 @@ def robyn_mmm(InputCollect,
               seed=123,
               quiet=False, *args, **kwargs):
 
-    try:
-        import nevergrad as ng
-    except ImportError:
-        raise ImportError("You must have the nevergrad python library installed.\n"
-                          "Please check the installation instructions: "
-                          "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R")
+    ## This is not necessary as nevergrad is being used in R with Interface.
+    ## try:
+    ##    import nevergrad as ng
+    ## except ImportError:
+    ##    raise ImportError("You must have the nevergrad python library installed.\n"
+    ##                      "Please check the installation instructions: "
+    ##                      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R")
 
     if isinstance(seed, int):
         np.random.seed(seed)
@@ -393,6 +394,7 @@ def robyn_mmm(InputCollect,
     ################################################
     #### Collect hyperparameters
 
+    ##hypParamSamName = list(hyper_collect['hyper_list_all'].keys())
     hypParamSamName = list(hyper_collect['hyper_list_all'].keys())
     # Optimization hyper-parameters
     hyper_bound_list_updated = hyper_collect['hyper_bound_list_updated']
@@ -408,12 +410,13 @@ def robyn_mmm(InputCollect,
     ################################################
     #### Setup environment
 
-    if InputCollect.get('dt_mod') is None:
+    ##if InputCollect.get('dt_mod') is None:
+    if 'dt_mod' not in InputCollect.keys():
         raise ValueError("Run InputCollect['dt_mod'] = robyn_engineering() first to get the dt_mod")
 
     # Since the condition is always TRUE, we directly assign the variables
     dt_mod = InputCollect['dt_mod']
-    xDecompAggPrev = InputCollect.get('xDecompAggPrev')
+    xDecompAggPrev = InputCollect['xDecompAggPrev']
     rollingWindowStartWhich = InputCollect.get('rollingWindowStartWhich')
     rollingWindowEndWhich = InputCollect.get('rollingWindowEndWhich')
     refreshAddedStart = InputCollect.get('refreshAddedStart')
@@ -1062,13 +1065,15 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, c
     hypParamSamName = hyper_names(adstock=InputCollect['adstock'], all_media=InputCollect['all_media'])
 
     # Manually add other hyper-parameters
-    hypParamSamName.extend(HYPS_OTHERS)
+    ##hypParamSamName.extend(HYPS_OTHERS)
+    hypParamSamName += HYPS_OTHERS
 
     # Add penalty factor hyper-parameters names
+    for_penalty = [col for col in InputCollect['dt_mod'].columns.values if col not in ['ds', 'dep_var']]
     if add_penalty_factor:
-        for_penalty = InputCollect['dt_mod'].drop(columns=['ds', 'dep_var']).columns.tolist()
+        ##for_penalty = InputCollect['dt_mod'].drop(columns=['ds', 'dep_var']).columns.tolist()
         penalty_names = ['penalty_' + name for name in for_penalty]
-        hypParamSamName.extend(penalty_names)
+        hypParamSamName += penalty_names
 
     # Check hyper_fixed condition + add lambda + penalty factor hyper-parameters names
     all_fixed = check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
@@ -1077,61 +1082,88 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, c
         hyper_bound_list = {}
         for param_name in hypParamSamName:
             print("====== param name: {}".format(param_name))
-            hyper_bound_list[param_name] = hyper_in[param_name]
+            if param_name in hyper_in.keys(): ## Added since R automatically creates an empty list don't raise an error
+                hyper_bound_list[param_name] = hyper_in[param_name]
+            else:
+                hyper_bound_list[param_name] = list()
 
         # Add unfixed lambda hyperparameter manually
-        if len(hyper_bound_list.get("lambda", [])) != 1:
+        ##if len(hyper_bound_list.get("lambda", [])) != 1:
+        if len(hyper_bound_list["lambda"]) != 1:
             hyper_bound_list["lambda"] = [0, 1]
 
         # Add unfixed train_size hyperparameter manually
         if ts_validation:
-            if "train_size" not in hyper_bound_list:
+            if "train_size" not in hyper_bound_list.keys():
                 hyper_bound_list["train_size"] = [0.5, 0.8]
             print(f"Time-series validation with train_size range of {hyper_bound_list['train_size'][0]*100}% - {hyper_bound_list['train_size'][1]*100}% of the data...")
         else:
-            if "train_size" in hyper_bound_list:
+            if "train_size" in hyper_bound_list.keys():
                 print("Warning: Provided train_size but ts_validation = FALSE. Time series validation inactive.")
-            hyper_bound_list["train_size"] = 1
+
+            hyper_bound_list["train_size"] = [1]
             print("Fitting time series with all available data...")
 
         # Add unfixed penalty.factor hyperparameters manually
-        for_penalty = InputCollect['dt_mod'].drop(columns=['ds', 'dep_var']).columns.tolist()
+        ## for_penalty = InputCollect['dt_mod'].drop(columns=['ds', 'dep_var']).columns.tolist()
         penalty_names = [name + "_penalty" for name in for_penalty]
         if add_penalty_factor:
             for penalty in penalty_names:
-                if len(hyper_bound_list.get(penalty, [])) != 1:
+                ##if len(hyper_bound_list.get(penalty, [])) != 1:
+                if len(hyper_bound_list[penalty]) != 1:
                     hyper_bound_list[penalty] = [0, 1]
 
         # Get hyperparameters for Nevergrad
-        hyper_bound_list_updated = {k: v for k, v in hyper_bound_list.items() if len(v) == 2}
+        ## hyper_bound_list_updated = {k: v for k, v in hyper_bound_list.items() if len(v) == 2}
+        hyper_bound_list_updated = dict()
+        for key, val in hyper_bound_list.items():
+            if len(val) == 2:
+                hyper_bound_list_updated[key] = val
 
         # Get fixed hyperparameters
-        hyper_bound_list_fixed = {k: v for k, v in hyper_bound_list.items() if len(v) == 1}
+        ##hyper_bound_list_fixed = {k: v for k, v in hyper_bound_list.items() if len(v) == 1}
+        hyper_bound_list_fixed = dict()
+        for key, val in hyper_bound_list.items():
+            if len(val) == 1:
+                hyper_bound_list_fixed[key] = val
 
         # Combine updated and fixed hyperparameters
         hyper_list_bind = {**hyper_bound_list_updated, **hyper_bound_list_fixed}
-        hyper_list_all = {}
+        hyper_list_all = dict() ##{}
         for param_name in hypParamSamName:
-            hyper_list_all[param_name] = hyper_list_bind[param_name]
+            if param_name in hyper_list_bind.keys():
+                hyper_list_all[param_name] = hyper_list_bind[param_name]
+            else:
+                hyper_list_all[param_name] = []
 
         # Prepare a DataFrame for fixed hyperparameters
-        dt_hyper_fixed_mod = pd.DataFrame({k: [v[0]] * cores for k, v in hyper_bound_list_fixed.items()})
+        ##dt_hyper_fixed_mod = pd.DataFrame({k: [v[0]] * cores for k, v in hyper_bound_list_fixed.items()})
+        dt_hyper_fixed_mod = pd.DataFrame(hyper_bound_list_fixed.items())
 
     else:
         # Initialize hyper_bound_list_fixed
         hyper_bound_list_fixed = {}
         for param_name in hypParamSamName:
-            hyper_bound_list_fixed[param_name] = dt_hyper_fixed.get(param_name, [])
+            if param_name in dt_hyper_fixed.columns.values:
+                hyper_bound_list_fixed[param_name] = dt_hyper_fixed[param_name].values.to_list()
+            else:
+                hyper_bound_list_fixed[param_name] = list()
+            ##hyper_bound_list_fixed[param_name] = dt_hyper_fixed.get(param_name, [])
 
         # Update hyper_list_all and hyper_bound_list_updated
-        hyper_list_all = hyper_bound_list_fixed.copy()
-        hyper_bound_list_updated = {k: v for k, v in hyper_bound_list_fixed.items() if len(v) == 2}
+        hyper_list_all = hyper_bound_list_fixed ##.copy()
+        ##hyper_bound_list_updated = {k: v for k, v in hyper_bound_list_fixed.items() if len(v) == 2}
+        hyper_bound_list_updated = dict()
+        for key, val in hyper_bound_list.items():
+            if len(val) == 2:
+                hyper_bound_list_updated[key] = val
 
         # Set cores to 1
         cores = 1
 
         # Prepare a DataFrame for fixed hyperparameters
-        dt_hyper_fixed_mod = pd.DataFrame({k: v for k, v in hyper_bound_list_fixed.items()}, index=[0])
+        ## pd.DataFrame({k: v for k, v in hyper_bound_list_fixed.items()}, index=[0])
+        dt_hyper_fixed_mod = dt_hyper_fixed_mod = pd.DataFrame(hyper_bound_list_fixed.items())
 
     return {
         "hyper_list_all": hyper_list_all,
