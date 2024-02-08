@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "fb-python",
+            "request": "launch",
+            "name": "Launch a python script",
+            "program": "${file}",
+            "console": "internalConsole",
+            "python": "/usr/local/bin/python3",
+            "env": {"PYTHONPATH": "/Users/sandeepmane/Documents/GitHub/Robyn/python", "PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "99999"},
+            "guiEventLoop": "none"
+        },
+        {
+            "type": "fb-python",
+            "request": "attach",
+            "name": "Attach to a running Python process",
+            "processId": "${command:pickProcess}",
+            "subProcess": true,
+            "justMyCode": true,
+            "redirectOutput": true,
+            "terminateDebuggee": false
+        },
+        {
+            "type": "fb-python",
+            "request": "attach",
+            "name": "Attach to the uWSGI worker process",
+            "processId": "${command:pickUWSGIWorkerProcess}",
+            "subProcess": true,
+            "justMyCode": true,
+            "redirectOutput": true,
+            "terminateDebuggee": false
+        }
+    ]
+}
