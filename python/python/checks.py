@@ -3,11 +3,12 @@ import numpy as np
 import re
 import datetime
 import warnings
-import inspect
+
 from itertools import chain
 import os
-#import lares
+
 from datetime import datetime, timedelta
+import platform
 
 OPTS_PDN = ["positive", "negative", "default"]
 
@@ -826,11 +827,13 @@ def check_hyper_fixed(input_collect, dt_hyper_fixed, add_penalty_factor):
 
 
 def check_parallel():
-    return 'unix' in platform().OS.type
+    ##return 'unix' in platform().OS.type
+    return platform.system() == 'Linux' or platform.system() == 'Darwin'
 
 
 def check_parallel_plot():
-    return 'Darwin' not in Sys.info()['sysname']
+    ##return 'Darwin' not in Sys.info()['sysname']
+    return platform.system() != 'Darwin'
 
 
 def check_init_msg(input_collect, cores):
