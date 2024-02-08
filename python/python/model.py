@@ -21,6 +21,7 @@ from .outputs import robyn_outputs
 
 ## Manually added
 from time import gmtime, strftime
+from scipy.stats import uniform
 
 def robyn_run(InputCollect=None,
               dt_hyper_fixed=None,
@@ -532,19 +533,19 @@ def robyn_mmm(InputCollect,
             nevergrad_hp = {}
             nevergrad_hp_val = {}
             hypParamSamList = []
-            hypParamSamNG = None
+            hypParamSamNG = dict()
 
             ##if not hyper_fixed:
             if hyper_fixed['hyper_fixed'] == False:
-
                 # Setting initial seeds (co = cores)
-                for co in range(1, iterPar + 1):  # co = 1
-                ##for co in range(0, iterPar):  # co = 1
+                ##for co in range(1, iterPar + 1):  # co = 1
+                for co in range(0, iterPar):  # co = 1
                     # Get hyperparameter sample with ask (random)
                     nevergrad_hp[co] = optimizer.ask()
                     nevergrad_hp_val[co] = nevergrad_hp[co].value
 
                     # Scale sample to given bounds using uniform distribution
+                    ## [True if var in hyper_bound_list_updated_name else False for var in hyper_bound_list_updated.keys()]
                     for hypNameLoop in hyper_bound_list_updated_name:
                         index = hyper_bound_list_updated_name.index(hypNameLoop)
                         channelBound = hyper_bound_list_updated[hypNameLoop]
@@ -552,11 +553,12 @@ def robyn_mmm(InputCollect,
                         hyppar_value = round(nevergrad_hp_val[co][index], 10)
 
                         if len(channelBound) > 1:
-                            hypParamSamNG[hypNameLoop] = uniform(hyppar_value, min(channelBound), max(channelBound))
+                            ##hypParamSamNG[hypNameLoop] = uniform(hyppar_value, min(channelBound), max(channelBound))
+                            hypParamSamNG[hypNameLoop] = uniform.ppf(hyppar_value, loc=min(channelBound), scale=2*max(channelBound))
                         else:
                             hypParamSamNG[hypNameLoop] = hyppar_value
 
-                    hypParamSamList.append(pd.DataFrame(hypParamSamNG).T)
+                    hypParamSamList.append(pd.DataFrame(hypParamSamNG, index=[0])) ## .T)
 
                 hypParamSamNG = pd.concat(hypParamSamList, ignore_index=True)
                 hypParamSamNG.columns = hyper_bound_list_updated_name
