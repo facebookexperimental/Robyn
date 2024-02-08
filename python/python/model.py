@@ -439,7 +439,7 @@ def robyn_mmm(InputCollect,
     ################################################
     #### Get spend share
 
-    dt_inputTrain = InputCollect['dt_input'].iloc[rollingWindowStartWhich:rollingWindowEndWhich]
+    dt_inputTrain = InputCollect['dt_input'].iloc[(rollingWindowStartWhich-1):rollingWindowEndWhich]
     temp = dt_inputTrain[paid_media_spends]
     dt_spendShare = pd.DataFrame({
         'rn': paid_media_spends,
@@ -449,8 +449,11 @@ def robyn_mmm(InputCollect,
     dt_spendShare['spend_share'] = dt_spendShare['total_spend'] / dt_spendShare['total_spend'].sum()
 
     # When not refreshing, dt_spendShareRF = dt_spendShare
-    refreshAddedStartWhich = dt_modRollWind[dt_modRollWind['ds'] == refreshAddedStart].index[0]
-    temp = dt_inputTrain[paid_media_spends].iloc[refreshAddedStartWhich:rollingWindowLength]
+    ## refreshAddedStartWhich = dt_modRollWind[dt_modRollWind['ds'] == refreshAddedStart].index[0]
+    ## Return the index which is equal to refreshAddedStart
+    refreshAddedStartWhich = dt_modRollWind.index[dt_modRollWind['ds'] == refreshAddedStart].tolist()[0] - (rollingWindowStartWhich-1)
+
+    temp = dt_inputTrain[paid_media_spends].iloc[(refreshAddedStartWhich):rollingWindowLength]
     dt_spendShareRF = pd.DataFrame({
         'rn': paid_media_spends,
         'total_spend': temp.sum(),
@@ -459,25 +462,29 @@ def robyn_mmm(InputCollect,
     dt_spendShareRF['spend_share'] = dt_spendShareRF['total_spend'] / dt_spendShareRF['total_spend'].sum()
 
     # Join both dataframes into a single one
-    dt_spendShare = dt_spendShare.merge(dt_spendShareRF, on='rn', suffixes=('', '_refresh'))
+    ##dt_spendShare = dt_spendShare.merge(dt_spendShareRF, on='rn', suffixes=('', '_refresh'))
+    dt_spendShare = dt_spendShare.join(dt_spendShareRF, on='rn', how='left', rsuffix='_refresh')
 
     ################################################
     #### Get lambda
 
     lambda_min_ratio = 0.0001  # default value from glmnet
     # Assuming dt_mod is a DataFrame and dep_var is the name of the dependent variable column
-    X = dt_mod.drop(columns=['ds', 'dep_var'])
-    y = dt_mod['dep_var']
+    ##X = dt_mod[drop(columns=['ds', 'dep_var'])
+    select_columns = [col for col in dt_mod.columns.values if col not in ['ds', 'dep_var']]
+    X = dt_mod[select_columns].to_numpy()
+    y = dt_mod[['dep_var']].to_numpy()
     # Generate a sequence of lambdas for regularization
-    lambdas = lasso_path(X, y)[0]  # lasso_path returns alphas which are equivalent to lambdas
-    lambda_max = max(lambdas) * 0.1
+    lambdas = lasso_path(X, y, eps=lambda_min_ratio)[0]  # lasso_path returns alphas which are equivalent to lambdas
+    lambda_max = lambdas.max() * 0.1
     lambda_min = lambda_max * lambda_min_ratio
 
     # Start Nevergrad loop
     t0 = time.time()
 
     # Set iterations
-    if not hyper_fixed:
+    ##if not hyper_fixed:
+    if hyper_fixed['hyper_fixed'] == False:
         iterTotal = iterations
         iterPar = cores
         iterNG = int(np.ceil(iterations / cores))  # Sometimes the progress bar may not get to 100%
@@ -485,7 +492,8 @@ def robyn_mmm(InputCollect,
         iterTotal = iterPar = iterNG = 1
 
     # Start Nevergrad optimizer
-    if not hyper_fixed:
+    ##if not hyper_fixed:
+    if hyper_fixed['hyper_fixed'] == False:
         my_tuple = tuple([hyper_count])
         instrumentation = ng.p.Array(shape=my_tuple, lower=0, upper=1)
         optimizer = optimizerlib.registry[optimizer_name](instrumentation, budget=iterTotal, num_workers=cores)
@@ -510,8 +518,11 @@ def robyn_mmm(InputCollect,
     cnt = 0
     pb = None
 
-    if not hyper_fixed and not quiet:
-        pb = range(iter_total)
+    ##if not hyper_fixed and not quiet:
+    ## May not be necessary since tqdm is used.
+    if hyper_fixed['hyper_fixed'] == False and quiet == False:
+        ##pb = range(iter_total)
+        pb = range(iterTotal)
 
     sys_time_dopar = None
 
@@ -523,14 +534,12 @@ def robyn_mmm(InputCollect,
             hypParamSamList = []
             hypParamSamNG = None
 
-            if not hyper_fixed:
-                nevergrad_hp = {}
-                nevergrad_hp_val = {}
-                hypParamSamList = []
-                hypParamSamNG = None
+            ##if not hyper_fixed:
+            if hyper_fixed['hyper_fixed'] == False:
 
                 # Setting initial seeds (co = cores)
                 for co in range(1, iterPar + 1):  # co = 1
+                ##for co in range(0, iterPar):  # co = 1
                     # Get hyperparameter sample with ask (random)
                     nevergrad_hp[co] = optimizer.ask()
                     nevergrad_hp_val[co] = nevergrad_hp[co].value
@@ -559,6 +568,12 @@ def robyn_mmm(InputCollect,
             else:
                 hypParamSamNG = dt_hyper_fixed_mod[hypParamSamName]
 
+            # Initialize lists to collect results
+            nrmse_collect = []
+            decomp_rssd_collect = []
+            mape_lift_collect = []
+
+            ## TODO: Take robyn_iterations out of the robyn_mmm and pass data and collect it , little bit parallel programming
             def robyn_iterations(i, *args):  # i=1
                 t1 = time.time()
 
@@ -621,7 +636,8 @@ def robyn_mmm(InputCollect,
                 # lambdas = lambda_seq(x_train, y_train, seq_len=100, lambda_min_ratio=0.0001)
                 # lambda_max = max(lambdas)
                 lambda_hp = float(hypParamSamNG['lambda'].iloc[i])
-                if not hyper_fixed:
+                ##if not hyper_fixed:
+                if hyper_fixed['hyper_fixed'] == False:
                     lambda_scaled = lambda_min + (lambda_max - lambda_min) * lambda_hp
                 else:
                     lambda_scaled = lambda_hp
@@ -764,23 +780,19 @@ def robyn_mmm(InputCollect,
             def run_robyn_iterations(i):
                 return robyn_iterations(i)
 
-            # Initialize lists to collect results
-            nrmse_collect = []
-            decomp_rssd_collect = []
-            mape_lift_collect = []
-
             # Parallel processing
             if cores == 1:
                 dopar_collect = [run_robyn_iterations(i) for i in range(1, iterPar + 1)]
             else:
                 # Create a pool of worker processes
-                if check_parallel() and not hyper_fixed:
+                if check_parallel() and hyper_fixed['hyper_fixed'] == False: ##not hyper_fixed:
                     pool = multiprocessing.Pool(processes=cores)
                 else:
                     pool = multiprocessing.Pool(processes=1)
 
                 # Use the pool to run robyn_iterations in parallel
-                dopar_collect = pool.map(run_robyn_iterations, range(1, iterPar + 1))
+                ##dopar_collect = pool.map(run_robyn_iterations, range(1, iterPar + 1))
+                dopar_collect = pool.map(robyn_iterations, range(1, iterPar + 1))
                 pool.close()
                 pool.join()
 
@@ -791,7 +803,8 @@ def robyn_mmm(InputCollect,
                 mape_lift_collect.append(result['mape'])
 
             # Update optimizer objectives if not hyper_fixed
-            if not hyper_fixed:
+            ##if not hyper_fixed:
+            if hyper_fixed['hyper_fixed'] == False:
                 if calibration_input is None:
                     for co in range(1, iterPar + 1):
                         optimizer.tell(nevergrad_hp[co - 1], tuple(nrmse_collect[co - 1], decomp_rssd_collect[co - 1]))
@@ -803,7 +816,8 @@ def robyn_mmm(InputCollect,
 
             if not quiet:
                 cnt += iterPar
-                if not hyper_fixed:
+                ##if not hyper_fixed:
+                if hyper_fixed['hyper_fixed'] == False:
                     setTxtProgressBar(pb, cnt)
 
     except Exception as err:
@@ -820,7 +834,8 @@ def robyn_mmm(InputCollect,
     register_do_seq()
     get_do_par_workers()
 
-    if not hyper_fixed:
+    ##if not hyper_fixed:
+    if hyper_fixed['hyper_fixed'] == False:
         print("\r", f"\n  Finished in {round(sys_time_dopar[2] / 60, 2)} mins")
         flush_console()
 
