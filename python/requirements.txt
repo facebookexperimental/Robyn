@@ -10,3 +10,4 @@ nevergrad
 PyQt6
 nevergrad
 seaborn
+tqdm
