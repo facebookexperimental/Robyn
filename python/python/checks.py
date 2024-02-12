@@ -837,17 +837,25 @@ def check_parallel_plot():
 
 
 def check_init_msg(input_collect, cores):
-    opt = sum(lapply(input_collect.hyper_updated, len) == 2)
-    fix = sum(lapply(input_collect.hyper_updated, len) == 1)
+    ## opt = sum(lapply(input_collect['hyper_updated'], len) == 2)
+    ## fix = sum(lapply(input_collect.hyper_updated, len) == 1)
+    opt = 0
+    fix = 0
+    for key, value in input_collect['hyper_updated'].items():
+        if len(value) == 2:
+            opt += 1
+        elif len(value) == 1:
+            fix += 1
+
     det = f"({opt} to iterate + {fix} fixed)"
-    base = f"Using {input_collect.adstock} adstocking with {len(input_collect.hyper_updated)} hyperparameters {det}"
+    base = f"Using {input_collect['adstock']} adstocking with {len(input_collect['hyper_updated'])} hyperparameters {det}"
     if cores == 1:
-        print(base + "with no parallel computation")
+        print(base + " with no parallel computation")
     else:
         if check_parallel():
-            print(base + "on " + str(cores) + " cores")
+            print(base + " on " + str(cores) + " cores")
         else:
-            print(base + "on 1 core (Windows fallback)")
+            print(base + " on 1 core (Windows fallback)")
 
 
 def check_class(x: list, object):

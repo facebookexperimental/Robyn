@@ -8,6 +8,8 @@ from matplotlib.ticker import FuncFormatter
 from plotnine import ggplot, aes, labs, geom_point, geom_line, theme_gray, geom_hline, geom_text, facet_grid
 import sklearn
 
+from .checks import check_adstock
+
 def mic_men(x, Vmax, Km, reverse=False):
     """
     Mic_men function
@@ -23,19 +25,30 @@ def adstock_geometric(x, theta):
     """
     Adstock geometric function
     """
-    if len(theta) != 1:
-        raise ValueError("Length of theta should be 1")
+    ##if len(theta) != 1:
+    if theta is None:
+        ##raise ValueError("Length of theta should be 1")
+        raise ValueError("Theta can not be Null")
+
     if len(x) > 1:
-        x_decayed = np.array([x[0], 0] * (len(x) - 1))
-        for i in range(2, len(x)):
-            x_decayed[i] = x[i] + theta * x_decayed[i - 1]
-        thetaVecCum = np.array([theta])
-        for i in range(2, len(x)):
-            thetaVecCum[i] = thetaVecCum[i - 1] * theta
+        ## x_decayed = np.array([x[0], 0] * (len(x) - 1))
+        x_decayed = list()
+        x_decayed.append(x[0])
+        x_decayed.extend(np.repeat(0, len(x) - 1))
+        for i in range(1, len(x)):
+            x_decayed[i] = x[i][0] + theta * x_decayed[i - 1]
+        thetaVecCum = list()
+        thetaVecCum.append(theta)
+        for i in range(1, len(x)):
+            thetaVecCum.append(thetaVecCum[i - 1] * theta)
     else:
-        x_decayed = x
-        thetaVecCum = np.array([theta])
+        x_decayed = [val[0] for val in x]
+        ##thetaVecCum = np.array([theta])
+        thetaVecCum = list()
+        thetaVecCum.append(theta)
+
     inflation_total = np.sum(x_decayed) / np.sum(x)
+
     return pd.DataFrame(
         {
             "x": x,
@@ -165,6 +178,7 @@ def saturation_hill(x, alpha, gamma, x_marginal=None):
     """
     Implements the saturation hill function.
     """
+    ## No need to length check for alpha and gamma since they are numbers not like lists in R
     if x_marginal is None:
         x_scurve = x**alpha / (x**alpha + np.power(np.inf, alpha))
     else:
@@ -360,8 +374,11 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
     all_media = input_collect["all_media"]
 
     # Extract the rolling window start and end indices
-    rolling_window_start_which = input_collect["rolling_window_start_which"]
-    rolling_window_end_which = input_collect["rolling_window_end_which"]
+    rolling_window_start_which = input_collect["rollingWindowStartWhich"]
+    rolling_window_end_which = input_collect["rollingWindowEndWhich"]
+
+    select_columns = [column for column in input_collect['dt_mod'].columns if column != 'ds']
+    dt_modAdstocked = input_collect['dt_mod'][select_columns]
 
     # Create a list to store the media adstocked data
     media_adstocked = []
@@ -371,6 +388,9 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
 
     # Create a list to store the media carryover data
     media_carryover = []
+
+    # Create a list to store the media cumulative data
+    media_vec_cum = []
 
     # Create a list to store the media saturated data
     media_saturated = []
@@ -386,21 +406,30 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
         # Extract the media name
         media = all_media[v]
 
+        m = list(dt_modAdstocked[[media]].values)
+        theta = shape = scale = None
         # Extract the adstocking parameters for this media
-        theta = hyp_param_sam[f"{media}_thetas"][0]
-        shape = hyp_param_sam[f"{media}_shapes"][0]
-        scale = hyp_param_sam[f"{media}_scales"][0]
+        if adstock == "geometric":
+            theta = hyp_param_sam[f"{media}_thetas"]##[0]
+
+        if adstock.startswith('weibull'):
+            shape = hyp_param_sam[f"{media}_shapes"]##[0]
+            scale = hyp_param_sam[f"{media}_scales"]##[0]
 
         # Calculate the adstocked response
         x_list = transform_adstock(
-            input_collect[media], adstock, theta=theta, shape=shape, scale=scale
+            m, adstock, theta=theta, shape=shape, scale=scale
         )
 
+        m_adstocked = x_list["x_decayed"]
         # Store the adstocked data for this media
-        media_adstocked.append(x_list["x_decayed"])
+        media_adstocked.append(m_adstocked)
 
         # Calculate the immediate response
-        m_imme = x_list["x_imme"]
+        if adstock == "weibull_pdf":
+            m_imme = x_list["x_imme"]
+        else:
+            m_imme = m
 
         # Calculate the carryover response
         m_carryover = x_list["x_decayed"] - m_imme
@@ -408,29 +437,39 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
         # Store the immediate and carryover data for this media
         media_immediate.append(m_imme)
         media_carryover.append(m_carryover)
+        media_vec_cum.append(x_list["thetaVecCum"])
+
+        m_adstockedRollWind <- m_adstocked[(rollingWindowStartWhich-1):(rollingWindowEndWhich-1)]
+        m_carryoverRollWind <- m_carryover[(rollingWindowStartWhich-1):(rollingWindowEndWhich-1)]
 
         # Calculate the saturated response
-        alpha = hyp_param_sam[f"{media}_alphas"][0]
-        gamma = hyp_param_sam[f"{media}_gammas"][0]
-        media_saturated.append(saturation_hill(m_imme, alpha, gamma))
-
-        # Calculate the saturated immediate response
-        media_saturated_immediate.append(media_saturated[v] - media_carryover[v])
+        alpha = hyp_param_sam[f"{media}_alphas"] ##[0]
+        gamma = hyp_param_sam[f"{media}_gammas"] ##[0]
+        media_saturated.append(saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma))
 
         # Calculate the saturated carryover response
-        media_saturated_carryover.append(media_carryover[v])
+        media_saturated_carryover.append(saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind))
+
+        # Calculate the saturated immediate response
+        media_saturated_immediate.append(media_saturated[v] - media_saturated_carryover[v])
+
+    ## TODO:
 
     # Create a dataframe with the media data
-    media_df = pd.DataFrame(
-        {
-            "media": all_media,
-            "adstocked": media_adstocked,
-            "immediate": media_immediate,
-            "carryover": media_carryover,
-            "saturated": media_saturated,
-            "saturated_immediate": media_saturated_immediate,
-            "saturated_carryover": media_saturated_carryover,
-        }
-    )
+    ## media_df = pd.DataFrame(
+    ##    {
+    ##        "media": all_media,
+    ##        "adstocked": media_adstocked,
+    ##        "immediate": media_immediate,
+    ##        "carryover": media_carryover,
+    ##        "saturated": media_saturated,
+    ##        "saturated_immediate": media_saturated_immediate,
+    ##        "saturated_carryover": media_saturated_carryover,
+    ##    }
+    ##)
 
-    return media_df
+    return {
+        "dt_modSaturated": dt_modSaturated,
+        "dt_saturatedImmediate": dt_saturatedImmediate,
+        "dt_saturatedCarryover": dt_saturatedCarryover
+    }

@@ -15,13 +15,16 @@ import logging
 
 ## Robyn imports
 from .inputs import hyper_names
-from .checks import check_hyper_fixed, check_legacy_input, check_run_inputs, check_iteration, check_obj_weight, LEGACY_PARAMS, HYPS_OTHERS
+from .checks import check_hyper_fixed, check_legacy_input, check_run_inputs, check_iteration, check_obj_weight, LEGACY_PARAMS, HYPS_OTHERS, check_adstock, check_parallel, check_init_msg
 from .json import robyn_read ## name conflict?
 from .outputs import robyn_outputs
+from .transformation import run_transformations
+from .calibration import robyn_calibrate
 
 ## Manually added
 from time import gmtime, strftime
 from scipy.stats import uniform
+from itertools import repeat
 
 def robyn_run(InputCollect=None,
               dt_hyper_fixed=None,
@@ -274,7 +277,7 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
                 rssd_zero_penalty=True, refresh=False, seed=123, quiet=False):
     hyper_fixed = hyper_collect['all_fixed']
 
-    if hyper_fixed:
+    if hyper_fixed['hyper_fixed'] == True:
         OutputModels = []
         OutputModels.append(robyn_mmm(
             InputCollect=InputCollect,
@@ -303,7 +306,7 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
         # Run robyn_mmm() for each trial if hyperparameters are not all fixed
         check_init_msg(InputCollect, cores)
         if not quiet:
-            calibration_phrase = "with calibration using" if InputCollect.get('calibration_input') else "using"
+            calibration_phrase = "with calibration using" if InputCollect['calibration_input'] is not None else "using"
             print(f">>> Starting {trials} trials with {iterations} iterations each {calibration_phrase} {nevergrad_algo} nevergrad algorithm...")
 
         OutputModels = []
@@ -379,7 +382,7 @@ def robyn_mmm(InputCollect,
               refresh=False,
               trial=1,
               seed=123,
-              quiet=False, *args, **kwargs):
+              quiet=False):
 
     ## This is not necessary as nevergrad is being used in R with Interface.
     ## try:
@@ -575,216 +578,17 @@ def robyn_mmm(InputCollect,
             decomp_rssd_collect = []
             mape_lift_collect = []
 
-            ## TODO: Take robyn_iterations out of the robyn_mmm and pass data and collect it , little bit parallel programming
-            def robyn_iterations(i, *args):  # i=1
-                t1 = time.time()
-
-                # Get hyperparameter sample
-                hypParamSam = hypParamSamNG.iloc[i - 1]  # Adjusted for 0-based indexing
-
-                # Check and transform adstock
-                adstock = check_adstock(adstock)
-
-                # Transform media for model fitting
-                temp = run_transformations(InputCollect, hypParamSam, adstock)
-                dt_modSaturated = temp['dt_modSaturated']
-                dt_saturatedImmediate = temp['dt_saturatedImmediate']
-                dt_saturatedCarryover = temp['dt_saturatedCarryover']
-
-                # Split train & test and prepare data for modeling
-                dt_window = dt_modSaturated
-
-                # Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
-                y_window = dt_window['dep_var']
-                x_window = lares.ohse(dt_window.drop('dep_var', axis=1)).values  # Assuming ohse returns a DataFrame
-
-                y_train = y_val = y_test = y_window
-                x_train = x_val = x_test = x_window
-
-                train_size = hypParamSam['train_size'].values[0]
-                val_size = test_size = (1 - train_size) / 2
-                if train_size < 1:
-                    train_size_index = int(train_size * len(dt_window))
-                    val_size_index = train_size_index + int(val_size * len(dt_window))
-                    y_train = y_window[:train_size_index]
-                    y_val = y_window[train_size_index:val_size_index]
-                    y_test = y_window[val_size_index:]
-                    x_train = x_window[:train_size_index, :]
-                    x_val = x_window[train_size_index:val_size_index, :]
-                    x_test = x_window[val_size_index:, :]
-                else:
-                    y_val = y_test = x_val = x_test = None
-
-                # Define and set sign control
-                dt_sign = dt_window.drop('dep_var', axis=1)
-                x_sign = prophet_signs + context_signs + paid_media_signs + organic_signs
-                check_factor = dt_sign.applymap(lambda x: isinstance(x, pd.CategoricalDtype))
-                lower_limits = [0] * len(prophet_signs)
-                upper_limits = [1] * len(prophet_signs)
-                for s in range(len(prophet_signs), len(x_sign)):
-                    if check_factor[s]:
-                        level_n = len(dt_sign.iloc[:, s].astype('category').cat.categories)
-                        if level_n <= 1:
-                            raise ValueError("All factor variables must have more than 1 level")
-                        lower_vec = [0] * (level_n - 1) if x_sign[s] == "positive" else [-float('inf')] * (level_n - 1)
-                        upper_vec = [0] * (level_n - 1) if x_sign[s] == "negative" else [float('inf')] * (level_n - 1)
-                        lower_limits.extend(lower_vec)
-                        upper_limits.extend(upper_vec)
-                    else:
-                        lower_limits.append(0 if x_sign[s] == "positive" else -float('inf'))
-                        upper_limits.append(0 if x_sign[s] == "negative" else float('inf'))
-
-                # Fit ridge regression with nevergrad's lambda
-                # lambdas = lambda_seq(x_train, y_train, seq_len=100, lambda_min_ratio=0.0001)
-                # lambda_max = max(lambdas)
-                lambda_hp = float(hypParamSamNG['lambda'].iloc[i])
-                ##if not hyper_fixed:
-                if hyper_fixed['hyper_fixed'] == False:
-                    lambda_scaled = lambda_min + (lambda_max - lambda_min) * lambda_hp
-                else:
-                    lambda_scaled = lambda_hp
-
-                if add_penalty_factor:
-                    penalty_factor = hypParamSamNG.iloc[i, [col.endswith("_penalty") for col in hypParamSamNG.columns]]
-                else:
-                    penalty_factor = [1] * x_train.shape[1]
-
-                mod_out = model_refit(
-                    x_train, y_train,
-                    x_val, y_val,
-                    x_test, y_test,
-                    lambda_scaled,
-                    lower_limits,
-                    upper_limits,
-                    intercept,
-                    intercept_sign,
-                    penalty_factor,
-                    *args
-                )
-
-                decompCollect = model_decomp(
-                    coefs=mod_out["coefs"],
-                    y_pred=mod_out["y_pred"],
-                    dt_modSaturated=dt_modSaturated,
-                    dt_saturatedImmediate=dt_saturatedImmediate,
-                    dt_saturatedCarryover=dt_saturatedCarryover,
-                    dt_modRollWind=dt_modRollWind,
-                    refreshAddedStart=refreshAddedStart
-                )
-
-                nrmse = mod_out["nrmse_val"] if ts_validation else mod_out["nrmse_train"]
-                mape = 0
-                df_int = mod_out["df.int"]
-
-                # MAPE: Calibration error
-                if calibration_input is not None:
-                    liftCollect = robyn_calibrate(
-                        calibration_input=calibration_input,
-                        df_raw=dt_mod,
-                        hypParamSam=hypParamSam,
-                        wind_start=rollingWindowStartWhich,
-                        wind_end=rollingWindowEndWhich,
-                        dayInterval=InputCollect["dayInterval"],
-                        adstock=adstock,
-                        xDecompVec=decompCollect["xDecompVec"],
-                        coefs=decompCollect["coefsOutCat"]
-                    )
-                    mape = liftCollect["mape_lift"].mean()
-
-                # Filter and select relevant columns from decompCollect$xDecompAgg
-                dt_decompSpendDist = decompCollect["xDecompAgg"][decompCollect["xDecompAgg"]["rn"].isin(paid_media_spends)]
-                dt_decompSpendDist = dt_decompSpendDist[[
-                    "rn", "xDecompAgg", "xDecompPerc", "xDecompMeanNon0Perc",
-                    "xDecompMeanNon0", "xDecompPercRF", "xDecompMeanNon0PercRF",
-                    "xDecompMeanNon0RF"
-                ]]
-
-                # Join dt_decompSpendDist with relevant columns from dt_spendShare
-                dt_decompSpendDist = dt_decompSpendDist.merge(
-                    dt_spendShare[["rn", "spend_share", "spend_share_refresh", "mean_spend", "total_spend"]],
-                    on="rn"
-                )
-
-                # Calculate effect_share and effect_share_refresh
-                dt_decompSpendDist["effect_share"] = dt_decompSpendDist["xDecompPerc"] / dt_decompSpendDist["xDecompPerc"].sum()
-                dt_decompSpendDist["effect_share_refresh"] = dt_decompSpendDist["xDecompPercRF"] / dt_decompSpendDist["xDecompPercRF"].sum()
-
-                if not refresh:
-                    decomp_rssd = sqrt(sum((dt_decompSpendDist["effect_share"] - dt_decompSpendDist["spend_share"])**2))
-
-                    # Penalty for models with more 0-coefficients
-                    if rssd_zero_penalty:
-                        is_0eff = (dt_decompSpendDist["effect_share"].round(4) == 0)
-                        share_0eff = sum(is_0eff) / len(dt_decompSpendDist["effect_share"])
-                        decomp_rssd = decomp_rssd * (1 + share_0eff)
-                else:
-                    dt_decompRF = dt_decompSpendDist[["rn", "effect_share"]].merge(
-                        xDecompAggPrev[["rn", "decomp_perc_prev"]],
-                        on="rn"
-                    )
-                    decomp_rssd_media = dt_decompRF[dt_decompRF["rn"].isin(paid_media_spends)]["decomp_perc"].mean()
-                    decomp_rssd_nonmedia = dt_decompRF[~dt_decompRF["rn"].isin(paid_media_spends)]["decomp_perc"].mean()
-                    decomp_rssd = decomp_rssd_media + decomp_rssd_nonmedia / (1 - refresh_steps / rollingWindowLength)
-
-                # Handle the case when all media in this iteration have 0 coefficients
-                if math.isnan(decomp_rssd):
-                    decomp_rssd = math.inf
-                    dt_decompSpendDist["effect_share"] = 0
-
-                # Initialize resultCollect list
-                resultCollect = []
-
-                # Create a common DataFrame with shared values
-                common = pd.DataFrame({
-                    "rsq_train": mod_out["rsq_train"],
-                    "rsq_val": mod_out["rsq_val"],
-                    "rsq_test": mod_out["rsq_test"],
-                    "nrmse_train": mod_out["nrmse_train"],
-                    "nrmse_val": mod_out["nrmse_val"],
-                    "nrmse_test": mod_out["nrmse_test"],
-                    "nrmse": nrmse,
-                    "decomp.rssd": decomp_rssd,
-                    "mape": mape,
-                    "lambda": lambda_scaled,
-                    "lambda_hp": lambda_hp,
-                    "lambda_max": lambda_max,
-                    "lambda_min_ratio": lambda_min_ratio,
-                    "solID": f"{trial}_{lng}_{i}",
-                    "trial": trial,
-                    "iterNG": lng,
-                    "iterPar": i
-                })
-
-                total_common = common.shape[1]
-                split_common = common.columns.get_loc("lambda_min_ratio")
-
-                # Add common data to resultCollect
-                resultCollect["resultHypParam"] = hypParamSam.drop(columns=["lambda"]).join(
-                    common.iloc[:, :split_common]
-                ).assign(
-                    pos=lambda x: x["xDecompAgg"]["pos"].prod(),
-                    Elapsed=pd.to_numeric((pd.Timestamp.now() - t1).total_seconds()),
-                    ElapsedAccum=pd.to_numeric((pd.Timestamp.now() - t0).total_seconds())
-                ).join(
-                    common.iloc[:, split_common + 1:total_common]
-                ).apply(pd.Series.unstack).reset_index()
-
-                resultCollect["xDecompAgg"] = decompCollect["xDecompAgg"].assign(train_size=train_size).join(common)
-
-                if liftCollect is not None:
-                    resultCollect["liftCalibration"] = liftCollect.join(common)
-
-                resultCollect["decompSpendDist"] = dt_decompSpendDist.join(common)
-                resultCollect.update(common.to_dict())
-                return resultCollect
-
+            ## robyn_iterations()
             # Define a function to run robyn_iterations
-            def run_robyn_iterations(i):
-                return robyn_iterations(i)
+            ## def run_robyn_iterations(i):
+            ##   return robyn_iterations(i)
 
+            robyn_iterations_args = [InputCollect, hypParamSamNG, adstock]
+            cores = 1 ## TODO Remove
             # Parallel processing
             if cores == 1:
-                dopar_collect = [run_robyn_iterations(i) for i in range(1, iterPar + 1)]
+                ##dopar_collect = [run_robyn_iterations(i) for i in range(1, iterPar + 1)]
+                dopar_collect = [robyn_iterations(i, robyn_iterations_args[0], robyn_iterations_args[1], robyn_iterations_args[2]) for i in range(1, iterPar + 1)]
             else:
                 # Create a pool of worker processes
                 if check_parallel() and hyper_fixed['hyper_fixed'] == False: ##not hyper_fixed:
@@ -794,7 +598,7 @@ def robyn_mmm(InputCollect,
 
                 # Use the pool to run robyn_iterations in parallel
                 ##dopar_collect = pool.map(run_robyn_iterations, range(1, iterPar + 1))
-                dopar_collect = pool.map(robyn_iterations, range(1, iterPar + 1))
+                dopar_collect = pool.map(robyn_iterations, zip(range(1, iterPar + 1), repeat(robyn_iterations_args[0]), repeat(robyn_iterations_args[1]), repeat(robyn_iterations_args[2])))
                 pool.close()
                 pool.join()
 
@@ -832,9 +636,10 @@ def robyn_mmm(InputCollect,
             raise err
 
     # Stop the cluster to avoid memory leaks
-    stop_implicit_cluster()
-    register_do_seq()
-    get_do_par_workers()
+    ## TODO: Is it necessary for Python?
+    ## stop_implicit_cluster()
+    ## register_do_seq()
+    ## get_do_par_workers()
 
     ##if not hyper_fixed:
     if hyper_fixed['hyper_fixed'] == False:
@@ -888,6 +693,215 @@ def robyn_mmm(InputCollect,
         "hyperBoundNG": hyper_bound_list_updated,
         "hyperBoundFixed": hyper_bound_list_fixed,
     }
+
+
+def robyn_iterations(iteration,
+                     InputCollect,
+                     hypParamSamNG,
+                     adstock):  # i=1
+    t1 = time.time()
+    i = iteration
+
+    # Get hyperparameter sample
+    hypParamSam = hypParamSamNG.iloc[i - 1]  # Adjusted for 0-based indexing
+
+    # Check and transform adstock
+    adstock = check_adstock(adstock)
+
+    # Transform media for model fitting
+    temp = run_transformations(InputCollect, hypParamSam, adstock)
+    dt_modSaturated = temp['dt_modSaturated']
+    dt_saturatedImmediate = temp['dt_saturatedImmediate']
+    dt_saturatedCarryover = temp['dt_saturatedCarryover']
+
+    # Split train & test and prepare data for modeling
+    dt_window = dt_modSaturated
+
+    # Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
+    y_window = dt_window['dep_var']
+    x_window = lares.ohse(dt_window.drop('dep_var', axis=1)).values  # Assuming ohse returns a DataFrame
+
+    y_train = y_val = y_test = y_window
+    x_train = x_val = x_test = x_window
+
+    train_size = hypParamSam['train_size'].values[0]
+    val_size = test_size = (1 - train_size) / 2
+    if train_size < 1:
+        train_size_index = int(train_size * len(dt_window))
+        val_size_index = train_size_index + int(val_size * len(dt_window))
+        y_train = y_window[:train_size_index]
+        y_val = y_window[train_size_index:val_size_index]
+        y_test = y_window[val_size_index:]
+        x_train = x_window[:train_size_index, :]
+        x_val = x_window[train_size_index:val_size_index, :]
+        x_test = x_window[val_size_index:, :]
+    else:
+        y_val = y_test = x_val = x_test = None
+
+    # Define and set sign control
+    dt_sign = dt_window.drop('dep_var', axis=1)
+    x_sign = prophet_signs + context_signs + paid_media_signs + organic_signs
+    check_factor = dt_sign.applymap(lambda x: isinstance(x, pd.CategoricalDtype))
+    lower_limits = [0] * len(prophet_signs)
+    upper_limits = [1] * len(prophet_signs)
+    for s in range(len(prophet_signs), len(x_sign)):
+        if check_factor[s]:
+            level_n = len(dt_sign.iloc[:, s].astype('category').cat.categories)
+            if level_n <= 1:
+                raise ValueError("All factor variables must have more than 1 level")
+            lower_vec = [0] * (level_n - 1) if x_sign[s] == "positive" else [-float('inf')] * (level_n - 1)
+            upper_vec = [0] * (level_n - 1) if x_sign[s] == "negative" else [float('inf')] * (level_n - 1)
+            lower_limits.extend(lower_vec)
+            upper_limits.extend(upper_vec)
+        else:
+            lower_limits.append(0 if x_sign[s] == "positive" else -float('inf'))
+            upper_limits.append(0 if x_sign[s] == "negative" else float('inf'))
+
+    # Fit ridge regression with nevergrad's lambda
+    # lambdas = lambda_seq(x_train, y_train, seq_len=100, lambda_min_ratio=0.0001)
+    # lambda_max = max(lambdas)
+    lambda_hp = float(hypParamSamNG['lambda'].iloc[i])
+    ##if not hyper_fixed:
+    if hyper_fixed['hyper_fixed'] == False:
+        lambda_scaled = lambda_min + (lambda_max - lambda_min) * lambda_hp
+    else:
+        lambda_scaled = lambda_hp
+
+    if add_penalty_factor:
+        penalty_factor = hypParamSamNG.iloc[i, [col.endswith("_penalty") for col in hypParamSamNG.columns]]
+    else:
+        penalty_factor = [1] * x_train.shape[1]
+
+    mod_out = model_refit(
+        x_train, y_train,
+        x_val, y_val,
+        x_test, y_test,
+        lambda_scaled,
+        lower_limits,
+        upper_limits,
+        intercept,
+        intercept_sign,
+        penalty_factor,
+        *args
+    )
+
+    decompCollect = model_decomp(
+        coefs=mod_out["coefs"],
+        y_pred=mod_out["y_pred"],
+        dt_modSaturated=dt_modSaturated,
+        dt_saturatedImmediate=dt_saturatedImmediate,
+        dt_saturatedCarryover=dt_saturatedCarryover,
+        dt_modRollWind=dt_modRollWind,
+        refreshAddedStart=refreshAddedStart
+    )
+
+    nrmse = mod_out["nrmse_val"] if ts_validation else mod_out["nrmse_train"]
+    mape = 0
+    df_int = mod_out["df.int"]
+
+    # MAPE: Calibration error
+    if calibration_input is not None:
+        liftCollect = robyn_calibrate(
+            calibration_input=calibration_input,
+            df_raw=dt_mod,
+            hypParamSam=hypParamSam,
+            wind_start=rollingWindowStartWhich,
+            wind_end=rollingWindowEndWhich,
+            dayInterval=InputCollect["dayInterval"],
+            adstock=adstock,
+            xDecompVec=decompCollect["xDecompVec"],
+            coefs=decompCollect["coefsOutCat"]
+        )
+        mape = liftCollect["mape_lift"].mean()
+
+    # Filter and select relevant columns from decompCollect$xDecompAgg
+    dt_decompSpendDist = decompCollect["xDecompAgg"][decompCollect["xDecompAgg"]["rn"].isin(paid_media_spends)]
+    dt_decompSpendDist = dt_decompSpendDist[[
+        "rn", "xDecompAgg", "xDecompPerc", "xDecompMeanNon0Perc",
+        "xDecompMeanNon0", "xDecompPercRF", "xDecompMeanNon0PercRF",
+        "xDecompMeanNon0RF"
+    ]]
+
+    # Join dt_decompSpendDist with relevant columns from dt_spendShare
+    dt_decompSpendDist = dt_decompSpendDist.merge(
+        dt_spendShare[["rn", "spend_share", "spend_share_refresh", "mean_spend", "total_spend"]],
+        on="rn"
+    )
+
+    # Calculate effect_share and effect_share_refresh
+    dt_decompSpendDist["effect_share"] = dt_decompSpendDist["xDecompPerc"] / dt_decompSpendDist["xDecompPerc"].sum()
+    dt_decompSpendDist["effect_share_refresh"] = dt_decompSpendDist["xDecompPercRF"] / dt_decompSpendDist["xDecompPercRF"].sum()
+
+    if not refresh:
+        decomp_rssd = sqrt(sum((dt_decompSpendDist["effect_share"] - dt_decompSpendDist["spend_share"])**2))
+
+        # Penalty for models with more 0-coefficients
+        if rssd_zero_penalty:
+            is_0eff = (dt_decompSpendDist["effect_share"].round(4) == 0)
+            share_0eff = sum(is_0eff) / len(dt_decompSpendDist["effect_share"])
+            decomp_rssd = decomp_rssd * (1 + share_0eff)
+    else:
+        dt_decompRF = dt_decompSpendDist[["rn", "effect_share"]].merge(
+            xDecompAggPrev[["rn", "decomp_perc_prev"]],
+            on="rn"
+        )
+        decomp_rssd_media = dt_decompRF[dt_decompRF["rn"].isin(paid_media_spends)]["decomp_perc"].mean()
+        decomp_rssd_nonmedia = dt_decompRF[~dt_decompRF["rn"].isin(paid_media_spends)]["decomp_perc"].mean()
+        decomp_rssd = decomp_rssd_media + decomp_rssd_nonmedia / (1 - refresh_steps / rollingWindowLength)
+
+    # Handle the case when all media in this iteration have 0 coefficients
+    if math.isnan(decomp_rssd):
+        decomp_rssd = math.inf
+        dt_decompSpendDist["effect_share"] = 0
+
+    # Initialize resultCollect list
+    resultCollect = []
+
+    # Create a common DataFrame with shared values
+    common = pd.DataFrame({
+        "rsq_train": mod_out["rsq_train"],
+        "rsq_val": mod_out["rsq_val"],
+        "rsq_test": mod_out["rsq_test"],
+        "nrmse_train": mod_out["nrmse_train"],
+        "nrmse_val": mod_out["nrmse_val"],
+        "nrmse_test": mod_out["nrmse_test"],
+        "nrmse": nrmse,
+        "decomp.rssd": decomp_rssd,
+        "mape": mape,
+        "lambda": lambda_scaled,
+        "lambda_hp": lambda_hp,
+        "lambda_max": lambda_max,
+        "lambda_min_ratio": lambda_min_ratio,
+        "solID": f"{trial}_{lng}_{i}",
+        "trial": trial,
+        "iterNG": lng,
+        "iterPar": i
+    })
+
+    total_common = common.shape[1]
+    split_common = common.columns.get_loc("lambda_min_ratio")
+
+    # Add common data to resultCollect
+    resultCollect["resultHypParam"] = hypParamSam.drop(columns=["lambda"]).join(
+        common.iloc[:, :split_common]
+    ).assign(
+        pos=lambda x: x["xDecompAgg"]["pos"].prod(),
+        Elapsed=pd.to_numeric((pd.Timestamp.now() - t1).total_seconds()),
+        ElapsedAccum=pd.to_numeric((pd.Timestamp.now() - t0).total_seconds())
+    ).join(
+        common.iloc[:, split_common + 1:total_common]
+    ).apply(pd.Series.unstack).reset_index()
+
+    resultCollect["xDecompAgg"] = decompCollect["xDecompAgg"].assign(train_size=train_size).join(common)
+
+    if liftCollect is not None:
+        resultCollect["liftCalibration"] = liftCollect.join(common)
+
+    resultCollect["decompSpendDist"] = dt_decompSpendDist.join(common)
+    resultCollect.update(common.to_dict())
+    return resultCollect
+
+
 
 def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
                  dt_saturatedCarryover, dt_modRollWind, refreshAddedStart):
@@ -970,6 +984,7 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
 
     return decomp_collect
 
+
 def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
                 lambda_, lower_limits, upper_limits,
                 intercept=True,
@@ -1034,6 +1049,7 @@ def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
     }
 
     return mod_out
+
 
 def get_rsq(true, predicted, p, df_int, n_train=None):
     sse = np.sum((true - predicted) ** 2)
