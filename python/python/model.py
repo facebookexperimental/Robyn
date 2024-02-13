@@ -557,7 +557,7 @@ def robyn_mmm(InputCollect,
 
                         if len(channelBound) > 1:
                             ##hypParamSamNG[hypNameLoop] = uniform(hyppar_value, min(channelBound), max(channelBound))
-                            hypParamSamNG[hypNameLoop] = uniform.ppf(hyppar_value, loc=min(channelBound), scale=2*max(channelBound))
+                            hypParamSamNG[hypNameLoop] = uniform.ppf(hyppar_value, loc=min(channelBound), scale=max(channelBound) - min(channelBound))
                         else:
                             hypParamSamNG[hypNameLoop] = hyppar_value
 
@@ -583,12 +583,25 @@ def robyn_mmm(InputCollect,
             ## def run_robyn_iterations(i):
             ##   return robyn_iterations(i)
 
-            robyn_iterations_args = [InputCollect, hypParamSamNG, adstock]
-            cores = 1 ## TODO Remove
+            robyn_iterations_args = [InputCollect,
+                                     hypParamSamNG,
+                                     prophet_signs,
+                                     context_signs,
+                                     paid_media_signs,
+                                     organic_signs,
+                                     adstock]
+            cores = 1 ## TODO Remove to test MULTIPROCESSING when Completed Debugging robyn_iterations
             # Parallel processing
             if cores == 1:
                 ##dopar_collect = [run_robyn_iterations(i) for i in range(1, iterPar + 1)]
-                dopar_collect = [robyn_iterations(i, robyn_iterations_args[0], robyn_iterations_args[1], robyn_iterations_args[2]) for i in range(1, iterPar + 1)]
+                dopar_collect = [robyn_iterations(i,
+                                                  robyn_iterations_args[0],
+                                                  robyn_iterations_args[1],
+                                                  robyn_iterations_args[2],
+                                                  robyn_iterations_args[3],
+                                                  robyn_iterations_args[4],
+                                                  robyn_iterations_args[5],
+                                                  robyn_iterations_args[6]) for i in range(1, iterPar + 1)]
             else:
                 # Create a pool of worker processes
                 if check_parallel() and hyper_fixed['hyper_fixed'] == False: ##not hyper_fixed:
@@ -598,7 +611,14 @@ def robyn_mmm(InputCollect,
 
                 # Use the pool to run robyn_iterations in parallel
                 ##dopar_collect = pool.map(run_robyn_iterations, range(1, iterPar + 1))
-                dopar_collect = pool.map(robyn_iterations, zip(range(1, iterPar + 1), repeat(robyn_iterations_args[0]), repeat(robyn_iterations_args[1]), repeat(robyn_iterations_args[2])))
+                dopar_collect = pool.map(robyn_iterations, zip(range(1, iterPar + 1),
+                                                               repeat(robyn_iterations_args[0]),
+                                                               repeat(robyn_iterations_args[1]),
+                                                               repeat(robyn_iterations_args[2]),
+                                                               repeat(robyn_iterations_args[3]),
+                                                               repeat(robyn_iterations_args[4]),
+                                                               repeat(robyn_iterations_args[5]),
+                                                               repeat(robyn_iterations_args[6])))
                 pool.close()
                 pool.join()
 
@@ -698,6 +718,10 @@ def robyn_mmm(InputCollect,
 def robyn_iterations(iteration,
                      InputCollect,
                      hypParamSamNG,
+                     prophet_signs,
+                     context_signs,
+                     paid_media_signs,
+                     organic_signs,
                      adstock):  # i=1
     t1 = time.time()
     i = iteration
@@ -718,9 +742,9 @@ def robyn_iterations(iteration,
     dt_window = dt_modSaturated
 
     # Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
-    y_window = dt_window['dep_var']
+    y_window = list(dt_window['dep_var'].values)
     select_columns = [var for var in dt_window.columns.values if var != 'dep_var' and var != 'index']
-    x_window = pd.get_dummies(dt_window[select_columns]) ##, columns=select_columns)
+    x_window = pd.get_dummies(dt_window[select_columns]) ##, columns=select_columns) ##TODO: better to use OneHotEncoding or not?
     ## x_window = lares.ohse(dt_window.drop('dep_var', axis=1)).values  # Assuming ohse returns a DataFrame
 
     y_train = y_val = y_test = y_window
@@ -729,22 +753,24 @@ def robyn_iterations(iteration,
     train_size = hypParamSam['train_size'] ##.values[0]
     val_size = test_size = (1 - train_size) / 2
     if train_size < 1:
-        train_size_index = int(train_size * len(dt_window))
-        val_size_index = train_size_index + int(val_size * len(dt_window))
+        ## train_size_index = int(train_size * len(dt_window))
+        train_size_index = int(np.floor(np.quantile(range(len(dt_window)), [train_size])[0]))
+        ## val_size_index = train_size_index + int(val_size * len(dt_window))
+        val_size_index = train_size_index + int(np.floor(val_size * len(dt_window)))
         y_train = y_window[:train_size_index]
         y_val = y_window[train_size_index:val_size_index]
         y_test = y_window[val_size_index:]
-        x_train = x_window[:train_size_index, :]
-        x_val = x_window[train_size_index:val_size_index, :]
-        x_test = x_window[val_size_index:, :]
+        x_train = x_window[:train_size_index]
+        x_val = x_window[train_size_index:val_size_index]
+        x_test = x_window[val_size_index:]
     else:
         y_val = y_test = x_val = x_test = None
 
     # Define and set sign control
     select_columns = [var for var in dt_window.columns.values if var != 'dep_var' and var != 'index']
     dt_sign = dt_window[select_columns]
-    x_sign = prophet_signs + context_signs + paid_media_signs + organic_signs
-    check_factor = dt_sign.applymap(lambda x: isinstance(x, pd.CategoricalDtype))
+    x_sign = prophet_signs + context_signs + paid_media_signs + organic_signs #TODO: why signs are not same as in R??
+    check_factor = dt_sign.applymap(lambda x: isinstance(x, pd.CategoricalDtype)) ##TODO: In R all returns False
     lower_limits = [0] * len(prophet_signs)
     upper_limits = [1] * len(prophet_signs)
     for s in range(len(prophet_signs), len(x_sign)):
