@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import nevergrad as ng
 from sklearn.linear_model import lasso_path
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from nevergrad.optimization import optimizerlib
 import multiprocessing
 from functools import partial
@@ -719,12 +719,14 @@ def robyn_iterations(iteration,
 
     # Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
     y_window = dt_window['dep_var']
-    x_window = lares.ohse(dt_window.drop('dep_var', axis=1)).values  # Assuming ohse returns a DataFrame
+    select_columns = [var for var in dt_window.columns.values if var != 'dep_var' and var != 'index']
+    x_window = pd.get_dummies(dt_window[select_columns]) ##, columns=select_columns)
+    ## x_window = lares.ohse(dt_window.drop('dep_var', axis=1)).values  # Assuming ohse returns a DataFrame
 
     y_train = y_val = y_test = y_window
     x_train = x_val = x_test = x_window
 
-    train_size = hypParamSam['train_size'].values[0]
+    train_size = hypParamSam['train_size'] ##.values[0]
     val_size = test_size = (1 - train_size) / 2
     if train_size < 1:
         train_size_index = int(train_size * len(dt_window))
@@ -739,7 +741,8 @@ def robyn_iterations(iteration,
         y_val = y_test = x_val = x_test = None
 
     # Define and set sign control
-    dt_sign = dt_window.drop('dep_var', axis=1)
+    select_columns = [var for var in dt_window.columns.values if var != 'dep_var' and var != 'index']
+    dt_sign = dt_window[select_columns]
     x_sign = prophet_signs + context_signs + paid_media_signs + organic_signs
     check_factor = dt_sign.applymap(lambda x: isinstance(x, pd.CategoricalDtype))
     lower_limits = [0] * len(prophet_signs)
@@ -781,8 +784,7 @@ def robyn_iterations(iteration,
         upper_limits,
         intercept,
         intercept_sign,
-        penalty_factor,
-        *args
+        penalty_factor
     )
 
     decompCollect = model_decomp(
@@ -990,8 +992,7 @@ def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
                 intercept=True,
                 intercept_sign="non_negative",
                 penalty_factor=None,
-                alpha=0,
-                **kwargs):
+                alpha=0):
 
     if penalty_factor is None:
         penalty_factor = np.ones(x_train.shape[1])
