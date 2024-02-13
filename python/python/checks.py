@@ -758,6 +758,7 @@ def check_iteration(calibration_input, iterations, trials, hyps_fixed, refresh):
                     warnings.warn(f"You are calibrating MMM. We recommend to run at least 2000 iterations per trial and {10} trials to build initial model")
     return
 
+
 ## def check_InputCollect(list):
 def check_input_collect(input_collect):
     names_list = ["dt_input", "paid_media_vars", "paid_media_spends", "context_vars", "organic_vars", "all_ind_vars", "date_var", "dep_var",

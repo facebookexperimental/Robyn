@@ -36,7 +36,7 @@ def adstock_geometric(x, theta):
         x_decayed.append(x[0])
         x_decayed.extend(np.repeat(0, len(x) - 1))
         for i in range(1, len(x)):
-            x_decayed[i] = x[i][0] + theta * x_decayed[i - 1]
+            x_decayed[i] = x[i] + theta * x_decayed[i - 1]
         thetaVecCum = list()
         thetaVecCum.append(theta)
         for i in range(1, len(x)):
@@ -179,10 +179,18 @@ def saturation_hill(x, alpha, gamma, x_marginal=None):
     Implements the saturation hill function.
     """
     ## No need to length check for alpha and gamma since they are numbers not like lists in R
+    ## linear interpolation by dot product
+    ##inflexion <- c(range(x) %*% c(1 - gamma, gamma)) # linear interpolation by dot product
+    ##np.repeat(x)
+    if alpha is None or gamma is None:
+        raise ValueError("Alpha and Gamma cannot be None")
+
+    inflexion = np.dot(np.array([1 - gamma, gamma]), np.array([np.min(x), np.max(x)]))
     if x_marginal is None:
-        x_scurve = x**alpha / (x**alpha + np.power(np.inf, alpha))
+        x_scurve = x**alpha / (x**alpha + np.power(inflexion, alpha))
     else:
-        x_scurve = x_marginal**alpha / (x_marginal**alpha + np.power(np.inf, alpha))
+        x_scurve = x_marginal**alpha / (x_marginal**alpha + np.power(inflexion, alpha))
+
     return x_scurve
 
 
@@ -381,25 +389,25 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
     dt_modAdstocked = input_collect['dt_mod'][select_columns]
 
     # Create a list to store the media adstocked data
-    media_adstocked = []
+    media_adstocked = dict()
 
     # Create a list to store the media immediate data
-    media_immediate = []
+    media_immediate = dict()
 
     # Create a list to store the media carryover data
-    media_carryover = []
+    media_carryover = dict()
 
     # Create a list to store the media cumulative data
-    media_vec_cum = []
+    media_vec_cum = dict()
 
     # Create a list to store the media saturated data
-    media_saturated = []
+    media_saturated = dict()
 
     # Create a list to store the media saturated immediate data
-    media_saturated_immediate = []
+    media_saturated_immediate = dict()
 
     # Create a list to store the media saturated carryover data
-    media_saturated_carryover = []
+    media_saturated_carryover = dict()
 
     # Iterate over each media name
     for v in range(len(all_media)):
@@ -407,6 +415,7 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
         media = all_media[v]
 
         m = list(dt_modAdstocked[[media]].values)
+        m = np.array(m).reshape(len(m),)
         theta = shape = scale = None
         # Extract the adstocking parameters for this media
         if adstock == "geometric":
@@ -422,38 +431,63 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
         )
 
         m_adstocked = x_list["x_decayed"]
+        m_adstocked = np.array(m_adstocked).reshape(len(m_adstocked),)
         # Store the adstocked data for this media
-        media_adstocked.append(m_adstocked)
+        ##media_adstocked.append(m_adstocked)
+        media_adstocked[media] = m_adstocked
 
         # Calculate the immediate response
         if adstock == "weibull_pdf":
             m_imme = x_list["x_imme"]
+            m_imme = np.array(m_imme).reshape(len(m_imme),)
         else:
             m_imme = m
 
         # Calculate the carryover response
-        m_carryover = x_list["x_decayed"] - m_imme
+        ## m_carryover = x_list["x_decayed"] - m_imme
+        m_carryover = m_adstocked - m_imme
 
         # Store the immediate and carryover data for this media
-        media_immediate.append(m_imme)
-        media_carryover.append(m_carryover)
-        media_vec_cum.append(x_list["thetaVecCum"])
+        ##media_immediate.append(m_imme)
+        media_immediate[media] = m_imme
+        ##media_carryover.append(m_carryover)
+        media_carryover[media] = m_carryover
+        ##media_vec_cum.append(x_list["thetaVecCum"])
+        media_vec_cum[media] = x_list["thetaVecCum"]
 
-        m_adstockedRollWind <- m_adstocked[(rollingWindowStartWhich-1):(rollingWindowEndWhich-1)]
-        m_carryoverRollWind <- m_carryover[(rollingWindowStartWhich-1):(rollingWindowEndWhich-1)]
+        m_adstockedRollWind = m_adstocked[(rolling_window_start_which-1):(rolling_window_end_which)]
+        m_carryoverRollWind = m_carryover[(rolling_window_start_which-1):(rolling_window_end_which)]
 
         # Calculate the saturated response
         alpha = hyp_param_sam[f"{media}_alphas"] ##[0]
         gamma = hyp_param_sam[f"{media}_gammas"] ##[0]
-        media_saturated.append(saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma))
+        ##media_saturated.append(saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma))
+        media_saturated[media] = saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma)
 
         # Calculate the saturated carryover response
-        media_saturated_carryover.append(saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind))
+        media_saturated_carryover[media] = saturation_hill(m_adstockedRollWind, alpha = alpha, gamma = gamma, x_marginal = m_carryoverRollWind)
 
         # Calculate the saturated immediate response
-        media_saturated_immediate.append(media_saturated[v] - media_saturated_carryover[v])
+        ##media_saturated_immediate.append(media_saturated[v] - media_saturated_carryover[v])
+        media_saturated_immediate[media] = media_saturated[media] - media_saturated_carryover[media]
 
-    ## TODO:
+    select_columns = [column for column in dt_modAdstocked.columns if column not in all_media]
+    media_adstocked = pd.DataFrame(media_adstocked)
+    dt_modAdstockedTemp = dt_modAdstocked[select_columns]
+    dt_modAdstocked = pd.concat([dt_modAdstockedTemp.reset_index(), media_adstocked], axis=1)
+
+    dt_mediaImmediate = pd.DataFrame(media_immediate)
+    dt_mediaCarryover = pd.DataFrame(media_carryover)
+    mediaVecCum = pd.DataFrame(media_vec_cum)
+
+    mediaSaturated = pd.DataFrame(media_saturated)
+    dt_modSaturatedTemp = dt_modAdstocked.loc[(rolling_window_start_which-1):(rolling_window_end_which-1)][select_columns]
+    dt_modSaturated = pd.concat([dt_modSaturatedTemp.reset_index(), mediaSaturated], axis=1)
+
+    dt_saturatedImmediate = pd.DataFrame(media_saturated_immediate)
+    dt_saturatedImmediate.fillna(0, inplace=True)
+    dt_saturatedCarryover = pd.DataFrame(media_saturated_carryover)
+    dt_saturatedCarryover.fillna(0, inplace=True)
 
     # Create a dataframe with the media data
     ## media_df = pd.DataFrame(
