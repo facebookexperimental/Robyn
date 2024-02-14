@@ -921,16 +921,19 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
 
     # Decomp x
     x_decomp = pd.DataFrame({col: x[col] * coeff for col, coeff in zip(x.columns, coefs[1:])})
-    x_decomp.insert(0, 'intercept', intercept)
-    x_decomp_out = pd.concat([dt_modRollWind[['ds', 'y', 'y_pred']], x_decomp], axis=1)
-
+    intercept_column = [intercept] * len(x_decomp)
+    x_decomp.insert(0, 'intercept', intercept_column)
+    y_y_pred_df = pd.DataFrame({'y': y, 'y_pred': y_pred})
+    x_decomp_out = pd.concat([dt_modRollWind[['ds']], y_y_pred_df, x_decomp], axis=1)
     # Decomp immediate & carryover response
-    sel_coef = [name in dt_saturatedImmediate for name in coefs.index]
-    coefs_media = coefs[sel_coef]
-    coefs_media.index = coefs.index[sel_coef]
+    feature_names = ['season', 'competitor_sales_B', 'holiday', 'events', 'trend',
+                 'tv_S', 'ooh_S', 'print_S', 'facebook_S', 'search_S', 'newsletter']
+    coefs_flattened = coefs.flatten()
+    coefs_series = pd.Series(data=coefs_flattened, index=feature_names)
 
-    media_decomp_immediate = pd.DataFrame({col: dt_saturatedImmediate[col] * coeff for col, coeff in coefs_media.items()})
-    media_decomp_carryover = pd.DataFrame({col: dt_saturatedCarryover[col] * coeff for col, coeff in coefs_media.items()})
+    common_cols = [col for col in coefs_series.index if col in dt_saturatedImmediate.columns]
+    media_decomp_immediate = pd.DataFrame({col: dt_saturatedImmediate[col] * coefs_series[col] for col in common_cols})
+    media_decomp_carryover = pd.DataFrame({col: dt_saturatedCarryover[col] * coefs_series[col] for col in common_cols})
 
     # Output decomp
     y_hat = x_decomp.sum(axis=1, skipna=True)
@@ -938,27 +941,32 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     x_decomp_out_perc_scaled = np.abs(x_decomp) / y_hat_scaled
     x_decomp_out_scaled = y_hat * x_decomp_out_perc_scaled
 
-    temp = x_decomp_out[['intercept'] + list(x_name)]
+    existing_cols = ['intercept'] + [col for col in x_name if col in x_decomp_out.columns]
+    temp = x_decomp_out[existing_cols]
+
     x_decomp_out_agg = temp.sum()
     x_decomp_out_agg_perc = x_decomp_out_agg / y_hat.sum()
     x_decomp_out_agg_mean_non0 = temp.apply(lambda x: 0 if np.isnan(np.mean(x[x > 0])) else np.mean(x[x != 0]))
     x_decomp_out_agg_mean_non0[np.isnan(x_decomp_out_agg_mean_non0)] = 0
-    x_decomp_out_agg_mean_non0_perc = x_decomp_out_agg_mean_non0 / sum(x_decomp_out_agg_mean_non0)
+    numeric_df = x_decomp_out_agg_mean_non0.apply(pd.to_numeric, errors='coerce')
+    x_decomp_out_agg_mean_non0 = x_decomp_out_agg_mean_non0.astype(float)
+    x_decomp_out_agg_mean_non0_perc = x_decomp_out_agg_mean_non0 / x_decomp_out_agg_mean_non0.sum().sum()
 
     refresh_added_start_which = x_decomp_out.index[x_decomp_out['ds'] == refreshAddedStart].tolist()[0]
     refresh_added_end = x_decomp_out['ds'].max()
     refresh_added_end_which = x_decomp_out.index[x_decomp_out['ds'] == refresh_added_end].tolist()[0]
 
-    temp = x_decomp_out[['intercept'] + list(x_name)]
+    existing_cols = ['intercept'] + [col for col in x_name if col in x_decomp_out.columns]
+    temp = x_decomp_out[existing_cols]
     temp = temp.loc[refresh_added_start_which:refresh_added_end_which]
     x_decomp_out_agg_rf = temp.sum()
     y_hat_rf = y_hat.loc[refresh_added_start_which:refresh_added_end_which]
     x_decomp_out_agg_perc_rf = x_decomp_out_agg_rf / y_hat_rf.sum()
     x_decomp_out_agg_mean_non0_rf = temp.apply(lambda x: 0 if np.isnan(np.mean(x[x > 0])) else np.mean(x[x != 0]))
     x_decomp_out_agg_mean_non0_rf[np.isnan(x_decomp_out_agg_mean_non0_rf)] = 0
-    x_decomp_out_agg_mean_non0_perc_rf = x_decomp_out_agg_mean_non0_rf / sum(x_decomp_out_agg_mean_non0_rf)
+    x_decomp_out_agg_mean_non0_perc_rf = x_decomp_out_agg_mean_non0_rf / x_decomp_out_agg_mean_non0_rf.sum().sum()
 
-    coefs_out_cat = pd.DataFrame({'rn': coefs.index, 'coefs': coefs})
+    coefs_out_cat = pd.DataFrame({'rn': pd.Series(range(len(coefs))), 'coefs': coefs.flatten()})
     if len(x_factor) > 0:
         for factor in x_factor:
             coefs_out_cat['rn'] = coefs_out_cat['rn'].apply(lambda x: re.sub(f"{factor}.*", factor, x))
@@ -968,15 +976,16 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     coefs_out = coefs_out_cat.groupby('rn')['coefs'].mean().reset_index()
     coefs_out = coefs_out.iloc[coefs_out['rn'].map({rn: i for i, rn in enumerate(rn_order)}).argsort()]
 
+    coefs_out = coefs_out.reset_index(drop=True)
     decomp_out_agg = pd.concat([coefs_out, pd.DataFrame({
-        'xDecompAgg': x_decomp_out_agg,
-        'xDecompPerc': x_decomp_out_agg_perc,
-        'xDecompMeanNon0': x_decomp_out_agg_mean_non0,
-        'xDecompMeanNon0Perc': x_decomp_out_agg_mean_non0_perc,
-        'xDecompAggRF': x_decomp_out_agg_rf,
-        'xDecompPercRF': x_decomp_out_agg_perc_rf,
-        'xDecompMeanNon0RF': x_decomp_out_agg_mean_non0_rf,
-        'xDecompMeanNon0PercRF': x_decomp_out_agg_mean_non0_perc_rf,
+        'xDecompAgg': x_decomp_out_agg.values.flatten(),
+        'xDecompPerc': x_decomp_out_agg_perc.values.flatten(),
+        'xDecompMeanNon0': x_decomp_out_agg_mean_non0.values.flatten(),
+        'xDecompMeanNon0Perc': x_decomp_out_agg_mean_non0_perc.values.flatten(),
+        'xDecompAggRF': x_decomp_out_agg_rf.values.flatten(),
+        'xDecompPercRF': x_decomp_out_agg_perc_rf.values.flatten(),
+        'xDecompMeanNon0RF': x_decomp_out_agg_mean_non0_rf.values.flatten(),
+        'xDecompMeanNon0PercRF': x_decomp_out_agg_mean_non0_perc_rf.values.flatten(),
         'pos': x_decomp_out_agg >= 0
     })], axis=1)
 
