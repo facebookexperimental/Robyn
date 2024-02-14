@@ -60,7 +60,13 @@ robyn_onepagers(
 
 ts_validation(OutputModels, quiet = FALSE, ...)
 
-decomp_plot(InputCollect, OutputCollect, solID = NULL, exclude = NULL)
+decomp_plot(
+  InputCollect,
+  OutputCollect,
+  solID = NULL,
+  exclude = NULL,
+  baseline_level = 0
+)
 }
 \arguments{
 \item{InputCollect, OutputModels}{\code{robyn_inputs()} and \code{robyn_run()}

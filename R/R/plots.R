@@ -1485,8 +1485,13 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
 #' @param solID Character vector. Model IDs to plot.
 #' @param exclude Character vector. Manually exclude variables from plot.
 #' @export
-decomp_plot <- function(InputCollect, OutputCollect, solID = NULL, exclude = NULL) {
+decomp_plot <- function(
+    InputCollect, OutputCollect, solID = NULL,
+    exclude = NULL, baseline_level = 0) {
+  if (is.null(solID) && length(OutputCollect$allSolutions) == 1)
+    solID <- OutputCollect$allSolutions
   check_opts(solID, OutputCollect$allSolutions)
+  bvars <- baseline_vars(InputCollect, baseline_level)
   intType <- str_to_title(case_when(
     InputCollect$intervalType %in% c("month", "week") ~ paste0(InputCollect$intervalType, "ly"),
     InputCollect$intervalType == "day" ~ "daily",
@@ -1501,6 +1506,13 @@ decomp_plot <- function(InputCollect, OutputCollect, solID = NULL, exclude = NUL
     ) %>%
     tidyr::gather("variable", "value", -.data$ds, -.data$solID, -.data$dep_var) %>%
     filter(!.data$variable %in% exclude) %>%
+    mutate(variable = ifelse(
+      .data$variable %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$variable))) %>%
+    group_by(.data$solID, .data$ds, .data$variable) %>%
+    summarise(value = sum(.data$value, na.rm = TRUE),
+              value = sum(.data$value, na.rm = TRUE),
+              .groups = "drop") %>%
+    arrange(.data$value) %>%
     mutate(variable = factor(.data$variable, levels = rev(unique(.data$variable))))
   p <- ggplot(df, aes(x = .data$ds, y = .data$value, fill = .data$variable)) +
     facet_grid(.data$solID ~ .) +
