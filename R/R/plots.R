@@ -1513,7 +1513,7 @@ decomp_plot <- function(
               value = sum(.data$value, na.rm = TRUE),
               .groups = "drop") %>%
     arrange(abs(.data$value)) %>%
-    mutate(variable = factor(.data$variable, levels = rev(unique(.data$variable))))
+    mutate(variable = factor(.data$variable, levels = unique(.data$variable)))
   p <- ggplot(df, aes(x = .data$ds, y = .data$value, fill = .data$variable)) +
     facet_grid(.data$solID ~ .) +
     labs(
