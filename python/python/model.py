@@ -2,7 +2,8 @@ import time
 import pandas as pd
 import numpy as np
 import nevergrad as ng
-from sklearn.linear_model import lasso_path
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.linear_model import Lasso, lasso_path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from nevergrad.optimization import optimizerlib
 import multiprocessing
@@ -991,69 +992,125 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     return decomp_collect
 
 
-def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
-                lambda_, lower_limits, upper_limits,
-                intercept=True,
-                intercept_sign="non_negative",
-                penalty_factor=None,
-                alpha=0):
+def model_refit(x_train, y_train, x_val, y_val, x_test, y_test, lambda_, lower_limits, upper_limits, intercept=True, intercept_sign="non_negative", penalty_factor=None, *args, **kwargs):
+    # Convert input to numpy arrays
+    x_train = np.array(x_train)
+    y_train = np.array(y_train)
+    x_val = np.array(x_val) if x_val is not None else None
+    y_val = np.array(y_val) if y_val is not None else None
+    x_test = np.array(x_test)
+    y_test = np.array(y_test)
 
-    if penalty_factor is None:
-        penalty_factor = np.ones(x_train.shape[1])
+    # Create Lasso model with given parameters
+    lasso = Lasso(alpha=0, fit_intercept=intercept, random_state=42, *args, **kwargs)
 
-    #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
-    #             lower_limits=lower_limits, upper_limits=upper_limits,
-    #             penalty_factor=penalty_factor, standardize=False, intr=True, **kwargs)
-    mod = Ridge(alpha=lambda_, fit_intercept=intercept, solver='auto')
-    mod.fit(x_train, y_train)
+    # Fit the model
+    lasso.fit(x_train, y_train)
 
-    df_int = 1
-
-    if intercept_sign == "non_negative" and mod['beta'][0] < 0:
-        #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
-        #             lower_limits=lower_limits, upper_limits=upper_limits,
-        #             penalty_factor=penalty_factor, standardize=False, intr=False, **kwargs)
-        mod = Ridge(alpha=lambda_, fit_intercept=False, normalize=False, solver='lsqr')
-        mod.fit(x_train, y_train)
-        df_int = 0
-
-    y_train_pred = np.array(mod.predict(x_train, s=lambda_))
-    rsq_train = get_rsq(y_train, y_train_pred, x_train.shape[1], df_int)
+    # Calculate all Adjusted R2 and NRMSE
+    y_train_pred = lasso.predict(x_train)
+    rsq_train = 1 - (mean_squared_error(y_train, y_train_pred, squared=False) / (np.var(y_train) - np.mean(y_train)**2))
 
     if x_val is not None:
-        y_val_pred = np.array(mod.predict(x_val, s=lambda_))
-        rsq_val = get_rsq(y_val, y_val_pred, x_val.shape[1], df_int, len(y_train))
-        y_test_pred = np.array(mod.predict(x_test, s=lambda_))
-        rsq_test = get_rsq(y_test, y_test_pred, x_test.shape[1], df_int, len(y_train))
-        y_pred = np.concatenate((y_train_pred, y_val_pred, y_test_pred))
+        y_val_pred = lasso.predict(x_val)
+        rsq_val = 1 - (mean_squared_error(y_val, y_val_pred, squared=False) / (np.var(y_val) - np.mean(y_val)**2))
+
+        y_test_pred = lasso.predict(x_test)
+        rsq_test = 1 - (mean_squared_error(y_test, y_test_pred, squared=False) / (np.var(y_test) - np.mean(y_test)**2))
+
+        nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (np.max(y_train) - np.min(y_train))
+        nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (np.max(y_val) - np.min(y_val))
+        nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (np.max(y_test) - np.min(y_test))
+
+        y_pred = np.concatenate([y_train_pred, y_val_pred, y_test_pred])
     else:
-        rsq_val = rsq_test = None
+        rsq_val = rsq_test = np.nan
+        y_val_pred = y_test_pred = np.nan
+        nrmse_val = nrmse_test = np.nan
         y_pred = y_train_pred
 
-    nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (np.max(y_train) - np.min(y_train))
-
-    if x_val is not None:
-        nrmse_val = np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (np.max(y_val) - np.min(y_val))
-        nrmse_test = np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (np.max(y_test) - np.min(y_test))
-    else:
-        nrmse_val = nrmse_test = None
-
     mod_out = {
-        'rsq_train': rsq_train,
-        'rsq_val': rsq_val,
-        'rsq_test': rsq_test,
-        'nrmse_train': nrmse_train,
-        'nrmse_val': nrmse_val,
-        'nrmse_test': nrmse_test,
-        'coefs': np.array(mod['beta']),
-        'y_train_pred': y_train_pred,
-        'y_val_pred': y_val_pred,
-        'y_test_pred': y_test_pred,
-        'y_pred': y_pred,
-        'df_int': df_int
+        "rsq_train": rsq_train,
+        "rsq_val": rsq_val,
+        "rsq_test": rsq_test,
+        "nrmse_train": nrmse_train,
+        "nrmse_val": nrmse_val,
+        "nrmse_test": nrmse_test,
+        "coefs": lasso.coef_.reshape(-1, 1),
+        "y_train_pred": y_train_pred,
+        "y_val_pred": y_val_pred,
+        "y_test_pred": y_test_pred,
+        "y_pred": y_pred,
+        "mod": lasso,
+        "df_int": intercept
     }
 
     return mod_out
+
+# TODO: clean up this function if we can use the above one.
+# def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
+#                 lambda_, lower_limits, upper_limits,
+#                 intercept=True,
+#                 intercept_sign="non_negative",
+#                 penalty_factor=None,
+#                 alpha=0):
+
+#     if penalty_factor is None:
+#         penalty_factor = np.ones(x_train.shape[1])
+
+#     #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
+#     #             lower_limits=lower_limits, upper_limits=upper_limits,
+#     #             penalty_factor=penalty_factor, standardize=False, intr=True, **kwargs)
+#     mod = Ridge(alpha=lambda_, fit_intercept=intercept, solver='auto')
+#     mod.fit(x_train, y_train)
+
+#     df_int = 1
+
+#     if intercept_sign == "non_negative" and mod['beta'][0] < 0:
+#         #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
+#         #             lower_limits=lower_limits, upper_limits=upper_limits,
+#         #             penalty_factor=penalty_factor, standardize=False, intr=False, **kwargs)
+#         mod = Ridge(alpha=lambda_, fit_intercept=False, normalize=False, solver='lsqr')
+#         mod.fit(x_train, y_train)
+#         df_int = 0
+
+#     y_train_pred = np.array(mod.predict(x_train, s=lambda_))
+#     rsq_train = get_rsq(y_train, y_train_pred, x_train.shape[1], df_int)
+
+#     if x_val is not None:
+#         y_val_pred = np.array(mod.predict(x_val, s=lambda_))
+#         rsq_val = get_rsq(y_val, y_val_pred, x_val.shape[1], df_int, len(y_train))
+#         y_test_pred = np.array(mod.predict(x_test, s=lambda_))
+#         rsq_test = get_rsq(y_test, y_test_pred, x_test.shape[1], df_int, len(y_train))
+#         y_pred = np.concatenate((y_train_pred, y_val_pred, y_test_pred))
+#     else:
+#         rsq_val = rsq_test = None
+#         y_pred = y_train_pred
+
+#     nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (np.max(y_train) - np.min(y_train))
+
+#     if x_val is not None:
+#         nrmse_val = np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (np.max(y_val) - np.min(y_val))
+#         nrmse_test = np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (np.max(y_test) - np.min(y_test))
+#     else:
+#         nrmse_val = nrmse_test = None
+
+#     mod_out = {
+#         'rsq_train': rsq_train,
+#         'rsq_val': rsq_val,
+#         'rsq_test': rsq_test,
+#         'nrmse_train': nrmse_train,
+#         'nrmse_val': nrmse_val,
+#         'nrmse_test': nrmse_test,
+#         'coefs': np.array(mod['beta']),
+#         'y_train_pred': y_train_pred,
+#         'y_val_pred': y_val_pred,
+#         'y_test_pred': y_test_pred,
+#         'y_pred': y_pred,
+#         'df_int': df_int
+#     }
+
+#     return mod_out
 
 
 def get_rsq(true, predicted, p, df_int, n_train=None):
