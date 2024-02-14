@@ -78,7 +78,7 @@ baseline_vars <- function(InputCollect, baseline_level) {
   stopifnot(baseline_level %in% 0:5)
   x <- ""
   if (baseline_level >= 1)
-    x <- c(x, "(Intercept)")
+    x <- c(x, "(Intercept)", "intercept")
   if (baseline_level >= 2)
     x <- c(x, "trend")
   if (baseline_level >= 3)
