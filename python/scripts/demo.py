@@ -1,8 +1,8 @@
 ## import robyn ## Manual, no need
+from python import data, inputs, checks, model, outputs, json, plots, response ## Manual, Added manually
+from python import transformation
 import numpy as np
 import pandas as pd
-## from robyn import robyn_inputs, Wrong import
-from robyn import data, inputs ## Manual, Added manually
 
 # Set up Robyn environment
 ## robyn.set_env(robyn_directory="~/Desktop") ## Manual, NOT NEEDED
@@ -22,12 +22,12 @@ input_collect = inputs.robyn_inputs(
     date_var="DATE",
     dep_var="revenue",
     dep_var_type="revenue",
-    prophet_vars=["trend", "season", "holiday"],
+    prophet_vars=["trend", "season", "holiday"], ## Manually added list
     prophet_country="DE",
     context_vars=["competitor_sales_B", "events"],
     paid_media_spends=["tv_S", "ooh_S", "print_S", "facebook_S", "search_S"],
     paid_media_vars=["tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"],
-    organic_vars="newsletter",
+    organic_vars=["newsletter"], ## Manually converted to list, since R behaves single variable as list as well.
     window_start="2016-01-01",
     window_end="2018-12-31",
     adstock="geometric"
@@ -37,14 +37,16 @@ input_collect = inputs.robyn_inputs(
 print(input_collect)
 
 # Define and add hyperparameters
-# Corrected
 hyper_names = inputs.hyper_names(adstock=input_collect['robyn_inputs']['adstock'], all_media=input_collect['robyn_inputs']['all_media'])
 
 ## Manually added
-transformations.plot_adstock(plot = False)
-transformations.plot_saturation(plot = False)
+##pads_stock1, pads_stock2 = transformation.plot_adstock(plot = False)
+transformation.plot_adstock(plot = False)
+##psaturation1, psaturation2 =
+transformation.plot_saturation(plot = False)
 
-inputs.hyper_limits()
+## Manually added
+checks.hyper_limits()
 
 # Define hyperparameters ranges
 facebook_S_alphas = np.array([0.5, 3])
@@ -91,8 +93,8 @@ hyperparameters = pd.DataFrame({
 
 # Define InputCollect
 ## Manually converted, parameters defined wrong.
-input_collect = robyn_inputs(
-    InputCollect = input_collect,
+input_collect = inputs.robyn_inputs(
+    InputCollect = input_collect['robyn_inputs'],
     hyperparameters = hyperparameters
 )
 
@@ -100,18 +102,41 @@ input_collect = robyn_inputs(
 print(input_collect)
 
 # Check spend exposure fit if available
-if len(input_collect['exposure_vars']) > 0:
-    lapply(input_collect['modNLS$plots'], plot)
+if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
+    for plot in input_collect['modNLS']['plots']:
+        ##plot.show()
+        print('Skipping plot...')
 
-import robyn
 
-# Initialize Robyn
-robyn.init()
+calibration_input = pd.DataFrame({
+  # channel name must in paid_media_vars
+  "channel": ["facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"],
+  # liftStartDate must be within input data range
+  "liftStartDate": pd.to_datetime(["2018-05-01", "2018-04-03", "2018-07-01", "2017-12-01"]),
+  # liftEndDate must be within input data range
+  "liftEndDate": pd.to_datetime(["2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31"]),
+  # Provided value must be tested on same campaign level in model and same metric as dep_var_type
+  "liftAbs": [400000, 300000, 700000, 200],
+  # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
+  "spend": [421000, 7100, 350000, 0],
+  # Confidence: if frequentist experiment, you may use 1 - pvalue
+  "confidence": [0.85, 0.8, 0.99, 0.95],
+  # KPI measured: must match your dep_var
+  "metric": ["revenue", "revenue", "revenue", "revenue"],
+  # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
+  "calibration_scope": ["immediate", "immediate", "immediate", "immediate"]
+})
+input_collect = inputs.robyn_inputs(
+    InputCollect = input_collect['robyn_inputs'],
+    hyperparameters = hyperparameters,
+    calibration_input = calibration_input
+)
 
 # Define the input collector
-input_collector = robyn.InputCollect(
+output_models = model.robyn_run(
+    InputCollect=input_collect['robyn_inputs'],
     # Feed in all model specification
-    model_specs=['my_model'],
+    ## model_specs=['my_model'],
     # Set to NULL to use all available CPU cores
     cores=None,
     # Run 2000 iterations
@@ -124,23 +149,21 @@ input_collector = robyn.InputCollect(
     add_penalty_factor=False
 )
 
-# Run all trials and iterations
-output_models = robyn.run(input_collector)
-
-# Print the output models
 print(output_models)
 
-# Check MOO convergence plots
-convergence = output_models.convergence
-print(convergence.moo_distrb_plot)
-print(convergence.moo_cloud_plot)
+output_models['convergence']['moo_distrb_plot']
+output_models['convergence']['moo_cloud_plot']
+
+if output_models['ts_validation']:
+    output_models['ts_validation_plot']
+
 
 # Check time-series validation plot
-if output_models.ts_validation:
-    print(output_models.ts_validation_plot)
+if output_models['ts_validation']:
+    print(output_models['ts_validation_plot'])
 
 # Calculate Pareto fronts, cluster and export results and plots
-output_collector = robyn.outputs(
+output_collector = outputs.robyn_outputs(
     input_collector,
     output_models,
     # Automatically pick how many Pareto fronts to fill
@@ -166,11 +189,11 @@ print(output_collector)
 
 # Select and save any model
 select_model = '1_122_7'
-exported_model = robyn.write(input_collector, output_collector, select_model, export=True)
+exported_model = json.robyn_write(input_collector, output_collector, select_model, export=True)
 print(exported_model)
 
 # Plot any model's one-pager
-my_one_pager = robyn.onepagers(input_collector, output_collector, select_model, export=False)
+my_one_pager = plots.robyn_onepagers(input_collector, output_collector, select_model, export=False)
 print(my_one_pager)
 
 # Check each of the one-pager's plots
@@ -179,7 +202,7 @@ my_one_pager.patches.plots[2]
 my_one_pager.patches.plots[3]
 
 # Get budget allocation based on the selected model
-allocator_collector = robyn.allocator(
+allocator_collector = allocator.robyn_allocator(
     input_collector=input_collector,
     output_collector=output_collector,
     select_model=select_model,
@@ -205,7 +228,7 @@ import robyn
 
 # Example 2: maximize response for latest 10 periods with given spend
 
-allocator_collect2 = robyn.allocator(
+allocator_collect2 = allocator.robyn_allocator(
     InputCollect=InputCollect,
     OutputCollect=OutputCollect,
     select_model=select_model,
@@ -224,7 +247,7 @@ plot(allocator_collect2)
 
 # Example 3: Use default ROAS target for revenue or CPA target for conversion
 
-allocator_collect3 = robyn.allocator(
+allocator_collect3 = allocator.robyn_allocator(
     InputCollect=InputCollect,
     OutputCollect=OutputCollect,
     select_model=select_model,
@@ -242,7 +265,7 @@ plot(allocator_collect3)
 
 json_file = "~/Desktop/Robyn_202302221206_init/RobynModel-1_117_11.json"
 
-allocator_collect4 = robyn.allocator(
+allocator_collect4 = allocator.robyn_allocator(
     json_file=json_file,  # Using json file from robyn_write() for allocation
     dt_input=dt_simulated_weekly,
     dt_holidays=dt_prophet_holidays,
@@ -261,7 +284,7 @@ allocator_collect4 = robyn.allocator(
 
 select_media = "search_S"  # Pick any media variable: InputCollect$all_media
 
-metric_value = allocator_collect1.dt_optimOut.optmSpendUnit[
+metric_value = allocator_collect1['dt_optimOut']['optmSpendUnit'][
     allocator_collect1.dt_optimOut.channels == select_media
 ]  # For paid_media_spends set metric_value as your optimal spend
 
@@ -270,7 +293,7 @@ metric_value = allocator_collect1.dt_optimOut.optmSpendUnit[
 
 # Saturation curve for adstocked metric results (example)
 
-robyn.response(
+response.robyn_response(
     InputCollect=InputCollect,
     OutputCollect=OutputCollect,
     select_model=select_model,
@@ -464,7 +487,7 @@ response3.plot()
 
 # Define sendings and create Robyn response object
 sendings = 30000
-response_sending = robyn.response(
+response_sending = robyn_response(
     InputCollect=robyn.InputCollect(
         dt_input='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json',
         dt_holidays='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json'
@@ -517,7 +540,7 @@ my_model = robyn.read(json_file)
 print(my_model)
 
 # Create one-pagers for Robyn model
-robyn_onepagers(input_collect, output_collect, export=False)
+plots.robyn_onepagers(input_collect, output_collect, export=False)
 
 # Refresh Robyn model
 robyn_refresh(

@@ -671,7 +671,7 @@ def robyn_engineering(x, quiet=False):
     dt_transform = dt_transform[subset]
 
     input_collect["dt_mod"] = dt_transform
-    input_collect["dt_modRollWind"] = dt_transform.iloc[(rolling_window_start_which-1):(rolling_window_end_which-1),]
+    input_collect["dt_modRollWind"] = dt_transform.iloc[(rolling_window_start_which-1):(rolling_window_end_which),]
     input_collect["dt_inputRollWind"] = dt_input_roll_wind
     input_collect["modNLS"] = {  ## Manual: added dict.
         "results": mod_nls_collect,

@@ -21,9 +21,9 @@ def robyn_response(InputCollect=None,
     if json_file:
         # Use previously exported model using json_file
         if not InputCollect:
-            InputCollect = robyn_inputs(json_file=json_file, ...)
+            InputCollect = robyn_inputs(json_file=json_file)
         if not OutputCollect:
-            OutputCollect = robyn_run(InputCollect=InputCollect, json_file=json_file, export=False, quiet=quiet, ...)
+            OutputCollect = robyn_run(InputCollect=InputCollect, json_file=json_file, export=False, quiet=quiet)
         dt_hyppar = OutputCollect.resultHypParam
         dt_coef = OutputCollect.xDecompAgg
     else:
@@ -58,72 +58,72 @@ def robyn_response(InputCollect=None,
 
     # Check inputs with usecases
     metric_type = check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
-    all_dates = pull(dt_input, InputCollect$date_var)
+    all_dates = pull(dt_input, InputCollect['date_var'])
     all_values = pull(dt_input, metric_name)
 
     if usecase == "all_historical_vec":
         # Calculate dates and values for all historical data
-        ds_list = check_metric_dates(date_range="all", all_dates[1:endRW], dayInterval, quiet, ...)
+        ds_list = check_metric_dates("all", all_dates[1:endRW], dayInterval, quiet)
         metric_value = None
-        val_list = check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+        val_list = check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
     elif usecase == "unit_metric_default_last_n":
         # Calculate dates and values for last n days
-        ds_list = check_metric_dates(date_range=paste0("last_", length(metric_value)), all_dates[1:endRW], dayInterval, quiet, ...)
-        val_list = check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
+        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[1:endRW], dayInterval, quiet)
+        val_list = check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
     else:
         # Calculate dates and values for specified date range
-        ds_list = check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet, ...)
+        ds_list = check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet)
 
     # Transform exposure to spend when necessary
     if metric_type == "exposure":
         get_spend_name = paid_media_spends[which(paid_media_vars == metric_name)]
-        expo_vec = dt_input[, metric_name][[1]]
+        expo_vec = dt_input[metric_name][[1]]
         # Use non-0 mean as marginal level if metric_value not provided
-        if is.null(metric_value):
+        if metric_value is None:
             metric_value = mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
             if not quiet:
                 print("Input 'metric_value' not provided. Using mean of ", metric_name, " instead")
 
         # Fit spend to exposure
-        spend_vec = dt_input[, get_spend_name][[1]]
-        temp = filter(spendExpoMod, .data$channel == metric_name)
-        nls_select = temp$rsq_nls > temp$rsq_lm
+        spend_vec = dt_input[get_spend_name][[1]]
+        temp = filter(spendExpoMod, dt_input['channel'] == metric_name)
+        nls_select = temp['rsq_nls'] > temp['rsq_lm']
         if nls_select:
-            Vmax = spendExpoMod$Vmax[spendExpoMod$channel == metric_name]
-            Km = spendExpoMod$Km[spendExpoMod$channel == metric_name]
+            Vmax = spendExpoMod['Vmax'][spendExpoMod['channel'] == metric_name]
+            Km = spendExpoMod['Km'][spendExpoMod['channel'] == metric_name]
             input_immediate = mic_men(x=metric_value_updated, Vmax=Vmax, Km=Km, reverse=True)
         else:
-            coef_lm = spendExpoMod$coef_lm[spendExpoMod$channel == metric_name]
+            coef_lm = spendExpoMod['coef_lm'][spendExpoMod['channel'] == metric_name]
             input_immediate = metric_value_updated / coef_lm
 
-        all_values_updated[ds_list$metric_loc] = input_immediate
+        all_values_updated[ds_list['metric_loc']] = input_immediate
         hpm_name = get_spend_name
 
     # Adstocking original
-    media_vec_origin = dt_input[, metric_name][[1]]
+    media_vec_origin = dt_input[metric_name][[1]]
     theta = scale = shape = NULL
     if adstock == "geometric":
-        theta = dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_thetas")]][[1]]
+        theta = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_thetas")]][[1]]
     elif grepl("weibull", adstock):
-        shape = dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_shapes")]][[1]]
-        scale = dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_scales")]][[1]]
+        shape = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_shapes")]][[1]]
+        scale = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_scales")]][[1]]
 
     x_list = transform_adstock(media_vec_origin, adstock, theta=theta, shape=shape, scale=scale)
-    m_adstocked = x_list$x_decayed
+    m_adstocked = x_list['x_decayed']
     # net_carryover_ref = m_adstocked - media_vec_origin
 
     # Adstocking simulation
     x_list_sim = transform_adstock(all_values_updated, adstock, theta=theta, shape=shape, scale=scale)
-    media_vec_sim = x_list_sim$x_decayed
-    media_vec_sim_imme = if adstock == "weibull_pdf" else x_list_sim$x
-    input_total = media_vec_sim[ds_list$metric_loc]
-    input_immediate = media_vec_sim_imme[ds_list$metric_loc]
+    media_vec_sim = x_list_sim['x_decayed']
+    media_vec_sim_imme = True if adstock == "weibull_pdf" else x_list_sim['x']
+    input_total = media_vec_sim[ds_list['metric_loc']]
+    input_immediate = media_vec_sim_imme[ds_list['metric_loc']]
     input_carryover = input_total - input_immediate
 
     # Saturation
     m_adstockedRW = m_adstocked[startRW:endRW]
-    alpha = head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_alphas")]], 1)
-    gamma = head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(hpm_name, "_gammas")]], 1)
+    alpha = head(dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_alphas")]], 1)
+    gamma = head(dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_gammas")]], 1)
     if usecase == "all_historical_vec":
         metric_saturated_total = saturation_hill(x=m_adstockedRW, alpha=alpha, gamma=gamma)
         metric_saturated_carryover = saturation_hill(x=m_adstockedRW, alpha=alpha, gamma=gamma)

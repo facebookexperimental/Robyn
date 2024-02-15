@@ -924,7 +924,7 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     intercept_column = [intercept] * len(x_decomp)
     x_decomp.insert(0, 'intercept', intercept_column)
     y_y_pred_df = pd.DataFrame({'y': y, 'y_pred': y_pred})
-    x_decomp_out = pd.concat([dt_modRollWind[['ds']].reset_index(), y_y_pred_df.reset_index(), x_decomp], axis=1)
+    x_decomp_out = pd.concat([dt_modRollWind[['ds']].reset_index(), y_y_pred_df.reset_index(), x_decomp.reset_index()], axis=1).drop(columns=['index'])
     # Decomp immediate & carryover response
     feature_names = ['season', 'competitor_sales_B', 'holiday', 'events', 'trend',
                  'tv_S', 'ooh_S', 'print_S', 'facebook_S', 'search_S', 'newsletter']

@@ -8,9 +8,23 @@ import numpy as np
 import pandas as pd
 from plotnine import *
 import seaborn as sns
-from auxiliary import robyn_palette
+from .auxiliary import robyn_palette
 from tqdm import tqdm
 import json
+
+# Plotting using plotnine
+from plotnine import (
+    aes,
+    element_blank,
+    facet_grid,
+    geom_bar,
+    geom_text,
+    ggplot,
+    labs,
+    scale_fill_manual,
+    scale_y_continuous,
+    theme,
+)
 
 
 def robyn_plots(InputCollect, OutputCollect, export=True, plot_folder=None, **kwargs):
@@ -980,20 +994,6 @@ def allocation_plots(
     ]
     df_roi["labs"] = pd.Categorical(np.repeat(labs, 2), categories=labs)
 
-    # Plotting using plotnine
-    from plotnine import (
-        aes,
-        element_blank,
-        facet_grid,
-        geom_bar,
-        geom_text,
-        ggplot,
-        labs,
-        scale_fill_manual,
-        scale_y_continuous,
-        theme,
-    )
-
     p1 = (
         ggplot(df_roi, aes(x="name", y="value_norm", fill="type"))
         + facet_grid(". ~ labs", scales="free")
@@ -1229,7 +1229,7 @@ def allocation_plots(
 
     # Creating caption
     caption_parts = [
-        f"^{any_topped and eval_list['total_budget'] and f' Given the upper/lower constrains, the total budget ({eval_list['total_budget']}) can't be fully allocated'}\n",
+        f" Given the upper/lower constrains, the total budget ({eval_list['total_budget']}) can't be fully allocated \n" if any_topped else "",
         f"* {formulax1}\n",
         f"* {formulax2}\n",
         "** Dotted lines show budget optimization lower-upper ranges per media"
@@ -1244,7 +1244,7 @@ def allocation_plots(
         + facet_wrap('constr_label', scales='free', ncol=3)
         + geom_area(
             data=plotDT_scurve[plotDT_scurve['spend'] <= plotDT_scurve['mean_carryover']],
-            aes(x='spend', y='total_response', color='constr_label'),
+            mapping=aes('spend', 'total_response', color='constr_label'),
             stat='identity', position='stack', size=0.1,
             fill='grey50', alpha=0.4, show_legend=False
         )
@@ -1255,15 +1255,15 @@ def allocation_plots(
         )
         + geom_point(
             data=mainPoints[~mainPoints['plot_lb'].isna() & ~mainPoints['mean_spend'].isna()],
-            aes(x='plot_lb', y='response_point'), shape=18
+            mapping=aes(x='plot_lb', y='response_point'), shape=18
         )
         + geom_point(
             data=mainPoints[~mainPoints['plot_ub'].isna() & ~mainPoints['mean_spend'].isna()],
-            aes(x='plot_ub', y='response_point'), shape=18
+            mapping=aes(x='plot_ub', y='response_point'), shape=18
         )
         + geom_point(
             data=mainPoints[~mainPoints['constr_label'].isna()],
-            aes(x='spend_point', y='response_point', fill='type_lab'),
+            mapping=aes(x='spend_point', y='response_point', fill='type_lab'),
             size=2.5, shape=21
         )
         + scale_fill_manual(values=["white", "grey", "steelblue", "darkgoldenrod4"])
@@ -1373,7 +1373,7 @@ def refresh_plots(InputCollectRF, OutputCollectRF, ReportCollect, export=True, *
         + geom_line()
         + geom_rect(
             data=dt_refreshDates,
-            aes(xmin='refreshStart', xmax='refreshEnd', fill='refreshStatus.astype(str)'),
+            mapping=aes(xmin='refreshStart', xmax='refreshEnd', fill='refreshStatus.astype(str)'),
             ymin=float('-inf'), ymax=float('inf'), alpha=0.2
         )
         # Theme customization
@@ -1513,7 +1513,7 @@ def refresh_plots_json(output_collect_rf, json_file, export=True, **kwargs):
 
     pFitRF = (ggplot(x_decomp_vec_plot_melted, aes(x='ds', y='value', color='variable', linetype='linetype'))
             + geom_path(size=0.6)
-            + geom_rect(data=dt_refresh_dates, aes(xmin='refreshStart', xmax='refreshEnd', fill='refreshStatus'),
+            + geom_rect(data=dt_refresh_dates, mapping=aes(xmin='refreshStart', xmax='refreshEnd', fill='refreshStatus'),
                         ymin=float('-inf'), ymax=float('inf'), alpha=0.2)
             + scale_fill_brewer(palette='BuGn')
             + geom_text(data=dt_refresh_dates, mapping=aes(x='refreshStart', y=x_decomp_vec_plot_melted['value'].max(),
@@ -1674,7 +1674,7 @@ def decomp_plot(input_collect, output_collect, sol_id=None, exclude=None):
 
     var_type = input_collect['dep_var_type'].title()
 
-=    pal = plt.cm.get_cmap('viridis').colors
+    pal = plt.cm.get_cmap('viridis').colors
 
     # Data manipulation
     df = output_collect['xDecompVecCollect']

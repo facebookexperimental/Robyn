@@ -51,10 +51,10 @@ def robyn_palette():
         "#F5F5F5", "#C7EAE5", "#80CDC1", "#35978F", "#01665E", "#043F43", "#04272D"
     ]
     repeated = 4
-    return [
+    return {
         "fill": rep(pal, repeated),
         "colour": rep(c(rep("#FFFFFF", 4), rep("#000000", 7), rep("#FFFFFF", 3)), repeated)
-    ]
+    }
 
 def flatten_hyps(x):
     """
