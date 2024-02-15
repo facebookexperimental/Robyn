@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import warnings
 
+from .transformation import saturation_hill, transform_adstock
+
 
 def robyn_calibrate(
     calibration_input,
@@ -77,32 +79,79 @@ def robyn_calibrate(
             for l_chn in range(len(get_channels)):
                 # Get the current channel and its corresponding position
                 if scope == 'immediate':
-                channel = get_channels[l_chn]
-                pos = np.where(df_raw["ds"] == channel)[0]
+                    channel = get_channels[l_chn]
+                    m = df_raw[get_channels[l_chn]].values[0]
+                    pos = np.where(df_raw["ds"] == channel)[0]
 
-                # Check if the position is within the modelling window
-                if pos.size > 0:
-                    # Extract the necessary data for this position
-                    study_start = calibration_input["liftStartDate"][l_study]
-                    study_end = calibration_input["liftEndDate"][l_study]
-                    study_pos = np.where(
-                        df_raw["ds"] >= study_start & df_raw["ds"] <= study_end
-                    )[0]
+                    if adstock == 'geometric':
+                        theta = hypParamSam[get_channels[l_chn] + "_thetas"].values[0][0]
 
-                    # Calculate the calibrated values for this position
-                    calib_pos = study_pos - pos[0] + 1
-                    calib_dates = df_raw.iloc[calib_pos, 0]
+                    if adstock.startswith('weibull'):
+                        shape = hypParamSam[get_channels[l_chn] + "_shapes"].values[0][0]
+                        scale = hypParamSam[get_channels[l_chn] + "_scales"].values[0][0]
 
-                    # Calculate the calibrated values for this channel
-                    calib_chn = np.sum(xDecompVec[calib_pos, channel])
+                    x_list = transform_adstock(m, adstock, theta=theta, shape=shape, scale=scale)
 
-                    # Add the calibrated values to the list
-                    l_chn_collect_scope.append(calib_chn)
-                    l_chn_total_collect_scope.append(calib_chn)
+                    if adstock == "weibull_pdf":
+                        m_imme = x_list['x_imme']
+                    else:
+                        m_imme = m
 
-            # Combine the lists for this scope
-            l_chn_collect.append(np.sum(l_chn_collect_scope))
-            l_chn_total_collect.append(np.sum(l_chn_total_collect_scope))
+                    m_total = x_list['x_decayed']
+                    m_coav = m_total - m_imme
+
+                    m_caov_calib = m_caov[calib_pos]
+                    m_total_rw = m_total[wind_start:wind_end]
+
+                    alpha = hypParamSam[get_channels[l_chn] + "_alphas"].values[0][0]
+                    gamma = hypParamSam[get_channels[l_chn] + "_gammas"].values[0][0]
+
+                    m_calib_caov_sat = saturation_hill(m_total_rw, alpha = alpha, gamma = gamma, x_marginal = m_caov_calib)
+
+                    m_calib_caov_decomp = m_calib_caov_sat * coefs['s0'][coefs['rn'] == get_channels[l_chn]]
+                    m_calib_total_decomp = xDecompVec[calib_pos_rw, get_channels[l_chn]]
+
+                    m_calib_decomp = m_calib_total_decomp - m_calib_caov_decomp
+
+                    if scope == 'total':
+                        m_calib_decomp = m_calib_total_decomp = xDecompVec[calib_pos_rw, get_channels[l_chn]]
+
+                    l_chn_collect[[get_channels[l_chn]]] = m_calib_decomp
+                    l_chn_total_collect[[get_channels[l_chn]]] = m_calib_total_decomp
+
+            if len(get_channels) > 1:
+                l_chn_collect = l_chn_collect.sum(axis=0) ##rowSums[bind_cols(l_chn_collect))
+                l_chn_total_collect = l_chn_total_collect.sum(axis=0) ##rowSums(bind_cols(l_chn_total_collect))
+            else:
+                l_chn_collect = l_chn_collect ##unlist(l_chn_collect, use.names = FALSE)
+                l_chn_total_collect = l_chn_total_collect ##unlist(l_chn_total_collect, use.names = FALSE)
+
+            # Check if the position is within the modelling window
+            ## if pos.size > 0:
+            ##    # Extract the necessary data for this position
+            ##    study_start = calibration_input["liftStartDate"][l_study]
+            ##    study_end = calibration_input["liftEndDate"][l_study]
+            ##    study_pos = np.where(
+            ##        df_raw["ds"] >= study_start & df_raw["ds"] <= study_end
+            ##    )[0]
+
+                # Calculate the calibrated values for this position
+            ##    calib_pos = study_pos - pos[0] + 1
+            ##    calib_dates = df_raw.iloc[calib_pos, 0]
+
+                # Calculate the calibrated values for this channel
+            ##    calib_chn = np.sum(xDecompVec[calib_pos, channel])
+
+                # Add the calibrated values to the list
+            ##    l_chn_collect_scope.append(calib_chn)
+            ##    l_chn_total_collect_scope.append(calib_chn)
+
+            calibration_input[l_study]
+
+
+        # Combine the lists for this scope
+        l_chn_collect.append(np.sum(l_chn_collect_scope))
+        l_chn_total_collect.append(np.sum(l_chn_total_collect_scope))
 
         # Combine the lists for all scopes
         l_chn_collect = np.sum(l_chn_collect, axis=0)

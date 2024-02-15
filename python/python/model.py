@@ -456,7 +456,7 @@ def robyn_mmm(InputCollect,
     # When not refreshing, dt_spendShareRF = dt_spendShare
     ## refreshAddedStartWhich = dt_modRollWind[dt_modRollWind['ds'] == refreshAddedStart].index[0]
     ## Return the index which is equal to refreshAddedStart
-    refreshAddedStartWhich = dt_modRollWind.index[dt_modRollWind['ds'] == refreshAddedStart].tolist()[0] - (rollingWindowStartWhich-1)
+    refreshAddedStartWhich = dt_modRollWind.index[dt_modRollWind['ds'] == refreshAddedStart].tolist()[0] - (rollingWindowStartWhich - 1)
 
     temp = dt_inputTrain[paid_media_spends].iloc[(refreshAddedStartWhich):rollingWindowLength]
     dt_spendShareRF = pd.DataFrame({
@@ -924,7 +924,7 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     intercept_column = [intercept] * len(x_decomp)
     x_decomp.insert(0, 'intercept', intercept_column)
     y_y_pred_df = pd.DataFrame({'y': y, 'y_pred': y_pred})
-    x_decomp_out = pd.concat([dt_modRollWind[['ds']], y_y_pred_df, x_decomp], axis=1)
+    x_decomp_out = pd.concat([dt_modRollWind[['ds']].reset_index(), y_y_pred_df.reset_index(), x_decomp], axis=1)
     # Decomp immediate & carryover response
     feature_names = ['season', 'competitor_sales_B', 'holiday', 'events', 'trend',
                  'tv_S', 'ooh_S', 'print_S', 'facebook_S', 'search_S', 'newsletter']
