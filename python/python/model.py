@@ -688,7 +688,7 @@ def robyn_mmm(InputCollect,
 
                 nrmse = mod_out["nrmse_val"] if ts_validation else mod_out["nrmse_train"]
                 mape = 0
-                df_int = mod_out["df.int"]
+                df_int = mod_out["df_int"]
 
                 # MAPE: Calibration error
                 if calibration_input is not None:
