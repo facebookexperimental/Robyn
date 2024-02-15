@@ -12,6 +12,8 @@ import pandas as pd
 
 from .json import robyn_write
 from .cluster import robyn_clusters
+from .checks import check_dir
+from .pareto import robyn_pareto
 
 def robyn_outputs(input_collect,
                   output_models,
@@ -36,7 +38,7 @@ def robyn_outputs(input_collect,
     plot_folder = check_dir(plot_folder)
 
     # Check calibration constrains
-    calibrated = input_collect.calibration_input is not None
+    calibrated = input_collect['calibration_input'] is not None
     all_fixed = len(output_models.trial1.hyperBoundFixed) == len(output_models.hyper_updated)
     if not all_fixed:
         calibration_constraint = check_calibconstr(calibration_constraint, output_models.iterations, output_models.trials, input_collect.calibration_input, refresh=refresh)

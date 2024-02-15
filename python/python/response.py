@@ -5,6 +5,8 @@ from matplotlib.colors import ListedColormap
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
+from .checks import check_metric_type
+
 def robyn_response(InputCollect=None,
                    OutputCollect=None,
                    json_file=None,
