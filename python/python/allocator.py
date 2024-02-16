@@ -110,8 +110,8 @@ def robyn_allocator(robyn_object=None,
     inflexions = hills.inflexions
     coefs_sorted = hills.coefs_sorted
 
-    window_loc = InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich
-    dt_optimCost = InputCollect.dt_mod.loc[window_loc]
+    window_loc = tuple(InputCollect.rollingWindowStartWhich,InputCollect.rollingWindowEndWhich)
+    dt_optimCost = InputCollect['dt_mod'].loc[window_loc]
     new_date_range = check_metric_dates(date_range, dt_optimCost.ds, InputCollect.dayInterval, quiet=False, is_allocator=True)
     date_min = new_date_range.date_range_updated.iloc[0]
     date_max = new_date_range.date_range_updated.iloc[-1]
@@ -202,7 +202,7 @@ def robyn_allocator(robyn_object=None,
         initResponseMargUnit = np.append(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
 
     qa_carryover = np.c_[qa_carryover, np.zeros(len(qa_carryover))]
-    names(initResponseUnit) = names(hist_carryover) = names(qa_carryover) = mediaSpendSorted
+    initResponseUnit.columns = hist_carryover.columns = qa_carryover.columns = mediaSpendSorted
 
     # QA adstock: simulated adstock should be identical to model adstock
     # qa_carryover_origin = OutputCollect$mediaVecCollect[
@@ -687,7 +687,7 @@ def robyn_allocator(robyn_object=None,
         # Export results into CSV
         export_dt_optimOut = dt_optimOut
         if dep_var_type == "conversion":
-            colnames(export_dt_optimOut) = gsub("Roi", "CPA", colnames(export_dt_optimOut))
+            export_dt_optimOut.columns = gsub("Roi", "CPA", export_dt_optimOut.columns)
         write.csv(export_dt_optimOut, paste0(plot_folder, select_model, "_reallocated.csv"))
 
     # Generate plots
@@ -753,23 +753,23 @@ def print_robyn_allocator(x):
           f"Relative Spend Increase: {num_abbr(100 * x.dt_optimOut.optmSpendUnitTotalDelta[0], 3)}% ({formatNum(sum(x.dt_optimOut.optmSpendUnitTotal) - sum(x.dt_optimOut.initSpendUnitTotal), abbr=True, sign=True)})"
           f"Total Response Increase (Optimized): {signif(100 * x.dt_optimOut.optmResponseUnitTotalLift[0], 3)}%\n"
           f"Allocation Summary:\n"
-          f"{paste(sprintf(\n"
-          f"- %s:\n"
-          f"  Optimizable bound: [%s%%, %s%%],\n"
-          f"  Initial spend share: %s%% -> Optimized bounded: %s%%\n"
-          f"  Initial response share: %s%% -> Optimized bounded: %s%%\n"
-          f"  Initial abs. mean spend: %s -> Optimized: %s [Delta = %s%%]",
-          temp.channels,
-          100 * temp.constr_low - 100,
-          100 * temp.constr_up - 100,
-          signif(100 * temp.initSpendShare, 3),
-          signif(100 * temp.optmSpendShareUnit, 3),
-          signif(100 * temp.initResponseUnitShare, 3),
-          signif(100 * temp.optmResponseUnitShare, 3),
-          formatNum(temp.initSpendUnit, 3, abbr=True),
-          formatNum(temp.optmSpendUnit, 3, abbr=True),
-          formatNum(100 * temp.optmSpendUnitDelta, signif=2)),
-          collapse="\n  ")}
+          ## f"{paste(sprintf(\n"
+          ## f"- %s:\n"
+          ## f"  Optimizable bound: [%s%%, %s%%],\n"
+          ## f"  Initial spend share: %s%% -> Optimized bounded: %s%%\n"
+          ## f"  Initial response share: %s%% -> Optimized bounded: %s%%\n"
+          ## f"  Initial abs. mean spend: %s -> Optimized: %s [Delta = %s%%]",
+          ## temp.channels,
+          ##100 * temp.constr_low - 100,
+          ##100 * temp.constr_up - 100,
+          ##signif(100 * temp.initSpendShare, 3),
+          ##signif(100 * temp.optmSpendShareUnit, 3),
+          ##signif(100 * temp.initResponseUnitShare, 3),
+          ##signif(100 * temp.optmResponseUnitShare, 3),
+          ##formatNum(temp.initSpendUnit, 3, abbr=True),
+          ##formatNum(temp.optmSpendUnit, 3, abbr=True),
+          ##formatNum(100 * temp.optmSpendUnitDelta, signif=2)),
+          ##collapse="\n  ")}
          )
 
 
@@ -910,6 +910,7 @@ def eval_g_eq_effi(X, target_value):
     grad = np.ones(len(X)) - np.vectorize(fx_gradient)(X, eval_list.coefs_eval, eval_list.alphas_eval, eval_list.inflexions_eval, eval_list.hist_carryover_eval)
     return {"constraints": constr, "jacobian": grad}
 
+
 def get_adstock_params(InputCollect, dt_hyppar):
     if InputCollect.adstock == "geometric":
         getAdstockHypPar = dt_hyppar.loc[dt_hyppar.columns.str.extract(".*_thetas", expand=False)]
@@ -917,7 +918,8 @@ def get_adstock_params(InputCollect, dt_hyppar):
         getAdstockHypPar = dt_hyppar.loc[dt_hyppar.columns.str.extract(".*_shapes|.*_scales", expand=False)]
     return getAdstockHypPar
 
-def get_hill_params(InputCollect, OutputCollect=None, dt_hyppar, dt_coef, mediaSpendSorted, select_model, chnAdstocked=None):
+
+def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSorted, select_model, chnAdstocked=None):
     hillHypParVec = dt_hyppar.loc[dt_hyppar.columns.str.extract(".*_alphas|.*_gammas", expand=False)]
     alphas = hillHypParVec.loc[mediaSpendSorted + "_alphas"]
     gammas = hillHypParVec.loc[mediaSpendSorted + "_gammas"]

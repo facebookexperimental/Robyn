@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import norm
 
+from .allocator import get_hill_params
+
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
     hyper_fixed = OutputModels.hyper_fixed
     OutModels = OutputModels[OutputModels.apply(lambda x: "resultCollect" in x.keys(), axis=1)]
@@ -100,7 +102,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         respN = None
 
     if not quiet:
-        print(f">>> Calculating response curves for all models' media variables ({decompSpendDistPar.shape[0]})..."
+        print(f">>> Calculating response curves for all models' media variables ({decompSpendDistPar.shape[0]})...")
 
     if OutputModels["cores"] > 1:
         resp_collect = pd.concat(
@@ -310,8 +312,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             # temp = xDecompVecImmCarr[xDecompVecImmCarr.solID == sid]
             hypParamSam = resultHypParam[resultHypParam.solID == sid]
             dt_saturated_dfs = run_transformations(InputCollect, hypParamSam, adstock)
-            coefs = xDecompAgg.coef[xDecompAgg.solID == sid]
-            names(coefs) = xDecompAgg.rn[xDecompAgg.solID == sid]
+            coefs = xDecompAgg['coef'][xDecompAgg.solID == sid]
+            ##names(coefs) = xDecompAgg['rn'][xDecompAgg['solID'] == sid]
+            coefs.columns = xDecompAgg['rn'][xDecompAgg['solID'] == sid]
             decompCollect = model_decomp(
                 coefs=coefs,
                 y_pred=dt_saturated_dfs.dt_modSaturated.dep_var,
@@ -324,11 +327,11 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             mediaDecompImmediate = decompCollect.mediaDecompImmediate.drop(
                 columns=["ds", "y"]
             )
-            colnames(mediaDecompImmediate) = [f"{col}_MDI" for col in colnames(mediaDecompImmediate)]
+            mediaDecompImmediate.columns = [f"{col}_MDI" for col in colnames(mediaDecompImmediate)]
             mediaDecompCarryover = decompCollect.mediaDecompCarryover.drop(
                 columns=["ds", "y"]
             )
-            colnames(mediaDecompCarryover) = [f"{col}_MDC" for col in colnames(mediaDecompCarryover)]
+            mediaDecompCarryover.columns = [f"{col}_MDC" for col in colnames(mediaDecompCarryover)]
             temp = pd.concat(
                 [
                     decompCollect.xDecompVec,
@@ -343,8 +346,8 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 "xDecompVecCarryover": temp.drop(columns=["_MDI"]).drop(columns=InputCollect.all_media)
             }
             this = [col for col in colnames(vec_collect["xDecompVecImmediate"]) if not col.endswith("_MDI")]
-            colnames(vec_collect["xDecompVecImmediate"]) = [f"{col}_MDI" for col in this]
-            colnames(vec_collect["xDecompVecCarryover"]) = [f"{col}_MDC" for col in this]
+            vec_collect["xDecompVecImmediate"].columns = [f"{col}_MDI" for col in this]
+            vec_collect["xDecompVecCarryover"].columns = [f"{col}_MDC" for col in this]
             df_caov = vec_collect["xDecompVecCarryover"].groupby("solID").sum().reset_index()
             df_total = vec_collect["xDecompVec"].groupby("solID").sum().reset_index()
             df_caov_pct = df_caov.merge(
@@ -458,7 +461,8 @@ def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHyp
     hills = get_hill_params(
         InputCollect, None, dt_hyppar, dt_coef,
         mediaSpendSorted=get_spendname,
-        select_model=get_solID, chnAdstocked
+        select_model=get_solID,
+        chnAdstocked=chnAdstocked
     )
     mean_response = fx_objective(
         x=decompSpendDistPar.mean_spend[respN],
