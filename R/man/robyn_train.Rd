@@ -70,10 +70,11 @@ glmnet's penalty.factor to be optimized by nevergrad. Use with caution, because
 this feature might add too much hyperparameter space and probably requires
 more iterations to converge.}
 
-\item{objective_weights}{Numeric. Default to NULL that gives equal weights
-to all objective functions. Set c(2, 1) to give double weight to the 1st.
+\item{objective_weights}{Numeric. Default to NULL to give equal weights
+to all objective functions. Order: NRMSE, DECOMP.RSSD, MAPE (when calibration
+data is provided). Set c(2, 1) to give double weight to the 1st (NRMSE).
 This is an experimental feature. There's no research on optimal weight
-setting. Subjective weights might strongly bias modelling result.}
+setting. Subjective weights might strongly bias modeling results.}
 
 \item{rssd_zero_penalty}{Boolean. When TRUE, the objective function
 DECOMP.RSSD will penalize models with more 0 media effects additionally.
