@@ -106,6 +106,14 @@ robyn_write <- function(InputCollect,
         select(order(colnames(.))) %>%
         as.list()
       outputs$hyper_updated <- OutputCollect$hyper_updated
+      if ("clusters" %in% names(OutputCollect)) {
+        outputs$clusters <- list(
+          data = OutputCollect$clusters$data %>%
+            group_by(.data$cluster) %>% mutate(n = n()) %>%
+            filter(.data$solID == select_model) %>%
+            select(any_of(c("solID", "cluster", "n")))
+        )
+      }
       ret[["ExportedModel"]] <- outputs
     } else {
       select_model <- "models"
@@ -225,7 +233,7 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       }
       json <- read_json(json_file, simplifyVector = TRUE)
       json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
-      json$ExportedModel <- append(json$ModelsCollect, json$ExportedModel)
+      json$ExportedModel <- append(json$ExportedModel, json$ModelsCollect)
       # Add train_size if not available (<3.9.0)
       if (!"train_size" %in% names(json$ExportedModel$hyper_values)) {
         json$ExportedModel$hyper_values$train_size <- 1

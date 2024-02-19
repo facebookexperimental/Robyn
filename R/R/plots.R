@@ -589,7 +589,15 @@ robyn_onepagers <- function(
 
       ## 8. Bootstrapped ROI/CPA with CIs
       if ("ci_low" %in% colnames(xDecompAgg)) {
-        metric <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")
+        metric <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROAS")
+        cluster_txt <- ""
+        if ("clusters" %in% names(OutputCollect)) {
+          temp <- OutputCollect$clusters$data
+          if (!"n" %in% colnames(temp)) temp <- group_by(temp, .data$cluster) %>% mutate(n = n())
+          temp <- filter(temp, .data$solID == sid)
+          cluster_txt <- sprintf("%s (%s sols)", temp$cluster, temp$n)
+        }
+        title <- sprintf("In-cluster%s bootstrapped %s [95%% CI & mean]", cluster_txt, metric)
         p8 <- xDecompAgg %>%
           filter(!is.na(.data$ci_low), .data$solID == sid) %>%
           select(.data$rn, .data$solID, .data$boot_mean, .data$ci_low, .data$ci_up) %>%
@@ -599,10 +607,10 @@ robyn_onepagers <- function(
           geom_text(aes(y = .data$ci_low, label = signif(.data$ci_low, 2)), hjust = 1.1, size = 2.8) +
           geom_text(aes(y = .data$ci_up, label = signif(.data$ci_up, 2)), hjust = -0.1, size = 2.8) +
           geom_errorbar(aes(ymin = .data$ci_low, ymax = .data$ci_up), width = 0.25) +
-          labs(title = paste("In-cluster bootstrapped", metric, "with 95% CI & mean"), x = NULL, y = NULL) +
+          labs(title = title, x = NULL, y = NULL) +
           coord_flip() +
           theme_lares(background = "white", )
-        if (metric == "ROI") {
+        if (metric == "ROAS") {
           p8 <- p8 + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
         }
       } else {
