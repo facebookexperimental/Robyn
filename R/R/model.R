@@ -451,8 +451,8 @@ robyn_mmm <- function(InputCollect,
                       trial = 1L,
                       seed = 123L,
                       quiet = FALSE, ...) {
-  if (reticulate::py_module_available("nevergrad")) {
-    if (iterations > 1) {
+  if (iterations > 1) {
+    if (reticulate::py_module_available("nevergrad")) {
       ng <- reticulate::import("nevergrad", delay_load = TRUE)
       if (is.integer(seed)) {
         np <- reticulate::import("numpy", delay_load = FALSE)
