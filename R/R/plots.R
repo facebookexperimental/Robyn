@@ -354,7 +354,7 @@ robyn_onepagers <- function(
       plotMediaShareLoopLine <- temp[[sid]]$plot1data$plotMediaShareLoopLine
       ySecScale <- temp[[sid]]$plot1data$ySecScale
       plotMediaShareLoopBar$variable <- stringr::str_to_title(gsub("_", " ", plotMediaShareLoopBar$variable))
-      type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")
+      type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROAS")
       plotMediaShareLoopLine$type_colour <- type_colour <- "#03396C"
       names(type_colour) <- "type_colour"
       p1 <- ggplot(plotMediaShareLoopBar, aes(x = .data$rn, y = .data$value, fill = .data$variable)) +
@@ -386,7 +386,7 @@ robyn_onepagers <- function(
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Share of Sum of Spend, Sum of Effect & Total ", type, " in Modeling Window*"),
+          title = paste0("Share of Sum of Spend, Effect & Total ", type, " in Modeling Window*"),
           x = NULL, fill = NULL, color = NULL
         )
 
@@ -684,8 +684,8 @@ allocation_plots <- function(
     "* Mean CPA = raw spend / mean response | mCPA =  marginal spend / marginal response"
   )
   formulax1 <- paste0(
-    "The allocator 'mean response' = curve response of adstocked mean spend in date range, ",
-    "while the model onepager 'sum of effect' = sum of curve responses of all adstocked spends in modeling window\n",
+    "Allocator's mean response = curve response of adstocked mean spend in date range, ",
+    "while\n Model's sum of effect = sum of curve responses of all adstocked spends in modeling window\n",
     formulax1)
   formulax2 <- sprintf("When reallocating budget, m%s converges across media within respective bounds", metric)
 
