@@ -386,7 +386,7 @@ robyn_onepagers <- function(
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Share of Sum of Spend, Effect & Total ", type, " in Modeling Window*"),
+          title = paste0("Share of Total Spend, Effect & ", type, " in Modeling Window*"),
           x = NULL, fill = NULL, color = NULL
         )
 
