@@ -230,7 +230,8 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Created with assign from JSON file
-  if (exists("clusters")) output$clusters <- get("clusters")
+  if (exists("clusters") & !is.integer(get("clusters")))
+    output$clusters <- get("clusters")
 
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
@@ -303,7 +304,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 {clusters_info}
 ",
       nSols = length(x$allSolutions),
-      clusters_info = if ("clusters" %in% names(x)) {
+      clusters_info = if ("models" %in% names(x[["clusters"]])) {
         glued(
           "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
         )
