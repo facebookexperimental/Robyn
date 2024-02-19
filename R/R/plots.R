@@ -595,7 +595,7 @@ robyn_onepagers <- function(
           temp <- OutputCollect$clusters$data
           if (!"n" %in% colnames(temp)) temp <- group_by(temp, .data$cluster) %>% mutate(n = n())
           temp <- filter(temp, .data$solID == sid)
-          cluster_txt <- sprintf("%s (%s sols)", temp$cluster, temp$n)
+          cluster_txt <- sprintf(" %s (%s IDs)", temp$cluster, temp$n)
         }
         title <- sprintf("In-cluster%s bootstrapped %s [95%% CI & mean]", cluster_txt, type)
         p8 <- xDecompAgg %>%
