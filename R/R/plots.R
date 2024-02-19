@@ -626,8 +626,8 @@ robyn_onepagers <- function(
                      "Total ROAS = sum of response / sum of spend",
                      "Total CPA = sum of spend / sum of response")
       onepagerCaption <- paste0(
-        onepagerCaption,
-        "\n*", calc, " in the modeling window, ", paste0(window, collapse = ":"))
+        "*", calc, " in modeling window ", paste0(window, collapse = ":"),
+        "\n", onepagerCaption)
       get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1)) +
