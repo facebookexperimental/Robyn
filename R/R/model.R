@@ -452,16 +452,18 @@ robyn_mmm <- function(InputCollect,
                       seed = 123L,
                       quiet = FALSE, ...) {
   if (reticulate::py_module_available("nevergrad")) {
-    ng <- reticulate::import("nevergrad", delay_load = TRUE)
-    if (is.integer(seed)) {
-      np <- reticulate::import("numpy", delay_load = FALSE)
-      np$random$seed(seed)
+    if (iterations > 1) {
+      ng <- reticulate::import("nevergrad", delay_load = TRUE)
+      if (is.integer(seed)) {
+        np <- reticulate::import("numpy", delay_load = FALSE)
+        np$random$seed(seed)
+      }
+    } else {
+      stop(
+        "You must have nevergrad python library installed.\nPlease check our install demo: ",
+        "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
+      )
     }
-  } else {
-    stop(
-      "You must have nevergrad python library installed.\nPlease check our install demo: ",
-      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
-    )
   }
 
   ################################################
