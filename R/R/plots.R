@@ -590,7 +590,6 @@ robyn_onepagers <- function(
 
       ## 8. Bootstrapped ROI/CPA with CIs
       if ("ci_low" %in% colnames(xDecompAgg)) {
-        metric <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROAS")
         cluster_txt <- ""
         if ("clusters" %in% names(OutputCollect)) {
           temp <- OutputCollect$clusters$data
@@ -598,7 +597,7 @@ robyn_onepagers <- function(
           temp <- filter(temp, .data$solID == sid)
           cluster_txt <- sprintf("%s (%s sols)", temp$cluster, temp$n)
         }
-        title <- sprintf("In-cluster%s bootstrapped %s [95%% CI & mean]", cluster_txt, metric)
+        title <- sprintf("In-cluster%s bootstrapped %s [95%% CI & mean]", cluster_txt, type)
         p8 <- xDecompAgg %>%
           filter(!is.na(.data$ci_low), .data$solID == sid) %>%
           select(.data$rn, .data$solID, .data$boot_mean, .data$ci_low, .data$ci_up) %>%
@@ -611,7 +610,7 @@ robyn_onepagers <- function(
           labs(title = title, x = NULL, y = NULL) +
           coord_flip() +
           theme_lares(background = "white", )
-        if (metric == "ROAS") {
+        if (type == "ROAS") {
           p8 <- p8 + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
         }
       } else {
@@ -623,10 +622,12 @@ robyn_onepagers <- function(
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
+      calc <- ifelse(type == "ROAS",
+                     "Total ROAS = sum of response / sum of spend",
+                     "Total CPA = sum of spend / sum of response")
       onepagerCaption <- paste0(
         onepagerCaption,
-        "\n*Total ROI = sum of response / sum of spend in the modeling window, ",
-        paste0(window, collapse = ":"))
+        "\n*", calc, " in the modeling window, ", paste0(window, collapse = ":"))
       get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1)) +
