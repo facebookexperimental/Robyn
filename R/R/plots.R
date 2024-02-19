@@ -316,7 +316,7 @@ robyn_onepagers <- function(
     uniqueSol <- unique(plotMediaShare$solID)
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
-    parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
+    parallelResult <- foreach(sid = uniqueSol, .options.RNG = OutputCollect$seed) %dorng% { # sid = uniqueSol[1]
 
       if (TRUE) {
         plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
