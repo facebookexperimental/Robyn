@@ -257,6 +257,7 @@ robyn_onepagers <- function(
     baseline_level = 0, ...) {
   check_class("robyn_outputs", OutputCollect)
   if (TRUE) {
+    window <- c(InputCollect$window_start, InputCollect$window_end)
     pareto_fronts <- OutputCollect$pareto_fronts
     hyper_fixed <- OutputCollect$hyper_fixed
     resultHypParam <- as_tibble(OutputCollect$resultHypParam)
@@ -622,8 +623,10 @@ robyn_onepagers <- function(
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
-      onepagerCaption <- paste0(onepagerCaption,
-                                "\n*Total ROI = sum of response / sum of spend in the modeling window")
+      onepagerCaption <- paste0(
+        onepagerCaption,
+        "\n*Total ROI = sum of response / sum of spend in the modeling window, ",
+        paste0(window, sep = ":"))
       get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1)) +
