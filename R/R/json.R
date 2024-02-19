@@ -74,7 +74,7 @@ robyn_write <- function(InputCollect,
       OutputCollect$OutputModels$trials
     collect$conv_msg <- gsub("\\:.*", "", OutputCollect$OutputModels$convergence$conv_msg)
     if ("clusters" %in% names(OutputCollect)) {
-      collect$clusters <- OutputCollect$clusters$n_clusters
+      collect$n_clusters <- OutputCollect$clusters$n_clusters
     }
 
     skip <- which(unlist(lapply(OutputCollect, function(x) is.list(x) | is.null(x))))
@@ -233,7 +233,7 @@ robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
       }
       json <- read_json(json_file, simplifyVector = TRUE)
       json$InputCollect <- json$InputCollect[lapply(json$InputCollect, length) > 0]
-      json$ExportedModel <- append(json$ExportedModel, json$ModelsCollect)
+      json$ExportedModel <- append(json$ModelsCollect, json$ExportedModel)
       # Add train_size if not available (<3.9.0)
       if (!"train_size" %in% names(json$ExportedModel$hyper_values)) {
         json$ExportedModel$hyper_values$train_size <- 1

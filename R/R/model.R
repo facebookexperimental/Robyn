@@ -229,6 +229,9 @@ robyn_run <- function(InputCollect = NULL,
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
+  # Created with assign from JSON file
+  if (exists("clusters")) output$clusters <- get("clusters")
+
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
     output[["convergence"]] <- robyn_converge(OutputModels, ...)
