@@ -230,8 +230,9 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Created with assign from JSON file
-  if (exists("clusters") & !is.integer(get("clusters")))
-    output$clusters <- get("clusters")
+  if (exists("clusters"))
+    if (!is.integer(get("clusters")))
+      output$clusters <- get("clusters")
 
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
