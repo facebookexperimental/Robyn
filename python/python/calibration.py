@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import numpy as np
 import pandas as pd
 import warnings
@@ -16,6 +22,23 @@ def robyn_calibrate(
     wind_end,
     adstock,
 ):
+    """
+    Calibrates the given input data using the ROBYN algorithm.
+
+    Args:
+        calibration_input (DataFrame): The input data for calibration.
+        df_raw (DataFrame): The raw data.
+        dayInterval (int): The interval in days.
+        xDecompVec (DataFrame): The decomposition vector.
+        coefs (DataFrame): The coefficients.
+        hypParamSam (DataFrame): The hyperparameters.
+        wind_start (int): The start index of the window.
+        wind_end (int): The end index of the window.
+        adstock (str): The adstock type.
+
+    Returns:
+        DataFrame: The calibrated data.
+    """
     # Convert the R code's dataframe to a Pandas dataframe
     df_raw = pd.DataFrame(df_raw)
 

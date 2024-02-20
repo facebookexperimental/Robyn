@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import os
 import time
 import pandas as pd
@@ -30,6 +36,29 @@ def robyn_outputs(input_collect,
                   all_sol_json=False,
                   quiet=False,
                   refresh=False):
+    """
+    Runs the Robyn Pareto algorithm on the given output models and collects the results.
+
+    Args:
+        input_collect (dict): The input collection.
+        output_models (object): The output models.
+        pareto_fronts (str, optional): The number of Pareto fronts to calculate. Defaults to "auto".
+        calibration_constraint (float, optional): The calibration constraint. Defaults to 0.1.
+        plot_folder (str, optional): The folder to save the plots. Defaults to None.
+        plot_folder_sub (str, optional): The subfolder within the plot folder. Defaults to None.
+        plot_pareto (bool, optional): Whether to plot the Pareto fronts. Defaults to True.
+        csv_out (str, optional): The type of CSV output. Defaults to "pareto".
+        clusters (bool, optional): Whether to calculate clusters for model selection. Defaults to True.
+        select_model (str, optional): The model selection method. Defaults to "clusters".
+        ui (bool, optional): Whether to enable the user interface. Defaults to False.
+        export (bool, optional): Whether to export the results. Defaults to True.
+        all_sol_json (bool, optional): Whether to export all solutions as JSON. Defaults to False.
+        quiet (bool, optional): Whether to suppress console output. Defaults to False.
+        refresh (bool, optional): Whether to refresh the results. Defaults to False.
+
+    Returns:
+        dict: The collected output results.
+    """
     t0 = time.time()
 
     if plot_folder is None:
@@ -171,9 +200,15 @@ def robyn_outputs(input_collect,
     ##return(invisible(output_collect))
     return output_collect
 
-
-
 def print_robyn_outputs(x, *args, **kwargs):
+    """
+    Print various outputs related to Robyn.
+
+    Parameters:
+    - x: Robyn object
+    - *args: Additional positional arguments
+    - **kwargs: Additional keyword arguments
+    """
     print("Plot Folder: {x.plot_folder}")
     print("Calibration Constraint: {x.calibration_constraint}")
     print("Hyper-parameters fixed: {x.hyper_fixed}")
@@ -185,6 +220,16 @@ def print_robyn_outputs(x, *args, **kwargs):
 
 
 def robyn_csv(input_collect, output_collect, csv_out=None, export=True, calibrated=False):
+    """
+    Export data from Robyn outputs to CSV files.
+
+    Args:
+        input_collect (InputCollect): The input collection object.
+        output_collect (robyn_outputs): The output collection object.
+        csv_out (str or None, optional): The type of CSV files to export. Defaults to None.
+        export (bool, optional): Whether to export the data to CSV files. Defaults to True.
+        calibrated (bool, optional): Whether the data is calibrated. Defaults to False.
+    """
     if export:
         # Check that OutputCollect has the correct class
         assert isinstance(output_collect, robyn_outputs)

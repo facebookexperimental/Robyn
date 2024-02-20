@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import pandas as pd
 import numpy as np
 
@@ -27,7 +33,37 @@ def robyn_allocator(robyn_object=None,
                     quiet=False,
                     ui=False,
                     **kwargs):
+    """
+    Allocates budget for a given model using the Robyn framework.
 
+    Parameters:
+    - robyn_object (object): The Robyn object containing the model.
+    - select_build (int): The build number of the model.
+    - InputCollect (object): The input collection object.
+    - OutputCollect (object): The output collection object.
+    - select_model (object): The selected model.
+    - json_file (str): The path to the JSON file containing the exported model.
+    - scenario (str): The scenario for the budget allocation.
+    - total_budget (float): The total budget for the allocation.
+    - target_value (float): The target value for the allocation.
+    - date_range (str): The date range for the allocation.
+    - channel_constr_low (float): The lower constraint for the channels.
+    - channel_constr_up (float): The upper constraint for the channels.
+    - channel_constr_multiplier (int): The multiplier for the channel constraints.
+    - optim_algo (str): The optimization algorithm to use.
+    - maxeval (int): The maximum number of evaluations for the optimization.
+    - constr_mode (str): The constraint mode for the optimization.
+    - plots (bool): Whether to generate plots.
+    - plot_folder (str): The folder to save the plots.
+    - plot_folder_sub (str): The subfolder to save the plots.
+    - export (bool): Whether to export the results.
+    - quiet (bool): Whether to suppress the output.
+    - ui (bool): Whether to use the user interface.
+    - **kwargs: Additional keyword arguments.
+
+    Returns:
+    - None
+    """
     # Use previously exported model using json_file
     if not json_file is None:
         if InputCollect is None:
@@ -708,6 +744,21 @@ def robyn_allocator(robyn_object=None,
 
 # Define the objective function
 def fx_objective(x, coeff, alpha, inflexion, x_hist_carryover, get_sum=False, SIMPLIFY=True):
+    """
+    Calculate the objective function value for a given set of parameters.
+
+    Parameters:
+    x (float): The input value.
+    coeff (float): Coefficient value.
+    alpha (float): Exponent value.
+    inflexion (float): Inflexion value.
+    x_hist_carryover (float): Carryover value.
+    get_sum (bool, optional): If True, returns the sum of the objective function values. Defaults to False.
+    SIMPLIFY (bool, optional): If True, simplifies the objective function value. Defaults to True.
+
+    Returns:
+    float: The objective function value or the sum of objective function values if get_sum is True.
+    """
     if get_sum:
         return np.sum(coeff * x**alpha * np.exp(-inflexion * x))
     else:
@@ -715,6 +766,27 @@ def fx_objective(x, coeff, alpha, inflexion, x_hist_carryover, get_sum=False, SI
 
 # Define the optimization problem
 def optimize(x0, coeff, alpha, inflexion, x_hist_carryover, total_budget, channel_constr_low, channel_constr_up, channel_constr_multiplier, optim_algo, maxeval, constr_mode):
+    """
+    Optimize the allocation of resources based on the given parameters.
+
+    Args:
+        x0 (array_like): Initial guess for the allocation.
+        coeff (array_like): Coefficients for the allocation function.
+        alpha (float): Exponent for the allocation function.
+        inflexion (float): Inflexion parameter for the allocation function.
+        x_hist_carryover (array_like): Historical allocation values.
+        total_budget (float): Total budget for the allocation.
+        channel_constr_low (array_like): Lower bounds for channel constraints.
+        channel_constr_up (array_like): Upper bounds for channel constraints.
+        channel_constr_multiplier (float): Multiplier for channel constraints.
+        optim_algo (str): Optimization algorithm to use.
+        maxeval (int): Maximum number of function evaluations.
+        constr_mode (str): Constraint mode ('eq' for equality, 'ineq' for inequality).
+
+    Returns:
+        array_like: Optimized allocation.
+
+    """
     import scipy.optimize as opt
 
     def f(x):
@@ -737,6 +809,15 @@ def optimize(x0, coeff, alpha, inflexion, x_hist_carryover, total_budget, channe
 
 
 def print_robyn_allocator(x):
+    """
+    Prints the allocator details for Robyn.
+
+    Args:
+        x: The input object containing allocator details.
+
+    Returns:
+        None
+    """
     temp = x.dt_optimOut[~x.dt_optimOut.optmRoiUnit.isna(), ]
     coef0 = (len(x.skipped_coef0) > 0) * f"Coefficient 0: {v2t(x.skipped_coef0, quotes=False)}"
     constr = (len(x.skipped_constr) > 0) * f"Constrained @0: {v2t(x.skipped_constr, quotes=False)}"
@@ -774,11 +855,29 @@ def print_robyn_allocator(x):
 
 
 def plot_robyn_allocator(x, *args, **kwargs):
+    """
+    Plot the Robyn allocator.
+
+    Parameters:
+    - x: The input data.
+    - *args: Additional positional arguments to be passed to the plot function.
+    - **kwargs: Additional keyword arguments to be passed to the plot function.
+    """
     plots = x.plots
     plots = plots.plots
     plot(plots, *args, **kwargs)
 
 def eval_f(X, target_value):
+    """
+    Evaluate the objective function, gradient, and objective channel for optimization.
+
+    Args:
+        X (array-like): Input values.
+        target_value: Target value.
+
+    Returns:
+        dict: Dictionary containing the objective, gradient, and objective channel.
+    """
     eval_list = getOption("ROBYN_TEMP")
     coefs_eval = eval_list["coefs_eval"]
     alphas_eval = eval_list["alphas_eval"]
@@ -798,7 +897,6 @@ def eval_f(X, target_value):
         # Implement the objective channel function here
         pass
     """
-
     objective = -np.sum(np.ma.apply(
         fx_objective,
         x=X,
@@ -835,6 +933,20 @@ def eval_f(X, target_value):
 
 
 def fx_objective(x, coeff, alpha, inflexion, x_hist_carryover, get_sum=True):
+    """
+    Calculate the objective function value for the given parameters.
+
+    Parameters:
+    x (array-like): Input values.
+    coeff (float): Coefficient value.
+    alpha (float): Alpha value.
+    inflexion (float): Inflexion value.
+    x_hist_carryover (array-like): Historical carryover values.
+    get_sum (bool, optional): Flag to determine if the sum of the objective function should be returned. Defaults to True.
+
+    Returns:
+    float: Objective function value.
+    """
     # Apply Michaelis Menten model to scale spend to exposure
     xScaled = x
     # Adstock scales
@@ -847,6 +959,19 @@ def fx_objective(x, coeff, alpha, inflexion, x_hist_carryover, get_sum=True):
     return xOut
 
 def fx_gradient(x, coeff, alpha, inflexion, x_hist_carryover):
+    """
+    Calculate the gradient of the function fx.
+
+    Parameters:
+    x (float): The input value.
+    coeff (float): Coefficient value.
+    alpha (float): Alpha value.
+    inflexion (float): Inflexion value.
+    x_hist_carryover (float): Carryover value.
+
+    Returns:
+    float: The gradient of the function fx.
+    """
     # Apply Michaelis Menten model to scale spend to exposure
     xScaled = x
     # Adstock scales
@@ -855,6 +980,19 @@ def fx_gradient(x, coeff, alpha, inflexion, x_hist_carryover):
     return xOut
 
 def fx_objective_channel(x, coeff, alpha, inflexion, x_hist_carryover):
+    """
+    Calculate the objective value for a channel allocation.
+
+    Parameters:
+    x (array-like): The channel allocation.
+    coeff (float): Coefficient used in the objective calculation.
+    alpha (float): Alpha parameter used in the objective calculation.
+    inflexion (float): Inflexion parameter used in the objective calculation.
+    x_hist_carryover (array-like): Historical carryover values.
+
+    Returns:
+    float: The objective value for the given channel allocation.
+    """
     # Apply Michaelis Menten model to scale spend to exposure
     xScaled = x
     # Adstock scales
@@ -863,18 +1001,52 @@ def fx_objective_channel(x, coeff, alpha, inflexion, x_hist_carryover):
     return xOut
 
 def eval_g_eq(X, target_value):
+    """
+    Evaluate the equality constraint function for optimization.
+
+    Parameters:
+    X (array-like): The decision variables.
+    target_value (float): The target value for the constraint.
+
+    Returns:
+    dict: A dictionary containing the constraint value and its gradient.
+        The constraint value is the sum of the decision variables minus the total budget unit.
+        The gradient is an array of ones with the same length as X.
+    """
     eval_list = getOption("ROBYN_TEMP")
     constr = np.sum(X) - eval_list.total_budget_unit
     grad = np.ones(len(X))
     return {"constraints": constr, "jacobian": grad}
 
 def eval_g_ineq(X, target_value):
+    """
+    Evaluate the inequality constraints for the optimization problem.
+
+    Parameters:
+    - X: A numpy array representing the decision variables.
+    - target_value: The target value for the optimization problem.
+
+    Returns:
+    - A dictionary containing the constraints and their gradients.
+    """
     eval_list = getOption("ROBYN_TEMP")
     constr = np.sum(X) - eval_list.total_budget_unit
     grad = np.ones(len(X))
     return {"constraints": constr, "jacobian": grad}
 
 def eval_g_eq_effi(X, target_value):
+    """
+    Evaluate the equality constraints and their Jacobian for the given input vector X and target value.
+
+    Parameters:
+    X (array-like): Input vector.
+    target_value (float): Target value for the constraints.
+
+    Returns:
+    dict: A dictionary containing the constraints and their Jacobian.
+          The constraints are stored under the key 'constraints',
+          and the Jacobian is stored under the key 'jacobian'.
+    """
     eval_list = getOption("ROBYN_TEMP")
     sum_response = np.sum(np.vectorize(fx_objective)(x=X, coeff=eval_list.coefs_eval, alpha=eval_list.alphas_eval, inflexion=eval_list.inflexions_eval, x_hist_carryover=eval_list.hist_carryover_eval))
     if target_value is None:
@@ -891,10 +1063,17 @@ def eval_g_eq_effi(X, target_value):
     return {"constraints": constr, "jacobian": grad}
 
 
-import numpy as np
-import pandas as pd
-
 def eval_g_eq_effi(X, target_value):
+    """
+    Evaluate the equality constraints for the efficiency function.
+
+    Parameters:
+    X (array-like): The decision variables.
+    target_value (float): The target value for the efficiency function.
+
+    Returns:
+    dict: A dictionary containing the constraints and the jacobian.
+    """
     eval_list = getOption("ROBYN_TEMP")
     sum_response = np.sum(np.vectorize(fx_objective)(X, eval_list.coefs_eval, eval_list.alphas_eval, eval_list.inflexions_eval, eval_list.hist_carryover_eval))
     if target_value is None:
@@ -912,6 +1091,17 @@ def eval_g_eq_effi(X, target_value):
 
 
 def get_adstock_params(InputCollect, dt_hyppar):
+    """
+    Retrieves the adstock parameters based on the adstock type specified in InputCollect.
+
+    Parameters:
+    InputCollect (object): The input collection object.
+    dt_hyppar (DataFrame): The DataFrame containing the adstock hyperparameters.
+
+    Returns:
+    DataFrame: The adstock hyperparameters based on the adstock type.
+
+    """
     if InputCollect.adstock == "geometric":
         getAdstockHypPar = dt_hyppar.loc[dt_hyppar.columns.str.extract(".*_thetas", expand=False)]
     else:
@@ -920,6 +1110,24 @@ def get_adstock_params(InputCollect, dt_hyppar):
 
 
 def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSorted, select_model, chnAdstocked=None):
+    """
+    Calculate the hill parameters for the given inputs.
+
+    Args:
+        InputCollect (type): Description of InputCollect.
+        OutputCollect (type): Description of OutputCollect.
+        dt_hyppar (type): Description of dt_hyppar.
+        dt_coef (type): Description of dt_coef.
+        mediaSpendSorted (type): Description of mediaSpendSorted.
+        select_model (type): Description of select_model.
+        chnAdstocked (type, optional): Description of chnAdstocked. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the calculated hill parameters:
+            - "alphas": The alphas values.
+            - "inflexions": The inflexions values.
+            - "coefs_sorted": The sorted coefficients.
+    """
     hillHypParVec = dt_hyppar.loc[dt_hyppar.columns.str.extract(".*_alphas|.*_gammas", expand=False)]
     alphas = hillHypParVec.loc[mediaSpendSorted + "_alphas"]
     gammas = hillHypParVec.loc[mediaSpendSorted + "_gammas"]

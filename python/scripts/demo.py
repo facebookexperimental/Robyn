@@ -1,21 +1,53 @@
-## import robyn ## Manual, no need
-from python import data, inputs, checks, model, outputs, json, plots, response ## Manual, Added manually
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+#############################################################################################
+####################         Meta MMM Open Source: Robyn <version> TODO       #######################
+####################             Quick demo guide                     #######################
+#############################################################################################
+
+# Advanced marketing mix modeling using Meta Open Source project Robyn (Blueprint training)
+# TODO: add link to blueprint training.
+
+################################################################
+#### Step 0: Setup environment
+
+#TODO: Add setup instructions or point to readme
+
+from python import data, inputs, checks, model, outputs, json, plots, response, allocator ## Manual, Added manually
 from python import transformation
 import numpy as np
 import pandas as pd
 
-# Set up Robyn environment
-## robyn.set_env(robyn_directory="~/Desktop") ## Manual, NOT NEEDED
 
-# Load data
-## dt_simulated_weekly = robyn.data("dt_simulated_weekly")
-## dt_prophet_holidays = robyn.data("dt_prophet_holidays")
+################################################################
+#### Step 1: Load data
 
+## Check simulated dataset or load your own dataset
 dt_simulated_weekly = data.dt_simulated_weekly()
-dt_prophet_holidays = data.dt_prophet_holidays()
+print(dt_simulated_weekly.head())
 
-# Define input variables
-## manually converted to
+## Check holidays from Prophet
+# 59 countries included. If your country is not included, please manually add it.
+# Tipp: any events can be added into this table, school break, events etc.
+dt_prophet_holidays = data.dt_prophet_holidays()
+print(dt_prophet_holidays.head())
+
+
+# Directory where you want to export results to (will create new folders)
+robyn_directory = "~/Desktop"
+
+
+################################################################
+#### Step 2a: For first time user: Model specification in 4 steps
+
+#### 2a-1: First, specify input variables
+
+## All sign control are now automatically provided: "positive" for media & organic
+## variables and "default" for all others. User can still customise signs if necessary.
+
 input_collect = inputs.robyn_inputs(
     dt_input=dt_simulated_weekly,
     dt_holidays=dt_prophet_holidays,
@@ -36,17 +68,31 @@ input_collect = inputs.robyn_inputs(
 # Print input collection
 print(input_collect)
 
-# Define and add hyperparameters
+#### 2a-2: Second, define and add hyperparameters
+## Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
+## Also, calibration_input are required to be spend names.
+## hyperparameter names are based on paid_media_spends names too. See right hyperparameter names:
+
 hyper_names = inputs.hyper_names(adstock=input_collect['robyn_inputs']['adstock'], all_media=input_collect['robyn_inputs']['all_media'])
 
-## Manually added
-##pads_stock1, pads_stock2 = transformation.plot_adstock(plot = False)
+## Guide to setup & understand hyperparameters
+
+## Robyn's hyperparameters have four components:
+## - Adstock parameters (theta or shape/scale)
+## - Saturation parameters (alpha/gamma)
+## - Regularisation parameter (lambda). No need to specify manually
+## - Time series validation parameter (train_size)
+
+## 1. IMPORTANT: set plot = TRUE to create example plots for adstock & saturation
+## hyperparameters and their influence in curve transformation.
+
 transformation.plot_adstock(plot = False)
-##psaturation1, psaturation2 =
 transformation.plot_saturation(plot = False)
 
-## Manually added
+## 3. Hyperparameter interpretation & recommendation:
+#TODO: add more details from demo.R
 checks.hyper_limits()
+
 
 # Define hyperparameters ranges
 facebook_S_alphas = np.array([0.5, 3])
@@ -91,7 +137,7 @@ hyperparameters = pd.DataFrame({
         'train_size': train_size
     })
 
-# Define InputCollect
+#### 2a-3: Third, add hyperparameters into robyn_inputs()
 ## Manually converted, parameters defined wrong.
 input_collect = inputs.robyn_inputs(
     InputCollect = input_collect['robyn_inputs'],
@@ -100,6 +146,16 @@ input_collect = inputs.robyn_inputs(
 
 # Print InputCollect
 print(input_collect)
+
+#### 2a-4: Fourth (optional), model calibration / add experimental input
+
+## Guide for calibration
+
+#TODO: add more details from demo.R
+################################################################
+#### Step 2b: For known model specification, setup in one single step
+
+#TODO: add more details from demo.R
 
 # Check spend exposure fit if available
 if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
@@ -126,13 +182,16 @@ calibration_input = pd.DataFrame({
   # Either "immediate" or "total". For experimental inputs like Facebook Lift, "immediate" is recommended.
   "calibration_scope": ["immediate", "immediate", "immediate", "immediate"]
 })
+
 input_collect = inputs.robyn_inputs(
     InputCollect = input_collect['robyn_inputs'],
     hyperparameters = hyperparameters,
     calibration_input = calibration_input
 )
 
-# Define the input collector
+################################################################
+#### Step 3: Build initial model
+## Run all trials and iterations.
 output_models = model.robyn_run(
     InputCollect=input_collect['robyn_inputs'],
     # Feed in all model specification
@@ -149,22 +208,27 @@ output_models = model.robyn_run(
     add_penalty_factor=False
 )
 
+# Print output models
 print(output_models)
+
+## Check MOO (multi-objective optimization) convergence plots
+# Read more about convergence rules: See robyn_converge
 
 output_models['convergence']['moo_distrb_plot']
 output_models['convergence']['moo_cloud_plot']
 
+## Check time-series validation plot (when ts_validation == TRUE)
+# Read more and replicate results: See ts_validation
 if output_models['ts_validation']:
     output_models['ts_validation_plot']
-
 
 # Check time-series validation plot
 if output_models['ts_validation']:
     print(output_models['ts_validation_plot'])
 
-# Calculate Pareto fronts, cluster and export results and plots
-output_collector = outputs.robyn_outputs(
-    input_collector,
+## Calculate Pareto fronts, cluster and export results and plots. See robyn_outputs
+output_collect = outputs.robyn_outputs(
+    input_collect,
     output_models,
     # Automatically pick how many Pareto fronts to fill
     pareto_fronts='auto',
@@ -179,21 +243,22 @@ output_collector = outputs.robyn_outputs(
     # Create files locally
     export=True,
     # Path for plots exports and files creation
-    plot_folder=robyn.directory,
+    plot_folder=robyn_directory,
     # Set to FALSE to deactivate plotting and saving model one-pagers
     plot_pareto=False
 )
 
-# Print the output collector
-print(output_collector)
+# Print the output collect
+print(output_collect)
 
-# Select and save any model
+################################################################
+#### Step 4: Select and save the any model
 select_model = '1_122_7'
-exported_model = json.robyn_write(input_collector, output_collector, select_model, export=True)
+exported_model = json.robyn_write(input_collect, output_collect, select_model, export=True)
 print(exported_model)
 
 # Plot any model's one-pager
-my_one_pager = plots.robyn_onepagers(input_collector, output_collector, select_model, export=False)
+my_one_pager = plots.robyn_onepagers(input_collect, output_collect, select_model, export=False)
 print(my_one_pager)
 
 # Check each of the one-pager's plots
@@ -201,10 +266,15 @@ my_one_pager.patches.plots[1]
 my_one_pager.patches.plots[2]
 my_one_pager.patches.plots[3]
 
-# Get budget allocation based on the selected model
+################################################################
+#### Step 5: Get budget allocation based on the selected model above
+
+## Budget allocation result requires further validation. Please use this recommendation with caution.
+## Don't interpret budget allocation result if selected model above doesn't meet business expectation.
+
 allocator_collector = allocator.robyn_allocator(
-    input_collector=input_collector,
-    output_collector=output_collector,
+    input_collector=input_collect,
+    output_collector=output_collect,
     select_model=select_model,
     # Date range for budget allocation
     date_range=None,
@@ -224,7 +294,6 @@ print(allocator_collector)
 plot(allocator_collector)
 
 
-import robyn
 
 # Example 2: maximize response for latest 10 periods with given spend
 
@@ -309,7 +378,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression
 
-# Load JSON file
+################################################################
+#### Step 6: Model refresh based on selected model and saved results
+
+## Must run robyn_write() (manually or automatically) to export any model first, before refreshing.
+## The robyn_refresh() function is suitable for updating within "reasonable periods".
+## Two situations are considered better to rebuild model:
+## 1. most data is new. If initial model has 100 weeks and 80 weeks new data is added in refresh,
+## it might be better to rebuild the model. Rule of thumb: 50% of data or less can be new.
+## 2. new variables are added.
+
+# Provide JSON file with your InputCollect and ExportedModel specifications
+# It can be any model, initial or a refresh model
+
 with open('~/Desktop/Robyn_202211211853_init/RobynModel-1_100_6.json') as f:
     data = json.load(f)
 

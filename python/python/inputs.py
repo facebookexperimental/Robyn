@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import numpy as np
 import pandas as pd
 import datetime as dt
@@ -58,6 +64,37 @@ def robyn_inputs(
 ):
     """
     robyn_inputs function in Python.
+
+    This function is used to collect and validate the input parameters for the Robyn model.
+
+    Parameters:
+    - dt_input: The input data as a pandas DataFrame.
+    - dep_var: The dependent variable name.
+    - dep_var_type: The type of the dependent variable (e.g., "continuous", "binary", "count").
+    - date_var: The name of the date variable in the input data. Default is "auto".
+    - paid_media_spends: The names of the paid media spend variables.
+    - paid_media_vars: The names of the paid media variables.
+    - paid_media_signs: The signs (+/-) for the paid media variables.
+    - organic_vars: The names of the organic media variables.
+    - organic_signs: The signs (+/-) for the organic media variables.
+    - context_vars: The names of the context variables.
+    - context_signs: The signs (+/-) for the context variables.
+    - factor_vars: The names of the factor variables.
+    - dt_holidays: The holidays data as a pandas DataFrame.
+    - prophet_vars: The names of the variables to be used in the Prophet model.
+    - prophet_signs: The signs (+/-) for the Prophet variables.
+    - prophet_country: The country for the Prophet model.
+    - adstock: The adstock parameters.
+    - hyperparameters: The hyperparameters for the model.
+    - window_start: The start date of the modeling window.
+    - window_end: The end date of the modeling window.
+    - calibration_input: The calibration input data as a pandas DataFrame.
+    - json_file: The path to a JSON file containing the input parameters.
+    - InputCollect: The collected input parameters.
+
+    Returns:
+    - InputCollect: The collected and validated input parameters.
+
     """
     # Use case 3: running robyn_inputs() with json_file
     if json_file is not None:
@@ -349,6 +386,19 @@ def print_robyn_inputs(
 ):
     """
     Print Robyn inputs.
+
+    Args:
+        x: The input data.
+        mod_vars: The modified variables.
+        range: The date range.
+        windows: The model window.
+        custom_params: The custom parameters.
+        prophet: The Prophet configuration.
+        unused: The unused variables.
+        hyps: The hyper-parameter ranges.
+
+    Returns:
+        None
     """
     # Set mod_vars
     if mod_vars is None:
@@ -408,6 +458,19 @@ def print_robyn_inputs(
 
 
 def robyn_engineering(x, quiet=False):
+    """
+    Performs feature engineering for the Robyn model.
+
+    Args:
+        x (dict): The input dictionary containing various data frames and variables.
+        quiet (bool, optional): If True, suppresses the printing of recommendations and warnings. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing the following:
+            - mod_nls_collect (pd.DataFrame): A data frame containing the collected NLS models.
+            - plot_nls_collect (pd.DataFrame): A data frame containing the collected NLS plots.
+            - yhat_collect (pd.DataFrame): A data frame containing the collected yhat values.
+    """
     print(">> Running Robyn feature engineering...")
     # InputCollect
     input_collect = x
@@ -696,6 +759,26 @@ def prophet_decomp(
     dayInterval,
     custom_params = dict(),
 ):
+    """
+    Decomposes a time series using the Prophet algorithm.
+
+    Args:
+        dt_transform (pandas.DataFrame): The input time series data.
+        dt_holidays (pandas.DataFrame): The holiday data.
+        prophet_country (str): The country for which the holidays are defined.
+        prophet_vars (list): The variables to include in the Prophet model.
+        prophet_signs (list): The signs of the variables in the Prophet model.
+        factor_vars (list): The factor variables to include in the model.
+        context_vars (list): The context variables to include in the model.
+        organic_vars (list): The organic variables to include in the model.
+        paid_media_spends (list): The paid media spends variables to include in the model.
+        intervalType (str): The type of interval for the time series data.
+        dayInterval (int): The interval between each data point.
+        custom_params (dict, optional): Custom parameters for the Prophet model. Defaults to an empty dictionary.
+
+    Returns:
+        pandas.DataFrame: The transformed dataframe with decomposed time series.
+    """
     # Check prophet
     check_prophet(
         dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval
@@ -802,6 +885,17 @@ def prophet_decomp(
 
 
 def fit_spend_exposure(dt_spendModInput, mediaCostFactor, paid_media_var):
+    """
+    Fits the spend-exposure model using two different approaches: Michaelis-Menten model and linear model comparison.
+
+    Parameters:
+    - dt_spendModInput (DataFrame): Input data with two columns: 'spend' and 'exposure'.
+    - mediaCostFactor (float): Factor to adjust the media cost.
+    - paid_media_var (str): Name of the paid media variable.
+
+    Returns:
+    - output (dict): Dictionary containing the model results and other relevant information.
+    """
     # Check if the input data has the correct shape
     if dt_spendModInput.shape[1] != 2:
         raise ValueError("Pass only 2 columns")
@@ -935,6 +1029,23 @@ def fit_spend_exposure(dt_spendModInput, mediaCostFactor, paid_media_var):
 
 
 def set_holidays(dt_transform, dt_holidays, intervalType):
+    """
+    Sets the holidays based on the given interval type.
+
+    Args:
+        dt_transform (DataFrame): The transformed date DataFrame.
+        dt_holidays (DataFrame): The holidays DataFrame.
+        intervalType (str): The interval type. Can be one of: "day", "week", "month".
+
+    Returns:
+        DataFrame: The holidays DataFrame with aggregated holiday information.
+
+    Raises:
+        ValueError: If the intervalType is not one of the valid options.
+        ValueError: If the week start is not Monday or Sunday for the "week" intervalType.
+        ValueError: If the monthly data does not have the first day of the month as the datestamp.
+
+    """
     opts = ["day", "week", "month"]
     if intervalType not in opts:
         raise ValueError(

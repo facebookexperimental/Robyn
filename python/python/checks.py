@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import pandas as pd
 import numpy as np
 import re
@@ -20,6 +26,18 @@ LEGACY_PARAMS = ["cores", "iterations", "trials", "intercept_sign", "nevergrad_a
 
 
 def check_nas(df: pd.DataFrame):
+    """
+    Check for missing (NA) values and infinite (Inf) values in a DataFrame.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to be checked.
+
+    Raises:
+        ValueError: If the DataFrame contains missing or infinite values.
+
+    Returns:
+        None
+    """
     name = df.__repr__()
     ## Manually added df.isna().sum() instead of `np.count_nan(df)`
     if df.any().isna().sum() > 0 or df.any().isnull().sum() > 0: ## added any()
@@ -40,6 +58,20 @@ def check_nas(df: pd.DataFrame):
 
 
 def check_novar(dt_input, InputCollect=None):
+    """
+    Check for columns with no variance in the input dataframe.
+
+    Parameters:
+    dt_input (pandas.DataFrame): The input dataframe to check.
+    InputCollect (dict, optional): Additional input parameters. Default is None.
+
+    Raises:
+    ValueError: If there are columns with no variance.
+
+    Returns:
+    None
+    """
+
     ## Manual: lares package required?
     ## zerovar method checks for each column:
     ## novar = dt_input.apply(lambda x: x.var() == 0, axis=1)
@@ -48,13 +80,29 @@ def check_novar(dt_input, InputCollect=None):
         msg = f"There are {len(novar_columns)} column(s) with no-variance: {novar_columns}"
         if InputCollect is not None:
             msg += f"Please, remove the variable(s) to proceed...\n>>> Note: there's no variance on these variables because of the modeling window filter ({InputCollect['window_start']}:{InputCollect['window_end']})"
+
         ## Manual : No else case present in the original code.
         ## else:
         ##    msg += "Please, remove the variable(s) to proceed..."
         raise ValueError(msg)
 
-
 def check_varnames(dt_input, dt_holidays, dep_var, date_var, context_vars, paid_media_spends, organic_vars):
+    """
+    Check variable names for duplicates and invalid characters.
+
+    Args:
+        dt_input (pandas.DataFrame): Input data frame.
+        dt_holidays (pandas.DataFrame): Holidays data frame.
+        dep_var (str): Name of the dependent variable.
+        date_var (str): Name of the date variable.
+        context_vars (list): List of context variables.
+        paid_media_spends (list): List of paid media spend variables.
+        organic_vars (list): List of organic variables.
+
+    Raises:
+        ValueError: If there are duplicated variable names or invalid variable names.
+
+    """
     ## dt_input.name = 'dt_input' ## Manual: Added name
     ## dt_holidays.name = 'dt_holidays' ## Manual: Added name
 
@@ -97,6 +145,22 @@ def check_varnames(dt_input, dt_holidays, dep_var, date_var, context_vars, paid_
 
 
 def check_datevar(dt_input, date_var="auto"):
+    """
+    Checks if the date variable is correct and returns a dictionary with the date variable name,
+    interval type, and a tibble object of the input data.
+
+    Parameters:
+    - dt_input: The input data as a pandas DataFrame.
+    - date_var: The name of the date variable to be checked. If set to "auto", the function will automatically detect the date variable.
+
+    Returns:
+    - output: A dictionary containing the following keys:
+        - "date_var": The name of the date variable.
+        - "dayInterval": The interval between the first two dates.
+        - "intervalType": The type of interval (day, week, or month).
+        - "dt_input": The input data as a pandas DataFrame.
+    """
+
     """
     Checks if the date variable is correct and returns a dictionary with the date variable name,
     interval type, and a tibble object of the input data.

@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,6 +36,25 @@ from scipy.stats import norm
 
 
 def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=None, k='auto', limit=1, weights=None, dim_red='PCA', quiet=False, export=False, seed=123):
+    """
+    Clusters the data based on specified parameters and returns a dictionary containing various outputs.
+
+    Parameters:
+    - input: The input data, either a robyn_outputs object or a dataframe.
+    - dep_var_type: The type of dependent variable ('continuous' or 'categorical').
+    - cluster_by: The variable to cluster by, either 'hyperparameters' or 'performance'. Default is 'hyperparameters'.
+    - all_media: The list of media variables. Default is None.
+    - k: The number of clusters. Default is 'auto'.
+    - limit: The maximum number of top solutions to select. Default is 1.
+    - weights: The weights for balancing the clusters. Default is None.
+    - dim_red: The dimensionality reduction technique to use. Default is 'PCA'.
+    - quiet: Whether to suppress print statements. Default is False.
+    - export: Whether to export the results. Default is False.
+    - seed: The random seed for reproducibility. Default is 123.
+
+    Returns:
+    - output: A dictionary containing various outputs such as cluster data, cluster confidence intervals, number of clusters, etc.
+    """
     # Set seed for reproducibility
     np.random.seed(seed)
 
@@ -109,10 +134,28 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
 
     return output
 
-
-
-
 def confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, boot_n=1000, sim_n=10000, **kwargs):
+    """
+    This function takes in a bunch of inputs and does some statistical calculations.
+
+    Parameters:
+    - xDecompAgg: DataFrame, the input data for statistical calculations
+    - cls: object, the cluster object containing cluster information
+    - all_paid: list, the list of paid values
+    - dep_var_type: str, the type of dependent variable ('conversion' or 'roi_total')
+    - k: int, the number of clusters
+    - cluster_by: str, the method of clustering ('hyperparameters' or other)
+    - boot_n: int, the number of bootstrap iterations (default: 1000)
+    - sim_n: int, the number of simulations (default: 10000)
+    - **kwargs: additional keyword arguments
+
+    Returns:
+    - df_ci: DataFrame, the confidence interval results
+    - sim_collect: DataFrame, the simulation results
+    - boot_n: int, the number of bootstrap iterations
+    - sim_n: int, the number of simulations
+    """
+
     """
     This function takes in a bunch of inputs and does some statistical calculations
     """
@@ -185,10 +228,23 @@ def confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, boo
 
     return [df_ci, sim_collect, boot_n, sim_n]
 
-import pandas as pd
-import numpy as np
-
 def errors_scores(df, balance=None, ts_validation=True, **kwargs):
+    """
+    Calculate the error scores for a given dataframe.
+
+    Parameters:
+    - df: DataFrame - The input dataframe containing the error columns.
+    - balance: list or None - The balance values for weighting the error scores. If None, no balancing is applied.
+    - ts_validation: bool - Flag indicating whether to use the 'nrmse_test' column for error calculation. If False, use 'nrmse_train' column.
+    - **kwargs: Additional keyword arguments.
+
+    Returns:
+    - scores: DataFrame - The calculated error scores.
+
+    Raises:
+    - AssertionError: If the length of balance is not 3.
+    - AssertionError: If any of the error columns are not found in the dataframe.
+    """
     # Check length of balance
     if balance is not None:
         assert len(balance) == 3, "Balance must have length 3"
@@ -222,9 +278,19 @@ def errors_scores(df, balance=None, ts_validation=True, **kwargs):
 
     return scores
 
-
-
 def prepare_df(x, all_media, dep_var_type, cluster_by):
+    """
+    Prepare the dataframe for clustering analysis based on the given parameters.
+
+    Parameters:
+    x (DataFrame): The input dataframe.
+    all_media (list): List of all media options.
+    dep_var_type (str): Type of dependent variable ("revenue" or "conversion").
+    cluster_by (str): Type of clustering ("performance" or "hyperparameters").
+
+    Returns:
+    DataFrame: The prepared dataframe for clustering analysis.
+    """
     if cluster_by == "performance":
         # Check options
         check_opts(all_media, unique(x['rn']))
@@ -257,8 +323,19 @@ def prepare_df(x, all_media, dep_var_type, cluster_by):
 
     return outcome
 
-
 def min_max_norm(x, min=0, max=1):
+    """
+    Performs min-max normalization on the input array.
+
+    Parameters:
+    - x: Input array to be normalized.
+    - min: Minimum value of the normalized range (default: 0).
+    - max: Maximum value of the normalized range (default: 1).
+
+    Returns:
+    - Normalized array.
+
+    """
     x = x[np.isfinite(x)]
     if len(x) == 1:
         return x
@@ -266,9 +343,29 @@ def min_max_norm(x, min=0, max=1):
     b = np.max(x, axis=0)
     return (max - min) * (x - a) / (b - a) + min
 
-
 ##def clusters_df(df, all_paid, balance=rep(1, 3), limit=1, ts_validation=True, **kwargs):
 def clusters_df(df, all_paid, balance=None, limit=1, ts_validation=True, **kwargs):
+    """
+    Calculate the error scores for each cluster in the given dataframe and return the top clusters based on the error scores.
+
+    Parameters:
+    - df: pandas DataFrame
+        The input dataframe containing the data.
+    - all_paid: bool
+        A boolean value indicating whether all payments have been made.
+    - balance: numpy array, optional
+        An array containing the balance values for each cluster. If not provided, it will be set to [1, 1, 1].
+    - limit: int, optional
+        The maximum number of clusters to return. Defaults to 1.
+    - ts_validation: bool, optional
+        A boolean value indicating whether to perform time series validation. Defaults to True.
+    - **kwargs: keyword arguments
+        Additional arguments to be passed to the errors_scores function.
+
+    Returns:
+    - pandas DataFrame
+        A dataframe containing the cluster, rank, and error score for the top clusters.
+    """
     if balance is None:
         balance = np.repeat(1, 3)
 
@@ -280,9 +377,20 @@ def clusters_df(df, all_paid, balance=None, limit=1, ts_validation=True, **kwarg
     df['rank'] = df.groupby('cluster').cumcount() + 1
     return df[['cluster', 'rank', 'error_score']]
 
-
-
 def plot_clusters_ci(sim_collect, df_ci, dep_var_type, boot_n, sim_n):
+    """
+    Plots the clusters with confidence intervals.
+
+    Parameters:
+    sim_collect (DataFrame): The simulated data.
+    df_ci (DataFrame): The data frame containing the confidence intervals.
+    dep_var_type (str): The type of dependent variable ("conversion" or "ROAS").
+    boot_n (int): The number of bootstrap results.
+    sim_n (int): The number of simulations.
+
+    Returns:
+    None
+    """
     # Convert dep_var_type to CPA or ROAS
     temp = "CPA" if dep_var_type == "conversion" else "ROAS"
 
@@ -314,8 +422,19 @@ def plot_clusters_ci(sim_collect, df_ci, dep_var_type, boot_n, sim_n):
 
     ##return p
 
-
 def plot_topsols_errors(df, top_sols, limit=1, balance=None):
+    """
+    Plots a heatmap of the correlation matrix for the joined dataframe of `df` and `top_sols`.
+    
+    Parameters:
+        df (pandas.DataFrame): The main dataframe.
+        top_sols (pandas.DataFrame): The dataframe containing top solutions.
+        limit (int, optional): The number of top performing models to select. Defaults to 1.
+        balance (numpy.ndarray, optional): The weights for balancing the heatmap. Defaults to None.
+    
+    Returns:
+        None
+    """
     # Calculate balance
     if balance is None:
         balance = np.array([1, 1, 1])
@@ -342,8 +461,16 @@ def plot_topsols_errors(df, top_sols, limit=1, balance=None):
     plt.caption(f"Weights: NRMSE {round(100*balance[0])}%, DECOMP.RSSD {round(100*balance[1])}%, MAPE {round(100*balance[2])}%")
     plt.show()
 
-
 def plot_topsols_rois(df, top_sols, all_media, limit=1):
+    """
+    Plot the top performing models' mean metric per media for the given data.
+
+    Parameters:
+    df (DataFrame): The dataframe containing the real ROIs.
+    top_sols (DataFrame): The dataframe containing the top solutions.
+    all_media (list): The list of all media.
+    limit (int, optional): The number of top solutions to consider. Defaults to 1.
+    """
     # Create a dataframe with the real ROIs
     real_rois = df.drop(columns=['mape', 'nrmse', 'decomp.rssd'])
     real_rois.columns = ['real_' + col for col in real_rois.columns]
@@ -373,10 +500,19 @@ def plot_topsols_rois(df, top_sols, all_media, limit=1):
     ##plt.theme_lares(background='white')
     ##plt.show()
 
-
-
-
 def bootci(samp, boot_n, seed=1, **kwargs):
+    """
+    Compute the bootstrap confidence interval for a given sample.
+
+    Parameters:
+    samp (array-like): The sample data.
+    boot_n (int): The number of bootstrap samples to generate.
+    seed (int): The seed for random number generation. Default is 1.
+    **kwargs: Additional keyword arguments to be passed to np.mean() and np.std().
+
+    Returns:
+    list: A list containing the bootstrap means, confidence interval, and standard error of the mean.
+    """
     # Set seed for reproducibility
     np.random.seed(seed)
 

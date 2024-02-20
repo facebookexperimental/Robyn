@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+####################################################################
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,7 +18,16 @@ from .checks import check_adstock
 
 def mic_men(x, Vmax, Km, reverse=False):
     """
-    Mic_men function
+    Calculate the Michaelis-Menten transformation.
+
+    Args:
+        x (float): The input value.
+        Vmax (float): The maximum rate of the transformation.
+        Km (float): The Michaelis constant.
+        reverse (bool, optional): Whether to perform the reverse transformation. Defaults to False.
+
+    Returns:
+        float: The transformed value.
     """
     if not reverse:
         mm_out = Vmax * x / (Km + x)
@@ -20,10 +35,16 @@ def mic_men(x, Vmax, Km, reverse=False):
         mm_out = x * Km / (Vmax - x)
     return mm_out
 
-
 def adstock_geometric(x, theta):
     """
     Adstock geometric function
+
+    Parameters:
+    x (list): The input values.
+    theta (float): The decay factor.
+
+    Returns:
+    pandas.DataFrame: A DataFrame containing the original input values, the decayed values, the cumulative decay factors, and the inflation total.
     """
     ##if len(theta) != 1:
     if theta is None:
@@ -58,12 +79,39 @@ def adstock_geometric(x, theta):
         }
     )
 
-
 ## def adstock_weibull(x, shape, scale, windlen=len(x), type="cdf"):
 ## using stype
-def adstock_weibull(x, shape, scale, windlen = None, stype="cdf"):
+def adstock_weibull(x, shape, scale, windlen=None, stype="cdf"):
     """
     Adstock Weibull function
+
+    Calculates the adstock transformation using the Weibull function.
+
+    Parameters:
+    - x: array-like
+        The input time series data.
+    - shape: float
+        The shape parameter of the Weibull distribution.
+    - scale: float
+        The scale parameter of the Weibull distribution.
+    - windlen: int, optional
+        The length of the adstock window. If not provided, it defaults to the length of x.
+    - stype: str, optional
+        The type of adstock transformation to perform. Valid options are "cdf" (default) and "pdf".
+
+    Returns:
+    - dict:
+        A dictionary containing the following keys:
+        - "x": array-like
+            The input time series data.
+        - "x_decayed": array-like
+            The adstock transformed data.
+        - "thetaVecCum": array-like
+            The cumulative adstock weights.
+        - "inflation_total": float
+            The total inflation factor.
+        - "x_imme": array-like
+            The immediate adstock transformed data.
     """
     ## Added manually since Python function signature fails getting len of x
     if windlen is None:
@@ -140,10 +188,21 @@ def adstock_weibull(x, shape, scale, windlen = None, stype="cdf"):
         "x_imme": x_imme
         }
 
-
 def transform_adstock(x, adstock, theta=None, shape=None, scale=None, windlen=None):
     """
     Transforms the input data using the adstock model.
+
+    Parameters:
+    - x: The input data to be transformed.
+    - adstock: The type of adstock model to be applied. Possible values are "geometric", "weibull_cdf", and "weibull_pdf".
+    - theta: The decay factor for the geometric adstock model. Only applicable if adstock is "geometric".
+    - shape: The shape parameter for the Weibull adstock model. Only applicable if adstock is "weibull_cdf" or "weibull_pdf".
+    - scale: The scale parameter for the Weibull adstock model. Only applicable if adstock is "weibull_cdf" or "weibull_pdf".
+    - windlen: The length of the adstock window. If not provided, it defaults to the length of the input data.
+
+    Returns:
+    - x_list_sim: The transformed data based on the adstock model.
+
     """
     ## Added manually since Python function signature fails getting len of x
     if windlen is None:
@@ -162,11 +221,16 @@ def transform_adstock(x, adstock, theta=None, shape=None, scale=None, windlen=No
         x_list_sim = adstock_weibull(x, shape, scale, windlen, "pdf")
     return x_list_sim
 
-
 ## TODO: diff and range?
 def normalize(x):
     """
     Normalizes the input data.
+
+    Parameters:
+    x (array-like): The input data to be normalized.
+
+    Returns:
+    array-like: The normalized data.
     """
     if np.diff(np.range(x)) == 0:
         return np.array([1, np.zeros(len(x) - 1)])
@@ -177,6 +241,15 @@ def normalize(x):
 def saturation_hill(x, alpha, gamma, x_marginal=None):
     """
     Implements the saturation hill function.
+
+    Parameters:
+    - x: Input values.
+    - alpha: Exponent parameter.
+    - gamma: Weighting parameter.
+    - x_marginal: Optional marginal values.
+
+    Returns:
+    - x_scurve: Output values computed using the saturation hill function.
     """
     ## No need to length check for alpha and gamma since they are numbers not like lists in R
     ## linear interpolation by dot product
@@ -193,10 +266,16 @@ def saturation_hill(x, alpha, gamma, x_marginal=None):
 
     return x_scurve
 
-
 def plot_adstock(plot=True):
     """
     Plots the adstock models.
+
+    Parameters:
+        plot (bool): If True, plots the adstock models. Default is True.
+
+    Returns:
+        p1 (ggplot): The plot of the geometric adstock model.
+        p2 (ggplot): The plot of the Weibull adstock model.
     """
     if plot:
         # Plot geometric
@@ -309,6 +388,16 @@ def plot_adstock(plot=True):
 
 
 def plot_saturation(plot=True):
+    """
+    Plots the saturation response using the hill function.
+
+    Parameters:
+    - plot (bool): If True, the plot will be displayed. Default is True.
+
+    Returns:
+    - p1 (ggplot object): The plot of the saturation response with varying alpha values.
+    - p2 (ggplot object): The plot of the saturation response with varying gamma values.
+    """
     ## Too wrong porting
     # Create a sample dataset
     ## Manually corrected the for loops
@@ -378,6 +467,21 @@ def plot_saturation(plot=True):
 
 
 def run_transformations(input_collect, hyp_param_sam, adstock):
+    """
+    Run transformations on the input data.
+
+    Args:
+        input_collect (pd.DataFrame): The input data frame.
+        hyp_param_sam (dict): The dictionary containing the hyperparameters.
+        adstock (str): The type of adstocking to be applied.
+
+    Returns:
+        dict: A dictionary containing the transformed data frames.
+            - dt_modSaturated (pd.DataFrame): The saturated data frame.
+            - dt_saturatedImmediate (pd.DataFrame): The saturated immediate data frame.
+            - dt_saturatedCarryover (pd.DataFrame): The saturated carryover data frame.
+    """
+
     # Extract the media names from the input collect dataframe
     all_media = input_collect["all_media"]
 
