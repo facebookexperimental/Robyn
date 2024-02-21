@@ -231,6 +231,11 @@ robyn_run <- function(InputCollect = NULL,
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
+  # Created with assign from JSON file
+  if (exists("clusters"))
+    if (!is.integer(get("clusters")))
+      output$clusters <- get("clusters")
+
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
     output[["convergence"]] <- robyn_converge(OutputModels, ...)
@@ -302,7 +307,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 {clusters_info}
 ",
       nSols = length(x$allSolutions),
-      clusters_info = if ("clusters" %in% names(x)) {
+      clusters_info = if ("models" %in% names(x[["clusters"]])) {
         glued(
           "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
         )
@@ -453,17 +458,19 @@ robyn_mmm <- function(InputCollect,
                       trial = 1L,
                       seed = 123L,
                       quiet = FALSE, ...) {
-  if (reticulate::py_module_available("nevergrad")) {
-    ng <- reticulate::import("nevergrad", delay_load = TRUE)
-    if (is.integer(seed)) {
-      np <- reticulate::import("numpy", delay_load = FALSE)
-      np$random$seed(seed)
+  if (iterations > 1) {
+    if (reticulate::py_module_available("nevergrad")) {
+      ng <- reticulate::import("nevergrad", delay_load = TRUE)
+      if (is.integer(seed)) {
+        np <- reticulate::import("numpy", delay_load = FALSE)
+        np$random$seed(seed)
+      }
+    } else {
+      stop(
+        "You must have nevergrad python library installed.\nPlease check our install demo: ",
+        "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
+      )
     }
-  } else {
-    stop(
-      "You must have nevergrad python library installed.\nPlease check our install demo: ",
-      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
-    )
   }
 
   ################################################

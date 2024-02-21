@@ -257,6 +257,7 @@ robyn_onepagers <- function(
     baseline_level = 0, ...) {
   check_class("robyn_outputs", OutputCollect)
   if (TRUE) {
+    window <- c(InputCollect$window_start, InputCollect$window_end)
     pareto_fronts <- OutputCollect$pareto_fronts
     hyper_fixed <- OutputCollect$hyper_fixed
     resultHypParam <- as_tibble(OutputCollect$resultHypParam)
@@ -315,7 +316,7 @@ robyn_onepagers <- function(
     uniqueSol <- unique(plotMediaShare$solID)
 
     # parallelResult <- for (sid in uniqueSol) { # sid = uniqueSol[1]
-    parallelResult <- foreach(sid = uniqueSol) %dorng% { # sid = uniqueSol[1]
+    parallelResult <- foreach(sid = uniqueSol, .options.RNG = OutputCollect$seed) %dorng% { # sid = uniqueSol[1]
 
       if (TRUE) {
         plotMediaShareLoop <- plotMediaShare[plotMediaShare$solID == sid, ]
@@ -354,7 +355,7 @@ robyn_onepagers <- function(
       plotMediaShareLoopLine <- temp[[sid]]$plot1data$plotMediaShareLoopLine
       ySecScale <- temp[[sid]]$plot1data$ySecScale
       plotMediaShareLoopBar$variable <- stringr::str_to_title(gsub("_", " ", plotMediaShareLoopBar$variable))
-      type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")
+      type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROAS")
       plotMediaShareLoopLine$type_colour <- type_colour <- "#03396C"
       names(type_colour) <- "type_colour"
       p1 <- ggplot(plotMediaShareLoopBar, aes(x = .data$rn, y = .data$value, fill = .data$variable)) +
@@ -386,7 +387,7 @@ robyn_onepagers <- function(
         scale_fill_brewer(palette = 3) +
         scale_color_identity(guide = "legend", labels = type) +
         labs(
-          title = paste0("Share of Sum of Spend, Sum of Effect & Total ", type, " in Modeling Window*"),
+          title = paste0("Share of Total Spend, Effect & ", type, " in Modeling Window*"),
           x = NULL, fill = NULL, color = NULL
         )
 
@@ -589,7 +590,14 @@ robyn_onepagers <- function(
 
       ## 8. Bootstrapped ROI/CPA with CIs
       if ("ci_low" %in% colnames(xDecompAgg)) {
-        metric <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROI")
+        cluster_txt <- ""
+        if ("clusters" %in% names(OutputCollect)) {
+          temp <- OutputCollect$clusters$data
+          if (!"n" %in% colnames(temp)) temp <- group_by(temp, .data$cluster) %>% mutate(n = n())
+          temp <- filter(temp, .data$solID == sid)
+          cluster_txt <- sprintf(" %s (%s IDs)", temp$cluster, temp$n)
+        }
+        title <- sprintf("In-cluster%s bootstrapped %s [95%% CI & mean]", cluster_txt, type)
         p8 <- xDecompAgg %>%
           filter(!is.na(.data$ci_low), .data$solID == sid) %>%
           select(.data$rn, .data$solID, .data$boot_mean, .data$ci_low, .data$ci_up) %>%
@@ -599,10 +607,10 @@ robyn_onepagers <- function(
           geom_text(aes(y = .data$ci_low, label = signif(.data$ci_low, 2)), hjust = 1.1, size = 2.8) +
           geom_text(aes(y = .data$ci_up, label = signif(.data$ci_up, 2)), hjust = -0.1, size = 2.8) +
           geom_errorbar(aes(ymin = .data$ci_low, ymax = .data$ci_up), width = 0.25) +
-          labs(title = paste("In-cluster bootstrapped", metric, "with 95% CI & mean"), x = NULL, y = NULL) +
+          labs(title = title, x = NULL, y = NULL) +
           coord_flip() +
           theme_lares(background = "white", )
-        if (metric == "ROI") {
+        if (type == "ROAS") {
           p8 <- p8 + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
         }
       } else {
@@ -614,8 +622,12 @@ robyn_onepagers <- function(
       rver <- utils::sessionInfo()$R.version
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
-      onepagerCaption <- paste0(onepagerCaption,
-                                "\n*Total ROI = sum of response / sum of spend in the modeling window")
+      calc <- ifelse(type == "ROAS",
+                     "Total ROAS = sum of response / sum of spend",
+                     "Total CPA = sum of spend / sum of response")
+      onepagerCaption <- paste0(
+        "*", calc, " in modeling window ", paste0(window, collapse = ":"),
+        "\n", onepagerCaption)
       get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1)) +
@@ -676,8 +688,8 @@ allocation_plots <- function(
     "* Mean CPA = raw spend / mean response | mCPA =  marginal spend / marginal response"
   )
   formulax1 <- paste0(
-    "The allocator 'mean response' = curve response of adstocked mean spend in date range, ",
-    "while the model onepager 'sum of effect' = sum of curve responses of all adstocked spends in modeling window\n",
+    "Allocator's mean response = curve response of adstocked mean spend in date range, ",
+    "while\n Model's sum of effect = sum of curve responses of all adstocked spends in modeling window\n",
     formulax1)
   formulax2 <- sprintf("When reallocating budget, m%s converges across media within respective bounds", metric)
 

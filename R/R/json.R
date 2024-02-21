@@ -74,7 +74,7 @@ robyn_write <- function(InputCollect,
       OutputCollect$OutputModels$trials
     collect$conv_msg <- gsub("\\:.*", "", OutputCollect$OutputModels$convergence$conv_msg)
     if ("clusters" %in% names(OutputCollect)) {
-      collect$clusters <- OutputCollect$clusters$n_clusters
+      collect$n_clusters <- OutputCollect$clusters$n_clusters
     }
 
     skip <- which(unlist(lapply(OutputCollect, function(x) is.list(x) | is.null(x))))
@@ -106,6 +106,14 @@ robyn_write <- function(InputCollect,
         select(order(colnames(.))) %>%
         as.list()
       outputs$hyper_updated <- OutputCollect$hyper_updated
+      if ("clusters" %in% names(OutputCollect)) {
+        outputs$clusters <- list(
+          data = OutputCollect$clusters$data %>%
+            group_by(.data$cluster) %>% mutate(n = n()) %>%
+            filter(.data$solID == select_model) %>%
+            select(any_of(c("solID", "cluster", "n")))
+        )
+      }
       ret[["ExportedModel"]] <- outputs
     } else {
       select_model <- "models"
