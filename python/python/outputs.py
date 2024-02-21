@@ -218,7 +218,6 @@ def print_robyn_outputs(x, *args, **kwargs):
     else:
         print("")
 
-
 def robyn_csv(input_collect, output_collect, csv_out=None, export=True, calibrated=False):
     """
     Export data from Robyn outputs to CSV files.

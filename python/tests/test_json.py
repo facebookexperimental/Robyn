@@ -219,4 +219,4 @@ def test_robyn_chain_invalid_inputs():
         robyn_chain(json_file)
 
 # Run the tests
-pytest.main(["-v", "--tb=line", "/Users/sandeepmane/Documents/GitHub/Robyn/python/python/tests/test_json.py"])
+pytest.main(["-v", "--tb=line", "~/Documents/GitHub/Robyn/python/python/tests/test_json.py"])

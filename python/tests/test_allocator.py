@@ -113,4 +113,4 @@ def test_plot_robyn_allocator():
 
 
 # Run the tests
-pytest.main(["-v", "--tb=line", "/Users/sandeepmane/Documents/GitHub/Robyn/python/python/test_allocator.py"])
+pytest.main(["-v", "--tb=line", "~/Documents/GitHub/Robyn/python/python/test_allocator.py"])
