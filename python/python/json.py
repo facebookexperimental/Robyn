@@ -11,11 +11,21 @@ import numpy as np
 import re
 import warnings
 
-
-
 def robyn_write(InputCollect, OutputCollect=None, select_model=None, dir=None, export=True, quiet=False, pareto_df=None):
     """
     A function that takes in various inputs and exports a Robyn model.
+
+    Parameters:
+    - InputCollect: A robyn_inputs object.
+    - OutputCollect: A robyn_outputs object (optional).
+    - select_model: A string representing the selected model (optional).
+    - dir: A valid directory path (optional).
+    - export: A boolean indicating whether to export the model (default is True).
+    - quiet: A boolean indicating whether to print export messages (default is False).
+    - pareto_df: A DataFrame containing 'solID' and 'cluster' columns (optional).
+
+    Returns:
+    - ret: A dictionary containing the exported model data.
     """
     # Checks
     if not isinstance(InputCollect, robyn_inputs):
@@ -89,8 +99,15 @@ def robyn_write(InputCollect, OutputCollect=None, select_model=None, dir=None, e
     write_json(ret, filename, pretty=True, digits=10)
     return ret
 
-
 def print_robyn_write(x, *args, **kwargs):
+    """
+    Print various information related to the exported model and its performance.
+
+    Args:
+        x: The exported model object.
+        *args: Additional positional arguments.
+        **kwargs: Additional keyword arguments.
+    """
     # Print exported directory, model, and window information
     print("Exported directory: {x.ExportedModel.plot_folder}")
     print("Exported model: {x.ExportedModel.select_model}")
@@ -117,9 +134,22 @@ def print_robyn_write(x, *args, **kwargs):
     hyper_df = x.ExportedModel.hyper_values.drop(columns=["lambda", "penalty"]).gather().separate(key="key", into=["channel", "none"], sep=r"_", remove=False).mutate(hyperparameter=lambda x: gsub("^.*_", "", x.key)).select(channel=["channel", "hyperparameter"], value=["value"]).spread(key="hyperparameter", value="value")
     print(hyper_df)
 
-
-
 def robyn_read(json_file=None, step=1, quiet=False):
+    """
+    Reads a JSON file and performs some modifications on the data.
+
+    Args:
+        json_file (str): The path to the JSON file to be read.
+        step (int): The step value.
+        quiet (bool): If True, suppresses the print statement.
+
+    Returns:
+        dict or None: The modified JSON data if `json_file` is provided, otherwise returns `json_file`.
+    
+    Raises:
+        ValueError: If `json_file` is not a string or does not end with ".json".
+        FileNotFoundError: If the specified `json_file` does not exist.
+    """
     if json_file is not None:
         if not isinstance(json_file, str):
             raise ValueError("JSON file must be a string")
@@ -134,7 +164,6 @@ def robyn_read(json_file=None, step=1, quiet=False):
             print("Imported JSON file successfully: {}".format(json_file))
         return json
     return json_file
-
 
 def robyn_read(x, *args, **kwargs):
     # Extract input collect
@@ -197,9 +226,19 @@ Adstock: {a['adstock']}
     # Return an invisible object
     return pd.Series([], index=[0])
 
-
-
 def robyn_recreate(json_file, quiet=False, *args, **kwargs):
+    """
+    Recreates a model based on the provided JSON file.
+
+    Parameters:
+    - json_file (str): The path to the JSON file.
+    - quiet (bool): Whether to suppress console output. Default is False.
+    - *args: Additional positional arguments.
+    - **kwargs: Additional keyword arguments.
+
+    Returns:
+    - list: A list containing the InputCollect and OutputCollect objects.
+    """
     # Read JSON file
     json = json.load(open(json_file, 'r'))
 
@@ -224,8 +263,16 @@ def robyn_recreate(json_file, quiet=False, *args, **kwargs):
     # Return list of InputCollect and OutputCollect
     return [InputCollect, OutputCollect]
 
-
 def robyn_chain(json_file):
+    """
+    Extracts chain data from a JSON file and returns it as a dictionary.
+
+    Parameters:
+    json_file (str): The path to the JSON file.
+
+    Returns:
+    dict: A dictionary containing the extracted chain data.
+    """
     # Read JSON data from file
     json_data = json.load(open(json_file, 'r'))
 
