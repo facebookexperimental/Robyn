@@ -49,11 +49,12 @@
 #' In other words, given the same DECOMP.RSSD score, a model with 50\% 0-coef
 #' variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
 #' another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.
-#' @param objective_weights Numeric. Default to NULL to give equal weights
+#' @param objective_weights Numeric vector. Default to NULL to give equal weights
 #' to all objective functions. Order: NRMSE, DECOMP.RSSD, MAPE (when calibration
-#' data is provided). Set c(2, 1) to give double weight to the 1st (NRMSE).
-#' This is an experimental feature. There's no research on optimal weight
-#' setting. Subjective weights might strongly bias modeling results.
+#' data is provided). When you are not calibrating, only the first 2 values for
+#' \code{objective_weights} must be defined, i.e. set c(2, 1) to give double weight
+#' to the 1st (NRMSE). This is an experimental feature. There's no research on
+#' optimal weight setting. Subjective weights might strongly bias modeling results.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param lambda_control Deprecated in v3.6.0.
 #' @param outputs Boolean. If set to TRUE, will run \code{robyn_run()} and
