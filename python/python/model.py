@@ -444,6 +444,8 @@ def robyn_mmm(InputCollect,
     prophet_signs = InputCollect.get('prophet_signs')
     organic_signs = InputCollect.get('organic_signs')
     calibration_input = InputCollect.get('calibration_input')
+    print("=============== calibration input")
+    print(calibration_input)
     optimizer_name = nevergrad_algo
     i = None  # For parallel iterations (globalVar)
 
@@ -927,13 +929,16 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     x_name = x.columns
     x_factor = [col for col in x_name if isinstance(x[col][0], str)]
 
-    coeffs_series = coefs.iloc[1:, 0]
-    x_decomp = x.multiply(coeffs_series, axis=0)
-    intercept_column = [intercept] * len(x_decomp)
+    coeffs_series = coefs['s0'].drop('Intercept')
+    x_decomp = x.multiply(coeffs_series, axis=1)
+    intercept_column = pd.Series([coefs.loc['Intercept', 's0']] * len(x_decomp), index=x_decomp.index)
     x_decomp.insert(0, 'intercept', intercept_column)
+    x_decomp.reset_index(drop=True, inplace=True)
+    if 'index' in x_decomp.columns:
+        x_decomp.drop(columns=['index'], inplace=True)
+
     y_y_pred_df = pd.DataFrame({'y': y, 'y_pred': y_pred})
     x_decomp_out = pd.concat([dt_modRollWind[['ds']].reset_index(), y_y_pred_df.reset_index(), x_decomp.reset_index()], axis=1).drop(columns=['index'])
-
     media_features = coefs.index.intersection(dt_saturatedImmediate.columns)
     media_decomp_immediate = dt_saturatedImmediate[media_features].multiply(coefs.loc[media_features, 's0'], axis=1)
     media_decomp_carryover = dt_saturatedCarryover[media_features].multiply(coefs.loc[media_features, 's0'], axis=1)
@@ -981,8 +986,8 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
 
     rn_order = list(x_decomp_out_agg.index)
     rn_order[rn_order.index('intercept')] = '(Intercept)'
-    coefs_out = coefs_out_cat.groupby('rn')['coefs'].mean().reset_index()
-    coefs_out = coefs_out.iloc[coefs_out['rn'].map({rn: i for i, rn in enumerate(rn_order)}).argsort()]
+    coefs_out = coefs_out_cat.copy()
+    coefs_out.rename(columns={'s0': 'coefs'}, inplace=True)
 
     coefs_out = coefs_out.reset_index(drop=True)
     decomp_out_agg = pd.concat([coefs_out, pd.DataFrame({

@@ -41,7 +41,6 @@ def robyn_calibrate(
     """
     # Convert the R code's dataframe to a Pandas dataframe
     df_raw = pd.DataFrame(df_raw)
-
     # Extract the necessary columns from the dataframe
     ds_wind = df_raw["ds"][(wind_start-1):(wind_end-1)]
     min_ds = calibration_input["liftStartDate"] >= np.min(ds_wind)
@@ -71,8 +70,8 @@ def robyn_calibrate(
         ##split_channels = list(calibration_input["channel"].values)
 
         # Initialize the list of calibrated channels
-        l_chn_collect = []
-        l_chn_total_collect = []
+        l_chn_collect = {}
+        l_chn_total_collect = {}
 
         # Loop through each channel
         for l_study in range(len(split_channels)):
@@ -88,12 +87,14 @@ def robyn_calibrate(
             else:
                 calib_pos = [min(study_pos) - 1]
                 calib_pos.extend(study_pos)
-                ##calib_pos = min_list
 
             calibrate_dates = df_raw.loc[calib_pos, "ds"].values
+            calibrate_dates = pd.to_datetime(calibrate_dates).date
 
-            calib_pos_rw = xDecompVec[xDecompVec['ds'].isin(calibrate_dates)]['ds'].values
-            ## xDecompVec.index[calibrate_dates in xDecompVec['ds']].values
+            xDecompVec['ds'] = pd.to_datetime(xDecompVec['ds']).dt.date
+            mask = xDecompVec['ds'].isin(calibrate_dates)
+            calib_pos_rw = xDecompVec.index[mask]
+            xDecompVec_filtered = xDecompVec.loc[calib_pos_rw]
 
             # Initialize the list of calibrated channels for this scope
             l_chn_collect_scope = []
@@ -132,38 +133,36 @@ def robyn_calibrate(
                     gamma = hypParamSam["{}{}".format(get_channels[l_chn], "_gammas")]##.values[0][0]
 
                     m_calib_caov_sat = saturation_hill(m_total_rw, alpha = alpha, gamma = gamma, x_marginal = m_caov_calib)
+                    coeff_value = coefs.loc[get_channels[l_chn], 's0']
+                    m_calib_caov_decomp = m_calib_caov_sat * coeff_value
 
-                    ##m_calib_caov_decomp = m_calib_caov_sat * coefs['s0'][coefs['rn'] == get_channels[l_chn]]
-                    ##TODO: coefs are created faulty, need to be fixed! indexes as channels and column as 's0'
-                    print("==================== coefs")
-                    print(coefs)
-                    m_calib_caov_decomp = m_calib_caov_sat * coefs['s0'][coefs['rn'] == get_channels[l_chn]]
-                    m_calib_total_decomp = xDecompVec[calib_pos_rw, get_channels[l_chn]]
-
-                    m_calib_decomp = m_calib_total_decomp - m_calib_caov_decomp
+                    m_calib_total_decomp = xDecompVec.loc[calib_pos_rw, get_channels[l_chn]]
+                    m_calib_decomp= m_calib_total_decomp.reset_index(drop=True) - m_calib_caov_decomp.reset_index(drop=True)
 
                     if scope == 'total':
                         m_calib_decomp = m_calib_total_decomp = xDecompVec[calib_pos_rw, get_channels[l_chn]]
 
-                    l_chn_collect[[get_channels[l_chn]]] = m_calib_decomp
-                    l_chn_total_collect[[get_channels[l_chn]]] = m_calib_total_decomp
+                    l_chn_collect[get_channels[l_chn]] = m_calib_decomp
+                    l_chn_total_collect[get_channels[l_chn]] = m_calib_total_decomp
 
-            if len(get_channels) > 1:
-                l_chn_collect = l_chn_collect.sum() ##rowSums[bind_cols(l_chn_collect))
-                l_chn_total_collect = l_chn_total_collect.sum() ##rowSums(bind_cols(l_chn_total_collect))
-            else:
-                l_chn_collect = l_chn_collect ##unlist(l_chn_collect, use.names = FALSE)
-                l_chn_total_collect = l_chn_total_collect ##unlist(l_chn_total_collect, use.names = FALSE)
+            l_chn_collect_row_sums = None
+            l_chn_total_collect_row_sums = None
 
-            calibration_input.at[l_study,"pred"] = sum(l_chn_collect)
-            calibration_input.at[l_study,"pred_total"] = sum(l_chn_total_collect)
+            if len(get_channels) > 0:
+                l_chn_collect_df = pd.DataFrame(l_chn_collect)
+                l_chn_collect_row_sums = l_chn_collect_df.sum(axis=1)
+                l_chn_total_collect_df = pd.DataFrame(l_chn_total_collect)
+                l_chn_total_collect_row_sums = l_chn_total_collect_df.sum(axis=1)
+
+            calibration_input.at[l_study,"pred"] = l_chn_collect_row_sums
+            calibration_input.at[l_study,"pred_total"] = l_chn_total_collect_row_sums
             calibration_input.at[l_study,"decompStart"] = calibrate_dates[0]
             calibration_input.at[l_study,"decompEnd"] = calibrate_dates[1]
 
         liftCollect = pd.DataFrame(calibration_input)
 
-        liftCollect[['pred', 'pred_total']] = liftCollect[['pred', 'pred_total']].astype(float)
-        liftCollect[['decompStart', 'decompEnd']] = liftCollect[['decompStart', 'decompEnd']].astype(pd.Timestamp)
+        liftCollect[['pred', 'pred_total']] = liftCollect[['pred', 'pred_total']] #.astype(float)
+        liftCollect[['decompStart', 'decompEnd']] = liftCollect[['decompStart', 'decompEnd']] #.astype(pd.Timestamp)
 
         liftCollect['liftDays'] = (liftCollect['liftEndDate'] - liftCollect['liftStartDate']) / np.timedelta64(1, 'D')
         liftCollect['decompDays'] = (liftCollect['decompStart'] - liftCollect['decompEnd']) / np.timedelta64(1, 'D')
