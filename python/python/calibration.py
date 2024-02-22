@@ -69,10 +69,6 @@ def robyn_calibrate(
 
         ##split_channels = list(calibration_input["channel"].values)
 
-        # Initialize the list of calibrated channels
-        l_chn_collect = {}
-        l_chn_total_collect = {}
-
         # Loop through each channel
         for l_study in range(len(split_channels)):
             # Get the current channel and its corresponding scope
@@ -99,6 +95,10 @@ def robyn_calibrate(
             # Initialize the list of calibrated channels for this scope
             l_chn_collect_scope = []
             l_chn_total_collect_scope = []
+
+            # Initialize the list of calibrated channels
+            l_chn_collect = {}
+            l_chn_total_collect = {}
 
             # Loop through each position in the channel
             for l_chn in range(len(get_channels)):
@@ -145,22 +145,24 @@ def robyn_calibrate(
                     l_chn_collect[get_channels[l_chn]] = m_calib_decomp
                     l_chn_total_collect[get_channels[l_chn]] = m_calib_total_decomp
 
-            l_chn_collect_row_sums = None
-            l_chn_total_collect_row_sums = None
+            l_chn_collect = pd.DataFrame(l_chn_collect)
+            l_chn_total_collect = pd.DataFrame(l_chn_total_collect)
 
-            if len(get_channels) > 0:
-                l_chn_collect_df = pd.DataFrame(l_chn_collect)
-                l_chn_collect_row_sums = l_chn_collect_df.sum(axis=1)
-                l_chn_total_collect_df = pd.DataFrame(l_chn_total_collect)
-                l_chn_total_collect_row_sums = l_chn_total_collect_df.sum(axis=1)
+            if len(get_channels) > 1:
+                # Sum across rows if there are multiple channels
+                l_chn_collect = l_chn_collect.sum(axis=1)
+                l_chn_total_collect = l_chn_total_collect.sum(axis=1)
+            else:
+                # If there's only one channel, it's already effectively a single "flattened" Series
+                l_chn_collect = l_chn_collect.squeeze()
+                l_chn_total_collect = l_chn_total_collect.squeeze()
 
-            calibration_input.at[l_study,"pred"] = l_chn_collect_row_sums
-            calibration_input.at[l_study,"pred_total"] = l_chn_total_collect_row_sums
+            calibration_input.at[l_study,"pred"] = l_chn_collect.sum()
+            calibration_input.at[l_study,"pred_total"] = l_chn_total_collect.sum()
             calibration_input.at[l_study,"decompStart"] = calibrate_dates[0]
             calibration_input.at[l_study,"decompEnd"] = calibrate_dates[1]
 
         liftCollect = pd.DataFrame(calibration_input)
-
         liftCollect[['pred', 'pred_total']] = liftCollect[['pred', 'pred_total']] #.astype(float)
         liftCollect[['decompStart', 'decompEnd']] = liftCollect[['decompStart', 'decompEnd']] #.astype(pd.Timestamp)
 
