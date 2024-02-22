@@ -922,25 +922,21 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     # Input for decomp
     y = dt_modSaturated['dep_var']
     x = dt_modSaturated.drop(columns=['dep_var'])
-    intercept = coefs[0]
+
+    intercept = coefs.loc['Intercept', 's0']
     x_name = x.columns
     x_factor = [col for col in x_name if isinstance(x[col][0], str)]
 
-    # Decomp x
-    x_decomp = pd.DataFrame({col: x[col] * coeff for col, coeff in zip(x.columns, coefs[1:])})
+    coeffs_series = coefs.iloc[1:, 0]
+    x_decomp = x.multiply(coeffs_series, axis=0)
     intercept_column = [intercept] * len(x_decomp)
     x_decomp.insert(0, 'intercept', intercept_column)
     y_y_pred_df = pd.DataFrame({'y': y, 'y_pred': y_pred})
     x_decomp_out = pd.concat([dt_modRollWind[['ds']].reset_index(), y_y_pred_df.reset_index(), x_decomp.reset_index()], axis=1).drop(columns=['index'])
-    # Decomp immediate & carryover response
-    feature_names = ['season', 'competitor_sales_B', 'holiday', 'events', 'trend',
-                 'tv_S', 'ooh_S', 'print_S', 'facebook_S', 'search_S', 'newsletter']
-    coefs_flattened = coefs.flatten()
-    coefs_series = pd.Series(data=coefs_flattened, index=feature_names)
 
-    common_cols = [col for col in coefs_series.index if col in dt_saturatedImmediate.columns]
-    media_decomp_immediate = pd.DataFrame({col: dt_saturatedImmediate[col] * coefs_series[col] for col in common_cols})
-    media_decomp_carryover = pd.DataFrame({col: dt_saturatedCarryover[col] * coefs_series[col] for col in common_cols})
+    media_features = coefs.index.intersection(dt_saturatedImmediate.columns)
+    media_decomp_immediate = dt_saturatedImmediate[media_features].multiply(coefs.loc[media_features, 's0'], axis=1)
+    media_decomp_carryover = dt_saturatedCarryover[media_features].multiply(coefs.loc[media_features, 's0'], axis=1)
 
     # Output decomp
     y_hat = x_decomp.sum(axis=1, skipna=True)
@@ -973,7 +969,12 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     x_decomp_out_agg_mean_non0_rf[np.isnan(x_decomp_out_agg_mean_non0_rf)] = 0
     x_decomp_out_agg_mean_non0_perc_rf = x_decomp_out_agg_mean_non0_rf / x_decomp_out_agg_mean_non0_rf.sum().sum()
 
-    coefs_out_cat = pd.DataFrame({'rn': pd.Series(range(len(coefs))), 'coefs': coefs.flatten()})
+    coefs_out_cat = pd.DataFrame({
+        'rn': coefs.index,
+        's0': coefs['s0']
+    }).reset_index(drop=True)
+    coefs_out_cat.set_index('rn', inplace=True)
+
     if len(x_factor) > 0:
         for factor in x_factor:
             coefs_out_cat['rn'] = coefs_out_cat['rn'].apply(lambda x: re.sub(f"{factor}.*", factor, x))
@@ -1009,124 +1010,83 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
 
 
 def model_refit(x_train, y_train, x_val, y_val, x_test, y_test, lambda_, lower_limits, upper_limits, intercept=True, intercept_sign="non_negative", penalty_factor=None, *args, **kwargs):
-    # Convert input to numpy arrays
-    x_train = np.array(x_train)
-    y_train = np.array(y_train)
-    x_val = np.array(x_val) if x_val is not None else None
-    y_val = np.array(y_val) if y_val is not None else None
-    x_test = np.array(x_test)
-    y_test = np.array(y_test)
 
-    # Create Lasso model with given parameters
-    lasso = Lasso(alpha=0, fit_intercept=intercept, random_state=42, *args, **kwargs)
+    ridge = Ridge(alpha=lambda_, fit_intercept=intercept, random_state=42)
+    ridge.fit(x_train, y_train)
 
-    # Fit the model
-    lasso.fit(x_train, y_train)
-
-    # Calculate all Adjusted R2 and NRMSE
-    y_train_pred = lasso.predict(x_train)
-    rsq_train = 1 - (mean_squared_error(y_train, y_train_pred, squared=False) / (np.var(y_train) - np.mean(y_train)**2))
-
-    if x_val is not None:
-        y_val_pred = lasso.predict(x_val)
-        rsq_val = 1 - (mean_squared_error(y_val, y_val_pred, squared=False) / (np.var(y_val) - np.mean(y_val)**2))
-
-        y_test_pred = lasso.predict(x_test)
-        rsq_test = 1 - (mean_squared_error(y_test, y_test_pred, squared=False) / (np.var(y_test) - np.mean(y_test)**2))
-
-        nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (np.max(y_train) - np.min(y_train))
-        nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (np.max(y_val) - np.min(y_val))
-        nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (np.max(y_test) - np.min(y_test))
-
-        y_pred = np.concatenate([y_train_pred, y_val_pred, y_test_pred])
+    if ridge.fit_intercept:
+        coefs = np.append(ridge.intercept_, ridge.coef_)
+        feature_names = ['Intercept'] + list(x_train.columns)
     else:
-        rsq_val = rsq_test = np.nan
-        y_val_pred = y_test_pred = np.nan
-        nrmse_val = nrmse_test = np.nan
+        coefs = ridge.coef_
+        feature_names = x_train.columns
+
+    coefs_df = pd.DataFrame(coefs, index=feature_names, columns=['s0'])
+
+    def get_adjusted_r2(y_true, y_pred, n_features, n_samples):
+        r2 = r2_score(y_true, y_pred)
+        adjusted_r2 = 1 - (1-r2)*(n_samples-1)/(n_samples-n_features-1)
+        return adjusted_r2
+
+    def get_nrmse(y_true, y_pred):
+        y_true = np.array(y_true)
+        mse = mean_squared_error(y_true, y_pred)
+        rmse = np.sqrt(mse)
+        nrmse = rmse / (y_true.max() - y_true.min())
+        return nrmse
+
+    if 'intercept_sign' in locals() or 'intercept_sign' in globals():
+        if intercept_sign == "non_negative" and ridge.intercept_ < 0:
+            ridge_no_intercept = Ridge(alpha=0.1, fit_intercept=False, random_state=42)
+            ridge_no_intercept.fit(x_train, y_train)
+            ridge = ridge_no_intercept
+
+    y_train_pred = ridge.predict(x_train)
+    n_samples, n_features = x_train.shape
+    adjusted_r2_train = get_adjusted_r2(y_train, y_train_pred, n_features, n_samples)
+    nrmse_train = get_nrmse(y_train, y_train_pred)
+
+    if 'x_val' in locals() or 'x_val' in globals() and x_val is not None:
+        y_val_pred = ridge.predict(x_val)
+        adjusted_r2_val = get_adjusted_r2(y_val, y_val_pred, x_val.shape[1], len(y_val))
+        nrmse_val = get_nrmse(y_val, y_val_pred)
+    else:
+        adjusted_r2_val = nrmse_val = None
+
+    if 'x_test' in locals() or 'x_test' in globals() and x_test is not None:
+        y_test_pred = ridge.predict(x_test)
+        adjusted_r2_test = get_adjusted_r2(y_test, y_test_pred, x_test.shape[1], len(y_test))
+        nrmse_test = get_nrmse(y_test, y_test_pred)
+    else:
+        adjusted_r2_test = nrmse_test = None
+
+    if x_val is not None and x_test is not None:
+        y_pred = np.concatenate([y_train_pred, y_val_pred, y_test_pred])
+    elif x_val is not None:
+        y_pred = np.concatenate([y_train_pred, y_val_pred])
+    elif x_test is not None:
+        y_pred = np.concatenate([y_train_pred, y_test_pred])
+    else:
         y_pred = y_train_pred
 
     mod_out = {
-        "rsq_train": rsq_train,
-        "rsq_val": rsq_val,
-        "rsq_test": rsq_test,
+        "rsq_train": adjusted_r2_train,
+        "rsq_val": adjusted_r2_val,
+        "rsq_test": adjusted_r2_test,
         "nrmse_train": nrmse_train,
         "nrmse_val": nrmse_val,
         "nrmse_test": nrmse_test,
-        "coefs": lasso.coef_.reshape(-1, 1),
+        #"coefs": lasso.coef_.reshape(-1, 1),
+        "coefs": coefs_df,
         "y_train_pred": y_train_pred,
         "y_val_pred": y_val_pred,
         "y_test_pred": y_test_pred,
         "y_pred": y_pred,
-        "mod": lasso,
+        "mod": ridge,
         "df_int": intercept
     }
 
     return mod_out
-
-# TODO: clean up this function if we can use the above one.
-# def model_refit(x_train, y_train, x_val, y_val, x_test, y_test,
-#                 lambda_, lower_limits, upper_limits,
-#                 intercept=True,
-#                 intercept_sign="non_negative",
-#                 penalty_factor=None,
-#                 alpha=0):
-
-#     if penalty_factor is None:
-#         penalty_factor = np.ones(x_train.shape[1])
-
-#     #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
-#     #             lower_limits=lower_limits, upper_limits=upper_limits,
-#     #             penalty_factor=penalty_factor, standardize=False, intr=True, **kwargs)
-#     mod = Ridge(alpha=lambda_, fit_intercept=intercept, solver='auto')
-#     mod.fit(x_train, y_train)
-
-#     df_int = 1
-
-#     if intercept_sign == "non_negative" and mod['beta'][0] < 0:
-#         #mod = glmnet(x_train, y_train, alpha=alpha, lambdau=lambda_,
-#         #             lower_limits=lower_limits, upper_limits=upper_limits,
-#         #             penalty_factor=penalty_factor, standardize=False, intr=False, **kwargs)
-#         mod = Ridge(alpha=lambda_, fit_intercept=False, normalize=False, solver='lsqr')
-#         mod.fit(x_train, y_train)
-#         df_int = 0
-
-#     y_train_pred = np.array(mod.predict(x_train, s=lambda_))
-#     rsq_train = get_rsq(y_train, y_train_pred, x_train.shape[1], df_int)
-
-#     if x_val is not None:
-#         y_val_pred = np.array(mod.predict(x_val, s=lambda_))
-#         rsq_val = get_rsq(y_val, y_val_pred, x_val.shape[1], df_int, len(y_train))
-#         y_test_pred = np.array(mod.predict(x_test, s=lambda_))
-#         rsq_test = get_rsq(y_test, y_test_pred, x_test.shape[1], df_int, len(y_train))
-#         y_pred = np.concatenate((y_train_pred, y_val_pred, y_test_pred))
-#     else:
-#         rsq_val = rsq_test = None
-#         y_pred = y_train_pred
-
-#     nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (np.max(y_train) - np.min(y_train))
-
-#     if x_val is not None:
-#         nrmse_val = np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (np.max(y_val) - np.min(y_val))
-#         nrmse_test = np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (np.max(y_test) - np.min(y_test))
-#     else:
-#         nrmse_val = nrmse_test = None
-
-#     mod_out = {
-#         'rsq_train': rsq_train,
-#         'rsq_val': rsq_val,
-#         'rsq_test': rsq_test,
-#         'nrmse_train': nrmse_train,
-#         'nrmse_val': nrmse_val,
-#         'nrmse_test': nrmse_test,
-#         'coefs': np.array(mod['beta']),
-#         'y_train_pred': y_train_pred,
-#         'y_val_pred': y_val_pred,
-#         'y_test_pred': y_test_pred,
-#         'y_pred': y_pred,
-#         'df_int': df_int
-#     }
-
-#     return mod_out
 
 
 def get_rsq(true, predicted, p, df_int, n_train=None):
@@ -1192,7 +1152,6 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, c
     if not all_fixed['hyper_fixed']:
         hyper_bound_list = {}
         for param_name in hypParamSamName:
-            print("====== param name: {}".format(param_name))
             if param_name in hyper_in.keys(): ## Added since R automatically creates an empty list don't raise an error
                 hyper_bound_list[param_name] = hyper_in[param_name]
             else:

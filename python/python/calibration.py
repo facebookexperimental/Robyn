@@ -135,6 +135,8 @@ def robyn_calibrate(
 
                     ##m_calib_caov_decomp = m_calib_caov_sat * coefs['s0'][coefs['rn'] == get_channels[l_chn]]
                     ##TODO: coefs are created faulty, need to be fixed! indexes as channels and column as 's0'
+                    print("==================== coefs")
+                    print(coefs)
                     m_calib_caov_decomp = m_calib_caov_sat * coefs['s0'][coefs['rn'] == get_channels[l_chn]]
                     m_calib_total_decomp = xDecompVec[calib_pos_rw, get_channels[l_chn]]
 
