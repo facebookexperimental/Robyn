@@ -335,7 +335,8 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
   }
   return(invisible(list(
     InputCollect = InputCollect,
-    OutputCollect = OutputCollect
+    OutputCollect = OutputCollect,
+    Extras = json[["Extras"]]
   )))
 }
 
