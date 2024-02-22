@@ -714,6 +714,8 @@ def robyn_mmm(InputCollect,
                     mape = liftCollect["mape_lift"].mean()
 
                 # Filter and select relevant columns from decompCollect$xDecompAgg
+                print("decomp collect: ")
+                print(decompCollect)
                 dt_decompSpendDist = decompCollect["xDecompAgg"][decompCollect["xDecompAgg"]["rn"].isin(paid_media_spends)]
                 dt_decompSpendDist = dt_decompSpendDist[[
                     "rn", "xDecompAgg", "xDecompPerc", "xDecompMeanNon0Perc",
@@ -953,6 +955,10 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     temp = x_decomp_out[existing_cols]
 
     x_decomp_out_agg = temp.sum()
+    #print("--------------------- x_decomp_out_agg")
+    #print(x_decomp_out_agg)
+    #axDecompOutAgg = x.drop(columns=['index']).sum()
+
     x_decomp_out_agg_perc = x_decomp_out_agg / y_hat.sum()
     x_decomp_out_agg_mean_non0 = temp.apply(lambda x: 0 if np.isnan(np.mean(x[x > 0])) else np.mean(x[x != 0]))
     x_decomp_out_agg_mean_non0[np.isnan(x_decomp_out_agg_mean_non0)] = 0
@@ -989,18 +995,16 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     coefs_out = coefs_out_cat.copy()
     coefs_out.rename(columns={'s0': 'coefs'}, inplace=True)
 
-    coefs_out = coefs_out.reset_index(drop=True)
-    decomp_out_agg = pd.concat([coefs_out, pd.DataFrame({
-        'xDecompAgg': x_decomp_out_agg.values.flatten(),
-        'xDecompPerc': x_decomp_out_agg_perc.values.flatten(),
-        'xDecompMeanNon0': x_decomp_out_agg_mean_non0.values.flatten(),
-        'xDecompMeanNon0Perc': x_decomp_out_agg_mean_non0_perc.values.flatten(),
-        'xDecompAggRF': x_decomp_out_agg_rf.values.flatten(),
-        'xDecompPercRF': x_decomp_out_agg_perc_rf.values.flatten(),
-        'xDecompMeanNon0RF': x_decomp_out_agg_mean_non0_rf.values.flatten(),
-        'xDecompMeanNon0PercRF': x_decomp_out_agg_mean_non0_perc_rf.values.flatten(),
-        'pos': x_decomp_out_agg >= 0
-    })], axis=1)
+    decomp_out_agg = coefs_out.copy()
+    decomp_out_agg['xDecompAgg'] = x_decomp_out_agg.values
+    decomp_out_agg['xDecompPerc'] = x_decomp_out_agg_perc.values
+    decomp_out_agg['xDecompMeanNon0'] = x_decomp_out_agg_mean_non0.values
+    decomp_out_agg['xDecompMeanNon0Perc'] = x_decomp_out_agg_mean_non0_perc.values
+    decomp_out_agg['xDecompAggRF'] = x_decomp_out_agg_rf.values
+    decomp_out_agg['xDecompPercRF'] = x_decomp_out_agg_perc_rf.values
+    decomp_out_agg['xDecompMeanNon0RF'] = x_decomp_out_agg_mean_non0_rf.values
+    decomp_out_agg['xDecompMeanNon0PercRF'] = x_decomp_out_agg_mean_non0_perc_rf.values
+    decomp_out_agg['pos'] = x_decomp_out_agg >= 0
 
     decomp_collect = {
         'xDecompVec': x_decomp_out,
