@@ -6,7 +6,7 @@
 ####################################################################
 #' Import and Export Robyn JSON files
 #'
-#' \code{robyn_write()} generates JSON files with all the information
+#' \code{robyn_write()} generates light JSON files with all the information
 #' required to replicate Robyn models. Depending on user inputs, there are
 #' 3 use cases: only the inputs data, input data + modeling results data,
 #' and input data, modeling results + specifics of a single selected model.
@@ -20,11 +20,12 @@
 #' @param dir Character. Existing directory to export JSON file to.
 #' @param pareto_df Dataframe. Save all pareto solutions to json file.
 #' @param ... Additional parameters to export into a custom Extras element.
+#' If you wish to include the data to recreate a model, add
+#' \code{raw_data = InputCollect$dt_input}.
 #' @examples
 #' \dontrun{
 #' InputCollectJSON <- robyn_inputs(
 #'   dt_input = Robyn::dt_simulated_weekly,
-#'   dt_holidays = Robyn::dt_prophet_holidays,
 #'   json_file = "~/Desktop/RobynModel-1_29_12.json"
 #' )
 #' print(InputCollectJSON)
@@ -219,8 +220,8 @@ print.robyn_write <- function(x, ...) {
 
 #' @rdname robyn_write
 #' @aliases robyn_write
-#' @param json_file Character. JSON file name to read and import as list.
-#' @param step Integer. 1 for import only and 2 for import and ouput.
+#' @param json_file Character. JSON file name to read and import.
+#' @param step Integer. 1 for import only and 2 for import and output.
 #' @export
 robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
   if (!is.null(json_file)) {
