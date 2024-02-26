@@ -90,8 +90,8 @@ robyn_write <- function(InputCollect,
       outputs$select_model <- select_model
       outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
         mutate(
-          metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),
-          performance = ifelse(.data$metric == "ROI", .data$roi_total, .data$cpa_total)
+          metric = ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA"),
+          performance = ifelse(.data$metric == "ROAS", .data$roi_total, .data$cpa_total)
         ) %>%
         select(
           variable = .data$rn, coef = .data$coef,
@@ -191,7 +191,7 @@ print.robyn_write <- function(x, ...) {
 
   print(x$ExportedModel$summary %>%
     select(-contains("boot"), -contains("ci_")) %>%
-    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
+    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROAS", "CPA"))) %>%
     mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
     dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%

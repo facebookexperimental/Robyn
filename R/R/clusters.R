@@ -423,10 +423,10 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   top_sols %>%
     left_join(real_rois, by = c("solID" = "real_solID")) %>%
     mutate(label = sprintf("[%s.%s]\n%s", .data$cluster, .data$rank, .data$solID)) %>%
-    tidyr::gather("media", "roi", contains(all_media)) %>%
+    tidyr::gather("media", "perf", contains(all_media)) %>%
     filter(grepl("real_", .data$media)) %>%
     mutate(media = gsub("real_", "", .data$media)) %>%
-    ggplot(aes(x = reorder(.data$media, .data$roi), y = .data$roi)) +
+    ggplot(aes(x = reorder(.data$media, .data$perf), y = .data$perf)) +
     facet_grid(.data$label ~ .) +
     geom_col() +
     coord_flip() +

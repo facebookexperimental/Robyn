@@ -1386,7 +1386,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     labs(
       title = paste(
         "Model refresh: Decomposition & Paid Media",
-        ifelse(chainData[[1]]$InputCollect$dep_var_type == "revenue", "ROI", "CPA")
+        ifelse(chainData[[1]]$InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       ),
       subtitle = paste(
         "Baseline includes intercept and all prophet vars:",
