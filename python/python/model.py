@@ -19,6 +19,13 @@ import re
 #from glmnet import glmnet
 from sklearn.linear_model import Ridge
 import logging
+from math import sqrt
+import math
+from tqdm import tqdm
+import warnings
+warnings.simplefilter('ignore')
+import sys
+from collections import defaultdict
 
 ## Robyn imports
 from .inputs import hyper_names
@@ -444,8 +451,6 @@ def robyn_mmm(InputCollect,
     prophet_signs = InputCollect.get('prophet_signs')
     organic_signs = InputCollect.get('organic_signs')
     calibration_input = InputCollect.get('calibration_input')
-    print("=============== calibration input")
-    print(calibration_input)
     optimizer_name = nevergrad_algo
     i = None  # For parallel iterations (globalVar)
 
@@ -510,7 +515,8 @@ def robyn_mmm(InputCollect,
         my_tuple = tuple([hyper_count])
         instrumentation = ng.p.Array(shape=my_tuple, lower=0, upper=1)
         optimizer = optimizerlib.registry[optimizer_name](instrumentation, budget=iterTotal, num_workers=cores)
-
+        print(instrumentation)
+        print(iterTotal)
         # Set multi-objective dimensions for objective functions (errors)
         if calibration_input is None:
             optimizer.tell(ng.p.MultiobjectiveReference(), tuple([1, 1]))
@@ -534,14 +540,14 @@ def robyn_mmm(InputCollect,
     ##if not hyper_fixed and not quiet:
     ## May not be necessary since tqdm is used.
     if hyper_fixed['hyper_fixed'] == False and quiet == False:
-        ##pb = range(iter_total)
-        pb = range(iterTotal)
+        pbar = tqdm(total=iterTotal, desc="Progress", leave=True)
+    #    pb = range(iterTotal)
 
     sys_time_dopar = None
 
     try:
         sys_time_dopar = time.time()
-        for _ in tqdm(range(iterTotal), desc="Optimization Progress"):
+        for lng in tqdm(range(iterTotal), desc="Optimization Progress"):
             nevergrad_hp = {}
             nevergrad_hp_val = {}
             hypParamSamList = []
@@ -658,9 +664,7 @@ def robyn_mmm(InputCollect,
                         upper_limits.append(0 if x_sign[s] == "negative" else float('inf'))
 
                 # Fit ridge regression with nevergrad's lambda
-                # lambdas = lambda_seq(x_train, y_train, seq_len=100, lambda_min_ratio=0.0001)
-                # lambda_max = max(lambdas)
-                lambda_hp = float(hypParamSamNG['lambda'].iloc[i])
+                lambda_hp = float(hypParamSamNG['lambda'].iloc[i-1])
                 ##if not hyper_fixed:
                 if hyper_fixed['hyper_fixed'] == False:
                     lambda_scaled = lambda_min + (lambda_max - lambda_min) * lambda_hp
@@ -713,25 +717,21 @@ def robyn_mmm(InputCollect,
                     )
                     mape = liftCollect["mape_lift"].mean()
 
-                # Filter and select relevant columns from decompCollect$xDecompAgg
-                print("decomp collect: ")
-                print(decompCollect)
-                dt_decompSpendDist = decompCollect["xDecompAgg"][decompCollect["xDecompAgg"]["rn"].isin(paid_media_spends)]
-                dt_decompSpendDist = dt_decompSpendDist[[
-                    "rn", "xDecompAgg", "xDecompPerc", "xDecompMeanNon0Perc",
-                    "xDecompMeanNon0", "xDecompPercRF", "xDecompMeanNon0PercRF",
-                    "xDecompMeanNon0RF"
-                ]]
+                df_xDecompAgg = decompCollect["xDecompAgg"][decompCollect["xDecompAgg"].index.isin(paid_media_spends)]
+                dt_spendShare_idx = dt_spendShare.set_index('rn')
+                dt_decompSpendDist = df_xDecompAgg.join(dt_spendShare_idx, how='inner')
 
-                # Join dt_decompSpendDist with relevant columns from dt_spendShare
-                dt_decompSpendDist = dt_decompSpendDist.merge(
-                    dt_spendShare[["rn", "spend_share", "spend_share_refresh", "mean_spend", "total_spend"]],
-                    on="rn"
+                selected_columns = [
+                    'xDecompAgg', 'xDecompPerc', 'xDecompMeanNon0', 'xDecompMeanNon0Perc',
+                    'xDecompAggRF', 'xDecompPercRF', 'xDecompMeanNon0RF', 'xDecompMeanNon0PercRF',
+                    'total_spend', 'mean_spend', 'spend_share', 'mean_spend_refresh'
+                ]
+
+                dt_decompSpendDist = dt_decompSpendDist[selected_columns]
+                dt_decompSpendDist = dt_decompSpendDist.assign(
+                    effect_share=dt_decompSpendDist['xDecompPerc'] / dt_decompSpendDist['xDecompPerc'].sum(),
+                    effect_share_refresh=dt_decompSpendDist['xDecompPercRF'] / dt_decompSpendDist['xDecompPercRF'].sum()
                 )
-
-                # Calculate effect_share and effect_share_refresh
-                dt_decompSpendDist["effect_share"] = dt_decompSpendDist["xDecompPerc"] / dt_decompSpendDist["xDecompPerc"].sum()
-                dt_decompSpendDist["effect_share_refresh"] = dt_decompSpendDist["xDecompPercRF"] / dt_decompSpendDist["xDecompPercRF"].sum()
 
                 if not refresh:
                     decomp_rssd = sqrt(sum((dt_decompSpendDist["effect_share"] - dt_decompSpendDist["spend_share"])**2))
@@ -756,7 +756,7 @@ def robyn_mmm(InputCollect,
                     dt_decompSpendDist["effect_share"] = 0
 
                 # Initialize resultCollect list
-                resultCollect = []
+                resultCollect = {}
 
                 # Create a common DataFrame with shared values
                 common = pd.DataFrame({
@@ -777,22 +777,29 @@ def robyn_mmm(InputCollect,
                     "trial": trial,
                     "iterNG": lng,
                     "iterPar": i
-                })
+                }, index=[0])
 
                 total_common = common.shape[1]
                 split_common = common.columns.get_loc("lambda_min_ratio")
+                hypParamSam_df = hypParamSam.drop('lambda').to_frame().T
 
-                # Add common data to resultCollect
-                resultCollect["resultHypParam"] = hypParamSam.drop(columns=["lambda"]).join(
+                current_time = time.time()
+                Elapsed = current_time - t1
+                ElapsedAccum = current_time - t0
+
+                result_df = hypParamSam_df.join(
                     common.iloc[:, :split_common]
                 ).assign(
-                    pos=lambda x: x["xDecompAgg"]["pos"].prod(),
-                    Elapsed=pd.to_numeric((pd.Timestamp.now() - t1).total_seconds()),
-                    ElapsedAccum=pd.to_numeric((pd.Timestamp.now() - t0).total_seconds())
+                    pos=decompCollect['xDecompAgg']['pos'].prod(),  # Adjust according to actual structure
+                    Elapsed=Elapsed,
+                    ElapsedAccum=ElapsedAccum
                 ).join(
-                    common.iloc[:, split_common + 1:total_common]
-                ).apply(pd.Series.unstack).reset_index()
+                    common.iloc[:, split_common:total_common]
+                )
 
+                dresult_hyp_param_df = pd.DataFrame(result_df)
+                list_of_dicts = dresult_hyp_param_df.to_dict(orient='records')
+                resultCollect["resultHypParam"] = list_of_dicts[0]
                 resultCollect["xDecompAgg"] = decompCollect["xDecompAgg"].assign(train_size=train_size).join(common)
 
                 if liftCollect is not None:
@@ -800,6 +807,7 @@ def robyn_mmm(InputCollect,
 
                 resultCollect["decompSpendDist"] = dt_decompSpendDist.join(common)
                 resultCollect.update(common.to_dict())
+
                 return resultCollect
 
 
@@ -839,18 +847,22 @@ def robyn_mmm(InputCollect,
             if hyper_fixed['hyper_fixed'] == False:
                 if calibration_input is None:
                     for co in range(1, iterPar + 1):
-                        optimizer.tell(nevergrad_hp[co - 1], tuple(nrmse_collect[co - 1], decomp_rssd_collect[co - 1]))
+                        nrmse_collect_value = next(iter(nrmse_collect[co].values()), None)
+                        decomp_rssd_collect_value = next(iter(decomp_rssd_collect[co].values()), None)
+                        optimizer.tell(nevergrad_hp[co - 1], [nrmse_collect_value, decomp_rssd_collect_value])
                 else:
-                    for co in range(1, iterPar + 1):
-                        optimizer.tell(nevergrad_hp[co - 1], tuple(nrmse_collect[co - 1], decomp_rssd_collect[co - 1], mape_lift_collect[co - 1]))
+                    for co in range(iterPar):  # iterPar is the total count, range() is 0-based
+                        nrmse_collect_value = next(iter(nrmse_collect[co].values()), None)
+                        decomp_rssd_collect_value = next(iter(decomp_rssd_collect[co].values()), None)
+                        mape_lift_collect_value = next(iter(mape_lift_collect[co].values()), None)
+                        optimizer.tell(nevergrad_hp[co], [nrmse_collect_value, decomp_rssd_collect_value, mape_lift_collect_value])
 
-            result_collect_ng[lng] = dopar_collect
+            result_collect_ng.append(dopar_collect)
 
             if not quiet:
                 cnt += iterPar
-                ##if not hyper_fixed:
                 if hyper_fixed['hyper_fixed'] == False:
-                    setTxtProgressBar(pb, cnt)
+                    pbar.update(1)
 
     except Exception as err:
         if len(result_collect_ng) > 1:
@@ -861,46 +873,60 @@ def robyn_mmm(InputCollect,
         else:
             raise err
 
+    pbar.close()
     # Stop the cluster to avoid memory leaks
     ## TODO: Is it necessary for Python?
     ## stop_implicit_cluster()
     ## register_do_seq()
     ## get_do_par_workers()
 
-    ##if not hyper_fixed:
     if hyper_fixed['hyper_fixed'] == False:
-        print("\r", f"\n  Finished in {round(sys_time_dopar[2] / 60, 2)} mins")
-        flush_console()
+        elapsed_time = time.time() - sys_time_dopar
+        print("\r", f"\n  Finished in {round(elapsed_time / 60, 2)} mins")
+        sys.stdout.flush()
 
     # Final result collect
     result_collect = {}
 
-    result_collect["resultHypParam"] = pd.concat([
-        pd.concat([
-            pd.DataFrame(y["resultHypParam"]) for y in x
-        ]) for x in result_collect_ng
-    ], ignore_index=True)
+    # Construct resultHypParam
+    resultHypParam = defaultdict(list)
+    for group in result_collect_ng:
+        for element in group:
+            for key, value in element["resultHypParam"].items():
+                resultHypParam[key].append(value)
+    resultHypParam = dict(resultHypParam)
+    result_collect["resultHypParam"] = resultHypParam
 
-    result_collect = {}
+    # Construct xDecompAgg
+    xDecompAggDefaultDict = defaultdict(list)
+    for group in result_collect_ng:
+        for element in group:
+            df = element['xDecompAgg']
+            print(df)
+            for col in df.columns:
+                xDecompAggDefaultDict[col].extend(df[col].tolist())
+    result_collect["xDecompAgg"] = xDecompAggDefaultDict
 
-    result_collect["resultHypParam"] = pd.concat([
-        pd.concat([
-            pd.DataFrame(y["resultHypParam"]) for y in x
-        ]) for x in result_collect_ng
-    ], ignore_index=True)
+    # Construct liftCalibration
+    liftCalibration = defaultdict(list)
+    for group in result_collect_ng:
+        for element in group:
+            for key, value in element["liftCalibration"].items():
+                liftCalibration[key].append(value)
+    resultLiftCalibration = dict(liftCalibration)
+    result_collect["liftCalibration"] = resultLiftCalibration
 
-    if calibration_input is not None:
-        result_collect["liftCalibration"] = pd.concat([
-            pd.concat([
-                pd.DataFrame(y["liftCalibration"]) for y in x
-            ]) for x in result_collect_ng
-        ]).sort_values(by=["mape", "liftMedia", "liftStart"]).reset_index(drop=True)
+    # Construct decompSpendDist
+    decompSpendDist = defaultdict(list)
+    for group in result_collect_ng:
+        for element in group:
+            for key, value in element["decompSpendDist"].items():
+                decompSpendDist[key].append(value)
+    resultDecompSpendDist = dict(decompSpendDist)
+    result_collect["decompSpendDist"] = resultDecompSpendDist
 
-    result_collect["decompSpendDist"] = pd.concat([
-        pd.concat([
-            pd.DataFrame(y["decompSpendDist"]) for y in x
-        ]) for x in result_collect_ng
-    ], ignore_index=True)
+    #print("---------------------------------------------------------------------------------------------------------------------------------")
+    #print(result_collect)
 
     result_collect["iter"] = len(result_collect["mape"])
     result_collect["elapsed.min"] = sys_time_dopar[2] / 60
@@ -955,9 +981,6 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     temp = x_decomp_out[existing_cols]
 
     x_decomp_out_agg = temp.sum()
-    #print("--------------------- x_decomp_out_agg")
-    #print(x_decomp_out_agg)
-    #axDecompOutAgg = x.drop(columns=['index']).sum()
 
     x_decomp_out_agg_perc = x_decomp_out_agg / y_hat.sum()
     x_decomp_out_agg_mean_non0 = temp.apply(lambda x: 0 if np.isnan(np.mean(x[x > 0])) else np.mean(x[x != 0]))
