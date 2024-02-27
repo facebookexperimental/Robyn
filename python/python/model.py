@@ -889,47 +889,47 @@ def robyn_mmm(InputCollect,
     result_collect = {}
 
     # Construct resultHypParam
-    resultHypParam = defaultdict(list)
+    resultHypParamDefaultDict = defaultdict(list)
     for group in result_collect_ng:
         for element in group:
             for key, value in element["resultHypParam"].items():
-                resultHypParam[key].append(value)
-    resultHypParam = dict(resultHypParam)
-    result_collect["resultHypParam"] = resultHypParam
+                resultHypParamDefaultDict[key].append(value)
+    resultHypParam = dict(resultHypParamDefaultDict)
+    result_collect["resultHypParam"] = pd.DataFrame.from_dict(resultHypParamDefaultDict)
 
     # Construct xDecompAgg
     xDecompAggDefaultDict = defaultdict(list)
     for group in result_collect_ng:
         for element in group:
             df = element['xDecompAgg']
-            print(df)
             for col in df.columns:
                 xDecompAggDefaultDict[col].extend(df[col].tolist())
-    result_collect["xDecompAgg"] = xDecompAggDefaultDict
+    result_collect["xDecompAgg"] = pd.DataFrame.from_dict(xDecompAggDefaultDict)
 
     # Construct liftCalibration
-    liftCalibration = defaultdict(list)
+    liftCalibrationDefaultDict = defaultdict(list)
     for group in result_collect_ng:
         for element in group:
-            for key, value in element["liftCalibration"].items():
-                liftCalibration[key].append(value)
-    resultLiftCalibration = dict(liftCalibration)
-    result_collect["liftCalibration"] = resultLiftCalibration
+            df = element['liftCalibration']
+            for col in df.columns:
+                liftCalibrationDefaultDict[col].extend(df[col].tolist())
+    liftCalibrationDF = pd.DataFrame.from_dict(liftCalibrationDefaultDict)
+    sortedLiftCalibrationDF = liftCalibrationDF.sort_values(by=['mape', 'liftMedia', 'liftStart'])
+    result_collect["liftCalibration"] = pd.DataFrame.from_dict(sortedLiftCalibrationDF)
 
     # Construct decompSpendDist
-    decompSpendDist = defaultdict(list)
+    decompSpendDistDefaultDict = defaultdict(list)
     for group in result_collect_ng:
         for element in group:
-            for key, value in element["decompSpendDist"].items():
-                decompSpendDist[key].append(value)
-    resultDecompSpendDist = dict(decompSpendDist)
-    result_collect["decompSpendDist"] = resultDecompSpendDist
+            df = element['decompSpendDist']
+            for col in df.columns:
+                decompSpendDistDefaultDict[col].extend(df[col].tolist())
+    result_collect["decompSpendDist"] = pd.DataFrame.from_dict(decompSpendDistDefaultDict)
 
-    #print("---------------------------------------------------------------------------------------------------------------------------------")
-    #print(result_collect)
-
-    result_collect["iter"] = len(result_collect["mape"])
-    result_collect["elapsed.min"] = sys_time_dopar[2] / 60
+    # Skil following line for now as it looks a bug in the R code to me.
+    # ["mape"] is a column of result_collect["liftCalibration"]. In R is always initialized to 0
+    #result_collect["iter"] = len(result_collect["mape"])
+    result_collect["elapsed.min"] = sys_time_dopar / 60
 
     # Adjust accumulated time
     result_collect["resultHypParam"]["ElapsedAccum"] = (
