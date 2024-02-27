@@ -88,9 +88,19 @@ robyn_write <- function(InputCollect,
       stopifnot(select_model %in% OutputCollect$allSolutions)
       outputs <- list()
       outputs$select_model <- select_model
-      outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
+      df <- filter(OutputCollect$xDecompAgg, .data$solID == select_model)
+      perf_metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
+      outputs$performance <- df %>%
+        filter(rn %in% InputCollect$paid_media_spends) %>%
+        group_by(.data$solID) %>%
+        summarise(metric = perf_metric,
+                  performance = ifelse(
+                    perf_metric == "ROAS",
+                    sum(.data$xDecompAgg) / sum(.data$total_spend),
+                    sum(.data$total_spend) / sum(.data$xDecompAgg)), .groups = "drop")
+      outputs$summary <- df %>%
         mutate(
-          metric = ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA"),
+          metric = perf_metric,
           performance = ifelse(.data$metric == "ROAS", .data$roi_total, .data$cpa_total)
         ) %>%
         select(
@@ -174,7 +184,10 @@ print.robyn_write <- function(x, ...) {
   ))
   errors <- x$ExportedModel$errors
   print(glued(
-    "\n\nModel's Performance and Errors:\n    {errors}",
+    "\n\nModel's Performance and Errors:\n    {performance}{errors}",
+    performance = ifelse("performance" %in% names(x$ExportedModel), sprintf(
+      "Total Model %s = %s\n    ",
+      x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)), ""),
     errors = paste(
       sprintf(
         "Adj.R2 (%s): %s",
