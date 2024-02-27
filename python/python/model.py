@@ -169,22 +169,19 @@ def robyn_run(InputCollect=None,
         refresh=refresh, seed=seed, quiet=quiet
     )
 
-    setattr(OutputModels, "hyper_fixed", hyper_collect['all_fixed'])
-    setattr(OutputModels, "bootstrap", bootstrap)
-    setattr(OutputModels, "refresh", refresh)
-
-    if True:  # This condition is always true, consider removing it if not needed
-        OutputModels['train_timestamp'] = time.time()
-        OutputModels['cores'] = cores
-        OutputModels['iterations'] = iterations
-        OutputModels['trials'] = trials
-        OutputModels['intercept'] = intercept
-        OutputModels['intercept_sign'] = intercept_sign
-        OutputModels['nevergrad_algo'] = nevergrad_algo
-        OutputModels['ts_validation'] = ts_validation
-        OutputModels['add_penalty_factor'] = add_penalty_factor
-        OutputModels['hyper_updated'] = hyper_collect['hyper_list_all']
-        OutputModels['hyper_fixed'] = hyper_collect['all_fixed']
+    OutputModels['metadata']['hyper_fixed'] = hyper_collect['all_fixed']['hyper_fixed']
+    OutputModels['metadata']['bootstrap'] = bootstrap
+    OutputModels['metadata']['refresh'] = refresh
+    OutputModels['metadata']['train_timestamp'] = time.time()
+    OutputModels['metadata']['cores'] = cores
+    OutputModels['metadata']['iterations'] = iterations
+    OutputModels['metadata']['trials'] = trials
+    OutputModels['metadata']['intercept'] = intercept
+    OutputModels['metadata']['intercept_sign'] = intercept_sign
+    OutputModels['metadata']['nevergrad_algo'] = nevergrad_algo
+    OutputModels['metadata']['ts_validation'] = ts_validation
+    OutputModels['metadata']['add_penalty_factor'] = add_penalty_factor
+    OutputModels['metadata']['hyper_updated'] = hyper_collect['hyper_list_all']
 
     # Handling different output conditions
     if dt_hyper_fixed is None:
@@ -197,7 +194,7 @@ def robyn_run(InputCollect=None,
         output = robyn_outputs(InputCollect, OutputModels, clusters=False, *args, **kwargs)
 
     # Check convergence when more than 1 iteration
-    if not hyper_collect['all_fixed']:
+    if not hyper_collect['all_fixed']['hyper_fixed']:
         output["convergence"] = robyn_converge(OutputModels, *args, **kwargs)
         output["ts_validation_plot"] = ts_validation(OutputModels, *args, **kwargs)
     else:
@@ -289,11 +286,16 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
                 intercept_sign, intercept, nevergrad_algo, dt_hyper_fixed=None,
                 ts_validation=True, add_penalty_factor=False, objective_weights=None,
                 rssd_zero_penalty=True, refresh=False, seed=123, quiet=False):
+
     hyper_fixed = hyper_collect['all_fixed']
 
+    OutputModels = {
+        "trials": [],
+        "metadata": {}
+    }
+
     if hyper_fixed['hyper_fixed'] == True:
-        OutputModels = []
-        OutputModels.append(robyn_mmm(
+        OutputModels["trials"].append(robyn_mmm(
             InputCollect=InputCollect,
             hyper_collect=hyper_collect,
             iterations=iterations,
@@ -309,12 +311,12 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
             seed=seed,
             quiet=quiet
         ))
-        OutputModels[0]['trial'] = 1
+        OutputModels["trials"][0]['trial'] = 1
 
         if "solID" in dt_hyper_fixed:
             these = ["resultHypParam", "xDecompVec", "xDecompAgg", "decompSpendDist"]
             for tab in these:
-                OutputModels[0]['resultCollect'][tab]['solID'] = dt_hyper_fixed['solID']
+                OutputModels["trials"][0]['resultCollect'][tab]['solID'] = dt_hyper_fixed['solID']
 
     else:
         # Run robyn_mmm() for each trial if hyperparameters are not all fixed
@@ -322,8 +324,6 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
         if not quiet:
             calibration_phrase = "with calibration using" if InputCollect['calibration_input'] is not None else "using"
             print(f">>> Starting {trials} trials with {iterations} iterations each {calibration_phrase} {nevergrad_algo} nevergrad algorithm...")
-
-        OutputModels = []
 
         for ngt in range(1, trials + 1):  # Python uses 0-based indexing, so range is adjusted
             if not quiet:
@@ -358,10 +358,10 @@ def robyn_train(InputCollect, hyper_collect, cores, iterations, trials,
                           "2. Split media into sub-channels, and/or aggregate similar channels, and/or introduce other media\n"
                           "3. Increase trials to get more samples")
             model_output['trial'] = ngt
-            OutputModels.append(model_output)
+            OutputModels["trials"].append(model_output)
 
-    for i in range(len(OutputModels)):
-        OutputModels[i]['name'] = f"trial{i + 1}"
+    for i in range(len(OutputModels["trials"])):
+        OutputModels["trials"][i]['name'] = f"trial{i + 1}"
 
     return OutputModels
 
