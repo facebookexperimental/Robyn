@@ -158,8 +158,8 @@ print(input_collect)
 #TODO: add more details from demo.R
 
 # Check spend exposure fit if available
-if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
-    for plot in input_collect['modNLS']['plots']:
+if 'exposure_vars' in input_collect['robyn_inputs'].keys() and len(input_collect['robyn_inputs']['exposure_vars']) > 0:
+    for plot in input_collect['robyn_inputs']['modNLS']['plots']:
         ##plot.show()
         print('Skipping plot...')
 
