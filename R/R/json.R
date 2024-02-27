@@ -91,7 +91,7 @@ robyn_write <- function(InputCollect,
       df <- filter(OutputCollect$xDecompAgg, .data$solID == select_model)
       perf_metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       outputs$performance <- df %>%
-        filter(rn %in% InputCollect$paid_media_spends) %>%
+        filter(.data$rn %in% InputCollect$paid_media_spends) %>%
         group_by(.data$solID) %>%
         summarise(metric = perf_metric,
                   performance = ifelse(

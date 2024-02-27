@@ -331,6 +331,15 @@ robyn_onepagers <- function(
           round(plotMediaShareLoop$mape[1], 4), NA
         )
         train_size <- round(plotMediaShareLoop$train_size[1], 4)
+        type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROAS")
+        perf <- filter(OutputCollect$xDecompAgg, .data$solID == sid) %>%
+          filter(.data$rn %in% InputCollect$paid_media_spends) %>%
+          group_by(.data$solID) %>%
+          summarise(performance = ifelse(
+            type == "ROAS",
+            sum(.data$xDecompAgg) / sum(.data$total_spend),
+            sum(.data$total_spend) / sum(.data$xDecompAgg))) %>%
+          pull(.data$performance) %>% signif(., 3)
         if (val) {
           errors <- sprintf(
             paste(
@@ -355,7 +364,6 @@ robyn_onepagers <- function(
       plotMediaShareLoopLine <- temp[[sid]]$plot1data$plotMediaShareLoopLine
       ySecScale <- temp[[sid]]$plot1data$ySecScale
       plotMediaShareLoopBar$variable <- stringr::str_to_title(gsub("_", " ", plotMediaShareLoopBar$variable))
-      type <- ifelse(InputCollect$dep_var_type == "conversion", "CPA", "ROAS")
       plotMediaShareLoopLine$type_colour <- type_colour <- "#03396C"
       names(type_colour) <- "type_colour"
       p1 <- ggplot(plotMediaShareLoopBar, aes(x = .data$rn, y = .data$value, fill = .data$variable)) +
@@ -625,6 +633,7 @@ robyn_onepagers <- function(
       calc <- ifelse(type == "ROAS",
                      "Total ROAS = sum of response / sum of spend",
                      "Total CPA = sum of spend / sum of response")
+      calc <- paste(c(calc, perf), collapse = " = ")
       onepagerCaption <- paste0(
         "*", calc, " in modeling window ", paste0(window, collapse = ":"),
         "\n", onepagerCaption)
