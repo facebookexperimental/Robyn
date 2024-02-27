@@ -169,7 +169,7 @@ robyn_write <- function(InputCollect,
 #' @param x \code{robyn_read()} or \code{robyn_write()} output.
 #' @export
 print.robyn_write <- function(x, ...) {
-  val <- isTRUE(x$ExportedModel$ts_validation)
+  val <- any(c(x$ExportedModel$ts_validation, x$ModelsCollect$ts_validation))
   print(glued(
     "
    Exported directory: {x$ExportedModel$plot_folder}
