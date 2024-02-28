@@ -36,3 +36,5 @@ __pycache__/
 *.pyc
 *.pyo
 
+vscode/
+python/.vscode/launch.json

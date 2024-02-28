@@ -34,6 +34,7 @@ from .json import robyn_read ## name conflict?
 from .outputs import robyn_outputs
 from .transformation import run_transformations
 from .calibration import robyn_calibrate
+from .convergence import robyn_converge
 
 ## Manually added
 from time import gmtime, strftime

@@ -423,7 +423,7 @@ def check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spen
     return {
         "paid_media_signs" : paid_media_signs,
         "mediaVarCount" : media_var_count,
-        "paid_media_signs" : paid_media_vars
+        "paid_media_vars" : paid_media_vars
     }
 
 

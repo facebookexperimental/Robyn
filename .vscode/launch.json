@@ -10,8 +10,8 @@
             "name": "Launch a python script",
             "program": "${file}",
             "console": "internalConsole",
-            "python": "/usr/local/bin/python3",
-            "env": {"PYTHONPATH": "/Users/sandeepmane/Documents/GitHub/Robyn/python", "PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "99999"},
+            "python": "/opt/homebrew/bin/python3",
+            "env": {"PYTHONPATH": "/Users/marcopremier/Desktop/Dev/robyn_porting/Robyn/python", "PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "99999"},
             "guiEventLoop": "none"
         },
         {

@@ -66,7 +66,9 @@ input_collect = inputs.robyn_inputs(
 )
 
 # Print input collection
+print("-------------------------------------------------------------------------")
 print(input_collect)
+print("-------------------------------------------------------------------------")
 
 #### 2a-2: Second, define and add hyperparameters
 ## Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
@@ -199,7 +201,7 @@ output_models = model.robyn_run(
     # Set to NULL to use all available CPU cores
     cores=None,
     # Run 2000 iterations
-    iterations=5,
+    iterations=2,
     # Run 5 trials
     trials=5,
     # Use 3-way-split time series for NRMSE validation
