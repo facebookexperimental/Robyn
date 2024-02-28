@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 from prophet import Prophet
+from sklearn.preprocessing import StandardScaler
 
 import matplotlib
 ## Prevents plot windows showing up.
@@ -853,10 +854,21 @@ def prophet_decomp(
         dt_forecastRegressor = mod_ohe.predict(dt_ohe)
         select_columns = [column for column in dt_forecastRegressor.columns.values if not "_lower" in column or not "_upper" in column]
         forecastRecurrence = dt_forecastRegressor[select_columns]
+
+        def custom_scale(array):
+            scaler = StandardScaler()
+            non_zero_mask = array != 0
+            #scaled_non_zeros = scaler.fit_transform(array[non_zero_mask].reshape(-1, 1)).flatten()
+            scaled_non_zeros = scaler.fit_transform(array[non_zero_mask].to_numpy().reshape(-1, 1)).flatten()
+
+            scaled_array = np.copy(array)
+            scaled_array[non_zero_mask] = scaled_non_zeros
+            return scaled_array
+
         for aggreg in factor_vars:
             ohRegNames = [var for var in forecastRecurrence.columns.values if var.startswith(aggreg)]
             get_reg = forecastRecurrence[ohRegNames].sum(axis=1)
-            dt_transform[aggreg] = scale(get_reg)
+            dt_transform[aggreg] = custom_scale(get_reg)
     else:
         if dayInterval == 1:
             warnings.warn("Currently, there's a known issue with prophet that may crash this use case.\n Read more here: https://github.com/facebookexperimental/Robyn/issues/472")

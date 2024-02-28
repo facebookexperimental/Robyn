@@ -139,13 +139,13 @@ hyperparameters = pd.DataFrame({
 
 #### 2a-3: Third, add hyperparameters into robyn_inputs()
 ## Manually converted, parameters defined wrong.
-input_collect = inputs.robyn_inputs(
-    InputCollect = input_collect['robyn_inputs'],
-    hyperparameters = hyperparameters
-)
+#input_collect = inputs.robyn_inputs(
+#    InputCollect = input_collect['robyn_inputs'],
+#    hyperparameters = hyperparameters
+#)
 
 # Print InputCollect
-print(input_collect)
+#print(input_collect)
 
 #### 2a-4: Fourth (optional), model calibration / add experimental input
 
@@ -157,11 +157,11 @@ print(input_collect)
 
 #TODO: add more details from demo.R
 
-# Check spend exposure fit if available
-if 'exposure_vars' in input_collect['robyn_inputs'].keys() and len(input_collect['robyn_inputs']['exposure_vars']) > 0:
-    for plot in input_collect['robyn_inputs']['modNLS']['plots']:
-        ##plot.show()
-        print('Skipping plot...')
+# # Check spend exposure fit if available
+# if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
+#     for plot in input_collect['modNLS']['plots']:
+#         ##plot.show()
+#         print('Skipping plot...')
 
 
 calibration_input = pd.DataFrame({
@@ -183,11 +183,18 @@ calibration_input = pd.DataFrame({
   "calibration_scope": ["immediate", "immediate", "immediate", "immediate"]
 })
 
+test = calibration_input["channel"]
 input_collect = inputs.robyn_inputs(
     InputCollect = input_collect['robyn_inputs'],
     hyperparameters = hyperparameters,
     calibration_input = calibration_input
 )
+
+# Check spend exposure fit if available
+if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
+    for plot in input_collect['modNLS']['plots']:
+        ##plot.show()
+        print('Skipping plot...')
 
 ################################################################
 #### Step 3: Build initial model
@@ -199,7 +206,7 @@ output_models = model.robyn_run(
     # Set to NULL to use all available CPU cores
     cores=None,
     # Run 2000 iterations
-    iterations=5,
+    iterations=2,
     # Run 5 trials
     trials=5,
     # Use 3-way-split time series for NRMSE validation

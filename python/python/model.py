@@ -34,6 +34,7 @@ from .json import robyn_read ## name conflict?
 from .outputs import robyn_outputs
 from .transformation import run_transformations
 from .calibration import robyn_calibrate
+from .convergence import robyn_converge
 
 ## Manually added
 from time import gmtime, strftime
@@ -698,6 +699,7 @@ def robyn_mmm(InputCollect,
                     refreshAddedStart=refreshAddedStart
                 )
 
+                print(decompCollect["xDecompAgg"])
                 nrmse = mod_out["nrmse_val"] if ts_validation else mod_out["nrmse_train"]
                 mape = 0
                 df_int = mod_out["df_int"]
@@ -974,8 +976,8 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     # Output decomp
     y_hat = x_decomp.sum(axis=1, skipna=True)
     y_hat_scaled = np.abs(x_decomp).sum(axis=1, skipna=True)
-    x_decomp_out_perc_scaled = np.abs(x_decomp) / y_hat_scaled
-    x_decomp_out_scaled = y_hat * x_decomp_out_perc_scaled
+    x_decomp_out_perc_scaled = np.abs(x_decomp).divide(y_hat_scaled, axis=0)
+    x_decomp_out_scaled = x_decomp_out_perc_scaled.multiply(y_hat, axis=0)
 
     existing_cols = ['intercept'] + [col for col in x_name if col in x_decomp_out.columns]
     temp = x_decomp_out[existing_cols]
@@ -1013,8 +1015,7 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
         for factor in x_factor:
             coefs_out_cat['rn'] = coefs_out_cat['rn'].apply(lambda x: re.sub(f"{factor}.*", factor, x))
 
-    rn_order = list(x_decomp_out_agg.index)
-    rn_order[rn_order.index('intercept')] = '(Intercept)'
+    x_decomp_out_agg = x_decomp_out_agg.rename({'intercept': 'Intercept'})
     coefs_out = coefs_out_cat.copy()
     coefs_out.rename(columns={'s0': 'coefs'}, inplace=True)
 
@@ -1028,7 +1029,6 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     decomp_out_agg['xDecompMeanNon0RF'] = x_decomp_out_agg_mean_non0_rf.values
     decomp_out_agg['xDecompMeanNon0PercRF'] = x_decomp_out_agg_mean_non0_perc_rf.values
     decomp_out_agg['pos'] = x_decomp_out_agg >= 0
-
     decomp_collect = {
         'xDecompVec': x_decomp_out,
         'xDecompVec.scaled': x_decomp_out_scaled,
@@ -1037,7 +1037,6 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
         'mediaDecompImmediate': media_decomp_immediate.assign(ds=x_decomp_out['ds'], y=x_decomp_out['y']),
         'mediaDecompCarryover': media_decomp_carryover.assign(ds=x_decomp_out['ds'], y=x_decomp_out['y'])
     }
-
     return decomp_collect
 
 
