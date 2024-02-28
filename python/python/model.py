@@ -976,8 +976,8 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     # Output decomp
     y_hat = x_decomp.sum(axis=1, skipna=True)
     y_hat_scaled = np.abs(x_decomp).sum(axis=1, skipna=True)
-    x_decomp_out_perc_scaled = np.abs(x_decomp) / y_hat_scaled
-    x_decomp_out_scaled = y_hat * x_decomp_out_perc_scaled
+    x_decomp_out_perc_scaled = np.abs(x_decomp).divide(y_hat_scaled, axis=0)
+    x_decomp_out_scaled = x_decomp_out_perc_scaled.multiply(y_hat, axis=0)
 
     existing_cols = ['intercept'] + [col for col in x_name if col in x_decomp_out.columns]
     temp = x_decomp_out[existing_cols]
@@ -1037,7 +1037,6 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
         'mediaDecompImmediate': media_decomp_immediate.assign(ds=x_decomp_out['ds'], y=x_decomp_out['y']),
         'mediaDecompCarryover': media_decomp_carryover.assign(ds=x_decomp_out['ds'], y=x_decomp_out['y'])
     }
-
     return decomp_collect
 
 
