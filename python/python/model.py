@@ -699,7 +699,6 @@ def robyn_mmm(InputCollect,
                     refreshAddedStart=refreshAddedStart
                 )
 
-                print(decompCollect["xDecompAgg"])
                 nrmse = mod_out["nrmse_val"] if ts_validation else mod_out["nrmse_train"]
                 mape = 0
                 df_int = mod_out["df_int"]
@@ -789,14 +788,31 @@ def robyn_mmm(InputCollect,
                 Elapsed = current_time - t1
                 ElapsedAccum = current_time - t0
 
-                result_df = hypParamSam_df.join(
-                    common.iloc[:, :split_common]
-                ).assign(
+                # result_df = hypParamSam_df.join(
+                #     common.iloc[:, :split_common]
+                # ).assign(
+                #     pos=decompCollect['xDecompAgg']['pos'].prod(),  # Adjust according to actual structure
+                #     Elapsed=Elapsed,
+                #     ElapsedAccum=ElapsedAccum
+                # ).join(
+                #     common.iloc[:, split_common:total_common]
+                # )
+
+                hypParamSam_df_reset = hypParamSam_df.reset_index(drop=True)
+                common_reset = common.reset_index(drop=True)
+
+                result_df = hypParamSam_df_reset.join(
+                    common_reset.iloc[:, :split_common]
+                )
+
+                result_df = result_df.assign(
                     pos=decompCollect['xDecompAgg']['pos'].prod(),  # Adjust according to actual structure
                     Elapsed=Elapsed,
                     ElapsedAccum=ElapsedAccum
-                ).join(
-                    common.iloc[:, split_common:total_common]
+                )
+
+                result_df = result_df.join(
+                    common_reset.iloc[:, split_common:total_common]
                 )
 
                 dresult_hyp_param_df = pd.DataFrame(result_df)
@@ -941,6 +957,9 @@ def robyn_mmm(InputCollect,
             result_collect["resultHypParam"]["ElapsedAccum"].idxmin()
         ]
     )
+
+    print("---- result collect")
+    print(result_collect)
 
     return {
         "resultCollect": result_collect,
