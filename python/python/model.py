@@ -699,6 +699,7 @@ def robyn_mmm(InputCollect,
                     refreshAddedStart=refreshAddedStart
                 )
 
+                print(decompCollect["xDecompAgg"])
                 nrmse = mod_out["nrmse_val"] if ts_validation else mod_out["nrmse_train"]
                 mape = 0
                 df_int = mod_out["df_int"]
@@ -1014,8 +1015,7 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
         for factor in x_factor:
             coefs_out_cat['rn'] = coefs_out_cat['rn'].apply(lambda x: re.sub(f"{factor}.*", factor, x))
 
-    rn_order = list(x_decomp_out_agg.index)
-    rn_order[rn_order.index('intercept')] = '(Intercept)'
+    x_decomp_out_agg = x_decomp_out_agg.rename({'intercept': 'Intercept'})
     coefs_out = coefs_out_cat.copy()
     coefs_out.rename(columns={'s0': 'coefs'}, inplace=True)
 
@@ -1029,7 +1029,6 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     decomp_out_agg['xDecompMeanNon0RF'] = x_decomp_out_agg_mean_non0_rf.values
     decomp_out_agg['xDecompMeanNon0PercRF'] = x_decomp_out_agg_mean_non0_perc_rf.values
     decomp_out_agg['pos'] = x_decomp_out_agg >= 0
-
     decomp_collect = {
         'xDecompVec': x_decomp_out,
         'xDecompVec.scaled': x_decomp_out_scaled,
