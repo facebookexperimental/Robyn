@@ -814,9 +814,11 @@ def robyn_mmm(InputCollect,
                 resultCollect["xDecompAgg"] = pd.concat([decompCollect_xDecompAgg_reset, repeated_common_reset], axis=1)
 
                 if liftCollect is not None:
-                    resultCollect["liftCalibration"] = liftCollect.join(common)
+                    for column in common_reset.columns:
+                        liftCollect[column] = common_reset.iloc[0][column]
+                    resultCollect["liftCalibration"] = liftCollect
 
-                resultCollect["decompSpendDist"] = dt_decompSpendDist.join(common)
+                resultCollect["decompSpendDist"] = dt_decompSpendDist.join(common_reset)
                 resultCollect.update(common.to_dict())
 
                 return resultCollect
