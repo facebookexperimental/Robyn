@@ -723,12 +723,13 @@ def robyn_mmm(InputCollect,
                 dt_decompSpendDist = df_xDecompAgg.join(dt_spendShare_idx, how='inner')
 
                 selected_columns = [
-                    'xDecompAgg', 'xDecompPerc', 'xDecompMeanNon0', 'xDecompMeanNon0Perc',
+                    'coefs', 'xDecompAgg', 'xDecompPerc', 'xDecompMeanNon0', 'xDecompMeanNon0Perc',
                     'xDecompAggRF', 'xDecompPercRF', 'xDecompMeanNon0RF', 'xDecompMeanNon0PercRF',
-                    'total_spend', 'mean_spend', 'spend_share', 'mean_spend_refresh'
+                    'pos', 'total_spend', 'mean_spend', 'spend_share', 'mean_spend_refresh'
                 ]
 
                 dt_decompSpendDist = dt_decompSpendDist[selected_columns]
+
                 dt_decompSpendDist = dt_decompSpendDist.assign(
                     effect_share=dt_decompSpendDist['xDecompPerc'] / dt_decompSpendDist['xDecompPerc'].sum(),
                     effect_share_refresh=dt_decompSpendDist['xDecompPercRF'] / dt_decompSpendDist['xDecompPercRF'].sum()
@@ -818,8 +819,10 @@ def robyn_mmm(InputCollect,
                         liftCollect[column] = common_reset.iloc[0][column]
                     resultCollect["liftCalibration"] = liftCollect
 
-                resultCollect["decompSpendDist"] = dt_decompSpendDist.join(common_reset)
-                resultCollect.update(common.to_dict())
+                repeated_common_reset_decompSpendDist = pd.DataFrame([common_reset.iloc[0]] * len(dt_decompSpendDist))
+                repeated_common_reset_decompSpendDist.index = dt_decompSpendDist.index
+                resultCollect["decompSpendDist"] = pd.concat([dt_decompSpendDist, repeated_common_reset_decompSpendDist], axis=1)
+                resultCollect.update(common_reset.to_dict())
 
                 return resultCollect
 
@@ -959,9 +962,6 @@ def robyn_mmm(InputCollect,
             result_collect["resultHypParam"]["ElapsedAccum"].idxmin()
         ]
     )
-
-    print("---- result collect")
-    print(result_collect)
 
     return {
         "resultCollect": result_collect,
