@@ -916,13 +916,20 @@ def robyn_mmm(InputCollect,
     result_collect["resultHypParam"] = pd.DataFrame.from_dict(resultHypParamDefaultDict)
 
     # Construct xDecompAgg
+    rn_list = []
     xDecompAggDefaultDict = defaultdict(list)
     for group in result_collect_ng:
         for element in group:
             df = element['xDecompAgg']
-            for col in df.columns:
-                xDecompAggDefaultDict[col].extend(df[col].tolist())
+            for index, row in df.iterrows():
+                for col in df.columns:
+                    xDecompAggDefaultDict[col].append(row[col])
+                rn_list.append(index)
+
+    xDecompAggDefaultDict['rn'] = rn_list
     result_collect["xDecompAgg"] = pd.DataFrame.from_dict(xDecompAggDefaultDict)
+    cols = ['rn'] + [col for col in result_collect["xDecompAgg"] if col != 'rn']
+    result_collect["xDecompAgg"] = result_collect["xDecompAgg"][cols]
 
     # Construct liftCalibration
     liftCalibrationDefaultDict = defaultdict(list)
