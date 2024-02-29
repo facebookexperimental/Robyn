@@ -788,16 +788,6 @@ def robyn_mmm(InputCollect,
                 Elapsed = current_time - t1
                 ElapsedAccum = current_time - t0
 
-                # result_df = hypParamSam_df.join(
-                #     common.iloc[:, :split_common]
-                # ).assign(
-                #     pos=decompCollect['xDecompAgg']['pos'].prod(),  # Adjust according to actual structure
-                #     Elapsed=Elapsed,
-                #     ElapsedAccum=ElapsedAccum
-                # ).join(
-                #     common.iloc[:, split_common:total_common]
-                # )
-
                 hypParamSam_df_reset = hypParamSam_df.reset_index(drop=True)
                 common_reset = common.reset_index(drop=True)
 
@@ -818,7 +808,10 @@ def robyn_mmm(InputCollect,
                 dresult_hyp_param_df = pd.DataFrame(result_df)
                 list_of_dicts = dresult_hyp_param_df.to_dict(orient='records')
                 resultCollect["resultHypParam"] = list_of_dicts[0]
-                resultCollect["xDecompAgg"] = decompCollect["xDecompAgg"].assign(train_size=train_size).join(common)
+
+                repeated_common_reset = pd.concat([common_reset] * len(decompCollect["xDecompAgg"]), ignore_index=True)
+                decompCollect_xDecompAgg_reset = decompCollect["xDecompAgg"].reset_index()
+                resultCollect["xDecompAgg"] = pd.concat([decompCollect_xDecompAgg_reset, repeated_common_reset], axis=1)
 
                 if liftCollect is not None:
                     resultCollect["liftCalibration"] = liftCollect.join(common)
