@@ -679,9 +679,9 @@ check_obj_weight <- function(calibration_input, objective_weights, refresh) {
   }
   if (is.null(objective_weights) & refresh) {
     if (obj_len == 2) {
-      objective_weights <- c(1, 10)
+      objective_weights <- c(0, 1)
     } else {
-      objective_weights <- c(1, 10, 10)
+      objective_weights <- c(0, 1, 1)
     }
   }
   return(objective_weights)
