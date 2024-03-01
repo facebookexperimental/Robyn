@@ -20,35 +20,35 @@ def robyn_converge(OutputModels, n_cuts=20, sd_qtref=3, med_lowb=2, nrmse_win=(0
     calibrated = df['mape'].sum() > 0
 
     # Calculate deciles
-    #df_melt = df.melt(value_vars=["nrmse", "decomp.rssd", "mape"], var_name="error_type", value_name="value")
     df_melt = pd.melt(df, id_vars=['trial', 'ElapsedAccum'], value_vars=["nrmse", "decomp.rssd", "mape"], var_name="error_type", value_name="value")
-    #df_melt['error_type'] = df_melt['error_type'].str.upper()
     df_melt['error_type'] = df_melt['error_type'].str.upper()
-    #df_melt = df_melt[df_melt['value'] > 0].dropna().reset_index(drop=True)
     df_melt = df_melt[(df_melt['value'] > 0) & np.isfinite(df_melt['value'])]
 
     df_melt.sort_values(by=['trial', 'ElapsedAccum'], inplace=True)
     df_melt.reset_index(drop=True, inplace=True)
     df_melt['iter'] = df_melt.groupby(['error_type', 'trial']).cumcount() + 1
     max_iter = df_melt['iter'].max()
-    cuts_labels = np.round(np.linspace(max_iter / n_cuts, max_iter, n_cuts)).astype(int)
-    print("----------------------- cuts_labels")
-    print(cuts_labels)
-    #df_melt['cuts'] = pd.cut(df_melt['iter'], bins=np.linspace(0, max_iter, n_cuts + 1), labels=cuts_labels, include_lowest=True, ordered=True)
+    cuts_labels = range(1, n_cuts + 1)
     df_melt['cuts'] = pd.cut(df_melt['iter'], bins=np.linspace(0, max_iter, n_cuts + 1), labels=cuts_labels, include_lowest=True, ordered=False)
 
 
 
     # Assuming 'ElapsedAccum' and 'trial' columns exist in df for sorting and grouping
-    print("--------------------------------------")
-    print(df)
-    print("--------------------------------------")
-    print(df_melt)
     df_melt.sort_values(by=['trial', 'ElapsedAccum'], inplace=True)
     df_melt['iter'] = df_melt.groupby(['error_type', 'trial']).cumcount() + 1
     max_iter = df_melt['iter'].max()
-    cuts_labels = np.round(np.linspace(max_iter / n_cuts, max_iter, n_cuts))
+    cuts_labels = range(1, n_cuts + 1)
     df_melt['cuts'] = pd.cut(df_melt['iter'], bins=np.linspace(0, max_iter, n_cuts+1), labels=cuts_labels, include_lowest=True, ordered=True)
+
+    #conv_message = "\n".join(["- " + msg for msg in conv_msg])
+    #print(conv_message)
+    conv_msg = []
+    for obj_fun in df_melt['error_type'].unique():
+        temp_df = df_melt[df_melt['error_type'] == obj_fun].copy()
+        last_row = temp_df.iloc[-1]
+        greater = ">"
+        message = f"{last_row['error_type']} {'did' if (last_row['flag_sd'] and last_row['flag_med']) else 'NOT '}converged: sd@qt.{n_cuts} {last_row['last_sd']:.2f} {'<=' if last_row['flag_sd'] else greater} {last_row['first_sd_avg']:.2f} & |med@qt.{n_cuts}| {last_row['last_med']:.2f} {'<=' if last_row['flag_med'] else greater} {last_row['med_thres']:.2f}"
+        conv_msg.append(message)
 
     conv_message = "\n".join(["- " + msg for msg in conv_msg])
     print(conv_message)
