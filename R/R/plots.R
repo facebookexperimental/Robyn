@@ -600,10 +600,10 @@ robyn_onepagers <- function(
       if ("ci_low" %in% colnames(xDecompAgg)) {
         cluster_txt <- ""
         if ("clusters" %in% names(OutputCollect)) {
-          temp <- OutputCollect$clusters$data
-          if (!"n" %in% colnames(temp)) temp <- group_by(temp, .data$cluster) %>% mutate(n = n())
-          temp <- filter(temp, .data$solID == sid)
-          cluster_txt <- sprintf(" %s (%s IDs)", temp$cluster, temp$n)
+          temp2 <- OutputCollect$clusters$data
+          if (!"n" %in% colnames(temp2)) temp2 <- group_by(temp2, .data$cluster) %>% mutate(n = n())
+          temp2 <- filter(temp2, .data$solID == sid)
+          cluster_txt <- sprintf(" %s (%s IDs)", temp2$cluster, temp2$n)
         }
         title <- sprintf("In-cluster%s bootstrapped %s [95%% CI & mean]", cluster_txt, type)
         p8 <- xDecompAgg %>%
