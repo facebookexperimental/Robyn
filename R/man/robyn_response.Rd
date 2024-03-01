@@ -27,8 +27,10 @@ Required when \code{robyn_object} is not provided.}
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
 
-\item{json_file}{Character. JSON file to import previously exported inputs
-(needs \code{dt_input} and \code{dt_holidays} parameters too).}
+\item{json_file}{Character. JSON file to import previously exported inputs or
+recreate a model. To generate this file, use \code{robyn_write()}.
+If you didn't export your data in the json file as "raw_data",
+\code{dt_input} must be provided; \code{dt_holidays} input is optional.}
 
 \item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information or the imported list.}

@@ -43,20 +43,22 @@ into the JSON file?}
 
 \item{pareto_df}{Dataframe. Save all pareto solutions to json file.}
 
-\item{...}{Additional parameters to export into a custom Extras element.}
+\item{...}{Additional parameters to export into a custom Extras element.
+If you wish to include the data to recreate a model, add
+\code{raw_data = InputCollect$dt_input}.}
 
 \item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
 
-\item{json_file}{Character. JSON file name to read and import as list.}
+\item{json_file}{Character. JSON file name to read and import.}
 
-\item{step}{Integer. 1 for import only and 2 for import and ouput.}
+\item{step}{Integer. 1 for import only and 2 for import and output.}
 }
 \value{
 (invisible) List. Contains all inputs and outputs of exported model.
 Class: \code{robyn_write}.
 }
 \description{
-\code{robyn_write()} generates JSON files with all the information
+\code{robyn_write()} generates light JSON files with all the information
 required to replicate Robyn models. Depending on user inputs, there are
 3 use cases: only the inputs data, input data + modeling results data,
 and input data, modeling results + specifics of a single selected model.
@@ -67,7 +69,6 @@ if OutputCollect contains more than one model, the select_model.
 \dontrun{
 InputCollectJSON <- robyn_inputs(
   dt_input = Robyn::dt_simulated_weekly,
-  dt_holidays = Robyn::dt_prophet_holidays,
   json_file = "~/Desktop/RobynModel-1_29_12.json"
 )
 print(InputCollectJSON)

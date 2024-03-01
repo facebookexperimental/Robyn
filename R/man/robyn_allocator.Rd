@@ -55,8 +55,10 @@ is provided, \code{select_model} defaults to the already selected \code{SolID}. 
 \code{InputCollect} and \code{OutputCollect}, and must be one of
 \code{OutputCollect$allSolutions}.}
 
-\item{json_file}{Character. JSON file to import previously exported inputs
-(needs \code{dt_input} and \code{dt_holidays} parameters too).}
+\item{json_file}{Character. JSON file to import previously exported inputs or
+recreate a model. To generate this file, use \code{robyn_write()}.
+If you didn't export your data in the json file as "raw_data",
+\code{dt_input} must be provided; \code{dt_holidays} input is optional.}
 
 \item{scenario}{Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"}.
 Scenario \code{"max_response"} answers the question:

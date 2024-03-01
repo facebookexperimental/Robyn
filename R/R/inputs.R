@@ -119,8 +119,10 @@
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
-#' @param json_file Character. JSON file to import previously exported inputs
-#' (needs \code{dt_input} and \code{dt_holidays} parameters too).
+#' @param json_file Character. JSON file to import previously exported inputs or
+#' recreate a model. To generate this file, use \code{robyn_write()}.
+#' If you didn't export your data in the json file as "raw_data",
+#' \code{dt_input} must be provided; \code{dt_holidays} input is optional.
 #' @param ... Additional parameters passed to \code{prophet} functions.
 #' @examples
 #' # Using dummy simulated data
@@ -177,7 +179,13 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 3: running robyn_inputs() with json_file
   if (!is.null(json_file)) {
     json <- robyn_read(json_file, step = 1, ...)
-    if (is.null(dt_input)) stop("Must provide 'dt_input' input; 'dt_holidays' input optional")
+    if (is.null(dt_input)) {
+      if ("raw_data" %in% names(json[["Extras"]])) {
+        dt_input <- json[["Extras"]]$raw_data
+      } else {
+        stop("Must provide 'dt_input' input; 'dt_holidays' input optional")
+      }
+    }
     if (!is.null(hyperparameters)) {
       warning("Replaced hyperparameters input with json_file's fixed hyperparameters values")
     }

@@ -6,7 +6,7 @@
 ####################################################################
 #' Import and Export Robyn JSON files
 #'
-#' \code{robyn_write()} generates JSON files with all the information
+#' \code{robyn_write()} generates light JSON files with all the information
 #' required to replicate Robyn models. Depending on user inputs, there are
 #' 3 use cases: only the inputs data, input data + modeling results data,
 #' and input data, modeling results + specifics of a single selected model.
@@ -20,11 +20,12 @@
 #' @param dir Character. Existing directory to export JSON file to.
 #' @param pareto_df Dataframe. Save all pareto solutions to json file.
 #' @param ... Additional parameters to export into a custom Extras element.
+#' If you wish to include the data to recreate a model, add
+#' \code{raw_data = InputCollect$dt_input}.
 #' @examples
 #' \dontrun{
 #' InputCollectJSON <- robyn_inputs(
 #'   dt_input = Robyn::dt_simulated_weekly,
-#'   dt_holidays = Robyn::dt_prophet_holidays,
 #'   json_file = "~/Desktop/RobynModel-1_29_12.json"
 #' )
 #' print(InputCollectJSON)
@@ -87,10 +88,20 @@ robyn_write <- function(InputCollect,
       stopifnot(select_model %in% OutputCollect$allSolutions)
       outputs <- list()
       outputs$select_model <- select_model
-      outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
+      df <- filter(OutputCollect$xDecompAgg, .data$solID == select_model)
+      perf_metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
+      outputs$performance <- df %>%
+        filter(.data$rn %in% InputCollect$paid_media_spends) %>%
+        group_by(.data$solID) %>%
+        summarise(metric = perf_metric,
+                  performance = ifelse(
+                    perf_metric == "ROAS",
+                    sum(.data$xDecompAgg) / sum(.data$total_spend),
+                    sum(.data$total_spend) / sum(.data$xDecompAgg)), .groups = "drop")
+      outputs$summary <- df %>%
         mutate(
-          metric = ifelse(InputCollect$dep_var_type == "revenue", "ROI", "CPA"),
-          performance = ifelse(.data$metric == "ROI", .data$roi_total, .data$cpa_total)
+          metric = perf_metric,
+          performance = ifelse(.data$metric == "ROAS", .data$roi_total, .data$cpa_total)
         ) %>%
         select(
           variable = .data$rn, coef = .data$coef,
@@ -158,7 +169,7 @@ robyn_write <- function(InputCollect,
 #' @param x \code{robyn_read()} or \code{robyn_write()} output.
 #' @export
 print.robyn_write <- function(x, ...) {
-  val <- isTRUE(x$ExportedModel$ts_validation)
+  val <- any(c(x$ExportedModel$ts_validation, x$ModelsCollect$ts_validation))
   print(glued(
     "
    Exported directory: {x$ExportedModel$plot_folder}
@@ -173,7 +184,10 @@ print.robyn_write <- function(x, ...) {
   ))
   errors <- x$ExportedModel$errors
   print(glued(
-    "\n\nModel's Performance and Errors:\n    {errors}",
+    "\n\nModel's Performance and Errors:\n    {performance}{errors}",
+    performance = ifelse("performance" %in% names(x$ExportedModel), sprintf(
+      "Total Model %s = %s\n    ",
+      x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)), ""),
     errors = paste(
       sprintf(
         "Adj.R2 (%s): %s",
@@ -190,7 +204,7 @@ print.robyn_write <- function(x, ...) {
 
   print(x$ExportedModel$summary %>%
     select(-contains("boot"), -contains("ci_")) %>%
-    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROI", "CPA"))) %>%
+    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROAS", "CPA"))) %>%
     mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
     dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
     dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
@@ -219,8 +233,8 @@ print.robyn_write <- function(x, ...) {
 
 #' @rdname robyn_write
 #' @aliases robyn_write
-#' @param json_file Character. JSON file name to read and import as list.
-#' @param step Integer. 1 for import only and 2 for import and ouput.
+#' @param json_file Character. JSON file name to read and import.
+#' @param step Integer. 1 for import only and 2 for import and output.
 #' @export
 robyn_read <- function(json_file = NULL, step = 1, quiet = FALSE, ...) {
   if (!is.null(json_file)) {
@@ -335,7 +349,8 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
   }
   return(invisible(list(
     InputCollect = InputCollect,
-    OutputCollect = OutputCollect
+    OutputCollect = OutputCollect,
+    Extras = json[["Extras"]]
   )))
 }
 
