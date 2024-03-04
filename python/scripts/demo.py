@@ -226,7 +226,7 @@ output_models['convergence']['moo_cloud_plot']
 
 ## Check time-series validation plot (when ts_validation == TRUE)
 # Read more and replicate results: See ts_validation
-if output_models['ts_validation']:
+if output_models['metadata']['ts_validation']:
     output_models['ts_validation_plot']
 
 # Check time-series validation plot
