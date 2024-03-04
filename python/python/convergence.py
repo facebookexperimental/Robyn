@@ -40,18 +40,52 @@ def robyn_converge(OutputModels, n_cuts=20, sd_qtref=3, med_lowb=2, nrmse_win=(0
     cuts_labels = range(1, n_cuts + 1)
     df_melt['cuts'] = pd.cut(df_melt['iter'], bins=np.linspace(0, max_iter, n_cuts+1), labels=cuts_labels, include_lowest=True, ordered=True)
 
-    #conv_message = "\n".join(["- " + msg for msg in conv_msg])
-    #print(conv_message)
+    # print(df_melt)
+    grouped = df_melt.groupby(['error_type', 'cuts'])
+    errors = grouped.agg(
+        n=('value', 'size'),
+        median=('value', 'median'),
+        std=('value', 'std')
+    ).reset_index()
+    errors['med_var_P'] = errors.groupby('error_type')['median'].transform(lambda x: abs(round(100 * (x - x.shift()) / x, 2)))
+
+    errors['first_med'] = errors.groupby('error_type')['median'].transform('first').abs()
+    errors['first_med_avg'] = errors.groupby('error_type').apply(lambda x: abs(x['median'].iloc[:sd_qtref].mean())).reset_index(level=0, drop=True)
+    errors['last_med'] = errors.groupby('error_type')['median'].transform('last').abs()
+    errors['first_sd'] = errors.groupby('error_type')['std'].transform('first')
+    errors['first_sd_avg'] = errors.groupby('error_type')['std'].transform(lambda x: x.iloc[:sd_qtref].mean())
+
+    errors['last_sd'] = errors.groupby('error_type')['std'].transform('last')
+    errors['med_thres'] = abs(errors['first_med'] - med_lowb * errors['first_sd_avg'])
+    errors['flag_med'] = errors['median'].abs() < errors['med_thres']
+    errors['flag_sd'] = errors['std'] < errors['first_sd_avg']
+
+
     conv_msg = []
-    for obj_fun in df_melt['error_type'].unique():
-        temp_df = df_melt[df_melt['error_type'] == obj_fun].copy()
+    unique_error_types = errors['error_type'].unique()
+
+    for obj_fun in unique_error_types:
+        temp_df = errors[errors['error_type'] == obj_fun].copy()
+        temp_df['median'] = temp_df['median'].round(decimals=2)
         last_row = temp_df.iloc[-1]
-        greater = ">"
-        message = f"{last_row['error_type']} {'did' if (last_row['flag_sd'] and last_row['flag_med']) else 'NOT '}converged: sd@qt.{n_cuts} {last_row['last_sd']:.2f} {'<=' if last_row['flag_sd'] else greater} {last_row['first_sd_avg']:.2f} & |med@qt.{n_cuts}| {last_row['last_med']:.2f} {'<=' if last_row['flag_med'] else greater} {last_row['med_thres']:.2f}"
+        greater = ">"  # Equivalent to the R's intToUtf8(8814)
+
+        # Constructing the message
+        did_converge = "" if (last_row['flag_sd'] & last_row['flag_med']) else "NOT "
+        sd = round(last_row['last_sd'], 2)
+        symb_sd = "<=" if last_row['flag_sd'] else greater
+        sd_thresh = round(last_row['first_sd_avg'], 2)
+        quantile = 'n_cuts'  # Assuming n_cuts is defined somewhere in your context
+        qtn_median = round(last_row['last_med'], 2)
+        symb_med = "<=" if last_row['flag_med'] else greater
+        med_thresh = round(last_row['med_thres'], 2)
+
+        message = f"{last_row['error_type']} {did_converge}converged: sd@qt.{quantile} {sd} {symb_sd} {sd_thresh} & |med@qt.{quantile}| {qtn_median} {symb_med} {med_thresh}"
         conv_msg.append(message)
 
-    conv_message = "\n".join(["- " + msg for msg in conv_msg])
-    print(conv_message)
+    for msg in conv_msg:
+        print("-", msg)
+
 
     max_trial = df['trial'].max()
     trials_word = "trials" if max_trial > 1 else "trial"
