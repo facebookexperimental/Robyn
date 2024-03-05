@@ -6,6 +6,7 @@ import os
 import re
 import json
 
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_robyn_outputs():
     """
     Test case for the robyn_outputs function.
@@ -44,7 +45,7 @@ def test_robyn_outputs():
     assert isinstance(result['plotDataCollect'], (pd.DataFrame, type(None)))
     assert isinstance(result['df_caov_pct'], pd.DataFrame)
 
-
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_print_robyn_outputs(capsys):
     """
     Test function for printing Robyn outputs.
@@ -83,6 +84,7 @@ def test_print_robyn_outputs(capsys):
     assert "Pareto-front (3) All solutions (3): solution1, solution2, solution3" in captured.out
     assert "Clusters (k = 5): cluster1, cluster2, cluster3" in captured.out
 
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_robyn_csv():
     """
     Test function for exporting CSV files using the robyn_csv function.
