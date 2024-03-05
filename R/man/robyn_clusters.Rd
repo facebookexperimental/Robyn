@@ -10,7 +10,7 @@ robyn_clusters(
   cluster_by = "hyperparameters",
   all_media = NULL,
   k = "auto",
-  wss_var = 0.05,
+  wss_var = 0.06,
   limit = 1,
   weights = rep(1, 3),
   dim_red = "PCA",

@@ -41,7 +41,7 @@
 robyn_clusters <- function(input, dep_var_type,
                            cluster_by = "hyperparameters",
                            all_media = NULL,
-                           k = "auto", wss_var = 0.05, limit = 1,
+                           k = "auto", wss_var = 0.06, limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
@@ -315,8 +315,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         select(any_of(c("solID", all_media)))
     }
     errors <- distinct(
-      x, .data$solID, .data$nrmse, .data$nrmse_test,
-      .data$nrmse_train, .data$decomp.rssd, .data$mape
+      x, .data$solID, starts_with("nrmse"), .data$decomp.rssd, .data$mape
     )
     outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   } else {
