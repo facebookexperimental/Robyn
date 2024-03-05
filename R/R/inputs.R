@@ -435,7 +435,8 @@ Adstock: {x$adstock}
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
     prophet = if (length(x$prophet_vars) > 0) {
-      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "), x$prophet_country)
+      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "),
+              ifelse(!is.null(x$prophet_country), x$prophet_country, "data"))
     } else {
       "\033[0;31mDeactivated\033[0m"
     },
