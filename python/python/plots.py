@@ -16,6 +16,7 @@ from plotnine import *
 import seaborn as sns
 from .auxiliary import robyn_palette
 from tqdm import tqdm
+from scipy.stats.mstats import winsorize
 import json
 
 # Plotting using plotnine
@@ -1607,26 +1608,44 @@ def ts_validation_fun(output_models, quiet=False, **kwargs):
     result_hyp_param['i'] = result_hyp_param.groupby('trial').cumcount() + 1
     result_hyp_param.reset_index(drop=True, inplace=True)
 
-    selected_columns = result_hyp_param[['solID', 'i', 'trial', 'train_size'] + \
-                                        [col for col in result_hyp_param if col.startswith('rsq_')]]
-    selected_columns['trial'] = selected_columns['trial'].apply(lambda x: f"Trial {x}")
+    # selected_columns = result_hyp_param[['solID', 'i', 'trial', 'train_size'] + \
+    #                                     [col for col in result_hyp_param if col.startswith('rsq_')]]
+    # selected_columns['trial'] = selected_columns['trial'].apply(lambda x: f"Trial {x}")
 
-    # Pivot longer/melt the DataFrame
-    rsq_long = pd.melt(selected_columns, id_vars=['solID', 'i', 'trial', 'train_size'],
-                       value_vars=[col for col in selected_columns if col.startswith('rsq_')],
-                       var_name='dataset', value_name='rsq')
+    # # Pivot longer/melt the DataFrame
+    # rsq_long = pd.melt(selected_columns, id_vars=['solID', 'i', 'trial', 'train_size'],
+    #                    value_vars=[col for col in selected_columns if col.startswith('rsq_')],
+    #                    var_name='dataset', value_name='rsq')
 
-    nrmse_cols = pd.melt(result_hyp_param[['solID'] + [col for col in result_hyp_param if col.startswith('nrmse_')]],
-                         id_vars=['solID'], value_vars=[col for col in result_hyp_param if col.startswith('nrmse_')],
-                         var_name='del', value_name='nrmse').drop(columns=['del'])
+    # nrmse_cols = pd.melt(result_hyp_param[['solID'] + [col for col in result_hyp_param if col.startswith('nrmse_')]],
+    #                      id_vars=['solID'], value_vars=[col for col in result_hyp_param if col.startswith('nrmse_')],
+    #                      var_name='del', value_name='nrmse').drop(columns=['del'])
 
-    # Combine rsq_long and nrmse_cols
-    result_hyp_param_long = pd.concat([rsq_long.set_index('solID'), nrmse_cols.set_index('solID')], axis=1, join='inner').reset_index()
 
-    result_hyp_param_long['rsq'] = winsorize(result_hyp_param_long['rsq'], limits=[0.01, 0.99])
-    result_hyp_param_long['nrmse'] = winsorize(result_hyp_param_long['nrmse'], limits=[0.00, 0.99])
+    # rsq_long_indexed = rsq_long.set_index(['solID', 'i', 'trial', 'dataset'])
+    # nrmse_cols_indexed = nrmse_cols.set_index(['solID'])  # Adjust as necessary
+    # result_hyp_param_long = pd.concat([rsq_long_indexed, nrmse_cols_indexed], axis=1, join='inner').reset_index()
 
-    # Dataset column adjustment
+    rsq_long = pd.melt(
+        result_hyp_param[['solID', 'i', 'trial', 'train_size'] + [col for col in result_hyp_param if col.startswith('rsq_')]],
+        id_vars=['solID', 'i', 'trial', 'train_size'],
+        var_name='dataset',
+        value_name='rsq'
+    )
+    rsq_long['trial'] = rsq_long['trial'].apply(lambda x: f"Trial {x}")
+    rsq_long['dataset'] = rsq_long['dataset'].str.replace('rsq_', '')
+    rsq_long['rsq'] = winsorize(rsq_long['rsq'], limits=[0.01, 0.99])
+
+    nrmse_long = pd.melt(
+        result_hyp_param[['solID'] + [col for col in result_hyp_param if col.startswith('nrmse_')]],
+        id_vars=['solID'],
+        var_name='dataset',
+        value_name='nrmse'
+    )
+    nrmse_long['dataset'] = nrmse_long['dataset'].str.replace('nrmse_', '')
+    nrmse_long['nrmse'] = winsorize(nrmse_long['nrmse'], limits=[0.00, 0.99])
+
+    result_hyp_param_long = pd.merge(rsq_long, nrmse_long[['solID', 'dataset', 'nrmse']], on=['solID', 'dataset'], how='left')
     result_hyp_param_long['dataset'] = result_hyp_param_long['dataset'].str.replace('rsq_', '')
 
     sns.set_theme(style="whitegrid")
