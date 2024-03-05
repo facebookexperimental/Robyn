@@ -8,6 +8,7 @@ import time
 import pandas as pd
 import numpy as np
 import nevergrad as ng
+import random
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.linear_model import Lasso, lasso_path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -414,7 +415,8 @@ def robyn_mmm(InputCollect,
     ##                      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R")
 
     if isinstance(seed, int):
-        np.random.seed(seed)
+        np.random.seed(124)
+        random.seed(124)
 
     ################################################
     #### Collect hyperparameters
@@ -1270,7 +1272,7 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, c
 
     else:
         # Initialize hyper_bound_list_fixed
-        hyper_bound_list_fixed = {}
+        hyper_bound_list_fixed = dict()
         for param_name in hypParamSamName:
             if param_name in dt_hyper_fixed.columns.values:
                 hyper_bound_list_fixed[param_name] = dt_hyper_fixed[param_name].values.to_list()

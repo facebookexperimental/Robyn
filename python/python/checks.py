@@ -864,7 +864,7 @@ def check_dir(plot_folder):
 
 
 def check_calibconstr(calibration_constraint, iterations, trials, calibration_input, refresh):
-    if not calibration_input and not refresh:
+    if calibration_input.empty and not refresh:
         total_iters = iterations * trials
         if calibration_constraint < 0.01 or calibration_constraint > 0.1:
             warnings.warn(f"Input 'calibration_constraint' must be >= 0.01 and <= 0.1. Changed to default: 0.1")

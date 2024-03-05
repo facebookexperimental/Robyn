@@ -18,11 +18,17 @@ from scipy.stats import norm
 from .allocator import get_hill_params
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
-    hyper_fixed = OutputModels.hyper_fixed
-    OutModels = OutputModels[OutputModels.apply(lambda x: "resultCollect" in x.keys(), axis=1)]
+    hyper_fixed = OutputModels["metadata"]["hyper_fixed"]
+    OutModels = [trial for trial in OutputModels["trials"] if "resultCollect" in trial]
+    df_list = [item['resultCollect']['resultHypParam'].assign(trial=item['trial']) for item in OutModels]
 
-    resultHypParam = pd.concat([x.resultCollect.resultHypParam.assign(trial=x.trial) for x in OutModels])
-    xDecompAgg = pd.concat([x.resultCollect.xDecompAgg.assign(trial=x.trial) for x in OutModels])
+    resultHypParam = pd.concat(df_list, ignore_index=True)
+
+    # xDecompAgg = pd.concat([x.resultCollect.xDecompAgg.assign(trial=x.trial) for x in OutModels])
+    xDecompAgg = pd.concat([
+        x['resultCollect']['xDecompAgg'].assign(trial=x['trial'])
+        for x in OutModels
+    ])
 
     if calibrated:
         resultCalibration = pd.concat([x.resultCollect.liftCalibration.assign(trial=x.trial).rename(columns={"liftMedia": "rn"}) for x in OutModels])
@@ -30,14 +36,24 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         resultCalibration = None
 
     if not hyper_fixed:
-        df_names = ["resultHypParam", "xDecompAgg", "resultCalibration"] if calibrated else ["resultHypParam", "xDecompAgg"]
-        for df in df_names:
-            globals()[df] = pd.concat([getattr(x, df).assign(iterations=(x.iterNG - 1) * OutputModels.cores + x.iterPar) for x in OutModels])
+        df_names = ["resultHypParam", "xDecompAgg"] if not calibrated else ["resultHypParam", "xDecompAgg", "resultCalibration"]
+
+        for df_name in df_names:
+            concatenated_dfs = pd.concat([
+                x["resultCollect"][df_name].assign(iterations=(x["resultCollect"]["resultHypParam"]['iterNG'] - 1) * OutputModels['metadata']['cores'] + x["resultCollect"]["resultHypParam"]['iterPar']) for x in OutModels
+            ], ignore_index=True)
+            globals()[df_name] = concatenated_dfs
 
     elif hyper_fixed and calibrated:
-        df_names = "resultCalibration"
-        for df in df_names:
-            globals()[df] = pd.concat([getattr(x, df).assign(iterations=(x.iterNG - 1) * OutputModels.cores + x.iterPar) for x in OutModels])
+        df_names = ["resultCalibration"]
+
+        for df_name in df_names:
+            concatenated_dfs = pd.concat([
+                x["resultCollect"][df_name].assign(iterations=(x["resultCollect"]["resultHypParam"]['iterNG'] - 1) * OutputModels['metadata']['cores'] + x["resultCollect"]["resultHypParam"]['iterPar'])
+                for x in OutModels
+            ], ignore_index=True)
+
+            globals()[df_name] = concatenated_dfs
 
     # If recreated model, inherit bootstrap results
     if len(xDecompAgg.solID.unique()) == 1 and "boot_mean" not in xDecompAgg.columns:
@@ -45,7 +61,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         if bootstrap is not None:
             xDecompAgg = xDecompAgg.merge(bootstrap, on=["rn", "variable"])
 
-    xDecompAggCoef0 = xDecompAgg.loc[xDecompAgg.rn.isin(InputCollect.paid_media_spends)].groupby("solID").agg({"coef": lambda x: x.min() == 0})
+    xDecompAggCoef0 = xDecompAgg.loc[
+        xDecompAgg.rn.isin(InputCollect["robyn_inputs"]["paid_media_spends"])
+    ].groupby("solID").agg({"coefs": lambda x: (x.min() == 0).any()})
 
     if not hyper_fixed:
         mape_lift_quantile10 = np.quantile(resultHypParam["mape"], calibration_constraint, overwrite_input=True)
@@ -433,6 +451,31 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
     return pareto_results
 
+def pareto_front(x, y, fronts=1, sort=True):
+    if len(x) != len(y):
+        raise ValueError("Length of x and y must be equal")
+
+    d = pd.DataFrame({'x': x, 'y': y})
+
+    if sort:
+        D = d.sort_values(by=['x', 'y'], ascending=[True, True])
+    else:
+        D = d.copy()
+
+    Dtemp = D.copy()
+    df = pd.DataFrame(columns=['x', 'y', 'pareto_front'])
+
+    i = 1
+    while len(Dtemp) >= 1 and i <= max(fronts, 1):
+        Dtemp['cummin'] = Dtemp['y'].cummin()
+        these = Dtemp[Dtemp['y'] == Dtemp['cummin']].copy()
+        these['pareto_front'] = i
+        df = pd.concat([df, these], ignore_index=True)
+        Dtemp = Dtemp[~Dtemp.index.isin(these.index)]
+        i += 1
+
+    ret = pd.merge(d, df[['x', 'y', 'pareto_front']], on=['x', 'y'], how='left', sort=sort)
+    return ret
 
 def get_pareto_fronts(pareto_fronts):
     if pareto_fronts == 'auto':

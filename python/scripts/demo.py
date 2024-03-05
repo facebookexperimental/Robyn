@@ -230,7 +230,7 @@ if output_models['metadata']['ts_validation']:
     output_models['ts_validation_plot']
 
 # Check time-series validation plot
-if output_models['ts_validation']:
+if output_models['metadata']['ts_validation']:
     print(output_models['ts_validation_plot'])
 
 ## Calculate Pareto fronts, cluster and export results and plots. See robyn_outputs
@@ -240,9 +240,9 @@ output_collect = outputs.robyn_outputs(
     # Automatically pick how many Pareto fronts to fill
     pareto_fronts='auto',
     # Set to 100 top Pareto models for clustering
-    min_candidates=100,
+    # min_candidates=100,
     # Calibration constraint
-    calibration_constraint=0.1,
+    # calibration_constraint=0.1,
     # Export results to CSV files
     csv_out='pareto',
     # Cluster similar models by ROAS
