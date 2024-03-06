@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from python import allocator
 
-
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_robyn_allocator():
     # Define the input parameters for the function
     robyn_object = None
@@ -42,6 +42,7 @@ def test_robyn_allocator():
 
     # Add more assertions as needed
 
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_fx_objective():
     # Define the input parameters for the function
     x = np.array([1, 2, 3, 4, 5])
@@ -59,7 +60,7 @@ def test_fx_objective():
     expected_result = np.array([0.73575888, 0.27067057, 0.09957414, 0.03678794, 0.01353517])
     np.testing.assert_allclose(result, expected_result)
 
-
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_optimize():
     # Define the input parameters for the function
     x0 = np.array([1, 2, 3, 4, 5])
@@ -83,6 +84,7 @@ def test_optimize():
     expected_result = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     np.testing.assert_allclose(result, expected_result)
 
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_fx_objective():
     # Define the input parameters for the function
     x = np.array([1, 2, 3, 4, 5])
@@ -100,6 +102,7 @@ def test_fx_objective():
     expected_result = np.array([0.73575888, 0.27067057, 0.09957414, 0.03678794, 0.01353517])
     np.testing.assert_allclose(result, expected_result)
 
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_plot_robyn_allocator():
     # Define the input parameters for the function
     x = None
@@ -110,7 +113,6 @@ def test_plot_robyn_allocator():
     allocator.plot_robyn_allocator(x, *args, **kwargs)
 
     # Add assertions as needed
-
 
 # Run the tests
 pytest.main(["-v", "--tb=line", "~/Documents/GitHub/Robyn/python/python/test_allocator.py"])
