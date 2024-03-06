@@ -16,13 +16,20 @@ import seaborn as sns
 from scipy.stats import norm
 
 from .allocator import get_hill_params
+from .cluster import errors_scores
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
-    hyper_fixed = OutputModels.hyper_fixed
-    OutModels = OutputModels[OutputModels.apply(lambda x: "resultCollect" in x.keys(), axis=1)]
+    hyper_fixed = OutputModels["metadata"]["hyper_fixed"]
+    OutModels = [trial for trial in OutputModels["trials"] if "resultCollect" in trial]
+    df_list = [item['resultCollect']['resultHypParam'].assign(trial=item['trial']) for item in OutModels]
 
-    resultHypParam = pd.concat([x.resultCollect.resultHypParam.assign(trial=x.trial) for x in OutModels])
-    xDecompAgg = pd.concat([x.resultCollect.xDecompAgg.assign(trial=x.trial) for x in OutModels])
+    resultHypParam = pd.concat(df_list, ignore_index=True)
+
+    # xDecompAgg = pd.concat([x.resultCollect.xDecompAgg.assign(trial=x.trial) for x in OutModels])
+    xDecompAgg = pd.concat([
+        x['resultCollect']['xDecompAgg'].assign(trial=x['trial'])
+        for x in OutModels
+    ])
 
     if calibrated:
         resultCalibration = pd.concat([x.resultCollect.liftCalibration.assign(trial=x.trial).rename(columns={"liftMedia": "rn"}) for x in OutModels])
@@ -30,14 +37,24 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         resultCalibration = None
 
     if not hyper_fixed:
-        df_names = ["resultHypParam", "xDecompAgg", "resultCalibration"] if calibrated else ["resultHypParam", "xDecompAgg"]
-        for df in df_names:
-            globals()[df] = pd.concat([getattr(x, df).assign(iterations=(x.iterNG - 1) * OutputModels.cores + x.iterPar) for x in OutModels])
+        df_names = ["resultHypParam", "xDecompAgg"] if not calibrated else ["resultHypParam", "xDecompAgg", "resultCalibration"]
+
+        for df_name in df_names:
+            concatenated_dfs = pd.concat([
+                x["resultCollect"][df_name].assign(iterations=(x["resultCollect"]["resultHypParam"]['iterNG'] - 1) * OutputModels['metadata']['cores'] + x["resultCollect"]["resultHypParam"]['iterPar']) for x in OutModels
+            ], ignore_index=True)
+            globals()[df_name] = concatenated_dfs
 
     elif hyper_fixed and calibrated:
-        df_names = "resultCalibration"
-        for df in df_names:
-            globals()[df] = pd.concat([getattr(x, df).assign(iterations=(x.iterNG - 1) * OutputModels.cores + x.iterPar) for x in OutModels])
+        df_names = ["resultCalibration"]
+
+        for df_name in df_names:
+            concatenated_dfs = pd.concat([
+                x["resultCollect"][df_name].assign(iterations=(x["resultCollect"]["resultHypParam"]['iterNG'] - 1) * OutputModels['metadata']['cores'] + x["resultCollect"]["resultHypParam"]['iterPar'])
+                for x in OutModels
+            ], ignore_index=True)
+
+            globals()[df_name] = concatenated_dfs
 
     # If recreated model, inherit bootstrap results
     if len(xDecompAgg.solID.unique()) == 1 and "boot_mean" not in xDecompAgg.columns:
@@ -45,7 +62,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         if bootstrap is not None:
             xDecompAgg = xDecompAgg.merge(bootstrap, on=["rn", "variable"])
 
-    xDecompAggCoef0 = xDecompAgg.loc[xDecompAgg.rn.isin(InputCollect.paid_media_spends)].groupby("solID").agg({"coef": lambda x: x.min() == 0})
+    xDecompAggCoef0 = xDecompAgg.loc[
+        xDecompAgg.rn.isin(InputCollect["robyn_inputs"]["paid_media_spends"])
+    ].groupby("solID").agg({"coefs": lambda x: (x.min() == 0).any()})
 
     if not hyper_fixed:
         mape_lift_quantile10 = np.quantile(resultHypParam["mape"], calibration_constraint, overwrite_input=True)
@@ -56,13 +75,21 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         resultHypParam["mape.qt10"] = (resultHypParam["mape"] <= mape_lift_quantile10) & (resultHypParam["nrmse"] <= nrmse_quantile90) & (resultHypParam["decomp.rssd"] <= decomprssd_quantile90)
 
         resultHypParamPareto = resultHypParam[resultHypParam["mape.qt10"] == True]
-        paretoResults = pareto_front(resultHypParamPareto["nrmse"], resultHypParamPareto["decomp.rssd"], fronts=pareto_fronts, sort=False)
+        fronts = float('inf') if 'auto' in pareto_fronts else pareto_fronts
 
-        resultHypParamPareto = pd.merge(resultHypParamPareto, paretoResults, on=["nrmse", "decomp.rssd"])
+        paretoResults = pareto_front(resultHypParamPareto["nrmse"], resultHypParamPareto["decomp.rssd"], fronts=fronts, sort=False)
+
+        # resultHypParamPareto = pd.merge(resultHypParamPareto, paretoResults, on=["nrmse", "decomp.rssd"])
+        resultHypParamPareto = pd.merge(resultHypParamPareto, paretoResults,
+                                left_on=["nrmse", "decomp.rssd"],
+                                right_on=["x", "y"],
+                                how="left")
         resultHypParamPareto = resultHypParamPareto.rename(columns={"pareto_front": "robynPareto"})
         resultHypParamPareto = resultHypParamPareto.sort_values(["iterNG", "iterPar", "nrmse"]).reset_index(drop=True)
         resultHypParamPareto = resultHypParamPareto[["solID", "robynPareto"]]
-        resultHypParamPareto = resultHypParamPareto.groupby("solID").first().reset_index(drop=True)
+        resultHypParamPareto = resultHypParamPareto.groupby("solID", as_index=False).first()
+
+
 
         resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on="solID")
 
@@ -71,23 +98,41 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         resultHypParam["robynPareto"] = 1
         resultHypParam["coef0"] = np.nan
 
-    resultHypParam["error_score"] = errors_scores(resultHypParam, ts_validation=OutputModels["ts_validation"], **kwargs)
+    resultHypParam["error_score"] = errors_scores(resultHypParam, ts_validation=OutputModels["metadata"]["ts_validation"], **kwargs)
 
     xDecompAgg = pd.merge(xDecompAgg, pd.merge(resultHypParam, pd.DataFrame({'robynPareto': pd.Series(dtype='float'), 'solID': pd.Series(dtype='str')}), on='solID'), on='solID')
-    decompSpendDist = pd.concat([pd.DataFrame({'decompSpendDist': x.resultCollect.decompSpendDist, 'trial': x.trial}) for x in OutModels])
+    # decompSpendDist = pd.concat([pd.DataFrame({'decompSpendDist': x["resultCollect"]["decompSpendDist"], 'trial': x["trial"]}) for x in OutModels])
+    # decompSpendDist = pd.concat([
+    #     pd.DataFrame({
+    #         'decompSpendDist': [x["resultCollect"]["decompSpendDist"]],
+    #         'trial': [x["trial"]]
+    #     }) for x in OutModels
+    # ])
+    decompSpendDistList = []
+    for x in OutModels:
+        # Assuming x["resultCollect"]["decompSpendDist"] is already a DataFrame
+        df_temp = x["resultCollect"]["decompSpendDist"].copy()
+        df_temp['trial'] = x["trial"]  # Add 'trial' as a new column to each DataFrame
+        decompSpendDistList.append(df_temp)
+
+    # Concatenate all the DataFrames to stack them vertically
+    decompSpendDist = pd.concat(decompSpendDistList, ignore_index=True)
+
     if not hyper_fixed:
-        decompSpendDist['solID'] = decompSpendDist.apply(lambda row: f"{row['trial']}_{row['iterNG']}_{row['iterPar']}", axis=1)
-    else:
-        decompSpendDist['solID'] = decompSpendDist.apply(lambda row: row['solID'], axis=1)
-    decompSpendDist = pd.merge(decompSpendDist, resultHypParam[['robynPareto', 'solID']], on='solID')
+        decompSpendDist['solID'] = decompSpendDist['trial'].astype(str) + '_' + \
+                               decompSpendDist['iterNG'].astype(str) + '_' + \
+                               decompSpendDist['iterPar'].astype(str)
+
+    decompSpendDist = pd.merge(decompSpendDist, resultHypParam[['robynPareto', 'solID']], on='solID', how='left')
 
     if True:
-        if OutputModels.cores > 1:
-            from concurrent.futures import ProcessPoolExecutor
-            with ProcessPoolExecutor(max_workers=OutputModels.cores) as executor:
-                pareto_fronts = list(executor.map(get_pareto_fronts, pareto_fronts))
-        else:
-            pareto_fronts = get_pareto_fronts(pareto_fronts)
+        # TODO: Handle parallel execution
+        # if OutputModels["metadata"]["cores"] > 1:
+        #     from concurrent.futures import ProcessPoolExecutor
+        #     with ProcessPoolExecutor(max_workers=OutputModels["metadata"]["cores"]) as executor:
+        #         pareto_fronts = list(executor.map(get_pareto_fronts, pareto_fronts))
+        # else:
+        #     pareto_fronts = get_pareto_fronts(pareto_fronts)
 
         if hyper_fixed:
             pareto_fronts = 1
@@ -96,9 +141,20 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             n_pareto = resultHypParam[~resultHypParam.robynPareto.isna()].shape[0]
             if n_pareto <= min_candidates and resultHypParam.shape[0] > 1 and not calibrated:
                 raise ValueError(f"Less than {min_candidates} candidates in pareto fronts. Increase iterations to get more model candidates or decrease min_candidates in robyn_output()")
-            auto_pareto = resultHypParam[~resultHypParam.robynPareto.isna()].groupby('robynPareto').agg({'solID': 'nunique'}).assign(n_cum=lambda df: df['solID'].cumsum()).query(f'n_cum >= {min_candidates}').iloc[[0]]
-            print(f">> Automatically selected {auto_pareto.robynPareto.values[0]} Pareto-fronts to contain at least {min_candidates} pareto-optimal models ({auto_pareto.solID.values[0]})")
-            pareto_fronts = int(auto_pareto.robynPareto.values[0])
+            # auto_pareto = resultHypParam[~resultHypParam.robynPareto.isna()].groupby('robynPareto').agg({'solID': 'nunique'}).assign(n_cum=lambda df: df['solID'].cumsum()).query(f'n_cum >= {min_candidates}').iloc[[0]]
+            auto_pareto = resultHypParam[~resultHypParam['robynPareto'].isna()] \
+                .groupby('robynPareto', as_index=False) \
+                .agg({'solID': 'nunique'}) \
+                .rename(columns={'solID': 'n'}) \
+                .assign(n_cum=lambda df: df['n'].cumsum()) \
+                .query(f'n_cum >= {min_candidates}') \
+                .iloc[0]
+            print(auto_pareto)
+            # print(f">> Automatically selected {auto_pareto.robynPareto.values[0]} Pareto-fronts to contain at least {min_candidates} pareto-optimal models ({auto_pareto.solID.values[0]})")
+            print(f">> Automatically selected {auto_pareto['robynPareto']} Pareto-fronts to contain at least {min_candidates} pareto-optimal models ({auto_pareto['n_cum']})")
+
+            pareto_fronts = int(auto_pareto['robynPareto'])
+
 
         pareto_fronts_vec = np.arange(1, pareto_fronts+1)
 
@@ -433,6 +489,31 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
     return pareto_results
 
+def pareto_front(x, y, fronts=1, sort=True):
+    if len(x) != len(y):
+        raise ValueError("Length of x and y must be equal")
+
+    d = pd.DataFrame({'x': x, 'y': y})
+
+    if sort:
+        D = d.sort_values(by=['x', 'y'], ascending=[True, True])
+    else:
+        D = d.copy()
+
+    Dtemp = D.copy()
+    df = pd.DataFrame(columns=['x', 'y', 'pareto_front'])
+
+    i = 1
+    while len(Dtemp) >= 1 and i <= max(fronts, 1):
+        Dtemp['cummin'] = Dtemp['y'].cummin()
+        these = Dtemp[Dtemp['y'] == Dtemp['cummin']].copy()
+        these['pareto_front'] = i
+        df = pd.concat([df, these], ignore_index=True)
+        Dtemp = Dtemp[~Dtemp.index.isin(these.index)]
+        i += 1
+
+    ret = pd.merge(d, df[['x', 'y', 'pareto_front']], on=['x', 'y'], how='left', sort=sort)
+    return ret
 
 def get_pareto_fronts(pareto_fronts):
     if pareto_fronts == 'auto':

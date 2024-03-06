@@ -18,7 +18,7 @@ import pandas as pd
 
 from .json import robyn_write
 from .cluster import robyn_clusters
-from .checks import check_dir
+from .checks import check_dir, check_calibconstr
 from .pareto import robyn_pareto
 
 def robyn_outputs(input_collect,
@@ -59,6 +59,7 @@ def robyn_outputs(input_collect,
     Returns:
         dict: The collected output results.
     """
+
     t0 = time.time()
 
     if plot_folder is None:
@@ -67,16 +68,16 @@ def robyn_outputs(input_collect,
     plot_folder = check_dir(plot_folder)
 
     # Check calibration constrains
-    calibrated = input_collect['calibration_input'] is not None
-    all_fixed = len(output_models.trial1.hyperBoundFixed) == len(output_models.hyper_updated)
+    calibrated = 'calibration_input' in input_collect and input_collect['calibration_input'] is not None
+    all_fixed = len(output_models["trials"][0]["hyperBoundFixed"]) == len(output_models["hyper_updated"])
     if not all_fixed:
-        calibration_constraint = check_calibconstr(calibration_constraint, output_models.iterations, output_models.trials, input_collect.calibration_input, refresh=refresh)
+        calibration_constraint = check_calibconstr(calibration_constraint, output_models["metadata"]["iterations"], output_models["metadata"]["trials"], input_collect["robyn_inputs"]["calibration_input"], refresh=refresh)
 
     #####################################
     #### Run robyn_pareto on OutputModels
 
-    total_models = output_models.iterations * output_models.trials
-    if not isinstance(output_models.hyper_fixed, bool):
+    total_models = output_models["metadata"]["iterations"] * output_models["metadata"]["trials"]
+    if not isinstance(output_models["metadata"]["hyper_fixed"], bool):
         print(f"Running Pareto calculations for {total_models} models on {pareto_fronts} fronts...")
 
     pareto_results = robyn_pareto(input_collect, output_models, pareto_fronts=pareto_fronts, calibration_constraint=calibration_constraint, quiet=quiet, calibrated=calibrated, refresh=refresh)

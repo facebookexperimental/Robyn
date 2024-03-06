@@ -206,9 +206,9 @@ output_models = model.robyn_run(
     # Set to NULL to use all available CPU cores
     cores=None,
     # Run 2000 iterations
-    iterations=2,
+    iterations=29,
     # Run 5 trials
-    trials=5,
+    trials=4,
     # Use 3-way-split time series for NRMSE validation
     ts_validation=True,
     # Add penalty factor for experimental feature
@@ -226,11 +226,11 @@ output_models['convergence']['moo_cloud_plot']
 
 ## Check time-series validation plot (when ts_validation == TRUE)
 # Read more and replicate results: See ts_validation
-if output_models['ts_validation']:
+if output_models['metadata']['ts_validation']:
     output_models['ts_validation_plot']
 
 # Check time-series validation plot
-if output_models['ts_validation']:
+if output_models['metadata']['ts_validation']:
     print(output_models['ts_validation_plot'])
 
 ## Calculate Pareto fronts, cluster and export results and plots. See robyn_outputs
@@ -240,9 +240,9 @@ output_collect = outputs.robyn_outputs(
     # Automatically pick how many Pareto fronts to fill
     pareto_fronts='auto',
     # Set to 100 top Pareto models for clustering
-    min_candidates=100,
+    # min_candidates=100,
     # Calibration constraint
-    calibration_constraint=0.1,
+    # calibration_constraint=0.1,
     # Export results to CSV files
     csv_out='pareto',
     # Cluster similar models by ROAS

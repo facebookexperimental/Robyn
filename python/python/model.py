@@ -8,6 +8,7 @@ import time
 import pandas as pd
 import numpy as np
 import nevergrad as ng
+import random
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.linear_model import Lasso, lasso_path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -26,6 +27,7 @@ import warnings
 warnings.simplefilter('ignore')
 import sys
 from collections import defaultdict
+from datetime import datetime
 
 ## Robyn imports
 from .inputs import hyper_names
@@ -35,9 +37,10 @@ from .outputs import robyn_outputs
 from .transformation import run_transformations
 from .calibration import robyn_calibrate
 from .convergence import robyn_converge
+from .plots import ts_validation_fun
 
 ## Manually added
-from time import gmtime, strftime
+from time import strftime, localtime
 from scipy.stats import uniform
 from itertools import repeat
 
@@ -92,7 +95,7 @@ def robyn_run(InputCollect=None,
         }
 
     ## t0 = time.time()
-    t0 = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+    t0 = strftime("%Y-%m-%d %H:%M:%S", localtime())
 
     # Use previously exported model using json_file
     if json_file is not None:
@@ -197,7 +200,7 @@ def robyn_run(InputCollect=None,
     # Check convergence when more than 1 iteration
     if not hyper_collect['all_fixed']['hyper_fixed']:
         output["convergence"] = robyn_converge(OutputModels, *args, **kwargs)
-        output["ts_validation_plot"] = ts_validation(OutputModels, *args, **kwargs)
+        output["ts_validation_plot"] = ts_validation_fun(OutputModels, *args, **kwargs)
     else:
         if "solID" in dt_hyper_fixed:
             output["selectID"] = dt_hyper_fixed["solID"]
@@ -211,7 +214,11 @@ def robyn_run(InputCollect=None,
     output["seed"] = seed
 
     # Report total timing
-    runTime = round((time.time() - t0) / 60, 2)  # Converting seconds to minutes
+    t0_datetime = datetime.strptime(t0, '%Y-%m-%d %H:%M:%S')
+    current_time = datetime.fromtimestamp(time.time())
+    time_diff_seconds = (current_time - t0_datetime).total_seconds()
+    runTime = round(time_diff_seconds / 60, 2)
+
     if not quiet and iterations > 1:
         print(f"Total run time: {runTime} mins")
 
@@ -408,7 +415,8 @@ def robyn_mmm(InputCollect,
     ##                      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R")
 
     if isinstance(seed, int):
-        np.random.seed(seed)
+        np.random.seed(124)
+        random.seed(124)
 
     ################################################
     #### Collect hyperparameters
@@ -919,10 +927,10 @@ def robyn_mmm(InputCollect,
     for group in result_collect_ng:
         for element in group:
             df = element['xDecompAgg']
-            for index, row in df.iterrows():
+            for _, row in df.iterrows():
                 for col in df.columns:
                     xDecompAggDefaultDict[col].append(row[col])
-                rn_list.append(index)
+                rn_list.append(row['rn'])
 
     xDecompAggDefaultDict['rn'] = rn_list
     result_collect["xDecompAgg"] = pd.DataFrame.from_dict(xDecompAggDefaultDict)
@@ -1264,7 +1272,7 @@ def hyper_collector(InputCollect, hyper_in, ts_validation, add_penalty_factor, c
 
     else:
         # Initialize hyper_bound_list_fixed
-        hyper_bound_list_fixed = {}
+        hyper_bound_list_fixed = dict()
         for param_name in hypParamSamName:
             if param_name in dt_hyper_fixed.columns.values:
                 hyper_bound_list_fixed[param_name] = dt_hyper_fixed[param_name].values.to_list()

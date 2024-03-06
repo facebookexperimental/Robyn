@@ -16,6 +16,7 @@ from plotnine import *
 import seaborn as sns
 from .auxiliary import robyn_palette
 from tqdm import tqdm
+from scipy.stats.mstats import winsorize
 import json
 
 # Plotting using plotnine
@@ -1600,68 +1601,140 @@ def refresh_plots_json(output_collect_rf, json_file, export=True, **kwargs):
 #' @rdname robyn_outputs
 #' @return Invisible list with \code{ggplot} plots.
 #' @export
-def ts_validation(output_models, quiet=False, **kwargs):
-    if not output_models.get('ts_validation', False):
-        return None
+def ts_validation_fun(output_models, quiet=False, **kwargs):
+    filtered_models = output_models["trials"]
 
-    # Extracting the relevant trials
-    trial_names = [f"trial{i}" for i in range(1, output_models['trials'] + 1)]
-    relevant_trials = [output_models[name]['resultCollect']['resultHypParam'] for name in trial_names if name in output_models]
-
-    # Binding rows and processing
-    result_hyp_param = pd.concat(relevant_trials, ignore_index=True)
+    result_hyp_param = pd.concat([model['resultCollect']['resultHypParam'] for model in filtered_models])
     result_hyp_param['i'] = result_hyp_param.groupby('trial').cumcount() + 1
+    result_hyp_param.reset_index(drop=True, inplace=True)
 
-    # Data manipulation
-    result_hyp_param_long = result_hyp_param.copy()
-    result_hyp_param_long = result_hyp_param_long.filter(regex='^rsq_|solID|i|trial|train_size$')
-    result_hyp_param_long['trial'] = 'Trial ' + result_hyp_param_long['trial'].astype(str)
-    rsq_cols = result_hyp_param_long.filter(regex='^rsq_').columns
-    nrmse_cols = result_hyp_param.filter(regex='^nrmse_').columns
+    # selected_columns = result_hyp_param[['solID', 'i', 'trial', 'train_size'] + \
+    #                                     [col for col in result_hyp_param if col.startswith('rsq_')]]
+    # selected_columns['trial'] = selected_columns['trial'].apply(lambda x: f"Trial {x}")
 
-    # Melting the DataFrame
-    rsq_melted = result_hyp_param_long.melt(id_vars=['solID', 'i', 'trial', 'train_size'],
-                                        value_vars=rsq_cols,
-                                        var_name='dataset', value_name='rsq')
-    nrmse_melted = result_hyp_param.melt(id_vars=['solID'],
-                                        value_vars=nrmse_cols,
-                                        var_name='del', value_name='nrmse').drop(columns=['del'])
+    # # Pivot longer/melt the DataFrame
+    # rsq_long = pd.melt(selected_columns, id_vars=['solID', 'i', 'trial', 'train_size'],
+    #                    value_vars=[col for col in selected_columns if col.startswith('rsq_')],
+    #                    var_name='dataset', value_name='rsq')
 
-    # Combining melted dataframes
-    result_hyp_param_long = pd.concat([rsq_melted, nrmse_melted['nrmse']], axis=1)
+    # nrmse_cols = pd.melt(result_hyp_param[['solID'] + [col for col in result_hyp_param if col.startswith('nrmse_')]],
+    #                      id_vars=['solID'], value_vars=[col for col in result_hyp_param if col.startswith('nrmse_')],
+    #                      var_name='del', value_name='nrmse').drop(columns=['del'])
 
-    # Winsorizing and final adjustments
-    result_hyp_param_long['rsq'] = winsorize(result_hyp_param_long['rsq'], limits=[0.01, 0.99])
-    result_hyp_param_long['nrmse'] = winsorize(result_hyp_param_long['nrmse'], limits=[0.00, 0.99])
+
+    # rsq_long_indexed = rsq_long.set_index(['solID', 'i', 'trial', 'dataset'])
+    # nrmse_cols_indexed = nrmse_cols.set_index(['solID'])  # Adjust as necessary
+    # result_hyp_param_long = pd.concat([rsq_long_indexed, nrmse_cols_indexed], axis=1, join='inner').reset_index()
+
+    rsq_long = pd.melt(
+        result_hyp_param[['solID', 'i', 'trial', 'train_size'] + [col for col in result_hyp_param if col.startswith('rsq_')]],
+        id_vars=['solID', 'i', 'trial', 'train_size'],
+        var_name='dataset',
+        value_name='rsq'
+    )
+    rsq_long['trial'] = rsq_long['trial'].apply(lambda x: f"Trial {x}")
+    rsq_long['dataset'] = rsq_long['dataset'].str.replace('rsq_', '')
+    rsq_long['rsq'] = winsorize(rsq_long['rsq'], limits=[0.01, 0.99])
+
+    nrmse_long = pd.melt(
+        result_hyp_param[['solID'] + [col for col in result_hyp_param if col.startswith('nrmse_')]],
+        id_vars=['solID'],
+        var_name='dataset',
+        value_name='nrmse'
+    )
+    nrmse_long['dataset'] = nrmse_long['dataset'].str.replace('nrmse_', '')
+    nrmse_long['nrmse'] = winsorize(nrmse_long['nrmse'], limits=[0.00, 0.99])
+
+    result_hyp_param_long = pd.merge(rsq_long, nrmse_long[['solID', 'dataset', 'nrmse']], on=['solID', 'dataset'], how='left')
     result_hyp_param_long['dataset'] = result_hyp_param_long['dataset'].str.replace('rsq_', '')
 
-    pIters = (ggplot(result_hyp_param, aes(x='i', y='train_size'))
-            + geom_point(fill='black', alpha=0.5, size=1.2, shape=23)
-            # Uncomment the next line if geom_smooth is required
-            # + geom_smooth()
-            + labs(y='Train Size', x='Iteration')
-            # Uncomment and adjust the next line if scale_y_percent and scale_x_abbr are required
-            # + scale_y_continuous(labels='percent') + scale_x_continuous(labels='abbr')
-            + theme(figure_size=(10, 6), plot_background=element_rect(fill='white')))
+    sns.set_theme(style="whitegrid")
 
-    pNRMSE = (ggplot(result_hyp_param_long, aes(x='i', y='nrmse', color='dataset'))
-            + geom_point(alpha=0.2, size=0.9)
-            + geom_smooth(method='gamm', method_args={'formula': 'y ~ s(x, bs="cs")'})
-            + facet_grid('trial ~ .')
-            + geom_hline(yintercept=0, linetype='dashed')
-            + labs(y='NRMSE [Upper 1% Winsorized]', x='Iteration', color='Dataset')
-            # The theme_lares is specific to ggplot2, you might need to customize this using theme() in plotnine
-            + theme(figure_size=(10, 6), plot_background=element_rect(fill='white'))
-            # Uncomment and adjust the next line if scale_x_abbr is required
-            # + scale_x_continuous(labels='abbr')
-            )
+    # Create a figure with a specific size
+    fig, axs = plt.subplots(1, 2, figsize=(14, 6))
 
-    if export:
-        ggsave(plot=pNRMSE, filename=f'{plot_folder}/pNRMSE.png', dpi=300, width=12, height=8, limitsize=False)
-        ggsave(plot=pIters, filename=f'{plot_folder}/pIters.png', dpi=300, width=12, height=8, limitsize=False)
+    # First plot
+    sns.scatterplot(x='i', y='train_size', data=result_hyp_param, color='black', alpha=0.5, s=12, ax=axs[0])
+    axs[0].set_xlabel('Iteration')
+    axs[0].set_ylabel('Train Size')
 
-    # Return the plots separately
-    return {'pNRMSE': pNRMSE, 'pIters': pIters}
+    # Second plot
+    sns.scatterplot(x='i', y='nrmse', hue='dataset', data=result_hyp_param_long, alpha=0.2, s=9, ax=axs[1])
+    axs[1].axhline(0, color='gray', linestyle='--')
+    axs[1].set_xlabel('Iteration')
+    axs[1].set_ylabel('NRMSE [Upper 1% Winsorized]')
+    axs[1].legend(title='Dataset', loc='upper right')
+
+    # Adjust the layout
+    plt.tight_layout()
+    fig.suptitle("Time-series validation & Convergence", fontsize=16)
+    plt.subplots_adjust(top=0.88)
+
+    # Instead of displaying the plot, return the figure and axes objects
+    return fig, axs
+
+# def ts_validation_fun(output_models, quiet=False, **kwargs):
+#     # if not output_models.get('ts_validation', False):
+#     #     return None
+
+#     # Extracting the relevant trials
+#     trial_names = [f"trial{i}" for i in range(1, output_models['trials'] + 1)]
+#     relevant_trials = [output_models[name]['resultCollect']['resultHypParam'] for name in trial_names if name in output_models]
+
+#     # Binding rows and processing
+#     result_hyp_param = pd.concat(relevant_trials, ignore_index=True)
+#     result_hyp_param['i'] = result_hyp_param.groupby('trial').cumcount() + 1
+
+#     # Data manipulation
+#     result_hyp_param_long = result_hyp_param.copy()
+#     result_hyp_param_long = result_hyp_param_long.filter(regex='^rsq_|solID|i|trial|train_size$')
+#     result_hyp_param_long['trial'] = 'Trial ' + result_hyp_param_long['trial'].astype(str)
+#     rsq_cols = result_hyp_param_long.filter(regex='^rsq_').columns
+#     nrmse_cols = result_hyp_param.filter(regex='^nrmse_').columns
+
+#     # Melting the DataFrame
+#     rsq_melted = result_hyp_param_long.melt(id_vars=['solID', 'i', 'trial', 'train_size'],
+#                                         value_vars=rsq_cols,
+#                                         var_name='dataset', value_name='rsq')
+#     nrmse_melted = result_hyp_param.melt(id_vars=['solID'],
+#                                         value_vars=nrmse_cols,
+#                                         var_name='del', value_name='nrmse').drop(columns=['del'])
+
+#     # Combining melted dataframes
+#     result_hyp_param_long = pd.concat([rsq_melted, nrmse_melted['nrmse']], axis=1)
+
+#     # Winsorizing and final adjustments
+#     result_hyp_param_long['rsq'] = winsorize(result_hyp_param_long['rsq'], limits=[0.01, 0.99])
+#     result_hyp_param_long['nrmse'] = winsorize(result_hyp_param_long['nrmse'], limits=[0.00, 0.99])
+#     result_hyp_param_long['dataset'] = result_hyp_param_long['dataset'].str.replace('rsq_', '')
+
+#     pIters = (ggplot(result_hyp_param, aes(x='i', y='train_size'))
+#             + geom_point(fill='black', alpha=0.5, size=1.2, shape=23)
+#             # Uncomment the next line if geom_smooth is required
+#             # + geom_smooth()
+#             + labs(y='Train Size', x='Iteration')
+#             # Uncomment and adjust the next line if scale_y_percent and scale_x_abbr are required
+#             # + scale_y_continuous(labels='percent') + scale_x_continuous(labels='abbr')
+#             + theme(figure_size=(10, 6), plot_background=element_rect(fill='white')))
+
+#     pNRMSE = (ggplot(result_hyp_param_long, aes(x='i', y='nrmse', color='dataset'))
+#             + geom_point(alpha=0.2, size=0.9)
+#             + geom_smooth(method='gamm', method_args={'formula': 'y ~ s(x, bs="cs")'})
+#             + facet_grid('trial ~ .')
+#             + geom_hline(yintercept=0, linetype='dashed')
+#             + labs(y='NRMSE [Upper 1% Winsorized]', x='Iteration', color='Dataset')
+#             # The theme_lares is specific to ggplot2, you might need to customize this using theme() in plotnine
+#             + theme(figure_size=(10, 6), plot_background=element_rect(fill='white'))
+#             # Uncomment and adjust the next line if scale_x_abbr is required
+#             # + scale_x_continuous(labels='abbr')
+#             )
+
+#     if export:
+#         ggsave(plot=pNRMSE, filename=f'{plot_folder}/pNRMSE.png', dpi=300, width=12, height=8, limitsize=False)
+#         ggsave(plot=pIters, filename=f'{plot_folder}/pIters.png', dpi=300, width=12, height=8, limitsize=False)
+
+#     # Return the plots separately
+#     return {'pNRMSE': pNRMSE, 'pIters': pIters}
 
 #' @rdname robyn_outputs
 #' @param solID Character vector. Model IDs to plot.
