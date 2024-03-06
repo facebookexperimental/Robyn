@@ -927,10 +927,10 @@ def robyn_mmm(InputCollect,
     for group in result_collect_ng:
         for element in group:
             df = element['xDecompAgg']
-            for index, row in df.iterrows():
+            for _, row in df.iterrows():
                 for col in df.columns:
                     xDecompAggDefaultDict[col].append(row[col])
-                rn_list.append(index)
+                rn_list.append(row['rn'])
 
     xDecompAggDefaultDict['rn'] = rn_list
     result_collect["xDecompAgg"] = pd.DataFrame.from_dict(xDecompAggDefaultDict)

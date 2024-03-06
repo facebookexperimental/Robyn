@@ -258,7 +258,7 @@ def errors_scores(df, balance=None, ts_validation=True, **kwargs):
         balance = balance / sum(balance)
 
     # Select and rename error columns
-    scores = df.select(error_cols).rename(columns={'nrmse': 1})
+    scores = df[error_cols].rename(columns={error_cols[0]: 'nrmse'})
 
     # Replace infinite values with maximum finite value
     scores = scores.apply(lambda row: np.nan_to_num(row, posinf=max(row.dropna().values)))
@@ -274,7 +274,9 @@ def errors_scores(df, balance=None, ts_validation=True, **kwargs):
         scores = scores.apply(lambda row: balance * row)
 
     # Calculate error score
-    scores = scores.apply(lambda row: np.sqrt(row['nrmse']**2 + row['decomp.rssd']**2 + row['mape']**2))
+    scores = scores.apply(lambda row: np.sqrt(row['nrmse']**2 + row['decomp.rssd']**2 + row['mape']**2), axis=1)
+
+    # scores = scores.apply(lambda row: np.sqrt(row['nrmse']**2 + row['decomp.rssd']**2 + row['mape']**2))
 
     return scores
 
@@ -425,13 +427,13 @@ def plot_clusters_ci(sim_collect, df_ci, dep_var_type, boot_n, sim_n):
 def plot_topsols_errors(df, top_sols, limit=1, balance=None):
     """
     Plots a heatmap of the correlation matrix for the joined dataframe of `df` and `top_sols`.
-    
+
     Parameters:
         df (pandas.DataFrame): The main dataframe.
         top_sols (pandas.DataFrame): The dataframe containing top solutions.
         limit (int, optional): The number of top performing models to select. Defaults to 1.
         balance (numpy.ndarray, optional): The weights for balancing the heatmap. Defaults to None.
-    
+
     Returns:
         None
     """

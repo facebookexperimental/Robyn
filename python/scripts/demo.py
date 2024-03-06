@@ -206,9 +206,9 @@ output_models = model.robyn_run(
     # Set to NULL to use all available CPU cores
     cores=None,
     # Run 2000 iterations
-    iterations=2,
+    iterations=29,
     # Run 5 trials
-    trials=5,
+    trials=4,
     # Use 3-way-split time series for NRMSE validation
     ts_validation=True,
     # Add penalty factor for experimental feature
