@@ -158,9 +158,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
         pareto_fronts_vec = np.arange(1, pareto_fronts+1)
 
-        decompSpendDistPar = decompSpendDist[decompSpendDist.robynPareto.isin(pareto_fronts_vec), :]
-        resultHypParamPar = resultHypParam[resultHypParam.robynPareto.isin(pareto_fronts_vec), :]
-        xDecompAggPar = xDecompAgg[xDecompAgg.robynPareto.isin(pareto_fronts_vec), :]
+        decompSpendDistPar = decompSpendDist[decompSpendDist['robynPareto'].isin(pareto_fronts_vec)]
+        resultHypParamPar = resultHypParam[resultHypParam['robynPareto'].isin(pareto_fronts_vec)]
+        xDecompAggPar = xDecompAgg[xDecompAgg['robynPareto'].isin(pareto_fronts_vec)]
         respN = None
 
     if not quiet:
