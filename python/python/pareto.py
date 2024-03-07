@@ -32,7 +32,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
     ])
 
     if calibrated:
-        resultCalibration = pd.concat([x.resultCollect.liftCalibration.assign(trial=x.trial).rename(columns={"liftMedia": "rn"}) for x in OutModels])
+        resultCalibration = pd.concat([x['resultCollect']['liftCalibration'].assign(trial=x['trial']).rename(columns={"liftMedia": "rn"}) for x in OutModels])
     else:
         resultCalibration = None
 
@@ -100,7 +100,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
     resultHypParam["error_score"] = errors_scores(resultHypParam, ts_validation=OutputModels["metadata"]["ts_validation"], **kwargs)
 
-    xDecompAgg = pd.merge(xDecompAgg, pd.merge(resultHypParam, pd.DataFrame({'robynPareto': pd.Series(dtype='float'), 'solID': pd.Series(dtype='str')}), on='solID'), on='solID')
+    xDecompAgg = pd.merge(xDecompAgg, resultHypParam.filter(['robynPareto','solID'], axis=1), on='solID')
     # decompSpendDist = pd.concat([pd.DataFrame({'decompSpendDist': x["resultCollect"]["decompSpendDist"], 'trial': x["trial"]}) for x in OutModels])
     # decompSpendDist = pd.concat([
     #     pd.DataFrame({
@@ -158,9 +158,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
         pareto_fronts_vec = np.arange(1, pareto_fronts+1)
 
-        decompSpendDistPar = decompSpendDist[decompSpendDist.robynPareto.isin(pareto_fronts_vec), :]
-        resultHypParamPar = resultHypParam[resultHypParam.robynPareto.isin(pareto_fronts_vec), :]
-        xDecompAggPar = xDecompAgg[xDecompAgg.robynPareto.isin(pareto_fronts_vec), :]
+        decompSpendDistPar = decompSpendDist[decompSpendDist['robynPareto'].isin(pareto_fronts_vec)]
+        resultHypParamPar = resultHypParam[resultHypParam['robynPareto'].isin(pareto_fronts_vec)]
+        xDecompAggPar = xDecompAgg[xDecompAgg['robynPareto'].isin(pareto_fronts_vec)]
         respN = None
 
     if not quiet:
