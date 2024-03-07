@@ -958,11 +958,12 @@ def check_allocator(OutputCollect, select_model, paid_media_spends, scenario, ch
 
 
 def check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars):
-    if metric_name in paid_media_spends and len(metric_name) == 1:
+    
+    if paid_media_spends.count(metric_name) == 1:
         metric_type = "spend"
-    elif metric_name in exposure_vars and len(metric_name) == 1:
+    elif exposure_vars.count(metric_name) == 1:
         metric_type = "exposure"
-    elif metric_name in organic_vars and len(metric_name) == 1:
+    elif organic_vars.count(metric_name) == 1:
         metric_type = "organic"
     else:
         raise ValueError(f"Invalid 'metric_name' input: {metric_name}")

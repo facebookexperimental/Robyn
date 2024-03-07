@@ -4,6 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
+import os
+import re
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,7 +13,11 @@ from matplotlib.colors import ListedColormap
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-from .checks import check_metric_type
+from .inputs import robyn_inputs
+#from .model import robyn_run
+from .transformation import saturation_hill, transform_adstock
+
+from .checks import check_metric_dates, check_metric_type, check_metric_value
 
 def robyn_response(InputCollect=None,
                    OutputCollect=None,
@@ -91,9 +97,9 @@ def robyn_response(InputCollect=None,
 
     # Check inputs with usecases
     metric_type = check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
-    all_dates = pull(dt_input, InputCollect['date_var'])
-    all_values = pull(dt_input, metric_name)
-
+    all_dates = dt_input['DATE'].tolist()
+    all_values = dt_input[metric_name].tolist()
+    
     if usecase == "all_historical_vec":
         # Calculate dates and values for all historical data
         ds_list = check_metric_dates("all", all_dates[1:endRW], dayInterval, quiet)
@@ -134,10 +140,10 @@ def robyn_response(InputCollect=None,
 
     # Adstocking original
     media_vec_origin = dt_input[metric_name][[1]]
-    theta = scale = shape = NULL
+    theta = scale = shape = None
     if adstock == "geometric":
         theta = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_thetas")]][[1]]
-    elif grepl("weibull", adstock):
+    elif re.search("weibull", adstock):
         shape = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_shapes")]][[1]]
         scale = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_scales")]][[1]]
 
