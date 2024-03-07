@@ -17,6 +17,7 @@ from scipy.stats import norm
 
 from .allocator import get_hill_params
 from .cluster import errors_scores
+from .response import robyn_response
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
     hyper_fixed = OutputModels["metadata"]["hyper_fixed"]
@@ -166,7 +167,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
     if not quiet:
         print(f">>> Calculating response curves for all models' media variables ({decompSpendDistPar.shape[0]})...")
 
-    if OutputModels["cores"] > 1:
+    if OutputModels["metadata"]["cores"] > 1:
         resp_collect = pd.concat(
             [run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, **kwargs) for respN in range(len(decompSpendDistPar["rn"]))]
         )
@@ -525,8 +526,8 @@ def get_pareto_fronts(pareto_fronts):
 def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, **kwargs):
     get_solID = decompSpendDistPar.solID[respN]
     get_spendname = decompSpendDistPar.rn[respN]
-    startRW = InputCollect.rollingWindowStartWhich
-    endRW = InputCollect.rollingWindowEndWhich
+    startRW = InputCollect["robyn_inputs"]["rollingWindowStartWhich"]
+    endRW = InputCollect["robyn_inputs"]["rollingWindowEndWhich"]
 
     get_resp = robyn_response(
         select_model=get_solID,
@@ -536,8 +537,7 @@ def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHyp
         dt_coef=xDecompAggPar,
         InputCollect=InputCollect,
         OutputCollect=OutputModels,
-        quiet=True,
-        **kwargs
+        quiet=True
     )
 
     mean_spend_adstocked = np.mean(get_resp.input_total[startRW:endRW])

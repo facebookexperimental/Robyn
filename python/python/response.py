@@ -28,34 +28,59 @@ def robyn_response(InputCollect=None,
     # Get input
     if json_file:
         # Use previously exported model using json_file
-        if not InputCollect:
+        if InputCollect is None:
             InputCollect = robyn_inputs(json_file=json_file)
-        if not OutputCollect:
+        if OutputCollect is None:
             OutputCollect = robyn_run(InputCollect=InputCollect, json_file=json_file, export=False, quiet=quiet)
-        dt_hyppar = OutputCollect.resultHypParam
-        dt_coef = OutputCollect.xDecompAgg
-    else:
-        # Try to get some pre-filled values
-        if not dt_hyppar:
+        if dt_hyppar is None:
             dt_hyppar = OutputCollect.resultHypParam
-        if not dt_coef:
+        if dt_coef is None:
             dt_coef = OutputCollect.xDecompAgg
-        if any(dt_hyppar is None, dt_coef is None, InputCollect is None, OutputCollect is None):
-            raise ValueError("When 'robyn_object' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
+    else:
+        if robyn_object:
+            if not os.path.exists(robyn_object):
+                raise FileNotFoundError(f"File does not exist or is somewhere else. Check: {robyn_object}")
+            else:
+                Robyn = readRDS(robyn_object)  # Assume readRDS is a function you have defined to read RDS files in Python
+                objectPath = os.path.dirname(robyn_object)
+                objectName = re.sub(r'\..*$', '', os.path.basename(robyn_object))
+
+            select_build_all = range(len(Robyn))
+            if select_build is None:
+                select_build = max(select_build_all)
+                if not quiet and len(select_build_all) > 1:
+                    print(f"Using latest model: {'initial model' if select_build == 0 else f'refresh model #{select_build}'} for the response function. Use parameter 'select_build' to specify which run to use")
+
+            if select_build not in select_build_all or not isinstance(select_build, int):
+                raise ValueError(f"'select_build' must be one value of {', '.join(map(str, select_build_all))}")
+
+            listName = "listInit" if select_build == 0 else f"listRefresh{select_build}"
+            InputCollect = Robyn[listName]["InputCollect"]
+            OutputCollect = Robyn[listName]["OutputCollect"]
+            dt_hyppar = OutputCollect.resultHypParam
+            dt_coef = OutputCollect.xDecompAgg
+        else:
+            # Try to get some pre-filled values
+            if dt_hyppar.empty:
+                dt_hyppar = OutputCollect.resultHypParam
+            if dt_coef.empty:
+                dt_coef = OutputCollect.xDecompAgg
+            if any(x is None for x in [dt_hyppar, dt_coef, InputCollect, OutputCollect]):
+                raise ValueError("When 'robyn_object' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
 
     # Prep environment
     if True:
-        dt_input = InputCollect.dt_input
-        startRW = InputCollect.rollingWindowStartWhich
-        endRW = InputCollect.rollingWindowEndWhich
-        adstock = InputCollect.adstock
-        spendExpoMod = InputCollect.modNLS.results
-        paid_media_vars = InputCollect.paid_media_vars
-        paid_media_spends = InputCollect.paid_media_spends
-        exposure_vars = InputCollect.exposure_vars
-        organic_vars = InputCollect.organic_vars
-        allSolutions = unique(dt_hyppar.solID)
-        dayInterval = InputCollect.dayInterval
+        dt_input = InputCollect["robyn_inputs"]["dt_input"]
+        startRW = InputCollect["robyn_inputs"]["rollingWindowStartWhich"]
+        endRW = InputCollect["robyn_inputs"]["rollingWindowEndWhich"]
+        adstock = InputCollect["robyn_inputs"]["adstock"]
+        spendExpoMod = InputCollect["robyn_inputs"]["modNLS"]["results"]
+        paid_media_vars = InputCollect["robyn_inputs"]["paid_media_vars"]
+        paid_media_spends = InputCollect["robyn_inputs"]["paid_media_spends"]
+        exposure_vars = InputCollect["robyn_inputs"]["exposure_vars"]
+        organic_vars = InputCollect["robyn_inputs"]["organic_vars"]
+        allSolutions = dt_hyppar['solID'].unique()
+        dayInterval = InputCollect["robyn_inputs"]["dayInterval"]
 
     # Check select_model
     if not select_model or select_model not in allSolutions:
