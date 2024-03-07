@@ -18,6 +18,8 @@ from scipy.stats import norm
 from .allocator import get_hill_params
 from .cluster import errors_scores
 from .response import robyn_response
+from .transformation import adstock_weibull, saturation_hill, transform_adstock
+
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
     hyper_fixed = OutputModels["metadata"]["hyper_fixed"]

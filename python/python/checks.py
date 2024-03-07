@@ -1004,15 +1004,16 @@ def check_metric_dates(all_dates, date_range=None, day_interval=None, quiet=Fals
         date_range_loc = np.where(all_dates == date_range_updated)[0]
         rg = np.array(date_range_updated).astype(str)
 
-    return [date_range_updated, date_range_loc]
+    
+    return {"date_range_updated": date_range_updated, "metric_loc": date_range_loc}
 
 
 def check_metric_value(metric_value, metric_name, all_values, metric_loc):
     """
     Checks the metric value and returns the updated metric value and location.
     """
-    if np.any(np.isnan(metric_value)):
-        metric_value = None
+    # if np.any(np.isnan(metric_value)): TODO: Check if this is necessary
+    #     metric_value = None
 
     if not metric_value is None:
         if not np.isnumeric(metric_value):
@@ -1035,7 +1036,7 @@ def check_metric_value(metric_value, metric_name, all_values, metric_loc):
     all_values_updated = all_values.copy()
     all_values_updated[metric_loc] = metric_value_updated
 
-    return [metric_value_updated, all_values_updated]
+    return {"metric_value_updated" : metric_value_updated, "all_values_updated" : all_values_updated}
 
 
 def check_legacy_input(InputCollect, cores=None, iterations=None, trials=None, intercept_sign=None, nevergrad_algo=None):

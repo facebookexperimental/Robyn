@@ -18,6 +18,7 @@ from .inputs import robyn_inputs
 from .transformation import saturation_hill, transform_adstock
 
 from .checks import check_metric_dates, check_metric_type, check_metric_value
+import seaborn as sns
 
 def robyn_response(InputCollect=None,
                    OutputCollect=None,
@@ -104,22 +105,25 @@ def robyn_response(InputCollect=None,
         # Calculate dates and values for all historical data
         ds_list = check_metric_dates("all", all_dates[1:endRW], dayInterval, quiet)
         metric_value = None
-        val_list = check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
     elif usecase == "unit_metric_default_last_n":
         # Calculate dates and values for last n days
-        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[1:endRW], dayInterval, quiet)
-        val_list = check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
+        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[1:endRW], dayInterval, quiet)        
     else:
         # Calculate dates and values for specified date range
         ds_list = check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet)
 
+    val_list = check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
+    date_range_updated = ds_list['date_range_updated']
+    metric_value_updated = val_list['metric_value_updated']
+    all_values_updated = val_list['all_values_updated']
+    
     # Transform exposure to spend when necessary
     if metric_type == "exposure":
-        get_spend_name = paid_media_spends[which(paid_media_vars == metric_name)]
+        get_spend_name = paid_media_spends[np.where(paid_media_vars == metric_name)]
         expo_vec = dt_input[metric_name][[1]]
         # Use non-0 mean as marginal level if metric_value not provided
         if metric_value is None:
-            metric_value = mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
+            metric_value = np.mean(expo_vec[startRW:endRW][expo_vec[startRW:endRW] > 0])
             if not quiet:
                 print("Input 'metric_value' not provided. Using mean of ", metric_name, " instead")
 
@@ -137,12 +141,15 @@ def robyn_response(InputCollect=None,
 
         all_values_updated[ds_list['metric_loc']] = input_immediate
         hpm_name = get_spend_name
+    else:
+        input_immediate = metric_value_updated
+        hpm_name = metric_name
 
     # Adstocking original
     media_vec_origin = dt_input[metric_name][[1]]
     theta = scale = shape = None
     if adstock == "geometric":
-        theta = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_thetas")]][[1]]
+        theta = dt_hyppar[dt_hyppar['solID'] == select_model][["{}{}".format(hpm_name, "_thetas")]][[1]]
     elif re.search("weibull", adstock):
         shape = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_shapes")]][[1]]
         scale = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_scales")]][[1]]
