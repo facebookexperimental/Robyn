@@ -828,8 +828,7 @@ def robyn_mmm(InputCollect,
                     resultCollect["liftCalibration"] = liftCollect
 
                 repeated_common_reset_decompSpendDist = pd.DataFrame([common_reset.iloc[0]] * len(dt_decompSpendDist))
-                repeated_common_reset_decompSpendDist.index = dt_decompSpendDist.index
-                resultCollect["decompSpendDist"] = pd.concat([dt_decompSpendDist, repeated_common_reset_decompSpendDist], axis=1)
+                resultCollect["decompSpendDist"] = pd.concat([dt_decompSpendDist.reset_index(), repeated_common_reset_decompSpendDist.reset_index()], axis=1)
                 resultCollect.update(common_reset.to_dict())
 
                 return resultCollect
@@ -949,13 +948,19 @@ def robyn_mmm(InputCollect,
     result_collect["liftCalibration"] = pd.DataFrame.from_dict(sortedLiftCalibrationDF)
 
     # Construct decompSpendDist
+    rn_list = []
     decompSpendDistDefaultDict = defaultdict(list)
     for group in result_collect_ng:
         for element in group:
             df = element['decompSpendDist']
-            for col in df.columns:
-                decompSpendDistDefaultDict[col].extend(df[col].tolist())
+            for _, row in df.iterrows():
+                for col in df.columns:
+                    decompSpendDistDefaultDict[col].append(row[col])
+                rn_list.append(row['rn'])
+    decompSpendDistDefaultDict['rn'] = rn_list
     result_collect["decompSpendDist"] = pd.DataFrame.from_dict(decompSpendDistDefaultDict)
+    cols = ['rn'] + [col for col in result_collect["decompSpendDist"] if col != 'rn']
+    result_collect["decompSpendDist"] = result_collect["decompSpendDist"][cols]
 
     # Skil following line for now as it looks a bug in the R code to me.
     # ["mape"] is a column of result_collect["liftCalibration"]. In R is always initialized to 0
