@@ -139,10 +139,10 @@ hyperparameters = pd.DataFrame({
 
 #### 2a-3: Third, add hyperparameters into robyn_inputs()
 ## Manually converted, parameters defined wrong.
-#input_collect = inputs.robyn_inputs(
+# input_collect = inputs.robyn_inputs(
 #    InputCollect = input_collect['robyn_inputs'],
 #    hyperparameters = hyperparameters
-#)
+# )
 
 # Print InputCollect
 #print(input_collect)
@@ -191,8 +191,8 @@ input_collect = inputs.robyn_inputs(
 )
 
 # Check spend exposure fit if available
-if 'exposure_vars' in input_collect.keys() and len(input_collect['exposure_vars']) > 0:
-    for plot in input_collect['modNLS']['plots']:
+if 'exposure_vars' in input_collect['robyn_inputs'].keys() and len(input_collect['robyn_inputs']['exposure_vars']) > 0:
+    for plot in input_collect['robyn_inputs']['modNLS']['plots']:
         ##plot.show()
         print('Skipping plot...')
 
