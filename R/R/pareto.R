@@ -407,7 +407,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         )
       }
       dt_transformSaturationDecomp <- dt_transformSaturation
-      for (i in 1:InputCollect$mediaVarCount) {
+      for (i in seq_along(InputCollect$all_media)) {
         coef <- plotWaterfallLoop$coef[plotWaterfallLoop$rn == InputCollect$all_media[i]]
         dt_transformSaturationDecomp[InputCollect$all_media[i]] <- coef *
           dt_transformSaturationDecomp[InputCollect$all_media[i]]
@@ -418,7 +418,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
       ## Reverse MM fitting
       # dt_transformSaturationSpendReverse <- copy(dt_transformAdstock[, c("ds", InputCollect$all_media), with = FALSE])
-      # for (i in 1:InputCollect$mediaVarCount) {
+      # for (i in seq_along(InputCollect$paid_media_spends)) {
       #   chn <- InputCollect$paid_media_vars[i]
       #   if (chn %in% InputCollect$paid_media_vars[InputCollect$exposure_selector]) {
       #     # Get Michaelis Menten nls fitting param

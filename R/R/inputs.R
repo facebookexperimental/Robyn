@@ -231,11 +231,10 @@ robyn_inputs <- function(dt_input = NULL,
     context <- check_context(dt_input, context_vars, context_signs)
     context_signs <- context$context_signs
 
-    ## Check paid media variables (set mediaVarCount and maybe transform paid_media_signs)
+    ## Check paid media variables (and maybe transform paid_media_signs)
     if (is.null(paid_media_vars)) paid_media_vars <- paid_media_spends
     paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
     paid_media_signs <- paidmedia$paid_media_signs
-    mediaVarCount <- paidmedia$mediaVarCount
     exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
     ## Check organic media variables (and maybe transform organic_signs)
@@ -309,7 +308,6 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
       paid_media_total = paid_media_total,
-      mediaVarCount = mediaVarCount,
       exposure_vars = exposure_vars,
       organic_vars = organic_vars,
       organic_signs = organic_signs,
@@ -435,7 +433,8 @@ Adstock: {x$adstock}
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
     prophet = if (length(x$prophet_vars) > 0) {
-      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "), x$prophet_country)
+      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "),
+              ifelse(!is.null(x$prophet_country), x$prophet_country, "data"))
     } else {
       "\033[0;31mDeactivated\033[0m"
     },
@@ -622,7 +621,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
       colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
 
-    for (i in 1:InputCollect$mediaVarCount) {
+    for (i in seq_along(paid_media_spends)) {
       if (exposure_selector[i]) {
         # Run models (NLS and/or LM)
         dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
