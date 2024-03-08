@@ -243,7 +243,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   check_vector(paid_media_vars)
   check_vector(paid_media_signs)
   check_vector(paid_media_spends)
-  mediaVarCount <- length(paid_media_vars)
+  expVarCount <- length(paid_media_vars)
   spendVarCount <- length(paid_media_spends)
 
   temp <- paid_media_vars %in% names(dt_input)
@@ -261,7 +261,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
     ))
   }
   if (is.null(paid_media_signs)) {
-    paid_media_signs <- rep("positive", mediaVarCount)
+    paid_media_signs <- rep("positive", expVarCount)
   }
   if (!all(paid_media_signs %in% OPTS_PDN)) {
     stop("Allowed values for 'paid_media_signs' are: ", paste(OPTS_PDN, collapse = ", "))
@@ -272,7 +272,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (length(paid_media_signs) != length(paid_media_vars)) {
     stop("Input 'paid_media_signs' must have same length as 'paid_media_vars'")
   }
-  if (spendVarCount != mediaVarCount) {
+  if (spendVarCount != expVarCount) {
     stop("Input 'paid_media_spends' must have same length as 'paid_media_vars'")
   }
   is_num <- unlist(lapply(dt_input[, paid_media_vars], is.numeric))
@@ -295,7 +295,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   }
   return(invisible(list(
     paid_media_signs = paid_media_signs,
-    mediaVarCount = mediaVarCount,
+    expVarCount = expVarCount,
     paid_media_vars = paid_media_vars
   )))
 }
@@ -706,7 +706,7 @@ check_InputCollect <- function(list) {
   names_list <- c(
     "dt_input", "paid_media_vars", "paid_media_spends", "context_vars",
     "organic_vars", "all_ind_vars", "date_var", "dep_var",
-    "rollingWindowStartWhich", "rollingWindowEndWhich", "mediaVarCount",
+    "rollingWindowStartWhich", "rollingWindowEndWhich",
     "factor_vars", "prophet_vars", "prophet_signs", "prophet_country",
     "intervalType", "dt_holidays"
   )
