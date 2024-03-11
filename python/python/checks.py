@@ -958,7 +958,7 @@ def check_allocator(OutputCollect, select_model, paid_media_spends, scenario, ch
 
 
 def check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars):
-    
+
     if paid_media_spends.count(metric_name) == 1:
         metric_type = "spend"
     elif exposure_vars.count(metric_name) == 1:
@@ -970,42 +970,79 @@ def check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_
     return metric_type
 
 
-def check_metric_dates(all_dates, date_range=None, day_interval=None, quiet=False, is_allocator=False): ## Manually fixed, moved all_dates to first argument.
+def check_metric_dates(date_range=None, all_dates=None, day_interval=None, quiet=False, is_allocator=False): ## Manually fixed, moved all_dates to first argument.
     """
     Checks the date range and returns the updated date range and location.
     """
     if date_range is None:
-        if day_interval is None:
-            date_range = "last_30"
-        else:
-            date_range = f"last_{day_interval}"
+        if dayInterval is None:
+            raise ValueError("Input 'date_range' or 'dayInterval' must be defined")
 
-    if is_allocator:
-        date_range = date_range.replace("last", "").strip()
-        if day_interval == 1:
-            date_range = f"last_{30}"
-        elif day_interval == 7:
-            date_range = f"last_{4}"
-        else:
-            date_range = f"last_{day_interval}"
+        date_range = "all"
+        if not quiet:
+            print(f"Automatically picked date_range = '{date_range}'")
 
-    if not quiet:
-        print(f"Automatically picked date_range = '{date_range}'")
-
-    if "last" in date_range:
+    if "last" in date_range or "all" in date_range:
         # Using last_n as date_range range
-        n = int(date_range.replace("last_", ""))
-        date_range_updated = all_dates[n-1:]
-        date_range_loc = np.where(all_dates == date_range_updated)[0]
-        rg = np.array(date_range_updated).astype(str)
+        if "all" in date_range:
+            date_range = ["last_" + str(len(all_dates))]
+        get_n = int(date_range[0].replace("last_", "")) if "last_" in date_range[0] else 1
+        date_range = all_dates[-get_n:]
+        date_range_updated = [date for date in all_dates if date in date_range]
+
+        date_range_loc = range(len(date_range_updated))
+
+        min_date = min(date_range_updated)
+        max_date = max(date_range_updated)
+        rg = ":".join([min_date.strftime("%Y-%m-%d"), max_date.strftime("%Y-%m-%d")])
+
+        # TODO: Need to test the else statement
     else:
         # Using dates as date_range range
-        date_range_updated = np.array(date_range)
-        date_range_loc = np.where(all_dates == date_range_updated)[0]
-        rg = np.array(date_range_updated).astype(str)
+        try:
+            date_range = pd.to_datetime(date_range, origin='unix', unit='s')
+            if len(date_range) == 1:
+                # Using only 1 date
+                if date_range in all_dates.values:
+                    date_range_updated = date_range
+                    date_range_loc = all_dates[all_dates == date_range].index
+                    if not quiet:
+                        print(f"Using ds '{date_range_updated[0]}' as the response period")
+                else:
+                    date_range_loc = (all_dates - date_range).abs().argmin()
+                    date_range_updated = all_dates.iloc[date_range_loc]
+                    if not quiet:
+                        print(f"Input 'date_range' ({date_range}) has no match. Picking closest date: {date_range_updated}")
+            elif len(date_range) == 2:
+                # Using two dates as "from-to" date range
+                date_range_loc = [all_dates.sub(date).abs().idxmin() for date in date_range]
+                date_range_loc = range(date_range_loc[0], date_range_loc[1] + 1)
+                date_range_updated = all_dates.iloc[date_range_loc]
+                if not quiet and not set(date_range).issubset(date_range_updated.values):
+                    print(f"At least one date in 'date_range' input do not match any date. Picking closest dates for range: {date_range_updated.min()}:{date_range_updated.max()}")
+                rg = ":".join(map(str, date_range_updated.agg(['min', 'max'])))
+                get_n = len(date_range_loc)
+            else:
+                # Manually inputting each date
+                date_range_updated = date_range
+                if set(date_range).issubset(all_dates.values):
+                    date_range_loc = all_dates.index[all_dates.isin(date_range_updated)]
+                else:
+                    date_range_loc = [all_dates.sub(date).abs().idxmin() for date in date_range]
+                    rg = ":".join(map(str, pd.to_datetime(date_range).agg(['min', 'max'])))
+                if pd.Series(date_range_loc).diff().dropna().eq(1).all():
+                    date_range_updated = all_dates.iloc[date_range_loc]
+                    if not quiet:
+                        print(f"At least one date in 'date_range' do not match ds. Picking closest date: {date_range_updated}")
+                else:
+                    raise ValueError("Input 'date_range' needs to have sequential dates")
+        except ValueError:
+            raise ValueError("Input 'date_range' must have date format '2023-01-01' or use 'last_n'")
 
-    
-    return {"date_range_updated": date_range_updated, "metric_loc": date_range_loc}
+    return {
+        'date_range_updated': date_range_updated,
+        'metric_loc': date_range_loc
+    }
 
 
 def check_metric_value(metric_value, metric_name, all_values, metric_loc):
@@ -1031,10 +1068,12 @@ def check_metric_value(metric_value, metric_name, all_values, metric_loc):
             metric_value_updated = metric_value
 
     else:
-        metric_value_updated = all_values[metric_loc]
+        metric_value_updated = [all_values[i] for i in metric_loc]
 
     all_values_updated = all_values.copy()
-    all_values_updated[metric_loc] = metric_value_updated
+    for i, value in zip(metric_loc, metric_value_updated):
+        all_values_updated[i] = value
+
 
     return {"metric_value_updated" : metric_value_updated, "all_values_updated" : all_values_updated}
 

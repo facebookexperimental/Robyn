@@ -100,14 +100,14 @@ def robyn_response(InputCollect=None,
     metric_type = check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
     all_dates = dt_input['DATE'].tolist()
     all_values = dt_input[metric_name].tolist()
-    
+
     if usecase == "all_historical_vec":
         # Calculate dates and values for all historical data
         ds_list = check_metric_dates("all", all_dates[1:endRW], dayInterval, quiet)
         metric_value = None
     elif usecase == "unit_metric_default_last_n":
         # Calculate dates and values for last n days
-        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[1:endRW], dayInterval, quiet)        
+        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[1:endRW], dayInterval, quiet)
     else:
         # Calculate dates and values for specified date range
         ds_list = check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet)
@@ -116,7 +116,7 @@ def robyn_response(InputCollect=None,
     date_range_updated = ds_list['date_range_updated']
     metric_value_updated = val_list['metric_value_updated']
     all_values_updated = val_list['all_values_updated']
-    
+
     # Transform exposure to spend when necessary
     if metric_type == "exposure":
         get_spend_name = paid_media_spends[np.where(paid_media_vars == metric_name)]
@@ -245,8 +245,7 @@ def which_usecase(metric_value, date_range):
     elif len(metric_value) > 1 and not pd.isnull(date_range):
         usecase = "unit_metric_selected_dates"
 
-    if not pd.isnull(date_range):
-        if len(date_range) == 1 and date_range[0] == "all":
-            usecase = "all_historical_vec"
+    if date_range is not None and date_range == "all":
+        usecase = "all_historical_vec"
 
     return usecase
