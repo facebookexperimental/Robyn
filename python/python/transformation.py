@@ -63,7 +63,8 @@ def adstock_geometric(x, theta):
         for i in range(1, len(x)):
             thetaVecCum.append(thetaVecCum[i - 1] * theta)
     else:
-        x_decayed = [val[0] for val in x]
+        # x_decayed = [val[0] for val in x]
+        x_decayed = [val[0] if isinstance(val, (list, tuple)) else val for val in x]
         ##thetaVecCum = np.array([theta])
         thetaVecCum = list()
         thetaVecCum.append(theta)

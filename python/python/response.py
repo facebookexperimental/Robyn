@@ -146,17 +146,23 @@ def robyn_response(InputCollect=None,
         hpm_name = metric_name
 
     # Adstocking original
-    media_vec_origin = dt_input[metric_name][[1]]
+    # media_vec_origin = dt_input[metric_name][[1]]
+    media_vec_origin = dt_input[metric_name].tolist()
+
     theta = scale = shape = None
     if adstock == "geometric":
-        theta = dt_hyppar[dt_hyppar['solID'] == select_model][["{}{}".format(hpm_name, "_thetas")]][[1]]
+        theta_column_name = f"{hpm_name}_thetas"
+        theta = dt_hyppar[dt_hyppar['solID'] == select_model][theta_column_name].iloc[0]
+        # theta = dt_hyppar[dt_hyppar['solID'] == select_model][["{}{}".format(hpm_name, "_thetas")]][[1]]
     elif re.search("weibull", adstock):
-        shape = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_shapes")]][[1]]
-        scale = dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_scales")]][[1]]
+        shape_column_name = f"{hpm_name}_shapes"
+        shape = dt_hyppar[dt_hyppar['solID'] == select_model][shape_column_name].iloc[0]
+
+        scale_column_name = f"{hpm_name}_scales"
+        scale = dt_hyppar[dt_hyppar['solID'] == select_model][scale_column_name].iloc[0]
 
     x_list = transform_adstock(media_vec_origin, adstock, theta=theta, shape=shape, scale=scale)
     m_adstocked = x_list['x_decayed']
-    # net_carryover_ref = m_adstocked - media_vec_origin
 
     # Adstocking simulation
     x_list_sim = transform_adstock(all_values_updated, adstock, theta=theta, shape=shape, scale=scale)
@@ -168,8 +174,13 @@ def robyn_response(InputCollect=None,
 
     # Saturation
     m_adstockedRW = m_adstocked[startRW:endRW]
-    alpha = head(dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_alphas")]], 1)
-    gamma = head(dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_gammas")]], 1)
+    alpha_column_name = f"{hpm_name}_alphas"
+    alpha = dt_hyppar[dt_hyppar['solID'] == select_model][alpha_column_name].iloc[0]
+
+    gamma_column_name = f"{hpm_name}_gammas"
+    gamma = dt_hyppar[dt_hyppar['solID'] == select_model][gamma_column_name].iloc[0]
+    # alpha = head(dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_alphas")]], 1)
+    # gamma = head(dt_hyppar[dt_hyppar['solID'] == select_model, ][["{}{}".format(hpm_name, "_gammas")]], 1)
     if usecase == "all_historical_vec":
         metric_saturated_total = saturation_hill(x=m_adstockedRW, alpha=alpha, gamma=gamma)
         metric_saturated_carryover = saturation_hill(x=m_adstockedRW, alpha=alpha, gamma=gamma)
@@ -180,11 +191,17 @@ def robyn_response(InputCollect=None,
     metric_saturated_immediate = metric_saturated_total - metric_saturated_carryover
 
     # Decomp
-    coeff = dt_coef[dt_coef['solID'] == select_model & dt_coef['rn'] == hpm_name, ][['coef']]
+    coeff = dt_coef[(dt_coef['solID'] == select_model) & (dt_coef['rn'] == hpm_name)][['coefs']]
+
+    # metric_saturated_total = metric_saturated_total.reset_index(drop=True)
+
+
+    coeff_value = coeff.iloc[0]['coefs']
     m_saturated = saturation_hill(x=m_adstockedRW, alpha=alpha, gamma=gamma)
-    m_resposne = m_saturated * coeff
-    response_total = np.numeric(metric_saturated_total * coeff)
-    response_carryover = np.numeric(metric_saturated_carryover * coeff)
+    m_resposne = m_saturated * coeff_value
+
+    response_total = metric_saturated_total * coeff_value
+    response_carryover = metric_saturated_carryover * coeff_value
     response_immediate = response_total - response_carryover
 
     dt_line = pd.DataFrame({'metric': m_adstockedRW, 'response': m_resposne, 'channel': metric_name})
