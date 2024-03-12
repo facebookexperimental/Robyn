@@ -542,10 +542,10 @@ def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHyp
         quiet=True
     )
 
-    mean_spend_adstocked = np.mean(get_resp.input_total[startRW:endRW])
-    mean_carryover = np.mean(get_resp.input_carryover[startRW:endRW])
+    mean_spend_adstocked = np.mean(get_resp['input_total'][startRW:endRW])
+    mean_carryover = np.mean(get_resp['input_carryover'][startRW:endRW])
     dt_hyppar = resultHypParamPar[resultHypParamPar.solID == get_solID]
-    chnAdstocked = pd.DataFrame({get_spendname: get_resp.input_total[startRW:endRW]})
+    chnAdstocked = pd.DataFrame({get_spendname: get_resp['input_total'][startRW:endRW]})
     dt_coef = xDecompAggPar[xDecompAggPar.solID == get_solID & xDecompAggPar.rn == get_spendname][["rn", "coef"]]
     hills = get_hill_params(
         InputCollect, None, dt_hyppar, dt_coef,

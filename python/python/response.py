@@ -103,14 +103,14 @@ def robyn_response(InputCollect=None,
 
     if usecase == "all_historical_vec":
         # Calculate dates and values for all historical data
-        ds_list = check_metric_dates("all", all_dates[1:endRW], dayInterval, quiet)
+        ds_list = check_metric_dates("all", all_dates[0:endRW], dayInterval, quiet)
         metric_value = None
     elif usecase == "unit_metric_default_last_n":
         # Calculate dates and values for last n days
-        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[1:endRW], dayInterval, quiet)
+        ds_list = check_metric_dates("last_{}".format(len(metric_value)), all_dates[0:endRW], dayInterval, quiet)
     else:
         # Calculate dates and values for specified date range
-        ds_list = check_metric_dates(date_range, all_dates[1:endRW], dayInterval, quiet)
+        ds_list = check_metric_dates(date_range, all_dates[0:endRW], dayInterval, quiet)
 
     val_list = check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
     date_range_updated = ds_list['date_range_updated']
@@ -217,17 +217,15 @@ def robyn_response(InputCollect=None,
 
     # Plot optimal response
     p_res = plt.figure(figsize=(12, 6))
-    sns.lineplot(x='metric', y='response', data=dt_line)
-    sns.pointplot(x='input', y='output', data=dt_point, size=3)
-    sns.pointplot(x='input', y='output', data=dt_point_caov, size=3, shape=8)
-    sns.pointplot(x='input', y='output', data=dt_point_imme, size=3)
+    sns.lineplot(x='metric', y='response', data=dt_line, color="steelblue")
+    sns.scatterplot(x='input', y='output', data=dt_point, size=3)
+    sns.scatterplot(x='input', y='output', data=dt_point_caov, size=3, marker=8)
+    sns.scatterplot(x='input', y='output', data=dt_point_imme, size=3)
     plt.title(f"Saturation curve of {metric_name}")
-    plt.subtitle(f"Carryover* Response: {response_carryover} @ Input {input_carryover}")
-    plt.subtitle(f"Immediate Response: {response_immediate} @ Input {input_immediate}")
-    plt.subtitle(f"Total (C+I) Response: {response_total} @ Input {input_total}")
+    plt.text(0.5, 0.95, f"Carryover* Response: {response_carryover} @ Input {input_carryover} \nImmediate Response: {response_immediate} @ Input {input_immediate} \n Total (C+I) Response: {response_total} @ Input {input_total}")
     plt.xlabel('Input')
     plt.ylabel('Response')
-    plt.caption(f"Response period: {date_range_updated}")
+    plt.text(0.5, 0.05, f"Response period: {date_range_updated[0]} to {date_range_updated[-1]} [{len(date_range_updated)} periods]")
     plt.show()
 
     ret = {
