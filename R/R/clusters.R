@@ -165,6 +165,8 @@ robyn_clusters <- function(input, dep_var_type,
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages +
     # In min(data$x, na.rm = TRUE) : no non-missing arguments to min; returning Inf warnings
+    # Setting try() to avoid error: One or both dimensions exceed the maximum (50000px).
+    #   Use `options(ragg.max_dim = ...)` to change the max
     try(suppressMessages(suppressWarnings(ggsave(paste0(path, "pareto_clusters_detail.png"),
       plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
     ))))
