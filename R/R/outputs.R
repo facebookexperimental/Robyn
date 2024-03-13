@@ -160,43 +160,48 @@ robyn_outputs <- function(InputCollect, OutputModels,
       dep_var_type = InputCollect$dep_var_type,
       quiet = quiet, export = export, ...
     ))
-    OutputCollect$resultHypParam <- left_join(
-      OutputCollect$resultHypParam,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    )
-    OutputCollect$xDecompAgg <- left_join(
-      OutputCollect$xDecompAgg,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    ) %>%
-      left_join(
-        select(
-          clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean,
-          .data$boot_se, .data$ci_low, .data$ci_up, .data$rn
-        ),
-        by = c("rn", "cluster")
-      ) %>%
-      left_join(
-        pareto_results$df_caov_pct_all,
-        by = c("solID", "rn")
-      )
-    OutputCollect$mediaVecCollect <- left_join(
-      OutputCollect$mediaVecCollect,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    )
-    OutputCollect$xDecompVecCollect <- left_join(
-      OutputCollect$xDecompVecCollect,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    )
-    if (calibrated) {
-      OutputCollect$resultCalibration <- left_join(
-        OutputCollect$resultCalibration,
+    if ("data" %in% names(clusterCollect)) {
+      OutputCollect$resultHypParam <- left_join(
+        OutputCollect$resultHypParam,
         select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
         by = "solID"
       )
+      OutputCollect$xDecompAgg <- left_join(
+        OutputCollect$xDecompAgg,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      ) %>%
+        left_join(
+          select(
+            clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean,
+            .data$boot_se, .data$ci_low, .data$ci_up, .data$rn
+          ),
+          by = c("rn", "cluster")
+        ) %>%
+        left_join(
+          pareto_results$df_caov_pct_all,
+          by = c("solID", "rn")
+        )
+      OutputCollect$mediaVecCollect <- left_join(
+        OutputCollect$mediaVecCollect,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      )
+      OutputCollect$xDecompVecCollect <- left_join(
+        OutputCollect$xDecompVecCollect,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      )
+      if (calibrated) {
+        OutputCollect$resultCalibration <- left_join(
+          OutputCollect$resultCalibration,
+          select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+          by = "solID"
+        )
+      }
+    } else {
+      warning("> Skipped clustering because of memory issues")
+      clusters <- FALSE
     }
     OutputCollect[["clusters"]] <- clusterCollect
   }
@@ -228,7 +233,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
           )
         }
 
-        if (all_sol_json) {
+        if (all_sol_json && clusters) {
           pareto_df <- OutputCollect$resultHypParam %>%
             filter(!is.na(.data$cluster)) %>%
             select(c("solID", "cluster", "top_sol")) %>%
