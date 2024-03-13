@@ -118,7 +118,7 @@ robyn_clusters <- function(input, dep_var_type,
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
-  ts_validation <- ifelse(all(is.na(cls$df$nrmse_test)), FALSE, TRUE)
+  ts_validation <- ifelse("nrmse_test" %in% colnames(cls$df), TRUE, FALSE)
   top_sols <- .clusters_df(df = cls$df, all_paid, balance = weights, limit, ts_validation)
 
   # Build in-cluster CI with bootstrap
