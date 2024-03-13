@@ -233,10 +233,10 @@ robyn_outputs <- function(InputCollect, OutputModels,
           )
         }
 
-        if (all_sol_json && clusters) {
+        if (all_sol_json) {
           pareto_df <- OutputCollect$resultHypParam %>%
-            filter(!is.na(.data$cluster)) %>%
-            select(c("solID", "cluster", "top_sol")) %>%
+            filter(.data$solID %in% allSolutions) %>%
+            select(any_of(c("solID", "cluster", "top_sol"))) %>%
             arrange(.data$cluster, -.data$top_sol, .data$solID)
         } else {
           pareto_df <- NULL
