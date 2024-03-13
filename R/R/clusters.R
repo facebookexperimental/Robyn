@@ -18,6 +18,7 @@
 #' @param dep_var_type Character. For dep_var_type 'revenue', ROI is used for clustering.
 #' For conversion', CPA is used for clustering.
 #' @param cluster_by Character. Any of: "performance" or "hyperparameters".
+#' @param max_clusters Integer. Maximum number of clusters.
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
@@ -41,7 +42,7 @@
 robyn_clusters <- function(input, dep_var_type,
                            cluster_by = "hyperparameters",
                            all_media = NULL,
-                           k = "auto", wss_var = 0.06, limit = 1,
+                           k = "auto", wss_var = 0.06, max_clusters = 10, limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
@@ -96,12 +97,19 @@ robyn_clusters <- function(input, dep_var_type,
       filter(.data$dif > wss_var) %>%
       pull(.data$n) %>%
       max(., na.rm = TRUE)
-    if (k < min_clusters) k <- min_clusters
+    if (k < min_clusters) {
+      warning(sprintf("Too few clusters: %s. Setting to %s", k, min_clusters))
+      k <- min_clusters
+    }
     if (!quiet) {
       message(sprintf(
         ">> Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
         k, wss_var * 100
       ))
+    }
+    if (k > max_clusters) {
+      warning(sprintf("Too many clusters: %s. Lowering to %s (max_clusters)", k, max_clusters))
+      k <- max_clusters
     }
   }
 
@@ -157,9 +165,9 @@ robyn_clusters <- function(input, dep_var_type,
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
     # Suppressing "Picking joint bandwidth of x" messages +
     # In min(data$x, na.rm = TRUE) : no non-missing arguments to min; returning Inf warnings
-    suppressMessages(suppressWarnings(ggsave(paste0(path, "pareto_clusters_detail.png"),
+    try(suppressMessages(suppressWarnings(ggsave(paste0(path, "pareto_clusters_detail.png"),
       plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
-    )))
+    ))))
   }
 
   return(output)
