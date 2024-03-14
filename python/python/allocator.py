@@ -1128,9 +1128,9 @@ def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendS
             - "inflexions": The inflexions values.
             - "coefs_sorted": The sorted coefficients.
     """
-    hillHypParVec = dt_hyppar.loc[dt_hyppar.columns.str.extract(".*_alphas|.*_gammas", expand=False)]
-    alphas = hillHypParVec.loc[mediaSpendSorted + "_alphas"]
-    gammas = hillHypParVec.loc[mediaSpendSorted + "_gammas"]
+    hillHypParVec = dt_hyppar.loc[:, dt_hyppar.columns.str.contains("_alphas|_gammas")]
+    alphas = hillHypParVec.loc[:, mediaSpendSorted + "_alphas"]
+    gammas = hillHypParVec.loc[:, mediaSpendSorted + "_gammas"]
     if chnAdstocked is None:
         chnAdstocked = OutputCollect.mediaVecCollect.loc[OutputCollect.mediaVecCollect.type == "adstockedMedia", mediaSpendSorted].iloc[InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich]
     inflexions = np.array([(chnAdstocked.iloc[:, i] * (1 - gammas.iloc[i]) + gammas.iloc[i]) for i in range(len(mediaSpendSorted))])
