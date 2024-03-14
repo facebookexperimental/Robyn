@@ -15,10 +15,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import norm
 
-from .allocator import get_hill_params
+from .allocator import fx_objective, get_hill_params
 from .cluster import errors_scores
 from .response import robyn_response
 from .transformation import adstock_weibull, saturation_hill, transform_adstock
+from .model import model_decomp, run_transformations
 
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
@@ -255,7 +256,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 hypParam_thetas = hypParam[InputCollect["all_media"] + "_thetas"].values.tolist()
                 dt_geometric = pd.DataFrame({"channels": InputCollect["all_media"], "thetas": hypParam_thetas})
 
-            if InputCollect.adstock in ["weibull_cdf", "weibull_pdf"]:
+            if InputCollect["robyn_inputs"]["adstock"] in ["weibull_cdf", "weibull_pdf"]:
                 shapeVec = np.array([hypParam[f"{media}_shapes"] for media in InputCollect.all_media])
                 scaleVec = np.array([hypParam[f"{media}_scales"] for media in InputCollect.all_media])
                 wb_type = InputCollect.adstock[9:11]
@@ -546,7 +547,7 @@ def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHyp
     mean_carryover = np.mean(get_resp['input_carryover'][startRW:endRW])
     dt_hyppar = resultHypParamPar[resultHypParamPar.solID == get_solID]
     chnAdstocked = pd.DataFrame({get_spendname: get_resp['input_total'][startRW:endRW]})
-    dt_coef = xDecompAggPar[xDecompAggPar.solID == get_solID & xDecompAggPar.rn == get_spendname][["rn", "coef"]]
+    dt_coef = xDecompAggPar[(xDecompAggPar.solID == get_solID) & (xDecompAggPar.rn == get_spendname)][["rn", "coefs"]]
     hills = get_hill_params(
         InputCollect, None, dt_hyppar, dt_coef,
         mediaSpendSorted=get_spendname,
