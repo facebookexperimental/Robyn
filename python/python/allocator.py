@@ -1131,10 +1131,22 @@ def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendS
     hillHypParVec = dt_hyppar.loc[:, dt_hyppar.columns.str.contains("_alphas|_gammas")]
     alphas = hillHypParVec.loc[:, mediaSpendSorted + "_alphas"]
     gammas = hillHypParVec.loc[:, mediaSpendSorted + "_gammas"]
+
     if chnAdstocked is None:
-        chnAdstocked = OutputCollect.mediaVecCollect.loc[OutputCollect.mediaVecCollect.type == "adstockedMedia", mediaSpendSorted].iloc[InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich]
-    inflexions = np.array([(chnAdstocked.iloc[:, i] * (1 - gammas.iloc[i]) + gammas.iloc[i]) for i in range(len(mediaSpendSorted))])
-    inflexions = pd.Series(inflexions, index=gammas.index)
-    coefs = dt_coef.coef
-    coefs_sorted = coefs.loc[mediaSpendSorted]
-    return {"alphas": alphas, "inflexions": inflexions, "coefs_sorted": coefs_sorted}
+        chnAdstocked = OutputCollect.loc[OutputCollect['type'] == 'adstockedMedia'][['solID'] == select_model][mediaSpendSorted].iloc[InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich]
+
+   # Create a list to store the inflexions
+    inflexions = []
+    # Loop over each column of chnAdstocked
+    for i in range(chnAdstocked.shape[1]):
+        # Calculate the inflexion point for the current column
+        inflexions.append((np.max(chnAdstocked.iloc[:, i-1]) - np.min(chnAdstocked.iloc[:, i-1])) * np.array([1 - gammas.values[i] + gammas.values[i]]))
+
+    # Convert the list into a NumPy array
+    inflexions = pd.Series(inflexions, index=gammas.index, name=gammas.name)
+
+
+    coefs = dt_coef.set_index('rn').loc[mediaSpendSorted]['coefs']
+    coefs_sorted = pd.Series(coefs, index=dt_coef.index, name=dt_coef['rn'].values[0])
+
+    return {'alphas': alphas, 'inflexions': inflexions, 'coefs_sorted': coefs_sorted}

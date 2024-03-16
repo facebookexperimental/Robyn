@@ -19,7 +19,7 @@ from .allocator import fx_objective, get_hill_params
 from .cluster import errors_scores
 from .response import robyn_response
 from .transformation import adstock_weibull, saturation_hill, transform_adstock
-from .model import model_decomp, run_transformations
+# from .model import model_decomp, run_transformations
 
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
@@ -174,9 +174,6 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         resp_collect = pd.concat(
             [run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, **kwargs) for respN in range(len(decompSpendDistPar["rn"]))]
         )
-        stopImplicitCluster()
-        registerDoSEQ()
-        getDoParWorkers()
     else:
         resp_collect = pd.concat(
             [run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, **kwargs) for respN in range(len(decompSpendDistPar["rn"]))]
@@ -202,17 +199,17 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
     xDecompVecCollect = []
     plotDataCollect = []
     df_caov_pct_all = pd.DataFrame()
-    dt_mod = InputCollect["dt_mod"]
-    dt_modRollWind = InputCollect["dt_modRollWind"]
-    rw_start_loc = InputCollect["rollingWindowStartWhich"]
-    rw_end_loc = InputCollect["rollingWindowEndWhich"]
+    dt_mod = InputCollect["robyn_inputs"]["dt_mod"]
+    dt_modRollWind = InputCollect["robyn_inputs"]["dt_modRollWind"]
+    rw_start_loc = InputCollect["robyn_inputs"]["rollingWindowStartWhich"]
+    rw_end_loc = InputCollect["robyn_inputs"]["rollingWindowEndWhich"]
 
     for pf in pareto_fronts_vec:
-        plotMediaShare = InputCollect[
-            (InputCollect["robynPareto"] == pf) & (InputCollect["rn"].isin(OutputModels["paid_media_spends"]))
+        plotMediaShare = xDecompAgg[
+            (xDecompAgg["robynPareto"] == pf) & (xDecompAgg["rn"].isin(InputCollect["robyn_inputs"]["paid_media_spends"]))
         ]
         uniqueSol = plotMediaShare["solID"].unique()
-        plotWaterfall = OutputModels[OutputModels["robynPareto"] == pf]
+        plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
         if not quiet and len(uniqueSol) > 1:
             print(f">> Pareto-Front: {pf} [{len(uniqueSol)} models]")
 
@@ -249,23 +246,23 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
             ## 3. Adstock rate
             dt_geometric = weibullCollect = wb_type = None
-            resultHypParamLoop = OutputModels[OutputModels["solID"] == sid]
-            get_hp_names = [name for name in InputCollect["hyperparameters"].keys() if not name.endswith("_penalty")]
+            resultHypParamLoop = resultHypParam[resultHypParam["solID"] == sid]
+            get_hp_names = [name for name in InputCollect["robyn_inputs"]["hyperparameters"].keys() if not name.endswith("_penalty")]
             hypParam = resultHypParamLoop[get_hp_names]
-            if InputCollect["adstock"] == "geometric":
-                hypParam_thetas = hypParam[InputCollect["all_media"] + "_thetas"].values.tolist()
-                dt_geometric = pd.DataFrame({"channels": InputCollect["all_media"], "thetas": hypParam_thetas})
+            if InputCollect["robyn_inputs"]["adstock"] == "geometric":
+                hypParam_thetas = np.array([hypParam[f"{media}_thetas"] for media in InputCollect["robyn_inputs"]["all_media"]])
+                dt_geometric = pd.DataFrame({"channels": InputCollect["robyn_inputs"]["all_media"], "thetas": hypParam_thetas.flatten()})
 
             if InputCollect["robyn_inputs"]["adstock"] in ["weibull_cdf", "weibull_pdf"]:
-                shapeVec = np.array([hypParam[f"{media}_shapes"] for media in InputCollect.all_media])
-                scaleVec = np.array([hypParam[f"{media}_scales"] for media in InputCollect.all_media])
-                wb_type = InputCollect.adstock[9:11]
+                shapeVec = np.array([hypParam[f"{media}_shapes"] for media in InputCollect["robyn_inputs"]["all_media"]])
+                scaleVec = np.array([hypParam[f"{media}_scales"] for media in InputCollect["robyn_inputs"]["all_media"]])
+                wb_type = InputCollect["robyn_inputs"]["adstock"][9:11]
                 weibullCollect = []
                 n = 1
-                for v1 in range(len(InputCollect.all_media)):
+                for v1 in range(len(InputCollect["robyn_inputs"]["all_media"])):
                     dt_weibull = pd.DataFrame(
                         {
-                            "x": list(range(1, InputCollect.rollingWindowLength + 1)),
+                            "x": list(range(1, InputCollect["robyn_inputs"][rollingWindowLength + 1])),
                             "decay_accumulated": adstock_weibull(
                                 list(range(1, InputCollect.rollingWindowLength + 1)),
                                 shape=shapeVec[v1],
@@ -273,7 +270,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                                 type=wb_type
                             ).thetaVecCum,
                             "type": wb_type,
-                            "channel": InputCollect.all_media[v1]
+                            "channel": InputCollect["robyn_inputs"]["all_media"][v1]
                         }
                     )
                     dt_weibull["halflife"] = np.argmin(np.abs(dt_weibull.decay_accumulated - 0.5))
@@ -283,20 +280,37 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                     n += 1
                 weibullCollect = pd.concat(weibullCollect)
                 weibullCollect = weibullCollect.loc[weibullCollect.x <= weibullCollect.cut_time.max()]
+                wb_type = wb_type.upper()
             plot3data = {
                 "dt_geometric": dt_geometric,
                 "weibullCollect": weibullCollect,
-                "wb_type": wb_type.upper()
+                "wb_type": wb_type
             }
+            ## 4. Spend response curve
+            # Select columns from dt_mod for independent variables
+            dt_transformPlot = dt_mod[["ds"] + InputCollect["robyn_inputs"]["all_media"]]
+            # Add paid media spends to dt_transformPlot
+            dt_transformSpend = pd.concat([dt_transformPlot[["ds"]], InputCollect["robyn_inputs"]["dt_input"][InputCollect["robyn_inputs"]["paid_media_spends"]]], axis=1)
+            # Select rows within rolling window
+            dt_transformSpendMod = dt_transformPlot.iloc[rw_start_loc:rw_end_loc, :]
+
+            # Update non-spend variables
+            # if len(InputCollect["robyn_inputs"]["exposure_vars"]) > 0:
+            #     for expo in InputCollect["robyn_inputs"]["exposure_vars"]:
+            #         sel_nls = InputCollect["robyn_inputs"]["modNLSCollect"].loc[(InputCollect["robyn_inputs"]["modNLSCollect"]["channel"] == expo)
+            #         & (InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_nls"] > InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_lm"]), "rsq_nls"].iloc[0] > InputCollect["robyn_inputs"]["modNLSCollect"].loc[(InputCollect["robyn_inputs"]["modNLSCollect"]["channel"] == expo)
+            #         & (InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_nls"] > InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_lm"]), "rsq_lm"].iloc[0]
+            #         dt_transformSpendMod.loc[:, expo] = InputCollect.yhatNLSCollect.loc[(InputCollect.yhatNLSCollect["channel"] == expo) & (InputCollect.yhatNLSCollect["models"] == sel_nls), "yhat"].values
+
             dt_transformAdstock = dt_transformPlot
             dt_transformSaturation = dt_transformPlot.iloc[rw_start_loc:rw_end_loc]
 
             m_decayRate = []
-            for med in range(len(InputCollect.all_media)):
-                med_select = InputCollect.all_media[med]
+            for med in range(len(InputCollect["robyn_inputs"]["all_media"])):
+                med_select = InputCollect["robyn_inputs"]["all_media"][med]
                 m = dt_transformPlot.loc[:, med_select].iloc[0]
                 # Adstocking
-                adstock = InputCollect.adstock
+                adstock = InputCollect["robyn_inputs"]["adstock"]
                 if adstock == "geometric":
                     theta = hypParam[f"{med_select}_thetas"][0]
                 if adstock.startswith("weibull"):
@@ -313,9 +327,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                     x=m_adstockedRollWind, alpha=alpha, gamma=gamma
                 )
             dt_transformSaturationDecomp = dt_transformSaturation
-            for i in range(InputCollect.mediaVarCount):
-                coef = plotWaterfall.loc[plotWaterfall.rn == InputCollect.all_media[i], "coef"].values[0]
-                dt_transformSaturationDecomp.loc[:, InputCollect.all_media[i]] = coef * dt_transformSaturationDecomp.loc[:, InputCollect.all_media[i]]
+            for i in range(InputCollect["robyn_inputs"]["mediaVarCount"]):
+                coef = plotWaterfall.loc[plotWaterfall.rn == InputCollect["robyn_inputs"]["all_media"][i], "coef"].values[0]
+                dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]] = coef * dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]]
             dt_transformSaturationSpendReverse = dt_transformAdstock.loc[rw_start_loc:rw_end_loc, :]
 
             dt_scurvePlot = pd.melt(
@@ -527,8 +541,8 @@ def get_pareto_fronts(pareto_fronts):
 
 
 def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, **kwargs):
-    get_solID = decompSpendDistPar.solID[respN]
-    get_spendname = decompSpendDistPar.rn[respN]
+    get_solID = decompSpendDistPar.solID.values[respN]
+    get_spendname = decompSpendDistPar.rn.values[respN]
     startRW = InputCollect["robyn_inputs"]["rollingWindowStartWhich"]
     endRW = InputCollect["robyn_inputs"]["rollingWindowEndWhich"]
 
@@ -555,10 +569,10 @@ def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHyp
         chnAdstocked=chnAdstocked
     )
     mean_response = fx_objective(
-        x=decompSpendDistPar.mean_spend[respN],
-        coeff=hills.coefs_sorted,
-        alpha=hills.alphas,
-        inflexion=hills.inflexions,
+        x=decompSpendDistPar.mean_spend.values[respN],
+        coeff=hills['coefs_sorted'],
+        alpha=hills['alphas'],
+        inflexion=hills['inflexions'],
         x_hist_carryover=mean_carryover,
         get_sum=False
     )
@@ -566,7 +580,7 @@ def run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHyp
         "mean_response": mean_response,
         "mean_spend_adstocked": mean_spend_adstocked,
         "mean_carryover": mean_carryover,
-        "rn": decompSpendDistPar.rn[respN],
-        "solID": decompSpendDistPar.solID[respN]
+        "rn": decompSpendDistPar.rn.values[respN],
+        "solID": decompSpendDistPar.solID.values[respN]
     })
     return dt_resp

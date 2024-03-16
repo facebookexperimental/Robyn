@@ -226,7 +226,6 @@ def robyn_response(InputCollect=None,
     plt.xlabel('Input')
     plt.ylabel('Response')
     plt.text(0.5, 0.05, f"Response period: {date_range_updated[0]} to {date_range_updated[-1]} [{len(date_range_updated)} periods]")
-    plt.show()
 
     ret = {
         'metric_name': metric_name,
