@@ -206,7 +206,7 @@ def transform_adstock(x, adstock, theta=None, shape=None, scale=None, windlen=No
 
     """
     ## Added manually since Python function signature fails getting len of x
-    if windlen is None:
+    if windlen != None:
         windlen = len(x)
 
     ## Added manually, LLaMa didn't get this one

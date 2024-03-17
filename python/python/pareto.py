@@ -167,7 +167,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         xDecompAggPar = xDecompAgg[xDecompAgg['robynPareto'].isin(pareto_fronts_vec)]
         respN = None
 
-    if not quiet:
+    if not quiet:        
         print(f">>> Calculating response curves for all models' media variables ({decompSpendDistPar.shape[0]})...")
 
     if OutputModels["metadata"]["cores"] > 1:
@@ -308,8 +308,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             m_decayRate = []
             for med in range(len(InputCollect["robyn_inputs"]["all_media"])):
                 med_select = InputCollect["robyn_inputs"]["all_media"][med]
-                m = dt_transformPlot.loc[:, med_select].iloc[0]
+                m = dt_transformPlot[med_select]
                 # Adstocking
+                theta, shape, scale = None, None, None
                 adstock = InputCollect["robyn_inputs"]["adstock"]
                 if adstock == "geometric":
                     theta = hypParam[f"{med_select}_thetas"][0]
@@ -328,13 +329,13 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 )
             dt_transformSaturationDecomp = dt_transformSaturation
             for i in range(InputCollect["robyn_inputs"]["mediaVarCount"]):
-                coef = plotWaterfall.loc[plotWaterfall.rn == InputCollect["robyn_inputs"]["all_media"][i], "coef"].values[0]
-                dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]] = coef * dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]]
+                coefs = plotWaterfall.loc[plotWaterfall.rn == InputCollect["robyn_inputs"]["all_media"][i], "coefs"].values[0]
+                dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]] = coefs * dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]]
             dt_transformSaturationSpendReverse = dt_transformAdstock.loc[rw_start_loc:rw_end_loc, :]
 
             dt_scurvePlot = pd.melt(
                 dt_transformSaturationDecomp,
-                id_vars=["channel"],
+                id_vars="channel",
                 var_name="response",
                 value_name="spend"
             ).assign(spend=lambda df: dt_transformSaturationSpendReverse.loc[:, df.channel].values)
@@ -360,7 +361,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 right_on="ds",
                 how="left"
             )
-            xDecompVec = xDecompAgg[xDecompAgg.solID == sid][["solID", "rn", "coef"]].set_index("rn")
+            xDecompVec = xDecompAgg[xDecompAgg.solID == sid][["solID", "rn", "coefs"]].set_index("rn")
             if "(Intercept)" not in xDecompVec.columns:
                 xDecompVec["(Intercept)"] = 0
             xDecompVec = xDecompVec.loc[col_order[~col_order.isin(["ds", "dep_var"])]].reset_index()
@@ -392,7 +393,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             # temp = xDecompVecImmCarr[xDecompVecImmCarr.solID == sid]
             hypParamSam = resultHypParam[resultHypParam.solID == sid]
             dt_saturated_dfs = run_transformations(InputCollect, hypParamSam, adstock)
-            coefs = xDecompAgg['coef'][xDecompAgg.solID == sid]
+            coefs = xDecompAgg['coefs'][xDecompAgg["solID"] == sid]
             ##names(coefs) = xDecompAgg['rn'][xDecompAgg['solID'] == sid]
             coefs.columns = xDecompAgg['rn'][xDecompAgg['solID'] == sid]
             decompCollect = model_decomp(
