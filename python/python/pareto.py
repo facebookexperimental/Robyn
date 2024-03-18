@@ -167,7 +167,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         xDecompAggPar = xDecompAgg[xDecompAgg['robynPareto'].isin(pareto_fronts_vec)]
         respN = None
 
-    if not quiet:        
+    if not quiet:
         print(f">>> Calculating response curves for all models' media variables ({decompSpendDistPar.shape[0]})...")
 
     if OutputModels["metadata"]["cores"] > 1:
@@ -333,19 +333,22 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]] = coefs * dt_transformSaturationDecomp.loc[:, InputCollect["robyn_inputs"]["all_media"][i]]
             dt_transformSaturationSpendReverse = dt_transformAdstock.loc[rw_start_loc:rw_end_loc, :]
 
-            dt_scurvePlot = pd.melt(
-                dt_transformSaturationDecomp,
-                id_vars="channel",
-                var_name="response",
-                value_name="spend"
-            ).assign(spend=lambda df: dt_transformSaturationSpendReverse.loc[:, df.channel].values)
+            dt_scurvePlot = pd.melt(dt_transformSaturationDecomp, id_vars='ds', var_name='channel', value_name='response')
+
+            dt_spend = pd.melt(dt_transformSaturationSpendReverse, id_vars='ds', var_name='channel', value_name='spend')
+            dt_scurvePlot['channel'] = dt_scurvePlot['channel'].apply(lambda x: x.replace('_S', ''))
+            dt_spend['channel'] = dt_spend['channel'].apply(lambda x: x.replace('_S', ''))
+            dt_scurvePlot = pd.merge(dt_scurvePlot, dt_spend, on=['ds', 'channel'], how='left')
 
             # Remove outlier introduced by MM nls fitting
             dt_scurvePlot = dt_scurvePlot.loc[dt_scurvePlot.spend >= 0, :]
-            dt_scurvePlotMean = plotWaterfall.loc[
-                (plotWaterfall.solID == sid) & (~pd.isna(plotWaterfall.mean_spend)),
-                ["channel", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"]
-            ].rename(columns={"channel": "rn"})
+            # dt_scurvePlotMean = plotWaterfall.loc[
+            #     (plotWaterfall.solID == sid) & (~pd.isna(plotWaterfall.mean_spend)),
+            #     ["channel", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"]
+            # ].rename(columns={"channel": "rn"})
+            dt_scurvePlotMean = plotWaterfall.loc[(plotWaterfall.solID == sid) & (~pd.isna(plotWaterfall.mean_spend)),
+                ["rn", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"]
+            ].rename(columns={"rn": "channel"})
 
             # Exposure response curve
             plot4data = {
@@ -354,43 +357,45 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             }
 
             # 5. Fitted vs actual
-            col_order = ["ds", "dep_var"] + InputCollect.all_ind_vars
-            dt_transformDecomp = dt_modRollWind.merge(
-                dt_transformSaturation[InputCollect.all_media],
-                left_on="ds",
-                right_on="ds",
-                how="left"
-            )
-            xDecompVec = xDecompAgg[xDecompAgg.solID == sid][["solID", "rn", "coefs"]].set_index("rn")
-            if "(Intercept)" not in xDecompVec.columns:
-                xDecompVec["(Intercept)"] = 0
-            xDecompVec = xDecompVec.loc[col_order[~col_order.isin(["ds", "dep_var"])]].reset_index()
-            intercept = xDecompVec.iloc[0]["(Intercept)"]
-            xDecompVec = dt_transformDecomp.merge(
-                xDecompVec,
-                left_on=["ds"] + col_order[~col_order.isin(["ds", "dep_var"])],
-                right_on=["ds"] + col_order[~col_order.isin(["ds", "dep_var"])],
-                how="left"
-            )
-            xDecompVec["intercept"] = intercept
-            xDecompVec["depVarHat"] = xDecompVec.sum(axis=1) + intercept
-            xDecompVec["solID"] = sid
-            xDecompVecPlot = xDecompVec[["ds", "dep_var", "depVarHat"]]
-            xDecompVecPlotMelted = pd.melt(
-                xDecompVecPlot,
-                id_vars=["ds"],
-                value_vars=["actual", "predicted"],
-                var_name="variable",
-                value_name="value"
-            )
-            rsq = xDecompAgg[xDecompAgg.solID == sid]["rsq_train"].iloc[0]
+            selected_columns = ['ds', 'dep_var'] + InputCollect['robyn_inputs']['prophet_vars'] + InputCollect['robyn_inputs']['context_vars']
+            media_columns = InputCollect['robyn_inputs']['all_media']
+            dt_transformDecomp = pd.concat([
+                dt_modRollWind[selected_columns],
+                dt_transformSaturation[media_columns]
+            ], axis=1)
+
+            col_order = ["ds", "dep_var"] + InputCollect['robyn_inputs']['all_ind_vars']
+            dt_transformDecomp = dt_transformDecomp[col_order]
+            filtered_df = xDecompAgg[xDecompAgg['solID'] == sid][['solID', 'rn', 'coefs']]
+            filtered_df_agg = filtered_df.groupby(['solID', 'rn']).agg({'coefs': 'sum'}).reset_index()
+            xDecompVec = filtered_df_agg.pivot(index='solID', columns='rn', values='coefs').reset_index()
+            xDecompVec['(Intercept)'] = xDecompVec.get('(Intercept)', 0)
+            relevant_cols = [col for col in col_order if col not in ['ds', 'dep_var', 'solID', '(Intercept)'] and col in xDecompVec.columns]
+            relevant_cols = ['solID', '(Intercept)'] + relevant_cols
+            xDecompVec = xDecompVec[relevant_cols]
+            intercept = xDecompVec['(Intercept)']
+            dt_transformDecomp = dt_transformDecomp.loc[:,~dt_transformDecomp.columns.duplicated()]
+            dt_relevant = dt_transformDecomp
+
+            for col in relevant_cols[2:]:
+                coefficient_value = xDecompVec[col].values[0]
+                dt_relevant[col] = dt_relevant[col] * coefficient_value
+
+            numeric_cols = dt_relevant.select_dtypes(include=[np.number])
+            dt_relevant['depVarHat'] = numeric_cols.sum(axis=1) + intercept.values[0]
+
+            dt_relevant.reset_index(inplace=True)
+            dt_relevant['dep_var'] = dt_transformDecomp.set_index('ds')['dep_var']
+            xDecompVec = dt_relevant[['ds', 'dep_var', 'depVarHat']]
+            xDecompVecPlot = dt_transformDecomp[['ds', 'dep_var', 'depVarHat']].rename(columns={"dep_var": "actual", "depVarHat": "predicted"})
+            xDecompVecPlotMelted = pd.melt(xDecompVecPlot, id_vars=["ds"], value_vars=["actual", "predicted"], var_name="variable", value_name="value")
+            rsq = xDecompAgg[xDecompAgg['solID'] == sid]['rsq_train'].iloc[0]
             plot5data = {"xDecompVecPlotMelted": xDecompVecPlotMelted, "rsq": rsq}
 
             # 6. Diagnostic: fitted vs residual
             plot6data = {"xDecompVecPlot": xDecompVecPlot}
 
             # 7. Immediate vs carryover response
-            # temp = xDecompVecImmCarr[xDecompVecImmCarr.solID == sid]
             hypParamSam = resultHypParam[resultHypParam.solID == sid]
             dt_saturated_dfs = run_transformations(InputCollect, hypParamSam, adstock)
             coefs = xDecompAgg['coefs'][xDecompAgg["solID"] == sid]

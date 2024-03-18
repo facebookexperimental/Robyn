@@ -20,6 +20,8 @@ from .transformation import saturation_hill, transform_adstock
 from .checks import check_metric_dates, check_metric_type, check_metric_value
 import seaborn as sns
 
+plt.ioff()
+
 def robyn_response(InputCollect=None,
                    OutputCollect=None,
                    json_file=None,
@@ -216,16 +218,17 @@ def robyn_response(InputCollect=None,
         dt_point_imme = pd.DataFrame({'input': input_immediate, 'output': response_immediate})
 
     # Plot optimal response
-    p_res = plt.figure(figsize=(12, 6))
-    sns.lineplot(x='metric', y='response', data=dt_line, color="steelblue")
-    sns.scatterplot(x='input', y='output', data=dt_point, size=3)
-    sns.scatterplot(x='input', y='output', data=dt_point_caov, size=3, marker=8)
-    sns.scatterplot(x='input', y='output', data=dt_point_imme, size=3)
-    plt.title(f"Saturation curve of {metric_name}")
-    plt.text(0.5, 0.95, f"Carryover* Response: {response_carryover} @ Input {input_carryover} \nImmediate Response: {response_immediate} @ Input {input_immediate} \n Total (C+I) Response: {response_total} @ Input {input_total}")
-    plt.xlabel('Input')
-    plt.ylabel('Response')
-    plt.text(0.5, 0.05, f"Response period: {date_range_updated[0]} to {date_range_updated[-1]} [{len(date_range_updated)} periods]")
+    # p_res = plt.figure(figsize=(12, 6))
+    # sns.lineplot(x='metric', y='response', data=dt_line, color="steelblue")
+    # sns.scatterplot(x='input', y='output', data=dt_point, size=3)
+    # sns.scatterplot(x='input', y='output', data=dt_point_caov, size=3, marker=8)
+    # sns.scatterplot(x='input', y='output', data=dt_point_imme, size=3)
+    # plt.title(f"Saturation curve of {metric_name}")
+    # plt.text(0.5, 0.95, f"Carryover* Response: {response_carryover} @ Input {input_carryover} \nImmediate Response: {response_immediate} @ Input {input_immediate} \n Total (C+I) Response: {response_total} @ Input {input_total}")
+    # plt.xlabel('Input')
+    # plt.ylabel('Response')
+    # plt.text(0.5, 0.05, f"Response period: {date_range_updated[0]} to {date_range_updated[-1]} [{len(date_range_updated)} periods]")
+    # plt.show()
 
     ret = {
         'metric_name': metric_name,
@@ -237,7 +240,8 @@ def robyn_response(InputCollect=None,
         'response_carryover': response_carryover,
         'response_immediate': response_immediate,
         'usecase': usecase,
-        'plot': p_res
+        # 'plot': p_res
+        'plot': None
     }
     return ret
 
