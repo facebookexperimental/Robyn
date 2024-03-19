@@ -18,8 +18,8 @@ from scipy.stats import norm
 from .allocator import fx_objective, get_hill_params
 from .cluster import errors_scores
 from .response import robyn_response
-from .transformation import adstock_weibull, saturation_hill, transform_adstock
-# from .model import model_decomp, run_transformations
+from .transformation import adstock_weibull, saturation_hill, transform_adstock, run_transformations
+#from .model import model_decomp
 
 
 def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidates=100, calibration_constraint=0.1, quiet=False, calibrated=False, **kwargs):
@@ -182,7 +182,8 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
     decompSpendDist = pd.merge(
         decompSpendDist,
         resp_collect,
-        on=["solID", "rn"]
+        on=["solID", "rn"],
+        how='left'
     )
     decompSpendDist["roi_mean"] = decompSpendDist["mean_response"] / decompSpendDist["mean_spend"]
     decompSpendDist["roi_total"] = decompSpendDist["xDecompAgg"] / decompSpendDist["total_spend"]
@@ -192,7 +193,8 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
     xDecompAgg = pd.merge(
         xDecompAgg,
         decompSpendDist[["rn", "solID", "total_spend", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "spend_share", "effect_share", "roi_mean", "roi_total", "cpa_total"]],
-        on=["solID", "rn"]
+        on=["solID", "rn"],
+        how='left'
     )
 
     mediaVecCollect = []
@@ -294,14 +296,6 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             # Select rows within rolling window
             dt_transformSpendMod = dt_transformPlot.iloc[rw_start_loc:rw_end_loc, :]
 
-            # Update non-spend variables
-            # if len(InputCollect["robyn_inputs"]["exposure_vars"]) > 0:
-            #     for expo in InputCollect["robyn_inputs"]["exposure_vars"]:
-            #         sel_nls = InputCollect["robyn_inputs"]["modNLSCollect"].loc[(InputCollect["robyn_inputs"]["modNLSCollect"]["channel"] == expo)
-            #         & (InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_nls"] > InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_lm"]), "rsq_nls"].iloc[0] > InputCollect["robyn_inputs"]["modNLSCollect"].loc[(InputCollect["robyn_inputs"]["modNLSCollect"]["channel"] == expo)
-            #         & (InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_nls"] > InputCollect["robyn_inputs"]["modNLSCollect"]["rsq_lm"]), "rsq_lm"].iloc[0]
-            #         dt_transformSpendMod.loc[:, expo] = InputCollect.yhatNLSCollect.loc[(InputCollect.yhatNLSCollect["channel"] == expo) & (InputCollect.yhatNLSCollect["models"] == sel_nls), "yhat"].values
-
             dt_transformAdstock = dt_transformPlot
             dt_transformSaturation = dt_transformPlot.iloc[rw_start_loc:rw_end_loc]
 
@@ -342,10 +336,6 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
             # Remove outlier introduced by MM nls fitting
             dt_scurvePlot = dt_scurvePlot.loc[dt_scurvePlot.spend >= 0, :]
-            # dt_scurvePlotMean = plotWaterfall.loc[
-            #     (plotWaterfall.solID == sid) & (~pd.isna(plotWaterfall.mean_spend)),
-            #     ["channel", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"]
-            # ].rename(columns={"channel": "rn"})
             dt_scurvePlotMean = plotWaterfall.loc[(plotWaterfall.solID == sid) & (~pd.isna(plotWaterfall.mean_spend)),
                 ["rn", "mean_spend", "mean_spend_adstocked", "mean_carryover", "mean_response", "solID"]
             ].rename(columns={"rn": "channel"})
@@ -399,16 +389,24 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             hypParamSam = resultHypParam[resultHypParam.solID == sid]
             dt_saturated_dfs = run_transformations(InputCollect, hypParamSam, adstock)
             coefs = xDecompAgg['coefs'][xDecompAgg["solID"] == sid]
-            ##names(coefs) = xDecompAgg['rn'][xDecompAgg['solID'] == sid]
-            coefs.columns = xDecompAgg['rn'][xDecompAgg['solID'] == sid]
+            coefs.index = xDecompAgg['rn'][xDecompAgg['solID'] == sid].values
+            coefs = coefs.rename('s0').to_frame()
+
+            df_reset = coefs.reset_index()
+            df_deduped = df_reset.drop_duplicates(subset=['index'], keep='first')
+            coefs = df_deduped.set_index('index')
+            coefs.index.name = 'rn'
+
+            from .model import model_decomp
+
             decompCollect = model_decomp(
                 coefs=coefs,
-                y_pred=dt_saturated_dfs.dt_modSaturated.dep_var,
-                dt_modSaturated=dt_saturated_dfs.dt_modSaturated,
-                dt_saturatedImmediate=dt_saturated_dfs.dt_saturatedImmediate,
-                dt_saturatedCarryover=dt_saturated_dfs.dt_saturatedCarryover,
+                y_pred=dt_saturated_dfs["dt_modSaturated"]["dep_var"],
+                dt_modSaturated=dt_saturated_dfs["dt_modSaturated"],
+                dt_saturatedImmediate=dt_saturated_dfs["dt_saturatedImmediate"],
+                dt_saturatedCarryover=dt_saturated_dfs["dt_saturatedCarryover"],
                 dt_modRollWind=dt_modRollWind,
-                refreshAddedStart=InputCollect.refreshAddedStart
+                refreshAddedStart=InputCollect["robyn_inputs"]["refreshAddedStart"]
             )
             mediaDecompImmediate = decompCollect.mediaDecompImmediate.drop(
                 columns=["ds", "y"]

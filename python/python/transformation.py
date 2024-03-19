@@ -52,16 +52,24 @@ def adstock_geometric(x, theta):
         raise ValueError("Theta can not be Null")
 
     if len(x) > 1:
-        ## x_decayed = np.array([x[0], 0] * (len(x) - 1))
-        x_decayed = list()
-        x_decayed.append(x[0])
-        x_decayed.extend(np.repeat(0, len(x) - 1))
+        x_decayed = [x[0]]
         for i in range(1, len(x)):
-            x_decayed[i] = x[i] + theta * x_decayed[i - 1]
-        thetaVecCum = list()
-        thetaVecCum.append(theta)
+            decayed_value = x[i] + theta * x_decayed[i - 1]
+            if not np.isscalar(decayed_value):
+                decayed_value = decayed_value.iloc[0]
+            x_decayed.append(decayed_value)
+        x_decayed = np.array(x_decayed)
+
+        if not np.isscalar(theta):
+            theta = theta.iloc[0]
+        thetaVecCum = [theta]
         for i in range(1, len(x)):
-            thetaVecCum.append(thetaVecCum[i - 1] * theta)
+            cum_value = thetaVecCum[i - 1] * theta
+            if not np.isscalar(cum_value):
+                cum_value = cum_value.iloc[0]
+            thetaVecCum.append(cum_value)
+        thetaVecCum = np.array(thetaVecCum)
+
     else:
         # x_decayed = [val[0] for val in x]
         x_decayed = [val[0] if isinstance(val, (list, tuple)) else val for val in x]
@@ -259,6 +267,10 @@ def saturation_hill(x, alpha, gamma, x_marginal=None):
     if alpha is None or gamma is None:
         raise ValueError("Alpha and Gamma cannot be None")
 
+    if not np.isscalar(gamma):
+        gamma = gamma.iloc[0]
+    if not np.isscalar(alpha):
+        alpha = alpha.iloc[0]
     inflexion = np.dot(np.array([1 - gamma, gamma]), np.array([np.min(x), np.max(x)]))
     if x_marginal is None:
         x_scurve = x**alpha / (x**alpha + np.power(inflexion, alpha))
@@ -482,6 +494,9 @@ def run_transformations(input_collect, hyp_param_sam, adstock):
             - dt_saturatedImmediate (pd.DataFrame): The saturated immediate data frame.
             - dt_saturatedCarryover (pd.DataFrame): The saturated carryover data frame.
     """
+
+    if "robyn_inputs" in input_collect:
+        input_collect = input_collect["robyn_inputs"]
 
     # Extract the media names from the input collect dataframe
     all_media = input_collect["all_media"]

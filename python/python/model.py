@@ -414,9 +414,9 @@ def robyn_mmm(InputCollect,
     ##                      "Please check the installation instructions: "
     ##                      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R")
 
-    if isinstance(seed, int):
-        np.random.seed(124)
-        random.seed(124)
+    #if isinstance(seed, int):
+    #    np.random.seed(124)
+    #    random.seed(124)
 
     ################################################
     #### Collect hyperparameters
@@ -989,7 +989,11 @@ def model_decomp(coefs, y_pred, dt_modSaturated, dt_saturatedImmediate,
     y = dt_modSaturated['dep_var']
     x = dt_modSaturated.drop(columns=['dep_var'])
 
+    #print("--------- coefs")
+    #print(coefs)
     intercept = coefs.loc['Intercept', 's0']
+    #print("--------- intercept")
+    #print(intercept)
     x_name = x.columns
     x_factor = [col for col in x_name if isinstance(x[col][0], str)]
 
