@@ -7,14 +7,8 @@
 import os
 import time
 import pandas as pd
-
-##import message
-##import robyn_plots
-##import robyn_csv
-##import robyn_onepagers
-##import robyn_write
-##import round
-##import sys
+import re
+from datetime import datetime
 
 from .json import robyn_write
 from .cluster import robyn_clusters
@@ -81,49 +75,57 @@ def robyn_outputs(input_collect,
         print(f"Running Pareto calculations for {total_models} models on {pareto_fronts} fronts...")
 
     pareto_results = robyn_pareto(input_collect, output_models, pareto_fronts=pareto_fronts, calibration_constraint=calibration_constraint, quiet=quiet, calibrated=calibrated, refresh=refresh)
-    pareto_fronts = pareto_results.pareto_fronts
-    all_solutions = pareto_results.pareto_solutions
+    pareto_fronts = pareto_results["pareto_fronts"]
+    all_solutions = pareto_results["pareto_solutions"]
 
     #####################################
     #### Gather the results into output object
 
     all_pareto = {
-        "resultHypParam": pareto_results.resultHypParam,
-        "xDecompAgg": pareto_results.xDecompAgg,
-        "resultCalibration": pareto_results.resultCalibration,
-        "plotDataCollect": pareto_results.plotDataCollect,
-        "df_caov_pct": pareto_results.df_caov_pct_all
+        "resultHypParam": pareto_results["resultHypParam"],
+        "xDecompAgg": pareto_results["xDecompAgg"],
+        "resultCalibration": pareto_results["resultCalibration"],
+        "plotDataCollect": pareto_results["plotDataCollect"],
+        "df_caov_pct": pareto_results["df_caov_pct_all"]
     }
 
     # Set folder to save outputs
-    depth = 0 if "refreshDepth" in input_collect else input_collect.refreshDepth
-    folder_var = "init" if depth > 0 else paste0("rf", depth)
-    plot_folder = gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
-    if not dir.exists(plot_folder) and export:
-        print("Creating directory for outputs: ", plot_folder)
-        dir.create(plot_folder)
+    depth = 0 if "refreshDepth" not in input_collect["robyn_inputs"] else input_collect["robyn_inputs"]["refreshDepth"]
+    folder_var = "init" if not int(depth) > 0 else "rf" + str(depth)
+
+    if plot_folder_sub is None:
+        plot_folder_sub = "Robyn_" + datetime.now().strftime("%Y%m%d%H%M") + "_" + folder_var
+
+    plot_folder = re.sub("//+", "/", f"{plot_folder}/{plot_folder_sub}/")
+
+    if not os.path.exists(plot_folder) and export:
+        print(f"Creating directory for outputs: {plot_folder}")
+        os.makedirs(plot_folder)
 
     # Final results object
     OutputCollect = {
-        "resultHypParam": pareto_results["resultHypParam"].loc[pareto_results["solID"].isin(allSolutions)],
-        "xDecompAgg": pareto_results["xDecompAgg"].loc[pareto_results["solID"].isin(allSolutions)],
+        'resultHypParam': pareto_results['resultHypParam'][pareto_results['resultHypParam']['solID'].isin(all_solutions)],
+        'xDecompAgg': pareto_results['xDecompAgg'][pareto_results['xDecompAgg']['solID'].isin(all_solutions)],
+
+        #"xDecompAgg": pareto_results["xDecompAgg"].loc[pareto_results["solID"].isin(allSolutions)],
         "mediaVecCollect": pareto_results["mediaVecCollect"],
         "xDecompVecCollect": pareto_results["xDecompVecCollect"],
-        "resultCalibration": None if not calibrated else pareto_results["resultCalibration"].loc[pareto_results["solID"].isin(allSolutions)],
-        "allSolutions": allSolutions,
-        "allPareto": allPareto,
+        #"resultCalibration": None if not calibrated else pareto_results["resultCalibration"].loc[pareto_results["solID"].isin(allSolutions)],
+        "resultCalibration": pareto_results["resultCalibration"][pareto_results["resultCalibration"]["solID"].isin(all_solutions)] if calibrated else None,
+        "allSolutions": all_solutions,
+        "allPareto": all_pareto,
         "calibration_constraint": calibration_constraint,
-        "OutputModels": OutputModels,
-        "cores": OutputModels["cores"],
-        "iterations": OutputModels["iterations"],
-        "trials": OutputModels["trials"],
-        "intercept_sign": OutputModels["intercept_sign"],
-        "nevergrad_algo": OutputModels["nevergrad_algo"],
-        "add_penalty_factor": OutputModels["add_penalty_factor"],
-        "seed": OutputModels["seed"],
+        "OutputModels": output_models,
+        "cores": output_models["metadata"]["cores"],
+        "iterations": output_models["metadata"]["iterations"],
+        "trials": output_models["trials"],
+        "intercept_sign": output_models["metadata"]["intercept_sign"],
+        "nevergrad_algo": output_models["metadata"]["nevergrad_algo"],
+        "add_penalty_factor": output_models["metadata"]["add_penalty_factor"],
+        "seed": output_models["seed"],
         "UI": None,
         "pareto_fronts": pareto_fronts,
-        "hyper_fixed": attr(OutputModels, "hyper_fixed"),
+        'hyper_fixed': output_models["metadata"]['hyper_fixed'],
         "plot_folder": plot_folder
     }
     OutputCollect.keys()
@@ -134,35 +136,35 @@ def robyn_outputs(input_collect,
             print(">>> Calculating clusters for model selection using Pareto fronts...")
         clusterCollect = robyn_clusters(
             OutputCollect,
-            dep_var_type=InputCollect["dep_var_type"],
+            dep_var_type=input_collect["robyn_inputs"]["dep_var_type"],
             quiet=quiet,
             export=export ##,
             ##...
         )
         OutputCollect["resultHypParam"] = pd.merge(
             OutputCollect["resultHypParam"],
-            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(all_solutions)],
             on="solID"
         )
         OutputCollect["xDecompAgg"] = pd.merge(
             OutputCollect["xDecompAgg"],
-            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(all_solutions)],
             on="solID"
         )
         OutputCollect["mediaVecCollect"] = pd.merge(
             OutputCollect["mediaVecCollect"],
-            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(all_solutions)],
             on="solID"
         )
         OutputCollect["xDecompVecCollect"] = pd.merge(
             OutputCollect["xDecompVecCollect"],
-            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+            clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(all_solutions)],
             on="solID"
         )
         if calibrated:
             OutputCollect["resultCalibration"] = pd.merge(
                 OutputCollect["resultCalibration"],
-                clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(allSolutions)],
+                clusterCollect["data"].loc[clusterCollect["data"]["solID"].isin(all_solutions)],
                 on="solID"
             )
         OutputCollect["clusters"] = clusterCollect
