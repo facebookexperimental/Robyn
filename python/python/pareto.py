@@ -199,7 +199,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
     mediaVecCollect = []
     xDecompVecCollect = []
-    plotDataCollect = []
+    plotDataCollect = {}
     df_caov_pct_all = pd.DataFrame()
     dt_mod = InputCollect["robyn_inputs"]["dt_mod"]
     dt_modRollWind = InputCollect["robyn_inputs"]["dt_modRollWind"]
@@ -307,17 +307,17 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 theta, shape, scale = None, None, None
                 adstock = InputCollect["robyn_inputs"]["adstock"]
                 if adstock == "geometric":
-                    theta = hypParam[f"{med_select}_thetas"][0]
+                    theta = hypParam[f"{med_select}_thetas"].iloc[0]
                 if adstock.startswith("weibull"):
-                    shape = hypParam[f"{med_select}_shapes"][0]
-                    scale = hypParam[f"{med_select}_scales"][0]
+                    shape = hypParam[f"{med_select}_shapes"].iloc[0]
+                    scale = hypParam[f"{med_select}_scales"].iloc[0]
                 x_list = transform_adstock(m, adstock, theta=theta, shape=shape, scale=scale)
                 m_adstocked = x_list.x_decayed
                 dt_transformAdstock.loc[:, med_select] = m_adstocked
                 m_adstockedRollWind = m_adstocked.loc[rw_start_loc:rw_end_loc]
                 ## Saturation
-                alpha = hypParam[f"{med_select}_alphas"][0]
-                gamma = hypParam[f"{med_select}_gammas"][0]
+                alpha = hypParam[f"{med_select}_alphas"].iloc[0]
+                gamma = hypParam[f"{med_select}_gammas"].iloc[0]
                 dt_transformSaturation.loc[:, med_select] = saturation_hill(
                     x=m_adstockedRollWind, alpha=alpha, gamma=gamma
                 )
@@ -356,28 +356,28 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
 
             col_order = ["ds", "dep_var"] + InputCollect['robyn_inputs']['all_ind_vars']
             dt_transformDecomp = dt_transformDecomp[col_order]
+            #dt_transformDecomp = dt_transformDecomp.loc[:, ~dt_transformDecomp.columns.duplicated()]
+
             filtered_df = xDecompAgg[xDecompAgg['solID'] == sid][['solID', 'rn', 'coefs']]
             filtered_df_agg = filtered_df.groupby(['solID', 'rn']).agg({'coefs': 'sum'}).reset_index()
             xDecompVec = filtered_df_agg.pivot(index='solID', columns='rn', values='coefs').reset_index()
             xDecompVec['(Intercept)'] = xDecompVec.get('(Intercept)', 0)
-            relevant_cols = [col for col in col_order if col not in ['ds', 'dep_var', 'solID', '(Intercept)'] and col in xDecompVec.columns]
-            relevant_cols = ['solID', '(Intercept)'] + relevant_cols
+            relevant_cols = ['solID', '(Intercept)'] + [col for col in col_order if col not in ['ds', 'dep_var', 'solID', '(Intercept)'] and col in xDecompVec.columns]
             xDecompVec = xDecompVec[relevant_cols]
-            intercept = xDecompVec['(Intercept)']
-            dt_transformDecomp = dt_transformDecomp.loc[:,~dt_transformDecomp.columns.duplicated()]
-            dt_relevant = dt_transformDecomp
+            intercept = xDecompVec['(Intercept)'].values[0]
+            for col in relevant_cols[2:]:  # Skipping 'solID' and '(Intercept)'
+                dt_transformDecomp[col] = dt_transformDecomp[col] * xDecompVec[col].values[0]
 
-            for col in relevant_cols[2:]:
-                coefficient_value = xDecompVec[col].values[0]
-                dt_relevant[col] = dt_relevant[col] * coefficient_value
+            dt_transformDecomp['intercept'] = intercept
+            numeric_cols = dt_transformDecomp.select_dtypes(include=[np.number])
+            dt_transformDecomp['depVarHat'] = numeric_cols.sum(axis=1)
+            xDecompVec = pd.concat([dt_transformDecomp[['ds', 'dep_var', 'depVarHat', 'intercept']], dt_transformDecomp.drop(columns=['ds', 'dep_var', 'intercept'])], axis=1)
+            xDecompVec['solID'] = sid
+            xDecompVec = xDecompVec.loc[:, ~xDecompVec.columns.duplicated()]
 
-            numeric_cols = dt_relevant.select_dtypes(include=[np.number])
-            dt_relevant['depVarHat'] = numeric_cols.sum(axis=1) + intercept.values[0]
-
-            dt_relevant.reset_index(inplace=True)
-            dt_relevant['dep_var'] = dt_transformDecomp.set_index('ds')['dep_var']
-            xDecompVec = dt_relevant[['ds', 'dep_var', 'depVarHat']]
             xDecompVecPlot = dt_transformDecomp[['ds', 'dep_var', 'depVarHat']].rename(columns={"dep_var": "actual", "depVarHat": "predicted"})
+            xDecompVecPlot = xDecompVecPlot.loc[:, ~xDecompVecPlot.columns.duplicated()]
+            xDecompVecPlot = xDecompVecPlot.rename(columns={"dep_var": "actual", "depVarHat": "predicted"})
             xDecompVecPlotMelted = pd.melt(xDecompVecPlot, id_vars=["ds"], value_vars=["actual", "predicted"], var_name="variable", value_name="value")
             rsq = xDecompAgg[xDecompAgg['solID'] == sid]['rsq_train'].iloc[0]
             plot5data = {"xDecompVecPlotMelted": xDecompVecPlotMelted, "rsq": rsq}
@@ -482,7 +482,7 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 ],
                 ignore_index=True
             )
-            xDecompVecCollect = pd.concat([xDecompVecCollect, xDecompVec], ignore_index=True)
+            xDecompVecCollect.append(xDecompVec)
             plotDataCollect[sid] = {
                 "plot1data": plot1data,
                 "plot2data": plot2data,
@@ -493,6 +493,9 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 "plot7data": plot7data
                 # "plot8data": plot8data
             }
+
+    xDecompVecCollect = pd.concat(xDecompVecCollect, ignore_index=True)
+
 
     ## Manually added some data to following dict since some of them printed as None.
     pareto_results = {
