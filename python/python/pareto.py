@@ -408,56 +408,54 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
                 dt_modRollWind=dt_modRollWind,
                 refreshAddedStart=InputCollect["robyn_inputs"]["refreshAddedStart"]
             )
-            mediaDecompImmediate = decompCollect.mediaDecompImmediate.drop(
+            decompCollectCopy = decompCollect.copy()
+            mediaDecompImmediate = decompCollect["mediaDecompImmediate"].drop(
                 columns=["ds", "y"]
             )
-            mediaDecompImmediate.columns = [f"{col}_MDI" for col in colnames(mediaDecompImmediate)]
-            mediaDecompCarryover = decompCollect.mediaDecompCarryover.drop(
+            mediaDecompImmediate.columns = [f"{col}_MDI" for col in mediaDecompImmediate.columns]
+            mediaDecompCarryover = decompCollect["mediaDecompCarryover"].drop(
                 columns=["ds", "y"]
             )
-            mediaDecompCarryover.columns = [f"{col}_MDC" for col in colnames(mediaDecompCarryover)]
+            mediaDecompCarryover.columns = [f"{col}_MDC" for col in mediaDecompCarryover.columns]
             temp = pd.concat(
                 [
-                    decompCollect.xDecompVec,
+                    decompCollect["xDecompVec"],
                     mediaDecompImmediate,
                     mediaDecompCarryover
                 ],
                 axis=1
             ).assign(solID=sid)
             vec_collect = {
-                "xDecompVec": temp.drop(columns=["_MDI", "_MDC"]),
-                "xDecompVecImmediate": temp.drop(columns=["_MDC"]).drop(columns=InputCollect.all_media),
-                "xDecompVecCarryover": temp.drop(columns=["_MDI"]).drop(columns=InputCollect.all_media)
+                "xDecompVec": temp.drop(columns=temp.iloc[:, temp.columns.str.endswith('_MDI') | temp.columns.str.endswith('_MDC')], axis=1),
+                "xDecompVecImmediate": temp.drop(columns=temp.iloc[:, temp.columns.str.endswith('_MDC')], axis=1)
+                                           .drop(columns=(column for column in temp.columns if any(column == name for name in InputCollect["robyn_inputs"]["all_media"])), axis=1),
+                "xDecompVecCarryover": temp.drop(columns=temp.iloc[:, temp.columns.str.endswith('_MDI')], axis=1)
+                                           .drop(columns=(column for column in temp.columns if any(column == name for name in InputCollect["robyn_inputs"]["all_media"])), axis=1)
             }
-            this = [col for col in colnames(vec_collect["xDecompVecImmediate"]) if not col.endswith("_MDI")]
-            vec_collect["xDecompVecImmediate"].columns = [f"{col}_MDI" for col in this]
-            vec_collect["xDecompVecCarryover"].columns = [f"{col}_MDC" for col in this]
-            df_caov = vec_collect["xDecompVecCarryover"].groupby("solID").sum().reset_index()
-            df_total = vec_collect["xDecompVec"].groupby("solID").sum().reset_index()
-            df_caov_pct = df_caov.merge(
-                df_total,
-                on="solID",
-                suffixes=("", "_total")
-            )
-            df_caov_pct["carryover_pct"] = df_caov_pct.apply(
-                lambda row: row[f"{row.rn}_MDC"] / row[f"{row.rn}_total"],
-                axis=1
-            )
+            this = vec_collect["xDecompVecImmediate"].columns.str.replace("_MDI", "")
+            vec_collect["xDecompVecImmediate"].columns = [col for col in this]
+            vec_collect["xDecompVecCarryover"].columns = [col for col in this]
+            df_caov = vec_collect["xDecompVecCarryover"][InputCollect["robyn_inputs"]["all_media"] + ["solID"]].groupby("solID").sum().reset_index()
+            df_total = vec_collect["xDecompVec"][InputCollect["robyn_inputs"]["all_media"] + ["solID"]].groupby("solID").sum().reset_index()
+            df_caov_pct = pd.concat([df_caov[["solID"]], df_caov[InputCollect["robyn_inputs"]["all_media"]].div(df_total[InputCollect["robyn_inputs"]["all_media"]], axis=0)], axis=1)
+            df_caov_pct = df_caov_pct.melt(id_vars="solID", var_name="rn", value_name="carryover_pct")
+            df_caov_pct.replace(pd.NA, 0, inplace=True)
+
             df_caov_pct_all = pd.concat([df_caov_pct_all, df_caov_pct], ignore_index=True)
             # Gather everything in an aggregated format
             xDecompVecImmeCaov = pd.concat(
                 [
-                    vec_collect["xDecompVecImmediate"].assign(type="Immediate").drop(columns=["ds"]),
-                    vec_collect["xDecompVecCarryover"].assign(type="Carryover").drop(columns=["ds"])
+                    vec_collect["xDecompVecImmediate"][InputCollect["robyn_inputs"]["all_media"]+ ["solID"]].assign(type="Immediate"),
+                    vec_collect["xDecompVecCarryover"][InputCollect["robyn_inputs"]["all_media"]+ ["solID"]].assign(type="Carryover")
                 ],
                 ignore_index=True
             ).melt(
-                id_vars=["solID", "type", "rn"],
-                var_name="variable",
+                id_vars=["solID", "type"],
+                var_name="rn",
                 value_name="value"
             ).groupby(["solID", "rn", "type"]).sum().reset_index()
-            xDecompVecImmeCaov["percentage"] = xDecompVecImmeCaov.groupby(["solID", "rn"]).transform(
-                lambda x: x["value"] / x["value"].sum()
+            xDecompVecImmeCaov["percentage"] = xDecompVecImmeCaov.groupby(["solID", "rn"])["value"].transform(
+                lambda x: x / x.sum()
             )
             xDecompVecImmeCaov.fillna(0, inplace=True)
             xDecompVecImmeCaov = xDecompVecImmeCaov.merge(
