@@ -31,6 +31,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 ## from sklearn.preprocessing import Dropna
 from scipy.stats import norm
+from .checks import HYPS_NAMES
 
 ## Manual imports
 
@@ -74,19 +75,21 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         path = '.'
 
     # Pareto and ROI data
-    x = input.xDecompAgg
+    x = input["xDecompAgg"]
     if cluster_by == 'hyperparameters':
-        x = input.resultHypParam
+        x = input["resultHypParam"]
     df = prepare_df(x, all_media, dep_var_type, cluster_by)
 
-    # Auto K selected by less than 5% WSS variance (convergence)
+    ignore = ["solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto"]
+    # Auto K selected by less than 5% WSS variance (convergence)\
     min_clusters = 3
     limit_clusters = min(len(df) - 1, 30)
     if k == 'auto':
-        cls = try_catch(
-            lambda: KMeans(n_clusters=None, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(df),
-            error=lambda e: print(f"Couldn't automatically create clusters: {e}")
-        )
+        try:
+            cls = lambda: KMeans(n_clusters=None, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(df),
+        except Exception as err:
+            error = f"Couldn't automatically create clusters: {err}"
+            return None
         k = cls.n_clusters_
         if k < min_clusters:
             k = min_clusters
@@ -318,8 +321,8 @@ def prepare_df(x, all_media, dep_var_type, cluster_by):
         outcome = outcome.drop(columns=['nrmse', 'nrmse_test', 'nrmse_train', 'decomp.rssd', 'mape'])
     else:
         if cluster_by == "hyperparameters":
-            outcome = x[['solID', 'rn'] + HYPS_NAMES].copy()
-            outcome = outcome.drop(columns=['rn'])
+            outcome = x[["solID"] + [col for col in x.columns if any(pat in col for pat in HYPS_NAMES + ["nrmse", "decomp.rssd", "mape"])]]
+            outcome = outcome.dropna(subset=["solID"])
         else:
             raise ValueError("Invalid cluster_by parameter")
 
