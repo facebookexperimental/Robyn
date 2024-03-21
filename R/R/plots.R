@@ -763,6 +763,7 @@ allocation_plots <- function(
     }
   }
   levs1 <- eval_list$levs1
+  if (levs1[2] == levs1[3]) levs1[3] <- paste0(levs1[3], " ")
   if (scenario == "max_response") {
     levs2 <- c(
       "Initial",

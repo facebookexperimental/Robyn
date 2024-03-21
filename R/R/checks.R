@@ -836,6 +836,9 @@ check_class <- function(x, object) {
 }
 
 check_allocator_constrains <- function(low, upr) {
+  if (all(is.na(low)) || all(is.na(upr))) {
+    stop("You must define lower (channel_constr_low) and upper (channel_constr_up) constraints")
+  }
   max_length <- max(c(length(low), length(upr)))
   if (any(low < 0)) {
     stop("Inputs 'channel_constr_low' must be >= 0")
@@ -850,7 +853,6 @@ check_allocator_constrains <- function(low, upr) {
 
 check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
                             channel_constr_low, channel_constr_up, constr_mode) {
-  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
       "Provided 'select_model' is not within the best results. Try any of: ",
@@ -862,6 +864,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
+  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(scenario == "target_efficiency" & is.null(channel_constr_low) & is.null(channel_constr_up))) {
     if (length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_spends)) {
       stop(paste(
