@@ -159,11 +159,11 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     all_paid = list(all_paid)
     # Select top models by minimum (weighted) distance to zero
     # all_paid = setdiff(names(input.df), [ignore, 'cluster'])
-    ts_validation = np.isfinite(df['nrmse_test'])
+    ts_validation = all(np.isnan(df['nrmse_test']))
     top_sols = clusters_df(df=df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
 
     # Build in-cluster CI with bootstrap
-    ci_list = confidence_calcs(xDecompAgg, input, all_paid, dep_var_type, k, cluster_by, seed=seed)
+    ci_list = confidence_calcs(input["xDecompAgg"], input, all_paid, dep_var_type, k, cluster_by, seed=seed)
 
     output = {
         'data': pd.DataFrame({'top_sol': df['solID'].isin(top_sols['solID']), 'cluster': pd.Series(np.arange(k), dtype=int)}),
@@ -335,7 +335,7 @@ def errors_scores(df, balance=None, ts_validation=True, **kwargs):
 
     # Balance errors
     if balance is not None:
-        scores = scores.apply(lambda row: balance * row)
+        scores = scores.apply(lambda row: balance * row, axis=1)
 
     # Calculate error score
     scores = scores.apply(lambda row: np.sqrt(row['nrmse']**2 + row['decomp.rssd']**2 + row['mape']**2), axis=1)
@@ -475,13 +475,18 @@ def clusters_df(df, all_paid, balance=None, limit=1, ts_validation=True, **kwarg
     if balance is None:
         balance = np.repeat(1, 3)
 
-    df = df.replace(np.nan, 0)
     df['error_score'] = errors_scores(df, balance, ts_validation=ts_validation, **kwargs)
-    df = df.groupby('cluster').agg({'error_score': 'mean'})
-    df = df.sort_values('error_score', ascending=False)
-    df = df.head(limit)
-    df['rank'] = df.groupby('cluster').cumcount() + 1
-    return df[['cluster', 'rank', 'error_score']]
+    df.fillna(0, inplace=True)
+    df = df.groupby('cluster').apply(lambda x: x.sort_values('error_score').head(limit)).reset_index(drop=True)
+    df['rank'] = df.groupby('cluster')['error_score'].rank(ascending=False)
+    return df[['cluster', 'rank'] + list(df.columns[:-2])]
+    # df = df.replace(np.nan, 0)
+    # df['error_score'] = errors_scores(df, balance, ts_validation=ts_validation, **kwargs)
+    # df = df.groupby('cluster').agg({'error_score': 'mean'})
+    # df = df.sort_values('error_score', ascending=False)
+    # df = df.head(limit)
+    # df['rank'] = df.groupby('cluster').cumcount() + 1
+    # return df[['cluster', 'rank', 'error_score']]
 
 def plot_clusters_ci(sim_collect, df_ci, dep_var_type, boot_n, sim_n):
     """
