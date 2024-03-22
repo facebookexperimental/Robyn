@@ -31,9 +31,26 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 ## from sklearn.preprocessing import Dropna
 from scipy.stats import norm
-from .checks import HYPS_NAMES
+
 
 ## Manual imports
+
+def determine_optimal_k(df, max_clusters, random_state=42):
+    wss = []
+    K_range = range(1, max_clusters + 1)
+    for k in K_range:
+        kmeans = KMeans(n_clusters=k, random_state=random_state).fit(df)
+        wss.append(kmeans.inertia_)
+
+    # Calculate the second derivative of the WSS
+    # The second derivative is a simple way to find the inflection point where the rate of decrease
+    # of WSS changes significantly, corresponding to the elbow
+    second_derivative = np.diff(wss, n=2)
+
+    # The optimal k is where the second derivative is maximized
+    optimal_k = np.argmax(second_derivative) + 2  # +2 because np.diff reduces the original array by 1 for each differentiation and we start counting from 1
+
+    return optimal_k
 
 
 def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=None, k='auto', limit=1, weights=None, dim_red='PCA', quiet=False, export=False, seed=123):
@@ -64,15 +81,18 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         raise ValueError("cluster_by must be either 'performance' or 'hyperparameters'")
 
     # Load data
-    if 'robyn_outputs' in dir(input):
-        # Load data from robyn_outputs
-        if all_media is None:
-            aux = colnames(input.mediaVecCollect)
-            all_media = aux[:-1]
-        path = input.plot_folder
-    else:
-        # Load data from a dataframe
-        path = '.'
+    if all_media is None:
+        aux = input["mediaVecCollect"].columns
+        if "type" in aux:
+            type_index = list(aux).index("type")
+            all_media = aux[1:type_index]  # Exclude the first column and from "type" onwards, Python uses 0-based indexing
+        else:
+            all_media = aux[1:-1]  # If "type" is not found, exclude the first and last columns as a fallback
+
+        path = input["plot_folder"]
+    #     aux = colnames(input.mediaVecCollect)
+    #     all_media = aux[:-1]
+    # path = input.plot_folder
 
     # Pareto and ROI data
     x = input["xDecompAgg"]
@@ -86,29 +106,67 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     limit_clusters = min(len(df) - 1, 30)
     if k == 'auto':
         try:
-            cls = lambda: KMeans(n_clusters=None, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(df),
-        except Exception as err:
-            error = f"Couldn't automatically create clusters: {err}"
-            return None
-        k = cls.n_clusters_
+            # You must determine the appropriate number of clusters beforehand, as `n_clusters=None` is not valid.
+            # This placeholder (e.g., 3) is for demonstration; you need a dynamic method or a fixed value.
+            determined_clusters = determine_optimal_k(df, 20)
+            cls = KMeans(n_clusters=determined_clusters, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(df)
+        except Exception as e:
+            print(f"Couldn't automatically create clusters: {e}")
+            cls = None
+
+        # Ensure `cls` is not `None` before accessing its attributes
+        if cls is not None:
+            k = cls.n_clusters
+        else:
+            k = 0  # Or handle this case as needed, perhaps setting it to `min_clusters` or another default
+
+        # Now, proceed with your logic
         if k < min_clusters:
             k = min_clusters
         print(f">> Auto selected k = {k} (clusters) based on minimum WSS variance of {0.05*100}%")
 
-    # Build clusters
-    stop_if_not(k in range(min_clusters, 30))
-    cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(df)
 
+    # Build clusters
+    assert k in range(min_clusters, 31), "k is not within the specified range"
+
+    solID = df['solID'].copy()
+
+    # Drop 'solID' from the DataFrame used for clustering
+    df_cluster = df.drop(columns=['solID'])
+
+    # Perform KMeans clustering on the numeric data only
+    try:
+        cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(df_cluster)
+    except Exception as e:
+        print(f"Error during KMeans fitting: {e}")
+        cls = None
+
+    # If you need to use the cluster labels with the original DataFrame, you can add them back
+    if cls is not None:
+        # Add the cluster labels to the original DataFrame or to solID as needed
+        df['cluster'] = cls.labels_
+        # Or if you want to create a new DataFrame with solID and the cluster labels
+        df_with_clusters = pd.DataFrame({'solID': solID, 'cluster': cls.labels_})
+
+    # df.columns = df.columns.astype(str)
+    # cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(df)
+
+    ignore = ["solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto"]
+
+    columns_to_ignore = set(ignore + ['cluster'])
+    all_columns = set(df.columns)
+    all_paid = all_columns - columns_to_ignore
+    all_paid = list(all_paid)
     # Select top models by minimum (weighted) distance to zero
-    all_paid = setdiff(names(input.df), [ignore, 'cluster'])
-    ts_validation = np.isfinite(input.df['nrmse_test'])
-    top_sols = clusters_df(df=input.df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
+    # all_paid = setdiff(names(input.df), [ignore, 'cluster'])
+    ts_validation = np.isfinite(df['nrmse_test'])
+    top_sols = clusters_df(df=df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
 
     # Build in-cluster CI with bootstrap
     ci_list = confidence_calcs(xDecompAgg, input, all_paid, dep_var_type, k, cluster_by, seed=seed)
 
     output = {
-        'data': pd.DataFrame({'top_sol': input.df['solID'].isin(top_sols['solID']), 'cluster': pd.Series(np.arange(k), dtype=int)}),
+        'data': pd.DataFrame({'top_sol': df['solID'].isin(top_sols['solID']), 'cluster': pd.Series(np.arange(k), dtype=int)}),
         'df_cluster_ci': ci_list['df_ci'],
         'n_clusters': k,
         'boot_n': ci_list['boot_n'],
@@ -181,6 +239,9 @@ def confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, boo
         if len(unique(df_outcome['solID'])) < 3:
             print(f"Cluster {j} does not contain enough models to calculate CI")
         else:
+
+            from .checks import HYPS_NAMES
+
             # Bootstrap CI
             if cluster_by == 'hyperparameters':
                 all_paid = unique(gsub(paste(paste0("_", HYPS_NAMES), collapse='|'), '', all_paid))
@@ -283,50 +344,90 @@ def errors_scores(df, balance=None, ts_validation=True, **kwargs):
 
     return scores
 
+
 def prepare_df(x, all_media, dep_var_type, cluster_by):
-    """
-    Prepare the dataframe for clustering analysis based on the given parameters.
-
-    Parameters:
-    x (DataFrame): The input dataframe.
-    all_media (list): List of all media options.
-    dep_var_type (str): Type of dependent variable ("revenue" or "conversion").
-    cluster_by (str): Type of clustering ("performance" or "hyperparameters").
-
-    Returns:
-    DataFrame: The prepared dataframe for clustering analysis.
-    """
+    # Initial checks and setup
     if cluster_by == "performance":
-        # Check options
-        check_opts(all_media, unique(x['rn']))
+        # Check options (assuming check_opts is appropriately defined and used)
+        check_opts(all_media, x['rn'].unique())
 
-        # Select columns and spread ROI total
+        # Preparing outcome DataFrame based on dep_var_type
         if dep_var_type == "revenue":
-            outcome = x[['solID', 'rn', 'roi_total']].copy()
-            outcome = pd.get_dummies(outcome, columns=['rn'])
-            outcome = outcome.drop(columns=['rn'])
-            outcome = outcome.select(columns=['solID'] + all_media)
+            # Create dummy variables for 'rn', merge with 'roi_total', ensuring 'solID' is included
+            dummies = pd.get_dummies(x['rn'])
+            outcome = pd.concat([x[['solID', 'roi_total']], dummies], axis=1)
         elif dep_var_type == "conversion":
-            outcome = x[['solID', 'rn', 'cpa_total']].copy()
-            outcome = outcome[outcome['cpa_total'].isfinite()]
-            outcome = pd.get_dummies(outcome, columns=['rn'])
-            outcome = outcome.drop(columns=['rn'])
-            outcome = outcome.select(columns=['solID'] + all_media)
+            # Filter by 'cpa_total' being finite, then proceed similar to 'revenue' case
+            filtered = x[pd.to_numeric(x['cpa_total'], errors='coerce').notnull()]
+            dummies = pd.get_dummies(filtered['rn'])
+            outcome = pd.concat([filtered[['solID', 'cpa_total']], dummies], axis=1)
 
-        # Remove missing values
-        errors = x.dropna()
+        # Ensure all_media columns are included by dynamically checking their presence
+        outcome = outcome[[col for col in ['solID'] + all_media + list(dummies.columns) if col in outcome.columns]]
 
-        # Join errors with outcome
-        outcome = pd.merge(outcome, errors, on='solID')
-        outcome = outcome.drop(columns=['nrmse', 'nrmse_test', 'nrmse_train', 'decomp.rssd', 'mape'])
+        # Merge with error metrics
+        errors = x[['solID', 'nrmse', 'nrmse_test', 'nrmse_train', 'decomp.rssd', 'mape']].drop_duplicates()
+        outcome = pd.merge(outcome, errors, on='solID', how='left')
+
+    elif cluster_by == "hyperparameters":
+        # Include only 'solID', hyperparameters, and specific metrics
+        from .checks import HYPS_NAMES
+
+        cols_to_keep = ['solID'] + [col for col in x.columns if col in HYPS_NAMES or col.startswith(('nrmse', 'decomp.rssd', 'mape'))]
+        outcome = x[cols_to_keep].copy()
     else:
-        if cluster_by == "hyperparameters":
-            outcome = x[["solID"] + [col for col in x.columns if any(pat in col for pat in HYPS_NAMES + ["nrmse", "decomp.rssd", "mape"])]]
-            outcome = outcome.dropna(subset=["solID"])
-        else:
-            raise ValueError("Invalid cluster_by parameter")
+        raise ValueError("Invalid cluster_by parameter")
 
     return outcome
+
+# def prepare_df(x, all_media, dep_var_type, cluster_by):
+#     """
+#     Prepare the dataframe for clustering analysis based on the given parameters.
+
+#     Parameters:
+#     x (DataFrame): The input dataframe.
+#     all_media (list): List of all media options.
+#     dep_var_type (str): Type of dependent variable ("revenue" or "conversion").
+#     cluster_by (str): Type of clustering ("performance" or "hyperparameters").
+
+#     Returns:
+#     DataFrame: The prepared dataframe for clustering analysis.
+#     """
+#     if cluster_by == "performance":
+#         # Check options
+#         check_opts(all_media, unique(x['rn']))
+
+#         # Select columns and spread ROI total
+#         if dep_var_type == "revenue":
+#             outcome = x[['solID', 'rn', 'roi_total']].copy()
+#             outcome = pd.get_dummies(outcome, columns=['rn'])
+#             outcome = outcome.drop(columns=['rn'])
+#             outcome = outcome.select(columns=['solID'] + all_media)
+#         elif dep_var_type == "conversion":
+#             outcome = x[['solID', 'rn', 'cpa_total']].copy()
+#             outcome = outcome[outcome['cpa_total'].isfinite()]
+#             outcome = pd.get_dummies(outcome, columns=['rn'])
+#             outcome = outcome.drop(columns=['rn'])
+#             outcome = outcome.select(columns=['solID'] + all_media)
+
+#         # Remove missing values
+#         errors = x.dropna()
+
+#         # Join errors with outcome
+#         outcome = pd.merge(outcome, errors, on='solID')
+#         outcome = outcome.drop(columns=['nrmse', 'nrmse_test', 'nrmse_train', 'decomp.rssd', 'mape'])
+#     else:
+#         if cluster_by == "hyperparameters":
+
+#             from .checks import HYPS_NAMES
+
+#             cols_to_keep = ['solID'] + [col for col in x.columns if any(hyp in col for hyp in HYPS_NAMES)]
+#             outcome = x[cols_to_keep].copy()
+
+#         else:
+#             raise ValueError("Invalid cluster_by parameter")
+
+#     return outcome
 
 def min_max_norm(x, min=0, max=1):
     """
