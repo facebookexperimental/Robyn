@@ -100,16 +100,17 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         x = input["resultHypParam"]
     df = prepare_df(x, all_media, dep_var_type, cluster_by)
 
-    ignore = ["solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto"]
+    ignore = ["solID", "mape", "mape.qt10", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto"]
     # Auto K selected by less than 5% WSS variance (convergence)\
     min_clusters = 3
     limit_clusters = min(len(df) - 1, 30)
+    features= df.drop(columns=ignore, errors='ignore')
     if k == 'auto':
         try:
             # You must determine the appropriate number of clusters beforehand, as `n_clusters=None` is not valid.
             # This placeholder (e.g., 3) is for demonstration; you need a dynamic method or a fixed value.
-            determined_clusters = determine_optimal_k(df, 20)
-            cls = KMeans(n_clusters=determined_clusters, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(df)
+            determined_clusters = determine_optimal_k(features, 20)
+            cls = KMeans(n_clusters=determined_clusters, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(features)
         except Exception as e:
             print(f"Couldn't automatically create clusters: {e}")
             cls = None
@@ -131,12 +132,9 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
 
     solID = df['solID'].copy()
 
-    # Drop 'solID' from the DataFrame used for clustering
-    df_cluster = df.drop(columns=['solID'])
-
     # Perform KMeans clustering on the numeric data only
     try:
-        cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(df_cluster)
+        cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(features)
     except Exception as e:
         print(f"Error during KMeans fitting: {e}")
         cls = None
@@ -148,11 +146,6 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         # Or if you want to create a new DataFrame with solID and the cluster labels
         df_with_clusters = pd.DataFrame({'solID': solID, 'cluster': cls.labels_})
 
-    # df.columns = df.columns.astype(str)
-    # cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(df)
-
-    ignore = ["solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto"]
-
     columns_to_ignore = set(ignore + ['cluster'])
     all_columns = set(df.columns)
     all_paid = all_columns - columns_to_ignore
@@ -163,7 +156,7 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     top_sols = clusters_df(df=df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
 
     # Build in-cluster CI with bootstrap
-    ci_list = confidence_calcs(input["xDecompAgg"], input, all_paid, dep_var_type, k, cluster_by, seed=seed)
+    ci_list = confidence_calcs(input["xDecompAgg"], df, all_paid, dep_var_type, k, cluster_by, seed=seed)
 
     output = {
         'data': pd.DataFrame({'top_sol': df['solID'].isin(top_sols['solID']), 'cluster': pd.Series(np.arange(k), dtype=int)}),
@@ -195,7 +188,7 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
 
     return output
 
-def confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, boot_n=1000, sim_n=10000, **kwargs):
+def confidence_calcs(xDecompAgg, df, all_paid, dep_var_type, k, cluster_by, boot_n=1000, sim_n=10000, **kwargs):
     """
     This function takes in a bunch of inputs and does some statistical calculations.
 
@@ -220,12 +213,16 @@ def confidence_calcs(xDecompAgg, cls, all_paid, dep_var_type, k, cluster_by, boo
     """
     This function takes in a bunch of inputs and does some statistical calculations
     """
-    # Filter out missing values and left join with cluster info
-    df_clusters_outcome = xDecompAgg.dropna(columns=['total_spend'])
-    df_clusters_outcome = pd.merge(df_clusters_outcome, cls.df[['solID', 'cluster']], on='solID')
-    df_clusters_outcome = df_clusters_outcome[['solID', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']]
-    df_clusters_outcome = df_clusters_outcome.groupby(['cluster', 'rn']).size().reset_index(drop=True)
-    df_clusters_outcome.columns = ['cluster', 'rn', 'n']
+    # filter out rows with missing values for total_spend
+    filtered_df = xDecompAgg[~xDecompAgg['total_spend'].isna()]
+    # join with cluster information
+    merged_df = filtered_df.merge(df[['solID', 'cluster']], on='solID', how='left')
+    # select relevant columns and group by cluster, solID and rn
+    grouped_df_with_n = merged_df[['solID', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']].groupby(['cluster', 'rn', 'solID']).size().reset_index(name='n')
+    grouped_df_with_solID = merged_df[['solID', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']].groupby(['cluster', 'rn', 'solID']).agg({'roi_total': 'mean', 'cpa_total': 'mean', 'robynPareto': 'mean'})
+    grouped_df = pd.merge(grouped_df_with_n, grouped_df_with_solID, on=['cluster', 'rn', 'solID'])
+    # sort by cluster and rn
+    df_clusters_outcome = grouped_df.sort_values(['cluster', 'rn', 'solID'])
 
     # Initialize lists to store results
     cluster_collect = []
@@ -373,7 +370,7 @@ def prepare_df(x, all_media, dep_var_type, cluster_by):
         # Include only 'solID', hyperparameters, and specific metrics
         from .checks import HYPS_NAMES
 
-        cols_to_keep = ['solID'] + [col for col in x.columns if col in HYPS_NAMES or col.startswith(('nrmse', 'decomp.rssd', 'mape'))]
+        cols_to_keep = ['solID'] + [col for col in x.columns if any(hyps in col for hyps in HYPS_NAMES + ['nrmse', 'decomp.rssd', 'mape'])]
         outcome = x[cols_to_keep].copy()
     else:
         raise ValueError("Invalid cluster_by parameter")
