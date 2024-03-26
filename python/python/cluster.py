@@ -31,6 +31,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 ## from sklearn.preprocessing import Dropna
 from scipy.stats import norm
+import scipy.stats as stats
 
 
 ## Manual imports
@@ -52,6 +53,71 @@ def determine_optimal_k(df, max_clusters, random_state=42):
 
     return optimal_k
 
+def clusterKmeans_auto(df, limit_clusters=10, seed=None):
+    features = df.select_dtypes(include=[np.number])  # Assuming numerical columns for clustering
+    features.columns = features.columns.astype(str)
+    features.columns = [str(col) for col in features.columns]
+    # Determine the range of k values to try
+    k_range = range(1, limit_clusters + 1)
+
+    # Calculate WSS for each k
+    wss = []
+    for k in k_range:
+        kmeans = KMeans(n_clusters=k, random_state=seed)
+        kmeans.fit(features)
+        wss.append(kmeans.inertia_)
+
+    # Plot WSS to identify the elbow (optional visualization step)
+    plt.figure(figsize=(8, 4))
+    plt.plot(k_range, wss, 'bo-', markersize=8, lw=2)
+    plt.title('Elbow Method For Optimal k')
+    plt.xlabel('Number of Clusters k')
+    plt.ylabel('Within-Cluster Sum of Squares (WSS)')
+    plt.grid(True)
+    plt.show()
+
+    # Optionally, automatically determine the optimal k based on the elbow method or other criteria
+    # This part is simplified; more sophisticated methods could be applied for determining 'k'
+    optimal_k = determine_optimal_k(features, 20)
+
+    # Perform final clustering with determined optimal k
+    limit_clusters = min(len(df) - 1, 30)
+    final_kmeans = KMeans(n_clusters=optimal_k, max_iter=limit_clusters, random_state=seed, tol=0.05)
+    final_kmeans.fit(features)
+
+    # Adding cluster labels to the original DataFrame
+    df['cluster'] = final_kmeans.labels_
+
+    return df, optimal_k, wss, final_kmeans
+
+def plot_wss_and_save(wss, path, dpi=500, width=5, height=4):
+    """
+    Creates and saves a WSS plot.
+
+    Args:
+    - wss: Array of WSS values.
+    - path: File path for the saved plot.
+    - dpi: Dots per inch (resolution) of the saved plot.
+    - width: Width of the figure in inches.
+    - height: Height of the figure in inches.
+    """
+    # Create the plot
+    plt.figure(figsize=(width, height))
+    k_values = range(1, len(wss) + 1)
+    plt.plot(k_values, wss, marker='o', linestyle='-', color='blue')
+    plt.title('WSS vs. Number of Clusters')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('WSS')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
+    plt.tight_layout()
+
+    # Set background to white
+    plt.gca().set_facecolor('white')
+    plt.gcf().set_facecolor('white')
+
+    # Save the plot
+    plt.savefig(path, dpi=dpi, bbox_inches='tight')
+    plt.close()
 
 def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=None, k='auto', limit=1, weights=None, dim_red='PCA', quiet=False, export=False, seed=123):
     """
@@ -90,9 +156,7 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
             all_media = aux[1:-1]  # If "type" is not found, exclude the first and last columns as a fallback
 
         path = input["plot_folder"]
-    #     aux = colnames(input.mediaVecCollect)
-    #     all_media = aux[:-1]
-    # path = input.plot_folder
+
 
     # Pareto and ROI data
     x = input["xDecompAgg"]
@@ -109,8 +173,9 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         try:
             # You must determine the appropriate number of clusters beforehand, as `n_clusters=None` is not valid.
             # This placeholder (e.g., 3) is for demonstration; you need a dynamic method or a fixed value.
-            determined_clusters = determine_optimal_k(features, 20)
-            cls = KMeans(n_clusters=determined_clusters, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(features)
+            # determined_clusters = determine_optimal_k(features, 20)
+            # cls = KMeans(n_clusters=determined_clusters, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(features)
+            df, optimal_k, wss, cls = clusterKmeans_auto(df, limit_clusters=limit_clusters, seed=seed)
         except Exception as e:
             print(f"Couldn't automatically create clusters: {e}")
             cls = None
@@ -133,16 +198,16 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     solID = df['solID'].copy()
 
     # Perform KMeans clustering on the numeric data only
-    try:
-        cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(features)
-    except Exception as e:
-        print(f"Error during KMeans fitting: {e}")
-        cls = None
+    # try:
+    #     cls = KMeans(n_clusters=k, max_iter=limit_clusters, random_state=seed).fit(features)
+    # except Exception as e:
+    #     print(f"Error during KMeans fitting: {e}")
+    #     cls = None
 
     # If you need to use the cluster labels with the original DataFrame, you can add them back
     if cls is not None:
         # Add the cluster labels to the original DataFrame or to solID as needed
-        df['cluster'] = cls.labels_
+        #df['cluster'] = cls.labels_
         # Or if you want to create a new DataFrame with solID and the cluster labels
         df_with_clusters = pd.DataFrame({'solID': solID, 'cluster': cls.labels_})
 
@@ -155,6 +220,8 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     ts_validation = all(np.isnan(df['nrmse_test']))
     top_sols = clusters_df(df=df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
 
+    # df, optimal_k, wss = clusterKmeans_auto(df, limit_clusters=limit_clusters, seed=seed)
+
     # Build in-cluster CI with bootstrap
     ci_list = confidence_calcs(input["xDecompAgg"], df, all_paid, dep_var_type, k, cluster_by, seed=seed)
 
@@ -165,7 +232,8 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         'boot_n': ci_list['boot_n'],
         'sim_n': ci_list['sim_n'],
         'errors_weights': weights,
-        'wss': input.nclusters_plot + theme_lares(background='white'),
+        # 'wss': input.nclusters_plot + theme_lares(background='white'),
+        'wss': plot_wss_and_save(wss, f'{path}pareto_clusters_wss.png'),
         'corrs': input.correlations + labs(title='Top Correlations by Cluster', subtitle=None),
         'clusters_means': input.means,
         'clusters_PCA': input.PCA,
@@ -233,7 +301,7 @@ def confidence_calcs(xDecompAgg, df, all_paid, dep_var_type, k, cluster_by, boot
         # Filter outcome data for current cluster
         df_outcome = df_clusters_outcome[df_clusters_outcome['cluster'] == j]
 
-        if len(unique(df_outcome['solID'])) < 3:
+        if len(df_outcome['solID'].unique()) < 3:
             print(f"Cluster {j} does not contain enough models to calculate CI")
         else:
 
@@ -241,53 +309,86 @@ def confidence_calcs(xDecompAgg, df, all_paid, dep_var_type, k, cluster_by, boot
 
             # Bootstrap CI
             if cluster_by == 'hyperparameters':
-                all_paid = unique(gsub(paste(paste0("_", HYPS_NAMES), collapse='|'), '', all_paid))
+                pattern = '|'.join(["_" + re.escape(hyp_name) for hyp_name in HYPS_NAMES])
+                all_paid = np.unique([re.sub(pattern, '', paid) for paid in all_paid])
             for i in all_paid:
-                # Drop CPA == Inf
-                ##df_chn = df_outcome[df_outcome['rn'] == i & is.finite(df_outcome['cpa_total'])]
-                df_chn = df_outcome[df_outcome['rn'] == i and np.isfinite(df_outcome['cpa_total'])]
-                v_samp = df_chn['cpa_total']
                 if dep_var_type == 'conversion':
+                    # Correctly apply filtering for 'conversion' case
+                    df_chn = df_outcome[(df_outcome['rn'] == i) & np.isfinite(df_outcome['cpa_total'])]
+                    v_samp = df_chn['cpa_total']
+                else:
                     df_chn = df_outcome[df_outcome['rn'] == i]
                     v_samp = df_chn['roi_total']
 
-                # Calculate bootstrapped CI
-                boot_res = sm.bootci(samp=v_samp, boot_n=boot_n)
-                boot_mean = mean(boot_res.boot_means)
-                boot_se = boot_res.se
-                ci_low = max(0, boot_res.ci[1])
-                ci_up = boot_res.ci[2]
+                boot_mean = np.mean(v_samp)
+                boot_se = np.std(v_samp, ddof=1) / np.sqrt(len(v_samp))
 
-                # Collect loop results
-                chn_collect.append(df_chn.drop(columns=['cpa_total']))
-                chn_collect[-1].rename(columns={'rn': i}, inplace=True)
-                chn_collect[-1]['ci_low'] = ci_low
-                chn_collect[-1]['ci_up'] = ci_up
-                chn_collect[-1]['n'] = len(v_samp)
-                chn_collect[-1]['boot_se'] = boot_se
-                chn_collect[-1]['boot_mean'] = boot_mean
+                ci_low, ci_up = stats.norm.interval(0.95, loc=boot_mean, scale=boot_se)
+                ci_low = max(0, ci_low)
 
-                # Simulate
-                sim_collect.append(pd.DataFrame({'cluster': j, 'rn': i, 'n': len(v_samp), 'boot_mean': boot_mean,
-                                                   'x_sim': np.random.normal(boot_mean, boot_se, size=sim_n),
-                                                   'y_sim': np.random.normal(boot_mean, boot_se, size=sim_n)}))
+                df_chn_modified = df_chn.assign(ci_low=ci_low, ci_up=ci_up, n=len(v_samp),
+                                boot_se=boot_se, boot_mean=boot_mean, cluster=j)
+                chn_collect.append(df_chn_modified)
 
-            # Collect results for current cluster
-            cluster_collect.append(chn_collect)
-            cluster_collect[-1].rename(columns={'chn_collect': f'chn_{j}'}, inplace=True)
+                # Correcting the simulation part
+                x_sim = np.random.normal(boot_mean, boot_se, size=sim_n)
+                y_sim = norm.pdf(x_sim, boot_mean, boot_se)  # Correct way to simulate 'y_sim' as in R's dnorm
 
-    # Combine results
-    sim_collect = pd.concat(sim_collect)
-    sim_collect.columns = ['cluster', 'rn', 'n', 'boot_mean', 'x_sim', 'y_sim']
-    sim_collect['cluster_title'] = pd.Series(f'Cl.{j} (n={i})', index=sim_collect.index)
-    sim_collect = sim_collect.drop(columns=['x_sim', 'y_sim'])
+                # Creating and appending the new DataFrame to sim_collect
+                sim_df = pd.DataFrame({
+                    'cluster': j,
+                    'rn': i,
+                    'n': len(v_samp),
+                    'boot_mean': boot_mean,
+                    'x_sim': x_sim,
+                    'y_sim': y_sim
+                })
+                sim_collect.append(sim_df)
 
-    df_ci = pd.concat(cluster_collect)
-    df_ci.columns = ['rn', 'cluster_title', 'n', 'boot_mean', 'boot_se', 'ci_low', 'ci_up']
-    df_ci['dist100'] = (df_ci['ci_up'] - df_ci['ci_low'] + 2 * df_ci['boot_se'] * np.sqrt(df_ci['n'] - 1)) / 99
-    df_ci.drop(columns=['ci_low', 'ci_up'], inplace=True)
+            cluster_collect.append({
+                f'chn_{j}': chn_collect,
+                f'sim_{j}': sim_collect
+            })
 
-    return [df_ci, sim_collect, boot_n, sim_n]
+    all_sim_collect_dfs = []
+    all_chn_collect_dfs = []
+    for cluster in cluster_collect:
+        for key in cluster:
+            if key.startswith('sim_'):
+                all_sim_collect_dfs.extend(cluster[key])
+            if key.startswith('chn_'):
+                all_chn_collect_dfs.extend(cluster[key])
+    sim_collect = pd.concat(all_sim_collect_dfs, ignore_index=True)
+    chn_collect = pd.concat(all_chn_collect_dfs, ignore_index=True)
+
+    sim_collect['cluster_title'] = sim_collect.apply(lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1)
+
+    df_ci = chn_collect.drop_duplicates()
+
+    df_ci['cluster_title'] = df_ci.apply(lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1)
+
+    # If df_ci needs grouping and summarization similar to what was described previously:
+    df_ci_grouped = df_ci.groupby(['rn', 'cluster', 'cluster_title']).agg(
+        n=('n', 'first'),
+        boot_mean=('boot_mean', 'mean'),
+        boot_se=('boot_se', 'mean'),
+        ci_low=('ci_low', 'min'),
+        ci_up=('ci_up', 'max')
+    ).reset_index()
+
+    df_ci_grouped['boot_ci'] = df_ci_grouped.apply(lambda x: f"[{round(x['ci_low'], 2)}, {round(x['ci_up'], 2)}]", axis=1)
+    df_ci_grouped['sd'] = df_ci_grouped['boot_se'] * np.sqrt(df_ci_grouped['n'] - 1)
+    df_ci_grouped['dist100'] = (df_ci_grouped['ci_up'] - df_ci_grouped['ci_low'] + 2 * df_ci_grouped['boot_se'] * np.sqrt(df_ci_grouped['n'] - 1)) / 99
+
+    # df_ci_grouped now holds the processed data
+    df_ci = df_ci_grouped
+
+    return {
+        'df_ci': df_ci,
+        'sim_collect': sim_collect,
+        'boot_n': boot_n,
+        'sim_n': sim_n
+    }
 
 def errors_scores(df, balance=None, ts_validation=True, **kwargs):
     """
