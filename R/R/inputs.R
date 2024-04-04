@@ -861,7 +861,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
   #! SALLY ADDED CODE
   paste("HELLO PASTE")
-  warning("WHAAAAT")
+  warning("WHAAAAT.. TEST 5:54")
   
 
   these <- seq_along(unlist(recurrence[, 1]))
