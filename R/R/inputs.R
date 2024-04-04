@@ -860,9 +860,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   }
 
   #! SALLY ADDED CODE
-  paste("HELLO PASTE")
-  warning("WHAAAAT.. TEST 5:54")
-  print("another print statement")
+  message("This is a message from Sally")
+  warning("This is a warning from Sally")
 
   these <- seq_along(unlist(recurrence[, 1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
