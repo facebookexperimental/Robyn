@@ -859,6 +859,11 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
   }
 
+  #! SALLY ADDED CODE
+  paste("HELLO PASTE")
+  warning("WHAAAAT")
+  
+
   these <- seq_along(unlist(recurrence[, 1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
   if (use_season) dt_transform$season <- forecastRecurrence$yearly[these]
