@@ -326,7 +326,7 @@ robyn_inputs <- function(dt_input = NULL,
       hyperparameters = hyperparameters,
       calibration_input = calibration_input,
       #! SH
-      prophet_model = NULL,
+      prophet_custom_output = NULL,
       custom_params = list(...)
     )
 
@@ -760,14 +760,14 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       custom_params = custom_params
     )
     dt_transform <- dt_transform_original$dt_transform
-    prophet_model <- dt_transform_original$prophet_model
+    prophet_custom_output <- dt_transform_original$prophet_custom_output
   }
 
   ################################################################
   #### Finalize enriched input
 
   #! SH
-  InputCollect$prophet_model <- prophet_model
+  InputCollect$prophet_custom_output <- prophet_custom_output
 
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
@@ -862,6 +862,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     #! SH START
     message("prophet_model assigned from mod_ohe")
     prophet_model <- mod_ohe
+    prophet_input <- dt_ohe
+
     #! SH END
     }
   } else {
@@ -876,6 +878,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
     #! SH START
     message("prophet_model assigned from mod")
+    prophet_model <- mod
+    prophet_input <- dt_regressors
     #! SH END
   }
 
@@ -889,9 +893,12 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
   # return (dt_transform)
 
-  #! SH START 
+  #! SH START
   # Needed to return multiple objects
-  return(list(dt_transform = dt_transform, prophet_model = prophet_model))
+  prophet_custom_output <- list(prophet_model = prophet_model,
+              prophet_input = prophet_input)
+  return(list(dt_transform = dt_transform,
+              prophet_custom_output = prophet_custom_output))
   #! SH END
 }
 
