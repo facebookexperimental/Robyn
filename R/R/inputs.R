@@ -325,6 +325,8 @@ robyn_inputs <- function(dt_input = NULL,
       adstock = adstock,
       hyperparameters = hyperparameters,
       calibration_input = calibration_input,
+      #! SH
+      prophet_model = NULL,
       custom_params = list(...)
     )
 
@@ -761,8 +763,8 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   ################################################################
   #### Finalize enriched input
 
-  #! SALLY ADDED CODE
-  InputCollect[["prophet_model"]] <- dt_transform$prophet_model
+  #! SH
+  InputCollect$prophet_model <- dt_transform$prophet_model
 
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
@@ -861,7 +863,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     mod <- fit.prophet(modelRecurrence, dt_regressors)
     forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
 
-    #! SALLY ADDED CODE
+    #! SH
     message("SH: Adding facebook model to dt_transform")
     dt_transform$prophet_model <- mod
   }
