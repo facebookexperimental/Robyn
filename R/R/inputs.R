@@ -744,7 +744,8 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     #   message(paste("Using custom prophet parameters:", paste(prophet_custom_args, collapse = ", ")))
     # }
 
-    dt_transform <- prophet_decomp(
+    #! SH
+    dt_transform_original <- prophet_decomp(
       dt_transform,
       dt_holidays = InputCollect$dt_holidays,
       prophet_country = InputCollect$prophet_country,
@@ -758,13 +759,15 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       dayInterval = InputCollect$dayInterval,
       custom_params = custom_params
     )
+    dt_transform <- dt_transform_original$dt_transform
+    prophet_model <- dt_transform_original$prophet_model
   }
 
   ################################################################
   #### Finalize enriched input
 
   #! SH
-  InputCollect$prophet_model <- dt_transform$prophet_model
+  InputCollect$prophet_model <- prophet_model
 
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
@@ -836,6 +839,9 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
   # dt_regressors <<- dt_regressors
   # modelRecurrence <<- modelRecurrence
+  #! SH START
+  prophet_model <- NULL
+  #! SH END
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- dt_regressors %>%
@@ -852,6 +858,11 @@ prophet_decomp <- function(dt_transform, dt_holidays,
       oheRegNames <- grep(paste0("^", aggreg, ".*"), names(forecastRecurrence), value = TRUE)
       get_reg <- rowSums(select(forecastRecurrence, all_of(oheRegNames)))
       dt_transform[, aggreg] <- scale(get_reg, center = min(get_reg), scale = FALSE)
+
+    #! SH START
+    message("prophet_model assigned from mod_ohe")
+    prophet_model <- mod_ohe
+    #! SH END
     }
   } else {
     if (dayInterval == 1) {
@@ -863,12 +874,11 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     mod <- fit.prophet(modelRecurrence, dt_regressors)
     forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
 
+    #! SH START
+    message("prophet_model assigned from mod")
+    #! SH END
   }
 
-
-  #! SH
-  message("SH: Adding facebook model to dt_transform$prophet_model")
-  dt_transform$prophet_model <- mod_ohe
 
   these <- seq_along(unlist(recurrence[, 1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
@@ -876,7 +886,13 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   if (use_monthly) dt_transform$monthly <- forecastRecurrence$monthly[these]
   if (use_weekday) dt_transform$weekday <- forecastRecurrence$weekly[these]
   if (use_holiday) dt_transform$holiday <- forecastRecurrence$holidays[these]
-  return(dt_transform)
+
+  # return (dt_transform)
+
+  #! SH START 
+  # Needed to return multiple objects
+  return(list(dt_transform = dt_transform, prophet_model = prophet_model))
+  #! SH END
 }
 
 ####################################################################
