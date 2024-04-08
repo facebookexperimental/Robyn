@@ -861,6 +861,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
     #! SH START
     message("prophet_model assigned from mod_ohe")
+    message("prophet_input assigned from dt_ohe")
+
     prophet_model <- mod_ohe
     prophet_input <- dt_ohe
 
@@ -878,6 +880,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
     #! SH START
     message("prophet_model assigned from mod")
+    message("prophet_input assigned from dt_regressors")
     prophet_model <- mod
     prophet_input <- dt_regressors
     #! SH END
