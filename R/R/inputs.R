@@ -863,10 +863,12 @@ prophet_decomp <- function(dt_transform, dt_holidays,
     mod <- fit.prophet(modelRecurrence, dt_regressors)
     forecastRecurrence <- predict(mod, dt_regressors) # prophet::prophet_plot_components(modelRecurrence, forecastRecurrence)
 
-    #! SH
-    message("SH: Adding facebook model to dt_transform")
-    dt_transform$prophet_model <- mod
   }
+
+
+  #! SH
+  message("SH: Adding facebook model to dt_transform$prophet_model")
+  dt_transform$prophet_model <- mod_ohe
 
   these <- seq_along(unlist(recurrence[, 1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
