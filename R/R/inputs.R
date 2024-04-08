@@ -761,6 +761,9 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   ################################################################
   #### Finalize enriched input
 
+  #! SALLY ADDED CODE
+  InputCollect[["prophet_model"]] <- dt_transform$prophet_model
+
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
   InputCollect[["dt_modRollWind"]] <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
@@ -860,8 +863,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   }
 
   #! SALLY ADDED CODE
-  message("This is a message from Sally")
-  warning("This is a warning from Sally")
+  message("SH: Adding facebook model to dt_transform")
+  dt_transform$prophet_model <- mod
 
   these <- seq_along(unlist(recurrence[, 1]))
   if (use_trend) dt_transform$trend <- forecastRecurrence$trend[these]
