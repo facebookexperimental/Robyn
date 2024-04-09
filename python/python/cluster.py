@@ -53,7 +53,7 @@ def determine_optimal_k(df, max_clusters, random_state=42):
 
     return optimal_k
 
-def clusterKmeans_auto(df, limit_clusters=10, seed=None):
+def clusterKmeans_auto(df, min_clusters=3, limit_clusters=10, seed=None):
     features = df.select_dtypes(include=[np.number])  # Assuming numerical columns for clustering
     features.columns = features.columns.astype(str)
     features.columns = [str(col) for col in features.columns]
@@ -79,16 +79,24 @@ def clusterKmeans_auto(df, limit_clusters=10, seed=None):
     # Optionally, automatically determine the optimal k based on the elbow method or other criteria
     # This part is simplified; more sophisticated methods could be applied for determining 'k'
     optimal_k = determine_optimal_k(features, 20)
+    optimal_k = max(optimal_k, min_clusters)
 
     # Perform final clustering with determined optimal k
     limit_clusters = min(len(df) - 1, 30)
     final_kmeans = KMeans(n_clusters=optimal_k, max_iter=limit_clusters, random_state=seed, tol=0.05)
     final_kmeans.fit(features)
 
+    # Perform PCA for dimensionality reduction
+    pca = PCA(n_components=optimal_k)
+    df_pca = pca.fit_transform(features)
+    # Perform t-SNE for dimensionality reduction
+    tsne = TSNE(n_components=optimal_k, random_state=seed)
+    df_tsne = tsne.fit_transform(features)
+
     # Adding cluster labels to the original DataFrame
     df['cluster'] = final_kmeans.labels_
 
-    return df, optimal_k, wss, final_kmeans
+    return df, optimal_k, wss, final_kmeans, df_pca, df_tsne
 
 def plot_wss_and_save(wss, path, dpi=500, width=5, height=4):
     """
@@ -169,13 +177,15 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     min_clusters = 3
     limit_clusters = min(len(df) - 1, 30)
     features= df.drop(columns=ignore, errors='ignore')
+    df_pca = None
+    df_tsne = None
     if k == 'auto':
         try:
             # You must determine the appropriate number of clusters beforehand, as `n_clusters=None` is not valid.
             # This placeholder (e.g., 3) is for demonstration; you need a dynamic method or a fixed value.
             # determined_clusters = determine_optimal_k(features, 20)
             # cls = KMeans(n_clusters=determined_clusters, max_iter=limit_clusters, random_state=seed, tol=0.05).fit(features)
-            df, optimal_k, wss, cls = clusterKmeans_auto(df, limit_clusters=limit_clusters, seed=seed)
+            df, optimal_k, wss, cls, df_pca, df_tsne = clusterKmeans_auto(df, min_clusters, limit_clusters=limit_clusters, seed=seed)
         except Exception as e:
             print(f"Couldn't automatically create clusters: {e}")
             cls = None
@@ -234,14 +244,15 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         'errors_weights': weights,
         # 'wss': input.nclusters_plot + theme_lares(background='white'),
         'wss': plot_wss_and_save(wss, f'{path}pareto_clusters_wss.png'),
-        'corrs': input.correlations + labs(title='Top Correlations by Cluster', subtitle=None),
-        'clusters_means': input.means,
-        'clusters_PCA': input.PCA,
-        'clusters_tSNE': input.tSNE,
+        # corrs is not being used anywhere and there is no 1:1 mapping from R to Python
+        'corrs': None,
+        'clusters_means': cls.cluster_centers_,
+        'clusters_PCA': df_pca,
+        'clusters_tSNE': df_tsne,
         'models': top_sols,
         'plot_clusters_ci': plot_clusters_ci(ci_list['sim_collect'], ci_list['df_ci'], dep_var_type, ci_list['boot_n'], ci_list['sim_n']),
-        'plot_models_errors': plot_topsols_errors(input.df, top_sols, limit, weights),
-        'plot_models_rois': plot_topsols_rois(input.df, top_sols, all_media, limit)
+        'plot_models_errors': plot_topsols_errors(df, top_sols, limit, weights),
+        'plot_models_rois': plot_topsols_rois(df, top_sols, all_media, limit)
     }
 
     if export:
@@ -651,11 +662,11 @@ def plot_topsols_errors(df, top_sols, limit=1, balance=None):
         balance = balance / np.sum(balance)
 
     # Join dataframes
-    joined_df = pd.merge(df, top_sols, on='solID')
+    joined_df = pd.merge(df, top_sols, on='solID', how='left')
 
     # Calculate alpha and label
-    joined_df['alpha'] = np.where(np.isna(joined_df['cluster']), 0.6, 1)
-    joined_df['label'] = np.where(np.isna(joined_df['cluster']), np.nan, f"[{joined_df['cluster']}.{joined_df['rank']}]")
+    joined_df['alpha'] = np.where(np.isnan(joined_df['cluster']), 0.6, 1)
+    joined_df['label'] = np.where(np.isnan(joined_df['cluster']), np.nan, f"[{joined_df['cluster']}.{joined_df['rank']}]")
 
     # Plot
     plt.figure(figsize=(10, 6))
