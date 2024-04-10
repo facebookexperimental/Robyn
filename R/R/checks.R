@@ -197,8 +197,11 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
         "or remove 'holidays' from 'prophet_vars' input."
       ))
     }
-    if (is.null(prophet_signs) || length(prophet_signs) == 1) {
+    if (is.null(prophet_signs)) {
       prophet_signs <- rep("default", length(prophet_vars))
+    }
+    if (length(prophet_signs) == 1) {
+      prophet_signs <- rep(prophet_signs, length(prophet_vars))
     }
     if (!all(prophet_signs %in% OPTS_PDN)) {
       stop("Allowed values for 'prophet_signs' are: ", paste(OPTS_PDN, collapse = ", "))
