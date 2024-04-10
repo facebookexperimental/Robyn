@@ -33,7 +33,7 @@
 #' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}
 #' @param date_var Character. Name of date variable. Daily, weekly
-#' and monthly data supported. Weekly requires week-start of Monday or Sunday.
+#' and monthly data supported.
 #' \code{date_var} must have format "2020-01-01" (YYY-MM-DD).
 #' Default to automatic date detection.
 #' @param dep_var Character. Name of dependent variable. Only one allowed
@@ -980,7 +980,6 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
 
   if (intervalType == "week") {
     weekStartInput <- lubridate::wday(dt_transform$ds[1], week_start = 1)
-    if (!weekStartInput %in% c(1, 7)) stop("Week start has to be Monday or Sunday")
     holidays <- dt_holidays %>%
       mutate(ds = floor_date(as.Date(.data$ds, origin = "1970-01-01"), unit = "week", week_start = weekStartInput)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%

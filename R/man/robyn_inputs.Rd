@@ -45,7 +45,7 @@ as "revenue" or "conversion". Will be used to calculate ROI or CPI,
 respectively. Only one allowed and case sensitive.}
 
 \item{date_var}{Character. Name of date variable. Daily, weekly
-and monthly data supported. Weekly requires week-start of Monday or Sunday.
+and monthly data supported.
 \code{date_var} must have format "2020-01-01" (YYY-MM-DD).
 Default to automatic date detection.}
 
