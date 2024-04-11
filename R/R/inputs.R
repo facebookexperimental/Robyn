@@ -839,9 +839,8 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 
   # dt_regressors <<- dt_regressors
   # modelRecurrence <<- modelRecurrence
-  #! SH START
+  #! SH
   prophet_model <- NULL
-  #! SH END
 
   if (!is.null(factor_vars) && length(factor_vars) > 0) {
     dt_ohe <- dt_regressors %>%
