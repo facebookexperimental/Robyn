@@ -94,7 +94,7 @@ variables in organic_vars or context_vars should be forced as a factor.}
 Prophet holidays using \code{data("dt_prophet_holidays")}}
 
 \item{prophet_vars}{Character vector. Include any of "trend",
-"season", "weekday", "holiday" or NULL. Highly recommended
+"season", "weekday", "monthly", "holiday" or NULL. Highly recommended
 to use all for daily data and "trend", "season", "holiday" for
 weekly and above cadence. Set to NULL to skip prophet's functionality.}
 
