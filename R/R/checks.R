@@ -10,7 +10,8 @@ HYPS_NAMES <- c("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
 HYPS_OTHERS <- c("lambda", "train_size")
 LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
 
-check_nas <- function(df) {
+check_nas <- function(df, channels = NULL) {
+  if (!is.null(channels)) df <- select(df, all_of(channels))
   name <- deparse(substitute(df))
   if (sum(is.na(df)) > 0) {
     naVals <- lares::missingness(df)

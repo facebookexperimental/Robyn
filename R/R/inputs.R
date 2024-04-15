@@ -199,17 +199,17 @@ robyn_inputs <- function(dt_input = NULL,
     dt_input <- as_tibble(dt_input)
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
-    ## Check for NA and all negative values
-    dt_input <- check_allneg(dt_input)
-    check_nas(dt_input)
-    check_nas(dt_holidays)
-
     ## Check vars names (duplicates and valid)
     check_varnames(
       dt_input, dt_holidays,
       dep_var, date_var,
       context_vars, paid_media_spends,
       organic_vars)
+
+    ## Check for NA and all negative values
+    dt_input <- check_allneg(dt_input)
+    check_nas(dt_input, c(paid_media_vars, paid_media_spends, context_vars, organic_vars))
+    check_nas(dt_holidays)
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
