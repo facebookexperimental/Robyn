@@ -229,7 +229,7 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     # all_paid = setdiff(names(input.df), [ignore, 'cluster'])
     ts_validation = all(np.isnan(df['nrmse_test']))
     top_sols = clusters_df(df=df, all_paid=all_paid, balance=weights, limit=limit, ts_validation=ts_validation)
-
+    top_sols = top_sols.loc[:, ~top_sols.columns.duplicated()]
     # df, optimal_k, wss = clusterKmeans_auto(df, limit_clusters=limit_clusters, seed=seed)
 
     # Build in-cluster CI with bootstrap
@@ -251,19 +251,21 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
         'clusters_tSNE': df_tsne,
         'models': top_sols,
         'plot_clusters_ci': plot_clusters_ci(ci_list['sim_collect'], ci_list['df_ci'], dep_var_type, ci_list['boot_n'], ci_list['sim_n']),
-        'plot_models_errors': plot_topsols_errors(df, top_sols, limit, weights),
-        'plot_models_rois': plot_topsols_rois(df, top_sols, all_media, limit)
+        # TODO ADD following vars to the output
+        #'plot_models_errors': plot_topsols_errors(df, top_sols, limit, weights),
+        #'plot_models_rois': plot_topsols_rois(df, top_sols, all_media, limit)
     }
 
-    if export:
-        output['data'].to_csv(f'{path}pareto_clusters.csv', index=False)
-        output['df_cluster_ci'].to_csv(f'{path}pareto_clusters_ci.csv', index=False)
-        plt.figure(figsize=(5, 4))
-        sns.heatmap(output['wss'], annot=True, cmap='coolwarm', xticks=range(k), yticks=range(k), square=True)
-        plt.savefig(f'{path}pareto_clusters_wss.png', dpi=500, bbox_inches='tight')
-        get_height = int(np.ceil(k/2)/2)
-        db = (output['plot_clusters_ci'] / (output['plot_models_rois'] + output['plot_models_errors'])) ## TODO: + plot_layout(heights=[get_height, 1], guides='collect')
-        suppress_messages(plt.savefig(f'{path}pareto_clusters_detail.png', dpi=500, bbox_inches='tight', width=12, height=4+len(all_paid)*2, limitsize=False))
+    # TODO Add below code once plotting is fixed
+    # if export:
+    #     output['data'].to_csv(f'{path}pareto_clusters.csv', index=False)
+    #     output['df_cluster_ci'].to_csv(f'{path}pareto_clusters_ci.csv', index=False)
+    #     plt.figure(figsize=(5, 4))
+    #     sns.heatmap(output['wss'], annot=True, cmap='coolwarm', xticks=range(k), yticks=range(k), square=True)
+    #     plt.savefig(f'{path}pareto_clusters_wss.png', dpi=500, bbox_inches='tight')
+    #     get_height = int(np.ceil(k/2)/2)
+    #     db = (output['plot_clusters_ci'] / (output['plot_models_rois'] + output['plot_models_errors'])) ## TODO: + plot_layout(heights=[get_height, 1], guides='collect')
+    #     suppress_messages(plt.savefig(f'{path}pareto_clusters_detail.png', dpi=500, bbox_inches='tight', width=12, height=4+len(all_paid)*2, limitsize=False))
 
     return output
 
@@ -642,6 +644,7 @@ def plot_clusters_ci(sim_collect, df_ci, dep_var_type, boot_n, sim_n):
 
     ##return p
 
+# TODO fix plotting
 def plot_topsols_errors(df, top_sols, limit=1, balance=None):
     """
     Plots a heatmap of the correlation matrix for the joined dataframe of `df` and `top_sols`.
@@ -661,24 +664,36 @@ def plot_topsols_errors(df, top_sols, limit=1, balance=None):
     else:
         balance = balance / np.sum(balance)
 
+    temp_df = df.copy()
+    temp_df.drop(['cluster', 'error_score'], axis=1, inplace=True, errors='ignore')
     # Join dataframes
-    joined_df = pd.merge(df, top_sols, on='solID', how='left')
+    #joined_df = pd.merge(temp_df, top_sols, on='solID', how='left')
+    joined_df = pd.merge(temp_df, top_sols, on='solID', how='left', suffixes=('', '_top'))
+    joined_df = joined_df[[col for col in joined_df.columns if not col.endswith('_top')]]
 
     # Calculate alpha and label
     joined_df['alpha'] = np.where(np.isnan(joined_df['cluster']), 0.6, 1)
-    joined_df['label'] = np.where(np.isnan(joined_df['cluster']), np.nan, f"[{joined_df['cluster']}.{joined_df['rank']}]")
+    #joined_df['label'] = np.where(np.isnan(joined_df['cluster']), np.nan, f"[{joined_df['cluster']}.{joined_df['rank']}]")
+
+    #correlation_df = joined_df.copy()
+    #correlation_df = correlation_df.drop(['cluster', 'rank'], axis=1)
 
     # Plot
     plt.figure(figsize=(10, 6))
     sns.set(style='white')
-    sns.heatmap(joined_df.corr(), annot=True, cmap='coolwarm',
-                  square=True, xticks=range(3), yticks=range(3),
-                  xlabel='Feature 1', ylabel='Feature 2')
+    sns.heatmap(joined_df.corr(), annot=True, cmap='coolwarm', square=True)
+
+    # Customize x-axis and y-axis ticks
+    plt.xticks(ticks=range(len(joined_df.columns)), labels=joined_df.columns)
+    plt.yticks(ticks=range(len(joined_df.columns)), labels=joined_df.columns)
+    #sns.heatmap(joined_df.corr(), annot=True, cmap='coolwarm',
+                  #square=True, xticks=range(3), yticks=range(3),
+                  #xlabel='Feature 1', ylabel='Feature 2')
     plt.title(f"Selecting Top {limit} Performing Models by Cluster")
-    plt.subtitle("Based on minimum (weighted) distance to origin")
+    #plt.subtitle("Based on minimum (weighted) distance to origin")
     plt.xlabel("NRMSE")
     plt.ylabel("DECOMP.RSSD")
-    plt.caption(f"Weights: NRMSE {round(100*balance[0])}%, DECOMP.RSSD {round(100*balance[1])}%, MAPE {round(100*balance[2])}%")
+    #plt.caption(f"Weights: NRMSE {round(100*balance[0])}%, DECOMP.RSSD {round(100*balance[1])}%, MAPE {round(100*balance[2])}%")
     plt.show()
 
 def plot_topsols_rois(df, top_sols, all_media, limit=1):
@@ -696,7 +711,8 @@ def plot_topsols_rois(df, top_sols, all_media, limit=1):
     real_rois.columns = ['real_' + col for col in real_rois.columns]
 
     # Join the real ROIs with the top solutions
-    top_sols = pd.merge(top_sols, real_rois, on='solID', how='left')
+    top_sols = pd.merge(top_sols, real_rois, left_on='solID', right_on='real_solID', how='left')
+
 
     # Create a label column
     top_sols['label'] = np.vectorize(lambda x: f"[{x.cluster}.{x.rank}] {x.solID}")(top_sols)
