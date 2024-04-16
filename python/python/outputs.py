@@ -169,30 +169,31 @@ def robyn_outputs(input_collect,
             )
         OutputCollect["clusters"] = clusterCollect
 
-    if export:
-        try:
-            message(">>> Collecting {} pareto-optimum results into: {}".format(len(all_solutions), plot_folder))
-            all_plots = robyn_plots(input_collect, output_collect, export=export, quiet=quiet)
-            message(">> Exporting general plots into directory...")
-            if csv_out in ["all", "pareto"]:
-                message(">> Exporting {} results as CSVs into directory...".format(csv_out))
-                robyn_csv(input_collect, output_collect, csv_out, export=export, calibrated=calibrated)
-            if plot_pareto:
-                message(">>> Exporting pareto one-pagers into directory...")
-                select_model = select_model if not clusters or output_collect["clusters"] is None else None
-                pareto_onepagers = robyn_onepagers(input_collect, output_collect, select_model=select_model, quiet=quiet, export=export)
-            if all_sol_json:
-                pareto_df = output_collect["resultHypParam"].filter(pandas.notnull(pandas.Series(["cluster"]))).select(["solID", "cluster", "top_sol"]).sort_values(by=["cluster", "top_sol"], ascending=False).drop(columns=["solID"])
-            else:
-                pareto_df = None
-            ##attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
-            output_collect["runTime"] = round(difftime(sys.time(), t0, units="mins"), 2)
-            robyn_write(input_collect, output_collect, dir=plot_folder, quiet=quiet, pareto_df=pareto_df, export=export)
-            if ui and plot_pareto:
-                output_collect["UI"] = {"pareto_onepagers": pareto_onepagers}
-            output_collect["UI"] = output_collect.get("UI", pandas.DataFrame()) if ui else None
-        except Exception as e:
-            message("Failed exporting results, but returned model results anyways: {}".format(e))
+    # TODO Add export code to enable plotting
+    # if export:
+    #     try:
+    #         message(">>> Collecting {} pareto-optimum results into: {}".format(len(all_solutions), plot_folder))
+    #         all_plots = robyn_plots(input_collect, output_collect, export=export, quiet=quiet)
+    #         message(">> Exporting general plots into directory...")
+    #         if csv_out in ["all", "pareto"]:
+    #             message(">> Exporting {} results as CSVs into directory...".format(csv_out))
+    #             robyn_csv(input_collect, output_collect, csv_out, export=export, calibrated=calibrated)
+    #         if plot_pareto:
+    #             message(">>> Exporting pareto one-pagers into directory...")
+    #             select_model = select_model if not clusters or output_collect["clusters"] is None else None
+    #             pareto_onepagers = robyn_onepagers(input_collect, output_collect, select_model=select_model, quiet=quiet, export=export)
+    #         if all_sol_json:
+    #             pareto_df = output_collect["resultHypParam"].filter(pandas.notnull(pandas.Series(["cluster"]))).select(["solID", "cluster", "top_sol"]).sort_values(by=["cluster", "top_sol"], ascending=False).drop(columns=["solID"])
+    #         else:
+    #             pareto_df = None
+    #         ##attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
+    #         output_collect["runTime"] = round(difftime(sys.time(), t0, units="mins"), 2)
+    #         robyn_write(input_collect, output_collect, dir=plot_folder, quiet=quiet, pareto_df=pareto_df, export=export)
+    #         if ui and plot_pareto:
+    #             output_collect["UI"] = {"pareto_onepagers": pareto_onepagers}
+    #         output_collect["UI"] = output_collect.get("UI", pandas.DataFrame()) if ui else None
+    #     except Exception as e:
+    #         message("Failed exporting results, but returned model results anyways: {}".format(e))
     ##if not is.null(output_models["hyper_updated"]):
     if output_models["hyper_updated"] is not None:
         output_collect["hyper_updated"] = output_models["hyper_updated"]
