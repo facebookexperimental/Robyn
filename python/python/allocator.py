@@ -79,62 +79,110 @@ def robyn_allocator(robyn_object=None,
             select_model = OutputCollect.allSolutions
 
     # Collect inputs
-    if not robyn_object is None and (InputCollect is None or OutputCollect is None or select_model is None):
-        if "robyn_exported" in robyn_object.__class__.__name__:
-            imported = robyn_object
-            robyn_object = imported.robyn_object
-        else:
-            imported = robyn_load(robyn_object, select_build, quiet=True)
-        InputCollect = imported.InputCollect
-        OutputCollect = imported.OutputCollect
-        select_model = imported.select_model
-    else:
-        if select_model is None and len(OutputCollect.allSolutions) == 1:
-            select_model = OutputCollect.allSolutions
-        if any(InputCollect is None, OutputCollect is None, select_model is None):
-            raise ValueError("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
+    # if not robyn_object is None and (InputCollect is None or OutputCollect is None or select_model is None):
+    #     if "robyn_exported" in robyn_object.__class__.__name__:
+    #         imported = robyn_object
+    #         robyn_object = imported.robyn_object
+    #     else:
+    #         imported = robyn_load(robyn_object, select_build, quiet=True)
+    #     InputCollect = imported.InputCollect
+    #     OutputCollect = imported.OutputCollect
+    #     select_model = imported.select_model
+    # else:
+    #     if select_model is None and len(OutputCollect.allSolutions) == 1:
+    #         select_model = OutputCollect.allSolutions
+    #     if any(InputCollect is None, OutputCollect is None, select_model is None):
+    #         raise ValueError("When 'robyn_object' is not provided, then InputCollect, OutputCollect, select_model must be provided")
+
+    if select_model is None and len(OutputCollect['allSolutions']) == 1:
+        select_model = OutputCollect['allSolutions']
+
+    # Check if any of InputCollect, OutputCollect, or select_model is None
+    if InputCollect is None or OutputCollect is None or select_model is None:
+        raise ValueError("When 'robyn_object' is not provided, then InputCollect, OutputCollect, and select_model must be provided")
 
     # Check inputs and parameters
-    if len(InputCollect.paid_media_spends) <= 1:
+    if len(InputCollect["robyn_inputs"]["paid_media_spends"]) <= 1:
         raise ValueError("Must have a valid model with at least two 'paid_media_spends'")
 
     if not quiet:
         print(f">>> Running budget allocator for model ID {select_model}...")
 
     # Set local data & params values
-    paid_media_spends = InputCollect.paid_media_spends
+    paid_media_spends = InputCollect["robyn_inputs"]["paid_media_spends"]
     media_order = pd.Series(paid_media_spends).sort_values().index
-    mediaSpendSorted = paid_media_spends[media_order]
-    dep_var_type = InputCollect.dep_var_type
+    media_order_list = media_order.tolist()
+    mediaSpendSorted = [paid_media_spends[i] for i in media_order_list]
+    # mediaSpendSorted = paid_media_spends[media_order]
+    dep_var_type = InputCollect["robyn_inputs"]["dep_var_type"]
     if channel_constr_low is None:
-        channel_constr_low = pd.Series(0.5 if scenario == "max_response" else 0.1)
+        channel_constr_low = 0.5 if scenario == "max_response" else 0.1
     if channel_constr_up is None:
-        channel_constr_up = pd.Series(2 if scenario == "max_response" else np.inf)
-    if len(channel_constr_low) == 1:
-        channel_constr_low = pd.Series(channel_constr_low.values * len(paid_media_spends))
-    if len(channel_constr_up) == 1:
-        channel_constr_up = pd.Series(channel_constr_up.values * len(paid_media_spends))
+        channel_constr_up = 2 if scenario == "max_response" else np.inf
+
+    if isinstance(channel_constr_low, list) and len(channel_constr_low) == 1:
+        channel_constr_low = pd.Series([channel_constr_low[0]] * len(paid_media_spends))
+    elif not isinstance(channel_constr_low, list):
+        channel_constr_low = pd.Series([channel_constr_low] * len(paid_media_spends))
+    else:
+        channel_constr_low = pd.Series(channel_constr_low)
+
+    if isinstance(channel_constr_up, list) and len(channel_constr_up) == 1:
+        channel_constr_up = pd.Series([channel_constr_up[0]] * len(paid_media_spends))
+    elif not isinstance(channel_constr_up, list):
+        channel_constr_up = pd.Series([channel_constr_up] * len(paid_media_spends))
+    else:
+        channel_constr_up = pd.Series(channel_constr_up)
+
     check_allocator_constrains(channel_constr_low, channel_constr_up)
+
+    # channel_constr_low = pd.Series(channel_constr_low, index=paid_media_spends)
     channel_constr_low.index = paid_media_spends
+    channel_constr_low = channel_constr_low.iloc[media_order]
+    # channel_constr_up = pd.Series(channel_constr_up, index=paid_media_spends)
     channel_constr_up.index = paid_media_spends
-    channel_constr_low = channel_constr_low[media_order]
-    channel_constr_up = channel_constr_up[media_order]
-    dt_hyppar = OutputCollect.resultHypParam[OutputCollect.resultHypParam.solID == select_model]
-    dt_bestCoef = OutputCollect.xDecompAgg[OutputCollect.xDecompAgg.solID == select_model][OutputCollect.xDecompAgg.rn.isin(paid_media_spends)]
+    channel_constr_up = channel_constr_up.iloc[media_order]
+
+    # channel_constr_low.index = paid_media_spends
+    # channel_constr_up.index = paid_media_spends
+    # channel_constr_low = channel_constr_low[media_order]
+    # channel_constr_up = channel_constr_up[media_order]
+    dt_hyppar = OutputCollect["resultHypParam"][OutputCollect["resultHypParam"]["solID"] == select_model]
+    # dt_bestCoef = OutputCollect["xDecompAgg"][OutputCollect["xDecompAgg"]["solID"] == select_model][OutputCollect["xDecompAgg"].rn.isin(paid_media_spends)]
+    dt_bestCoef = OutputCollect['xDecompAgg'][
+        (OutputCollect['xDecompAgg']['solID'] == select_model) &
+        (OutputCollect['xDecompAgg']['rn'].isin(paid_media_spends))
+    ]
 
     # Check inputs and parameters
     scenario = check_allocator(OutputCollect, select_model, paid_media_spends, scenario, channel_constr_low, channel_constr_up, constr_mode)
 
     # Sort media
-    dt_coef = pd.concat([dt_bestCoef[["rn", "coef"]]], axis=1)
-    get_rn_order = pd.Series(dt_bestCoef.rn).sort_values().index
-    dt_coefSorted = dt_coef.loc[get_rn_order, :]
-    dt_bestCoef = dt_bestCoef.loc[get_rn_order, :]
-    coefSelectorSorted = dt_coefSorted.coef > 0
-    coefSelectorSorted.index = dt_coefSorted.rn
+    dt_coef = dt_bestCoef[['rn', 'coefs']].copy()
+    get_rn_order = np.argsort(dt_bestCoef['rn'].values)
+    dt_coefSorted = dt_coef.iloc[get_rn_order].copy()
+    dt_bestCoef.iloc[:] = dt_bestCoef.iloc[get_rn_order]
+    coefSelectorSorted = (dt_coefSorted["coefs"] > 0)
+    coefSelectorSorted.index = dt_coefSorted["rn"]
 
-    dt_hyppar = InputCollect.select(hyper_names(InputCollect.adstock, mediaSpendSorted))
-    dt_hyppar = dt_hyppar.select(sort(dt_hyppar.columns))
+    from .checks import hyper_names
+
+    # dt_hyppar = InputCollect.select(hyper_names(InputCollect["robyn_inputs"]["adstock"], mediaSpendSorted))
+    # dt_hyppar = dt_hyppar.select(sort(dt_hyppar.columns))
+    selected_columns = hyper_names(InputCollect["robyn_inputs"]["adstock"], all_media=mediaSpendSorted)
+
+    # Clean up duplicated columns
+    for col in dt_hyppar.columns:
+        if col.endswith('_x'):
+            base_name = col[:-2]  # remove the last two characters '_x'
+            col_y = base_name + '_y'
+
+            if col_y in dt_hyppar.columns:
+                dt_hyppar[base_name] = dt_hyppar[col_y].combine_first(dt_hyppar[col])
+                dt_hyppar.drop([col, col_y], axis=1, inplace=True)
+
+    dt_hyppar = dt_hyppar[selected_columns]
+    dt_hyppar = dt_hyppar[sorted(dt_hyppar.columns)]
 
     dt_bestCoef = dt_bestCoef[dt_bestCoef.rn.isin(mediaSpendSorted), ]
 

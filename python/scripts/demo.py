@@ -260,18 +260,19 @@ print(output_collect)
 
 ################################################################
 #### Step 4: Select and save the any model
-select_model = '1_122_7'
-exported_model = json.robyn_write(input_collect, output_collect, select_model, export=True)
-print(exported_model)
+select_model = '1_1_2'
+# TODO add below code once plotting in 'robyn_outputs' has been fixed
+# exported_model = json.robyn_write(input_collect, output_collect, select_model, export=True)
+# print(exported_model)
 
-# Plot any model's one-pager
-my_one_pager = plots.robyn_onepagers(input_collect, output_collect, select_model, export=False)
-print(my_one_pager)
+# # Plot any model's one-pager
+# my_one_pager = plots.robyn_onepagers(input_collect, output_collect, select_model, export=False)
+# print(my_one_pager)
 
-# Check each of the one-pager's plots
-my_one_pager.patches.plots[1]
-my_one_pager.patches.plots[2]
-my_one_pager.patches.plots[3]
+# # Check each of the one-pager's plots
+# my_one_pager.patches.plots[1]
+# my_one_pager.patches.plots[2]
+# my_one_pager.patches.plots[3]
 
 ################################################################
 #### Step 5: Get budget allocation based on the selected model above
@@ -280,8 +281,8 @@ my_one_pager.patches.plots[3]
 ## Don't interpret budget allocation result if selected model above doesn't meet business expectation.
 
 allocator_collector = allocator.robyn_allocator(
-    input_collector=input_collect,
-    output_collector=output_collect,
+    InputCollect=input_collect,
+    OutputCollect=output_collect,
     select_model=select_model,
     # Date range for budget allocation
     date_range=None,

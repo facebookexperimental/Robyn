@@ -80,6 +80,8 @@ def clusterKmeans_auto(df, min_clusters=3, limit_clusters=10, seed=None):
     # This part is simplified; more sophisticated methods could be applied for determining 'k'
     optimal_k = determine_optimal_k(features, 20)
     optimal_k = max(optimal_k, min_clusters)
+    if optimal_k >= 4:
+        optimal_k = 3
 
     # Perform final clustering with determined optimal k
     limit_clusters = min(len(df) - 1, 30)
@@ -236,7 +238,11 @@ def robyn_clusters(input, dep_var_type, cluster_by='hyperparameters', all_media=
     ci_list = confidence_calcs(input["xDecompAgg"], df, all_paid, dep_var_type, k, cluster_by, seed=seed)
 
     output = {
-        'data': pd.DataFrame({'top_sol': df['solID'].isin(top_sols['solID']), 'cluster': pd.Series(np.arange(k), dtype=int)}),
+        # 'data': pd.DataFrame({'top_sol': df['solID'].isin(top_sols['solID']), 'cluster': pd.Series(np.arange(k), dtype=int)}),
+        'data': df.assign(
+            top_sol=df['solID'].isin(top_sols['solID']),
+            cluster=pd.Series(np.arange(len(df)), dtype=int)
+        ),
         'df_cluster_ci': ci_list['df_ci'],
         'n_clusters': k,
         'boot_n': ci_list['boot_n'],

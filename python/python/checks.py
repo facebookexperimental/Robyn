@@ -931,18 +931,18 @@ def check_class(x: list, object):
 
 
 def check_allocator_constrains(low, upr):
-    max_length = max(len(low), len(upr))
-    if any(low < 0):
+    if (low < 0).any():
         raise ValueError("Inputs 'channel_constr_low' must be >= 0")
     if len(upr) != len(low):
         raise ValueError("Inputs 'channel_constr_up' and 'channel_constr_low' must have the same length or length 1")
-    if any(upr < low):
+    if (upr < low).any():
         raise ValueError("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
+
 
 
 def check_allocator(OutputCollect, select_model, paid_media_spends, scenario, channel_constr_low, channel_constr_up, constr_mode):
     check_allocator_constrains(channel_constr_low, channel_constr_up)
-    if select_model not in OutputCollect.allSolutions:
+    if select_model not in OutputCollect["allSolutions"]:
         raise ValueError(f"Provided 'select_model' is not within the best results. Try any of: {', '.join(OutputCollect.allSolutions)}")
     if scenario not in ("max_response", "target_efficiency"):
         raise ValueError(f"Input 'scenario' must be one of: {', '.join(('max_response', 'target_efficiency'))}")

@@ -138,8 +138,7 @@ def robyn_outputs(input_collect,
             OutputCollect,
             dep_var_type=input_collect["robyn_inputs"]["dep_var_type"],
             quiet=quiet,
-            export=export ##,
-            ##...
+            export=export
         )
         OutputCollect["resultHypParam"] = pd.merge(
             OutputCollect["resultHypParam"],
@@ -196,13 +195,13 @@ def robyn_outputs(input_collect,
     #         message("Failed exporting results, but returned model results anyways: {}".format(e))
     ##if not is.null(output_models["hyper_updated"]):
     if output_models["hyper_updated"] is not None:
-        output_collect["hyper_updated"] = output_models["hyper_updated"]
+        OutputCollect["hyper_updated"] = output_models["hyper_updated"]
     ##attr(output_collect, "runTime") = round(difftime(sys.time(), t0, units="mins"), 2)
-    output_collect["runTime"] = round(difftime(sys.time(), t0, units="mins"), 2)
+    # OutputCollect["runTime"] = round(difftime(sys.time(), t0, units="mins"), 2)
     ##class(output_collect) = ["robyn_outputs", class(output_collect)]
     ##??output_collect["robyn_outputs"] = output_collect
     ##return(invisible(output_collect))
-    return output_collect
+    return OutputCollect
 
 def print_robyn_outputs(x, *args, **kwargs):
     """
