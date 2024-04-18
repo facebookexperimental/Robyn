@@ -184,7 +184,9 @@ def robyn_allocator(robyn_object=None,
     dt_hyppar = dt_hyppar[selected_columns]
     dt_hyppar = dt_hyppar[sorted(dt_hyppar.columns)]
 
-    dt_bestCoef = dt_bestCoef[dt_bestCoef.rn.isin(mediaSpendSorted), ]
+    dt_bestCoef = dt_bestCoef.drop_duplicates(subset='rn', keep='first')
+    dt_bestCoef = dt_bestCoef[dt_bestCoef['rn'].isin(mediaSpendSorted)]
+    # dt_bestCoef = dt_bestCoef[dt_bestCoef.rn.isin(mediaSpendSorted), ]
 
     channelConstrLowSorted = channel_constr_low[mediaSpendSorted]
     channelConstrUpSorted = channel_constr_up[mediaSpendSorted]
@@ -1177,11 +1179,30 @@ def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendS
             - "coefs_sorted": The sorted coefficients.
     """
     hillHypParVec = dt_hyppar.loc[:, dt_hyppar.columns.str.contains("_alphas|_gammas")]
-    alphas = hillHypParVec.loc[:, mediaSpendSorted + "_alphas"]
-    gammas = hillHypParVec.loc[:, mediaSpendSorted + "_gammas"]
+    if isinstance(mediaSpendSorted, list):
+        columns_to_select_alpha = [s + "_alphas" for s in mediaSpendSorted]
+    else:
+        columns_to_select_alpha = mediaSpendSorted + "_alphas"
+    alphas = hillHypParVec.loc[:, columns_to_select_alpha]
+    # alphas = hillHypParVec.loc[:, mediaSpendSorted + "_alphas"]
+    if isinstance(mediaSpendSorted, list):
+        columns_to_select_gammas = [s + "_gammas" for s in mediaSpendSorted]
+    else:
+        columns_to_select_gammas = mediaSpendSorted + "_gammas"
+    gammas = hillHypParVec.loc[:, columns_to_select_gammas]
+
+    # hillHypParVec = dt_hyppar.loc[:, dt_hyppar.columns.str.contains("_alphas|_gammas")]
+    # alphas = hillHypParVec.loc[:, mediaSpendSorted + "_alphas"]
+    # gammas = hillHypParVec.loc[:, mediaSpendSorted + "_gammas"]
 
     if chnAdstocked is None:
-        chnAdstocked = OutputCollect.loc[OutputCollect['type'] == 'adstockedMedia'][['solID'] == select_model][mediaSpendSorted].iloc[InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich]
+        # chnAdstocked = OutputCollect.loc[OutputCollect['type'] == 'adstockedMedia'][['solID'] == select_model][mediaSpendSorted].iloc[InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich]
+        # mask = (OutputCollect['media_vec_collect']['type'].iloc[0] == 'adstockedMedia') & (OutputCollect['media_vec_collect']['solID'].iloc[0] == select_model)
+        mask = (OutputCollect['mediaVecCollect']['type'] == 'adstockedMedia') & (OutputCollect['mediaVecCollect']['solID'] == select_model)
+        filtered_df = OutputCollect['mediaVecCollect'].loc[mask]
+
+        selected_df = filtered_df.loc[:, mediaSpendSorted]
+        chnAdstocked = selected_df.iloc[InputCollect['robyn_inputs']['rollingWindowStartWhich']:InputCollect['robyn_inputs']['rollingWindowEndWhich'] + 1]  # +1 if end index should be inclusive
 
    # Create a list to store the inflexions
     inflexions = []
@@ -1192,6 +1213,7 @@ def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendS
 
     # Convert the list into a NumPy array
     inflexions = pd.Series(inflexions, index=gammas.index, name=gammas.name)
+    # inflexions = pd.Series(inflexions, index=gammas.index, name=gammas)
 
 
     coefs = dt_coef.set_index('rn').loc[mediaSpendSorted]['coefs']
