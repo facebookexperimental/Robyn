@@ -943,7 +943,7 @@ def check_allocator_constrains(low, upr):
 def check_allocator(OutputCollect, select_model, paid_media_spends, scenario, channel_constr_low, channel_constr_up, constr_mode):
     check_allocator_constrains(channel_constr_low, channel_constr_up)
     if select_model not in OutputCollect["allSolutions"]:
-        raise ValueError(f"Provided 'select_model' is not within the best results. Try any of: {', '.join(OutputCollect.allSolutions)}")
+        raise ValueError(f"Provided 'select_model' is not within the best results.")
     if scenario not in ("max_response", "target_efficiency"):
         raise ValueError(f"Input 'scenario' must be one of: {', '.join(('max_response', 'target_efficiency'))}")
     if scenario == "target_efficiency" and not (channel_constr_low is None or channel_constr_up is None):
@@ -969,13 +969,22 @@ def check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_
         raise ValueError(f"Invalid 'metric_name' input: {metric_name}")
     return metric_type
 
+def format_date(date):
+    if isinstance(date, np.datetime64):
+        date = str(np.datetime_as_string(date, unit='D'))
+        date = datetime.strptime(date, '%Y-%m-%d')
+        return date.strftime("%Y-%m-%d")
+    elif isinstance(date, datetime):
+        return date.strftime("%Y-%m-%d")
+    else:
+        raise TypeError("Unsupported date type")
 
 def check_metric_dates(date_range=None, all_dates=None, day_interval=None, quiet=False, is_allocator=False): ## Manually fixed, moved all_dates to first argument.
     """
     Checks the date range and returns the updated date range and location.
     """
     if date_range is None:
-        if dayInterval is None:
+        if day_interval is None:
             raise ValueError("Input 'date_range' or 'dayInterval' must be defined")
 
         date_range = "all"
@@ -988,13 +997,18 @@ def check_metric_dates(date_range=None, all_dates=None, day_interval=None, quiet
             date_range = ["last_" + str(len(all_dates))]
         get_n = int(date_range[0].replace("last_", "")) if "last_" in date_range[0] else 1
         date_range = all_dates[-get_n:]
-        date_range_updated = [date for date in all_dates if date in date_range]
+        # date_range_updated = [date for date in all_dates if date in date_range]
+        date_range_updated = np.intersect1d(all_dates, date_range)
 
         date_range_loc = range(len(date_range_updated))
 
         min_date = min(date_range_updated)
         max_date = max(date_range_updated)
-        rg = ":".join([min_date.strftime("%Y-%m-%d"), max_date.strftime("%Y-%m-%d")])
+
+        min_date_formatted = format_date(min_date)
+        max_date_formatted = format_date(max_date)
+
+        rg = ":".join([min_date_formatted, max_date_formatted])
 
         # TODO: Need to test the else statement
     else:

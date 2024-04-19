@@ -151,6 +151,8 @@ def robyn_response(InputCollect=None,
     # media_vec_origin = dt_input[metric_name][[1]]
     media_vec_origin = dt_input[metric_name].tolist()
 
+    dt_hyppar = sanitize_suffixes(dt_hyppar)
+
     theta = scale = shape = None
     if adstock == "geometric":
         theta_column_name = f"{hpm_name}_thetas"
@@ -245,7 +247,22 @@ def robyn_response(InputCollect=None,
     }
     return ret
 
+def sanitize_suffixes(df):
+    columns = df.columns
+    to_drop = []
+    rename_map = {}
 
+    for col in columns:
+        if col.endswith('_x'):
+            base_name = col[:-2]  # Remove '_x'
+            y_col = base_name + '_y'
+            if y_col in columns:
+                to_drop.append(y_col)
+            rename_map[col] = base_name
+
+    df = df.drop(columns=to_drop)
+    df = df.rename(columns=rename_map)
+    return df
 
 def which_usecase(metric_value, date_range):
     usecase = None
@@ -254,13 +271,13 @@ def which_usecase(metric_value, date_range):
         usecase = "all_historical_vec"
     elif pd.isnull(metric_value) and not pd.isnull(date_range):
         usecase = "selected_historical_vec"
-    elif len(metric_value) == 1 and pd.isnull(date_range):
+    elif (isinstance(metric_value, str) and pd.isnull(date_range)) or (isinstance(metric_value, list) and len(metric_value) == 1 and pd.isnull(date_range)):
         usecase = "total_metric_default_range"
-    elif len(metric_value) == 1 and not pd.isnull(date_range):
+    elif (isinstance(metric_value, str) and not pd.isnull(date_range)) or (isinstance(metric_value, list) and len(metric_value) == 1 and not pd.isnull(date_range)):
         usecase = "total_metric_selected_range"
-    elif len(metric_value) > 1 and pd.isnull(date_range):
+    elif isinstance(metric_value, list) and len(metric_value) > 1 and pd.isnull(date_range):
         usecase = "unit_metric_default_last_n"
-    elif len(metric_value) > 1 and not pd.isnull(date_range):
+    elif isinstance(metric_value, list) and len(metric_value) > 1 and not pd.isnull(date_range):
         usecase = "unit_metric_selected_dates"
 
     if date_range is not None and date_range == "all":

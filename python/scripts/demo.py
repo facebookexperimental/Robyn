@@ -260,7 +260,7 @@ print(output_collect)
 
 ################################################################
 #### Step 4: Select and save the any model
-select_model = '1_1_2'
+select_model = '1_0_1'
 # TODO add below code once plotting in 'robyn_outputs' has been fixed
 # exported_model = json.robyn_write(input_collect, output_collect, select_model, export=True)
 # print(exported_model)

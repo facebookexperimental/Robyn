@@ -197,7 +197,8 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
         how='left'
     )
 
-    mediaVecCollect = []
+    # mediaVecCollect = []
+    mediaVecCollect = pd.DataFrame()
     xDecompVecCollect = []
     plotDataCollect = {}
     df_caov_pct_all = pd.DataFrame()
@@ -470,18 +471,31 @@ def robyn_pareto(InputCollect, OutputModels, pareto_fronts="auto", min_candidate
             # plot8data = "Empty"  # Filled when running robyn_onepagers() with clustering data
 
             # Gather all results
-            mediaVecCollect = pd.concat(
+            # mediaVecCollect = pd.concat(
+            #     [
+            #         dt_transformAdstock.assign(type="adstockedMedia", solID=sid),
+            #         dt_transformPlot.assign(type="rawMedia", solID=sid),
+            #         dt_transformSpend.assign(type="rawSpend", solID=sid),
+            #         dt_transformSpendMod.assign(type="predictedExposure", solID=sid),
+            #         dt_transformSaturation.assign(type="saturatedMedia", solID=sid),
+            #         dt_transformSaturationSpendReverse.assign(type="saturatedSpendReversed", solID=sid),
+            #         dt_transformSaturationDecomp.assign(type="decompMedia", solID=sid)
+            #     ],
+            #     ignore_index=True
+            # )
+            new_data = pd.concat(
                 [
+                    dt_transformAdstock.assign(type="adstockedMedia", solID=sid),
                     dt_transformPlot.assign(type="rawMedia", solID=sid),
                     dt_transformSpend.assign(type="rawSpend", solID=sid),
                     dt_transformSpendMod.assign(type="predictedExposure", solID=sid),
-                    dt_transformAdstock.assign(type="adstockedMedia", solID=sid),
                     dt_transformSaturation.assign(type="saturatedMedia", solID=sid),
                     dt_transformSaturationSpendReverse.assign(type="saturatedSpendReversed", solID=sid),
                     dt_transformSaturationDecomp.assign(type="decompMedia", solID=sid)
                 ],
                 ignore_index=True
             )
+            mediaVecCollect = pd.concat([mediaVecCollect, new_data], ignore_index=True)
             xDecompVecCollect.append(xDecompVec)
             plotDataCollect[sid] = {
                 "plot1data": plot1data,

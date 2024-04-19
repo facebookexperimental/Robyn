@@ -7,7 +7,7 @@
 import pandas as pd
 import numpy as np
 
-from .checks import check_allocator, check_allocator_constrains
+from .checks import check_allocator, check_allocator_constrains, check_metric_dates, check_daterange
 from .response import robyn_response, which_usecase
 
 def robyn_allocator(robyn_object=None,
@@ -186,22 +186,24 @@ def robyn_allocator(robyn_object=None,
 
     dt_bestCoef = dt_bestCoef.drop_duplicates(subset='rn', keep='first')
     dt_bestCoef = dt_bestCoef[dt_bestCoef['rn'].isin(mediaSpendSorted)]
-    # dt_bestCoef = dt_bestCoef[dt_bestCoef.rn.isin(mediaSpendSorted), ]
 
     channelConstrLowSorted = channel_constr_low[mediaSpendSorted]
     channelConstrUpSorted = channel_constr_up[mediaSpendSorted]
 
     hills = get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSorted, select_model)
-    alphas = hills.alphas
-    inflexions = hills.inflexions
-    coefs_sorted = hills.coefs_sorted
+    alphas = hills["alphas"]
+    inflexions = hills["inflexions"]
+    coefs_sorted = hills["coefs_sorted"]
 
-    window_loc = tuple(InputCollect.rollingWindowStartWhich,InputCollect.rollingWindowEndWhich)
-    dt_optimCost = InputCollect['dt_mod'].loc[window_loc]
-    new_date_range = check_metric_dates(date_range, dt_optimCost.ds, InputCollect.dayInterval, quiet=False, is_allocator=True)
-    date_min = new_date_range.date_range_updated.iloc[0]
-    date_max = new_date_range.date_range_updated.iloc[-1]
-    check_daterange(date_min, date_max, dt_optimCost.ds)
+    start = InputCollect["robyn_inputs"]["rollingWindowStartWhich"]
+    end = InputCollect["robyn_inputs"]["rollingWindowEndWhich"]
+    window_loc = range(start, end + 1)
+
+    dt_optimCost = InputCollect["robyn_inputs"]['dt_mod'].loc[window_loc]
+    new_date_range = check_metric_dates(date_range, dt_optimCost.ds, InputCollect["robyn_inputs"]["dayInterval"], quiet=False, is_allocator=True)
+    date_min = new_date_range["date_range_updated"][0]
+    date_max = new_date_range["date_range_updated"][-1]
+    # check_daterange(date_min, date_max, dt_optimCost["ds"])
     if pd.isna(date_min):
         date_min = dt_optimCost.ds.min()
     if pd.isna(date_max):
@@ -220,26 +222,33 @@ def robyn_allocator(robyn_object=None,
 
     histSpendWindow = histFiltered[mediaSpendSorted].sum()
     histSpendWindowTotal = histSpendWindow.sum()
-    histSpendWindowUnit = histFiltered[mediaSpendSorted].mean()
-    histSpendWindowUnitTotal = histSpendWindowUnit.sum()
-    histSpendWindowShare = histSpendWindowUnit / histSpendWindowUnitTotal
+    initSpendUnit = histFiltered[mediaSpendSorted].mean()
+    histSpendWindowUnitTotal = initSpendUnit.sum()
+    histSpendWindowShare = initSpendUnit / histSpendWindowUnitTotal
 
     simulation_period = initial_mean_period = [len(histFiltered[x]) for x in mediaSpendSorted]
-    nDates = {x: histFiltered.ds for x in mediaSpendSorted}
+    # nDates = {x: histFiltered.ds for x in mediaSpendSorted}
+    nDates = {x: histFiltered.ds.tolist() for x in mediaSpendSorted}
     if not quiet:
-        print(f"Date Window: {date_min}:{date_max} ({unique(initial_mean_period)} {InputCollect.intervalType}s)")
+        unique_mean_period = list(set(initial_mean_period))[0]
+        print(f"Date Window: {date_min}:{date_max} ({unique_mean_period} {InputCollect['robyn_inputs']['intervalType']}s)")
 
     zero_spend_channel = [x for x in mediaSpendSorted if histSpendWindow[x] == 0]
 
     initSpendUnitTotal = initSpendUnit.sum()
     initSpendShare = initSpendUnit / initSpendUnitTotal
-    total_budget_unit = total_budget / unique(simulation_period) if pd.isna(total_budget) else total_budget / unique(simulation_period)
-    total_budget_window = total_budget_unit * unique(simulation_period)
+    unique_period = np.unique(simulation_period)[0]
+    # total_budget_unit = total_budget / unique(simulation_period) if pd.isna(total_budget) else total_budget / unique(simulation_period)
+    if pd.isna(total_budget):
+        total_budget_unit = initSpendUnitTotal
+    else:
+        total_budget_unit = total_budget / unique_period
+    total_budget_window = total_budget_unit * unique_period
 
     # Get use case based on inputs
     usecase = which_usecase(initSpendUnit[0], date_range)
     if usecase == "all_historical_vec":
-        ndates_loc = np.where(InputCollect.dt_mod.ds.isin(histFiltered.ds))[0]
+        ndates_loc = np.where(InputCollect["robyn_inputs"]["dt_mod"].ds.isin(histFiltered.ds))[0]
     else:
         ndates_loc = np.arange(len(histFiltered.ds))
     usecase = f"{usecase}+ defined_budget" if not pd.isna(total_budget) else f"{usecase}+ historical_budget"
@@ -255,17 +264,16 @@ def robyn_allocator(robyn_object=None,
             select_build=select_build,
             select_model=select_model,
             metric_name=mediaSpendSorted[i],
-            dt_hyppar=OutputCollect.resultHypParam,
-            dt_coef=OutputCollect.xDecompAgg,
+            dt_hyppar=OutputCollect["resultHypParam"],
+            dt_coef=OutputCollect["xDecompAgg"],
             InputCollect=InputCollect,
             OutputCollect=OutputCollect,
-            quiet=True,
-            is_allocator=True,
-            **kwargs
+            quiet=True
         )
-        hist_carryover_temp = resp.input_carryover[window_loc]
-        qa_carryover.append(round(resp.input_total[window_loc]))
-        hist_carryover_temp.index = resp.date[window_loc]
+        window_loc = range(window_loc.start - 1, window_loc.stop - 1)
+        hist_carryover_temp = resp["input_carryover"][window_loc]
+        qa_carryover.append(round(resp["input_total"][window_loc]))
+        hist_carryover_temp.index = resp["date"][window_loc]
         hist_carryover.append(hist_carryover_temp)
         x_input = initSpendUnit[i]
         resp_simulate = fx_objective(
@@ -614,7 +622,7 @@ def robyn_allocator(robyn_object=None,
         histSpendAllShare=histSpendAllShare,
         histSpendWindow=histSpendWindow,
         histSpendWindowTotal=histSpendWindowTotal,
-        histSpendWindowUnit=histSpendWindowUnit,
+        histSpendWindowUnit=initSpendUnit,
         histSpendWindowUnitTotal=histSpendWindowUnitTotal,
         histSpendWindowShare=histSpendWindowShare,
         # Initial spends for allocation
@@ -1191,32 +1199,43 @@ def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendS
         columns_to_select_gammas = mediaSpendSorted + "_gammas"
     gammas = hillHypParVec.loc[:, columns_to_select_gammas]
 
-    # hillHypParVec = dt_hyppar.loc[:, dt_hyppar.columns.str.contains("_alphas|_gammas")]
-    # alphas = hillHypParVec.loc[:, mediaSpendSorted + "_alphas"]
-    # gammas = hillHypParVec.loc[:, mediaSpendSorted + "_gammas"]
-
     if chnAdstocked is None:
-        # chnAdstocked = OutputCollect.loc[OutputCollect['type'] == 'adstockedMedia'][['solID'] == select_model][mediaSpendSorted].iloc[InputCollect.rollingWindowStartWhich:InputCollect.rollingWindowEndWhich]
-        # mask = (OutputCollect['media_vec_collect']['type'].iloc[0] == 'adstockedMedia') & (OutputCollect['media_vec_collect']['solID'].iloc[0] == select_model)
         mask = (OutputCollect['mediaVecCollect']['type'] == 'adstockedMedia') & (OutputCollect['mediaVecCollect']['solID'] == select_model)
         filtered_df = OutputCollect['mediaVecCollect'].loc[mask]
 
         selected_df = filtered_df.loc[:, mediaSpendSorted]
         chnAdstocked = selected_df.iloc[InputCollect['robyn_inputs']['rollingWindowStartWhich']:InputCollect['robyn_inputs']['rollingWindowEndWhich'] + 1]  # +1 if end index should be inclusive
 
-   # Create a list to store the inflexions
+    if isinstance(gammas, pd.DataFrame):
+        gammas = gammas.values.flatten()
+    else:
+        gammas = np.array([gammas])
+
+    # Create a list to store the inflexions
     inflexions = []
-    # Loop over each column of chnAdstocked
     for i in range(chnAdstocked.shape[1]):
-        # Calculate the inflexion point for the current column
-        inflexions.append((np.max(chnAdstocked.iloc[:, i-1]) - np.min(chnAdstocked.iloc[:, i-1])) * np.array([1 - gammas.values[i] + gammas.values[i]]))
+        max_val = np.max(chnAdstocked.iloc[:, i])
+        min_val = np.min(chnAdstocked.iloc[:, i])
+        # Ensure gamma_value is a scalar by using float() or accessing the first element if it's a single-element array
+        gamma_value = float(gammas[i % len(gammas)])  # This assumes gammas is already a flat array or list
+        inflexion = (max_val - min_val) * (1 - gamma_value + gamma_value)
+        inflexions.append(inflexion)
 
-    # Convert the list into a NumPy array
-    inflexions = pd.Series(inflexions, index=gammas.index, name=gammas.name)
-    # inflexions = pd.Series(inflexions, index=gammas.index, name=gammas)
-
+    inflexions_array = np.array(inflexions)
 
     coefs = dt_coef.set_index('rn').loc[mediaSpendSorted]['coefs']
-    coefs_sorted = pd.Series(coefs, index=dt_coef.index, name=dt_coef['rn'].values[0])
+    if not isinstance(coefs, float):
+        coefs = coefs.drop_duplicates()
+
+    if isinstance(coefs, pd.DataFrame):
+        coefs_sorted = pd.Series(coefs.iloc[:, 0].values, index=coefs.index, name='DataFrame Column')
+    elif isinstance(coefs, pd.Series):
+        coefs_sorted = pd.Series(coefs.values, index=coefs.index, name=coefs.name)
+    elif isinstance(coefs, np.ndarray):
+        coefs_sorted = pd.Series(coefs, index=range(len(coefs)), name='Array')
+    elif isinstance(coefs, list):
+        coefs_sorted = pd.Series(coefs, index=range(len(coefs)), name='List')
+    else:
+        coefs_sorted = pd.Series(coefs, index=dt_coef.index, name=dt_coef['rn'].values[0])
 
     return {'alphas': alphas, 'inflexions': inflexions, 'coefs_sorted': coefs_sorted}
