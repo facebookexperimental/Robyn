@@ -6,6 +6,7 @@
 ####################################################################
 import pandas as pd
 import numpy as np
+import itertools
 
 from .checks import check_allocator, check_allocator_constrains, check_metric_dates, check_daterange
 from .response import robyn_response, which_usecase
@@ -191,8 +192,8 @@ def robyn_allocator(robyn_object=None,
     channelConstrUpSorted = channel_constr_up[mediaSpendSorted]
 
     hills = get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendSorted, select_model)
-    alphas = hills["alphas"]
-    inflexions = hills["inflexions"]
+    alphas = hills["alphas"].reset_index()
+    inflexions = hills["inflexions"].reset_index()
     coefs_sorted = hills["coefs_sorted"]
 
     start = InputCollect["robyn_inputs"]["rollingWindowStartWhich"]
@@ -254,8 +255,8 @@ def robyn_allocator(robyn_object=None,
     usecase = f"{usecase}+ defined_budget" if not pd.isna(total_budget) else f"{usecase}+ historical_budget"
 
     # Response values based on date range -> mean spend
-    initResponseUnit = None
-    initResponseMargUnit = None
+    initResponseUnit = []
+    initResponseMargUnit = []
     hist_carryover = []
     qa_carryover = []
     for i in range(len(mediaSpendSorted)):
@@ -279,24 +280,33 @@ def robyn_allocator(robyn_object=None,
         resp_simulate = fx_objective(
             x=x_input,
             coeff=coefs_sorted[mediaSpendSorted[i]],
-            alpha=alphas[f"{mediaSpendSorted[i]}_alphas"],
-            inflexion=inflexions[f"{mediaSpendSorted[i]}_gammas"],
+            alpha=alphas[f"{mediaSpendSorted[i]}_alphas"][0],
+            inflexion=inflexions[f"{mediaSpendSorted[i]}_gammas"][0],
             x_hist_carryover=np.mean(hist_carryover_temp),
             get_sum=False
         )
         resp_simulate_plus1 = fx_objective(
             x=x_input + 1,
             coeff=coefs_sorted[mediaSpendSorted[i]],
-            alpha=alphas[f"{mediaSpendSorted[i]}_alphas"],
-            inflexion=inflexions[f"{mediaSpendSorted[i]}_gammas"],
+            alpha=alphas[f"{mediaSpendSorted[i]}_alphas"][0],
+            inflexion=inflexions[f"{mediaSpendSorted[i]}_gammas"][0],
             x_hist_carryover=np.mean(hist_carryover_temp),
             get_sum=False
         )
         initResponseUnit = np.append(initResponseUnit, resp_simulate)
         initResponseMargUnit = np.append(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
 
-    qa_carryover = np.c_[qa_carryover, np.zeros(len(qa_carryover))]
-    initResponseUnit.columns = hist_carryover.columns = qa_carryover.columns = mediaSpendSorted
+    qa_carryover = pd.concat(qa_carryover, axis=1)
+    qa_carryover = qa_carryover.fillna(0)
+    # Assign names to the columns of qa_carryover
+    qa_carryover.columns = mediaSpendSorted
+
+    initResponseUnit = pd.DataFrame([initResponseUnit], columns=mediaSpendSorted)
+
+    hist_carryover = pd.concat(hist_carryover, axis=1)
+    hist_carryover = hist_carryover.fillna(0)
+    # Assign names to the columns of hist_carryover
+    hist_carryover.columns = mediaSpendSorted
 
     # QA adstock: simulated adstock should be identical to model adstock
     # qa_carryover_origin = OutputCollect$mediaVecCollect[
@@ -1207,35 +1217,55 @@ def get_hill_params(InputCollect, OutputCollect, dt_hyppar, dt_coef, mediaSpendS
         chnAdstocked = selected_df.iloc[InputCollect['robyn_inputs']['rollingWindowStartWhich']:InputCollect['robyn_inputs']['rollingWindowEndWhich'] + 1]  # +1 if end index should be inclusive
 
     if isinstance(gammas, pd.DataFrame):
-        gammas = gammas.values.flatten()
+        gammas_cycled = itertools.cycle(gammas.values.flatten())
+        # Initialize inflexions as the first row of chnAdstocked
+        inflexions = chnAdstocked.iloc[0:1].copy()
+        # Apply a function to each column of chnAdstocked
+        for i in range(chnAdstocked.shape[1]):
+            max_val = np.max(chnAdstocked.iloc[:, i])
+            min_val = np.min(chnAdstocked.iloc[:, i])
+            # Ensure gamma_value is a scalar by using float() or accessing the first element if it's a single-element array
+            gamma_value = float(next(gammas_cycled))  # This assumes gammas is now a flat array or list
+            inflexion = (max_val - min_val) * (1 - gamma_value + gamma_value)
+            inflexions.iloc[0, i] = inflexion
+        # Set the column names of inflexions to match gammas
+        if isinstance(gammas, pd.DataFrame):
+            inflexions.columns = gammas.columns
     else:
         gammas = np.array([gammas])
-
-    # Create a list to store the inflexions
-    inflexions = []
-    for i in range(chnAdstocked.shape[1]):
-        max_val = np.max(chnAdstocked.iloc[:, i])
-        min_val = np.min(chnAdstocked.iloc[:, i])
-        # Ensure gamma_value is a scalar by using float() or accessing the first element if it's a single-element array
-        gamma_value = float(gammas[i % len(gammas)])  # This assumes gammas is already a flat array or list
-        inflexion = (max_val - min_val) * (1 - gamma_value + gamma_value)
-        inflexions.append(inflexion)
-
-    inflexions_array = np.array(inflexions)
+        # Create a list to store the inflexions
+        inflexions = []
+        for i in range(chnAdstocked.shape[1]):
+            max_val = np.max(chnAdstocked.iloc[:, i])
+            min_val = np.min(chnAdstocked.iloc[:, i])
+            # Ensure gamma_value is a scalar by using float() or accessing the first element if it's a single-element array
+            gamma_value = float(gammas[i % len(gammas)])  # This assumes gammas is already a flat array or list
+            inflexion = (max_val - min_val) * (1 - gamma_value + gamma_value)
+            inflexions.append(inflexion)
 
     coefs = dt_coef.set_index('rn').loc[mediaSpendSorted]['coefs']
     if not isinstance(coefs, float):
         coefs = coefs.drop_duplicates()
 
-    if isinstance(coefs, pd.DataFrame):
-        coefs_sorted = pd.Series(coefs.iloc[:, 0].values, index=coefs.index, name='DataFrame Column')
-    elif isinstance(coefs, pd.Series):
-        coefs_sorted = pd.Series(coefs.values, index=coefs.index, name=coefs.name)
-    elif isinstance(coefs, np.ndarray):
-        coefs_sorted = pd.Series(coefs, index=range(len(coefs)), name='Array')
-    elif isinstance(coefs, list):
-        coefs_sorted = pd.Series(coefs, index=range(len(coefs)), name='List')
+    if isinstance(dt_coef, pd.DataFrame):
+        coefs = dt_coef['coefs']
     else:
-        coefs_sorted = pd.Series(coefs, index=dt_coef.index, name=dt_coef['rn'].values[0])
+        coefs = pd.Series(dt_coef)
+    # Assign names to the elements of coefs
+    coefs.index = dt_coef['rn']
+    # Sort coefs according to mediaSpendSorted
+    coefs_sorted = coefs[mediaSpendSorted]
+
+    # Removing old logic as it might not be needed
+    # if isinstance(coefs, pd.DataFrame):
+    #     coefs_sorted = pd.Series(coefs.iloc[:, 0].values, index=coefs.index, name='DataFrame Column')
+    # elif isinstance(coefs, pd.Series):
+    #     coefs_sorted = pd.Series(coefs.values, index=coefs.index, name=coefs.name)
+    # elif isinstance(coefs, np.ndarray):
+    #     coefs_sorted = pd.Series(coefs, index=range(len(coefs)), name='Array')
+    # elif isinstance(coefs, list):
+    #     coefs_sorted = pd.Series(coefs, index=range(len(coefs)), name='List')
+    # else:
+    #     coefs_sorted = pd.Series(coefs, index=dt_coef.index, name=dt_coef['rn'].values[0])
 
     return {'alphas': alphas, 'inflexions': inflexions, 'coefs_sorted': coefs_sorted}
