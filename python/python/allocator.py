@@ -7,9 +7,13 @@
 import pandas as pd
 import numpy as np
 import itertools
+from scipy.optimize import minimize, Bounds
+from functools import partial
 
 from .checks import check_allocator, check_allocator_constrains, check_metric_dates, check_daterange
 from .response import robyn_response, which_usecase
+
+ROBYN_TEMP = None
 
 def robyn_allocator(robyn_object=None,
                     select_build=0,
@@ -357,29 +361,35 @@ def robyn_allocator(robyn_object=None,
     ub_ext = ub_ext_all = temp_init_all * temp_ub_ext_all
 
     skip_these = (channel_constr_low == 0) & (channel_constr_up == 0)
-    zero_constraint_channel = mediaSpendSorted[skip_these]
+    zero_constraint_channel = [channel for channel in mediaSpendSorted if skip_these[channel]]
     if any(skip_these) and not quiet:
         print("Excluded variables (constrained to 0):", zero_constraint_channel)
     if not all(coefSelectorSorted):
-        zero_coef_channel = set(names(coefSelectorSorted)) - set(mediaSpendSorted[coefSelectorSorted])
+        for index, value in coefSelectorSorted.iteritems():
+            if not value.values[0]:  # Check if the value is False
+                zero_coef_channel.append(index)
         if not quiet:
             print("Excluded variables (coefficients are 0):", zero_coef_channel)
     else:
         zero_coef_channel = []
-    channel_to_drop_loc = mediaSpendSorted in (zero_coef_channel + zero_constraint_channel)
-    channel_for_allocation = mediaSpendSorted[~channel_to_drop_loc]
+
+    channel_to_drop_loc = [channel in (zero_coef_channel + zero_constraint_channel) for channel in mediaSpendSorted]
+    channel_for_allocation = [mediaSpendSorted[i] for i in range(len(mediaSpendSorted)) if not channel_to_drop_loc[i]]
     if any(channel_to_drop_loc):
-        temp_init = temp_init_all[channel_for_allocation]
-        temp_ub = temp_ub_all[channel_for_allocation]
-        temp_lb = temp_lb_all[channel_for_allocation]
-        temp_ub_ext = temp_ub_ext_all[channel_for_allocation]
-        temp_lb_ext = temp_lb_ext_all[channel_for_allocation]
-        x0 = x0_all[channel_for_allocation]
-        lb = lb_all[channel_for_allocation]
-        ub = ub_all[channel_for_allocation]
-        x0_ext = x0_ext_all[channel_for_allocation]
-        lb_ext = lb_ext_all[channel_for_allocation]
-        ub_ext = ub_ext_all[channel_for_allocation]
+
+        temp_init = temp_init_all.loc[channel_for_allocation]
+        temp_ub = temp_ub_all.loc[channel_for_allocation]
+        temp_lb = temp_lb_all.loc[channel_for_allocation]
+        x0 = x0_all.loc[channel_for_allocation]
+        lb = lb_all.loc[channel_for_allocation]
+        ub = ub_all.loc[channel_for_allocation]
+
+        channel_indices = [temp_init_all.index.get_loc(c) for c in channel_for_allocation]
+        temp_ub_ext = temp_ub_ext_all[channel_indices]
+        temp_lb_ext = temp_lb_ext_all[channel_indices]
+        x0_ext = x0_ext_all[channel_indices]
+        lb_ext = lb_ext_all[channel_indices]
+        ub_ext = ub_ext_all[channel_indices]
 
     x0 = lb = temp_init * temp_lb
     ub = temp_init * temp_ub
@@ -387,9 +397,16 @@ def robyn_allocator(robyn_object=None,
     ub_ext = temp_init * temp_ub_ext
 
     coefs_eval = coefs_sorted[channel_for_allocation]
-    alphas_eval = alphas[f"{channel_for_allocation}_alphas"]
-    inflexions_eval = inflexions[f"{channel_for_allocation}_gammas"]
+    alphas_keys = [f"{channel}_alphas" for channel in channel_for_allocation]
+    alphas_eval = [alphas[col].iloc[0] for col in alphas_keys]
+    gammas_keys = [f"{channel}_gammas" for channel in channel_for_allocation]
+    inflexions_eval = [inflexions[col].iloc[0] for col in gammas_keys]
+
     hist_carryover_eval = hist_carryover[channel_for_allocation]
+
+    column_means = hist_carryover_eval.mean(axis=0)
+    x_hist_carryover = column_means.values
+    # hist_carryover_eval = hist_carryover[channel_for_allocation].iloc[0].values
 
     eval_list = {
         "coefs_eval": coefs_eval,
@@ -397,14 +414,15 @@ def robyn_allocator(robyn_object=None,
         "inflexions_eval": inflexions_eval,
         "total_budget": total_budget,
         "total_budget_unit": total_budget_unit,
-        "hist_carryover_eval": hist_carryover_eval,
+        "hist_carryover_eval": x_hist_carryover,
         "target_value": target_value,
         "target_value_ext": target_value_ext,
         "dep_var_type": dep_var_type
     }
 
     # So we can implicitly use these values within eval_f()
-    options["ROBYN_TEMP"] = eval_list
+    global ROBYN_TEMP
+    ROBYN_TEMP = eval_list
 
     # Set optim options
     if optim_algo == "MMA_AUGLAG":
@@ -419,24 +437,51 @@ def robyn_allocator(robyn_object=None,
         ]
 
     # Run optim
-    x_hist_carryover = [mean(hist_carryover_eval) for hist_carryover_eval in x_hist_carryover]
     if scenario == "max_response":
+
+        x0_list = []
+        lb_list = []
+        ub_list = []
+
+        channels_list = [item for item in mediaSpendSorted if item not in zero_spend_channel]
+        for channel in channels_list:
+            x0_list.append(x0.loc[channel])
+            lb_list.append(lb.loc[channel])
+            ub_list.append(ub.loc[channel])
         # bounded optimisation
-        nlsMod = nlopt.nlopt(
-            x0=x0,
-            f=eval_f,
-            f_eq=eval_g_eq if constr_mode == "eq" else None,
-            f_ieq=eval_g_ineq if constr_mode == "ineq" else None,
-            lb=lb,
-            ub=ub,
-            opts=[
-                "algorithm", "NLOPT_LD_AUGLAG",
-                "xtol_rel", 1.0e-10,
-                "maxeval", maxeval,
-                "local_opts", local_opts
-            ],
-            target_value=None
-        )
+
+        constr_mode = "eq"  # or "ineq"
+        constraints = []
+        if constr_mode == "eq":
+            constraints.append({'type': 'eq', 'fun': lambda x: x[0] + x[1] - 3})
+        elif constr_mode == "ineq":
+            constraints.append({'type': 'ineq', 'fun': lambda x: x[0]**2 + x[1]**2 - 1.5})
+
+        bounds = Bounds(lb_list, ub_list)
+
+        # Set options
+        options = {'maxiter': 1000, 'disp': True}
+
+        # Perform the optimization
+        eval_f_fixed = partial(eval_f, target_value=target_value)
+
+        result = minimize(eval_f_fixed, x0_list, method='trust-constr', bounds=bounds, constraints=constraints, options=options)
+
+        # nlsMod = nlopt.nlopt(
+        #     x0=x0,
+        #     f=eval_f,
+        #     f_eq=eval_g_eq if constr_mode == "eq" else None,
+        #     f_ieq=eval_g_ineq if constr_mode == "ineq" else None,
+        #     lb=lb,
+        #     ub=ub,
+        #     opts=[
+        #         "algorithm", "NLOPT_LD_AUGLAG",
+        #         "xtol_rel", 1.0e-10,
+        #         "maxeval", maxeval,
+        #         "local_opts", local_opts
+        #     ],
+        #     target_value=None
+        # )
         # unbounded optimisation
         nlsModUnbound = nlopt.nlopt(
             x0=x0_ext,
@@ -946,54 +991,28 @@ def eval_f(X, target_value):
     Returns:
         dict: Dictionary containing the objective, gradient, and objective channel.
     """
-    eval_list = getOption("ROBYN_TEMP")
+    global ROBYN_TEMP
+    eval_list = ROBYN_TEMP
     coefs_eval = eval_list["coefs_eval"]
     alphas_eval = eval_list["alphas_eval"]
     inflexions_eval = eval_list["inflexions_eval"]
     hist_carryover_eval = eval_list["hist_carryover_eval"]
 
-    """ iLLAMA wasn't aware all these functions implemented, so commented out
-    def fx_objective(x, coeff, alpha, inflexion, x_hist_carryover):
-        # Implement the objective function here
-        pass
+    results = [
+        fx_objective(x, coeff, alpha, inflexion, x_hist)
+        for x, coeff, alpha, inflexion, x_hist in zip(X, coefs_eval, alphas_eval, inflexions_eval, hist_carryover_eval)
+    ]
+    objective = -np.sum(results)
 
-    def fx_gradient(x, coeff, alpha, inflexion, x_hist_carryover):
-        # Implement the gradient function here
-        pass
+    gradient = [
+        fx_gradient(x, coeff, alpha, inflexion, x_hist)
+        for x, coeff, alpha, inflexion, x_hist in zip(X, coefs_eval, alphas_eval, inflexions_eval, hist_carryover_eval)
+    ]
 
-    def fx_objective_channel(x, coeff, alpha, inflexion, x_hist_carryover):
-        # Implement the objective channel function here
-        pass
-    """
-    objective = -np.sum(np.ma.apply(
-        fx_objective,
-        x=X,
-        coeff=coefs_eval,
-        alpha=alphas_eval,
-        inflexion=inflexions_eval,
-        x_hist_carryover=hist_carryover_eval,
-        SIMPLIFY=True
-    ))
-
-    gradient = np.ma.apply(
-        fx_gradient,
-        x=X,
-        coeff=coefs_eval,
-        alpha=alphas_eval,
-        inflexion=inflexions_eval,
-        x_hist_carryover=hist_carryover_eval,
-        SIMPLIFY=True
-    )
-
-    objective_channel = np.ma.apply(
-        fx_objective_channel,
-        x=X,
-        coeff=coefs_eval,
-        alpha=alphas_eval,
-        inflexion=inflexions_eval,
-        x_hist_carryover=hist_carryover_eval,
-        SIMPLIFY=True
-    )
+    objective_channel = [
+        fx_objective_channel(x, coeff, alpha, inflexion, x_hist)
+        for x, coeff, alpha, inflexion, x_hist in zip(X, coefs_eval, alphas_eval, inflexions_eval, hist_carryover_eval)
+    ]
 
     optm = {"objective": objective, "gradient": gradient, "objective_channel": objective_channel}
 
@@ -1081,7 +1100,8 @@ def eval_g_eq(X, target_value):
         The constraint value is the sum of the decision variables minus the total budget unit.
         The gradient is an array of ones with the same length as X.
     """
-    eval_list = getOption("ROBYN_TEMP")
+    global ROBYN_TEMP
+    eval_list = ROBYN_TEMP
     constr = np.sum(X) - eval_list.total_budget_unit
     grad = np.ones(len(X))
     return {"constraints": constr, "jacobian": grad}
@@ -1097,7 +1117,8 @@ def eval_g_ineq(X, target_value):
     Returns:
     - A dictionary containing the constraints and their gradients.
     """
-    eval_list = getOption("ROBYN_TEMP")
+    global ROBYN_TEMP
+    eval_list = ROBYN_TEMP
     constr = np.sum(X) - eval_list.total_budget_unit
     grad = np.ones(len(X))
     return {"constraints": constr, "jacobian": grad}
@@ -1115,7 +1136,8 @@ def eval_g_eq_effi(X, target_value):
           The constraints are stored under the key 'constraints',
           and the Jacobian is stored under the key 'jacobian'.
     """
-    eval_list = getOption("ROBYN_TEMP")
+    global ROBYN_TEMP
+    eval_list = ROBYN_TEMP
     sum_response = np.sum(np.vectorize(fx_objective)(x=X, coeff=eval_list.coefs_eval, alpha=eval_list.alphas_eval, inflexion=eval_list.inflexions_eval, x_hist_carryover=eval_list.hist_carryover_eval))
     if target_value is None:
         if eval_list.dep_var_type == "conversion":
@@ -1142,7 +1164,8 @@ def eval_g_eq_effi(X, target_value):
     Returns:
     dict: A dictionary containing the constraints and the jacobian.
     """
-    eval_list = getOption("ROBYN_TEMP")
+    global ROBYN_TEMP
+    eval_list = ROBYN_TEMP
     sum_response = np.sum(np.vectorize(fx_objective)(X, eval_list.coefs_eval, eval_list.alphas_eval, eval_list.inflexions_eval, eval_list.hist_carryover_eval))
     if target_value is None:
         if eval_list.dep_var_type == "conversion":
