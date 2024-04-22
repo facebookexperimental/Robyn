@@ -10,7 +10,8 @@ HYPS_NAMES <- c("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
 HYPS_OTHERS <- c("lambda", "train_size")
 LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
 
-check_nas <- function(df) {
+check_nas <- function(df, channels = NULL) {
+  if (!is.null(channels)) df <- select(df, all_of(channels))
   name <- deparse(substitute(df))
   if (sum(is.na(df)) > 0) {
     naVals <- lares::missingness(df)
@@ -199,6 +200,9 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     }
     if (is.null(prophet_signs)) {
       prophet_signs <- rep("default", length(prophet_vars))
+    }
+    if (length(prophet_signs) == 1) {
+      prophet_signs <- rep(prophet_signs, length(prophet_vars))
     }
     if (!all(prophet_signs %in% OPTS_PDN)) {
       stop("Allowed values for 'prophet_signs' are: ", paste(OPTS_PDN, collapse = ", "))
@@ -836,6 +840,9 @@ check_class <- function(x, object) {
 }
 
 check_allocator_constrains <- function(low, upr) {
+  if (all(is.na(low)) || all(is.na(upr))) {
+    stop("You must define lower (channel_constr_low) and upper (channel_constr_up) constraints")
+  }
   max_length <- max(c(length(low), length(upr)))
   if (any(low < 0)) {
     stop("Inputs 'channel_constr_low' must be >= 0")
@@ -850,7 +857,6 @@ check_allocator_constrains <- function(low, upr) {
 
 check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
                             channel_constr_low, channel_constr_up, constr_mode) {
-  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
       "Provided 'select_model' is not within the best results. Try any of: ",
@@ -862,6 +868,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
+  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(scenario == "target_efficiency" & is.null(channel_constr_low) & is.null(channel_constr_up))) {
     if (length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_spends)) {
       stop(paste(

@@ -33,7 +33,7 @@
 #' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}
 #' @param date_var Character. Name of date variable. Daily, weekly
-#' and monthly data supported. Weekly requires week-start of Monday or Sunday.
+#' and monthly data supported.
 #' \code{date_var} must have format "2020-01-01" (YYY-MM-DD).
 #' Default to automatic date detection.
 #' @param dep_var Character. Name of dependent variable. Only one allowed
@@ -74,7 +74,7 @@
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor.
 #' @param prophet_vars Character vector. Include any of "trend",
-#' "season", "weekday", "holiday" or NULL. Highly recommended
+#' "season", "weekday", "monthly", "holiday" or NULL. Highly recommended
 #' to use all for daily data and "trend", "season", "holiday" for
 #' weekly and above cadence. Set to NULL to skip prophet's functionality.
 #' @param prophet_signs Character vector. Choose any of
@@ -199,17 +199,17 @@ robyn_inputs <- function(dt_input = NULL,
     dt_input <- as_tibble(dt_input)
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
-    ## Check for NA and all negative values
-    dt_input <- check_allneg(dt_input)
-    check_nas(dt_input)
-    check_nas(dt_holidays)
-
     ## Check vars names (duplicates and valid)
     check_varnames(
       dt_input, dt_holidays,
       dep_var, date_var,
       context_vars, paid_media_spends,
       organic_vars)
+
+    ## Check for NA and all negative values
+    dt_input <- check_allneg(dt_input)
+    check_nas(dt_input, c(paid_media_vars, paid_media_spends, context_vars, organic_vars))
+    check_nas(dt_holidays)
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
@@ -980,7 +980,6 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
 
   if (intervalType == "week") {
     weekStartInput <- lubridate::wday(dt_transform$ds[1], week_start = 1)
-    if (!weekStartInput %in% c(1, 7)) stop("Week start has to be Monday or Sunday")
     holidays <- dt_holidays %>%
       mutate(ds = floor_date(as.Date(.data$ds, origin = "1970-01-01"), unit = "week", week_start = weekStartInput)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
