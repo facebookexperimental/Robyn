@@ -13,3 +13,4 @@ seaborn
 tqdm
 rpy2
 pytest
+nlopt
