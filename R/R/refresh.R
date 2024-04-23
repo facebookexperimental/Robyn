@@ -464,6 +464,7 @@ robyn_refresh <- function(json_file = NULL,
     }
 
     if (export) {
+      if (!dir.exists(plot_folder)) dir.create(plot_folder, recursive = TRUE)
       message(paste(">>> Exporting refresh CSVs into directory..."))
       write.csv(resultHypParamReport, paste0(plot_folder, "report_hyperparameters.csv"))
       write.csv(xDecompAggReport, paste0(plot_folder, "report_aggregated.csv"))

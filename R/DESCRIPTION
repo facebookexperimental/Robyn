@@ -1,7 +1,7 @@
 Package: Robyn
 Type: Package
 Title: Semi-Automated Marketing Mix Modeling (MMM) from Meta Marketing Science 
-Version: 3.10.6.9004
+Version: 3.10.6.9005
 Authors@R: c(
     person("Gufeng", "Zhou", , "gufeng@meta.com", c("cre","aut")),
     person("Bernardo", "Lares", , "laresbernardo@gmail.com", c("aut")),

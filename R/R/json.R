@@ -143,7 +143,7 @@ robyn_write <- function(InputCollect,
   class(ret) <- c("robyn_write", class(ret))
   attr(ret, "json_file") <- filename
   if (export) {
-    if (!quiet) message(sprintf(">> Exported model %s as %s", select_model, filename))
+    if (!quiet) message(sprintf(">> Exported %s as %s", select_model, filename))
     if (!is.null(pareto_df)) {
       if (!all(c("solID", "cluster") %in% names(pareto_df))) {
         warning(paste(
