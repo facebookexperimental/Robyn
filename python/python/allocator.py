@@ -227,7 +227,7 @@ def robyn_allocator(robyn_object=None,
 
     histSpendWindow = histFiltered[mediaSpendSorted].sum()
     histSpendWindowTotal = histSpendWindow.sum()
-    initSpendUnit = histFiltered[mediaSpendSorted].mean()
+    initSpendUnit = histSpendWindowUnit = histFiltered[mediaSpendSorted].mean()
     histSpendWindowUnitTotal = initSpendUnit.sum()
     histSpendWindowShare = initSpendUnit / histSpendWindowUnitTotal
 
@@ -554,92 +554,108 @@ def robyn_allocator(robyn_object=None,
     optmResponseUnitUnboundOut = np.zeros(len(channel_for_allocation))
     optmResponseMargUnitUnboundOut = np.zeros(len(channel_for_allocation))
 
-    optmSpendUnitOut[channel_to_drop_loc] = optmResponseUnitOut[channel_to_drop_loc] = optmResponseMargUnitOut[channel_to_drop_loc] = optmSpendUnitUnboundOut[channel_to_drop_loc] = optmResponseUnitUnboundOut[channel_to_drop_loc] = optmResponseMargUnitUnboundOut[channel_to_drop_loc] = 0
+    arrays_to_zero = [optmSpendUnitOut, optmResponseUnitOut, optmResponseMargUnitOut,
+                  optmSpendUnitUnboundOut, optmResponseUnitUnboundOut, optmResponseMargUnitUnboundOut]
+    for array in arrays_to_zero:
+        array[channel_to_drop_loc] = 0
 
-    optmSpendUnitOut[~channel_to_drop_loc] = optmSpendUnit
-    optmResponseUnitOut[~channel_to_drop_loc] = optmResponseUnit
-    optmResponseMargUnitOut[~channel_to_drop_loc] = optmResponseMargUnit
-    optmSpendUnitUnboundOut[~channel_to_drop_loc] = optmSpendUnitUnbound
-    optmResponseUnitUnboundOut[~channel_to_drop_loc] = optmResponseUnitUnbound
-    optmResponseMargUnitUnboundOut[~channel_to_drop_loc] = optmResponseMargUnitUnbound
+    channel_to_drop_loc_temp = np.array(channel_to_drop_loc, dtype=bool)
+    # Apply non-dropped channel values
+    optmSpendUnitOut[~channel_to_drop_loc_temp] = optmSpendUnit
 
-    dt_optimOut = pd.DataFrame(
-        solID=select_model,
-        dep_var_type=dep_var_type,
-        channels=mediaSpendSorted,
-        date_min=date_min,
-        date_max=date_max,
-        periods=f"{initial_mean_period} {InputCollect.intervalType}",
-        constr_low=temp_lb_all,
-        constr_low_abs=lb_all,
-        constr_up=temp_ub_all,
-        constr_up_abs=ub_all,
-        unconstr_mult=channel_constr_multiplier,
-        constr_low_unb=temp_lb_ext_all,
-        constr_low_unb_abs=lb_ext_all,
-        constr_up_unb=temp_ub_ext_all,
-        constr_up_unb_abs=ub_ext_all,
+    optmResponseUnitOut[~channel_to_drop_loc_temp] = optmResponseUnit
+    optmResponseMargUnitOut[~channel_to_drop_loc_temp] = optmResponseMargUnit
+    optmSpendUnitUnboundOut[~channel_to_drop_loc_temp] = optmSpendUnitUnbound
+    optmResponseUnitUnboundOut[~channel_to_drop_loc_temp] = optmResponseUnitUnbound
+    optmResponseMargUnitUnboundOut[~channel_to_drop_loc_temp] = optmResponseMargUnitUnbound
+
+    optmResponseUnitTotal = initResponseUnit.sum(axis=1).values[0]
+    initResponseUnitTotal_array = np.full(initResponseUnit.shape[1], optmResponseUnitTotal)
+
+    sum_initResponseUnit = np.sum(initResponseUnit)
+    unique_simulation_period = np.unique(simulation_period)
+    initResponseTotal = sum_initResponseUnit * unique_simulation_period
+    initResponseUnitShare = initResponseUnit / sum_initResponseUnit
+
+    sum_initResponseUnit = np.sum(initResponseUnit)
+
+    dt_optimOut = {
+        'solID':select_model,
+        'dep_var_type':dep_var_type,
+        'channels':mediaSpendSorted,
+        'date_min':date_min,
+        'date_max':date_max,
+        'periods':f"{initial_mean_period} {InputCollect['robyn_inputs']['intervalType']}",
+        'constr_low':temp_lb_all,
+        'constr_low_abs':lb_all,
+        'constr_up':temp_ub_all,
+        'constr_up_abs':ub_all,
+        'unconstr_mult':channel_constr_multiplier,
+        'constr_low_unb':temp_lb_ext_all,
+        'constr_low_unb_abs':lb_ext_all,
+        'constr_up_unb':temp_ub_ext_all,
+        'constr_up_unb_abs':ub_ext_all,
         # Historical spends
-        histSpendAll=histSpendAll,
-        histSpendAllTotal=histSpendAllTotal,
-        histSpendAllUnit=histSpendAllUnit,
-        histSpendAllUnitTotal=histSpendAllUnitTotal,
-        histSpendAllShare=histSpendAllShare,
-        histSpendWindow=histSpendWindow,
-        histSpendWindowTotal=histSpendWindowTotal,
-        histSpendWindowUnit=initSpendUnit,
-        histSpendWindowUnitTotal=histSpendWindowUnitTotal,
-        histSpendWindowShare=histSpendWindowShare,
+        'histSpendAll':histSpendAll,
+        'histSpendAllTotal':histSpendAllTotal,
+        'histSpendAllUnit':histSpendAllUnit,
+        'histSpendAllUnitTotal':histSpendAllUnitTotal,
+        'histSpendAllShare':histSpendAllShare,
+        'histSpendWindow':histSpendWindow,
+        'histSpendWindowTotal':histSpendWindowTotal,
+        'histSpendWindowUnit':histSpendWindowUnit,
+        'histSpendWindowUnitTotal':histSpendWindowUnitTotal,
+        'histSpendWindowShare':histSpendWindowShare,
         # Initial spends for allocation
-        initSpendUnit=initSpendUnit,
-        initSpendUnitTotal=initSpendUnitTotal,
-        initSpendShare=initSpendShare,
-        initSpendTotal=initSpendUnitTotal * len(simulation_period),
+        'initSpendUnit':initSpendUnit,
+        'initSpendUnitTotal':initSpendUnitTotal,
+        'initSpendShare':initSpendShare,
+        'initSpendTotal':initSpendUnitTotal * np.unique(simulation_period),
         # initSpendUnitRaw=histSpendUnitRaw,
         # adstocked=adstocked,
         # adstocked_start_date=as.Date(ifelse(adstocked, head(resp$date, 1), NA), origin="1970-01-01"),
         # adstocked_end_date=as.Date(ifelse(adstocked, tail(resp$date, 1), NA), origin="1970-01-01"),
         # adstocked_periods=length(resp$date),
-        initResponseUnit=initResponseUnit,
-        initResponseUnitTotal=sum(initResponseUnit),
-        initResponseMargUnit=initResponseMargUnit,
-        initResponseTotal=sum(initResponseUnit) * len(simulation_period),
-        initResponseUnitShare=initResponseUnit / sum(initResponseUnit),
-        initRoiUnit=initResponseUnit / initSpendUnit,
-        initCpaUnit=initSpendUnit / initResponseUnit,
+        'initResponseUnit':initResponseUnit,
+        'initResponseUnitTotal':initResponseUnitTotal_array,
+        'initResponseMargUnit':initResponseMargUnit,
+        'initResponseTotal':initResponseTotal,
+        'initResponseUnitShare':initResponseUnitShare,
+        'initRoiUnit':initResponseUnit / initSpendUnit,
+        'initCpaUnit':initSpendUnit / initResponseUnit,
         # Budget change
-        total_budget_unit=total_budget_unit,
-        total_budget_unit_delta=total_budget_unit / initSpendUnitTotal - 1,
+        'total_budget_unit':total_budget_unit,
+        'total_budget_unit_delta':total_budget_unit / initSpendUnitTotal - 1,
         # Optimized
-        optmSpendUnit=optmSpendUnitOut,
-        optmSpendUnitDelta=(optmSpendUnitOut / initSpendUnit - 1),
-        optmSpendUnitTotal=sum(optmSpendUnitOut),
-        optmSpendUnitTotalDelta=sum(optmSpendUnitOut) / initSpendUnitTotal - 1,
-        optmSpendShareUnit=optmSpendUnitOut / sum(optmSpendUnitOut),
-        optmSpendTotal=sum(optmSpendUnitOut) * len(simulation_period),
-        optmSpendUnitUnbound=optmSpendUnitUnboundOut,
-        optmSpendUnitDeltaUnbound=(optmSpendUnitUnboundOut / initSpendUnit - 1),
-        optmSpendUnitTotalUnbound=sum(optmSpendUnitUnboundOut),
-        optmSpendUnitTotalDeltaUnbound=sum(optmSpendUnitUnboundOut) / initSpendUnitTotal - 1,
-        optmSpendShareUnitUnbound=optmSpendUnitUnboundOut / sum(optmSpendUnitUnboundOut),
-        optmSpendTotalUnbound=sum(optmSpendUnitUnboundOut) * len(simulation_period),
-        optmResponseUnit=optmResponseUnitOut,
-        optmResponseMargUnit=optmResponseMargUnitOut,
-        optmResponseUnitTotal=sum(optmResponseUnitOut),
-        optmResponseTotal=sum(optmResponseUnitOut) * len(simulation_period),
-        optmResponseUnitShare=optmResponseUnitOut / sum(optmResponseUnitOut),
-        optmRoiUnit=optmResponseUnitOut / optmSpendUnitOut,
-        optmCpaUnit=optmSpendUnitOut / optmResponseUnitOut,
-        optmResponseUnitLift=(optmResponseUnitOut / initResponseUnit) - 1,
-        optmResponseUnitUnbound=optmResponseUnitUnboundOut,
-        optmResponseMargUnitUnbound=optmResponseMargUnitUnboundOut,
-        optmResponseUnitTotalUnbound=sum(optmResponseUnitUnboundOut),
-        optmResponseTotalUnbound=sum(optmResponseUnitUnboundOut) * len(simulation_period),
-        optmResponseUnitShareUnbound=optmResponseUnitUnboundOut / sum(optmResponseUnitUnboundOut),
-        optmRoiUnitUnbound=optmResponseUnitUnboundOut / optmSpendUnitUnboundOut,
-        optmCpaUnitUnbound=optmSpendUnitUnboundOut / optmResponseUnitUnboundOut,
-        optmResponseUnitLiftUnbound=(optmResponseUnitUnboundOut / initResponseUnit) - 1
-    )
+        'optmSpendUnit':optmSpendUnitOut,
+        'optmSpendUnitDelta':(optmSpendUnitOut / initSpendUnit - 1),
+        'optmSpendUnitTotal':sum(optmSpendUnitOut),
+        'optmSpendUnitTotalDelta':sum(optmSpendUnitOut) / initSpendUnitTotal - 1,
+        'optmSpendShareUnit':optmSpendUnitOut / sum(optmSpendUnitOut),
+        'optmSpendTotal':sum(optmSpendUnitOut) * unique_simulation_period,
+        'optmSpendUnitUnbound':optmSpendUnitUnboundOut,
+        'optmSpendUnitDeltaUnbound':(optmSpendUnitUnboundOut / optmSpendUnit - 1),
+        'optmSpendUnitTotalUnbound':sum(optmSpendUnitUnboundOut),
+        'optmSpendUnitTotalDeltaUnbound':sum(optmSpendUnitUnboundOut) / initSpendUnitTotal - 1,
+        'optmSpendShareUnitUnbound':optmSpendUnitUnboundOut / sum(optmSpendUnitUnboundOut),
+        'optmSpendTotalUnbound':sum(optmSpendUnitUnboundOut) * unique_simulation_period,
+        'optmResponseUnit':optmResponseUnitOut,
+        'optmResponseMargUnit':optmResponseMargUnitOut,
+        'optmResponseUnitTotal':sum(optmResponseUnitOut),
+        'optmResponseTotal':sum(optmResponseUnitOut) * unique_simulation_period,
+        'optmResponseUnitShare':optmResponseUnitOut / sum(optmResponseUnitOut),
+        'optmRoiUnit':optmResponseUnitOut / optmSpendUnitOut,
+        'optmCpaUnit':optmSpendUnitOut / optmResponseUnitOut,
+        'optmResponseUnitLift':(optmResponseUnitOut / initResponseUnit) - 1,
+        'optmResponseUnitUnbound':optmResponseUnitUnboundOut,
+        'optmResponseMargUnitUnbound':optmResponseMargUnitUnboundOut,
+        'optmResponseUnitTotalUnbound':sum(optmResponseUnitUnboundOut),
+        'optmResponseTotalUnbound':sum(optmResponseUnitUnboundOut) * unique_simulation_period,
+        'optmResponseUnitShareUnbound':optmResponseUnitUnboundOut / sum(optmResponseUnitUnboundOut),
+        'optmRoiUnitUnbound':optmResponseUnitUnboundOut / optmSpendUnitUnboundOut,
+        'optmCpaUnitUnbound':optmSpendUnitUnboundOut / optmResponseUnitUnboundOut,
+        'optmResponseUnitLiftUnbound':(optmResponseUnitUnboundOut / initResponseUnit) - 1
+    }
 
     dt_optimOut["optmResponseUnitTotalLift"] = (dt_optimOut["optmResponseUnitTotal"] / dt_optimOut["initResponseUnitTotal"]) - 1
     dt_optimOut["optmResponseUnitTotalLiftUnbound"] = (dt_optimOut["optmResponseUnitTotalUnbound"] / dt_optimOut["initResponseUnitTotal"]) - 1

@@ -215,6 +215,22 @@ output_models = model.robyn_run(
     add_penalty_factor=False
 )
 
+# output_models = model.robyn_run(
+#     InputCollect=input_collect['robyn_inputs'],
+#     # Feed in all model specification
+#     ## model_specs=['my_model'],
+#     # Set to NULL to use all available CPU cores
+#     cores=None,
+#     # Run 2000 iterations
+#     iterations=200,
+#     # Run 5 trials
+#     trials=5,
+#     # Use 3-way-split time series for NRMSE validation
+#     ts_validation=True,
+#     # Add penalty factor for experimental feature
+#     add_penalty_factor=False
+# )
+
 # Print output models
 print(output_models)
 
