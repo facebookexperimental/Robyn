@@ -227,7 +227,7 @@ robyn_run <- function(InputCollect = NULL,
     # Direct output & not all fixed hyperparameters, including refresh mode
     output <- robyn_outputs(InputCollect, OutputModels, refresh = refresh, ...)
   } else {
-    if (!"clusters" %in% names(as.list(...))) {
+    if (!"clusters" %in% names(list(...))) {
       # Direct output & all fixed hyperparameters, thus no cluster
       output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
     } else {
