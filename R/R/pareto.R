@@ -111,7 +111,10 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
   # Prepare parallel loop
   if (TRUE) {
-    if (check_parallel() & OutputModels$cores > 1) registerDoParallel(OutputModels$cores) else registerDoSEQ()
+    if (OutputModels$cores > 1) {
+      registerDoParallel(OutputModels$cores)
+      registerDoSEQ()
+    }
     if (hyper_fixed) pareto_fronts <- 1
     # Get at least 100 candidates for better clustering
     if (nrow(resultHypParam) == 1) pareto_fronts <- 1
@@ -213,8 +216,6 @@ robyn_pareto <- function(InputCollect, OutputModels,
       run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
     }
     stopImplicitCluster()
-    registerDoSEQ()
-    getDoParWorkers()
   } else {
     resp_collect <- bind_rows(lapply(seq_along(decompSpendDistPar$rn), function(respN) {
       run_dt_resp(respN, InputCollect, OutputModels, decompSpendDistPar, resultHypParamPar, xDecompAggPar, ...)
@@ -596,8 +597,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
     df_caov_pct_all = df_caov_pct_all
   )
 
-  # if (check_parallel()) stopImplicitCluster()
-  # close(pbplot)
+  if (OutputModels$cores > 1) stopImplicitCluster()
 
   return(pareto_results)
 }

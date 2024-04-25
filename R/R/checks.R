@@ -827,11 +827,7 @@ check_init_msg <- function(InputCollect, cores) {
   if (cores == 1) {
     message(paste(base, "with no parallel computation"))
   } else {
-    if (check_parallel()) {
-      message(paste(base, "on", cores, "cores"))
-    } else {
-      message(paste(base, "on 1 core (Windows fallback)"))
-    }
+    message(paste(base, "on", cores, "cores"))
   }
 }
 

@@ -233,7 +233,6 @@ robyn_run <- function(InputCollect = NULL,
     } else {
       output <- robyn_outputs(InputCollect, OutputModels, ...)
     }
-
   }
 
   # Created with assign from JSON file
@@ -955,9 +954,11 @@ robyn_mmm <- function(InputCollect,
   )
 
   # stop cluster to avoid memory leaks
-  stopImplicitCluster()
-  registerDoSEQ()
-  getDoParWorkers()
+  if (cores > 1) {
+    stopImplicitCluster()
+    registerDoSEQ()
+    getDoParWorkers()
+  }
 
   if (!hyper_fixed) {
     cat("\r", paste("\n  Finished in", round(sysTimeDopar[3] / 60, 2), "mins"))
