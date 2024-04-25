@@ -670,7 +670,7 @@ robyn_onepagers <- function(
   }
   if (!quiet && count_mod_out > 1) close(pbplot)
   # Stop cluster to avoid memory leaks
-  if (OutputModels$cores > 1) stopImplicitCluster()
+  if (OutputCollect$cores > 1) stopImplicitCluster()
   return(invisible(parallelResult[[1]]))
 }
 
