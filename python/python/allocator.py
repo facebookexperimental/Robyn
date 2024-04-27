@@ -366,7 +366,7 @@ def robyn_allocator(robyn_object=None,
         print("Excluded variables (constrained to 0):", zero_constraint_channel)
     if not all(coefSelectorSorted):
         for index, value in coefSelectorSorted.items():
-            if not value.values[0]:  # Check if the value is False
+            if not value:  # Check if the value is False
                 zero_coef_channel.append(index)
         if not quiet:
             print("Excluded variables (coefficients are 0):", zero_coef_channel)
@@ -398,9 +398,9 @@ def robyn_allocator(robyn_object=None,
 
     coefs_eval = coefs_sorted[channel_for_allocation]
     alphas_keys = [f"{channel}_alphas" for channel in channel_for_allocation]
-    alphas_eval = [alphas[col].iloc[0] for col in alphas_keys]
+    alphas_eval = {key: alphas[key].iloc[0] for key in alphas_keys}
     gammas_keys = [f"{channel}_gammas" for channel in channel_for_allocation]
-    inflexions_eval = [inflexions[col].iloc[0] for col in gammas_keys]
+    inflexions_eval = {key: inflexions[key].iloc[0] for key in gammas_keys} 
 
     hist_carryover_eval = hist_carryover[channel_for_allocation]
 
@@ -414,7 +414,7 @@ def robyn_allocator(robyn_object=None,
         "inflexions_eval": inflexions_eval,
         "total_budget": total_budget,
         "total_budget_unit": total_budget_unit,
-        "hist_carryover_eval": x_hist_carryover,
+        "hist_carryover_eval": hist_carryover_eval,
         "target_value": target_value,
         "target_value_ext": target_value_ext,
         "dep_var_type": dep_var_type
@@ -430,20 +430,25 @@ def robyn_allocator(robyn_object=None,
     else:
         local_optimizer = nlopt.LD_SLSQP
 
+    x0_list = []
+    x0_ext_list = []
+    lb_list = []
+    ub_list = []
+    lb_ext_list = []
+    ub_ext_list = []
+
+    channels_list = [item for item in mediaSpendSorted if item not in zero_spend_channel]
+    for channel in channels_list:
+        x0_list.append(x0.loc[channel])
+        x0_ext_list.append(x0_ext.loc[channel])
+        lb_list.append(lb.loc[channel])
+        ub_list.append(ub.loc[channel])
+        lb_ext_list.append(lb_ext.loc[channel])
+        ub_ext_list.append(ub_ext.loc[channel])
+
     # Run optim
     if scenario == "max_response":
 
-        x0_list = []
-        x0_ext_list = []
-        lb_list = []
-        ub_list = []
-
-        channels_list = [item for item in mediaSpendSorted if item not in zero_spend_channel]
-        for channel in channels_list:
-            x0_list.append(x0.loc[channel])
-            x0_ext_list.append(x0.loc[channel])
-            lb_list.append(lb.loc[channel])
-            ub_list.append(ub.loc[channel])
 
         ###
         ## nlsMod
@@ -475,8 +480,8 @@ def robyn_allocator(robyn_object=None,
         ## nlsModUnbound
         ###
         nlsModUnbound_opt = nlopt.opt(nlopt.LD_AUGLAG, len(x0_ext_list))  # Use the Augmented Lagrangian algorithm
-        nlsModUnbound_opt.set_lower_bounds(lb_list)
-        nlsModUnbound_opt.set_upper_bounds(ub_list)
+        nlsModUnbound_opt.set_lower_bounds(lb_ext_list)
+        nlsModUnbound_opt.set_upper_bounds(ub_ext_list)
         nlsModUnbound_opt.set_min_objective(eval_f)
         nlsModUnbound_opt.set_xtol_rel(1e-10)
         nlsModUnbound_opt.set_maxeval(maxeval)
@@ -535,12 +540,12 @@ def robyn_allocator(robyn_object=None,
 
     optmResponseMargUnit = np.array(list(map(
         lambda x, coeff, alpha, inflexion, x_hist_carryover: fx_objective(x, coeff, alpha, inflexion, x_hist_carryover),
-        optmSpendUnit + 1, coefs_eval, alphas_eval, inflexions_eval, x_hist_carryover
+        optmSpendUnit + 1, coefs_eval, alphas_eval.values(), inflexions_eval.values(), x_hist_carryover
     ))) - optmResponseUnit
 
     optmResponseMargUnitUnbound = np.array(list(map(
         lambda x, coeff, alpha, inflexion, x_hist_carryover: fx_objective(x, coeff, alpha, inflexion, x_hist_carryover),
-        optmSpendUnitUnbound + 1, coefs_eval, alphas_eval, inflexions_eval, x_hist_carryover
+        optmSpendUnitUnbound + 1, coefs_eval, alphas_eval.values(), inflexions_eval.values(), x_hist_carryover
     ))) - optmResponseUnitUnbound
 
     # Collect the output
@@ -713,7 +718,7 @@ def robyn_allocator(robyn_object=None,
     # Convert the spend and response columns to numeric
     dt_optimOutScurve['spend'] = pd.to_numeric(dt_optimOutScurve['spend'])
     dt_optimOutScurve['response'] = pd.to_numeric(dt_optimOutScurve['response'])
-    # Group by channels
+    # Group by channels TODO: groupby below cause lost of "type"
     dt_optimOutScurve = dt_optimOutScurve.groupby("channels").agg({"spend": "sum", "response": "sum"})
 
     plotDT_scurve = []
@@ -727,7 +732,7 @@ def robyn_allocator(robyn_object=None,
 
         simulate_spend = np.arange(0, get_max_x, 100)
 
-        simulate_response = robyn_object.fx_objective(
+        simulate_response = fx_objective(
             x=simulate_spend,
             coeff=eval_list["coefs_eval"][i],
             alpha=eval_list["alphas_eval"][f"{i}_alphas"],
@@ -736,7 +741,7 @@ def robyn_allocator(robyn_object=None,
             get_sum=False
         )
 
-        simulate_response_carryover = robyn_object.fx_objective(
+        simulate_response_carryover = fx_objective(
             x=carryover_vec.mean(),
             coeff=eval_list["coefs_eval"][i],
             alpha=eval_list["alphas_eval"][f"{i}_alphas"],
@@ -764,19 +769,34 @@ def robyn_allocator(robyn_object=None,
     # Filter out Carryover rows from mainPoints
     temp_caov = mainPoints[mainPoints["type"] == "Carryover"]
 
-    # Calculate mean spend and ROI for each channel
-    mainPoints["mean_spend"] = mainPoints["spend_point"] - temp_caov["spend_point"]
-    mainPoints.loc[mainPoints["type"] == "Carryover", "mean_spend"] = mainPoints.loc[mainPoints["type"] == "Carryover", "spend_point"]
-    mainPoints["roi_mean"] = mainPoints["response_point"] / mainPoints["mean_spend"]
+    mainPoints['mean_spend'] = mainPoints['spend_point'] - temp_caov['spend_point']
+    mainPoints.loc[mainPoints['type'] == "Carryover", 'mean_spend'] = mainPoints['spend_point']
+    if levs1[2] == levs1[3]:
+        levs1[3] = levs1[3] + "."
+    mainPoints['type'] = pd.Categorical(mainPoints['type'], categories=["Carryover", levs1])
+    mainPoints['roi_mean'] = mainPoints['response_point'] / mainPoints['mean_spend']
+    mresp_caov = mainPoints[mainPoints['type'] == "Carryover"]['response_point']
+    mresp_init = mainPoints[mainPoints['type'] == mainPoints['type'].cat.categories[1]]['response_point'] - mresp_caov
+    mresp_b = mainPoints[mainPoints['type'] == mainPoints['type'].cat.categories[2]]['response_point'] - mresp_caov
+    mresp_unb = mainPoints[mainPoints['type'] == mainPoints['type'].cat.categories[3]]['response_point'] - mresp_caov
+    mainPoints['marginal_response'] = np.concatenate((mresp_init, mresp_b, mresp_unb, np.repeat(0, len(mresp_init))))
+    mainPoints['roi_marginal'] = mainPoints['marginal_response'] / mainPoints['mean_spend']
+    mainPoints['cpa_marginal'] = mainPoints['mean_spend'] / mainPoints['marginal_response']
+    eval_list["mainPoints"] = mainPoints
 
-    # Calculate marginal response, ROI, and CPA for each channel
-    mresp_caov = mainPoints[mainPoints["type"] == "Carryover"]["response_point"]
-    mresp_init = mainPoints[mainPoints["type"] == levels(mainPoints["type"])[2]]["response_point"] - mresp_caov
-    mresp_b = mainPoints[mainPoints["type"] == levels(mainPoints["type"])[3]]["response_point"] - mresp_caov
-    mresp_unb = mainPoints[mainPoints["type"] == levels(mainPoints["type"])[4]]["response_point"] - mresp_caov
-    mainPoints["marginal_response"] = [mresp_init, mresp_b, mresp_unb] + [0] * len(mresp_init)
-    mainPoints["roi_marginal"] = mainPoints["marginal_response"] / mainPoints["mean_spend"]
-    mainPoints["cpa_marginal"] = mainPoints["mean_spend"] / mainPoints["marginal_response"]
+    # # Calculate mean spend and ROI for each channel
+    # mainPoints["mean_spend"] = mainPoints["spend_point"] - temp_caov["spend_point"]
+    # mainPoints.loc[mainPoints["type"] == "Carryover", "mean_spend"] = mainPoints.loc[mainPoints["type"] == "Carryover", "spend_point"]
+    # mainPoints["roi_mean"] = mainPoints["response_point"] / mainPoints["mean_spend"]
+
+    # # Calculate marginal response, ROI, and CPA for each channel
+    # mresp_caov = mainPoints[mainPoints["type"] == "Carryover"]["response_point"]
+    # mresp_init = mainPoints[mainPoints["type"] == levels(mainPoints["type"])[2]]["response_point"] - mresp_caov
+    # mresp_b = mainPoints[mainPoints["type"] == levels(mainPoints["type"])[3]]["response_point"] - mresp_caov
+    # mresp_unb = mainPoints[mainPoints["type"] == levels(mainPoints["type"])[4]]["response_point"] - mresp_caov
+    # mainPoints["marginal_response"] = [mresp_init, mresp_b, mresp_unb] + [0] * len(mresp_init)
+    # mainPoints["roi_marginal"] = mainPoints["marginal_response"] / mainPoints["mean_spend"]
+    # mainPoints["cpa_marginal"] = mainPoints["mean_spend"] / mainPoints["marginal_response"]
 
     # Set export directory
     if export:
@@ -928,9 +948,9 @@ def calculate_channels(X):
         for x, coeff, alpha, inflexion, x_hist in zip(
             X,
             eval_list['coefs_eval'],
-            eval_list['alphas_eval'],
-            eval_list['inflexions_eval'],
-            eval_list['hist_carryover_eval']
+            eval_list['alphas_eval'].values(),
+            eval_list['inflexions_eval'].values(),
+            eval_list['hist_carryover_eval'].mean(axis=0)
         )
     ])
 
@@ -938,14 +958,14 @@ def eval_f(X, grad):
     eval_list = ROBYN_TEMP
     results = np.array([
         fx_objective(x, coeff, alpha, inflexion, x_hist)
-        for x, coeff, alpha, inflexion, x_hist in zip(X, eval_list['coefs_eval'], eval_list['alphas_eval'], eval_list['inflexions_eval'], eval_list['hist_carryover_eval'])
+        for x, coeff, alpha, inflexion, x_hist in zip(X, eval_list['coefs_eval'], eval_list['alphas_eval'].values(), eval_list['inflexions_eval'].values(), eval_list['hist_carryover_eval'].mean(axis=0))
     ])
     objective = -np.sum(results)
 
     if grad.size > 0:
         grad[:] = np.array([
             fx_gradient(x, coeff, alpha, inflexion, x_hist)
-            for x, coeff, alpha, inflexion, x_hist in zip(X, eval_list['coefs_eval'], eval_list['alphas_eval'], eval_list['inflexions_eval'], eval_list['hist_carryover_eval'])
+            for x, coeff, alpha, inflexion, x_hist in zip(X, eval_list['coefs_eval'], eval_list['alphas_eval'].values(), eval_list['inflexions_eval'].values(), eval_list['hist_carryover_eval'].mean(axis=0))
         ])
 
     return objective
@@ -1064,7 +1084,7 @@ def fx_objective_channel(x, coeff, alpha, inflexion, x_hist_carryover):
 #     return xOut
 
 def eval_g_eq(X, grad):
-    global ROBYN_TEMP
+
     eval_list = ROBYN_TEMP
     # Assuming 'total_budget_unit' is a scalar value representing the total budget
     constraint_value = np.sum(X) - eval_list["total_budget_unit"]
@@ -1073,7 +1093,7 @@ def eval_g_eq(X, grad):
     return constraint_value  # Return the scalar constraint value
 
 def eval_g_ineq(X, grad):
-    global ROBYN_TEMP
+
     eval_list = ROBYN_TEMP
     constraint_value = np.sum(X) - eval_list["total_budget_unit"]
     if grad.size > 0:
