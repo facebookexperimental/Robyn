@@ -9,9 +9,11 @@ import numpy as np
 import itertools
 from functools import partial
 import nlopt
+import os
 
 from .checks import check_allocator, check_allocator_constrains, check_metric_dates, check_daterange
 from .response import robyn_response, which_usecase
+from .plots import allocation_plots
 
 ROBYN_TEMP = None
 
@@ -798,37 +800,46 @@ def robyn_allocator(robyn_object=None,
     # mainPoints["roi_marginal"] = mainPoints["marginal_response"] / mainPoints["mean_spend"]
     # mainPoints["cpa_marginal"] = mainPoints["mean_spend"] / mainPoints["marginal_response"]
 
-    # Set export directory
+    # Exporting directory
     if export:
         if json_file is None and plot_folder is not None:
             if plot_folder_sub is None:
-                plot_folder_sub = basename(OutputCollect["plot_folder"])
-            plot_folder = gsub("//+", "/", paste0(plot_folder, "/", plot_folder_sub, "/"))
+                plot_folder_sub = os.path.basename(OutputCollect['plot_folder'])
+            plot_folder = os.path.join(plot_folder, plot_folder_sub)
         else:
-            plot_folder = gsub("//+", "/", paste0(OutputCollect["plot_folder"], "/"))
-
-        if not dir.exists(plot_folder):
-            print("Creating directory for allocator: ", plot_folder)
-            dir.create(plot_folder)
-
+            plot_folder = os.path.join(OutputCollect['plot_folder'])
+        if not os.path.exists(plot_folder):
+            print(f"Creating directory for allocator: {plot_folder}")
+            os.makedirs(plot_folder)
         # Export results into CSV
         export_dt_optimOut = dt_optimOut
         if dep_var_type == "conversion":
-            export_dt_optimOut.columns = gsub("Roi", "CPA", export_dt_optimOut.columns)
-        write.csv(export_dt_optimOut, paste0(plot_folder, select_model, "_reallocated.csv"))
-
-    # Generate plots
+            export_dt_optimOut.columns = [col.replace("Roi", "CPA") for col in export_dt_optimOut.columns]
+        export_dt_optimOut_df = pd.DataFrame(export_dt_optimOut)
+        export_dt_optimOut_df.to_csv(os.path.join(plot_folder, f"{select_model}_{scenario}_reallocated.csv"), index=False)
+    # Plot allocator results
     if plots:
-        plots = allocation_plots(InputCollect, OutputCollect,
-                                  dt_optimOut,
-                                  # filter(dt_optimOut, .data$channels %in% channel_for_allocation),
-                                  select_model, scenario, eval_list,
-                                  export, plot_folder, quiet)
+        plots = allocation_plots(
+            InputCollect, OutputCollect,
+            dt_optimOut,
+            select_model, scenario, eval_list,
+            export, plot_folder, quiet
+        )
     else:
         plots = None
-
-    # Return output
-    output = [dt_optimOut, mainPoints, nlsMod, plots, scenario, usecase, total_budget, zero_coef_channel, zero_constraint_channel, zero_spend_channel, ui]
+    output = {
+        'dt_optimOut': dt_optimOut,
+        'mainPoints': mainPoints,
+        'nlsMod': nlsMod,
+        'plots': plots,
+        'scenario': scenario,
+        'usecase': usecase,
+        'total_budget': total_budget_window if total_budget is None else total_budget,
+        'skipped_coef0': zero_coef_channel,
+        'skipped_constr': zero_constraint_channel,
+        'no_spend': zero_spend_channel,
+        'ui': plots if ui else None
+    }
     output = pd.DataFrame(output)
     return output
 
