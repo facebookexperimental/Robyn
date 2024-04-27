@@ -671,17 +671,49 @@ def robyn_allocator(robyn_object=None,
 
     eval_list["levs1"] = levs1
 
-    dt_optimOutScurve = pd.concat([
-        robyn_object.dt_optimOut[["channels", "initSpendUnit", "initResponseUnit"]].rename(columns={"initSpendUnit": "spend", "initResponseUnit": "response"}).assign(x=levs1[0]).to_numpy(),
-        robyn_object.dt_optimOut[["channels", "optmSpendUnit", "optmResponseUnit"]].rename(columns={"optmSpendUnit": "spend", "optmResponseUnit": "response"}).assign(x=levs1[1]).to_numpy(),
-        robyn_object.dt_optimOut[["channels", "optmSpendUnitUnbound", "optmResponseUnitUnbound"]].rename(columns={"optmSpendUnitUnbound": "spend", "optmResponseUnitUnbound": "response"}).assign(x=levs1[2]).to_numpy()
-    ], ignore_index=True)
+    # Create a list to store the dataframes
+    df_list = []
 
+    initResponseUnit_series = dt_optimOut['initResponseUnit'].iloc[0]
+    temp_df = pd.DataFrame({
+        'channels': dt_optimOut['channels'],
+        'spend': dt_optimOut['initSpendUnit'],
+        'response': initResponseUnit_series,
+        'type': levs1[0]
+    })
+    df_list.append(temp_df)
+
+    temp_df = pd.DataFrame({
+        'channels': dt_optimOut['channels'],
+        'spend': dt_optimOut['optmSpendUnit'],
+        'response': dt_optimOut['optmResponseUnit'],
+        'type': levs1[1]
+    })
+    df_list.append(temp_df)
+    
+    temp_df = pd.DataFrame({
+        'channels': dt_optimOut['channels'],
+        'spend': dt_optimOut['optmSpendUnitUnbound'],
+        'response': dt_optimOut['optmResponseUnitUnbound'],
+        'type': levs1[2]
+    })
+    df_list.append(temp_df)
+
+    # Concatenate the dataframes
+    dt_optimOutScurve = pd.concat(df_list)
+    # Rename the columns
+    dt_optimOutScurve.columns = ["channels", "spend", "response", "type"]
+    # Append a new row
+    
     dt_optimOutScurve = pd.concat([
         dt_optimOutScurve,
-        pd.DataFrame({"channels": robyn_object.dt_optimOut["channels"], "spend": 0, "response": 0, "type": "Carryover"})
+        pd.DataFrame({"channels": dt_optimOut["channels"], "spend": 0, "response": 0, "type": "Carryover"})
     ], ignore_index=True)
 
+    # Convert the spend and response columns to numeric
+    dt_optimOutScurve['spend'] = pd.to_numeric(dt_optimOutScurve['spend'])
+    dt_optimOutScurve['response'] = pd.to_numeric(dt_optimOutScurve['response'])
+    # Group by channels
     dt_optimOutScurve = dt_optimOutScurve.groupby("channels").agg({"spend": "sum", "response": "sum"})
 
     plotDT_scurve = []
