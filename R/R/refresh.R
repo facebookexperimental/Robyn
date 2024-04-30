@@ -265,10 +265,15 @@ robyn_refresh <- function(json_file = NULL,
     }
 
     ## Refresh hyperparameter bounds
+    ts_validation <- ifelse(
+      "ts_validation" %in% names(list(...)),
+      isTRUE(list(...)[["ts_validation"]]),
+      isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation))
     InputCollectRF$hyperparameters <- refresh_hyps(
       initBounds = Robyn$listInit$OutputCollect$hyper_updated,
       listOutputPrev, refresh_steps,
-      rollingWindowLength = InputCollectRF$rollingWindowLength
+      rollingWindowLength = InputCollectRF$rollingWindowLength,
+      ts_validation = ts_validation
     )
 
     ## Feature engineering for refreshed data
@@ -289,6 +294,7 @@ robyn_refresh <- function(json_file = NULL,
       trials = refresh_trials,
       refresh = TRUE,
       add_penalty_factor = listOutputPrev[["add_penalty_factor"]],
+      ts_validation = ts_validation,
       ...
     )
     OutputCollectRF <- robyn_outputs(
@@ -527,7 +533,8 @@ Models (IDs):
 #' @export
 plot.robyn_refresh <- function(x, ...) plot((x$refresh$plots[[1]] / x$refresh$plots[[2]]), ...)
 
-refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength) {
+refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps,
+                         rollingWindowLength, ts_validation = FALSE) {
   initBoundsDis <- unlist(lapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0)))
   newBoundsFreedom <- refresh_steps / rollingWindowLength
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
@@ -559,5 +566,6 @@ refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindo
       hyper_updated_prev[hn][[1]] <- getRange
     }
   }
+  if (!ts_validation) hyper_updated_prev[["train_size"]] <- NULL
   return(hyper_updated_prev)
 }
