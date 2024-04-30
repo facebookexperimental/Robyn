@@ -878,7 +878,7 @@ def robyn_allocator(robyn_object=None,
         'no_spend': zero_spend_channel,
         'ui': plots if ui else None
     }
-    output = pd.DataFrame(output)
+    # output = pd.DataFrame(output)
     return output
 
 

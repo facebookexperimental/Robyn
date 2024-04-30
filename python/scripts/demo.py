@@ -315,15 +315,15 @@ allocator_collector = allocator.robyn_allocator(
 
 # Print and plot allocator's output
 print(allocator_collector)
-plot(allocator_collector)
+# plot(allocator_collector)
 
 
 
 # Example 2: maximize response for latest 10 periods with given spend
 
 allocator_collect2 = allocator.robyn_allocator(
-    InputCollect=InputCollect,
-    OutputCollect=OutputCollect,
+    InputCollect=input_collect,
+    OutputCollect=output_collect,
     select_model=select_model,
     date_range="last_10",
     total_budget=5000000,
@@ -331,28 +331,28 @@ allocator_collect2 = allocator.robyn_allocator(
     channel_constr_up=[1.2, 1.5, 1.5, 1.5, 1.5],
     channel_constr_multiplier=5,
     scenario="max_response",
-    export=create_files
+    export=True
 )
 
 print(allocator_collect2)
 
-plot(allocator_collect2)
+# plot(allocator_collect2)
 
 # Example 3: Use default ROAS target for revenue or CPA target for conversion
 
 allocator_collect3 = allocator.robyn_allocator(
-    InputCollect=InputCollect,
-    OutputCollect=OutputCollect,
+    InputCollect=input_collect,
+    OutputCollect=output_collect,
     select_model=select_model,
     date_range=None,  # Default last month as initial period
     scenario="target_efficiency",
     target_value=2,  # Customize target ROAS or CPA value
-    export=create_files
+    export=True
 )
 
 print(allocator_collect3)
 
-plot(allocator_collect3)
+# plot(allocator_collect3)
 
 # Example 4: Customize target_value for ROAS or CPA (using json_file)
 
@@ -367,7 +367,7 @@ allocator_collect4 = allocator.robyn_allocator(
     target_value=2,  # Customize target ROAS or CPA value
     plot_folder="~/Desktop/my_dir",
     plot_folder_sub="my_subdir",
-    export=create_files
+    export=True
 )
 
 # A csv is exported into the folder for further usage. Check schema here:
