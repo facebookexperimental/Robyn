@@ -123,7 +123,14 @@ robyn_refresh <- function(json_file = NULL,
       Robyn <- list()
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
       if (is.null(plot_folder)) plot_folder <- json$ExportedModel$plot_folder
-      listInit <- suppressWarnings(robyn_recreate(
+      if (!dir.exists(plot_folder) & export) {
+        message(sprintf(paste0(
+          "NOTE: Directory from JSON file doesn't exist: %s\n",
+          ">> Using current working directory for outputs: %s"),
+          plot_folder, getwd()))
+        plot_folder <- getwd()
+      }
+       listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
         dt_input = dt_input,
         dt_holidays = dt_holidays,
@@ -299,6 +306,7 @@ robyn_refresh <- function(json_file = NULL,
     )
     OutputCollectRF <- robyn_outputs(
       InputCollectRF, OutputModelsRF,
+      select_model = "refreshed",
       plot_folder = plot_folder,
       calibration_constraint = rf_cal_constr,
       export = export,

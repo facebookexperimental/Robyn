@@ -495,6 +495,8 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, HYPS_OTHERS))
     all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, HYPS_OTHERS)
     all_ref_names <- all_ref_names[order(all_ref_names)]
+    # Adding penalty variations to the dictionary
+    all_ref_names <- c(all_ref_names, paste0(all_ref_names, "_penalty"))
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(

@@ -370,7 +370,11 @@ robyn_chain <- function(json_file) {
     } else {
       file <- paste0("RobynModel-", json_new$InputCollect$refreshSourceID, ".json")
       filename <- paste(c(base_dir, chain[1:i], file), collapse = "/")
-      json_new <- robyn_read(filename, quiet = TRUE)
+      if (file.exists(filename)) {
+        json_new <- robyn_read(filename, quiet = TRUE)
+      } else {
+        message("Skipping chain. File can't be found: ", filename)
+      }
     }
     chainData[[json_new$ExportedModel$select_model]] <- json_new
   }

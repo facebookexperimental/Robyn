@@ -266,6 +266,8 @@ robyn_onepagers <- function(
     sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
+    if ("refreshed" %in% select_model) select_model <- OutputCollect$resultHypParam %>%
+        arrange(.data$decomp.rssd) %>% pull(.data$solID) %>% head(1)
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
     resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model, ]
     xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model, ]
