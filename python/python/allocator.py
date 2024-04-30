@@ -7,9 +7,10 @@
 import pandas as pd
 import numpy as np
 import itertools
-from functools import partial
 import nlopt
 import os
+from functools import partial
+from itertools import chain
 
 from .checks import check_allocator, check_allocator_constrains, check_metric_dates, check_daterange
 from .response import robyn_response, which_usecase
@@ -366,14 +367,13 @@ def robyn_allocator(robyn_object=None,
     zero_constraint_channel = [channel for channel in mediaSpendSorted if skip_these[channel]]
     if any(skip_these) and not quiet:
         print("Excluded variables (constrained to 0):", zero_constraint_channel)
+    zero_coef_channel = []
     if not all(coefSelectorSorted):
         for index, value in coefSelectorSorted.items():
             if not value:  # Check if the value is False
                 zero_coef_channel.append(index)
         if not quiet:
             print("Excluded variables (coefficients are 0):", zero_coef_channel)
-    else:
-        zero_coef_channel = []
 
     channel_to_drop_loc = [channel in (zero_coef_channel + zero_constraint_channel) for channel in mediaSpendSorted]
     channel_for_allocation = [mediaSpendSorted[i] for i in range(len(mediaSpendSorted)) if not channel_to_drop_loc[i]]
@@ -402,7 +402,7 @@ def robyn_allocator(robyn_object=None,
     alphas_keys = [f"{channel}_alphas" for channel in channel_for_allocation]
     alphas_eval = {key: alphas[key].iloc[0] for key in alphas_keys}
     gammas_keys = [f"{channel}_gammas" for channel in channel_for_allocation]
-    inflexions_eval = {key: inflexions[key].iloc[0] for key in gammas_keys} 
+    inflexions_eval = {key: inflexions[key].iloc[0] for key in gammas_keys}
 
     hist_carryover_eval = hist_carryover[channel_for_allocation]
 
@@ -585,6 +585,7 @@ def robyn_allocator(robyn_object=None,
     initResponseUnitShare = initResponseUnit / sum_initResponseUnit
 
     sum_initResponseUnit = np.sum(initResponseUnit)
+    periods_list = ["{} {}".format(period, InputCollect['robyn_inputs']['intervalType']) for period in initial_mean_period]
 
     dt_optimOut = {
         'solID':select_model,
@@ -592,7 +593,7 @@ def robyn_allocator(robyn_object=None,
         'channels':mediaSpendSorted,
         'date_min':date_min,
         'date_max':date_max,
-        'periods':f"{initial_mean_period} {InputCollect['robyn_inputs']['intervalType']}",
+        'periods':periods_list,
         'constr_low':temp_lb_all,
         'constr_low_abs':lb_all,
         'constr_up':temp_ub_all,
@@ -697,7 +698,7 @@ def robyn_allocator(robyn_object=None,
         'type': levs1[1]
     })
     df_list.append(temp_df)
-    
+
     temp_df = pd.DataFrame({
         'channels': dt_optimOut['channels'],
         'spend': dt_optimOut['optmSpendUnitUnbound'],
@@ -711,7 +712,7 @@ def robyn_allocator(robyn_object=None,
     # Rename the columns
     dt_optimOutScurve.columns = ["channels", "spend", "response", "type"]
     # Append a new row
-    
+
     dt_optimOutScurve = pd.concat([
         dt_optimOutScurve,
         pd.DataFrame({"channels": dt_optimOut["channels"], "spend": 0, "response": 0, "type": "Carryover"})
@@ -721,49 +722,59 @@ def robyn_allocator(robyn_object=None,
     dt_optimOutScurve['spend'] = pd.to_numeric(dt_optimOutScurve['spend'])
     dt_optimOutScurve['response'] = pd.to_numeric(dt_optimOutScurve['response'])
     # Group by channels TODO: groupby below cause lost of "type"
-    dt_optimOutScurve = dt_optimOutScurve.groupby("channels").agg({"spend": "sum", "response": "sum"})
+    # dt_optimOutScurve = dt_optimOutScurve.groupby("channels").agg({"spend": "sum", "response": "sum"})
 
-    plotDT_scurve = []
-
+    plotDT_scurve = {}
     for i in channel_for_allocation:
-        carryover_vec = eval_list["hist_carryover_eval"][i]
-
-        dt_optimOutScurve.loc[i, "spend"] = dt_optimOutScurve.loc[i, "spend"] + carryover_vec.mean()
-
-        get_max_x = dt_optimOutScurve.loc[i, "spend"].max() * 1.5
-
-        simulate_spend = np.arange(0, get_max_x, 100)
-
+        carryover_vec = eval_list['hist_carryover_eval'][i]
+        dt_optimOutScurve = dt_optimOutScurve.assign(
+            spend=np.where(
+                (dt_optimOutScurve['channels'] == i) & (dt_optimOutScurve['type'].isin(levs1)),
+                dt_optimOutScurve['spend'] + np.mean(carryover_vec),
+                np.where(
+                    (dt_optimOutScurve['channels'] == i) & (dt_optimOutScurve['type'] == 'Carryover'),
+                    np.mean(carryover_vec),
+                    dt_optimOutScurve['spend']
+                )
+            )
+        )
+        get_max_x = max(dt_optimOutScurve.loc[dt_optimOutScurve['channels'] == i, 'spend']) * 1.5
+        simulate_spend = np.linspace(0, get_max_x, 100)
         simulate_response = fx_objective(
             x=simulate_spend,
-            coeff=eval_list["coefs_eval"][i],
-            alpha=eval_list["alphas_eval"][f"{i}_alphas"],
-            inflexion=eval_list["inflexions_eval"][f"{i}_gammas"],
+            coeff=eval_list['coefs_eval'][i],
+            alpha=eval_list['alphas_eval'][f'{i}_alphas'],
+            inflexion=eval_list['inflexions_eval'][f'{i}_gammas'],
             x_hist_carryover=0,
             get_sum=False
         )
-
         simulate_response_carryover = fx_objective(
-            x=carryover_vec.mean(),
-            coeff=eval_list["coefs_eval"][i],
-            alpha=eval_list["alphas_eval"][f"{i}_alphas"],
-            inflexion=eval_list["inflexions_eval"][f"{i}_gammas"],
+            x=np.mean(carryover_vec),
+            coeff=eval_list['coefs_eval'][i],
+            alpha=eval_list['alphas_eval'][f'{i}_alphas'],
+            inflexion=eval_list['inflexions_eval'][f'{i}_gammas'],
             x_hist_carryover=0,
             get_sum=False
         )
-
-        plotDT_scurve.append({
-            "channel": i,
-            "spend": simulate_spend,
-            "mean_carryover": carryover_vec.mean(),
-            "carryover_response": simulate_response_carryover,
-            "total_response": simulate_response
+        plotDT_scurve[i] = pd.DataFrame({
+            'channel': i,
+            'spend': simulate_spend,
+            'mean_carryover': np.mean(carryover_vec),
+            'carryover_response': simulate_response_carryover,
+            'total_response': simulate_response
         })
-
-        dt_optimOutScurve.loc[i, "response"] = dt_optimOutScurve.loc[i, "response"] + simulate_response_carryover
+        dt_optimOutScurve = dt_optimOutScurve.assign(
+            response=np.where(
+                (dt_optimOutScurve['channels'] == i) & (dt_optimOutScurve['type'] == 'Carryover'),
+                simulate_response_carryover,
+                dt_optimOutScurve['response']
+            )
+        )
 
     # Convert plotDT_scurve to a pandas DataFrame
-    plotDT_scurve = pd.DataFrame(plotDT_scurve)
+    plotDT_scurve_df = pd.concat([
+        pd.DataFrame(v).assign(channel=k) for k, v in plotDT_scurve.items()
+    ], ignore_index=True)
 
     # Rename columns in mainPoints
     mainPoints = dt_optimOutScurve.rename(columns={"response": "response_point", "spend": "spend_point", "channels": "channel"})
@@ -771,19 +782,22 @@ def robyn_allocator(robyn_object=None,
     # Filter out Carryover rows from mainPoints
     temp_caov = mainPoints[mainPoints["type"] == "Carryover"]
 
-    mainPoints['mean_spend'] = mainPoints['spend_point'] - temp_caov['spend_point']
-    mainPoints.loc[mainPoints['type'] == "Carryover", 'mean_spend'] = mainPoints['spend_point']
-    if levs1[2] == levs1[3]:
-        levs1[3] = levs1[3] + "."
-    mainPoints['type'] = pd.Categorical(mainPoints['type'], categories=["Carryover", levs1])
-    mainPoints['roi_mean'] = mainPoints['response_point'] / mainPoints['mean_spend']
-    mresp_caov = mainPoints[mainPoints['type'] == "Carryover"]['response_point']
-    mresp_init = mainPoints[mainPoints['type'] == mainPoints['type'].cat.categories[1]]['response_point'] - mresp_caov
-    mresp_b = mainPoints[mainPoints['type'] == mainPoints['type'].cat.categories[2]]['response_point'] - mresp_caov
-    mresp_unb = mainPoints[mainPoints['type'] == mainPoints['type'].cat.categories[3]]['response_point'] - mresp_caov
-    mainPoints['marginal_response'] = np.concatenate((mresp_init, mresp_b, mresp_unb, np.repeat(0, len(mresp_init))))
-    mainPoints['roi_marginal'] = mainPoints['marginal_response'] / mainPoints['mean_spend']
-    mainPoints['cpa_marginal'] = mainPoints['mean_spend'] / mainPoints['marginal_response']
+    mainPoints["mean_spend"] = mainPoints["spend_point"] - mainPoints["channel"].map(temp_caov.set_index("channel")["spend_point"])
+    mainPoints["mean_spend"] = np.where(mainPoints["type"] == "Carryover", mainPoints["spend_point"], mainPoints["mean_spend"])
+    if levs1[1] == levs1[2]:
+        levs1[2] = levs1[2] + "."
+    mainPoints["type"] = pd.Categorical(mainPoints["type"], categories=["Carryover"] + levs1)
+    mainPoints["roi_mean"] = mainPoints["response_point"] / mainPoints["mean_spend"]
+
+    mresp_caov = mainPoints[mainPoints["type"] == "Carryover"]["response_point"].values
+    mresp_init = mainPoints[mainPoints["type"] == levs1[0]]["response_point"].values - mresp_caov
+    mresp_b = mainPoints[mainPoints["type"] == levs1[1]]["response_point"].values - mresp_caov
+    mresp_unb = mainPoints[mainPoints["type"] == levs1[2]]["response_point"].values - mresp_caov
+
+    mainPoints["marginal_response"] = np.concatenate((mresp_init, mresp_b, mresp_unb, np.zeros(len(mresp_init))))
+    mainPoints["roi_marginal"] = mainPoints["marginal_response"] / mainPoints["mean_spend"]
+    mainPoints["cpa_marginal"] = mainPoints["mean_spend"] / mainPoints["marginal_response"]
+
     eval_list["mainPoints"] = mainPoints
 
     # # Calculate mean spend and ROI for each channel
@@ -815,22 +829,46 @@ def robyn_allocator(robyn_object=None,
         export_dt_optimOut = dt_optimOut
         if dep_var_type == "conversion":
             export_dt_optimOut.columns = [col.replace("Roi", "CPA") for col in export_dt_optimOut.columns]
-        export_dt_optimOut_df = pd.DataFrame(export_dt_optimOut)
-        export_dt_optimOut_df.to_csv(os.path.join(plot_folder, f"{select_model}_{scenario}_reallocated.csv"), index=False)
+
+        # Convert all values to lists to ensure consistent length
+        max_len = max(len(v) if isinstance(v, (list, np.ndarray, pd.Series)) else 1 for v in export_dt_optimOut.values())
+        # Convert constant values to lists
+        export_dt_optimOut_c = export_dt_optimOut.copy()
+        for k, v in export_dt_optimOut.items():
+            if not isinstance(v, (list, np.ndarray, pd.Series, pd.DataFrame)):
+                export_dt_optimOut[k] = [v] * max_len
+        # Pad ndarrays
+        for k, v in export_dt_optimOut.items():
+            if isinstance(v, np.ndarray):
+                export_dt_optimOut[k] = np.pad(v, (0, max_len - len(v)))
+        # Convert Series to lists
+        for k, v in export_dt_optimOut.items():
+            if isinstance(v, pd.Series):
+                export_dt_optimOut[k] = v.tolist()
+        # Convert DataFrames to lists
+        for k, v in export_dt_optimOut.items():
+            if isinstance(v, pd.DataFrame):
+                export_dt_optimOut[k] = list(chain.from_iterable(v.values.tolist()))
+        # Create the DataFrame
+        export_dt_optimOut = pd.DataFrame.from_dict(export_dt_optimOut, orient='columns')
+
+        export_dt_optimOut.to_csv(os.path.join(plot_folder, f"{select_model}_{scenario}_reallocated.csv"), index=False)
     # Plot allocator results
     if plots:
-        plots = allocation_plots(
-            InputCollect, OutputCollect,
-            dt_optimOut,
-            select_model, scenario, eval_list,
-            export, plot_folder, quiet
-        )
+        # TODO: Enable plots at some point and uncomment this
+        plots = None
+        # plots = allocation_plots(
+        #     InputCollect, OutputCollect,
+        #     dt_optimOut,
+        #     select_model, scenario, eval_list,
+        #     export, plot_folder, quiet
+        # )
     else:
         plots = None
     output = {
         'dt_optimOut': dt_optimOut,
         'mainPoints': mainPoints,
-        'nlsMod': nlsMod,
+        'nlsMod': nlsMod_opt,
         'plots': plots,
         'scenario': scenario,
         'usecase': usecase,
