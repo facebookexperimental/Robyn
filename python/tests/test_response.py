@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from python.response import robyn_response, which_usecase
+from src.response import robyn_response, which_usecase
 
 @pytest.mark.xfail(raises=NotImplementedError)
 def test_robyn_response():

@@ -38,3 +38,6 @@ __pycache__/
 
 vscode/
 python/.vscode/launch.json
+python/dist
+python/.venv
+
