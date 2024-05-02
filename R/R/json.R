@@ -322,7 +322,7 @@ Adstock: {a$adstock}
 #' @export
 robyn_recreate <- function(json_file, quiet = FALSE, ...) {
   json <- robyn_read(json_file, quiet = TRUE)
-  message(">>> Recreating model ", json$ExportedModel$select_model)
+  message(">>> Recreating ", json$ExportedModel$select_model)
   args <- list(...)
   if (!"InputCollect" %in% names(args)) {
     InputCollect <- robyn_inputs(
@@ -330,13 +330,15 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
       quiet = quiet,
       ...
     )
-    OutputCollect <- robyn_run(
-      InputCollect = InputCollect,
-      json_file = json_file,
-      export = FALSE,
-      quiet = quiet,
-      ...
-    )
+    if (!is.null(json$ExportedModel$select_model)) {
+      OutputCollect <- robyn_run(
+        InputCollect = InputCollect,
+        json_file = json_file,
+        export = FALSE,
+        quiet = quiet,
+        ...
+      )
+    } else OutputCollect <- NULL
   } else {
     # Use case: skip feature engineering when InputCollect is provided
     InputCollect <- args[["InputCollect"]]
