@@ -142,6 +142,7 @@ robyn_refresh <- function(json_file = NULL,
       listInit$InputCollect$refreshChain <- attr(chainData, "chain")
       listInit$InputCollect$refreshDepth <- refreshDepth <- length(attr(chainData, "chain"))
       listInit$OutputCollect$hyper_updated <- json$ExportedModel$hyper_updated
+      listInit$InputCollect$window_end <- json$InputCollect$window_end
       Robyn[["listInit"]] <- listInit
       refreshCounter <- 1 # Dummy for now (legacy)
     }
