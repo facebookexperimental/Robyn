@@ -362,7 +362,7 @@ robyn_chain <- function(json_file) {
   ids <- c(json_data$InputCollect$refreshChain, json_data$ExportedModel$select_model)
   plot_folder <- json_data$ExportedModel$plot_folder
   temp <- str_split(plot_folder, "/")[[1]]
-  chain <- temp[startsWith(temp, "Robyn_")]
+  chain <- temp[startsWith(temp, "Robyn_") & endsWith(temp, "_init|_rf")]
   if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
   chainData <- list()
