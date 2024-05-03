@@ -470,7 +470,8 @@ check_adstock <- function(adstock) {
 
 check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
                                   paid_media_spends = NULL, organic_vars = NULL,
-                                  exposure_vars = NULL) {
+                                  exposure_vars = NULL, prophet_vars = NULL,
+                                  contextual_vars = NULL) {
   if (is.null(hyperparameters)) {
     message(paste(
       "Input 'hyperparameters' not provided yet. To include them, run",
@@ -496,7 +497,9 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, HYPS_OTHERS)
     all_ref_names <- all_ref_names[order(all_ref_names)]
     # Adding penalty variations to the dictionary
-    all_ref_names <- c(all_ref_names, paste0(all_ref_names, "_penalty"))
+    ref_hyp_name_penalties <- paste0(
+      c(paid_media_spends, organic_vars, prophet_vars, contextual_vars), "_penalty")
+    all_ref_names <- c(all_ref_names, ref_hyp_name_penalties)
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
@@ -505,7 +508,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
       )
     }
     total <- length(get_hyp_names)
-    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org, ref_hyp_name_other))
+    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org, ref_hyp_name_penalties, ref_hyp_name_other))
     if (total != total_in) {
       stop(sprintf(
         paste(
