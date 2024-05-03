@@ -498,9 +498,9 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     all_ref_names <- all_ref_names[order(all_ref_names)]
     # Adding penalty variations to the dictionary
     if (any(grepl("_penalty", paste0(get_hyp_names)))) {
-      all_ref_names <- c(all_ref_names, ref_hyp_name_penalties)
       ref_hyp_name_penalties <- paste0(
         c(paid_media_spends, organic_vars, prophet_vars, contextual_vars), "_penalty")
+      all_ref_names <- c(all_ref_names, ref_hyp_name_penalties)
     } else {
       ref_hyp_name_penalties <- NULL
     }
