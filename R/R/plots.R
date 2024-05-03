@@ -1304,7 +1304,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
       variable = stringr::str_to_title(.data$variable),
       ds = as.Date(.data$ds, origin = "1970-01-01")
     )
-  dt_refreshDates <- data.frame(
+  dt_refreshDates <- dplyr::tibble(
     solID = names(chainData),
     window_start = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_start)), origin = "1970-01-01"),
     window_end = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_end)), origin = "1970-01-01"),
