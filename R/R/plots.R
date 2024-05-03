@@ -1382,6 +1382,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
 
   outputs[["pBarRF"]] <- pBarRF <- df %>%
     mutate(variable = factor(.data$variable, levels = rev(.data$variable))) %>%
+    group_by(.data$solID) %>%
     mutate(colsize = 0.95 * .data$decompPer * max(.data$performance, na.rm = TRUE) /
              max(.data$decompPer)) %>%
     ggplot(aes(y = .data$variable)) +
