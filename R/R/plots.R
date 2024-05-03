@@ -1374,13 +1374,21 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     ) %>%
     group_by(.data$solID, .data$label, .data$variable) %>%
     summarise_all(sum)
+  cap <- NULL
+  if (length(unique(df$solID)) == 1) {
+    df$label <- gsub(" \\[0\\]", " \\[refreshed\\]", df$label)
+    cap <- "Not able to find local files of previous models to compare with"
+  }
 
   outputs[["pBarRF"]] <- pBarRF <- df %>%
+    mutate(variable = factor(.data$variable, levels = rev(.data$variable))) %>%
+    mutate(colsize = 0.95 * .data$decompPer * max(.data$performance, na.rm = TRUE) /
+             max(.data$decompPer)) %>%
     ggplot(aes(y = .data$variable)) +
-    geom_col(aes(x = .data$decompPer)) +
+    geom_col(aes(x = .data$colsize)) +
     geom_text(
       aes(
-        x = .data$decompPer,
+        x = .data$colsize,
         label = formatNum(100 * .data$decompPer, signif = 2, pos = "%")
       ),
       na.rm = TRUE, hjust = -0.2, size = 2.8
@@ -1389,9 +1397,9 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     geom_text(
       aes(
         x = .data$performance,
-        label = formatNum(.data$performance, 2)
+        label = signif(.data$performance, 3)
       ),
-      na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b"
+      na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b", fontface = "bold"
     ) +
     facet_wrap(. ~ .data$label, scales = "free") +
     # scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
@@ -1404,7 +1412,7 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
         "Baseline includes intercept and all prophet vars:",
         v2t(chainData[[1]]$InputCollect$prophet_vars, quotes = FALSE)
       ),
-      x = NULL, y = NULL
+      x = NULL, y = NULL, caption = cap
     ) +
     theme_lares(background = "white", grid = "Y") +
     theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
