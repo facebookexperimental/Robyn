@@ -468,9 +468,11 @@ robyn_refresh <- function(json_file = NULL,
         select_model = selectID,
         export = TRUE, quiet = TRUE, ...
       )
+      df <- OutputCollectRF$allPareto$plotDataCollect[[selectID]]
       plots <- refresh_plots_json(
-        OutputCollectRF,
-        json_file = attr(json_temp, "json_file"), export, ...
+        json_file = attr(json_temp, "json_file"),
+        plot_folder = OutputCollectRF$plot_folder,
+        df = df, listInit = listInit, export = export, ...
       )
     } else {
       plots <- try(refresh_plots(

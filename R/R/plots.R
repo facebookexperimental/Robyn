@@ -1287,77 +1287,91 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
   return(invisible(outputs))
 }
 
-refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
+refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, df = NULL, export = TRUE, ...) {
   outputs <- list()
   chainData <- robyn_chain(json_file)
+  message(">> Plotting refresh results for chain: ", paste(names(chainData), collapse = " > "))
   solID <- tail(names(chainData), 1)
   dayInterval <- chainData[[solID]]$InputCollect$dayInterval
   intervalType <- chainData[[solID]]$InputCollect$intervalType
   rsq <- chainData[[solID]]$ExportedModel$errors$rsq_train
-  plot_folder <- OutputCollectRF$plot_folder
+  if (is.null(plot_folder)) {
+    plot_folder <- chainData[[1]]$ExportedModel$plot_folder
+    if (!dir.exists(plot_folder)) {
+      plot_folder <- getwd()
+    }
+  }
 
   ## 1. Fitted vs actual
-  temp <- OutputCollectRF$allPareto$plotDataCollect[[solID]]
-  xDecompVecPlotMelted <- temp$plot5data$xDecompVecPlotMelted %>%
-    mutate(
-      linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
-      variable = stringr::str_to_title(.data$variable),
-      ds = as.Date(.data$ds, origin = "1970-01-01")
-    )
-  dt_refreshDates <- dplyr::tibble(
-    solID = names(chainData),
-    window_start = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_start)), origin = "1970-01-01"),
-    window_end = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_end)), origin = "1970-01-01"),
-    duration = unlist(c(0, unlist(lapply(chainData, function(x) x$InputCollect$refresh_steps))))
-  ) %>%
-    filter(.data$duration > 0) %>%
-    mutate(refreshStatus = row_number()) %>%
-    mutate(
-      refreshStart = .data$window_end - dayInterval * .data$duration,
-      refreshEnd = .data$window_end
+  if (!is.null(df)) {
+    xDecompVecPlotMelted <- df$plot5data$xDecompVecPlotMelted %>%
+      mutate(
+        linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
+        variable = stringr::str_to_title(.data$variable),
+        ds = as.Date(.data$ds, origin = "1970-01-01")
+      )
+    dt_refreshDates <- dplyr::tibble(
+      solID = names(chainData),
+      window_start = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_start)), origin = "1970-01-01"),
+      window_end = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_end)), origin = "1970-01-01"),
+      duration = unlist(c(0, unlist(lapply(chainData, function(x) x$InputCollect$refresh_steps))))
     ) %>%
-    mutate(label = ifelse(.data$refreshStatus == 0, sprintf(
-      "Initial: %s, %s %ss", .data$refreshStart, .data$duration, intervalType
-    ),
-    sprintf(
-      "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart, .data$duration, intervalType
-    )
-    )) %>%
-    as_tibble()
-  outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecPlotMelted) +
-    geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$linetype), size = 0.6) +
-    geom_rect(
-      data = dt_refreshDates,
-      aes(
-        xmin = .data$refreshStart, xmax = .data$refreshEnd,
-        fill = as.character(.data$refreshStatus)
+      filter(.data$duration > 0) %>%
+      mutate(refreshStatus = row_number()) %>%
+      mutate(
+        refreshStart = .data$window_end - dayInterval * .data$duration,
+        refreshEnd = .data$window_end
+      ) %>%
+      mutate(label = ifelse(.data$refreshStatus == 0, sprintf(
+        "Initial: %s, %s %ss", .data$refreshStart, .data$duration, intervalType
       ),
-      ymin = -Inf, ymax = Inf, alpha = 0.2
-    ) +
-    scale_fill_brewer(palette = "BuGn") +
-    geom_text(data = dt_refreshDates, mapping = aes(
-      x = .data$refreshStart, y = max(xDecompVecPlotMelted$value),
-      label = .data$label,
-      angle = 270, hjust = 0, vjust = -0.2
-    ), color = "gray40") +
-    theme_lares(background = "white", legend = "top", pal = 2) +
-    scale_y_abbr() +
-    guides(linetype = "none", fill = "none") +
-    labs(
-      title = "Actual vs. Predicted Response",
-      # subtitle = paste("Train R2 =", round(rsq, 4)),
-      x = "Date", y = "Response", color = NULL, fill = NULL
-    )
+      sprintf(
+        "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart, .data$duration, intervalType
+      )
+      )) %>%
+      as_tibble()
+    outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecPlotMelted) +
+      geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$linetype), size = 0.6) +
+      geom_rect(
+        data = dt_refreshDates,
+        aes(
+          xmin = .data$refreshStart, xmax = .data$refreshEnd,
+          fill = as.character(.data$refreshStatus)
+        ),
+        ymin = -Inf, ymax = Inf, alpha = 0.2
+      ) +
+      scale_fill_brewer(palette = "BuGn") +
+      geom_text(data = dt_refreshDates, mapping = aes(
+        x = .data$refreshStart, y = max(xDecompVecPlotMelted$value),
+        label = .data$label,
+        angle = 270, hjust = 0, vjust = -0.2
+      ), color = "gray40") +
+      theme_lares(background = "white", legend = "top", pal = 2) +
+      scale_y_abbr() +
+      guides(linetype = "none", fill = "none") +
+      labs(
+        title = "Actual vs. Predicted Response",
+        # subtitle = paste("Train R2 =", round(rsq, 4)),
+        x = "Date", y = "Response", color = NULL, fill = NULL
+      )
 
-  if (export) {
-    ggsave(
-      filename = paste0(plot_folder, "report_actual_fitted.png"),
-      plot = pFitRF,
-      dpi = 900, width = 12, height = 8, limitsize = FALSE
-    )
+    if (export) {
+      ggsave(
+        filename = paste0(plot_folder, "report_actual_fitted.png"),
+        plot = pFitRF,
+        dpi = 900, width = 12, height = 8, limitsize = FALSE
+      )
+    }
   }
 
   ## 2. Stacked bar plot
+  if (!is.null(listInit)) {
+    tt <- robyn_write(listInit$InputCollect, listInit$OutputCollect, export = FALSE)
+    tp <- list(listInit = tt, new = chainData[[length(chainData)]])
+    names(tp) <- c(listInit$OutputCollect$selectID, solID)
+    if (names(tp)[1] == names(tp)[2]) tp[[2]] <- NULL
+    chainData <- tp
+  }
   df <- lapply(chainData, function(x) x$ExportedModel$summary) %>%
     bind_rows(.id = "solID") %>%
     as_tibble() %>%
@@ -1380,13 +1394,17 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     cap <- "Not able to find local files of previous models to compare with"
   }
 
+  maxval <- max(df$performance[!is.infinite(df$performance)], na.rm = TRUE)
   outputs[["pBarRF"]] <- pBarRF <- df %>%
-    mutate(variable = factor(.data$variable, levels = rev(.data$variable))) %>%
     group_by(.data$solID) %>%
-    mutate(colsize = 0.95 * .data$decompPer * max(.data$performance, na.rm = TRUE) /
-             max(.data$decompPer)) %>%
+    mutate(variable = factor(.data$variable, levels = rev(.data$variable)),
+           colsize = .data$decompPer * maxval / sum(.data$decompPer),
+           perfpoint = .data$performance / maxval) %>%
+    mutate(perfpoint = ifelse(is.infinite(.data$perfpoint), NA, .data$perfpoint)) %>%
     ggplot(aes(y = .data$variable)) +
-    geom_col(aes(x = .data$colsize)) +
+    facet_wrap(. ~ .data$label, scales = "free") +
+    geom_vline(xintercept = 1, alpha = 0.8, linetype = "dashed", size = 0.5, colour = "#39638b") +
+    geom_col(aes(x = .data$colsize), na.rm = TRUE) +
     geom_text(
       aes(
         x = .data$colsize,
@@ -1398,12 +1416,10 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     geom_text(
       aes(
         x = .data$performance,
-        label = signif(.data$performance, 3)
+        label = round(.data$performance, 2),
       ),
       na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b", fontface = "bold"
     ) +
-    facet_wrap(. ~ .data$label, scales = "free") +
-    # scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
     labs(
       title = paste(
         "Model refresh: Decomposition & Paid Media",
@@ -1416,7 +1432,8 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
       x = NULL, y = NULL, caption = cap
     ) +
     theme_lares(background = "white", grid = "Y") +
-    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+    scale_x_abbr(limits = c(0, maxval * 1.1))
 
   if (export) {
     ggsave(
