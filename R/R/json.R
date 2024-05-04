@@ -370,9 +370,9 @@ robyn_chain <- function(json_file) {
   if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
   if (length(ids) != length(chain)) {
     temp <- list.files(plot_folder)
-    mods <- temp[
-      (startsWith(temp, "Robyn_") | grepl("\\.json+$", temp)) &
-        grepl("^[^_]*_[^_]*_[^_]*$", temp)]
+    mods <- unique(temp[
+      (startsWith(temp, "RobynModel") | grepl("\\.json+$", temp)) &
+        grepl("^[^_]*_[^_]*_[^_]*$", temp)])
     if (length(ids) == length(mods)) {
       chain <- rep(chain, length(mods))
     }
