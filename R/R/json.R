@@ -195,9 +195,8 @@ print.robyn_write <- function(x, ...) {
       x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)), ""),
     errors = paste(
       sprintf(
-        "Adj.R2 (%s): %s",
-        ifelse(!val, "train", "test"),
-        ifelse(!val, signif(errors$rsq_train, 4), signif(errors$rsq_test, 4))
+        "Adj.R2 (train): %s",
+        signif(errors$rsq_train, 4)
       ),
       "| NRMSE =", signif(errors$nrmse, 4),
       "| DECOMP.RSSD =", signif(errors$decomp.rssd, 4),
@@ -367,8 +366,17 @@ robyn_chain <- function(json_file) {
   ids <- c(json_data$InputCollect$refreshChain, json_data$ExportedModel$select_model)
   plot_folder <- json_data$ExportedModel$plot_folder
   temp <- str_split(plot_folder, "/")[[1]]
-  chain <- temp[startsWith(temp, "Robyn_") & endsWith(temp, "_init|_rf")]
+  chain <- temp[startsWith(temp, "Robyn_") & grepl("_init+$|_rf[0-9]+$", temp)]
   if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
+  if (length(ids) != length(chain)) {
+    temp <- list.files(plot_folder)
+    mods <- temp[
+      (startsWith(temp, "Robyn_") | grepl("\\.json+$", temp)) &
+        grepl("^[^_]*_[^_]*_[^_]*$", temp)]
+    if (length(ids) == length(mods)) {
+      chain <- rep(chain, length(mods))
+    }
+  }
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
   chainData <- list()
   for (i in rev(seq_along(chain))) {
@@ -387,6 +395,7 @@ robyn_chain <- function(json_file) {
   }
   chainData <- chainData[rev(seq_along(chain))]
   dirs <- unlist(lapply(chainData, function(x) x$ExportedModel$plot_folder))
+  dirs[!dir.exists(dirs)] <- plot_folder
   json_files <- paste0(dirs, "RobynModel-", names(dirs), ".json")
   attr(chainData, "json_files") <- json_files
   attr(chainData, "chain") <- ids # names(chainData)

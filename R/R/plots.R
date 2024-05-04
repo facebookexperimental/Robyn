@@ -1368,32 +1368,31 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
   if (!is.null(listInit)) {
     tt <- robyn_write(
       listInit$InputCollect, listInit$OutputCollect,
-      dir = plot_folder, export = export)
-    tp <- list(listInit = tt, new = chainData[[length(chainData)]])
-    names(tp) <- c(listInit$OutputCollect$selectID, solID)
-    if (names(tp)[1] == names(tp)[2]) tp[[2]] <- NULL
-    chainData <- tp
+      dir = plot_folder, export = FALSE)
+    if (!tt$ExportedModel$select_model %in% names(chainData)) {
+      chainData[[tt$ExportedModel$select_model]] <- tt
+    }
   }
   df <- lapply(chainData, function(x) x$ExportedModel$summary) %>%
     bind_rows(.id = "solID") %>%
     as_tibble() %>%
     select(-.data$coef) %>%
     mutate(
-      solID = factor(.data$solID, levels = names(chainData)),
-      label = factor(
-        sprintf("%s [%s]", .data$solID, as.integer(.data$solID) - 1),
-        levels = sprintf("%s [%s]", names(chainData), 0:(length(chainData) - 1))
+      solID = factor(.data$solID, levels = attributes(chainData)$chain),
+      label = as.factor(
+        sprintf("%s [%s]", .data$solID, as.integer(.data$solID) - 1)
       ),
+      label = factor(.data$label, levels = unique(.data$label)),
       variable = ifelse(.data$variable %in% c(chainData[[1]]$InputCollect$prophet_vars, "(Intercept)"),
         "baseline", .data$variable
       )
     ) %>%
     group_by(.data$solID, .data$label, .data$variable) %>%
     summarise_all(sum)
-  cap <- NULL
-  if (length(unique(df$solID)) == 1) {
-    df$label <- gsub(" \\[0\\]", " \\[refreshed\\]", df$label)
+  if (length(unique(df$solID)) != length(attributes(chainData)$chain)) {
     cap <- "Not able to find local files of previous models to compare with"
+  } else {
+    cap <- NULL
   }
 
   maxval <- max(df$performance[!is.infinite(df$performance)], na.rm = TRUE)
