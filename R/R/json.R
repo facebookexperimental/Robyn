@@ -17,11 +17,11 @@
 #' @param InputCollect \code{robyn_inputs()} output.
 #' @param select_model Character. Which model ID do you want to export
 #' into the JSON file?
+#' @param add_data Boolean. Include raw dataset. Useful to recreate models
+#' with a single file containing all the required information (no need of CSV).
 #' @param dir Character. Existing directory to export JSON file to.
 #' @param pareto_df Dataframe. Save all pareto solutions to json file.
 #' @param ... Additional parameters to export into a custom Extras element.
-#' If you wish to include the data to recreate a model, add
-#' \code{raw_data = InputCollect$dt_input}.
 #' @examples
 #' \dontrun{
 #' InputCollectJSON <- robyn_inputs(
@@ -37,6 +37,7 @@ robyn_write <- function(InputCollect,
                         OutputCollect = NULL,
                         select_model = NULL,
                         dir = OutputCollect$plot_folder,
+                        add_data = TRUE,
                         export = TRUE,
                         quiet = FALSE,
                         pareto_df = NULL,
@@ -133,8 +134,12 @@ robyn_write <- function(InputCollect,
     select_model <- "inputs"
   }
 
-  if (length(list(...)) > 0) {
-    ret[["Extras"]] <- list(...)
+  extras <- list(...)
+  if (isTRUE(add_data)) {
+    extras[["raw_data"]] <- InputCollect$dt_input
+  }
+  if (length(extras) > 0) {
+    ret[["Extras"]] <- extras
   }
 
   if (!dir.exists(dir) & export) dir.create(dir, recursive = TRUE)

@@ -1366,7 +1366,9 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
 
   ## 2. Stacked bar plot
   if (!is.null(listInit)) {
-    tt <- robyn_write(listInit$InputCollect, listInit$OutputCollect, export = FALSE)
+    tt <- robyn_write(
+      listInit$InputCollect, listInit$OutputCollect,
+      dir = plot_folder, export = export)
     tp <- list(listInit = tt, new = chainData[[length(chainData)]])
     names(tp) <- c(listInit$OutputCollect$selectID, solID)
     if (names(tp)[1] == names(tp)[2]) tp[[2]] <- NULL
