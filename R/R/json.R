@@ -368,18 +368,20 @@ robyn_chain <- function(json_file) {
   temp <- str_split(plot_folder, "/")[[1]]
   chain <- temp[startsWith(temp, "Robyn_") & grepl("_init+$|_rf[0-9]+$", temp)]
   if (length(chain) == 0) chain <- tail(temp[temp != ""], 1)
+  avlb <- NULL
   if (length(ids) != length(chain)) {
     temp <- list.files(plot_folder)
     mods <- unique(temp[
       (startsWith(temp, "RobynModel") | grepl("\\.json+$", temp)) &
         grepl("^[^_]*_[^_]*_[^_]*$", temp)])
+    avlb <- gsub("RobynModel-|\\.json", "", mods)
     if (length(ids) == length(mods)) {
-      chain <- rep(chain, length(mods))
+      chain <- rep_len(chain, length(mods))
     }
   }
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
   chainData <- list()
-  for (i in rev(seq_along(chain))) {
+  for (i in rev(seq_along(ids))) {
     if (i == length(chain)) {
       json_new <- json_data
     } else {
@@ -388,7 +390,12 @@ robyn_chain <- function(json_file) {
       if (file.exists(filename)) {
         json_new <- robyn_read(filename, quiet = TRUE)
       } else {
-        message("Skipping chain. File can't be found: ", filename)
+        if (ids[i] %in% avlb) {
+          filename <- mods[avlb == ids[i]]
+          json_new <- robyn_read(filename, quiet = TRUE)
+        } else {
+          message("Skipping chain. File can't be found: ", filename)
+        }
       }
     }
     chainData[[json_new$ExportedModel$select_model]] <- json_new
