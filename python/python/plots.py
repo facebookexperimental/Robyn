@@ -1634,6 +1634,7 @@ def ts_validation_fun(output_models, quiet=False, **kwargs):
     )
     rsq_long['trial'] = rsq_long['trial'].apply(lambda x: f"Trial {x}")
     rsq_long['dataset'] = rsq_long['dataset'].str.replace('rsq_', '')
+    print(rsq_long['rsq'])
     rsq_long['rsq'] = winsorize(rsq_long['rsq'], limits=[0.01, 0.99])
 
     nrmse_long = pd.melt(
