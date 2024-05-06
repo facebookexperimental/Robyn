@@ -16,8 +16,8 @@
 
 #TODO: Add setup instructions or point to readme
 
-from python import data, inputs, checks, model, outputs, json, plots, response, allocator ## Manual, Added manually
-from python import transformation
+from src.robyn import transformation
+from src.robyn import data, inputs, checks, model, outputs, json, plots, response, allocator ## Manual, Added manually
 import numpy as np
 import pandas as pd
 
@@ -556,15 +556,15 @@ difference = (response2['response_total'] - response1['response_total']) / (spen
 
 print(f'Difference: {difference:.2f}')
 
-import robyn
+import python.src as src
 
 # Set up Robyn environment
-robyn.set_env(robyn.Environment(
-    input_collect=robyn.InputCollect(
+src.set_env(src.Environment(
+    input_collect=src.InputCollect(
         dt_input='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json',
         dt_holidays='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json'
     ),
-    output_collect=robyn.OutputCollect(
+    output_collect=src.OutputCollect(
         select_model='select_model'
     )
 ))
@@ -574,12 +574,12 @@ spend3 = 100000
 date_range = 'last_5'
 
 # Create Robyn response object
-response3 = robyn.response(
-    InputCollect=robyn.InputCollect(
+response3 = src.response(
+    InputCollect=src.InputCollect(
         dt_input='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json',
         dt_holidays='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json'
     ),
-    OutputCollect=robyn.OutputCollect(
+    OutputCollect=src.OutputCollect(
         select_model='select_model'
     ),
     metric_name='facebook_S',
@@ -593,11 +593,11 @@ response3.plot()
 # Define sendings and create Robyn response object
 sendings = 30000
 response_sending = robyn_response(
-    InputCollect=robyn.InputCollect(
+    InputCollect=src.InputCollect(
         dt_input='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json',
         dt_holidays='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json'
     ),
-    OutputCollect=robyn.OutputCollect(
+    OutputCollect=src.OutputCollect(
         select_model='select_model'
     ),
     metric_name='newsletter',
@@ -609,25 +609,25 @@ response_sending.response_total / sendings * 1000
 print(response_sending.plot())
 
 # Write Robyn inputs and outputs to files
-robyn.write(robyn.InputCollect(
+src.write(src.InputCollect(
     dt_input='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json',
     dt_holidays='~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json'
 ), '~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json')
-robyn.write(robyn.OutputCollect(
+src.write(src.OutputCollect(
     select_model='select_model'
 ), '~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json')
 
 # Read Robyn inputs and outputs from files
 json_file = '~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json'
-json_data = robyn.read(json_file)
+json_data = src.read(json_file)
 print(json_data)
 
 # Create Robyn inputs and outputs for recreated model
-input_collect = robyn.InputCollect(
+input_collect = src.InputCollect(
     dt_input=json_data['dt_input'],
     dt_holidays=json_data['dt_holidays']
 )
-output_collect = robyn.OutputCollect(
+output_collect = src.OutputCollect(
     select_model=json_data['select_model']
 )
 
@@ -640,8 +640,8 @@ robyn_recreate(
 )
 
 # Write Robyn inputs and outputs to files
-robyn.write(input_collect, output_collect, export=False, dir='~/Desktop')
-my_model = robyn.read(json_file)
+src.write(input_collect, output_collect, export=False, dir='~/Desktop')
+my_model = src.read(json_file)
 print(my_model)
 
 # Create one-pagers for Robyn model
@@ -659,7 +659,7 @@ robyn_refresh(
 )
 
 # Create Robyn response object
-response = robyn.response(
+response = src.response(
     InputCollect=input_collect,
     OutputCollect=output_collect,
     metric_name='newsletter',

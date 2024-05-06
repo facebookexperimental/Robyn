@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from python.inputs import robyn_inputs, prophet_decomp, robyn_engineering
+from src.inputs import robyn_inputs, prophet_decomp, robyn_engineering
 
 @pytest.mark.xfail(raises=NotImplementedError)
 def test_robyn_inputs():
