@@ -1438,10 +1438,7 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
 
   if (export) {
     ggsave(
-      filename = paste0(
-        chainData[[length(chainData)]]$ExportedModel$plot_folder,
-        "report_decomposition.png"
-      ),
+      filename = paste0(plot_folder, "report_decomposition.png"),
       plot = pBarRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )

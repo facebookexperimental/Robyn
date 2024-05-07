@@ -382,7 +382,7 @@ robyn_chain <- function(json_file) {
   base_dir <- gsub(sprintf("\\/%s.*", chain[1]), "", plot_folder)
   chainData <- list()
   for (i in rev(seq_along(ids))) {
-    if (i == length(chain)) {
+    if (i == length(ids)) {
       json_new <- json_data
     } else {
       file <- paste0("RobynModel-", json_new$InputCollect$refreshSourceID, ".json")
