@@ -495,14 +495,15 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, HYPS_OTHERS))
     all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, HYPS_OTHERS)
     all_ref_names <- all_ref_names[order(all_ref_names)]
-    if (!all(get_hyp_names %in% all_ref_names)) {
+    rm_penalty <- !grepl("_penalty$", get_hyp_names)
+    if (!all(get_hyp_names[rm_penalty] %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
         "Input 'hyperparameters' contains following wrong names: ",
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
-    total <- length(get_hyp_names)
+    total <- length(get_hyp_names[rm_penalty])
     total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org, ref_hyp_name_other))
     if (total != total_in) {
       stop(sprintf(
