@@ -1,7 +1,7 @@
 import pytest
-from src.json import robyn_write, robyn_read, robyn_recreate, robyn_chain
-from src.inputs import robyn_inputs
-from src.outputs import robyn_outputs
+from src.robyn.json import robyn_write, robyn_read, robyn_recreate, robyn_chain
+from src.robyn.inputs import robyn_inputs
+from src.robyn.outputs import robyn_outputs
 import pandas as pd
 import os
 import re

@@ -70,10 +70,10 @@ def robyn_response(InputCollect=None,
             dt_coef = OutputCollect.xDecompAgg
         else:
             # Try to get some pre-filled values
-            if dt_hyppar.empty:
-                dt_hyppar = OutputCollect.resultHypParam
-            if dt_coef.empty:
-                dt_coef = OutputCollect.xDecompAgg
+            if dt_hyppar is None:
+                dt_hyppar = OutputCollect['resultHypParam']
+            if dt_coef is None:
+                dt_coef = OutputCollect['xDecompAgg']
             if any(x is None for x in [dt_hyppar, dt_coef, InputCollect, OutputCollect]):
                 raise ValueError("When 'robyn_object' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
 

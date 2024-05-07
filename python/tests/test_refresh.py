@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from src.refresh import robyn_refresh, plot_robyn_refresh, refresh_hyps
+from src.robyn.refresh import robyn_refresh, plot_robyn_refresh, refresh_hyps
 
 @pytest.mark.xfail(raises=NotImplementedError)
 def test_robyn_refresh():

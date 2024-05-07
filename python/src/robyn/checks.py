@@ -940,20 +940,49 @@ def check_allocator_constrains(low, upr):
 
 
 
+# def check_allocator(OutputCollect, select_model, paid_media_spends, scenario, channel_constr_low, channel_constr_up, constr_mode):
+#     check_allocator_constrains(channel_constr_low, channel_constr_up)
+#     if select_model not in OutputCollect["allSolutions"]:
+#         raise ValueError(f"Provided 'select_model' is not within the best results.")
+#     if scenario not in ("max_response", "target_efficiency"):
+#         raise ValueError(f"Input 'scenario' must be one of: {', '.join(('max_response', 'target_efficiency'))}")
+#     if scenario == "target_efficiency" and not (channel_constr_low is None or channel_constr_up is None):
+#         raise ValueError("Input 'channel_constr_low' and 'channel_constr_up' must be None for scenario 'target_efficiency'")
+#     if len(channel_constr_low) != 1 and len(channel_constr_low) != len(paid_media_spends):
+#         raise ValueError(f"Input 'channel_constr_low' have to contain either only 1 value or have same length as 'paid_media_spends': {len(paid_media_spends)}")
+#     if len(channel_constr_up) != 1 and len(channel_constr_up) != len(paid_media_spends):
+#         raise ValueError(f"Input 'channel_constr_up' have to contain either only 1 value or have same length as 'paid_media_spends': {len(paid_media_spends)}")
+#     if constr_mode not in ("eq", "ineq"):
+#         raise ValueError(f"Input 'constr_mode' must be one of: {', '.join(('eq', 'ineq'))}")
+#     return scenario
+
+
 def check_allocator(OutputCollect, select_model, paid_media_spends, scenario, channel_constr_low, channel_constr_up, constr_mode):
     check_allocator_constrains(channel_constr_low, channel_constr_up)
-    if select_model not in OutputCollect["allSolutions"]:
-        raise ValueError(f"Provided 'select_model' is not within the best results.")
-    if scenario not in ("max_response", "target_efficiency"):
-        raise ValueError(f"Input 'scenario' must be one of: {', '.join(('max_response', 'target_efficiency'))}")
-    if scenario == "target_efficiency" and not (channel_constr_low is None or channel_constr_up is None):
-        raise ValueError("Input 'channel_constr_low' and 'channel_constr_up' must be None for scenario 'target_efficiency'")
-    if len(channel_constr_low) != 1 and len(channel_constr_low) != len(paid_media_spends):
-        raise ValueError(f"Input 'channel_constr_low' have to contain either only 1 value or have same length as 'paid_media_spends': {len(paid_media_spends)}")
-    if len(channel_constr_up) != 1 and len(channel_constr_up) != len(paid_media_spends):
-        raise ValueError(f"Input 'channel_constr_up' have to contain either only 1 value or have same length as 'paid_media_spends': {len(paid_media_spends)}")
-    if constr_mode not in ("eq", "ineq"):
-        raise ValueError(f"Input 'constr_mode' must be one of: {', '.join(('eq', 'ineq'))}")
+    if select_model not in OutputCollect['allSolutions']:
+        raise ValueError(
+            "Provided 'select_model' is not within the best results. Try any of: " +
+            ', '.join(OutputCollect['allSolutions'])
+        )
+    if "max_historical_response" in scenario: 
+        scenario = "max_response"
+    opts = ["max_response", "target_efficiency"] # Deprecated: max_response_expected_spend
+    if scenario not in opts:
+        raise ValueError("Input 'scenario' must be one of: " + ', '.join(opts))
+    if not (scenario == "target_efficiency" and channel_constr_low is None and channel_constr_up is None):
+        if len(channel_constr_low) != 1 and len(channel_constr_low) != len(paid_media_spends):
+            raise ValueError(
+                "Input 'channel_constr_low' have to contain either only 1" +
+                "value or have same length as 'InputCollect$paid_media_spends':" + str(len(paid_media_spends))
+            )
+        if len(channel_constr_up) != 1 and len(channel_constr_up) != len(paid_media_spends):
+            raise ValueError(
+                "Input 'channel_constr_up' have to contain either only 1" +
+                "value or have same length as 'InputCollect$paid_media_spends':" + str(len(paid_media_spends))
+            )
+    opts = ["eq", "ineq"]
+    if constr_mode not in opts:
+        raise ValueError("Input 'constr_mode' must be one of: " + ', '.join(opts))
     return scenario
 
 
@@ -1067,7 +1096,7 @@ def check_metric_value(metric_value, metric_name, all_values, metric_loc):
     #     metric_value = None
 
     if not metric_value is None:
-        if not np.isnumeric(metric_value):
+        if not np.isreal(metric_value):
             raise ValueError(f"Input 'metric_value' for {metric_name} must be a numerical value")
 
         if np.any(metric_value < 0):

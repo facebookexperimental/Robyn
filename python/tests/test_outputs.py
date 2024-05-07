@@ -1,6 +1,6 @@
 import pytest
-from src.outputs import robyn_outputs, print_robyn_outputs, robyn_csv
-from src.inputs import robyn_inputs
+from src.robyn.outputs import robyn_outputs, print_robyn_outputs, robyn_csv
+from src.robyn.inputs import robyn_inputs
 import pandas as pd
 import os
 import re

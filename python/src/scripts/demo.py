@@ -296,7 +296,7 @@ select_model = '1_0_1'
 ## Budget allocation result requires further validation. Please use this recommendation with caution.
 ## Don't interpret budget allocation result if selected model above doesn't meet business expectation.
 
-allocator_collector = allocator.robyn_allocator(
+allocator_collect1 = allocator.robyn_allocator(
     InputCollect=input_collect,
     OutputCollect=output_collect,
     select_model=select_model,
@@ -314,7 +314,7 @@ allocator_collector = allocator.robyn_allocator(
 )
 
 # Print and plot allocator's output
-print(allocator_collector)
+print(allocator_collect1)
 # plot(allocator_collector)
 
 
@@ -336,7 +336,7 @@ allocator_collect2 = allocator.robyn_allocator(
 
 print(allocator_collect2)
 
-# plot(allocator_collect2)
+plot(allocator_collect2)
 
 # Example 3: Use default ROAS target for revenue or CPA target for conversion
 
@@ -344,15 +344,15 @@ allocator_collect3 = allocator.robyn_allocator(
     InputCollect=input_collect,
     OutputCollect=output_collect,
     select_model=select_model,
-    date_range=None,  # Default last month as initial period
+    #date_range=None,  # Default last month as initial period
     scenario="target_efficiency",
-    target_value=2,  # Customize target ROAS or CPA value
+    # target_value=2,  # Customize target ROAS or CPA value
     export=True
 )
 
 print(allocator_collect3)
 
-# plot(allocator_collect3)
+plot(allocator_collect3)
 
 # Example 4: Customize target_value for ROAS or CPA (using json_file)
 
@@ -378,7 +378,7 @@ allocator_collect4 = allocator.robyn_allocator(
 select_media = "search_S"  # Pick any media variable: InputCollect$all_media
 
 metric_value = allocator_collect1['dt_optimOut']['optmSpendUnit'][
-    allocator_collect1.dt_optimOut.channels == select_media
+    allocator_collect1['dt_optimOut']['channels'].index(select_media)
 ]  # For paid_media_spends set metric_value as your optimal spend
 
 # # For paid_media_vars and organic_vars, manually pick a value
@@ -387,8 +387,8 @@ metric_value = allocator_collect1['dt_optimOut']['optmSpendUnit'][
 # Saturation curve for adstocked metric results (example)
 
 response.robyn_response(
-    InputCollect=InputCollect,
-    OutputCollect=OutputCollect,
+    InputCollect=input_collect,
+    OutputCollect=output_collect,
     select_model=select_model,
     metric_name=select_media,
     metric_value=metric_value,
