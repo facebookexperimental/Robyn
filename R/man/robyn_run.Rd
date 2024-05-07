@@ -37,8 +37,10 @@ Required when \code{robyn_object} is not provided.}
 old model results. It consumes hyperparameters from saved csv
 \code{pareto_hyperparameters.csv} or JSON file to replicate a model.}
 
-\item{json_file}{Character. JSON file to import previously exported inputs
-(needs \code{dt_input} and \code{dt_holidays} parameters too).}
+\item{json_file}{Character. JSON file to import previously exported inputs or
+recreate a model. To generate this file, use \code{robyn_write()}.
+If you didn't export your data in the json file as "raw_data",
+\code{dt_input} must be provided; \code{dt_holidays} input is optional.}
 
 \item{ts_validation}{Boolean. When set to \code{TRUE}, Robyn will split data
 by test, train, and validation partitions to validate the time series. By
@@ -75,10 +77,12 @@ In other words, given the same DECOMP.RSSD score, a model with 50\% 0-coef
 variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
 another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
 
-\item{objective_weights}{Numeric. Default to NULL that gives equal weights
-to all objective functions. Set c(2, 1) to give double weight to the 1st.
-This is an experimental feature. There's no research on optimal weight
-setting. Subjective weights might strongly bias modelling result.}
+\item{objective_weights}{Numeric vector. Default to NULL to give equal weights
+to all objective functions. Order: NRMSE, DECOMP.RSSD, MAPE (when calibration
+data is provided). When you are not calibrating, only the first 2 values for
+\code{objective_weights} must be defined, i.e. set c(2, 1) to give double weight
+to the 1st (NRMSE). This is an experimental feature. There's no research on
+optimal weight setting. Subjective weights might strongly bias modeling results.}
 
 \item{nevergrad_algo}{Character. Default to "TwoPointsDE". Options are
 \code{c("DE","TwoPointsDE", "OnePlusOne", "DoubleFastGADiscreteOnePlusOne",

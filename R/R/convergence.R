@@ -129,7 +129,7 @@ robyn_converge <- function(OutputModels,
     mutate(id = as.integer(.data$cuts)) %>%
     mutate(cuts = factor(.data$cuts, levels = rev(levels(.data$cuts)))) %>%
     group_by(.data$error_type) %>%
-    mutate(value = lares::winsorize(.data$value, nrmse_win)) %>%
+    mutate(value = lares::winsorize(.data$value, nrmse_win), na.rm = TRUE) %>%
     ggplot(aes(x = .data$value, y = .data$cuts, fill = -.data$id)) +
     ggridges::geom_density_ridges(
       scale = 2.5, col = "white", quantile_lines = TRUE, quantiles = 2, alpha = 0.7
@@ -146,7 +146,7 @@ robyn_converge <- function(OutputModels,
     )
 
   moo_cloud_plot <- df %>%
-    mutate(nrmse = lares::winsorize(.data$nrmse, nrmse_win)) %>%
+    mutate(nrmse = lares::winsorize(.data$nrmse, nrmse_win), na.rm = TRUE) %>%
     ggplot(aes(
       x = .data$nrmse, y = .data$decomp.rssd, colour = .data$ElapsedAccum
     )) +

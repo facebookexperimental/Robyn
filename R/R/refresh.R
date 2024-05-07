@@ -304,7 +304,7 @@ robyn_refresh <- function(json_file = NULL,
     ## Select winner model for current refresh (the lower error_score the better)
     OutputCollectRF$resultHypParam <- OutputCollectRF$resultHypParam %>%
       ungroup() %>%
-      arrange(.data$error_score) %>%
+      arrange(.data$decomp.rssd) %>%
       select(.data$solID, everything())
     bestMod <- OutputCollectRF$resultHypParam$solID[1]
     # OutputCollectRF$clusters$data %>% filter(solID == bestMod)
@@ -328,7 +328,7 @@ robyn_refresh <- function(json_file = NULL,
         selectID <- bestMod
         message(
           "Selected model ID: ", selectID, " for refresh model #",
-          depth, " based on the smallest combined normalized errors"
+          depth, " based on the smallest decomp.rssd"
         )
       }
       if (!isTRUE(selectID %in% OutputCollectRF$allSolutions)) {

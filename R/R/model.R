@@ -49,10 +49,12 @@
 #' In other words, given the same DECOMP.RSSD score, a model with 50\% 0-coef
 #' variables will get penalized by DECOMP.RSSD * 1.5 (larger error), while
 #' another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.
-#' @param objective_weights Numeric. Default to NULL that gives equal weights
-#' to all objective functions. Set c(2, 1) to give double weight to the 1st.
-#' This is an experimental feature. There's no research on optimal weight
-#' setting. Subjective weights might strongly bias modelling result.
+#' @param objective_weights Numeric vector. Default to NULL to give equal weights
+#' to all objective functions. Order: NRMSE, DECOMP.RSSD, MAPE (when calibration
+#' data is provided). When you are not calibrating, only the first 2 values for
+#' \code{objective_weights} must be defined, i.e. set c(2, 1) to give double weight
+#' to the 1st (NRMSE). This is an experimental feature. There's no research on
+#' optimal weight setting. Subjective weights might strongly bias modeling results.
 #' @param seed Integer. For reproducible results when running nevergrad.
 #' @param lambda_control Deprecated in v3.6.0.
 #' @param outputs Boolean. If set to TRUE, will run \code{robyn_run()} and
@@ -229,6 +231,11 @@ robyn_run <- function(InputCollect = NULL,
     output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
   }
 
+  # Created with assign from JSON file
+  if (exists("clusters"))
+    if (!is.integer(get("clusters")))
+      output$clusters <- get("clusters")
+
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
     output[["convergence"]] <- robyn_converge(OutputModels, ...)
@@ -300,7 +307,7 @@ Pareto-front ({x$pareto_fronts}) All solutions ({nSols}): {paste(x$allSolutions,
 {clusters_info}
 ",
       nSols = length(x$allSolutions),
-      clusters_info = if ("clusters" %in% names(x)) {
+      clusters_info = if ("models" %in% names(x[["clusters"]])) {
         glued(
           "Clusters (k = {x$clusters$n_clusters}): {paste(x$clusters$models$solID, collapse = ', ')}"
         )
@@ -451,17 +458,19 @@ robyn_mmm <- function(InputCollect,
                       trial = 1L,
                       seed = 123L,
                       quiet = FALSE, ...) {
-  if (reticulate::py_module_available("nevergrad")) {
-    ng <- reticulate::import("nevergrad", delay_load = TRUE)
-    if (is.integer(seed)) {
-      np <- reticulate::import("numpy", delay_load = FALSE)
-      np$random$seed(seed)
+  if (iterations > 1) {
+    if (reticulate::py_module_available("nevergrad")) {
+      ng <- reticulate::import("nevergrad", delay_load = TRUE)
+      if (is.integer(seed)) {
+        np <- reticulate::import("numpy", delay_load = FALSE)
+        np$random$seed(seed)
+      }
+    } else {
+      stop(
+        "You must have nevergrad python library installed.\nPlease check our install demo: ",
+        "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
+      )
     }
-  } else {
-    stop(
-      "You must have nevergrad python library installed.\nPlease check our install demo: ",
-      "https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R"
-    )
   }
 
   ################################################
@@ -897,7 +906,7 @@ robyn_mmm <- function(InputCollect,
               registerDoSEQ()
             }
             suppressPackageStartupMessages(
-              doparCollect <- foreach(i = 1:iterPar) %dorng% robyn_iterations(i)
+              doparCollect <- foreach(i = 1:iterPar, .options.RNG = seed) %dorng% robyn_iterations(i)
             )
           }
 

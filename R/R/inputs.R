@@ -33,7 +33,7 @@
 #' @param dt_holidays data.frame. Raw input holiday data. Load standard
 #' Prophet holidays using \code{data("dt_prophet_holidays")}
 #' @param date_var Character. Name of date variable. Daily, weekly
-#' and monthly data supported. Weekly requires week-start of Monday or Sunday.
+#' and monthly data supported.
 #' \code{date_var} must have format "2020-01-01" (YYY-MM-DD).
 #' Default to automatic date detection.
 #' @param dep_var Character. Name of dependent variable. Only one allowed
@@ -74,7 +74,7 @@
 #' @param factor_vars Character vector. Specify which of the provided
 #' variables in organic_vars or context_vars should be forced as a factor.
 #' @param prophet_vars Character vector. Include any of "trend",
-#' "season", "weekday", "holiday" or NULL. Highly recommended
+#' "season", "weekday", "monthly", "holiday" or NULL. Highly recommended
 #' to use all for daily data and "trend", "season", "holiday" for
 #' weekly and above cadence. Set to NULL to skip prophet's functionality.
 #' @param prophet_signs Character vector. Choose any of
@@ -119,8 +119,10 @@
 #' Check "Guide for calibration source" section.
 #' @param InputCollect Default to NULL. \code{robyn_inputs}'s output when
 #' \code{hyperparameters} are not yet set.
-#' @param json_file Character. JSON file to import previously exported inputs
-#' (needs \code{dt_input} and \code{dt_holidays} parameters too).
+#' @param json_file Character. JSON file to import previously exported inputs or
+#' recreate a model. To generate this file, use \code{robyn_write()}.
+#' If you didn't export your data in the json file as "raw_data",
+#' \code{dt_input} must be provided; \code{dt_holidays} input is optional.
 #' @param ... Additional parameters passed to \code{prophet} functions.
 #' @examples
 #' # Using dummy simulated data
@@ -177,7 +179,16 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 3: running robyn_inputs() with json_file
   if (!is.null(json_file)) {
     json <- robyn_read(json_file, step = 1, ...)
-    if (is.null(dt_input) || is.null(dt_holidays)) stop("Provide 'dt_input' and 'dt_holidays'")
+    if (is.null(dt_input)) {
+      if ("raw_data" %in% names(json[["Extras"]])) {
+        dt_input <- json[["Extras"]]$raw_data
+      } else {
+        stop("Must provide 'dt_input' input; 'dt_holidays' input optional")
+      }
+    }
+    if (!is.null(hyperparameters)) {
+      warning("Replaced hyperparameters input with json_file's fixed hyperparameters values")
+    }
     for (i in seq_along(json$InputCollect)) {
       assign(names(json$InputCollect)[i], json$InputCollect[[i]])
     }
@@ -186,21 +197,19 @@ robyn_inputs <- function(dt_input = NULL,
   ### Use case 1: running robyn_inputs() for the first time
   if (is.null(InputCollect)) {
     dt_input <- as_tibble(dt_input)
-    # if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays) %>%
-    # mutate(ds = as.Date(.data$ds, origin = "1970-01-01"))
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
-
-    ## Check for NA values
-    check_nas(dt_input)
-    check_nas(dt_holidays)
 
     ## Check vars names (duplicates and valid)
     check_varnames(
       dt_input, dt_holidays,
       dep_var, date_var,
       context_vars, paid_media_spends,
-      organic_vars
-    )
+      organic_vars)
+
+    ## Check for NA and all negative values
+    dt_input <- check_allneg(dt_input)
+    check_nas(dt_input, c(paid_media_vars, paid_media_spends, context_vars, organic_vars))
+    check_nas(dt_holidays)
 
     ## Check date input (and set dayInterval and intervalType)
     date_input <- check_datevar(dt_input, date_var)
@@ -222,11 +231,10 @@ robyn_inputs <- function(dt_input = NULL,
     context <- check_context(dt_input, context_vars, context_signs)
     context_signs <- context$context_signs
 
-    ## Check paid media variables (set mediaVarCount and maybe transform paid_media_signs)
+    ## Check paid media variables (and maybe transform paid_media_signs)
     if (is.null(paid_media_vars)) paid_media_vars <- paid_media_spends
     paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
     paid_media_signs <- paidmedia$paid_media_signs
-    mediaVarCount <- paidmedia$mediaVarCount
     exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
     ## Check organic media variables (and maybe transform organic_signs)
@@ -234,7 +242,7 @@ robyn_inputs <- function(dt_input = NULL,
     organic_signs <- organic$organic_signs
 
     ## Check factor_vars
-    factor_vars <- check_factorvars(dt_input, factor_vars, context_vars, organic_vars)
+    factor_vars <- check_factorvars(dt_input, factor_vars, context_vars)
 
     ## Check all vars
     all_media <- c(paid_media_spends, organic_vars)
@@ -300,7 +308,6 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
       paid_media_total = paid_media_total,
-      mediaVarCount = mediaVarCount,
       exposure_vars = exposure_vars,
       organic_vars = organic_vars,
       organic_signs = organic_signs,
@@ -425,8 +432,9 @@ Adstock: {x$adstock}
     range = paste(range(x$dt_input[, x$date_var][[1]]), collapse = ":"),
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
-    prophet = if (!is.null(x$prophet_vars)) {
-      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "), x$prophet_country)
+    prophet = if (length(x$prophet_vars) > 0) {
+      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "),
+              ifelse(!is.null(x$prophet_country), x$prophet_country, "data"))
     } else {
       "\033[0;31mDeactivated\033[0m"
     },
@@ -613,7 +621,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
       colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
 
-    for (i in 1:InputCollect$mediaVarCount) {
+    for (i in seq_along(paid_media_spends)) {
       if (exposure_selector[i]) {
         # Run models (NLS and/or LM)
         dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
@@ -972,7 +980,6 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
 
   if (intervalType == "week") {
     weekStartInput <- lubridate::wday(dt_transform$ds[1], week_start = 1)
-    if (!weekStartInput %in% c(1, 7)) stop("Week start has to be Monday or Sunday")
     holidays <- dt_holidays %>%
       mutate(ds = floor_date(as.Date(.data$ds, origin = "1970-01-01"), unit = "week", week_start = weekStartInput)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
@@ -986,7 +993,7 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
     }
     holidays <- dt_holidays %>%
       # mutate(ds = cut(.data$ds, intervalType)) %>%
-      mutate(ds = cut(.data$ds, intervalType)) %>%
+      mutate(ds = cut(as.Date(.data$ds, origin = "1970-01-01"), intervalType)) %>%
       select(.data$ds, .data$holiday, .data$country, .data$year) %>%
       group_by(.data$ds, .data$country, .data$year) %>%
       summarise(holiday = paste(.data$holiday, collapse = ", "), n = n())

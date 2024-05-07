@@ -54,12 +54,19 @@ robyn_onepagers(
   quiet = FALSE,
   export = TRUE,
   plot_folder = OutputCollect$plot_folder,
+  baseline_level = 0,
   ...
 )
 
 ts_validation(OutputModels, quiet = FALSE, ...)
 
-decomp_plot(InputCollect, OutputCollect, solID = NULL, exclude = NULL)
+decomp_plot(
+  InputCollect,
+  OutputCollect,
+  solID = NULL,
+  exclude = NULL,
+  baseline_level = 0
+)
 }
 \arguments{
 \item{InputCollect, OutputModels}{\code{robyn_inputs()} and \code{robyn_run()}
@@ -111,6 +118,12 @@ wish to plot the one-pagers and export? Default will take top
 
 \item{calibrated}{Logical}
 
+\item{baseline_level}{Integer, from 0 to 5. Aggregate baseline variables,
+depending on the level of aggregation you need. Default is 0 for no
+aggregation. 1 for Intercept only. 2 adding trend. 3 adding all prophet
+decomposition variables. 4. Adding contextual variables. 5 Adding organic
+variables. Results will be reflected on the waterfall chart.}
+
 \item{solID}{Character vector. Model IDs to plot.}
 
 \item{exclude}{Character vector. Manually exclude variables from plot.}
@@ -133,7 +146,7 @@ outcomes on \code{robyn_run()} results. When \code{UI=TRUE}, enriched
 \code{OutputModels} results with additional plots and objects.
 
 Create a plot to visualize the convergence for each of the datasets
-when time-series validation is enabled when running \code{robyn_run()}.
+when running \code{robyn_run()}, especially useful for when using ts_validation.
 As a reference, the closer the test and validation convergence points are,
 the better, given the time-series wasn't overfitted.
 }

@@ -56,7 +56,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
                           refresh = FALSE, ...) {
   t0 <- Sys.time()
   if (is.null(plot_folder)) plot_folder <- getwd()
-  plot_folder <- check_dir(plot_folder)
+  if (export) plot_folder <- check_dir(plot_folder)
 
   # Check calibration constrains
   calibrated <- !is.null(InputCollect$calibration_input)
@@ -140,6 +140,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
     cores = OutputModels$cores,
     iterations = OutputModels$iterations,
     trials = OutputModels$trials,
+    intercept = OutputModels$intercept,
     intercept_sign = OutputModels$intercept_sign,
     nevergrad_algo = OutputModels$nevergrad_algo,
     add_penalty_factor = OutputModels$add_penalty_factor,
@@ -159,43 +160,48 @@ robyn_outputs <- function(InputCollect, OutputModels,
       dep_var_type = InputCollect$dep_var_type,
       quiet = quiet, export = export, ...
     ))
-    OutputCollect$resultHypParam <- left_join(
-      OutputCollect$resultHypParam,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    )
-    OutputCollect$xDecompAgg <- left_join(
-      OutputCollect$xDecompAgg,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    ) %>%
-      left_join(
-        select(
-          clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean,
-          .data$boot_se, .data$ci_low, .data$ci_up, .data$rn
-        ),
-        by = c("rn", "cluster")
-      ) %>%
-      left_join(
-        pareto_results$df_caov_pct_all,
-        by = c("solID", "rn")
-      )
-    OutputCollect$mediaVecCollect <- left_join(
-      OutputCollect$mediaVecCollect,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    )
-    OutputCollect$xDecompVecCollect <- left_join(
-      OutputCollect$xDecompVecCollect,
-      select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
-      by = "solID"
-    )
-    if (calibrated) {
-      OutputCollect$resultCalibration <- left_join(
-        OutputCollect$resultCalibration,
+    if ("data" %in% names(clusterCollect)) {
+      OutputCollect$resultHypParam <- left_join(
+        OutputCollect$resultHypParam,
         select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
         by = "solID"
       )
+      OutputCollect$xDecompAgg <- left_join(
+        OutputCollect$xDecompAgg,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      ) %>%
+        left_join(
+          select(
+            clusterCollect$df_cluster_ci, .data$rn, .data$cluster, .data$boot_mean,
+            .data$boot_se, .data$ci_low, .data$ci_up, .data$rn
+          ),
+          by = c("rn", "cluster")
+        ) %>%
+        left_join(
+          pareto_results$df_caov_pct_all,
+          by = c("solID", "rn")
+        )
+      OutputCollect$mediaVecCollect <- left_join(
+        OutputCollect$mediaVecCollect,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      )
+      OutputCollect$xDecompVecCollect <- left_join(
+        OutputCollect$xDecompVecCollect,
+        select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+        by = "solID"
+      )
+      if (calibrated) {
+        OutputCollect$resultCalibration <- left_join(
+          OutputCollect$resultCalibration,
+          select(clusterCollect$data, .data$solID, .data$cluster, .data$top_sol),
+          by = "solID"
+        )
+      }
+    } else {
+      warning("> Skipped clustering because of memory issues")
+      clusters <- FALSE
     }
     OutputCollect[["clusters"]] <- clusterCollect
   }
@@ -229,8 +235,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
         if (all_sol_json) {
           pareto_df <- OutputCollect$resultHypParam %>%
-            filter(!is.na(.data$cluster)) %>%
-            select(c("solID", "cluster", "top_sol")) %>%
+            filter(.data$solID %in% allSolutions) %>%
+            select(any_of(c("solID", "cluster", "top_sol"))) %>%
             arrange(.data$cluster, -.data$top_sol, .data$solID)
         } else {
           pareto_df <- NULL

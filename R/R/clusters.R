@@ -18,6 +18,7 @@
 #' @param dep_var_type Character. For dep_var_type 'revenue', ROI is used for clustering.
 #' For conversion', CPA is used for clustering.
 #' @param cluster_by Character. Any of: "performance" or "hyperparameters".
+#' @param max_clusters Integer. Maximum number of clusters.
 #' @param limit Integer. Top N results per cluster. If kept in "auto", will select k
 #' as the cluster in which the WSS variance was less than 5\%.
 #' @param weights Vector, size 3. How much should each error weight?
@@ -41,7 +42,7 @@
 robyn_clusters <- function(input, dep_var_type,
                            cluster_by = "hyperparameters",
                            all_media = NULL,
-                           k = "auto", limit = 1,
+                           k = "auto", wss_var = 0.06, max_clusters = 10, limit = 1,
                            weights = rep(1, 3), dim_red = "PCA",
                            quiet = FALSE, export = FALSE, seed = 123,
                            ...) {
@@ -67,7 +68,7 @@ robyn_clusters <- function(input, dep_var_type,
     ))
   }
 
-  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "pareto")
+  ignore <- c("solID", "mape", "decomp.rssd", "nrmse", "nrmse_test", "nrmse_train", "nrmse_val", "pareto")
 
   # Auto K selected by less than 5% WSS variance (convergence)
   min_clusters <- 3
@@ -88,21 +89,27 @@ robyn_clusters <- function(input, dep_var_type,
       }
     )
     # if (is.null(cls)) return(NULL)
-    min_var <- 0.05
     k <- cls$nclusters %>%
       mutate(
         pareto = .data$wss / .data$wss[1],
         dif = lag(.data$pareto) - .data$pareto
       ) %>%
-      filter(.data$dif > min_var) %>%
+      filter(.data$dif > wss_var) %>%
       pull(.data$n) %>%
       max(., na.rm = TRUE)
-    if (k < min_clusters) k <- min_clusters
+    if (k < min_clusters) {
+      warning(sprintf("Too few clusters: %s. Setting to %s", k, min_clusters))
+      k <- min_clusters
+    }
     if (!quiet) {
       message(sprintf(
         ">> Auto selected k = %s (clusters) based on minimum WSS variance of %s%%",
-        k, min_var * 100
+        k, wss_var * 100
       ))
+    }
+    if (k > max_clusters) {
+      warning(sprintf("Too many clusters: %s. Lowering to %s (max_clusters)", k, max_clusters))
+      k <- max_clusters
     }
   }
 
@@ -115,10 +122,11 @@ robyn_clusters <- function(input, dep_var_type,
       dim_red = dim_red, quiet = TRUE, seed = seed
     )
   )
+  cls$df <- group_by(cls$df, .data$cluster) %>% mutate(n = n()) %>% ungroup()
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))
-  ts_validation <- ifelse(all(is.na(cls$df$nrmse_test)), FALSE, TRUE)
+  ts_validation <- ifelse("nrmse_test" %in% colnames(cls$df), TRUE, FALSE)
   top_sols <- .clusters_df(df = cls$df, all_paid, balance = weights, limit, ts_validation)
 
   # Build in-cluster CI with bootstrap
@@ -152,13 +160,16 @@ robyn_clusters <- function(input, dep_var_type,
     write.csv(output$data, file = paste0(path, "pareto_clusters.csv"))
     write.csv(output$df_cluster_ci, file = paste0(path, "pareto_clusters_ci.csv"))
     ggsave(paste0(path, "pareto_clusters_wss.png"), plot = output$wss, dpi = 500, width = 5, height = 4)
-    get_height <- ceiling(k / 2) / 2
+    get_height <- ceiling(k / 2) / 6
     db <- (output$plot_clusters_ci / (output$plot_models_rois + output$plot_models_errors)) +
       patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
-    # Suppressing "Picking joint bandwidth of x" messages
-    suppressMessages(ggsave(paste0(path, "pareto_clusters_detail.png"),
+    # Suppressing "Picking joint bandwidth of x" messages +
+    # In min(data$x, na.rm = TRUE) : no non-missing arguments to min; returning Inf warnings
+    # Setting try() to avoid error: One or both dimensions exceed the maximum (50000px).
+    #   Use `options(ragg.max_dim = ...)` to change the max
+    try(suppressMessages(suppressWarnings(ggsave(paste0(path, "pareto_clusters_detail.png"),
       plot = db, dpi = 500, width = 12, height = 4 + length(all_paid) * 2, limitsize = FALSE
-    ))
+    ))))
   }
 
   return(output)
@@ -198,9 +209,9 @@ confidence_calcs <- function(
           v_samp <- df_chn$roi_total
         }
         boot_res <- .bootci(samp = v_samp, boot_n = boot_n)
-        boot_mean <- mean(boot_res$boot_means)
+        boot_mean <- mean(boot_res$boot_means, na.rm = TRUE)
         boot_se <- boot_res$se
-        ci_low <- ifelse(boot_res$ci[1] < 0, 0, boot_res$ci[1])
+        ci_low <- ifelse(boot_res$ci[1] <= 0, 0, boot_res$ci[1])
         ci_up <- boot_res$ci[2]
 
         # Collect loop results
@@ -218,7 +229,7 @@ confidence_calcs <- function(
           rn = i,
           n = length(v_samp),
           boot_mean = boot_mean,
-          x_sim = rnorm(sim_n, mean = boot_mean, sd = boot_se)
+          x_sim = suppressWarnings(rnorm(sim_n, mean = boot_mean, sd = boot_se))
         ) %>%
           mutate(y_sim = dnorm(.data$x_sim, mean = boot_mean, sd = boot_se))
       }
@@ -229,6 +240,7 @@ confidence_calcs <- function(
   sim_collect <- bind_rows(lapply(cluster_collect, function(x) {
     bind_rows(lapply(x$sim_collect, function(y) y))
   })) %>%
+    filter(.data$n > 0) %>%
     mutate(cluster_title = sprintf("Cl.%s (n=%s)", .data$cluster, .data$n)) %>%
     ungroup() %>%
     as_tibble()
@@ -313,8 +325,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         select(any_of(c("solID", all_media)))
     }
     errors <- distinct(
-      x, .data$solID, .data$nrmse, .data$nrmse_test,
-      .data$nrmse_train, .data$decomp.rssd, .data$mape
+      x, .data$solID, starts_with("nrmse"), .data$decomp.rssd, .data$mape
     )
     outcome <- left_join(outcome, errors, "solID") %>% ungroup()
   } else {
@@ -331,12 +342,17 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
 .min_max_norm <- function(x, min = 0, max = 1) {
   x <- x[is.finite(x)]
-  if (length(x) == 1) {
+  x <- x[!is.na(x)]
+  if (length(x) <= 1) {
     return(x)
-  } # return((max - min) / 2)
+  }
   a <- min(x, na.rm = TRUE)
   b <- max(x, na.rm = TRUE)
-  (max - min) * (x - a) / (b - a) + min
+  if (b - a != 0) {
+    return((max - min) * (x - a) / (b - a) + min)
+  } else {
+    return(x)
+  }
 }
 
 .clusters_df <- function(df, all_paid, balance = rep(1, 3), limit = 1, ts_validation = TRUE, ...) {
@@ -354,8 +370,9 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   temp <- ifelse(dep_var_type == "conversion", "CPA", "ROAS")
   df_ci <- df_ci[complete.cases(df_ci), ]
   p <- ggplot(sim_collect, aes(x = .data$x_sim, y = .data$rn)) +
-    facet_wrap(~ .data$cluster_title) +
-    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01, size = 0.1) +
+    facet_wrap(~ .data$cluster_title, scales = "free_x") +
+    xlim(range(sim_collect$x_sim)) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
     geom_text(
       data = df_ci,
       aes(x = .data$boot_mean, y = .data$rn, label = .data$boot_ci),
@@ -376,7 +393,8 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
         formatNum(sim_n, abbr = TRUE)
       )
     ) +
-    theme_lares(background = "white", legend = "none")
+    theme_lares(background = "white", legend = "none") +
+    theme(axis.line.x = element_line())
   if (temp == "ROAS") {
     p <- p + geom_hline(yintercept = 1, alpha = 0.5, colour = "grey50", linetype = "dashed")
   }
@@ -414,10 +432,10 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
   top_sols %>%
     left_join(real_rois, by = c("solID" = "real_solID")) %>%
     mutate(label = sprintf("[%s.%s]\n%s", .data$cluster, .data$rank, .data$solID)) %>%
-    tidyr::gather("media", "roi", contains(all_media)) %>%
+    tidyr::gather("media", "perf", contains(all_media)) %>%
     filter(grepl("real_", .data$media)) %>%
     mutate(media = gsub("real_", "", .data$media)) %>%
-    ggplot(aes(x = reorder(.data$media, .data$roi), y = .data$roi)) +
+    ggplot(aes(x = reorder(.data$media, .data$perf), y = .data$perf)) +
     facet_grid(.data$label ~ .) +
     geom_col() +
     coord_flip() +
@@ -430,8 +448,7 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
 .bootci <- function(samp, boot_n, seed = 1, ...) {
   set.seed(seed)
-
-  if (length(samp) > 1) {
+  if (length(samp[!is.na(samp)]) > 1) {
     samp_n <- length(samp)
     samp_mean <- mean(samp, na.rm = TRUE)
     boot_sample <- matrix(
@@ -451,6 +468,6 @@ errors_scores <- function(df, balance = rep(1, 3), ts_validation = TRUE, ...) {
 
     return(list(boot_means = boot_means, ci = ci, se = se))
   } else {
-    return(list(boot_means = samp, ci = c(NA, NA), se = NA))
+    return(list(boot_means = samp, ci = c(samp, samp), se = 0))
   }
 }

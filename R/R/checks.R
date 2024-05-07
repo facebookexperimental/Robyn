@@ -10,7 +10,8 @@ HYPS_NAMES <- c("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
 HYPS_OTHERS <- c("lambda", "train_size")
 LEGACY_PARAMS <- c("cores", "iterations", "trials", "intercept_sign", "nevergrad_algo")
 
-check_nas <- function(df) {
+check_nas <- function(df, channels = NULL) {
+  if (!is.null(channels)) df <- select(df, all_of(channels))
   name <- deparse(substitute(df))
   if (sum(is.na(df)) > 0) {
     naVals <- lares::missingness(df)
@@ -48,6 +49,12 @@ check_novar <- function(dt_input, InputCollect = NULL) {
     }
     stop(msg)
   }
+}
+
+check_allneg <- function(df) {
+  all_negative <- unlist(lapply(df, function(x) all(x <= 0)))
+  df <- mutate_at(df, names(which(all_negative)), function(x) abs(x))
+  return(df)
 }
 
 check_varnames <- function(dt_input, dt_holidays,
@@ -194,6 +201,9 @@ check_prophet <- function(dt_holidays, prophet_country, prophet_vars, prophet_si
     if (is.null(prophet_signs)) {
       prophet_signs <- rep("default", length(prophet_vars))
     }
+    if (length(prophet_signs) == 1) {
+      prophet_signs <- rep(prophet_signs, length(prophet_vars))
+    }
     if (!all(prophet_signs %in% OPTS_PDN)) {
       stop("Allowed values for 'prophet_signs' are: ", paste(OPTS_PDN, collapse = ", "))
     }
@@ -237,7 +247,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   check_vector(paid_media_vars)
   check_vector(paid_media_signs)
   check_vector(paid_media_spends)
-  mediaVarCount <- length(paid_media_vars)
+  expVarCount <- length(paid_media_vars)
   spendVarCount <- length(paid_media_spends)
 
   temp <- paid_media_vars %in% names(dt_input)
@@ -255,7 +265,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
     ))
   }
   if (is.null(paid_media_signs)) {
-    paid_media_signs <- rep("positive", mediaVarCount)
+    paid_media_signs <- rep("positive", expVarCount)
   }
   if (!all(paid_media_signs %in% OPTS_PDN)) {
     stop("Allowed values for 'paid_media_signs' are: ", paste(OPTS_PDN, collapse = ", "))
@@ -266,12 +276,16 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   if (length(paid_media_signs) != length(paid_media_vars)) {
     stop("Input 'paid_media_signs' must have same length as 'paid_media_vars'")
   }
-  if (spendVarCount != mediaVarCount) {
+  if (spendVarCount != expVarCount) {
     stop("Input 'paid_media_spends' must have same length as 'paid_media_vars'")
   }
   is_num <- unlist(lapply(dt_input[, paid_media_vars], is.numeric))
   if (!all(is_num)) {
     stop("All your 'paid_media_vars' must be numeric. Check: ", v2t(paid_media_vars[!is_num]))
+  }
+  is_num <- unlist(lapply(dt_input[, paid_media_spends], is.numeric))
+  if (!all(is_num)) {
+    stop("All your 'paid_media_spends' must be numeric. Check: ", v2t(paid_media_spends[!is_num]))
   }
   get_cols <- any(dt_input[, unique(c(paid_media_vars, paid_media_spends))] < 0)
   if (get_cols) {
@@ -285,7 +299,7 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
   }
   return(invisible(list(
     paid_media_signs = paid_media_signs,
-    mediaVarCount = mediaVarCount,
+    expVarCount = expVarCount,
     paid_media_vars = paid_media_vars
   )))
 }
@@ -313,14 +327,17 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
   if (length(organic_signs) != length(organic_vars)) {
     stop("Input 'organic_signs' must have same length as 'organic_vars'")
   }
+  is_num <- unlist(lapply(dt_input[, organic_vars], is.numeric))
+  if (!all(is_num)) {
+    stop("All your 'organic_vars' must be numeric. Check: ", v2t(organic_vars[!is_num]))
+  }
   return(invisible(list(organic_signs = organic_signs)))
 }
 
-check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL, organic_vars = NULL) {
+check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL) {
   check_vector(factor_vars)
   check_vector(context_vars)
-  check_vector(organic_vars)
-  temp <- select(dt_input, all_of(c(context_vars, organic_vars)))
+  temp <- select(dt_input, all_of(context_vars))
   are_not_numeric <- !sapply(temp, is.numeric)
   if (any(are_not_numeric)) {
     these <- are_not_numeric[!names(are_not_numeric) %in% factor_vars]
@@ -331,8 +348,8 @@ check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL, 
     }
   }
   if (!is.null(factor_vars)) {
-    if (!all(factor_vars %in% c(context_vars, organic_vars))) {
-      stop("Input 'factor_vars' must be any from 'context_vars' or 'organic_vars' inputs")
+    if (!all(factor_vars %in% context_vars)) {
+      stop("Input 'factor_vars' must be any from 'context_vars' inputs")
     }
   }
   return(factor_vars)
@@ -478,14 +495,15 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, HYPS_OTHERS))
     all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, HYPS_OTHERS)
     all_ref_names <- all_ref_names[order(all_ref_names)]
-    if (!all(get_hyp_names %in% all_ref_names)) {
+    rm_penalty <- !grepl("_penalty$", get_hyp_names)
+    if (!all(get_hyp_names[rm_penalty] %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
       stop(
         "Input 'hyperparameters' contains following wrong names: ",
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
-    total <- length(get_hyp_names)
+    total <- length(get_hyp_names[rm_penalty])
     total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org, ref_hyp_name_other))
     if (total != total_in) {
       stop(sprintf(
@@ -666,9 +684,9 @@ check_obj_weight <- function(calibration_input, objective_weights, refresh) {
   }
   if (is.null(objective_weights) & refresh) {
     if (obj_len == 2) {
-      objective_weights <- c(1, 10)
+      objective_weights <- c(0, 1)
     } else {
-      objective_weights <- c(1, 10, 10)
+      objective_weights <- c(0, 1, 1)
     }
   }
   return(objective_weights)
@@ -693,7 +711,7 @@ check_InputCollect <- function(list) {
   names_list <- c(
     "dt_input", "paid_media_vars", "paid_media_spends", "context_vars",
     "organic_vars", "all_ind_vars", "date_var", "dep_var",
-    "rollingWindowStartWhich", "rollingWindowEndWhich", "mediaVarCount",
+    "rollingWindowStartWhich", "rollingWindowEndWhich",
     "factor_vars", "prophet_vars", "prophet_signs", "prophet_country",
     "intervalType", "dt_holidays"
   )
@@ -823,6 +841,9 @@ check_class <- function(x, object) {
 }
 
 check_allocator_constrains <- function(low, upr) {
+  if (all(is.na(low)) || all(is.na(upr))) {
+    stop("You must define lower (channel_constr_low) and upper (channel_constr_up) constraints")
+  }
   max_length <- max(c(length(low), length(upr)))
   if (any(low < 0)) {
     stop("Inputs 'channel_constr_low' must be >= 0")
@@ -837,7 +858,6 @@ check_allocator_constrains <- function(low, upr) {
 
 check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
                             channel_constr_low, channel_constr_up, constr_mode) {
-  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
       "Provided 'select_model' is not within the best results. Try any of: ",
@@ -849,6 +869,7 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
+  check_allocator_constrains(channel_constr_low, channel_constr_up)
   if (!(scenario == "target_efficiency" & is.null(channel_constr_low) & is.null(channel_constr_up))) {
     if (length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_spends)) {
       stop(paste(
@@ -894,15 +915,16 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
   ## default using latest 30 days / 4 weeks / 1 month for spend level
   if (is.null(date_range)) {
     if (is.null(dayInterval)) stop("Input 'date_range' or 'dayInterval' must be defined")
-    if (!is_allocator) {
-      date_range <- "last_1"
-    } else {
-      date_range <- paste0("last_", case_when(
-        dayInterval == 1 ~ 30,
-        dayInterval == 7 ~ 4,
-        dayInterval >= 30 & dayInterval <= 31 ~ 1,
-      ))
-    }
+    # if (!is_allocator) {
+    #   date_range <- "last_1"
+    # } else {
+    #   date_range <- paste0("last_", case_when(
+    #     dayInterval == 1 ~ 30,
+    #     dayInterval == 7 ~ 4,
+    #     dayInterval >= 30 & dayInterval <= 31 ~ 1,
+    #   ))
+    # }
+    date_range = "all"
     if (!quiet) message(sprintf("Automatically picked date_range = '%s'", date_range))
   }
   if (grepl("last|all", date_range[1])) {

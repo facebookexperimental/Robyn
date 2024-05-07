@@ -27,8 +27,10 @@ Required when \code{robyn_object} is not provided.}
 \item{OutputCollect}{List. Containing all model result.
 Required when \code{robyn_object} is not provided.}
 
-\item{json_file}{Character. JSON file to import previously exported inputs
-(needs \code{dt_input} and \code{dt_holidays} parameters too).}
+\item{json_file}{Character. JSON file to import previously exported inputs or
+recreate a model. To generate this file, use \code{robyn_write()}.
+If you didn't export your data in the json file as "raw_data",
+\code{dt_input} must be provided; \code{dt_holidays} input is optional.}
 
 \item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
 that contains all previous modeling information or the imported list.}
@@ -48,9 +50,9 @@ Must be one value from paid_media_spends, paid_media_vars or organic_vars}
 \item{metric_value}{Numeric. Desired metric value to return a response for.}
 
 \item{date_range}{Character. Date(s) to apply adstocked transformations and pick mean spends
-per channel. Set one of: NULL, "all", "last", or "last_n" (where
+per channel. Set one of: "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
-(i.e. \code{c("2022-01-01", "2022-12-31")}). Default NULL will use last month's worth of data.}
+(i.e. \code{c("2022-01-01", "2022-12-31")}). Default to "all".}
 
 \item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
@@ -75,55 +77,82 @@ result and selected model build (initial model, refresh model, etc.).
 \examples{
 \dontrun{
 # Having InputCollect and OutputCollect objects
+## Recreate original saturation curve
+Response <- robyn_response(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  metric_name = "facebook_S"
+)
+Response$plot
 
-# Get marginal response (mResponse) and marginal ROI (mROI) for
-# the next 1k on 80k for search_S
-spend1 <- 80000
+## Or you can call a JSON file directly (a bit slower)
+# Response <- robyn_response(
+#   json_file = "your_json_path.json",
+#   dt_input = dt_simulated_weekly,
+#   dt_holidays = dt_prophet_holidays,
+#   metric_name = "facebook_S"
+# )
+
+## Get the "next 100 dollar" marginal response on Spend1
+Spend1 <- 20000
 Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  metric_name = "search_S",
-  metric_value = spend1
-)$response
-# Get ROI for 80k
-Response1 / spend1 # ROI for search 80k
+  select_model = select_model,
+  metric_name = "facebook_S",
+  metric_value = Spend1, # total budget for date_range
+  date_range = "last_1" # last two periods
+)
+Response1$plot
 
-# Get response for 81k
-spend2 <- spend1 + 1000
+Spend2 <- Spend1 + 100
 Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  metric_name = "search_S",
-  metric_value = spend2
-)$response
+  select_model = select_model,
+  metric_name = "facebook_S",
+  metric_value = Spend2,
+  date_range = "last_1"
+)
+# ROAS for the 100$ from Spend1 level
+(Response2$response_total - Response1$response_total) / (Spend2 - Spend1)
 
-# Get ROI for 81k
-Response2 / spend2 # ROI for search 81k
-# Get marginal response (mResponse) for the next 1k on 80k
-Response2 - Response1
-# Get marginal ROI (mROI) for the next 1k on 80k
-(Response2 - Response1) / (spend2 - spend1)
+## Get response from for a given budget and date_range
+Spend3 <- 100000
+Response3 <- robyn_response(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  metric_name = "facebook_S",
+  metric_value = Spend3, # total budget for date_range
+  date_range = "last_5" # last 5 periods
+)
+Response3$plot
 
-# Example of getting paid media exposure response curves
-imps <- 1000000
+## Example of getting paid media exposure response curves
+imps <- 10000000
 response_imps <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
+  select_model = select_model,
   metric_name = "facebook_I",
   metric_value = imps
-)$response
-response_per_1k_imps <- response_imps / imps * 1000
-response_per_1k_imps
+)
+response_imps$response_total / imps * 1000
+response_imps$plot
 
-# Get response for 80k for search_S from the a certain model SolID
-# in the current model output in the global environment
-robyn_response(
+## Example of getting organic media exposure response curves
+sendings <- 30000
+response_sending <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
-  metric_name = "search_S",
-  metric_value = 80000,
-  dt_hyppar = OutputCollect$resultHypParam,
-  dt_coef = OutputCollect$xDecompAgg
+  select_model = select_model,
+  metric_name = "newsletter",
+  metric_value = sendings
 )
+# response per 1000 sendings
+response_sending$response_total / sendings * 1000
+response_sending$plot
 }
 }
