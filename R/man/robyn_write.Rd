@@ -13,6 +13,7 @@ robyn_write(
   OutputCollect = NULL,
   select_model = NULL,
   dir = OutputCollect$plot_folder,
+  add_data = TRUE,
   export = TRUE,
   quiet = FALSE,
   pareto_df = NULL,
@@ -37,15 +38,16 @@ into the JSON file?}
 
 \item{dir}{Character. Existing directory to export JSON file to.}
 
+\item{add_data}{Boolean. Include raw dataset. Useful to recreate models
+with a single file containing all the required information (no need of CSV).}
+
 \item{export}{Boolean. Export outcomes into local files?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
 \item{pareto_df}{Dataframe. Save all pareto solutions to json file.}
 
-\item{...}{Additional parameters to export into a custom Extras element.
-If you wish to include the data to recreate a model, add
-\code{raw_data = InputCollect$dt_input}.}
+\item{...}{Additional parameters to export into a custom Extras element.}
 
 \item{x}{\code{robyn_read()} or \code{robyn_write()} output.}
 

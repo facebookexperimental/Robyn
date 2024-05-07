@@ -266,6 +266,8 @@ robyn_onepagers <- function(
     sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
+    if ("refreshed" %in% select_model) select_model <- OutputCollect$resultHypParam %>%
+        arrange(.data$decomp.rssd) %>% pull(.data$solID) %>% head(1)
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
     resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model, ]
     xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model, ]
@@ -670,7 +672,7 @@ robyn_onepagers <- function(
   }
   if (!quiet && count_mod_out > 1) close(pbplot)
   # Stop cluster to avoid memory leaks
-  if (check_parallel_plot()) stopImplicitCluster()
+  if (OutputCollect$cores > 1) stopImplicitCluster()
   return(invisible(parallelResult[[1]]))
 }
 
@@ -1285,100 +1287,128 @@ refresh_plots <- function(InputCollectRF, OutputCollectRF, ReportCollect, export
   return(invisible(outputs))
 }
 
-refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
+refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, df = NULL, export = TRUE, ...) {
   outputs <- list()
   chainData <- robyn_chain(json_file)
+  message(">> Plotting refresh results for chain: ", paste(names(chainData), collapse = " > "))
   solID <- tail(names(chainData), 1)
   dayInterval <- chainData[[solID]]$InputCollect$dayInterval
   intervalType <- chainData[[solID]]$InputCollect$intervalType
   rsq <- chainData[[solID]]$ExportedModel$errors$rsq_train
-  plot_folder <- OutputCollectRF$plot_folder
+  if (is.null(plot_folder)) {
+    plot_folder <- chainData[[1]]$ExportedModel$plot_folder
+    if (!dir.exists(plot_folder)) {
+      plot_folder <- getwd()
+    }
+  }
 
   ## 1. Fitted vs actual
-  temp <- OutputCollectRF$allPareto$plotDataCollect[[solID]]
-  xDecompVecPlotMelted <- temp$plot5data$xDecompVecPlotMelted %>%
-    mutate(
-      linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
-      variable = stringr::str_to_title(.data$variable),
-      ds = as.Date(.data$ds, origin = "1970-01-01")
-    )
-  dt_refreshDates <- data.frame(
-    solID = names(chainData),
-    window_start = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_start)), origin = "1970-01-01"),
-    window_end = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_end)), origin = "1970-01-01"),
-    duration = unlist(c(0, unlist(lapply(chainData, function(x) x$InputCollect$refresh_steps))))
-  ) %>%
-    filter(.data$duration > 0) %>%
-    mutate(refreshStatus = row_number()) %>%
-    mutate(
-      refreshStart = .data$window_end - dayInterval * .data$duration,
-      refreshEnd = .data$window_end
+  if (!is.null(df)) {
+    xDecompVecPlotMelted <- df$plot5data$xDecompVecPlotMelted %>%
+      mutate(
+        linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
+        variable = stringr::str_to_title(.data$variable),
+        ds = as.Date(.data$ds, origin = "1970-01-01")
+      )
+    dt_refreshDates <- dplyr::tibble(
+      solID = names(chainData),
+      window_start = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_start)), origin = "1970-01-01"),
+      window_end = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_end)), origin = "1970-01-01"),
+      duration = unlist(c(0, unlist(lapply(chainData, function(x) x$InputCollect$refresh_steps))))
     ) %>%
-    mutate(label = ifelse(.data$refreshStatus == 0, sprintf(
-      "Initial: %s, %s %ss", .data$refreshStart, .data$duration, intervalType
-    ),
-    sprintf(
-      "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart, .data$duration, intervalType
-    )
-    )) %>%
-    as_tibble()
-  outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecPlotMelted) +
-    geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$linetype), size = 0.6) +
-    geom_rect(
-      data = dt_refreshDates,
-      aes(
-        xmin = .data$refreshStart, xmax = .data$refreshEnd,
-        fill = as.character(.data$refreshStatus)
+      filter(.data$duration > 0) %>%
+      mutate(refreshStatus = row_number()) %>%
+      mutate(
+        refreshStart = .data$window_end - dayInterval * .data$duration,
+        refreshEnd = .data$window_end
+      ) %>%
+      mutate(label = ifelse(.data$refreshStatus == 0, sprintf(
+        "Initial: %s, %s %ss", .data$refreshStart, .data$duration, intervalType
       ),
-      ymin = -Inf, ymax = Inf, alpha = 0.2
-    ) +
-    scale_fill_brewer(palette = "BuGn") +
-    geom_text(data = dt_refreshDates, mapping = aes(
-      x = .data$refreshStart, y = max(xDecompVecPlotMelted$value),
-      label = .data$label,
-      angle = 270, hjust = 0, vjust = -0.2
-    ), color = "gray40") +
-    theme_lares(background = "white", legend = "top", pal = 2) +
-    scale_y_abbr() +
-    guides(linetype = "none", fill = "none") +
-    labs(
-      title = "Actual vs. Predicted Response",
-      # subtitle = paste("Train R2 =", round(rsq, 4)),
-      x = "Date", y = "Response", color = NULL, fill = NULL
-    )
+      sprintf(
+        "Refresh #%s: %s, %s %ss", .data$refreshStatus, .data$refreshStart, .data$duration, intervalType
+      )
+      )) %>%
+      as_tibble()
+    outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecPlotMelted) +
+      geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$linetype), size = 0.6) +
+      geom_rect(
+        data = dt_refreshDates,
+        aes(
+          xmin = .data$refreshStart, xmax = .data$refreshEnd,
+          fill = as.character(.data$refreshStatus)
+        ),
+        ymin = -Inf, ymax = Inf, alpha = 0.2
+      ) +
+      scale_fill_brewer(palette = "BuGn") +
+      geom_text(data = dt_refreshDates, mapping = aes(
+        x = .data$refreshStart, y = max(xDecompVecPlotMelted$value),
+        label = .data$label,
+        angle = 270, hjust = 0, vjust = -0.2
+      ), color = "gray40") +
+      theme_lares(background = "white", legend = "top", pal = 2) +
+      scale_y_abbr() +
+      guides(linetype = "none", fill = "none") +
+      labs(
+        title = "Actual vs. Predicted Response",
+        # subtitle = paste("Train R2 =", round(rsq, 4)),
+        x = "Date", y = "Response", color = NULL, fill = NULL
+      )
 
-  if (export) {
-    ggsave(
-      filename = paste0(plot_folder, "report_actual_fitted.png"),
-      plot = pFitRF,
-      dpi = 900, width = 12, height = 8, limitsize = FALSE
-    )
+    if (export) {
+      ggsave(
+        filename = paste0(plot_folder, "report_actual_fitted.png"),
+        plot = pFitRF,
+        dpi = 900, width = 12, height = 8, limitsize = FALSE
+      )
+    }
   }
 
   ## 2. Stacked bar plot
+  if (!is.null(listInit)) {
+    tt <- robyn_write(
+      listInit$InputCollect, listInit$OutputCollect,
+      dir = plot_folder, export = FALSE)
+    if (!tt$ExportedModel$select_model %in% names(chainData)) {
+      chainData[[tt$ExportedModel$select_model]] <- tt
+    }
+  }
   df <- lapply(chainData, function(x) x$ExportedModel$summary) %>%
     bind_rows(.id = "solID") %>%
     as_tibble() %>%
     select(-.data$coef) %>%
     mutate(
-      solID = factor(.data$solID, levels = names(chainData)),
-      label = factor(
-        sprintf("%s [%s]", .data$solID, as.integer(.data$solID) - 1),
-        levels = sprintf("%s [%s]", names(chainData), 0:(length(chainData) - 1))
+      solID = factor(.data$solID, levels = attributes(chainData)$chain),
+      label = as.factor(
+        sprintf("%s [%s]", .data$solID, as.integer(.data$solID) - 1)
       ),
+      label = factor(.data$label, levels = unique(.data$label)),
       variable = ifelse(.data$variable %in% c(chainData[[1]]$InputCollect$prophet_vars, "(Intercept)"),
         "baseline", .data$variable
       )
     ) %>%
     group_by(.data$solID, .data$label, .data$variable) %>%
     summarise_all(sum)
+  if (length(unique(df$solID)) != length(attributes(chainData)$chain)) {
+    cap <- "Not able to find local files of previous models to compare with"
+  } else {
+    cap <- NULL
+  }
 
+  maxval <- max(df$performance[!is.infinite(df$performance)], na.rm = TRUE)
   outputs[["pBarRF"]] <- pBarRF <- df %>%
+    group_by(.data$solID) %>%
+    mutate(variable = factor(.data$variable, levels = rev(.data$variable)),
+           colsize = .data$decompPer * maxval / sum(.data$decompPer),
+           perfpoint = .data$performance / maxval) %>%
+    mutate(perfpoint = ifelse(is.infinite(.data$perfpoint), NA, .data$perfpoint)) %>%
     ggplot(aes(y = .data$variable)) +
-    geom_col(aes(x = .data$decompPer)) +
+    facet_wrap(. ~ .data$label, scales = "free") +
+    geom_vline(xintercept = 1, alpha = 0.8, linetype = "dashed", size = 0.5, colour = "#39638b") +
+    geom_col(aes(x = .data$colsize), na.rm = TRUE) +
     geom_text(
       aes(
-        x = .data$decompPer,
+        x = .data$colsize,
         label = formatNum(100 * .data$decompPer, signif = 2, pos = "%")
       ),
       na.rm = TRUE, hjust = -0.2, size = 2.8
@@ -1387,12 +1417,10 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
     geom_text(
       aes(
         x = .data$performance,
-        label = formatNum(.data$performance, 2)
+        label = round(.data$performance, 2),
       ),
-      na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b"
+      na.rm = TRUE, hjust = -0.4, size = 2.8, colour = "#39638b", fontface = "bold"
     ) +
-    facet_wrap(. ~ .data$label, scales = "free") +
-    # scale_x_percent(limits = c(0, max(df$performance, na.rm = TRUE) * 1.2)) +
     labs(
       title = paste(
         "Model refresh: Decomposition & Paid Media",
@@ -1402,17 +1430,15 @@ refresh_plots_json <- function(OutputCollectRF, json_file, export = TRUE, ...) {
         "Baseline includes intercept and all prophet vars:",
         v2t(chainData[[1]]$InputCollect$prophet_vars, quotes = FALSE)
       ),
-      x = NULL, y = NULL
+      x = NULL, y = NULL, caption = cap
     ) +
     theme_lares(background = "white", grid = "Y") +
-    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+    scale_x_abbr(limits = c(0, maxval * 1.1))
 
   if (export) {
     ggsave(
-      filename = paste0(
-        chainData[[length(chainData)]]$ExportedModel$plot_folder,
-        "report_decomposition.png"
-      ),
+      filename = paste0(plot_folder, "report_decomposition.png"),
       plot = pBarRF,
       dpi = 900, width = 12, height = 8, limitsize = FALSE
     )

@@ -227,8 +227,12 @@ robyn_run <- function(InputCollect = NULL,
     # Direct output & not all fixed hyperparameters, including refresh mode
     output <- robyn_outputs(InputCollect, OutputModels, refresh = refresh, ...)
   } else {
-    # Direct output & all fixed hyperparameters, thus no cluster
-    output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
+    if (!"clusters" %in% names(list(...))) {
+      # Direct output & all fixed hyperparameters, thus no cluster
+      output <- robyn_outputs(InputCollect, OutputModels, clusters = FALSE, ...)
+    } else {
+      output <- robyn_outputs(InputCollect, OutputModels, ...)
+    }
   }
 
   # Created with assign from JSON file
@@ -950,9 +954,11 @@ robyn_mmm <- function(InputCollect,
   )
 
   # stop cluster to avoid memory leaks
-  stopImplicitCluster()
-  registerDoSEQ()
-  getDoParWorkers()
+  if (cores > 1) {
+    stopImplicitCluster()
+    registerDoSEQ()
+    getDoParWorkers()
+  }
 
   if (!hyper_fixed) {
     cat("\r", paste("\n  Finished in", round(sysTimeDopar[3] / 60, 2), "mins"))

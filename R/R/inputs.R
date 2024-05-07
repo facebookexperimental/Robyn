@@ -334,7 +334,8 @@ robyn_inputs <- function(dt_input = NULL,
 
       ## Check hyperparameters
       hyperparameters <- check_hyperparameters(
-        hyperparameters, adstock, paid_media_spends, organic_vars, exposure_vars
+        hyperparameters, adstock, paid_media_spends, organic_vars,
+        exposure_vars, prophet_vars, context_vars
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
