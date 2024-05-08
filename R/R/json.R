@@ -136,7 +136,7 @@ robyn_write <- function(InputCollect,
 
   extras <- list(...)
   if (isTRUE(add_data) & !"raw_data" %in% names(extras)) {
-    extras[["raw_data"]] <- InputCollect$dt_input
+    extras[["raw_data"]] <- as_tibble(InputCollect$dt_input)
   }
   if (length(extras) > 0) {
     ret[["Extras"]] <- extras

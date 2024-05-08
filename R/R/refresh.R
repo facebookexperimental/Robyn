@@ -132,7 +132,7 @@ robyn_refresh <- function(json_file = NULL,
       }
        listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
-        dt_input = dt_input,
+        dt_input = if (!is.null(dt_input)) dt_input else NULL,
         dt_holidays = dt_holidays,
         plot_folder = plot_folder,
         quiet = FALSE, ...
@@ -170,6 +170,7 @@ robyn_refresh <- function(json_file = NULL,
     }
 
     ## Check rule of thumb: 50% of data shouldn't be new
+    dt_input <- Robyn$listInit$InputCollect$dt_input
     check_refresh_data(Robyn, dt_input)
 
     ## Get previous data
@@ -278,7 +279,7 @@ robyn_refresh <- function(json_file = NULL,
       isTRUE(list(...)[["ts_validation"]]),
       isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation))
     InputCollectRF$hyperparameters <- refresh_hyps(
-      initBounds = Robyn$listInit$OutputCollect$hyper_updated,
+      initBounds = Robyn$listInit$InputCollect$hyperparameters,
       listOutputPrev, refresh_steps,
       rollingWindowLength = InputCollectRF$rollingWindowLength,
       ts_validation = ts_validation
@@ -549,8 +550,8 @@ refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps,
   initBoundsDis <- unlist(lapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0)))
   newBoundsFreedom <- refresh_steps / rollingWindowLength
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
-  hyper_updated_prev <- listOutputPrev$hyper_updated
-  hypNames <- names(hyper_updated_prev)
+  hyper_updated_prev <- initBounds
+  hypNames <- names(initBounds)
   resultHypParam <- as_tibble(listOutputPrev$resultHypParam)
   for (h in seq_along(hypNames)) {
     hn <- hypNames[h]

@@ -181,7 +181,7 @@ robyn_inputs <- function(dt_input = NULL,
     json <- robyn_read(json_file, step = 1, ...)
     if (is.null(dt_input)) {
       if ("raw_data" %in% names(json[["Extras"]])) {
-        dt_input <- json[["Extras"]]$raw_data
+        dt_input <- as_tibble(json[["Extras"]]$raw_data)
       } else {
         stop("Must provide 'dt_input' input; 'dt_holidays' input optional")
       }
@@ -254,9 +254,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-
     if (TRUE) {
-      dt_input <- windows$dt_input
       window_start <- windows$window_start
       rollingWindowStartWhich <- windows$rollingWindowStartWhich
       refreshAddedStart <- windows$refreshAddedStart
@@ -320,7 +318,7 @@ robyn_inputs <- function(dt_input = NULL,
       window_end = window_end,
       rollingWindowEndWhich = rollingWindowEndWhich,
       rollingWindowLength = rollingWindowLength,
-      totalObservations = nrow(dt_input),
+      totalObservations = nrow(windows$dt_input),
       refreshAddedStart = refreshAddedStart,
       adstock = adstock,
       hyperparameters = hyperparameters,
@@ -411,7 +409,7 @@ print.robyn_inputs <- function(x, ...) {
   mod_vars <- paste(setdiff(names(x$dt_mod), c("ds", "dep_var")), collapse = ", ")
   print(glued(
     "
-Total Observations: {nrow(x$dt_input)} ({x$intervalType}s)
+Total Observations: {x$totalObservations} ({x$intervalType}s)
 Input Table Columns ({ncol(x$dt_input)}):
   Date: {x$date_var}
   Dependent: {x$dep_var} [{x$dep_var_type}]
