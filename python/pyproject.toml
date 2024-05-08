@@ -34,7 +34,7 @@ dependencies = [
     "rpy2",
     "pytest",
     "nlopt",
-    "CMake",
+    "cmake",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]

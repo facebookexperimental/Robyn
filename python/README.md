@@ -1,7 +1,7 @@
 # Robyn: Continuous & Semi-Automated MMM <img src='R/man/figures/logo.png' align="right" height="139px" />
 ### The Open Source Marketing Mix Model Package from Meta Marketing Science
 
-[![CRAN\_Status\_Badge](https://www.r-pkg.org/badges/version/Robyn)](https://cran.r-project.org/package=Robyn) [![Downloads](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green)](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green) [![Site](https://img.shields.io/badge/site-Robyn-blue.svg)](https://facebookexperimental.github.io/Robyn/) [![Facebook](https://img.shields.io/badge/group-Facebook-blue.svg)](https://www.facebook.com/groups/robynmmm/) [![CodeFactor](https://www.codefactor.io/repository/github/facebookexperimental/robyn/badge)](https://www.codefactor.io/repository/github/facebookexperimental/robyn)
+<!-- [![Pypi\_Status\_Badge](https://www.r-pkg.org/badges/version/Robyn)](https://cran.r-project.org/package=Robyn) [![Downloads](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green)](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green) [![Site](https://img.shields.io/badge/site-Robyn-blue.svg)](https://facebookexperimental.github.io/Robyn/) [![Facebook](https://img.shields.io/badge/group-Facebook-blue.svg)](https://www.facebook.com/groups/robynmmm/) [![CodeFactor](https://www.codefactor.io/repository/github/facebookexperimental/robyn/badge)](https://www.codefactor.io/repository/github/facebookexperimental/robyn) -->
 ---
 
 ## Introduction
@@ -12,35 +12,30 @@
   
 ## Quick start for Python (Beta)
 
-**1. Installing the package** #TODO
+  The Python version of Robyn was developed by utilizing Code Llama's capabilities to port code from R to Python. As is common with any AI-based solutions, there may be potential challenges in translating code from one language to another.
+  In this case, we anticipate that there could be some issues in the translation from R to Python. However, we believe in the power of community collaboration and open-source contribution. Therefore, we are opening this project to the community to participate and contribute.
+  Together, we can address and resolve any issues that may arise, enhancing the functionality and efficiency of the Python version of Robyn. We look forward to your contributions and to the continuous improvement of this project. 
+
+**1. Installing the package**
   
   * Install Robyn latest package version:
 ```{r}
 ## Pypi
-pip3 install robyn
+pip3 install robynpy
 
 ## DEV VERSION
-# If you don't have remotes installed yet, first run: install.packages("remotes")
-remotes::install_github("facebookexperimental/Robyn/R")
+# if you are pulling source from github, install dependencies using requirements.txt
+pip3 install -r requirements.txt
 ```
-
-  * If it's taking too long to download, you have a slow or unstable internet connection, and have [issues](https://github.com/facebookexperimental/Robyn/issues/309) while installing the package, try setting `options(timeout=400)`.
   
-  * Robyn requires the Python library [Nevergrad](https://facebookresearch.github.io/nevergrad/). If encountering Python-related 
-  error during installation, please check out the [step-by-step guide](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R) as well as this [issue](https://github.com/facebookexperimental/Robyn/issues/189) to get more info.
-  
-  * For Windows, if you get openssl error, please see instructions
-  [here](https://stackoverflow.com/questions/54558389/how-to-solve-this-error-while-installing-python-packages-in-rstudio/54566647) and
-  [here](https://dev.to/danilovieira/installing-openssl-on-windows-and-adding-to-path-3mbf) to install and update openssl.
+**2. Getting started**
 
-**2. Getting started**  #TODO
-
-  * Use this [demo.R](https://github.com/facebookexperimental/Robyn/tree/main/demo/demo.R) script as step-by-step guide that is
+  * Use this [demo.py](https://github.com/facebookexperimental/Robyn/tree/main/python/src/scripts/demo.py) script as step-by-step guide that is
   intended to cover most common use-cases. Test the package using simulated dataset provided in the package. 
   
   * Visit our [website](https://facebookexperimental.github.io/Robyn/) to explore more details about Project Robyn.
   
-  * Join our [public group](https://www.facebook.com/groups/robynmmm/) to exchange with other users and interact with team Robyn.
+  * Join our [public group](https://www.facebook.com/groups/robyn/) to exchange with other users and interact with team Robyn.
   
   * Take Meta's [official Robyn blueprint course](https://www.facebookblueprint.com/student/path/253121-marketing-mix-models?utm_source=readme) online 
 
