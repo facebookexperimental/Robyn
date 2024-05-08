@@ -12,10 +12,22 @@ import pandas as pd
 
 
 def dt_simulated_weekly():
-    csv_file = os.getcwd() + "/python/src/data/dt_simulated_weekly.csv"
+    csv_file = os.getcwd() + "../data/dt_simulated_weekly.csv"
     return pd.read_csv(csv_file)
 
 
 def dt_prophet_holidays():
-    csv_file = os.getcwd() + "/python/src/data/dt_prophet_holidays.csv"
+    csv_file = os.getcwd() + "../data/dt_prophet_holidays.csv"
     return pd.read_csv(csv_file)
+
+# def dt_simulated_weekly():
+#     csv_file = os.getcwd() + "/python/src/data/dt_simulated_weekly.csv"
+#     dir_path = os.path.dirname(os.path.realpath(__file__))
+#     csv_file = os.path.join(dir_path, '..', 'data', 'dt_simulated_weekly.csv')
+#     return pd.read_csv(csv_file)
+
+# def dt_prophet_holidays():
+#     csv_file = os.getcwd() + "/python/src/data/dt_prophet_holidays.csv"
+#     dir_path = os.path.dirname(os.path.realpath(__file__))
+#     csv_file = os.path.join(dir_path, '..', 'data', 'dt_prophet_holidays.csv')
+#     return pd.read_csv(csv_file)

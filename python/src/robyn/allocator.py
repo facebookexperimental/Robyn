@@ -342,11 +342,11 @@ def robyn_allocator(robyn_object=None,
         channelConstrUpSortedExt = channelConstrUpSorted
         if dep_var_type == "conversion":
             if target_value is None:
-                target_value = sum(initSpendUnit) / sum(initResponseUnit) * 1.2
+                target_value = initResponseUnit.sum().sum() / initSpendUnit.sum().sum() * 1.2
             target_value_ext = target_value * 1.5
         else:
             if target_value is None:
-                target_value = sum(initResponseUnit) / sum(initSpendUnit) * 0.8
+                target_value = initResponseUnit.sum().sum() / initSpendUnit.sum().sum() * 0.8
             target_value_ext = 1
 
     temp_init = temp_init_all = initSpendUnit
@@ -455,7 +455,6 @@ def robyn_allocator(robyn_object=None,
         ###
         ## nlsMod
         ###
-
         nlsMod_opt = nlopt.opt(nlopt.LD_AUGLAG, len(x0_list))  # Use the Augmented Lagrangian algorithm
         nlsMod_opt.set_lower_bounds(lb_list)
         nlsMod_opt.set_upper_bounds(ub_list)
@@ -504,40 +503,93 @@ def robyn_allocator(robyn_object=None,
         optmResponseUnitUnbound = calculate_channels(optmSpendUnitUnbound)
 
     # TODO debug else statement following above if structure
-    else:
+    elif scenario == "target_efficiency":
+
+        total_response = OutputCollect["xDecompAgg"]["xDecompAgg"].sum()
+
+        ###
+        ## nlsMod
+        ###
+        nlsMod_opt = nlopt.opt(nlopt.LD_AUGLAG, len(x0_list))
+        nlsMod_opt.set_lower_bounds(lb_list)
+        nlsMod_opt.set_upper_bounds([total_response] * len(x0_list))
+        nlsMod_opt.set_min_objective(eval_f)
+        nlsMod_opt.set_xtol_rel(1e-10)
+        nlsMod_opt.set_maxeval(maxeval)
+
+        wrapper_function = wrapper_eval_g_eq_effi(target_value)
+
+        if constr_mode == "eq":
+            nlsMod_opt.add_equality_constraint(wrapper_function, 1e-8)
+        elif constr_mode == "ineq":
+            nlsMod_opt.add_inequality_constraint(wrapper_function, 1e-8)
+
+        nlsMod_local_opt = nlopt.opt(local_optimizer, len(x0_list))
+        nlsMod_local_opt.set_xtol_rel(1e-10)
+        nlsMod_opt.set_local_optimizer(nlsMod_local_opt)
+
+        optmSpendUnit = nlsMod_opt.optimize(x0_list)
+        nlsMod_min_f = nlsMod_opt.last_optimum_value()
+        optmResponseUnit = calculate_channels(optmSpendUnit)
         # bounded optimisation
-        total_response = sum(OutputCollect.xDecompAgg.xDecompAgg)
-        nlsMod = nlopt.nlopt(
-            x0=x0,
-            f=eval_f,
-            f_eq=eval_g_eq_effi if constr_mode == "eq" else None,
-            f_ieq=eval_g_eq_effi if constr_mode == "ineq" else None,
-            lb=lb,
-            ub=total_response * [1] * len(ub),
-            opts=[
-                "algorithm", "NLOPT_LD_AUGLAG",
-                "xtol_rel", 1.0e-10,
-                "maxeval", maxeval,
-                "local_opts", local_opts
-            ],
-            target_value=target_value
-        )
+        # total_response = sum(OutputCollect.xDecompAgg.xDecompAgg)
+        # nlsMod = nlopt.nlopt(
+        #     x0=x0,
+        #     f=eval_f,
+        #     f_eq=eval_g_eq_effi if constr_mode == "eq" else None,
+        #     f_ieq=eval_g_eq_effi if constr_mode == "ineq" else None,
+        #     lb=lb,
+        #     ub=total_response * [1] * len(ub),
+        #     opts=[
+        #         "algorithm", "NLOPT_LD_AUGLAG",
+        #         "xtol_rel", 1.0e-10,
+        #         "maxeval", maxeval,
+        #         "local_opts", local_opts
+        #     ],
+        #     target_value=target_value
+        # )
         # unbounded optimisation
-        nlsModUnbound = nlopt.nlopt(
-            x0=x0,
-            f=eval_f,
-            f_eq=eval_g_eq_effi if constr_mode == "eq" else None,
-            f_ieq=eval_g_eq_effi if constr_mode == "ineq" else None,
-            lb=lb,
-            ub=total_response * [1] * len(ub),
-            opts=[
-                "algorithm", "NLOPT_LD_AUGLAG",
-                "xtol_rel", 1.0e-10,
-                "maxeval", maxeval,
-                "local_opts", local_opts
-            ],
-            target_value=target_value_ext
-        )
+
+        ###
+        ## nlsModUnbound
+        ###
+        nlsModUnbound_opt = nlopt.opt(nlopt.LD_AUGLAG, len(x0_list))
+        nlsModUnbound_opt.set_lower_bounds(lb_list)
+        nlsModUnbound_opt.set_upper_bounds([total_response] * len(x0_list))
+        nlsModUnbound_opt.set_min_objective(eval_f)
+        nlsModUnbound_opt.set_xtol_rel(1e-10)
+        nlsModUnbound_opt.set_maxeval(maxeval)
+
+        wrapper_function = wrapper_eval_g_eq_effi(target_value_ext)
+
+        if constr_mode == "eq":
+            nlsModUnbound_opt.add_equality_constraint(wrapper_function, 1e-8)
+        elif constr_mode == "ineq":
+            nlsModUnbound_opt.add_inequality_constraint(wrapper_function, 1e-8)
+
+        nlsMod_local_opt = nlopt.opt(local_optimizer, len(x0_list))
+        nlsMod_local_opt.set_xtol_rel(1e-10)
+        nlsModUnbound_opt.set_local_optimizer(nlsMod_local_opt)
+
+        optmSpendUnitUnbound = nlsModUnbound_opt.optimize(x0_list)
+        nlsModUnbound_min_f = nlsModUnbound_opt.last_optimum_value()
+        optmResponseUnitUnbound = calculate_channels(optmSpendUnit)
+
+        # nlsModUnbound = nlopt.nlopt(
+        #     x0=x0,
+        #     f=eval_f,
+        #     f_eq=eval_g_eq_effi if constr_mode == "eq" else None,
+        #     f_ieq=eval_g_eq_effi if constr_mode == "ineq" else None,
+        #     lb=lb,
+        #     ub=total_response * [1] * len(ub),
+        #     opts=[
+        #         "algorithm", "NLOPT_LD_AUGLAG",
+        #         "xtol_rel", 1.0e-10,
+        #         "maxeval", maxeval,
+        #         "local_opts", local_opts
+        #     ],
+        #     target_value=target_value_ext
+        # )
 
 
     optmResponseMargUnit = np.array(list(map(
@@ -1019,45 +1071,6 @@ def eval_f(X, grad):
 
     return objective
 
-# def eval_f(X, target_value):
-#     """
-#     Evaluate the objective function, gradient, and objective channel for optimization.
-
-#     Args:
-#         X (array-like): Input values.
-#         target_value: Target value.
-
-#     Returns:
-#         dict: Dictionary containing the objective, gradient, and objective channel.
-#     """
-#     global ROBYN_TEMP
-#     eval_list = ROBYN_TEMP
-#     coefs_eval = eval_list["coefs_eval"]
-#     alphas_eval = eval_list["alphas_eval"]
-#     inflexions_eval = eval_list["inflexions_eval"]
-#     hist_carryover_eval = eval_list["hist_carryover_eval"]
-
-#     results = [
-#         fx_objective(x, coeff, alpha, inflexion, x_hist)
-#         for x, coeff, alpha, inflexion, x_hist in zip(X, coefs_eval, alphas_eval, inflexions_eval, hist_carryover_eval)
-#     ]
-#     objective = -np.sum(results)
-
-#     gradient = [
-#         fx_gradient(x, coeff, alpha, inflexion, x_hist)
-#         for x, coeff, alpha, inflexion, x_hist in zip(X, coefs_eval, alphas_eval, inflexions_eval, hist_carryover_eval)
-#     ]
-
-#     objective_channel = [
-#         fx_objective_channel(x, coeff, alpha, inflexion, x_hist)
-#         for x, coeff, alpha, inflexion, x_hist in zip(X, coefs_eval, alphas_eval, inflexions_eval, hist_carryover_eval)
-#     ]
-
-#     optm = {"objective": objective, "gradient": gradient, "objective_channel": objective_channel}
-
-#     return optm
-
-
 def fx_objective(x, coeff, alpha, inflexion, x_hist_carryover, get_sum=True):
     """
     Calculate the objective function value for the given parameters.
@@ -1186,35 +1199,51 @@ def eval_g_ineq(X, grad):
     # grad = np.ones(len(X))
     # return {"constraints": constr, "jacobian": grad}
 
-def eval_g_eq_effi(X, target_value):
-    """
-    Evaluate the equality constraints and their Jacobian for the given input vector X and target value.
+def wrapper_eval_g_eq_effi(target_value):
+    def eval_g_eq_effi(X, grad):
+        """
+        Evaluate the equality constraints and their Jacobian for the given input vector X and target value.
 
-    Parameters:
-    X (array-like): Input vector.
-    target_value (float): Target value for the constraints.
+        Parameters:
+        X (array-like): Input vector.
+        target_value (float): Target value for the constraints.
 
-    Returns:
-    dict: A dictionary containing the constraints and their Jacobian.
-          The constraints are stored under the key 'constraints',
-          and the Jacobian is stored under the key 'jacobian'.
-    """
-    global ROBYN_TEMP
-    eval_list = ROBYN_TEMP
-    sum_response = np.sum(np.vectorize(fx_objective)(x=X, coeff=eval_list.coefs_eval, alpha=eval_list.alphas_eval, inflexion=eval_list.inflexions_eval, x_hist_carryover=eval_list.hist_carryover_eval))
-    if target_value is None:
-        if eval_list.dep_var_type == "conversion":
-            constr = np.sum(X) - sum_response * eval_list.target_value
+        Returns:
+        dict: A dictionary containing the constraints and their Jacobian.
+            The constraints are stored under the key 'constraints',
+            and the Jacobian is stored under the key 'jacobian'.
+        """
+        global ROBYN_TEMP
+        eval_list = ROBYN_TEMP
+        # sum_response = np.sum(np.vectorize(fx_objective)(x=X, coeff=eval_list["coefs_eval"], alpha=eval_list["alphas_eval"].values(), inflexion=eval_list["inflexions_eval"].values(), x_hist_carryover=eval_list["hist_carryover_eval"].mean(axis=0)))
+        sum_response = np.sum([
+            fx_objective(x, coeff, alpha, inflexion, x_hist)
+            for x, coeff, alpha, inflexion, x_hist in zip(X, eval_list['coefs_eval'], eval_list['alphas_eval'].values(), eval_list['inflexions_eval'].values(), eval_list['hist_carryover_eval'].mean(axis=0))
+        ])
+        if target_value is None or (isinstance(target_value, (list, np.ndarray)) and len(target_value) == 0):
+            if eval_list["dep_var_type"] == "conversion":
+                constr = np.sum(X) - sum_response * eval_list["target_value"]
+            else:
+                constr = np.sum(X) - sum_response / eval_list["target_value"]
         else:
-            constr = np.sum(X) - sum_response / eval_list.target_value
-    else:
-        if eval_list.dep_var_type == "conversion":
-            constr = np.sum(X) - sum_response * target_value
-        else:
-            constr = np.sum(X) - sum_response / target_value
-    grad = np.ones(len(X)) - np.vectorize(fx_gradient)(x=X, coeff=eval_list.coefs_eval, alpha=eval_list.alphas_eval, inflexion=eval_list.inflexions_eval, x_hist_carryover=eval_list.hist_carryover_eval)
-    return {"constraints": constr, "jacobian": grad}
-
+            if eval_list["dep_var_type"] == "conversion":
+                constr = np.sum(X) - sum_response * target_value
+            else:
+                constr = np.sum(X) - sum_response / target_value
+        # grad = np.ones(len(X)) - np.vectorize(fx_gradient)(x=X, coeff=eval_list["coefs_eval"], alpha=eval_list["alphas_eval"].values(), inflexion=eval_list["inflexions_eval"].values(), x_hist_carryover=eval_list["hist_carryover_eval"].mean(axis=0))
+        grads = [
+            fx_gradient(x, coeff, alpha, inflexion, x_hist)
+            for x, coeff, alpha, inflexion, x_hist in zip(
+                X,
+                eval_list["coefs_eval"],
+                eval_list["alphas_eval"].values(),
+                eval_list["inflexions_eval"].values(),
+                eval_list["hist_carryover_eval"].mean(axis=0)
+            )
+        ]
+        grad = np.ones(len(X)) - np.array(grads)
+        return constr
+    return eval_g_eq_effi
 
 def eval_g_eq_effi(X, target_value):
     """
@@ -1229,20 +1258,35 @@ def eval_g_eq_effi(X, target_value):
     """
     global ROBYN_TEMP
     eval_list = ROBYN_TEMP
-    sum_response = np.sum(np.vectorize(fx_objective)(X, eval_list.coefs_eval, eval_list.alphas_eval, eval_list.inflexions_eval, eval_list.hist_carryover_eval))
-    if target_value is None:
-        if eval_list.dep_var_type == "conversion":
-            constr = np.sum(X) - sum_response * eval_list.target_value
+    # sum_response = np.sum(np.vectorize(fx_objective)(X, eval_list["coefs_eval"], eval_list["alphas_eval"].values(), eval_list["inflexions_eval"].values(), eval_list["hist_carryover_eval"].mean(axis=0)))
+    sum_response = np.sum([
+        fx_objective(x, coeff, alpha, inflexion, x_hist)
+        for x, coeff, alpha, inflexion, x_hist in zip(X, eval_list['coefs_eval'], eval_list['alphas_eval'].values(), eval_list['inflexions_eval'].values(), eval_list['hist_carryover_eval'].mean(axis=0))
+    ])
+    if target_value is None or (isinstance(target_value, (list, np.ndarray)) and len(target_value) == 0):
+
+        if eval_list["dep_var_type"] == "conversion":
+            constr = np.sum(X) - sum_response * eval_list["target_value"]
         else:
-            constr = np.sum(X) - sum_response / eval_list.target_value
+            constr = np.sum(X) - sum_response / eval_list["target_value"]
     else:
-        if eval_list.dep_var_type == "conversion":
+        if eval_list["dep_var_type"] == "conversion":
             constr = np.sum(X) - sum_response * target_value
         else:
             constr = np.sum(X) - sum_response / target_value
-    grad = np.ones(len(X)) - np.vectorize(fx_gradient)(X, eval_list.coefs_eval, eval_list.alphas_eval, eval_list.inflexions_eval, eval_list.hist_carryover_eval)
-    return {"constraints": constr, "jacobian": grad}
-
+    # grad = np.ones(len(X)) - np.vectorize(fx_gradient)(X, eval_list["coefs_eval"], eval_list["alphas_eval"].values(), eval_list["inflexions_eval"].values(), eval_list["hist_carryover_eval"].mean(axis=0))
+    grads = [
+        fx_gradient(x, coeff, alpha, inflexion, x_hist)
+        for x, coeff, alpha, inflexion, x_hist in zip(
+            X,
+            eval_list["coefs_eval"],
+            eval_list["alphas_eval"].values(),
+            eval_list["inflexions_eval"].values(),
+            eval_list["hist_carryover_eval"].mean(axis=0)
+        )
+    ]
+    grad = np.ones(len(X)) - np.array(grads)
+    return constr
 
 def get_adstock_params(InputCollect, dt_hyppar):
     """

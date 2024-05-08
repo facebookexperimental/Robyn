@@ -321,22 +321,22 @@ print(allocator_collect1)
 
 # Example 2: maximize response for latest 10 periods with given spend
 
-allocator_collect2 = allocator.robyn_allocator(
-    InputCollect=input_collect,
-    OutputCollect=output_collect,
-    select_model=select_model,
-    date_range="last_10",
-    total_budget=5000000,
-    channel_constr_low=[0.8, 0.7, 0.7, 0.7, 0.7],
-    channel_constr_up=[1.2, 1.5, 1.5, 1.5, 1.5],
-    channel_constr_multiplier=5,
-    scenario="max_response",
-    export=True
-)
+# allocator_collect2 = allocator.robyn_allocator(
+#     InputCollect=input_collect,
+#     OutputCollect=output_collect,
+#     select_model=select_model,
+#     date_range="last_10",
+#     total_budget=5000000,
+#     channel_constr_low=[0.8, 0.7, 0.7, 0.7, 0.7],
+#     channel_constr_up=[1.2, 1.5, 1.5, 1.5, 1.5],
+#     channel_constr_multiplier=5,
+#     scenario="max_response",
+#     export=True
+# )
 
-print(allocator_collect2)
+# print(allocator_collect2)
 
-plot(allocator_collect2)
+# plot(allocator_collect2)
 
 # Example 3: Use default ROAS target for revenue or CPA target for conversion
 
@@ -352,7 +352,7 @@ allocator_collect3 = allocator.robyn_allocator(
 
 print(allocator_collect3)
 
-plot(allocator_collect3)
+# plot(allocator_collect3)
 
 # Example 4: Customize target_value for ROAS or CPA (using json_file)
 
