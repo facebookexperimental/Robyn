@@ -33,6 +33,7 @@ dependencies = [
     "tqdm",
     "rpy2",
     "pytest",
+    "plotly",
     "nlopt",
     "cmake",
 ]

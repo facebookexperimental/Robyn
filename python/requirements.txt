@@ -12,5 +12,6 @@ nevergrad
 seaborn
 tqdm
 rpy2
+plotly
 pytest
 nlopt
