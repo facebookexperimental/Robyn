@@ -131,6 +131,8 @@ robyn_run <- function(InputCollect = NULL,
     if (is.null(InputCollect)) InputCollect <- robyn_inputs(json_file = json_file, ...)
     json <- robyn_read(json_file, step = 2, quiet = TRUE)
     dt_hyper_fixed <- json$ExportedModel$hyper_values
+    add_penalty_factor <- json$ModelsCollect$add_penalty_factor
+    ts_validation <- json$ModelsCollect$ts_validation
     for (i in seq_along(json$ExportedModel)) {
       assign(names(json$ExportedModel)[i], json$ExportedModel[[i]])
     }
