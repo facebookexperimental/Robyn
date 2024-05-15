@@ -132,7 +132,7 @@ robyn_refresh <- function(json_file = NULL,
       }
        listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
-        dt_input = if (!is.null(dt_input)) dt_input else NULL,
+        dt_input = if (!is.null(dt_input)) dt_input else json$Extras[["raw_data"]],
         dt_holidays = dt_holidays,
         plot_folder = plot_folder,
         quiet = FALSE, ...
@@ -279,7 +279,7 @@ robyn_refresh <- function(json_file = NULL,
       isTRUE(list(...)[["ts_validation"]]),
       isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation))
     InputCollectRF$hyperparameters <- refresh_hyps(
-      initBounds = Robyn$listInit$InputCollect$hyperparameters,
+      initBounds = Robyn$listInit$OutputCollect$hyper_updated,
       listOutputPrev, refresh_steps,
       rollingWindowLength = InputCollectRF$rollingWindowLength,
       ts_validation = ts_validation
