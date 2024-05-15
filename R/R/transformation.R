@@ -135,7 +135,7 @@ adstock_weibull <- function(x, shape, scale, windlen = length(x), type = "cdf") 
     if (shape == 0 | scale == 0) {
       x_decayed <- x
       thetaVecCum <- thetaVec <- rep(0, windlen)
-      x_imme <- NULL
+      x_imme <- x
     } else {
       if ("cdf" %in% tolower(type)) {
         thetaVec <- c(1, 1 - pweibull(head(x_bin, -1), shape = shape, scale = scaleTrans)) # plot(thetaVec)
@@ -371,9 +371,9 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
   dt_modAdstocked <- select(InputCollect$dt_mod, -.data$ds)
 
   mediaAdstocked <- list()
-  mediaImmediate <- list()
-  mediaCarryover <- list()
-  mediaVecCum <- list()
+  # mediaImmediate <- list()
+  # mediaCarryover <- list()
+  # mediaVecCum <- list()
   mediaSaturated <- list()
   mediaSaturatedImmediate <- list()
   mediaSaturatedCarryover <- list()
@@ -395,9 +395,9 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
     m_adstocked <- x_list$x_decayed
     mediaAdstocked[[v]] <- m_adstocked
     m_carryover <- m_adstocked - m_imme
-    mediaImmediate[[v]] <- m_imme
-    mediaCarryover[[v]] <- m_carryover
-    mediaVecCum[[v]] <- x_list$thetaVecCum
+    # mediaImmediate[[v]] <- m_imme
+    # mediaCarryover[[v]] <- m_carryover
+    # mediaVecCum[[v]] <- x_list$thetaVecCum
 
     ################################################
     ## 2. Saturation (only window data)
@@ -419,15 +419,14 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
     # plot(m_adstockedRollWind, mediaSaturated[[1]])
   }
 
-  names(mediaAdstocked) <- names(mediaImmediate) <- names(mediaCarryover) <- names(mediaVecCum) <-
-    names(mediaSaturated) <- names(mediaSaturatedImmediate) <- names(mediaSaturatedCarryover) <-
-    all_media
+  names(mediaAdstocked) <- names(mediaSaturated) <- names(mediaSaturatedImmediate) <-
+    names(mediaSaturatedCarryover) <- all_media
   dt_modAdstocked <- dt_modAdstocked %>%
     select(-all_of(all_media)) %>%
     bind_cols(mediaAdstocked)
-  dt_mediaImmediate <- bind_cols(mediaImmediate)
-  dt_mediaCarryover <- bind_cols(mediaCarryover)
-  mediaVecCum <- bind_cols(mediaVecCum)
+  # dt_mediaImmediate <- bind_cols(mediaImmediate)
+  # dt_mediaCarryover <- bind_cols(mediaCarryover)
+  # mediaVecCum <- bind_cols(mediaVecCum)
   dt_modSaturated <- dt_modAdstocked[rollingWindowStartWhich:rollingWindowEndWhich, ] %>%
     select(-all_of(all_media)) %>%
     bind_cols(mediaSaturated)
