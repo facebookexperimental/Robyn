@@ -122,7 +122,9 @@ robyn_clusters <- function(input, dep_var_type,
       dim_red = dim_red, quiet = TRUE, seed = seed
     )
   )
-  cls$df <- group_by(cls$df, .data$cluster) %>% mutate(n = n()) %>% ungroup()
+  cls$df <- group_by(cls$df, .data$cluster) %>%
+    mutate(n = n()) %>%
+    ungroup()
 
   # Select top models by minimum (weighted) distance to zero
   all_paid <- setdiff(names(cls$df), c(ignore, "cluster"))

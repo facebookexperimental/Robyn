@@ -242,7 +242,8 @@ robyn_outputs <- function(InputCollect, OutputModels,
           pareto_df <- NULL
         }
         attr(OutputCollect, "runTime") <- round(
-          difftime(Sys.time(), t0, units = "mins"), 2)
+          difftime(Sys.time(), t0, units = "mins"), 2
+        )
         robyn_write(
           InputCollect = InputCollect,
           OutputCollect = OutputCollect,

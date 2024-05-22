@@ -129,13 +129,16 @@ robyn_refresh <- function(json_file = NULL,
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
       if (is.null(plot_folder)) plot_folder <- json$ExportedModel$plot_folder
       if (!dir.exists(plot_folder) & export) {
-        message(sprintf(paste0(
-          "NOTE: Directory from JSON file doesn't exist: %s\n",
-          ">> Using current working directory for outputs: %s"),
-          plot_folder, getwd()))
+        message(sprintf(
+          paste0(
+            "NOTE: Directory from JSON file doesn't exist: %s\n",
+            ">> Using current working directory for outputs: %s"
+          ),
+          plot_folder, getwd()
+        ))
         plot_folder <- getwd()
       }
-       listInit <- suppressWarnings(robyn_recreate(
+      listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
         dt_input = if (!is.null(dt_input)) dt_input else json$Extras[["raw_data"]],
         dt_holidays = dt_holidays,
@@ -282,7 +285,8 @@ robyn_refresh <- function(json_file = NULL,
     ts_validation <- ifelse(
       "ts_validation" %in% names(list(...)),
       isTRUE(list(...)[["ts_validation"]]),
-      isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation))
+      isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation)
+    )
     InputCollectRF$hyperparameters <- refresh_hyps(
       Robyn$listInit,
       refresh_steps = refresh_steps,
@@ -591,7 +595,8 @@ refresh_hyps <- function(listInit, refresh_steps, rollingWindowLength,
       fixed <- hyper_updated_prev[hn][[1]]
       hyper_updated_prev[[hn]] <- c(
         fixed * (1 - newBoundsFreedom),
-        fixed * (1 + newBoundsFreedom))
+        fixed * (1 + newBoundsFreedom)
+      )
     }
   }
   if (!ts_validation) hyper_updated_prev[["train_size"]] <- NULL

@@ -94,7 +94,6 @@ robyn_run <- function(InputCollect = NULL,
                       lambda_control = NULL,
                       outputs = FALSE,
                       ...) {
-
   if (isTRUE(outputs)) {
     OutputModels <- robyn_run(
       InputCollect = InputCollect,
@@ -120,7 +119,8 @@ robyn_run <- function(InputCollect = NULL,
     OutputCollect <- robyn_outputs(InputCollect, OutputModels, ...)
     return(list(
       OutputModels = OutputModels,
-      OutputCollect = OutputCollect))
+      OutputCollect = OutputCollect
+    ))
   }
 
   t0 <- Sys.time()
@@ -236,9 +236,11 @@ robyn_run <- function(InputCollect = NULL,
   }
 
   # Created with assign from JSON file
-  if (exists("clusters"))
-    if (!is.integer(get("clusters")))
+  if (exists("clusters")) {
+    if (!is.integer(get("clusters"))) {
       output$clusters <- get("clusters")
+    }
+  }
 
   # Check convergence when more than 1 iteration
   if (!hyper_collect$all_fixed) {
@@ -1216,7 +1218,8 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
   hypParamSamName <- hyper_names(
     adstock = InputCollect$adstock,
     all_media = InputCollect$all_media,
-    all_vars = names(select(InputCollect$dt_mod, -c("ds", "dep_var"))))
+    all_vars = names(select(InputCollect$dt_mod, -c("ds", "dep_var")))
+  )
 
   # Manually add other hyper-parameters
   hypParamSamName <- c(hypParamSamName, HYPS_OTHERS)
@@ -1267,11 +1270,13 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
 
     # Get hyperparameters for Nevergrad
     hyper_bound_list_updated <- hyper_bound_list[
-      which(unlist(lapply(hyper_bound_list, length) == 2))]
+      which(unlist(lapply(hyper_bound_list, length) == 2))
+    ]
 
     # Get fixed hyperparameters
     hyper_bound_list_fixed <- hyper_bound_list[
-      which(unlist(lapply(hyper_bound_list, length) == 1))]
+      which(unlist(lapply(hyper_bound_list, length) == 1))
+    ]
 
     hyper_list_bind <- c(hyper_bound_list_updated, hyper_bound_list_fixed)
     hyper_list_all <- list()
@@ -1281,7 +1286,8 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
     }
 
     dt_hyper_fixed_mod <- data.frame(bind_cols(lapply(
-      hyper_bound_list_fixed, function(x) rep(x, cores))))
+      hyper_bound_list_fixed, function(x) rep(x, cores)
+    )))
   } else {
     hyper_bound_list_fixed <- list()
     for (i in seq_along(hypParamSamName)) {
@@ -1291,7 +1297,8 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
 
     hyper_list_all <- hyper_bound_list_fixed
     hyper_bound_list_updated <- hyper_bound_list_fixed[
-      which(unlist(lapply(hyper_bound_list_fixed, length) == 2))]
+      which(unlist(lapply(hyper_bound_list_fixed, length) == 2))
+    ]
 
     dt_hyper_fixed_mod <- data.frame(matrix(hyper_bound_list_fixed, nrow = 1))
     names(dt_hyper_fixed_mod) <- names(hyper_bound_list_fixed)

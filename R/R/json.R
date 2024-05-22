@@ -61,7 +61,6 @@ robyn_write <- function(InputCollect,
 
   # ExportedModel JSON
   if (!is.null(OutputCollect)) {
-
     # Modeling associated data
     collect <- list()
     collect$ts_validation <- OutputCollect$OutputModels$ts_validation
@@ -71,7 +70,8 @@ robyn_write <- function(InputCollect,
     collect$outputs_time <- sprintf("%s min", attr(OutputCollect, "runTime"))
     collect$total_time <- sprintf(
       "%s min", attr(OutputCollect, "runTime") +
-        attr(OutputCollect$OutputModels, "runTime"))
+        attr(OutputCollect$OutputModels, "runTime")
+    )
     collect$total_iters <- OutputCollect$OutputModels$iterations *
       OutputCollect$OutputModels$trials
     collect$conv_msg <- gsub("\\:.*", "", OutputCollect$OutputModels$convergence$conv_msg)
@@ -94,11 +94,14 @@ robyn_write <- function(InputCollect,
       outputs$performance <- df %>%
         filter(.data$rn %in% InputCollect$paid_media_spends) %>%
         group_by(.data$solID) %>%
-        summarise(metric = perf_metric,
-                  performance = ifelse(
-                    perf_metric == "ROAS",
-                    sum(.data$xDecompAgg) / sum(.data$total_spend),
-                    sum(.data$total_spend) / sum(.data$xDecompAgg)), .groups = "drop")
+        summarise(
+          metric = perf_metric,
+          performance = ifelse(
+            perf_metric == "ROAS",
+            sum(.data$xDecompAgg) / sum(.data$total_spend),
+            sum(.data$total_spend) / sum(.data$xDecompAgg)
+          ), .groups = "drop"
+        )
       outputs$summary <- df %>%
         mutate(
           metric = perf_metric,
@@ -153,7 +156,8 @@ robyn_write <- function(InputCollect,
       if (!all(c("solID", "cluster") %in% names(pareto_df))) {
         warning(paste(
           "Input 'pareto_df' is not a valid data.frame;",
-          "must contain 'solID' and 'cluster' columns."))
+          "must contain 'solID' and 'cluster' columns."
+        ))
       } else {
         all_c <- unique(pareto_df$cluster)
         pareto_df <- lapply(all_c, function(x) {
@@ -192,7 +196,8 @@ print.robyn_write <- function(x, ...) {
     "\n\nModel's Performance and Errors:\n    {performance}{errors}",
     performance = ifelse("performance" %in% names(x$ExportedModel), sprintf(
       "Total Model %s = %s\n    ",
-      x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)), ""),
+      x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)
+    ), ""),
     errors = paste(
       sprintf(
         "Adj.R2 (train): %s",
@@ -342,7 +347,9 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
         quiet = quiet,
         ...
       )
-    } else OutputCollect <- NULL
+    } else {
+      OutputCollect <- NULL
+    }
   } else {
     # Use case: skip feature engineering when InputCollect is provided
     InputCollect <- args[["InputCollect"]]
@@ -373,7 +380,8 @@ robyn_chain <- function(json_file) {
     temp <- list.files(plot_folder)
     mods <- unique(temp[
       (startsWith(temp, "RobynModel") | grepl("\\.json+$", temp)) &
-        grepl("^[^_]*_[^_]*_[^_]*$", temp)])
+        grepl("^[^_]*_[^_]*_[^_]*$", temp)
+    ])
     avlb <- gsub("RobynModel-|\\.json", "", mods)
     if (length(ids) == length(mods)) {
       chain <- rep_len(chain, length(mods))

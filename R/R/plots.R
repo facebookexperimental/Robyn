@@ -266,8 +266,12 @@ robyn_onepagers <- function(
     sid <- NULL # for parallel loops
   }
   if (!is.null(select_model)) {
-    if ("refreshed" %in% select_model) select_model <- OutputCollect$resultHypParam %>%
-        arrange(.data$decomp.rssd) %>% pull(.data$solID) %>% head(1)
+    if ("refreshed" %in% select_model) {
+      select_model <- OutputCollect$resultHypParam %>%
+        arrange(.data$decomp.rssd) %>%
+        pull(.data$solID) %>%
+        head(1)
+    }
     if ("clusters" %in% select_model) select_model <- OutputCollect$clusters$models$solID
     resultHypParam <- resultHypParam[resultHypParam$solID %in% select_model, ]
     xDecompAgg <- xDecompAgg[xDecompAgg$solID %in% select_model, ]
@@ -340,8 +344,10 @@ robyn_onepagers <- function(
           summarise(performance = ifelse(
             type == "ROAS",
             sum(.data$xDecompAgg) / sum(.data$total_spend),
-            sum(.data$total_spend) / sum(.data$xDecompAgg))) %>%
-          pull(.data$performance) %>% signif(., 3)
+            sum(.data$total_spend) / sum(.data$xDecompAgg)
+          )) %>%
+          pull(.data$performance) %>%
+          signif(., 3)
         if (val) {
           errors <- sprintf(
             paste(
@@ -404,10 +410,13 @@ robyn_onepagers <- function(
       ## 2. Waterfall
       plotWaterfallLoop <- temp[[sid]]$plot2data$plotWaterfallLoop %>%
         mutate(rn = ifelse(
-          .data$rn %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$rn))) %>%
+          .data$rn %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$rn)
+        )) %>%
         group_by(.data$rn) %>%
-        summarise(xDecompAgg = sum(.data$xDecompAgg, na.rm = TRUE),
-                  xDecompPerc = sum(.data$xDecompPerc, na.rm = TRUE)) %>%
+        summarise(
+          xDecompAgg = sum(.data$xDecompAgg, na.rm = TRUE),
+          xDecompPerc = sum(.data$xDecompPerc, na.rm = TRUE)
+        ) %>%
         arrange(.data$xDecompPerc) %>%
         mutate(
           end = 1 - cumsum(.data$xDecompPerc),
@@ -633,12 +642,14 @@ robyn_onepagers <- function(
       onepagerTitle <- sprintf("One-pager for Model ID: %s", sid)
       onepagerCaption <- sprintf("Robyn v%s [R-%s.%s]", ver, rver$major, rver$minor)
       calc <- ifelse(type == "ROAS",
-                     "Total ROAS = sum of response / sum of spend",
-                     "Total CPA = sum of spend / sum of response")
+        "Total ROAS = sum of response / sum of spend",
+        "Total CPA = sum of spend / sum of response"
+      )
       calc <- paste(c(calc, perf), collapse = " = ")
       onepagerCaption <- paste0(
         "*", calc, " in modeling window ", paste0(window, collapse = ":"),
-        "\n", onepagerCaption)
+        "\n", onepagerCaption
+      )
       get_height <- length(unique(plotMediaShareLoopLine$rn)) / 5
       pg <- (p2 + p5) / (p1 + p8) / (p3 + p7) / (p4 + p6) +
         patchwork::plot_layout(heights = c(get_height, get_height, get_height, 1)) +
@@ -701,7 +712,8 @@ allocation_plots <- function(
   formulax1 <- paste0(
     "Allocator's mean response = curve response of adstocked mean spend in date range, ",
     "while\n Model's sum of effect = sum of curve responses of all adstocked spends in modeling window\n",
-    formulax1)
+    formulax1
+  )
   formulax2 <- sprintf("When reallocating budget, m%s converges across media within respective bounds", metric)
 
   # Calculate errors for subtitles
@@ -802,8 +814,11 @@ allocation_plots <- function(
       )
     ) %>%
     group_by(.data$name) %>%
-    mutate(value_norm = if(metric == "ROAS") {.data$value} else {
-      .data$value / dplyr::first(.data$value)})
+    mutate(value_norm = if (metric == "ROAS") {
+      .data$value
+    } else {
+      .data$value / dplyr::first(.data$value)
+    })
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
   labs <- paste(
     paste(levs2, "\n"),
@@ -824,8 +839,10 @@ allocation_plots <- function(
     geom_bar(stat = "identity", width = 0.6, alpha = 0.7) +
     geom_text(aes(label = formatNum(.data$value, signif = 3, abbr = TRUE)), color = "black", vjust = -.5) +
     theme_lares(background = "white", legend = "none") +
-    labs(title = paste0("Total Budget Optimization Result (scaled up to ",
-                        unique(dt_optimOut$periods), ")"), fill = NULL, y = NULL, x = NULL) +
+    labs(title = paste0(
+      "Total Budget Optimization Result (scaled up to ",
+      unique(dt_optimOut$periods), ")"
+    ), fill = NULL, y = NULL, x = NULL) +
     scale_y_continuous(limits = c(0, max(df_roi$value_norm * 1.2))) +
     theme(axis.text.y = element_blank())
 
@@ -985,8 +1002,10 @@ allocation_plots <- function(
     facet_grid(. ~ .data$type_lab, scales = "free") +
     theme_lares(background = "white", legend = "none") +
     labs(
-      title = paste0("Budget Allocation per Paid Media Variable per ",
-                     str_to_title(InputCollect$intervalType), "*"),
+      title = paste0(
+        "Budget Allocation per Paid Media Variable per ",
+        str_to_title(InputCollect$intervalType), "*"
+      ),
       fill = NULL, x = NULL, y = "Paid Media"
     )
 
@@ -1119,7 +1138,7 @@ allocation_plots <- function(
       plot = plots, limitsize = FALSE,
       dpi = 350, width = 12, height = 10 + 2 * ceiling(length(dt_optimOut$channels) / 3)
     )
-    if(!quiet) message("Exporting to: ", filename)
+    if (!quiet) message("Exporting to: ", filename)
   }
 
   return(invisible(outputs))
@@ -1369,7 +1388,8 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
   if (!is.null(listInit)) {
     tt <- robyn_write(
       listInit$InputCollect, listInit$OutputCollect,
-      dir = plot_folder, export = FALSE)
+      dir = plot_folder, export = FALSE
+    )
     if (!tt$ExportedModel$select_model %in% names(chainData)) {
       chainData[[tt$ExportedModel$select_model]] <- tt
     }
@@ -1399,9 +1419,11 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
   maxval <- max(df$performance[!is.infinite(df$performance)], na.rm = TRUE)
   outputs[["pBarRF"]] <- pBarRF <- df %>%
     group_by(.data$solID) %>%
-    mutate(variable = factor(.data$variable, levels = rev(.data$variable)),
-           colsize = .data$decompPer * maxval / sum(.data$decompPer),
-           perfpoint = .data$performance / maxval) %>%
+    mutate(
+      variable = factor(.data$variable, levels = rev(.data$variable)),
+      colsize = .data$decompPer * maxval / sum(.data$decompPer),
+      perfpoint = .data$performance / maxval
+    ) %>%
     mutate(perfpoint = ifelse(is.infinite(.data$perfpoint), NA, .data$perfpoint)) %>%
     ggplot(aes(y = .data$variable)) +
     facet_wrap(. ~ .data$label, scales = "free") +
@@ -1537,8 +1559,9 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
 decomp_plot <- function(
     InputCollect, OutputCollect, solID = NULL,
     exclude = NULL, baseline_level = 0) {
-  if (is.null(solID) && length(OutputCollect$allSolutions) == 1)
+  if (is.null(solID) && length(OutputCollect$allSolutions) == 1) {
     solID <- OutputCollect$allSolutions
+  }
   check_opts(solID, OutputCollect$allSolutions)
   bvars <- baseline_vars(InputCollect, baseline_level)
   intType <- str_to_title(case_when(
@@ -1556,11 +1579,14 @@ decomp_plot <- function(
     tidyr::gather("variable", "value", -.data$ds, -.data$solID, -.data$dep_var) %>%
     filter(!.data$variable %in% exclude) %>%
     mutate(variable = ifelse(
-      .data$variable %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$variable))) %>%
+      .data$variable %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$variable)
+    )) %>%
     group_by(.data$solID, .data$ds, .data$variable) %>%
-    summarise(value = sum(.data$value, na.rm = TRUE),
-              value = sum(.data$value, na.rm = TRUE),
-              .groups = "drop") %>%
+    summarise(
+      value = sum(.data$value, na.rm = TRUE),
+      value = sum(.data$value, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
     arrange(abs(.data$value)) %>%
     mutate(variable = factor(.data$variable, levels = unique(.data$variable)))
   p <- ggplot(df, aes(x = .data$ds, y = .data$value, fill = .data$variable)) +

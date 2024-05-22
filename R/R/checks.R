@@ -499,7 +499,8 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     # Adding penalty variations to the dictionary
     if (any(grepl("_penalty", paste0(get_hyp_names)))) {
       ref_hyp_name_penalties <- paste0(
-        c(paid_media_spends, organic_vars, prophet_vars, contextual_vars), "_penalty")
+        c(paid_media_spends, organic_vars, prophet_vars, contextual_vars), "_penalty"
+      )
       all_ref_names <- c(all_ref_names, ref_hyp_name_penalties)
     } else {
       ref_hyp_name_penalties <- NULL
@@ -928,7 +929,7 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
     #     dayInterval >= 30 & dayInterval <= 31 ~ 1,
     #   ))
     # }
-    date_range = "all"
+    date_range <- "all"
     if (!quiet) message(sprintf("Automatically picked date_range = '%s'", date_range))
   }
   if (grepl("last|all", date_range[1])) {

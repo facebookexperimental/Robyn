@@ -204,7 +204,8 @@ robyn_inputs <- function(dt_input = NULL,
       dt_input, dt_holidays,
       dep_var, date_var,
       context_vars, paid_media_spends,
-      organic_vars)
+      organic_vars
+    )
 
     ## Check for NA and all negative values
     dt_input <- check_allneg(dt_input)
@@ -282,8 +283,10 @@ robyn_inputs <- function(dt_input = NULL,
 
     # Calculate total media spend used to model
     paid_media_total <- dt_input[
-      rollingWindowEndWhich:rollingWindowLength, ] %>%
-      select(paid_media_vars) %>% sum()
+      rollingWindowEndWhich:rollingWindowLength,
+    ] %>%
+      select(paid_media_vars) %>%
+      sum()
 
     ## Collect input
     InputCollect <- list(
@@ -432,8 +435,10 @@ Adstock: {x$adstock}
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
     prophet = if (length(x$prophet_vars) > 0) {
-      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "),
-              ifelse(!is.null(x$prophet_country), x$prophet_country, "data"))
+      sprintf(
+        "%s on %s", paste(x$prophet_vars, collapse = ", "),
+        ifelse(!is.null(x$prophet_country), x$prophet_country, "data")
+      )
     } else {
       "\033[0;31mDeactivated\033[0m"
     },
@@ -550,8 +555,9 @@ hyper_names <- function(adstock, all_media, all_vars = NULL) {
       grepl("shapes|scales|alphas|gammas", HYPS_NAMES)
     ]), 1, paste, collapse = "_"))
   }
-  if (!is.null(all_vars))
+  if (!is.null(all_vars)) {
     local_name <- sort(c(local_name, paste0(all_vars, "_penalty")))
+  }
   return(local_name)
 }
 
