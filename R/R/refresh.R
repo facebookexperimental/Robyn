@@ -279,8 +279,8 @@ robyn_refresh <- function(json_file = NULL,
       isTRUE(list(...)[["ts_validation"]]),
       isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation))
     InputCollectRF$hyperparameters <- refresh_hyps(
-      initBounds = Robyn$listInit$OutputCollect$hyper_updated,
-      listOutputPrev, refresh_steps,
+      Robyn$listInit,
+      refresh_steps = refresh_steps,
       rollingWindowLength = InputCollectRF$rollingWindowLength,
       ts_validation = ts_validation
     )
@@ -545,14 +545,15 @@ Models (IDs):
 #' @export
 plot.robyn_refresh <- function(x, ...) plot((x$refresh$plots[[1]] / x$refresh$plots[[2]]), ...)
 
-refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps,
-                         rollingWindowLength, ts_validation = FALSE) {
+refresh_hyps <- function(listInit, refresh_steps, rollingWindowLength,
+                         ts_validation = FALSE) {
+  initBounds <- listInit$InputCollect$hyperparameters
   initBoundsDis <- unlist(lapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0)))
   newBoundsFreedom <- refresh_steps / rollingWindowLength
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
-  hyper_updated_prev <- initBounds
-  hypNames <- names(initBounds)
-  resultHypParam <- as_tibble(listOutputPrev$resultHypParam)
+  hyper_updated_prev <- listInit$OutputCollect$OutputModels$hyper_updated
+  hypNames <- names(hyper_updated_prev)
+  resultHypParam <- as_tibble(listInit$OutputCollect$resultHypParam)
   for (h in seq_along(hypNames)) {
     hn <- hypNames[h]
     getHyp <- resultHypParam[, hn][[1]]
@@ -573,9 +574,12 @@ refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps,
         newUpB <- getRange[2]
       }
       newBounds <- unname(c(newLowB, newUpB))
-      hyper_updated_prev[hn][[1]] <- newBounds
+      hyper_updated_prev[[hn]] <- newBounds
     } else {
-      hyper_updated_prev[hn][[1]] <- getRange
+      fixed <- hyper_updated_prev[hn][[1]]
+      hyper_updated_prev[[hn]] <- c(
+        fixed * (1 - newBoundsFreedom),
+        fixed * (1 + newBoundsFreedom))
     }
   }
   if (!ts_validation) hyper_updated_prev[["train_size"]] <- NULL

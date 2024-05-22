@@ -1211,16 +1211,15 @@ lambda_seq <- function(x, y, seq_len = 100, lambda_min_ratio = 0.0001) {
   return(lambdas)
 }
 
-hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_factor, dt_hyper_fixed = NULL, cores) {
+hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_factor, dt_hyper_fixed = NULL, cores = 1) {
   # Fetch hyper-parameters based on media
-  hypParamSamName <- hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
+  hypParamSamName <- hyper_names(
+    adstock = InputCollect$adstock,
+    all_media = InputCollect$all_media,
+    all_vars = names(select(InputCollect$dt_mod, -c("ds", "dep_var"))))
 
   # Manually add other hyper-parameters
   hypParamSamName <- c(hypParamSamName, HYPS_OTHERS)
-
-  # Add penalty factor hyper-parameters names
-  for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
-  if (add_penalty_factor) hypParamSamName <- c(hypParamSamName, paste0("penalty_", for_penalty))
 
   # Check hyper_fixed condition + add lambda + penalty factor hyper-parameters names
   all_fixed <- check_hyper_fixed(InputCollect, dt_hyper_fixed, add_penalty_factor)
@@ -1230,16 +1229,15 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
     # Collect media hyperparameters
     hyper_bound_list <- list()
     for (i in seq_along(hypParamSamName)) {
-      hyper_bound_list[i] <- hyper_in[hypParamSamName[i]]
-      names(hyper_bound_list)[i] <- hypParamSamName[i]
+      hyper_bound_list <- append(hyper_bound_list, hyper_in[hypParamSamName[i]])
     }
 
-    # Add unfixed lambda hyperparameter manually
-    if (length(hyper_bound_list[["lambda"]]) != 1) {
+    # Add lambda hyperparameter
+    if (!"lambda" %in% names(hyper_bound_list)) {
       hyper_bound_list$lambda <- c(0, 1)
     }
 
-    # Add unfixed train_size hyperparameter manually
+    # Add train_size hyperparameter
     if (ts_validation) {
       if (!"train_size" %in% names(hyper_bound_list)) {
         hyper_bound_list$train_size <- c(0.5, 0.8)
@@ -1256,22 +1254,24 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
       message("Fitting time series with all available data...")
     }
 
-    # Add unfixed penalty.factor hyperparameters manually
+    # Add penalty factor hyperparameters
     for_penalty <- names(select(InputCollect$dt_mod, -.data$ds, -.data$dep_var))
     penalty_names <- paste0(for_penalty, "_penalty")
     if (add_penalty_factor) {
       for (penalty in penalty_names) {
-        if (length(hyper_bound_list[[penalty]]) != 1) {
+        if (!penalty %in% names(hyper_bound_list)) {
           hyper_bound_list[[penalty]] <- c(0, 1)
         }
       }
     }
 
     # Get hyperparameters for Nevergrad
-    hyper_bound_list_updated <- hyper_bound_list[which(unlist(lapply(hyper_bound_list, length) == 2))]
+    hyper_bound_list_updated <- hyper_bound_list[
+      which(unlist(lapply(hyper_bound_list, length) == 2))]
 
     # Get fixed hyperparameters
-    hyper_bound_list_fixed <- hyper_bound_list[which(unlist(lapply(hyper_bound_list, length) == 1))]
+    hyper_bound_list_fixed <- hyper_bound_list[
+      which(unlist(lapply(hyper_bound_list, length) == 1))]
 
     hyper_list_bind <- c(hyper_bound_list_updated, hyper_bound_list_fixed)
     hyper_list_all <- list()
@@ -1280,7 +1280,8 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
       names(hyper_list_all)[i] <- hypParamSamName[i]
     }
 
-    dt_hyper_fixed_mod <- data.frame(bind_cols(lapply(hyper_bound_list_fixed, function(x) rep(x, cores))))
+    dt_hyper_fixed_mod <- data.frame(bind_cols(lapply(
+      hyper_bound_list_fixed, function(x) rep(x, cores))))
   } else {
     hyper_bound_list_fixed <- list()
     for (i in seq_along(hypParamSamName)) {
@@ -1289,8 +1290,8 @@ hyper_collector <- function(InputCollect, hyper_in, ts_validation, add_penalty_f
     }
 
     hyper_list_all <- hyper_bound_list_fixed
-    hyper_bound_list_updated <- hyper_bound_list_fixed[which(unlist(lapply(hyper_bound_list_fixed, length) == 2))]
-    cores <- 1
+    hyper_bound_list_updated <- hyper_bound_list_fixed[
+      which(unlist(lapply(hyper_bound_list_fixed, length) == 2))]
 
     dt_hyper_fixed_mod <- data.frame(matrix(hyper_bound_list_fixed, nrow = 1))
     names(dt_hyper_fixed_mod) <- names(hyper_bound_list_fixed)

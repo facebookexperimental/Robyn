@@ -501,6 +501,7 @@ Adstock: {x$adstock}
 #' Accepts "geometric", "weibull_cdf" or "weibull_pdf"
 #' @param all_media Character vector. Default to \code{InputCollect$all_media}.
 #' Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.
+#' @param all_vars Used to check the penalties inputs, especially for refreshing models.
 #' @examples
 #' \donttest{
 #' media <- c("facebook_S", "print_S", "tv_S")
@@ -538,7 +539,7 @@ Adstock: {x$adstock}
 #' }
 #' @return Character vector. Names of hyper-parameters that should be defined.
 #' @export
-hyper_names <- function(adstock, all_media) {
+hyper_names <- function(adstock, all_media, all_vars = NULL) {
   adstock <- check_adstock(adstock)
   if (adstock == "geometric") {
     local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
@@ -549,6 +550,8 @@ hyper_names <- function(adstock, all_media) {
       grepl("shapes|scales|alphas|gammas", HYPS_NAMES)
     ]), 1, paste, collapse = "_"))
   }
+  if (!is.null(all_vars))
+    local_name <- sort(c(local_name, paste0(all_vars, "_penalty")))
   return(local_name)
 }
 
