@@ -394,7 +394,14 @@ robyn_chain <- function(json_file) {
           filename <- mods[avlb == ids[i]]
           json_new <- robyn_read(filename, quiet = TRUE)
         } else {
-          message("Skipping chain. File can't be found: ", filename)
+          last_try <- gsub(chain[1], "", filename)
+          if (file.exists(last_try)) {
+            json_new <- robyn_read(last_try, quiet = TRUE)
+            message("Stored original model in new file: ", filename)
+            jsonlite::write_json(json_new, filename, pretty = TRUE)
+          } else {
+            message("Skipping chain. File can't be found: ", filename)
+          }
         }
       }
     }
