@@ -1314,12 +1314,13 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
       solID = names(chainData),
       window_start = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_start)), origin = "1970-01-01"),
       window_end = as.Date(unlist(lapply(chainData, function(x) x$InputCollect$window_end)), origin = "1970-01-01"),
-      duration = unlist(c(0, unlist(lapply(chainData, function(x) x$InputCollect$refresh_steps))))
+      duration = unlist(lapply(chainData, function(x) x$InputCollect$refresh_steps))
     ) %>%
+      mutate(days = .data$window_end - .data$window_start) %>%
       filter(.data$duration > 0) %>%
       mutate(refreshStatus = row_number()) %>%
       mutate(
-        refreshStart = .data$window_end - dayInterval * .data$duration,
+        refreshStart = .data$window_end - .data$duration * dayInterval,
         refreshEnd = .data$window_end
       ) %>%
       mutate(label = ifelse(.data$refreshStatus == 0, sprintf(

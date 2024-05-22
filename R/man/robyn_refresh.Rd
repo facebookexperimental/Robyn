@@ -15,6 +15,7 @@ robyn_refresh(
   refresh_mode = "manual",
   refresh_iters = 1000,
   refresh_trials = 3,
+  bounds_freedom = NULL,
   plot_folder = NULL,
   plot_pareto = TRUE,
   version_prompt = FALSE,
@@ -62,6 +63,11 @@ still needs to be investigated.}
 
 \item{refresh_trials}{Integer. Trials per refresh. Defaults to 5 trials.
 More reliable recommendation still needs to be investigated.}
+
+\item{bounds_freedom}{Numeric. Percentage of freedom we'd like to allow for the
+new hyperparameters values compared with the model to be refreshed.
+If set to NULL (default) the value will be calculated as
+refresh_steps / rollingWindowLength. Applies to all hyperparameters.}
 
 \item{plot_folder}{Character. Path for saving plots and files. Default
 to \code{robyn_object} and saves plot in the same directory as \code{robyn_object}.}
