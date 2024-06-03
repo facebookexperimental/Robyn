@@ -282,10 +282,11 @@ robyn_inputs <- function(dt_input = NULL,
     check_novar(select(dt_input, -all_of(unused_vars)))
 
     # Calculate total media spend used to model
-    paid_media_total <- dt_input[
-      rollingWindowEndWhich:rollingWindowLength,
-    ] %>%
-      select(paid_media_vars) %>%
+    paid_media_total <- dt_input %>%
+      mutate(temp_date = dt_input[[date_var]]) %>%
+      filter(.data$temp_date >= window_start,
+             .data$temp_date <= window_end) %>%
+      select(all_of(paid_media_spends)) %>%
       sum()
 
     ## Collect input
