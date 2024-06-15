@@ -284,8 +284,10 @@ robyn_inputs <- function(dt_input = NULL,
     # Calculate total media spend used to model
     paid_media_total <- dt_input %>%
       mutate(temp_date = dt_input[[date_var]]) %>%
-      filter(.data$temp_date >= window_start,
-             .data$temp_date <= window_end) %>%
+      filter(
+        .data$temp_date >= window_start,
+        .data$temp_date <= window_end
+      ) %>%
       select(all_of(paid_media_spends)) %>%
       sum()
 

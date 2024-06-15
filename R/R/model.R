@@ -700,7 +700,7 @@ robyn_mmm <- function(InputCollect,
             lower.limits <- rep(0, length(prophet_signs))
             upper.limits <- rep(1, length(prophet_signs))
             trend_loc <- which(colnames(x_train) == "trend")
-            if (length(trend_loc)>0 & sum(x_train[, trend_loc]) < 0) {
+            if (length(trend_loc) > 0 & sum(x_train[, trend_loc]) < 0) {
               trend_loc <- which(prophet_vars == "trend")
               lower.limits[trend_loc] <- -1
               upper.limits[trend_loc] <- 0
