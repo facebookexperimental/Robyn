@@ -288,7 +288,8 @@ robyn_refresh <- function(json_file = NULL,
       isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation)
     )
     InputCollectRF$hyperparameters <- refresh_hyps(
-      Robyn$listInit,
+      initBounds = Robyn$listInit$OutputCollect$hyper_updated,
+      listOutputPrev,
       refresh_steps = refresh_steps,
       rollingWindowLength = InputCollectRF$rollingWindowLength,
       ts_validation = ts_validation,
@@ -557,9 +558,8 @@ Models (IDs):
 #' @export
 plot.robyn_refresh <- function(x, ...) plot((x$refresh$plots[[1]] / x$refresh$plots[[2]]), ...)
 
-refresh_hyps <- function(listInit, refresh_steps, rollingWindowLength,
+refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength,
                          ts_validation = FALSE, bounds_freedom = NULL) {
-  initBounds <- listInit$InputCollect$hyperparameters
   initBoundsDis <- unlist(lapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0)))
   if (is.null(bounds_freedom)) {
     newBoundsFreedom <- refresh_steps / rollingWindowLength
@@ -567,9 +567,9 @@ refresh_hyps <- function(listInit, refresh_steps, rollingWindowLength,
     newBoundsFreedom <- abs(bounds_freedom)
   }
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
-  hyper_updated_prev <- listInit$OutputCollect$OutputModels$hyper_updated
-  hypNames <- names(hyper_updated_prev)
-  resultHypParam <- as_tibble(listInit$OutputCollect$resultHypParam)
+  hyper_updated_prev <- initBounds
+  hypNames <- names(initBounds)
+  resultHypParam <- as_tibble(listOutputPrev$resultHypParam)
   for (h in seq_along(hypNames)) {
     hn <- hypNames[h]
     getHyp <- resultHypParam[, hn][[1]]
