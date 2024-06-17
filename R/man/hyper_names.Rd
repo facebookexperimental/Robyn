@@ -4,7 +4,7 @@
 \alias{hyper_names}
 \title{Get correct hyperparameter names}
 \usage{
-hyper_names(adstock, all_media)
+hyper_names(adstock, all_media, all_vars = NULL)
 }
 \arguments{
 \item{adstock}{Character. Default to \code{InputCollect$adstock}.
@@ -12,6 +12,8 @@ Accepts "geometric", "weibull_cdf" or "weibull_pdf"}
 
 \item{all_media}{Character vector. Default to \code{InputCollect$all_media}.
 Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.}
+
+\item{all_vars}{Used to check the penalties inputs, especially for refreshing models.}
 }
 \value{
 Character vector. Names of hyper-parameters that should be defined.

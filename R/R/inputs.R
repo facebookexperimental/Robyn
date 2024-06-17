@@ -181,7 +181,7 @@ robyn_inputs <- function(dt_input = NULL,
     json <- robyn_read(json_file, step = 1, ...)
     if (is.null(dt_input)) {
       if ("raw_data" %in% names(json[["Extras"]])) {
-        dt_input <- json[["Extras"]]$raw_data
+        dt_input <- as_tibble(json[["Extras"]]$raw_data)
       } else {
         stop("Must provide 'dt_input' input; 'dt_holidays' input optional")
       }
@@ -204,7 +204,8 @@ robyn_inputs <- function(dt_input = NULL,
       dt_input, dt_holidays,
       dep_var, date_var,
       context_vars, paid_media_spends,
-      organic_vars)
+      organic_vars
+    )
 
     ## Check for NA and all negative values
     dt_input <- check_allneg(dt_input)
@@ -254,9 +255,7 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-
     if (TRUE) {
-      dt_input <- windows$dt_input
       window_start <- windows$window_start
       rollingWindowStartWhich <- windows$rollingWindowStartWhich
       refreshAddedStart <- windows$refreshAddedStart
@@ -283,9 +282,14 @@ robyn_inputs <- function(dt_input = NULL,
     check_novar(select(dt_input, -all_of(unused_vars)))
 
     # Calculate total media spend used to model
-    paid_media_total <- dt_input[
-      rollingWindowEndWhich:rollingWindowLength, ] %>%
-      select(paid_media_vars) %>% sum()
+    paid_media_total <- dt_input %>%
+      mutate(temp_date = dt_input[[date_var]]) %>%
+      filter(
+        .data$temp_date >= window_start,
+        .data$temp_date <= window_end
+      ) %>%
+      select(all_of(paid_media_spends)) %>%
+      sum()
 
     ## Collect input
     InputCollect <- list(
@@ -320,7 +324,7 @@ robyn_inputs <- function(dt_input = NULL,
       window_end = window_end,
       rollingWindowEndWhich = rollingWindowEndWhich,
       rollingWindowLength = rollingWindowLength,
-      totalObservations = nrow(dt_input),
+      totalObservations = nrow(windows$dt_input),
       refreshAddedStart = refreshAddedStart,
       adstock = adstock,
       hyperparameters = hyperparameters,
@@ -411,7 +415,7 @@ print.robyn_inputs <- function(x, ...) {
   mod_vars <- paste(setdiff(names(x$dt_mod), c("ds", "dep_var")), collapse = ", ")
   print(glued(
     "
-Total Observations: {nrow(x$dt_input)} ({x$intervalType}s)
+Total Observations: {x$totalObservations} ({x$intervalType}s)
 Input Table Columns ({ncol(x$dt_input)}):
   Date: {x$date_var}
   Dependent: {x$dep_var} [{x$dep_var_type}]
@@ -434,8 +438,10 @@ Adstock: {x$adstock}
     windows = paste(x$window_start, x$window_end, sep = ":"),
     custom_params = if (length(x$custom_params) > 0) paste("\n", flatten_hyps(x$custom_params)) else "None",
     prophet = if (length(x$prophet_vars) > 0) {
-      sprintf("%s on %s", paste(x$prophet_vars, collapse = ", "),
-              ifelse(!is.null(x$prophet_country), x$prophet_country, "data"))
+      sprintf(
+        "%s on %s", paste(x$prophet_vars, collapse = ", "),
+        ifelse(!is.null(x$prophet_country), x$prophet_country, "data")
+      )
     } else {
       "\033[0;31mDeactivated\033[0m"
     },
@@ -503,6 +509,7 @@ Adstock: {x$adstock}
 #' Accepts "geometric", "weibull_cdf" or "weibull_pdf"
 #' @param all_media Character vector. Default to \code{InputCollect$all_media}.
 #' Includes \code{InputCollect$paid_media_spends} and \code{InputCollect$organic_vars}.
+#' @param all_vars Used to check the penalties inputs, especially for refreshing models.
 #' @examples
 #' \donttest{
 #' media <- c("facebook_S", "print_S", "tv_S")
@@ -540,7 +547,7 @@ Adstock: {x$adstock}
 #' }
 #' @return Character vector. Names of hyper-parameters that should be defined.
 #' @export
-hyper_names <- function(adstock, all_media) {
+hyper_names <- function(adstock, all_media, all_vars = NULL) {
   adstock <- check_adstock(adstock)
   if (adstock == "geometric") {
     local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
@@ -550,6 +557,9 @@ hyper_names <- function(adstock, all_media) {
     local_name <- sort(apply(expand.grid(all_media, HYPS_NAMES[
       grepl("shapes|scales|alphas|gammas", HYPS_NAMES)
     ]), 1, paste, collapse = "_"))
+  }
+  if (!is.null(all_vars)) {
+    local_name <- sort(c(local_name, paste0(all_vars, "_penalty")))
   }
   return(local_name)
 }

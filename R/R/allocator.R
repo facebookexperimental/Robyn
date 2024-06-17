@@ -168,7 +168,7 @@ robyn_allocator <- function(robyn_object = NULL,
   if (is.null(channel_constr_up)) {
     channel_constr_up <- case_when(
       scenario == "max_response" ~ 2,
-      scenario == "target_efficiency" ~ Inf
+      scenario == "target_efficiency" ~ 10
     )
   }
   if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
@@ -271,8 +271,8 @@ robyn_allocator <- function(robyn_object = NULL,
       select_build = select_build,
       select_model = select_model,
       metric_name = mediaSpendSorted[i],
-      #metric_value = initSpendUnit[i] * simulation_period[i],
-      #date_range = date_range,
+      # metric_value = initSpendUnit[i] * simulation_period[i],
+      # date_range = date_range,
       dt_hyppar = OutputCollect$resultHypParam,
       dt_coef = OutputCollect$xDecompAgg,
       InputCollect = InputCollect,
@@ -478,14 +478,13 @@ robyn_allocator <- function(robyn_object = NULL,
 
   if (scenario == "target_efficiency") {
     ## bounded optimisation
-    total_response <- sum(OutputCollect$xDecompAgg$xDecompAgg)
     nlsMod <- nloptr::nloptr(
       x0 = x0,
       eval_f = eval_f,
       eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
       eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
       lb = lb,
-      ub = rep(total_response, length(ub)),
+      ub = x0 * channel_constr_up[1], # Large enough, but not infinite (customizable)
       opts = list(
         "algorithm" = "NLOPT_LD_AUGLAG",
         "xtol_rel" = 1.0e-10,
@@ -501,7 +500,7 @@ robyn_allocator <- function(robyn_object = NULL,
       eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
       eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
       lb = lb,
-      ub = rep(total_response, length(ub)),
+      ub = x0 * channel_constr_up[1], # Large enough, but not infinite (customizable)
       opts = list(
         "algorithm" = "NLOPT_LD_AUGLAG",
         "xtol_rel" = 1.0e-10,

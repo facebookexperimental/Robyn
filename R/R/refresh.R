@@ -57,6 +57,10 @@
 #' still needs to be investigated.
 #' @param refresh_trials Integer. Trials per refresh. Defaults to 5 trials.
 #' More reliable recommendation still needs to be investigated.
+#' @param bounds_freedom Numeric. Percentage of freedom we'd like to allow for the
+#' new hyperparameters values compared with the model to be refreshed.
+#' If set to NULL (default) the value will be calculated as
+#' refresh_steps / rollingWindowLength. Applies to all hyperparameters.
 #' @param version_prompt Logical. If FALSE, the model refresh version will be
 #' selected based on the smallest combined error of normalized NRMSE, DECOMP.RSSD, MAPE.
 #' If \code{TRUE}, a prompt will be presented to the user to select one of the refreshed
@@ -105,6 +109,7 @@ robyn_refresh <- function(json_file = NULL,
                           refresh_mode = "manual",
                           refresh_iters = 1000,
                           refresh_trials = 3,
+                          bounds_freedom = NULL,
                           plot_folder = NULL,
                           plot_pareto = TRUE,
                           version_prompt = FALSE,
@@ -124,15 +129,18 @@ robyn_refresh <- function(json_file = NULL,
       json <- robyn_read(json_file, step = 2, quiet = TRUE)
       if (is.null(plot_folder)) plot_folder <- json$ExportedModel$plot_folder
       if (!dir.exists(plot_folder) & export) {
-        message(sprintf(paste0(
-          "NOTE: Directory from JSON file doesn't exist: %s\n",
-          ">> Using current working directory for outputs: %s"),
-          plot_folder, getwd()))
+        message(sprintf(
+          paste0(
+            "NOTE: Directory from JSON file doesn't exist: %s\n",
+            ">> Using current working directory for outputs: %s"
+          ),
+          plot_folder, getwd()
+        ))
         plot_folder <- getwd()
       }
-       listInit <- suppressWarnings(robyn_recreate(
+      listInit <- suppressWarnings(robyn_recreate(
         json_file = json_file,
-        dt_input = dt_input,
+        dt_input = if (!is.null(dt_input)) dt_input else json$Extras[["raw_data"]],
         dt_holidays = dt_holidays,
         plot_folder = plot_folder,
         quiet = FALSE, ...
@@ -170,6 +178,7 @@ robyn_refresh <- function(json_file = NULL,
     }
 
     ## Check rule of thumb: 50% of data shouldn't be new
+    dt_input <- Robyn$listInit$InputCollect$dt_input
     check_refresh_data(Robyn, dt_input)
 
     ## Get previous data
@@ -276,12 +285,15 @@ robyn_refresh <- function(json_file = NULL,
     ts_validation <- ifelse(
       "ts_validation" %in% names(list(...)),
       isTRUE(list(...)[["ts_validation"]]),
-      isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation))
+      isTRUE(Robyn$listInit$OutputCollect$OutputModels$ts_validation)
+    )
     InputCollectRF$hyperparameters <- refresh_hyps(
       initBounds = Robyn$listInit$OutputCollect$hyper_updated,
-      listOutputPrev, refresh_steps,
+      listOutputPrev,
+      refresh_steps = refresh_steps,
       rollingWindowLength = InputCollectRF$rollingWindowLength,
-      ts_validation = ts_validation
+      ts_validation = ts_validation,
+      bounds_freedom = bounds_freedom
     )
 
     ## Feature engineering for refreshed data
@@ -345,6 +357,9 @@ robyn_refresh <- function(json_file = NULL,
           "Selected model ID: ", selectID, " for refresh model #",
           depth, " based on the smallest DECOMP.RSSD error"
         )
+        if (export) {
+          robyn_write(InputCollectRF, OutputCollectRF, select_model = selectID, ...)
+        }
       }
       if (!isTRUE(selectID %in% OutputCollectRF$allSolutions)) {
         version_prompt <- TRUE
@@ -511,9 +526,8 @@ robyn_refresh <- function(json_file = NULL,
   if (is.null(json_file)) {
     message(">> Exporting results: ", robyn_object)
     saveRDS(Robyn, file = robyn_object)
-  } else {
-    robyn_write(InputCollectRF, OutputCollectRF, select_model = selectID, ...)
   }
+
   return(invisible(Robyn))
 }
 
@@ -544,13 +558,17 @@ Models (IDs):
 #' @export
 plot.robyn_refresh <- function(x, ...) plot((x$refresh$plots[[1]] / x$refresh$plots[[2]]), ...)
 
-refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps,
-                         rollingWindowLength, ts_validation = FALSE) {
+refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps, rollingWindowLength,
+                         ts_validation = FALSE, bounds_freedom = NULL) {
   initBoundsDis <- unlist(lapply(initBounds, function(x) ifelse(length(x) == 2, x[2] - x[1], 0)))
-  newBoundsFreedom <- refresh_steps / rollingWindowLength
+  if (is.null(bounds_freedom)) {
+    newBoundsFreedom <- refresh_steps / rollingWindowLength
+  } else {
+    newBoundsFreedom <- abs(bounds_freedom)
+  }
   message(">>> New bounds freedom: ", round(100 * newBoundsFreedom, 2), "%")
-  hyper_updated_prev <- listOutputPrev$hyper_updated
-  hypNames <- names(hyper_updated_prev)
+  hyper_updated_prev <- initBounds
+  hypNames <- names(initBounds)
   resultHypParam <- as_tibble(listOutputPrev$resultHypParam)
   for (h in seq_along(hypNames)) {
     hn <- hypNames[h]
@@ -572,9 +590,13 @@ refresh_hyps <- function(initBounds, listOutputPrev, refresh_steps,
         newUpB <- getRange[2]
       }
       newBounds <- unname(c(newLowB, newUpB))
-      hyper_updated_prev[hn][[1]] <- newBounds
+      hyper_updated_prev[[hn]] <- newBounds
     } else {
-      hyper_updated_prev[hn][[1]] <- getRange
+      fixed <- hyper_updated_prev[hn][[1]]
+      hyper_updated_prev[[hn]] <- c(
+        fixed * (1 - newBoundsFreedom),
+        fixed * (1 + newBoundsFreedom)
+      )
     }
   }
   if (!ts_validation) hyper_updated_prev[["train_size"]] <- NULL

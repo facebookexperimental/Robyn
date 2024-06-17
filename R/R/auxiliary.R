@@ -77,15 +77,20 @@ baseline_vars <- function(InputCollect, baseline_level) {
   stopifnot(length(baseline_level) == 1)
   stopifnot(baseline_level %in% 0:5)
   x <- ""
-  if (baseline_level >= 1)
+  if (baseline_level >= 1) {
     x <- c(x, "(Intercept)", "intercept")
-  if (baseline_level >= 2)
+  }
+  if (baseline_level >= 2) {
     x <- c(x, "trend")
-  if (baseline_level >= 3)
+  }
+  if (baseline_level >= 3) {
     x <- unique(c(x, InputCollect$prophet_vars))
-  if (baseline_level >= 4)
+  }
+  if (baseline_level >= 4) {
     x <- c(x, InputCollect$context_vars)
-  if (baseline_level >= 5)
+  }
+  if (baseline_level >= 5) {
     x <- c(x, InputCollect$organic_vars)
+  }
   return(x)
 }

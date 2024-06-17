@@ -61,7 +61,6 @@ robyn_write <- function(InputCollect,
 
   # ExportedModel JSON
   if (!is.null(OutputCollect)) {
-
     # Modeling associated data
     collect <- list()
     collect$ts_validation <- OutputCollect$OutputModels$ts_validation
@@ -71,7 +70,8 @@ robyn_write <- function(InputCollect,
     collect$outputs_time <- sprintf("%s min", attr(OutputCollect, "runTime"))
     collect$total_time <- sprintf(
       "%s min", attr(OutputCollect, "runTime") +
-        attr(OutputCollect$OutputModels, "runTime"))
+        attr(OutputCollect$OutputModels, "runTime")
+    )
     collect$total_iters <- OutputCollect$OutputModels$iterations *
       OutputCollect$OutputModels$trials
     collect$conv_msg <- gsub("\\:.*", "", OutputCollect$OutputModels$convergence$conv_msg)
@@ -94,11 +94,14 @@ robyn_write <- function(InputCollect,
       outputs$performance <- df %>%
         filter(.data$rn %in% InputCollect$paid_media_spends) %>%
         group_by(.data$solID) %>%
-        summarise(metric = perf_metric,
-                  performance = ifelse(
-                    perf_metric == "ROAS",
-                    sum(.data$xDecompAgg) / sum(.data$total_spend),
-                    sum(.data$total_spend) / sum(.data$xDecompAgg)), .groups = "drop")
+        summarise(
+          metric = perf_metric,
+          performance = ifelse(
+            perf_metric == "ROAS",
+            sum(.data$xDecompAgg) / sum(.data$total_spend),
+            sum(.data$total_spend) / sum(.data$xDecompAgg)
+          ), .groups = "drop"
+        )
       outputs$summary <- df %>%
         mutate(
           metric = perf_metric,
@@ -136,7 +139,7 @@ robyn_write <- function(InputCollect,
 
   extras <- list(...)
   if (isTRUE(add_data) & !"raw_data" %in% names(extras)) {
-    extras[["raw_data"]] <- InputCollect$dt_input
+    extras[["raw_data"]] <- as_tibble(InputCollect$dt_input)
   }
   if (length(extras) > 0) {
     ret[["Extras"]] <- extras
@@ -153,7 +156,8 @@ robyn_write <- function(InputCollect,
       if (!all(c("solID", "cluster") %in% names(pareto_df))) {
         warning(paste(
           "Input 'pareto_df' is not a valid data.frame;",
-          "must contain 'solID' and 'cluster' columns."))
+          "must contain 'solID' and 'cluster' columns."
+        ))
       } else {
         all_c <- unique(pareto_df$cluster)
         pareto_df <- lapply(all_c, function(x) {
@@ -192,7 +196,8 @@ print.robyn_write <- function(x, ...) {
     "\n\nModel's Performance and Errors:\n    {performance}{errors}",
     performance = ifelse("performance" %in% names(x$ExportedModel), sprintf(
       "Total Model %s = %s\n    ",
-      x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)), ""),
+      x$ExportedModel$performance$metric, signif(x$ExportedModel$performance$performance, 4)
+    ), ""),
     errors = paste(
       sprintf(
         "Adj.R2 (train): %s",
@@ -204,34 +209,36 @@ print.robyn_write <- function(x, ...) {
     )
   ))
 
-  print(glued("\n\nSummary Values on Selected Model:"))
+  if ("ExportedModel" %in% names(x)) {
+    print(glued("\n\nSummary Values on Selected Model:"))
 
-  print(x$ExportedModel$summary %>%
-    select(-contains("boot"), -contains("ci_")) %>%
-    dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROAS", "CPA"))) %>%
-    mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
-    dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
-    dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
-    replace(., . == "NA", "-") %>% as.data.frame())
+    print(x$ExportedModel$summary %>%
+      select(-contains("boot"), -contains("ci_")) %>%
+      dplyr::rename_at("performance", list(~ ifelse(x$InputCollect$dep_var_type == "revenue", "ROAS", "CPA"))) %>%
+      mutate(decompPer = formatNum(100 * .data$decompPer, pos = "%")) %>%
+      dplyr::mutate_if(is.numeric, function(x) ifelse(!is.infinite(x), x, 0)) %>%
+      dplyr::mutate_if(is.numeric, function(x) formatNum(x, 4, abbr = TRUE)) %>%
+      replace(., . == "NA", "-") %>% as.data.frame())
 
-  print(glued(
-    "\n\nHyper-parameters:\n    Adstock: {x$InputCollect$adstock}"
-  ))
+    print(glued(
+      "\n\nHyper-parameters:\n    Adstock: {x$InputCollect$adstock}"
+    ))
 
-  # Nice and tidy table format for hyper-parameters
-  HYPS_NAMES <- c(HYPS_NAMES, "penalty")
-  regex <- paste(paste0("_", HYPS_NAMES), collapse = "|")
-  hyper_df <- as.data.frame(x$ExportedModel$hyper_values) %>%
-    select(-contains("lambda"), -any_of(HYPS_OTHERS)) %>%
-    tidyr::gather() %>%
-    tidyr::separate(.data$key,
-      into = c("channel", "none"),
-      sep = regex, remove = FALSE
-    ) %>%
-    mutate(hyperparameter = gsub("^.*_", "", .data$key)) %>%
-    select(.data$channel, .data$hyperparameter, .data$value) %>%
-    tidyr::spread(key = "hyperparameter", value = "value")
-  print(hyper_df)
+    # Nice and tidy table format for hyper-parameters
+    HYPS_NAMES <- c(HYPS_NAMES, "penalty")
+    regex <- paste(paste0("_", HYPS_NAMES), collapse = "|")
+    hyper_df <- as.data.frame(x$ExportedModel$hyper_values) %>%
+      select(-contains("lambda"), -any_of(HYPS_OTHERS)) %>%
+      tidyr::gather() %>%
+      tidyr::separate(.data$key,
+        into = c("channel", "none"),
+        sep = regex, remove = FALSE
+      ) %>%
+      mutate(hyperparameter = gsub("^.*_", "", .data$key)) %>%
+      select(.data$channel, .data$hyperparameter, .data$value) %>%
+      tidyr::spread(key = "hyperparameter", value = "value")
+    print(hyper_df)
+  }
 }
 
 
@@ -342,7 +349,9 @@ robyn_recreate <- function(json_file, quiet = FALSE, ...) {
         quiet = quiet,
         ...
       )
-    } else OutputCollect <- NULL
+    } else {
+      OutputCollect <- NULL
+    }
   } else {
     # Use case: skip feature engineering when InputCollect is provided
     InputCollect <- args[["InputCollect"]]
@@ -373,7 +382,8 @@ robyn_chain <- function(json_file) {
     temp <- list.files(plot_folder)
     mods <- unique(temp[
       (startsWith(temp, "RobynModel") | grepl("\\.json+$", temp)) &
-        grepl("^[^_]*_[^_]*_[^_]*$", temp)])
+        grepl("^[^_]*_[^_]*_[^_]*$", temp)
+    ])
     avlb <- gsub("RobynModel-|\\.json", "", mods)
     if (length(ids) == length(mods)) {
       chain <- rep_len(chain, length(mods))
@@ -394,7 +404,14 @@ robyn_chain <- function(json_file) {
           filename <- mods[avlb == ids[i]]
           json_new <- robyn_read(filename, quiet = TRUE)
         } else {
-          message("Skipping chain. File can't be found: ", filename)
+          last_try <- gsub(chain[1], "", filename)
+          if (file.exists(last_try)) {
+            json_new <- robyn_read(last_try, quiet = TRUE)
+            message("Stored original model in new file: ", filename)
+            jsonlite::write_json(json_new, filename, pretty = TRUE)
+          } else {
+            message("Skipping chain. File can't be found: ", filename)
+          }
         }
       }
     }
