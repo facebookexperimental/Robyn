@@ -30,8 +30,6 @@ Imports:
     reticulate,
     stringr,
     tidyr
-Suggests:
-    shiny
 Config/reticulate:
   list(
     packages = list(
