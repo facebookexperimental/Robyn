@@ -4,7 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Meta MMM Open Source: Robyn 3.10.7       #######################
 ####################             Quick demo guide                     #######################
 #############################################################################################
 
@@ -412,7 +411,7 @@ AllocatorCollect3 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  # date_range = NULL, # Default last month as initial period
+  # date_range = NULL, # Default: "all" available dates
   scenario = "target_efficiency",
   # target_value = 2, # Customize target ROAS or CPA value
   export = create_files
