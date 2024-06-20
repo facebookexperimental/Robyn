@@ -33,10 +33,3 @@ Meta's Robyn is MIT licensed, as found in the LICENSE file.
 
 - Terms of Use - https://opensource.facebook.com/legal/terms 
 - Privacy Policy - https://opensource.facebook.com/legal/privacy
-
-## Contact
-
-* gufeng@meta.com, Gufeng Zhou, Marketing Science Partner
-* leonelsentana@meta.com, Leonel Sentana, Marketing Science Partner
-* igorskokan@meta.com, Igor Skokan, Marketing Science Partner
-* bernardolares@meta.com, Bernardo Lares, Marketing Science Partner

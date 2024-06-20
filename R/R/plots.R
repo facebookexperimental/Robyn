@@ -427,29 +427,27 @@ robyn_onepagers <- function(
           sign = as.factor(ifelse(.data$xDecompPerc >= 0, "Positive", "Negative"))
         )
 
-      p2 <- suppressWarnings(
-        ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
-          geom_rect(aes(
-            x = .data$rn, xmin = .data$id - 0.45, xmax = .data$id + 0.45,
-            ymin = .data$end, ymax = .data$start
-          ), stat = "identity") +
-          scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
-          scale_y_percent() +
-          scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" = "#E5586E")) +
-          theme_lares(background = "white", legend = "top") +
-          geom_text(mapping = aes(
-            label = paste0(
-              formatNum(.data$xDecompAgg, abbr = TRUE),
-              "\n", round(.data$xDecompPerc * 100, 1), "%"
-            ),
-            y = rowSums(cbind(.data$end, .data$xDecompPerc / 2))
-          ), fontface = "bold", lineheight = .7) +
-          coord_flip() +
-          labs(
-            title = "Response Decomposition Waterfall by Predictor",
-            x = NULL, y = NULL, fill = "Sign"
-          )
-      )
+      p2 <- ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
+        geom_rect(aes(
+          xmin = .data$id - 0.45, xmax = .data$id + 0.45,
+          ymin = .data$end, ymax = .data$start
+        ), stat = "identity") +
+        scale_x_discrete("", breaks = levels(plotWaterfallLoop$rn), labels = plotWaterfallLoop$rn) +
+        scale_y_percent() +
+        scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" = "#E5586E")) +
+        theme_lares(background = "white", legend = "top") +
+        geom_text(mapping = aes(
+          label = paste0(
+            formatNum(.data$xDecompAgg, abbr = TRUE),
+            "\n", round(.data$xDecompPerc * 100, 1), "%"
+          ),
+          y = rowSums(cbind(.data$end, .data$xDecompPerc / 2))
+        ), fontface = "bold", lineheight = .7) +
+        coord_flip() +
+        labs(
+          title = "Response Decomposition Waterfall by Predictor",
+          x = NULL, y = NULL, fill = "Sign"
+        )
 
       ## 3. Adstock rate
       if (InputCollect$adstock == "geometric") {
