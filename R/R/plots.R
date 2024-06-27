@@ -427,7 +427,7 @@ robyn_onepagers <- function(
           sign = as.factor(ifelse(.data$xDecompPerc >= 0, "Positive", "Negative"))
         )
 
-      p2 <- ggplot(plotWaterfallLoop, aes(x = .data$id, fill = .data$sign)) +
+      p2 <- ggplot(plotWaterfallLoop, aes(x = .data$rn, fill = .data$sign)) +
         geom_rect(aes(
           xmin = .data$id - 0.45, xmax = .data$id + 0.45,
           ymin = .data$end, ymax = .data$start
@@ -437,6 +437,7 @@ robyn_onepagers <- function(
         scale_fill_manual(values = c("Positive" = "#59B3D2", "Negative" = "#E5586E")) +
         theme_lares(background = "white", legend = "top") +
         geom_text(mapping = aes(
+          x = .data$id,
           label = paste0(
             formatNum(.data$xDecompAgg, abbr = TRUE),
             "\n", round(.data$xDecompPerc * 100, 1), "%"
