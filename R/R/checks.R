@@ -526,7 +526,7 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     # Old workflow: replace exposure with spend hyperparameters
     if (any(get_hyp_names %in% ref_hyp_name_expo)) {
       get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
-      get_hyp_names[get_expo_pos] <- ref_all_media[get_expo_pos]
+      get_hyp_names[get_expo_pos] <- ref_all_media[!ref_all_media %in% HYPS_OTHERS][get_expo_pos]
       names(hyperparameters_ordered) <- get_hyp_names
     }
     check_hyper_limits(hyperparameters_ordered, "thetas")
