@@ -358,6 +358,7 @@ robyn_allocator <- function(robyn_object = NULL,
       target_value_ext <- 1
     }
   }
+
   if (scenario == "target_depvar") {
     channelConstrLowSortedExt <- channelConstrLowSorted
     channelConstrUpSortedExt <- channelConstrUpSorted
@@ -365,16 +366,16 @@ robyn_allocator <- function(robyn_object = NULL,
     temp <- lares::robyn_performance(
       InputCollect, OutputCollect,
       date_min, date_max, select_model)
-    target_value_def <- temp %>%
+    target_value_ext <- temp %>%
       filter(.data$channel %in% InputCollect$paid_media_spends) %>%
       pull(.data$response) %>% sum()
     total_kpi <- temp$response[temp$channel == "GRAND TOTAL"]
-    baseline <- total_kpi - target_value_def
+    baseline <- total_kpi - target_value_ext
     if (is.null(target_value)) {
       target_value <- total_kpi
     }
     message(sprintf(
-      "Extracted total baseline from target %s: (%s - %s = %s)",
+      "Extracted total baseline from target %s (target_value input): %s - %s = %s",
       InputCollect$dep_var_type,
       formatNum(target_value, abbr = TRUE),
       formatNum(baseline, abbr = TRUE),
@@ -384,7 +385,6 @@ robyn_allocator <- function(robyn_object = NULL,
       stop("Calculated baseline is larger than target_value input. Please, increase target_value.")
     }
     target_value <- target_value - baseline
-    target_value_ext <- target_value_def - baseline
   }
 
   temp_init <- temp_init_all <- initSpendUnit
