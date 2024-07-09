@@ -365,22 +365,24 @@ robyn_allocator <- function(robyn_object = NULL,
     temp <- lares::robyn_performance(
       InputCollect, OutputCollect,
       date_min, date_max, select_model)
-    baseline <- temp$response[temp$channel == "GRAND TOTAL"] -
-      ifelse(dep_var_type == "conversion", sum(initResponseUnit), sum(initSpendUnit))
-    # Calculate default value if not provided
-    if (dep_var_type == "conversion") {
-      target_value_def <- sum(initResponseUnit) + baseline
-    } else {
-      target_value_def <- sum(initSpendUnit) + baseline
-    }
+    target_value_def <- temp %>%
+      filter(.data$channel %in% InputCollect$paid_media_spends) %>%
+      pull(.data$response) %>% sum()
+    total_kpi <- temp$response[temp$channel == "GRAND TOTAL"]
+    baseline <- total_kpi - target_value_def
     if (is.null(target_value)) {
-      target_value <- target_value_def
+      target_value <- total_kpi
     }
     message(sprintf(
       "Extracted total baseline from target %s: (%s - %s = %s)",
       InputCollect$dep_var_type,
-      round(target_value), round(baseline), round(target_value - baseline)
+      formatNum(target_value, abbr = TRUE),
+      formatNum(baseline, abbr = TRUE),
+      formatNum(target_value - baseline, abbr = TRUE)
     ))
+    if (target_value - baseline < 0) {
+      stop("Calculated baseline is larger than target_value input. Please, increase target_value.")
+    }
     target_value <- target_value - baseline
     target_value_ext <- target_value_def - baseline
   }
