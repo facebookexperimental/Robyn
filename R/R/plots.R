@@ -783,7 +783,8 @@ allocation_plots <- function(
       paste0("Bounded", ifelse(optm_topped_bounded, "^", "")),
       paste0("Bounded", ifelse(optm_topped_unbounded, "^", ""), " x", bound_mult)
     )
-  } else if (scenario == "target_efficiency") {
+  }
+  if (scenario %in% c("target_efficiency", "target_depvar")) {
     levs2 <- levs1
   }
 
