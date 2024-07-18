@@ -2,6 +2,7 @@
 % Please edit documentation in R/model.R
 \name{robyn_mmm}
 \alias{robyn_mmm}
+\alias{model_decomp}
 \title{Core MMM Function}
 \usage{
 robyn_mmm(
@@ -23,6 +24,8 @@ robyn_mmm(
   quiet = FALSE,
   ...
 )
+
+model_decomp(inputs = list())
 }
 \arguments{
 \item{InputCollect}{List. Contains all input parameters for the model.
@@ -89,6 +92,8 @@ another model with no 0-coef variables gets un-penalized with DECOMP.RSSD * 1.}
 \item{quiet}{Boolean. Keep messages off?}
 
 \item{...}{Additional parameters passed to \code{robyn_outputs()}.}
+
+\item{inputs}{List. Elements to pass sub-functions}
 }
 \value{
 List. MMM results with hyperparameters values.

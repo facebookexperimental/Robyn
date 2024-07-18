@@ -78,9 +78,9 @@ robyn_pareto <- function(InputCollect, OutputModels,
     # Calculate Pareto-fronts (for "all" or pareto_fronts)
     resultHypParamPareto <- filter(resultHypParam, .data$mape.qt10 == TRUE)
     paretoResults <- pareto_front(
-      x = resultHypParamPareto$nrmse,
-      y = resultHypParamPareto$decomp.rssd,
-      fronts = ifelse("auto" %in% pareto_fronts, Inf, pareto_fronts),
+      xi = resultHypParamPareto$nrmse,
+      yi = resultHypParamPareto$decomp.rssd,
+      pareto_fronts = ifelse("auto" %in% pareto_fronts, Inf, pareto_fronts),
       sort = FALSE
     )
     resultHypParamPareto <- resultHypParamPareto %>%
@@ -496,67 +496,13 @@ robyn_pareto <- function(InputCollect, OutputModels,
       plot6data <- list(xDecompVecPlot = xDecompVecPlot)
 
       ## 7. Immediate vs carryover response
-      # temp <- filter(xDecompVecImmCarr, .data$solID == sid)
-      hypParamSam <- resultHypParam[resultHypParam$solID == sid, ]
-      dt_saturated_dfs <- run_transformations(InputCollect, hypParamSam, adstock)
-      coefs <- xDecompAgg$coef[xDecompAgg$solID == sid]
-      names(coefs) <- xDecompAgg$rn[xDecompAgg$solID == sid]
-      decompCollect <- model_decomp(
-        coefs = coefs,
-        y_pred = dt_saturated_dfs$dt_modSaturated$dep_var, # IS THIS RIGHT?
-        dt_modSaturated = dt_saturated_dfs$dt_modSaturated,
-        dt_saturatedImmediate = dt_saturated_dfs$dt_saturatedImmediate,
-        dt_saturatedCarryover = dt_saturated_dfs$dt_saturatedCarryover,
-        dt_modRollWind = dt_modRollWind,
-        refreshAddedStart = InputCollect$refreshAddedStart
-      )
-      mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -.data$ds, -.data$y)
-      colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
-      mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -.data$ds, -.data$y)
-      colnames(mediaDecompCarryover) <- paste0(colnames(mediaDecompCarryover), "_MDC")
-      temp <- bind_cols(
-        decompCollect$xDecompVec,
-        mediaDecompImmediate,
-        mediaDecompCarryover
-      ) %>% mutate(solID = sid)
-      vec_collect <- list(
-        xDecompVec = select(temp, -dplyr::ends_with("_MDI"), -dplyr::ends_with("_MDC")),
-        xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), -all_of(InputCollect$all_media)),
-        xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), -all_of(InputCollect$all_media))
-      )
-      this <- gsub("_MDI", "", colnames(vec_collect$xDecompVecImmediate))
-      colnames(vec_collect$xDecompVecImmediate) <- colnames(vec_collect$xDecompVecCarryover) <- this
-      df_caov <- vec_collect$xDecompVecCarryover %>%
-        group_by(.data$solID) %>%
-        summarise(across(InputCollect$all_media, sum))
-      df_total <- vec_collect$xDecompVec %>%
-        group_by(.data$solID) %>%
-        summarise(across(InputCollect$all_media, sum))
-      df_caov_pct <- bind_cols(
-        select(df_caov, .data$solID),
-        select(df_caov, -.data$solID) / select(df_total, -.data$solID)
-      ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
-      df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
-      df_caov_pct_all <- bind_rows(df_caov_pct_all, df_caov_pct)
-      # Gather everything in an aggregated format
-      xDecompVecImmeCaov <- bind_rows(
-        select(vec_collect$xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
-          mutate(type = "Immediate"),
-        select(vec_collect$xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
-          mutate(type = "Carryover")
-      ) %>%
-        pivot_longer(cols = InputCollect$all_media, names_to = "rn") %>%
-        select(c("solID", "type", "rn", "value")) %>%
-        group_by(.data$solID, .data$rn, .data$type) %>%
-        summarise(response = sum(.data$value), .groups = "drop_last") %>%
-        mutate(percentage = .data$response / sum(.data$response)) %>%
-        replace(., is.na(.), 0) %>%
-        left_join(df_caov_pct, c("solID", "rn"))
-      if (length(unique(xDecompAgg$solID)) == 1) {
-        xDecompVecImmeCaov$solID <- OutModels$trial1$resultCollect$resultHypParam$solID
-      }
-      plot7data <- xDecompVecImmeCaov
+      plot7data <- robyn_immcarr(
+        InputCollect,
+        OutputCollect = list(
+          resultHypParam = resultHypParam,
+          xDecompAgg = xDecompAgg
+        ),
+        solID = sid, ...)
 
       ## 8. Bootstrapped ROI/CPA with CIs
       # plot8data <- "Empty" # Filled when running robyn_onepagers() with clustering data
@@ -602,19 +548,103 @@ robyn_pareto <- function(InputCollect, OutputModels,
   return(pareto_results)
 }
 
-pareto_front <- function(x, y, fronts = 1, sort = TRUE) {
-  stopifnot(length(x) == length(y))
-  d <- data.frame(x, y)
-  Dtemp <- D <- d[order(d$x, d$y, decreasing = FALSE), ]
+#' @rdname robyn_outputs
+#' @param xi,yi Numeric. Coordinates values per observation.
+#' @export
+pareto_front <- function(xi, yi, pareto_fronts = 1, ...) {
+  stopifnot(length(xi) == length(yi))
+  d <- data.frame(xi, yi)
+  Dtemp <- D <- d[order(d$xi, d$yi, decreasing = FALSE), ]
   df <- data.frame()
   i <- 1
-  while (nrow(Dtemp) >= 1 & i <= max(fronts)) {
-    these <- Dtemp[which(!duplicated(cummin(Dtemp$y))), ]
+  while (nrow(Dtemp) >= 1 & i <= max(pareto_fronts)) {
+    these <- Dtemp[which(!duplicated(cummin(Dtemp$yi))), ]
     these$pareto_front <- i
     df <- rbind(df, these)
     Dtemp <- Dtemp[!row.names(Dtemp) %in% row.names(these), ]
     i <- i + 1
   }
-  ret <- merge(x = d, y = df, by = c("x", "y"), all.x = TRUE, sort = sort)
+  ret <- merge(x = d, y = df, by = c("xi", "yi"), all.x = TRUE, ...)
+  colnames(ret) <- c("x", "y", "pareto_front")
   return(ret)
 }
+
+#' @rdname robyn_outputs
+#' @param start_date,end_date Character/Date. Dates to consider when calculating
+#' immediate and carryover values per channel.
+#' @export
+robyn_immcarr <- function(
+    InputCollect, OutputCollect, solID = NULL,
+    start_date = NULL, end_date = NULL, ...) {
+  # Define default values when not provided
+  if (is.null(solID)) solID <- OutputCollect$resultHypParam$solID[1]
+  if (is.null(start_date)) start_date <- InputCollect$window_start
+  if (is.null(end_date)) end_date <- InputCollect$window_end
+  # Get closer dates to date passed
+  start_date <- InputCollect$dt_mod$ds[which.min(abs(as.Date(start_date) - InputCollect$dt_mod$ds))]
+  end_date <- InputCollect$dt_mod$ds[which.min(abs(as.Date(end_date) - InputCollect$dt_mod$ds))]
+  hypParamSam <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == solID, ]
+  # Filter for custom window
+  rollingWindowStartWhich <- which(InputCollect$dt_modRollWind$ds == start_date)
+  rollingWindowEndWhich <- which(InputCollect$dt_modRollWind$ds == end_date)
+  rollingWindow <- rollingWindowStartWhich:rollingWindowEndWhich
+  # Calculate saturated dataframes with carryover and immediate parts
+  dt_saturated_dfs <- run_transformations(InputCollect, hypParamSam, ...)
+  coefs <- OutputCollect$xDecompAgg$coef[OutputCollect$xDecompAgg$solID == solID]
+  names(coefs) <- OutputCollect$xDecompAgg$rn[OutputCollect$xDecompAgg$solID == solID]
+  decompCollect <- model_decomp(
+    inputs = list(
+      coefs = coefs,
+      y_pred = dt_saturated_dfs$dt_modSaturated$dep_var[rollingWindow],
+      dt_modSaturated = dt_saturated_dfs$dt_modSaturated[rollingWindow, ],
+      dt_saturatedImmediate = dt_saturated_dfs$dt_saturatedImmediate[rollingWindow, ],
+      dt_saturatedCarryover = dt_saturated_dfs$dt_saturatedCarryover[rollingWindow, ],
+      dt_modRollWind = InputCollect$dt_modRollWind[rollingWindow, ],
+      refreshAddedStart = start_date
+    ))
+  mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -"ds", -"y")
+  colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
+  mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -"ds", -"y")
+  colnames(mediaDecompCarryover) <- paste0(colnames(mediaDecompCarryover), "_MDC")
+  temp <- bind_cols(
+    decompCollect$xDecompVec,
+    mediaDecompImmediate,
+    mediaDecompCarryover
+  ) %>% mutate(solID = solID)
+  vec_collect <- list(
+    xDecompVec = select(temp, -dplyr::ends_with("_MDI"), -dplyr::ends_with("_MDC")),
+    xDecompVecImmediate = select(temp, -dplyr::ends_with("_MDC"), -all_of(InputCollect$all_media)),
+    xDecompVecCarryover = select(temp, -dplyr::ends_with("_MDI"), -all_of(InputCollect$all_media))
+  )
+  this <- gsub("_MDI", "", colnames(vec_collect$xDecompVecImmediate))
+  colnames(vec_collect$xDecompVecImmediate) <- colnames(vec_collect$xDecompVecCarryover) <- this
+  df_caov <- vec_collect$xDecompVecCarryover %>%
+    group_by(.data$solID) %>%
+    summarise(across(InputCollect$all_media, sum))
+  df_total <- vec_collect$xDecompVec %>%
+    group_by(.data$solID) %>%
+    summarise(across(InputCollect$all_media, sum))
+  df_caov_pct <- bind_cols(
+    select(df_caov, "solID"),
+    select(df_caov, -"solID") / select(df_total, -"solID")
+  ) %>%
+    pivot_longer(cols = InputCollect$all_media, names_to = "rn", values_to = "carryover_pct")
+  df_caov_pct[is.na(as.matrix(df_caov_pct))] <- 0
+  # Gather everything in an aggregated format
+  xDecompVecImmeCaov <- bind_rows(
+    select(vec_collect$xDecompVecImmediate, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "Immediate"),
+    select(vec_collect$xDecompVecCarryover, c("ds", InputCollect$all_media, "solID")) %>%
+      mutate(type = "Carryover")
+  ) %>%
+    pivot_longer(cols = InputCollect$all_media, names_to = "rn") %>%
+    mutate(start_date = start_date, end_date = end_date) %>%
+    select("solID", ends_with("_date"), "type", "rn", "value") %>%
+    group_by(.data$solID, .data$start_date, .data$end_date, .data$rn, .data$type) %>%
+    summarise(response = sum(.data$value), .groups = "drop_last") %>%
+    mutate(percentage = .data$response / sum(.data$response)) %>%
+    replace(., is.na(.), 0) %>%
+    left_join(df_caov_pct, c("solID", "rn"))
+  return(xDecompVecImmeCaov)
+}
+

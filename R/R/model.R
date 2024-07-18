@@ -660,7 +660,7 @@ robyn_mmm <- function(InputCollect,
             adstock <- check_adstock(adstock)
 
             #### Transform media for model fitting
-            temp <- run_transformations(InputCollect, hypParamSam, adstock)
+            temp <- run_transformations(InputCollect, hypParamSam, ...)
             dt_modSaturated <- temp$dt_modSaturated
             dt_saturatedImmediate <- temp$dt_saturatedImmediate
             dt_saturatedCarryover <- temp$dt_saturatedCarryover
@@ -763,14 +763,15 @@ robyn_mmm <- function(InputCollect,
               ...
             )
             decompCollect <- model_decomp(
-              coefs = mod_out$coefs,
-              y_pred = mod_out$y_pred,
-              dt_modSaturated = dt_modSaturated,
-              dt_saturatedImmediate = dt_saturatedImmediate,
-              dt_saturatedCarryover = dt_saturatedCarryover,
-              dt_modRollWind = dt_modRollWind,
-              refreshAddedStart = refreshAddedStart
-            )
+              inputs = list(
+                coefs = mod_out$coefs,
+                y_pred = mod_out$y_pred,
+                dt_modSaturated = dt_modSaturated,
+                dt_saturatedImmediate = dt_saturatedImmediate,
+                dt_saturatedCarryover = dt_saturatedCarryover,
+                dt_modRollWind = dt_modRollWind,
+                refreshAddedStart = refreshAddedStart
+              ))
             nrmse <- ifelse(ts_validation, mod_out$nrmse_val, mod_out$nrmse_train)
             mape <- 0
             df.int <- mod_out$df.int
@@ -1027,10 +1028,18 @@ robyn_mmm <- function(InputCollect,
   ))
 }
 
-model_decomp <- function(coefs, y_pred,
-                         dt_modSaturated, dt_saturatedImmediate,
-                         dt_saturatedCarryover, dt_modRollWind,
-                         refreshAddedStart) {
+#' @rdname robyn_mmm
+#' @param inputs List. Elements to pass sub-functions
+#' @export
+model_decomp <- function(inputs = list()) {
+  coefs <- inputs$coefs
+  y_pred <- inputs$y_pred
+  dt_modSaturated <- inputs$dt_modSaturated
+  dt_saturatedImmediate <- inputs$dt_saturatedImmediate
+  dt_saturatedCarryover <- inputs$dt_saturatedCarryover
+  dt_modRollWind <- inputs$dt_modRollWind
+  refreshAddedStart <- inputs$refreshAddedStart
+
   ## Input for decomp
   y <- dt_modSaturated$dep_var
   # x <- data.frame(x)

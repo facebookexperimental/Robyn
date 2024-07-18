@@ -14,6 +14,7 @@
 #' impressions, clicks or GRPs are provided in \code{paid_media_vars} instead
 #' of spend metric.
 #'
+#' @name transformations
 #' @family Transformations
 #' @param x Numeric value or vector. Input media spend when
 #' \code{reverse = FALSE}. Input media exposure metrics (impression, clicks,
@@ -364,16 +365,17 @@ plot_saturation <- function(plot = TRUE) {
 }
 
 #### Transform media for model fitting
-run_transformations <- function(InputCollect, hypParamSam, adstock) {
+#' @name transformations
+#' @inheritParams robyn_inputs
+#' @export
+run_transformations <- function(InputCollect, hyperparameters, ...) {
   all_media <- InputCollect$all_media
   rollingWindowStartWhich <- InputCollect$rollingWindowStartWhich
   rollingWindowEndWhich <- InputCollect$rollingWindowEndWhich
   dt_modAdstocked <- select(InputCollect$dt_mod, -.data$ds)
+  adstock <- InputCollect$adstock
 
   mediaAdstocked <- list()
-  # mediaImmediate <- list()
-  # mediaCarryover <- list()
-  # mediaVecCum <- list()
   mediaSaturated <- list()
   mediaSaturatedImmediate <- list()
   mediaSaturatedCarryover <- list()
@@ -384,11 +386,11 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
     # Decayed/adstocked response = Immediate response + Carryover response
     m <- dt_modAdstocked[, all_media[v]][[1]]
     if (adstock == "geometric") {
-      theta <- hypParamSam[paste0(all_media[v], "_thetas")][[1]][[1]]
+      theta <- hyperparameters[paste0(all_media[v], "_thetas")][[1]][[1]]
     }
     if (grepl("weibull", adstock)) {
-      shape <- hypParamSam[paste0(all_media[v], "_shapes")][[1]][[1]]
-      scale <- hypParamSam[paste0(all_media[v], "_scales")][[1]][[1]]
+      shape <- hyperparameters[paste0(all_media[v], "_shapes")][[1]][[1]]
+      scale <- hyperparameters[paste0(all_media[v], "_scales")][[1]][[1]]
     }
     x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
     m_imme <- if (adstock == "weibull_pdf") x_list$x_imme else m
@@ -405,8 +407,8 @@ run_transformations <- function(InputCollect, hypParamSam, adstock) {
     m_adstockedRollWind <- m_adstocked[rollingWindowStartWhich:rollingWindowEndWhich]
     m_carryoverRollWind <- m_carryover[rollingWindowStartWhich:rollingWindowEndWhich]
 
-    alpha <- hypParamSam[paste0(all_media[v], "_alphas")][[1]][[1]]
-    gamma <- hypParamSam[paste0(all_media[v], "_gammas")][[1]][[1]]
+    alpha <- hyperparameters[paste0(all_media[v], "_alphas")][[1]][[1]]
+    gamma <- hyperparameters[paste0(all_media[v], "_gammas")][[1]][[1]]
     mediaSaturated[[v]] <- saturation_hill(
       m_adstockedRollWind,
       alpha = alpha, gamma = gamma

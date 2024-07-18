@@ -96,7 +96,7 @@ transform_adstock(rep(100, 10), "weibull_pdf", shape = 1, scale = 0.5)
 }
 \seealso{
 Other Transformations: 
-\code{\link{mic_men}()},
-\code{\link{saturation_hill}()}
+\code{\link{saturation_hill}()},
+\code{\link{transformations}}
 }
 \concept{Transformations}
