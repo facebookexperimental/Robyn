@@ -503,6 +503,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
           xDecompAgg = xDecompAgg
         ),
         solID = sid, ...)
+      df_caov_pct_all <- rbind(df_caov_pct_all, plot7data)
 
       ## 8. Bootstrapped ROI/CPA with CIs
       # plot8data <- "Empty" # Filled when running robyn_onepagers() with clustering data
