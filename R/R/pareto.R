@@ -582,15 +582,18 @@ robyn_immcarr <- function(
   if (is.null(start_date)) start_date <- InputCollect$window_start
   if (is.null(end_date)) end_date <- InputCollect$window_end
   # Get closer dates to date passed
-  start_date <- InputCollect$dt_mod$ds[which.min(abs(as.Date(start_date) - InputCollect$dt_mod$ds))]
-  end_date <- InputCollect$dt_mod$ds[which.min(abs(as.Date(end_date) - InputCollect$dt_mod$ds))]
-  hypParamSam <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == solID, ]
+  start_date <- InputCollect$dt_modRollWind$ds[
+    which.min(abs(as.Date(start_date) - InputCollect$dt_modRollWind$ds))]
+  end_date <- InputCollect$dt_modRollWind$ds[
+    which.min(abs(as.Date(end_date) - InputCollect$dt_modRollWind$ds))]
   # Filter for custom window
   rollingWindowStartWhich <- which(InputCollect$dt_modRollWind$ds == start_date)
   rollingWindowEndWhich <- which(InputCollect$dt_modRollWind$ds == end_date)
   rollingWindow <- rollingWindowStartWhich:rollingWindowEndWhich
   # Calculate saturated dataframes with carryover and immediate parts
+  hypParamSam <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == solID, ]
   dt_saturated_dfs <- run_transformations(InputCollect, hypParamSam, ...)
+  # Calculate decomposition
   coefs <- OutputCollect$xDecompAgg$coef[OutputCollect$xDecompAgg$solID == solID]
   names(coefs) <- OutputCollect$xDecompAgg$rn[OutputCollect$xDecompAgg$solID == solID]
   decompCollect <- model_decomp(
@@ -644,7 +647,7 @@ robyn_immcarr <- function(
     group_by(.data$solID, .data$start_date, .data$end_date, .data$rn, .data$type) %>%
     summarise(response = sum(.data$value), .groups = "drop_last") %>%
     mutate(percentage = .data$response / sum(.data$response)) %>%
-    replace(., is.na(.), 0) %>%
+    replace(., is.na(.), 0) %>% ungroup() %>%
     left_join(df_caov_pct, c("solID", "rn"))
   return(xDecompVecImmeCaov)
 }

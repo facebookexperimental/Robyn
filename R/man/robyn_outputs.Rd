@@ -135,7 +135,7 @@ wish to plot the one-pagers and export? Default will take top
 
 \item{solID}{Character vector. Model IDs to plot.}
 
-\item{start_date, end_date}{Date. Dates to consider to calculate
+\item{start_date, end_date}{Character/Date. Dates to consider when calculating
 immediate and carryover values per channel.}
 
 \item{baseline_level}{Integer, from 0 to 5. Aggregate baseline variables,

@@ -179,7 +179,9 @@ robyn_outputs <- function(InputCollect, OutputModels,
           by = c("rn", "cluster")
         ) %>%
         left_join(
-          pareto_results$df_caov_pct_all,
+          pareto_results$df_caov_pct_all %>%
+            filter(type == "Carryover") %>%
+            select("solID", "rn", "carryover_pct"),
           by = c("solID", "rn")
         )
       OutputCollect$mediaVecCollect <- left_join(
