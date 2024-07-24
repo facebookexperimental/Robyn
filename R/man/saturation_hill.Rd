@@ -38,6 +38,6 @@ saturation_hill(c(100, 150, 170, 190, 200), alpha = 3, gamma = 0.5)
 \seealso{
 Other Transformations: 
 \code{\link{adstock_geometric}()},
-\code{\link{mic_men}()}
+\code{\link{transformations}}
 }
 \concept{Transformations}

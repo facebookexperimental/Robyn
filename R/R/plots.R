@@ -591,7 +591,7 @@ robyn_onepagers <- function(
       ## 7. Immediate vs carryover
       df_imme_caov <- temp[[sid]]$plot7data
       p7 <- df_imme_caov %>%
-        mutate(type = factor(.data$type, levels = c("Carryover", "Immediate"))) %>%
+        mutate(type = factor(.data$type, levels = c("Immediate", "Carryover"))) %>%
         ggplot(aes(
           x = .data$percentage, y = .data$rn, fill = reorder(.data$type, as.integer(.data$type)),
           label = paste0(round(.data$percentage * 100), "%")
