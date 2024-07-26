@@ -28,13 +28,17 @@
 #' Quadratic Programming" and "Augmented Lagrangian". Alternatively, "\code{"MMA_AUGLAG"},
 #' short for "Methods of Moving Asymptotes". More details see the documentation of
 #' NLopt \href{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/}{here}.
-#' @param scenario Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"}.
-#' Scenario \code{"max_response"} answers the question:
+#' @param scenario Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"},
+#' \code{"target_depvar"}. Scenario \code{"max_response"} answers the question:
 #' "What's the potential revenue/conversions lift with the same (or custom) spend level
 #' in \code{date_range} and what is the allocation and expected response mix?"
 #' Scenario \code{"target_efficiency"} optimizes ROAS or CPA and answers the question:
 #' "What's the potential revenue/conversions lift and spend levels based on a
 #' \code{target_value} for CPA/ROAS and what is the allocation and expected response mix?"
+#' Scenario \code{"target_depvar"} optimizes ROAS or CPA, allowing the user to define a
+#' target value for total revenue or total conversions. To account for total values,
+#' this scenario calculates the baseline (which is fixed for the \code{date_range} provided),
+#' and provides the required allocation and budget for paid media channels.
 #' Deprecated scenario: \code{"max_response_expected_spend"}.
 #' @param total_budget Numeric. Total marketing budget for all paid channels for the
 #' period in \code{date_range}.
@@ -162,13 +166,15 @@ robyn_allocator <- function(robyn_object = NULL,
   if (is.null(channel_constr_low)) {
     channel_constr_low <- case_when(
       scenario == "max_response" ~ 0.5,
-      scenario == "target_efficiency" ~ 0.1
+      scenario == "target_efficiency" ~ 0.1,
+      scenario == "target_depvar" ~ 0.5
     )
   }
   if (is.null(channel_constr_up)) {
     channel_constr_up <- case_when(
       scenario == "max_response" ~ 2,
-      scenario == "target_efficiency" ~ 10
+      scenario == "target_efficiency" ~ 10,
+      scenario == "target_depvar" ~ 5
     )
   }
   if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_spends))
@@ -352,6 +358,35 @@ robyn_allocator <- function(robyn_object = NULL,
       target_value_ext <- 1
     }
   }
+
+  if (scenario == "target_depvar") {
+    channelConstrLowSortedExt <- channelConstrLowSorted
+    channelConstrUpSortedExt <- channelConstrUpSorted
+    # Calculate baseline for date range to extract from target
+    temp <- lares::robyn_performance(
+      InputCollect, OutputCollect,
+      date_min, date_max, select_model)
+    target_value_ext <- temp %>%
+      filter(.data$channel %in% InputCollect$paid_media_spends) %>%
+      pull(.data$response) %>% sum()
+    total_kpi <- temp$response[temp$channel == "GRAND TOTAL"]
+    baseline <- total_kpi - target_value_ext
+    if (is.null(target_value)) {
+      target_value <- total_kpi
+    }
+    message(sprintf(
+      "Extracted total baseline from target %s (target_value input): %s - %s = %s",
+      InputCollect$dep_var_type,
+      formatNum(target_value, abbr = TRUE),
+      formatNum(baseline, abbr = TRUE),
+      formatNum(target_value - baseline, abbr = TRUE)
+    ))
+    if (target_value - baseline < 0) {
+      stop("Calculated baseline is larger than target_value input. Please, increase target_value.")
+    }
+    target_value <- target_value - baseline
+  }
+
   temp_init <- temp_init_all <- initSpendUnit
   # if no spend within window as initial spend, use historical average
   if (length(zero_spend_channel) > 0) temp_init_all[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
@@ -511,6 +546,40 @@ robyn_allocator <- function(robyn_object = NULL,
     )
   }
 
+  if (scenario == "target_depvar") {
+    ## bounded optimisation
+    nlsMod <- nloptr::nloptr(
+      x0 = x0,
+      eval_f = eval_f,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
+      lb = lb, ub = ub,
+      opts = list(
+        "algorithm" = "NLOPT_LD_AUGLAG",
+        "xtol_rel" = 1.0e-10,
+        "maxeval" = maxeval,
+        "local_opts" = local_opts
+      ),
+      target_value = target_value
+    )
+    ## unbounded optimisation
+    nlsModUnbound <- nloptr::nloptr(
+      x0 = x0_ext,
+      eval_f = eval_f,
+      eval_g_eq = if (constr_mode == "eq") eval_g_eq else NULL,
+      eval_g_ineq = if (constr_mode == "ineq") eval_g_ineq else NULL,
+      lb = lb,
+      ub = x0 * channel_constr_up[1], # Large enough, but not infinite (customizable)
+      opts = list(
+        "algorithm" = "NLOPT_LD_AUGLAG",
+        "xtol_rel" = 1.0e-10,
+        "maxeval" = maxeval,
+        "local_opts" = local_opts
+      ),
+      target_value = target_value_ext
+    )
+  }
+
   ## get marginal
   optmSpendUnit <- nlsMod$solution
   optmResponseUnit <- -eval_f(optmSpendUnit)[["objective.channel"]]
@@ -645,7 +714,8 @@ robyn_allocator <- function(robyn_object = NULL,
   ## Calculate curves and main points for each channel
   if (scenario == "max_response") {
     levs1 <- c("Initial", "Bounded", paste0("Bounded x", channel_constr_multiplier))
-  } else if (scenario == "target_efficiency") {
+  }
+  if (scenario == "target_efficiency") {
     if (dep_var_type == "revenue") {
       levs1 <- c(
         "Initial", paste0("Hit ROAS ", round(target_value, 2)),
@@ -657,6 +727,9 @@ robyn_allocator <- function(robyn_object = NULL,
         paste0("Hit CPA ", round(target_value_ext, 2))
       )
     }
+  }
+  if (scenario == "target_depvar") {
+    levs1 <- c("Initial", paste("Hit", dep_var_type, "target"), "Default")
   }
   eval_list$levs1 <- levs1
 

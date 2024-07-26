@@ -60,13 +60,17 @@ recreate a model. To generate this file, use \code{robyn_write()}.
 If you didn't export your data in the json file as "raw_data",
 \code{dt_input} must be provided; \code{dt_holidays} input is optional.}
 
-\item{scenario}{Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"}.
-Scenario \code{"max_response"} answers the question:
+\item{scenario}{Character. Accepted options are: \code{"max_response"}, \code{"target_efficiency"},
+\code{"target_depvar"}. Scenario \code{"max_response"} answers the question:
 "What's the potential revenue/conversions lift with the same (or custom) spend level
 in \code{date_range} and what is the allocation and expected response mix?"
 Scenario \code{"target_efficiency"} optimizes ROAS or CPA and answers the question:
 "What's the potential revenue/conversions lift and spend levels based on a
 \code{target_value} for CPA/ROAS and what is the allocation and expected response mix?"
+Scenario \code{"target_depvar"} optimizes ROAS or CPA, allowing the user to define a
+target value for total revenue or total conversions. To account for total values,
+this scenario calculates the baseline (which is fixed for the \code{date_range} provided),
+and provides the required allocation and budget for paid media channels.
 Deprecated scenario: \code{"max_response_expected_spend"}.}
 
 \item{total_budget}{Numeric. Total marketing budget for all paid channels for the
