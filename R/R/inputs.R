@@ -645,9 +645,10 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
           channel = paid_media_vars[i],
           yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
           yhatLM = results$yhatLM,
-          y = results$data$exposure,
-          x = results$data$spend
+          y = results$data$spend,
+          x = results$data$exposure
         )
+        browser()
         caption <- glued("
           nls: AIC = {aic_nls} | R2 = {r2_nls}
           lm: AIC = {aic_lm} | R2 = {r2_lm}",
@@ -663,10 +664,10 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
           ) %>%
           mutate(models = str_remove(tolower(.data$models), "yhat"))
         models_plot <- ggplot(
-          dt_plotNLS, aes(x = .data$x, y = .data$y, color = .data$models)
+          dt_plotNLS, aes(x = .data$y, y = .data$x, color = .data$models)
         ) +
           geom_point() +
-          geom_line(aes(y = .data$yhat, x = .data$x, color = .data$models)) +
+          geom_line(aes(y = .data$x, x = .data$yhat, color = .data$models)) +
           labs(
             title = "Exposure-Spend Models Fit Comparison",
             x = sprintf("Spend [%s]", paid_media_spends[i]),
@@ -904,18 +905,26 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   tryCatch(
     {
       nlsStartVal <- list(
-        Vmax = max(dt_spendModInput$exposure),
+        Vmax = max(dt_spendModInput$exposure) + 1,
         Km = max(dt_spendModInput$exposure) / 2
       )
 
-      modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
-        data = dt_spendModInput,
-        start = nlsStartVal,
-        control = nls.control(warnOnly = TRUE)
+      # modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
+      #   data = dt_spendModInput,
+      #   start = nlsStartVal,
+      #   control = nls.control(warnOnly = TRUE)
+      # )
+
+      modNLS <- nlsLM(spend ~ Km / (Vmax/exposure - 1),
+                      data = dt_spendModInput,
+                      start = nlsStartVal,
+                      control = nls.control(warnOnly = TRUE)
       )
+
       yhatNLS <- predict(modNLS)
       modNLSSum <- summary(modNLS)
-      rsq_nls <- get_rsq(true = dt_spendModInput$exposure, predicted = yhatNLS)
+      # rsq_nls <- get_rsq(true = dt_spendModInput$exposure, predicted = yhatNLS)
+      rsq_nls <- get_rsq(true = dt_spendModInput$spend, predicted = yhatNLS)
 
       # # QA nls model prediction: check
       # yhatNLSQA <- modNLSSum$coefficients[1,1] * dt_spendModInput$spend / (modNLSSum$coefficients[2,1] + dt_spendModInput$spend) #exposure = v  * spend / (k + spend)
@@ -931,7 +940,8 @@ fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var
   )
 
   # Model 2: Build lm comparison model
-  modLM <- lm(exposure ~ spend - 1, data = dt_spendModInput)
+  # modLM <- lm(exposure ~ spend - 1, data = dt_spendModInput)
+  modLM <- lm(spend ~ exposure - 1, data = dt_spendModInput)
   yhatLM <- predict(modLM)
   modLMSum <- summary(modLM)
   rsq_lm <- modLMSum$adj.r.squared
