@@ -631,7 +631,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     plotNLSCollect <- list()
     mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
       colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
-
+    nls_lm_selector <- rep(FALSE, length(exposure_selector))
     for (i in seq_along(paid_media_spends)) {
       if (exposure_selector[i]) {
         # Run models (NLS and/or LM)
@@ -639,21 +639,20 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
         results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
         # Compare NLS & LM, takes LM if NLS fits worse
         mod <- results$res
-        exposure_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
+        nls_lm_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
         # Data to create plot
         dt_plotNLS <- data.frame(
           channel = paid_media_vars[i],
-          yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
+          yhatNLS = if (nls_lm_selector[i]) results$yhatNLS else results$yhatLM,
           yhatLM = results$yhatLM,
           y = results$data$spend,
           x = results$data$exposure
         )
-        browser()
         caption <- glued("
           nls: AIC = {aic_nls} | R2 = {r2_nls}
           lm: AIC = {aic_lm} | R2 = {r2_lm}",
-          aic_nls = signif(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 3),
-          r2_nls = signif(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 3),
+          aic_nls = signif(AIC(if (nls_lm_selector[i]) results$modNLS else results$modLM), 3),
+          r2_nls = signif(if (nls_lm_selector[i]) mod$rsq_nls else mod$rsq_lm, 3),
           aic_lm = signif(AIC(results$modLM), 3),
           r2_lm = signif(mod$rsq_lm, 3)
         )
@@ -688,39 +687,30 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     modNLSCollect <- bind_rows(modNLSCollect)
     yhatNLSCollect <- bind_rows(yhatCollect)
     yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
-  } else {
-    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
-  }
 
-  # Give recommendations and show warnings
-  if (!is.null(modNLSCollect) && !quiet) {
-    threshold <- 0.80
-    final_print <- these <- NULL # TRUE if we accumulate a common message
-    metrics <- c("R2 (nls)", "R2 (lm)")
-    names(metrics) <- c("rsq_nls", "rsq_lm")
-    for (m in seq_along(metrics)) {
-      temp <- which(modNLSCollect[[names(metrics)[m]]] < threshold)
-      if (length(temp) > 0) {
-        # warning(sprintf(
-        #   "%s: weak relationship for %s and %s spend",
-        #   metrics[m],
-        #   v2t(modNLSCollect$channel[temp], and = "and"),
-        #   ifelse(length(temp) > 1, "their", "its")
-        # ))
-        final_print <- TRUE
-        these <- modNLSCollect$channel[temp]
+    # Give recommendations and show warnings
+    if (!quiet) {
+      threshold <- 0.8
+      temp <- nls_lm_selector[exposure_selector]
+      names(temp) <- paid_media_vars[exposure_selector]
+      for (m in seq_along(temp)) {
+        temp[m] <- (modNLSCollect %>%
+                      filter(.data$channel == names(temp)[m]) %>%
+                      select(c("rsq_nls", "rsq_lm")) %>% max) < threshold
+      }
+      if (any(temp)) {
+        message(
+          paste(
+            "NOTE: potential improvement on splitting channels for better spend exposure fitting.",
+            "Threshold (min.adj.R2) =", threshold,
+            "\n  Check: InputCollect$modNLS$plots outputs"
+          ),
+          "\n  Weak relationship for: ", v2t(names(temp)[temp]), " and their spend"
+        )
       }
     }
-    if (isTRUE(final_print)) {
-      message(
-        paste(
-          "NOTE: potential improvement on splitting channels for better exposure fitting.",
-          "Threshold (Minimum R2) =", threshold,
-          "\n  Check: InputCollect$modNLS$plots outputs"
-        ),
-        "\n  Weak relationship for: ", v2t(these), " and their spend"
-      )
-    }
+  } else {
+    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
   }
 
   ################################################################
