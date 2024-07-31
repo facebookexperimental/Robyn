@@ -377,7 +377,7 @@ robyn_inputs <- function(dt_input = NULL,
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
 
-    # Check for no-variance columns (after filtering modeling window)
+    # Re-check for no-variance columns after feature enginerring
     dt_mod_model_window <- InputCollect$dt_mod %>%
       select(-any_of(InputCollect$unused_vars)) %>%
       filter(
@@ -607,119 +607,26 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   rollingWindowStartWhich <- InputCollect$rollingWindowStartWhich
   rollingWindowEndWhich <- InputCollect$rollingWindowEndWhich
 
-  # dt_inputRollWind
-  dt_inputRollWind <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, ]
-
-  # dt_transform
-  dt_transform <- dt_input
-  colnames(dt_transform)[colnames(dt_transform) == InputCollect$date_var] <- "ds"
-  colnames(dt_transform)[colnames(dt_transform) == InputCollect$dep_var] <- "dep_var"
-  dt_transform <- arrange(dt_transform, .data$ds)
-
-  # dt_transformRollWind
-  dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
-
-  ################################################################
-  #### Model exposure metric from spend
-
-  exposure_selector <- paid_media_spends != paid_media_vars
-  names(exposure_selector) <- paid_media_vars
-
-  if (any(exposure_selector)) {
-    modNLSCollect <- list()
-    yhatCollect <- list()
-    plotNLSCollect <- list()
-    mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
-      colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
-    nls_lm_selector <- rep(FALSE, length(exposure_selector))
-    for (i in seq_along(paid_media_spends)) {
-      if (exposure_selector[i]) {
-        # Run models (NLS and/or LM)
-        dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
-        results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
-        # Compare NLS & LM, takes LM if NLS fits worse
-        mod <- results$res
-        nls_lm_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
-        # Data to create plot
-        dt_plotNLS <- data.frame(
-          channel = paid_media_vars[i],
-          yhatNLS = if (nls_lm_selector[i]) results$yhatNLS else results$yhatLM,
-          yhatLM = results$yhatLM,
-          y = results$data$spend,
-          x = results$data$exposure
-        )
-        caption <- glued("
-          nls: AIC = {aic_nls} | R2 = {r2_nls}
-          lm: AIC = {aic_lm} | R2 = {r2_lm}",
-          aic_nls = signif(AIC(if (nls_lm_selector[i]) results$modNLS else results$modLM), 3),
-          r2_nls = signif(if (nls_lm_selector[i]) mod$rsq_nls else mod$rsq_lm, 3),
-          aic_lm = signif(AIC(results$modLM), 3),
-          r2_lm = signif(mod$rsq_lm, 3)
-        )
-        dt_plotNLS <- dt_plotNLS %>%
-          pivot_longer(
-            cols = c("yhatNLS", "yhatLM"),
-            names_to = "models", values_to = "yhat"
-          ) %>%
-          mutate(models = str_remove(tolower(.data$models), "yhat"))
-        models_plot <- ggplot(
-          dt_plotNLS, aes(x = .data$y, y = .data$x, color = .data$models)
-        ) +
-          geom_point() +
-          geom_line(aes(y = .data$x, x = .data$yhat, color = .data$models)) +
-          labs(
-            title = "Exposure-Spend Models Fit Comparison",
-            x = sprintf("Spend [%s]", paid_media_spends[i]),
-            y = sprintf("Exposure [%s]", paid_media_vars[i]),
-            caption = caption,
-            color = "Model"
-          ) +
-          theme_lares(background = "white", legend = "top") +
-          scale_x_abbr() +
-          scale_y_abbr()
-
-        # Save results into modNLSCollect. plotNLSCollect, yhatCollect
-        modNLSCollect[[paid_media_vars[i]]] <- mod
-        plotNLSCollect[[paid_media_vars[i]]] <- models_plot
-        yhatCollect[[paid_media_vars[i]]] <- dt_plotNLS
-      }
-    }
-    modNLSCollect <- bind_rows(modNLSCollect)
-    yhatNLSCollect <- bind_rows(yhatCollect)
-    yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
-
-    # Give recommendations and show warnings
-    if (!quiet) {
-      threshold <- 0.8
-      temp <- nls_lm_selector[exposure_selector]
-      names(temp) <- paid_media_vars[exposure_selector]
-      for (m in seq_along(temp)) {
-        temp[m] <- (modNLSCollect %>%
-                      filter(.data$channel == names(temp)[m]) %>%
-                      select(c("rsq_nls", "rsq_lm")) %>% max) < threshold
-      }
-      if (any(temp)) {
-        message(
-          paste(
-            "NOTE: potential improvement on splitting channels for better spend exposure fitting.",
-            "Threshold (min.adj.R2) =", threshold,
-            "\n  Check: InputCollect$modNLS$plots outputs"
-          ),
-          "\n  Weak relationship for: ", v2t(names(temp)[temp]), " and their spend"
-        )
-      }
-    }
-  } else {
-    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
-  }
-
-  ################################################################
-  #### Clean & aggregate data
+  ## Standardise ds and dep_var cols
+  dt_transform <- dt_input %>%
+    rename("ds" = InputCollect$date_var,
+           "dep_var" = InputCollect$dep_var) %>%
+    arrange(.data$ds)
 
   ## Transform all factor variables
   if (length(factor_vars) > 0) {
     dt_transform <- mutate_at(dt_transform, factor_vars, as.factor)
   }
+
+  ################################################################
+  #### Model exposure metric from spend
+
+  dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
+  ExposureCollect <- exposure_handling(
+    dt_transformRollWind,
+    paid_media_spends,
+    paid_media_vars,
+    quiet)
 
   ################################################################
   #### Obtain prophet trend, seasonality and change-points
@@ -765,12 +672,10 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
 
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
-  InputCollect[["dt_modRollWind"]] <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
-  InputCollect[["dt_inputRollWind"]] <- dt_inputRollWind
   InputCollect[["modNLS"]] <- list(
-    results = modNLSCollect,
-    yhat = yhatNLSCollect,
-    plots = plotNLSCollect
+    results = ExposureCollect$modNLSCollect,
+    yhat = ExposureCollect$yhatNLSCollect,
+    plots = ExposureCollect$plotNLSCollect
   )
   return(InputCollect)
 }
@@ -870,6 +775,105 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   return(dt_transform)
 }
 
+exposure_handling <- function(dt_transformRollWind, paid_media_spends, paid_media_vars, quiet) {
+
+  exposure_selector <- paid_media_spends != paid_media_vars
+  names(exposure_selector) <- paid_media_vars
+
+  if (any(exposure_selector)) {
+    modNLSCollect <- list()
+    yhatCollect <- list()
+    plotNLSCollect <- list()
+    # mediaCostFactor <- colSums(subset(dt_transformRollWind, select = paid_media_spends), na.rm = TRUE) /
+    #   colSums(subset(dt_transformRollWind, select = paid_media_vars), na.rm = TRUE)
+    nls_lm_selector <- rep(FALSE, length(exposure_selector))
+    for (i in seq_along(paid_media_spends)) {
+      if (exposure_selector[i]) {
+        # Run models (NLS and/or LM)
+        dt_spendModInput <- subset(dt_transformRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
+        results <- fit_spend_exposure(dt_spendModInput, paid_media_vars[i])
+        # Compare NLS & LM, takes LM if NLS fits worse
+        mod <- results$res
+        nls_lm_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
+        # Data to create plot
+        dt_plotNLS <- data.frame(
+          channel = paid_media_vars[i],
+          yhatNLS = if (nls_lm_selector[i]) results$yhatNLS else results$yhatLM,
+          yhatLM = results$yhatLM,
+          spend = results$data$spend,
+          exposure = results$data$exposure
+        )
+        caption <- glued("
+          nls: AIC = {aic_nls} | R2 = {r2_nls}
+          lm: AIC = {aic_lm} | R2 = {r2_lm}",
+                         aic_nls = signif(AIC(if (nls_lm_selector[i]) results$modNLS else results$modLM), 3),
+                         r2_nls = signif(if (nls_lm_selector[i]) mod$rsq_nls else mod$rsq_lm, 3),
+                         aic_lm = signif(AIC(results$modLM), 3),
+                         r2_lm = signif(mod$rsq_lm, 3)
+        )
+        dt_plotNLS <- dt_plotNLS %>%
+          pivot_longer(
+            cols = c("yhatNLS", "yhatLM"),
+            names_to = "models", values_to = "yhat"
+          ) %>%
+          mutate(models = str_remove(tolower(.data$models), "yhat"))
+        models_plot <- ggplot(
+          dt_plotNLS, aes(x = .data$spend, y = .data$exposure, color = .data$models)
+        ) +
+          geom_point() +
+          geom_line(aes(y = .data$exposure, x = .data$yhat, color = .data$models)) +
+          labs(
+            title = "Exposure-Spend Models Fit Comparison",
+            x = sprintf("Spend [%s]", paid_media_spends[i]),
+            y = sprintf("Exposure [%s]", paid_media_vars[i]),
+            caption = caption,
+            color = "Model"
+          ) +
+          theme_lares(background = "white", legend = "top") +
+          scale_x_abbr() +
+          scale_y_abbr()
+
+        # Save results into modNLSCollect. plotNLSCollect, yhatCollect
+        modNLSCollect[[paid_media_vars[i]]] <- mod
+        plotNLSCollect[[paid_media_vars[i]]] <- models_plot
+        yhatCollect[[paid_media_vars[i]]] <- dt_plotNLS
+      }
+    }
+    modNLSCollect <- bind_rows(modNLSCollect)
+    yhatNLSCollect <- bind_rows(yhatCollect)
+    yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
+
+    # Give recommendations and show warnings
+    if (!quiet) {
+      threshold <- 0.8
+      temp <- nls_lm_selector[exposure_selector]
+      names(temp) <- paid_media_vars[exposure_selector]
+      for (m in seq_along(temp)) {
+        temp[m] <- (modNLSCollect %>%
+                      filter(.data$channel == names(temp)[m]) %>%
+                      select(c("rsq_nls", "rsq_lm")) %>% max) < threshold
+      }
+      if (any(temp)) {
+        message(
+          paste(
+            "NOTE: potential improvement on splitting channels for better spend exposure fitting.",
+            "Threshold (min.adj.R2) =", threshold,
+            "\n  Check: InputCollect$modNLS$plots outputs"
+          ),
+          "\n  Weak relationship for: ", v2t(names(temp)[temp]), " and their spend"
+        )
+      }
+    }
+  } else {
+    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
+  }
+
+  return(list(modNLSCollect = modNLSCollect,
+              plotNLSCollect = plotNLSCollect,
+              yhatNLSCollect = yhatNLSCollect))
+}
+
+
 ####################################################################
 #' Fit a nonlinear model for media spend and exposure
 #'
@@ -883,11 +887,9 @@ prophet_decomp <- function(dt_transform, dt_holidays,
 #'
 #' @param dt_spendModInput data.frame. Containing channel spends and
 #' exposure data.
-#' @param mediaCostFactor Numeric vector. The ratio between raw media
-#' exposure and spend metrics.
 #' @param paid_media_var Character. Paid media variable.
 #' @return List. Containing the all spend-exposure model results.
-fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var) {
+fit_spend_exposure <- function(dt_spendModInput, paid_media_var) {
   if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns")
   colnames(dt_spendModInput) <- c("spend", "exposure")
 
