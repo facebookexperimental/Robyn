@@ -1,0 +1,6 @@
+load("@fbcode_macros//build_defs:python_binary.bzl", "python_binary")
+
+python_binary(
+    name = "robyn",
+    main_src = "robyn.py",
+)
