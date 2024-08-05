@@ -53,3 +53,67 @@ class BudgetAllocator:
         :return: The result of the budget allocation.
         """
         pass
+
+    def _set_constraints(
+        self,
+        channel_constr_low: Optional[List[float]],
+        channel_constr_up: Optional[List[float]]
+    ) -> None:
+        # Corresponds to constraint setting in robyn_allocator()
+        # Implementation details...
+        pass
+
+    def _prepare_data(self, date_range: str) -> None:
+        # Corresponds to data preparation steps in robyn_allocator()
+        # Implementation details...
+        pass
+
+    def _optimize_allocation(
+        self,
+        scenario: str,
+        total_budget: Optional[float],
+        target_value: Optional[float],
+        optim_algo: str,
+        maxeval: int,
+        constr_mode: str
+    ) -> Dict[str, Any]:
+        # Corresponds to optimization logic in robyn_allocator()
+        # Implementation details...
+        pass
+
+    def _get_hill_params(self) -> Dict[str, Any]:
+        # Corresponds to get_hill_params() function
+        # Implementation details...
+        pass
+
+    def _check_metric_dates(
+        self,
+        date_range: str,
+        available_dates: List[date],
+        day_interval: int
+    ) -> Dict[str, Any]:
+        # Corresponds to check_metric_dates() function
+        # Implementation details...
+        pass
+
+    def _robyn_response(
+        self,
+        metric_name: str,
+        date_range: str
+    ) -> Dict[str, Any]:
+        # Corresponds to robyn_response() function
+        # Implementation details...
+        pass
+
+    def _fx_objective(
+        self,
+        x: float,
+        coeff: float,
+        alpha: float,
+        inflexion: float,
+        x_hist_carryover: float,
+        get_sum: bool = False
+    ) -> float:
+        # Corresponds to fx_objective() function
+        # Implementation details...
+        pass

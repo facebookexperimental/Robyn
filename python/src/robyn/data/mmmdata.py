@@ -67,7 +67,7 @@ class MMMData:
         Initialize the MMMData class with a pandas DataFrame and an MMMDataSpec object.
 
         :param data: A pandas DataFrame containing the data.
-        :param mmmdata_spec: An MMMDataSpec object.
+        :param mmmdata_spec: An MMMDataSpec object containing mapping of what is what in the provided data.
         """
         self.data: pd.DataFrame = data
         self.mmmdata_spec: MMMData.MMMDataSpec = mmmdata_spec

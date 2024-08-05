@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 @dataclass
-class ModelsOutput:
+class ModelOutput:
     """
     A data object to store metadata about the output models.
 

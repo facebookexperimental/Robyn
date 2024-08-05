@@ -19,12 +19,6 @@ class BudgetAllocationPlots:
         """
         Initialize the BudgetAllocationPlots class with necessary data.
 
-        :param mmmdata_collection: Dictionary containing input data
-        :param output_collect: Dictionary containing output data
-        :param dt_optim_out: Dictionary containing optimization output data
-        :param select_model: Selected model identifier
-        :param scenario: Optimization scenario
-        :param eval_list: Evaluation list data
         """
         pass
 

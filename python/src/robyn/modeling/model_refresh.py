@@ -26,7 +26,7 @@ class ModelRefresh:
         """
         pass
 
-    def model_refresh(
+    def model_refresh_from_robyn_object(
         self,
         robyn_object: Dict[str, Any],
         refresh_config: ModelRefreshConfig,
@@ -44,7 +44,7 @@ class ModelRefresh:
         """
         pass
 
-    def model_refresh(
+    def model_refresh_from_reloadedstate(
         self,
         json_file: str,
         refresh_config: ModelRefreshConfig,

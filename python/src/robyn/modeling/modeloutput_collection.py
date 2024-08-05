@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
 @dataclass
-class ModelsOutputCollection:
+class ModelOutputCollection:
     """
     A data class to store a collection of models data.
 
@@ -36,7 +36,7 @@ class ModelsOutputCollection:
     allSolutions: List[Any]
     allPareto: List[Any]
     calibration_constraint: Any
-    models_data: ModelsData
+    model_output: ModelOutput
     modelrun_trials_config: TrialsConfig
     cores: int
     intercept_sign: str
