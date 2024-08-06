@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import weibull_min
 
-class AdstockTransformation:
+class AdstockSaturationTransformation:
     def __init__(self) -> None:
         pass
 

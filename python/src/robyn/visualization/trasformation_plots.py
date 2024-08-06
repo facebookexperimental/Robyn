@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from plotnine import ggplot, aes, geom_line, labs, theme_gray, geom_hline, geom_text, facet_grid
-from transformation import AdstockTransformation
+from transformation import AdstockSaturationTransformation
 
 class AdstockSaturationPlots:
     def plot_adstock_models(self, theta_values: np.ndarray, shape_values: np.ndarray, scale_values: np.ndarray, plot: bool = True) -> tuple:
@@ -19,7 +19,7 @@ class AdstockSaturationPlots:
             tuple: A tuple containing the geometric adstock plot and the Weibull adstock plot.
         """
         if plot:
-            transform = AdstockTransformation()
+            transform = AdstockSaturationTransformation()
             # Plot geometric
             geom_collect = []
             for theta in theta_values:

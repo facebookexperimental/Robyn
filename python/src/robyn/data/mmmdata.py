@@ -2,13 +2,14 @@
 
 from typing import List, Optional, Any
 import pandas as pd
+from enums import DependentVarType, AdstockType, SaturationType, ProphetCountry
 
 class MMMData:
     class MMMDataSpec:
         def __init__(
             self,
             dep_var: Optional[str] = None,
-            dep_var_type: Optional[str] = None,
+            dep_var_type: DependentVarType = DependentVarType.REVENUE,
             date_var: str = "auto",
             paid_media_spends: Optional[List[str]] = None,
             paid_media_vars: Optional[List[str]] = None,
@@ -18,10 +19,10 @@ class MMMData:
             context_vars: Optional[List[str]] = None,
             context_signs: Optional[List[str]] = None,
             factor_vars: Optional[List[str]] = None,
-            adstock: Optional[str] = None
+            adstock: AdstockType = AdstockType.GEOMETRIC,
         ) -> None:
             self.dep_var: Optional[str] = dep_var
-            self.dep_var_type: Optional[str] = dep_var_type
+            self.dep_var_type: DependentVarType = dep_var_type
             self.date_var: str = date_var
             self.paid_media_spends: Optional[List[str]] = paid_media_spends
             self.paid_media_vars: Optional[List[str]] = paid_media_vars
@@ -31,7 +32,7 @@ class MMMData:
             self.context_vars: Optional[List[str]] = context_vars
             self.context_signs: Optional[List[str]] = context_signs
             self.factor_vars: Optional[List[str]] = factor_vars
-            self.adstock: Optional[str] = adstock
+            self.adstock: AdstockType = adstock
 
         def __str__(self) -> str:
             return f"""
