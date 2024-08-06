@@ -94,3 +94,7 @@ class HyperParameterNames(Enum):
     ALPHAS = "alphas"
     GAMMAS = "gammas"
     PENALTY = "penalty"
+
+class CalibrationScope(Enum):
+    IMMEDIATE = "immediate"
+    TOTAL = "total"

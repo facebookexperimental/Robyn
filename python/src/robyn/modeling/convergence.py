@@ -15,7 +15,7 @@ class ModelConvergence:
     def __init__(self) -> None:
         pass
 
-    def model_converge(
+    def converge(
         self,
         output_models: OutputModels,
         n_cuts: int = 20,

@@ -143,7 +143,8 @@ class MMMModelExecutor:
             quiet: Suppress output.
         """
         
-        def model_fit_iteration(iteration: int, *args: Any, **kwargs: Any) -> None:
+        #robyn_iteration from model.R
+        def model_fit_iteration(iteration: int, hypParamSamNG, adstock: AdstockType, *args: Any, **kwargs: Any) -> ModelOutputTrialResult:
             """
             Fit the model.
 

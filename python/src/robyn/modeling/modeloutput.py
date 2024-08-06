@@ -12,6 +12,7 @@ class ModelOutput:
 
     def __init__(self):
         self.metadata: Dict[str, any] = {}
+        self.trials: Dict[str, any] = {}
 
     def update_metadata(self, 
                         hyper_fixed: Dict[str, any], 

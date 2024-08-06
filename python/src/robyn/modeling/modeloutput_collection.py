@@ -1,48 +1,64 @@
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 
-@dataclass
-class ModelOutputCollection:
-    """
-    A data class to store a collection of models data.
-
-    Attributes:
-        resultHypParam (Dict[str, Any]): Resulting hyperparameters.
-        xDecompAgg (Dict[str, Any]): Decomposed aggregated data.
-        mediaVecCollect (List[Any]): Media vector collection.
-        xDecompVecCollect (List[Any]): Decomposed vector collection.
-        resultCalibration (Optional[Dict[str, Any]]): Resulting calibration data.
-        allSolutions (List[Any]): All solutions.
-        allPareto (List[Any]): All Pareto fronts.
-        calibration_constraint (Any): Calibration constraint.
-        ModelsData (Dict[str, Any]): Models data.
-        cores (int): Number of cores used.
-        iterations (int): Number of iterations.
-        trials (int): Number of trials.
-        intercept_sign (str): Sign of the intercept.
-        nevergrad_algo (str): Nevergrad algorithm used.
-        add_penalty_factor (bool): Whether to add a penalty factor or not.
-        seed (int): Seed used.
-        UI (Optional[Any]): User interface data.
-        pareto_fronts (List[Any]): Pareto fronts.
-        hyper_fixed (Dict[str, Any]): Fixed hyperparameters.
-        plot_folder (str): Plot folder path.
-    """
-    resultHypParam: Dict[str, Any]
-    xDecompAgg: Dict[str, Any]
-    mediaVecCollect: List[Any]
-    xDecompVecCollect: List[Any]
-    resultCalibration: Optional[Dict[str, Any]]
-    allSolutions: List[Any]
-    allPareto: List[Any]
-    calibration_constraint: Any
-    model_output: ModelOutput
-    modelrun_trials_config: TrialsConfig
+@dataclass(frozen=True)
+class OutputCollect:
+    resultHypParam: pd.DataFrame
+    xDecompAgg: pd.DataFrame
+    mediaVecCollect: pd.DataFrame
+    xDecompVecCollect: pd.DataFrame
+    resultCalibration: Optional[pd.DataFrame]
+    allSolutions: List[str]
+    allPareto: Dict[str, Any]
+    calibration_constraint: float
+    OutputModels: OutputModels
     cores: int
+    iterations: int
+    trials: List[Any]
     intercept_sign: str
     nevergrad_algo: str
+    add_penalty_factor: bool
     seed: int
     UI: Optional[Any]
-    pareto_fronts: List[Any]
-    hyper_fixed: Dict[str, Any]
+    pareto_fronts: int
+    hyper_fixed: bool
     plot_folder: str
+    convergence: Optional[Dict[str, Any]] = None
+    ts_validation_plot: Optional[Any] = None
+    selectID: Optional[str] = None
+    hyper_updated: Optional[Dict[str, List[float]]] = None
+    runTime: Optional[float] = None
+
+    @classmethod
+    def create(cls, output_collect_dict: Dict[str, Any]) -> 'OutputCollect':
+        return cls(
+            resultHypParam=output_collect_dict['resultHypParam'],
+            xDecompAgg=output_collect_dict['xDecompAgg'],
+            mediaVecCollect=output_collect_dict['mediaVecCollect'],
+            xDecompVecCollect=output_collect_dict['xDecompVecCollect'],
+            resultCalibration=output_collect_dict.get('resultCalibration'),
+            allSolutions=output_collect_dict['allSolutions'],
+            allPareto=output_collect_dict['allPareto'],
+            calibration_constraint=output_collect_dict['calibration_constraint'],
+            OutputModels=OutputModels.create(output_collect_dict['OutputModels']),
+            cores=output_collect_dict['cores'],
+            iterations=output_collect_dict['iterations'],
+            trials=output_collect_dict['trials'],
+            intercept_sign=output_collect_dict['intercept_sign'],
+            nevergrad_algo=output_collect_dict['nevergrad_algo'],
+            add_penalty_factor=output_collect_dict['add_penalty_factor'],
+            seed=output_collect_dict['seed'],
+            UI=output_collect_dict.get('UI'),
+            pareto_fronts=output_collect_dict['pareto_fronts'],
+            hyper_fixed=output_collect_dict['hyper_fixed'],
+            plot_folder=output_collect_dict['plot_folder'],
+            convergence=output_collect_dict.get('convergence'),
+            ts_validation_plot=output_collect_dict.get('ts_validation_plot'),
+            selectID=output_collect_dict.get('selectID'),
+            hyper_updated=output_collect_dict.get('hyper_updated'),
+            runTime=output_collect_dict.get('runTime')
+        )
+
+    def __post_init__(self):
+        object.__setattr__(self, '__class__', 'robyn_outputs')

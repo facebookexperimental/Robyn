@@ -2,6 +2,7 @@
 
 import pandas as pd
 from typing import Optional, List, Dict
+from data import CalibrationInput
 
 class Calibration:
     """
@@ -35,7 +36,7 @@ class Calibration:
     """
 
     def __init__(self,
-                 calibration_input: pd.DataFrame,
+                 calibration_input: CalibrationInput,
                  df_raw: pd.DataFrame,
                  dayInterval: int,
                  xDecompVec: pd.DataFrame,
