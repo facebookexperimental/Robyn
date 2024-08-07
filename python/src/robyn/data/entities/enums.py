@@ -63,6 +63,32 @@ class PaidMediaSigns(Enum):
     NEGATIVE = "negative"
     DEFAULT = "default"
 
+class OrganicSigns(Enum):
+    """
+    Enum class for Organic variables signs.
+
+    Attributes:
+    POSITIVE (str): Positive sign.
+    NEGATIVE (str): Negative sign.
+    DEFAULT (str): Default sign.
+    """
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    DEFAULT = "default"
+
+class ContextSigns(Enum):
+    """
+    Enum class for Context variables signs.
+
+    Attributes:
+    POSITIVE (str): Positive sign.
+    NEGATIVE (str): Negative sign.
+    DEFAULT (str): Default sign.
+    """
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    DEFAULT = "default"
+
 class ProphetSigns(Enum):
     """
     Enum class for prophet signs.
@@ -75,25 +101,6 @@ class ProphetSigns(Enum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
-
-class HyperParameterNames(Enum):
-    """
-    Enum class for hyperparameter names.
-
-    Attributes:
-    THETAS (str): Thetas hyperparameter.
-    SHAPES (str): Shapes hyperparameter.
-    SCALES (str): Scales hyperparameter.
-    ALPHAS (str): Alphas hyperparameter.
-    GAMMAS (str): Gammas hyperparameter.
-    PENALTY (str): Penalty hyperparameter.
-    """
-    THETAS = "thetas"
-    SHAPES = "shapes"
-    SCALES = "scales"
-    ALPHAS = "alphas"
-    GAMMAS = "gammas"
-    PENALTY = "penalty"
 
 class CalibrationScope(Enum):
     IMMEDIATE = "immediate"

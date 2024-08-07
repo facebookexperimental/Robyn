@@ -18,6 +18,9 @@ class CalibrationInput:
         metric (List[str]): List of metrics.
         calibration_scopes (List[CalibrationScope]): List of calibration scopes.
     """
+
+    #TODO should this be a dictionary with keys as channel names and values as lists of lift start dates, lift end dates, lift_abs, spend, confidence, etc?
+
     channel: List[str] = field(default_factory=list)
     lift_start_date: pd.Series = field(default_factory=pd.Series)
     lift_end_date: pd.Series = field(default_factory=pd.Series)

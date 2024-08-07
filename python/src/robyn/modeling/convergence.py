@@ -36,27 +36,15 @@ class ModelConvergence:
         :return: Dictionary containing convergence results.
         """
         fig1 = plt.figure()
-    fig2 = plt.figure()
+        fig2 = plt.figure()
 
-    # Example ConvergenceResult
-    convergence_result: ConvergenceResult = {
-        'moo_distrb_plot': fig1,
-        'moo_cloud_plot': fig2,
-        'errors': None,
-        'conv_msg': "Convergence successful.",
-        'sd_qtref': 3.0,
-        'med_lowb': 2.0
-    }
+        # Example ConvergenceResult
+        convergence_result: ConvergenceResult = {
+            'moo_distrb_plot': fig1,
+            'moo_cloud_plot': fig2,
+            'errors': None,
+            'conv_msg': "Convergence successful.",
+            'sd_qtref': 3.0,
+            'med_lowb': 2.0
+        }
         return convergence_result
-
-# Example usage:
-if __name__ == "__main__":
-    # Initialize OutputModels (this would be replaced with actual output models initialization)
-    output_models = OutputModels()
-
-    # Initialize ModelConvergence
-    model_convergence = ModelConvergence()
-
-    # Example call to model_converge (this would not do anything as methods are not implemented)
-    convergence_results = model_convergence.model_converge(output_models)
-    print(convergence_results)

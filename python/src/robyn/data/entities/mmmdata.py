@@ -2,10 +2,31 @@
 
 from typing import List, Optional, Any
 import pandas as pd
-from enums import DependentVarType, AdstockType, SaturationType, ProphetCountry
+from enums import DependentVarType, AdstockType, SaturationType, ProphetCountry, PaidMediaSigns
 
 class MMMData:
     class MMMDataSpec:
+
+        """
+        Dependent Variable (Target Variable)
+            dep_var: The name of the column in the input dataframe that represents the dependent variable (target variable) that we want to model. This is the variable that we're trying to predict or explain. For example, it could be "sales", "revenue", "conversions", etc.
+            dep_var_type: The type of the dependent variable. In this case, it's an enumeration (DependentVarType) that can take values like REVENUE, CONVERSIONS, etc. This helps the model understand the nature of the dependent variable.
+        Date Variable
+            date_var: The name of the column in the input dataframe that represents the date variable. This is used to specify the time period for which the data is collected. If set to "auto", the model will automatically detect the date column.
+        Paid Media Variables
+            paid_media_spends: A list of column names in the input dataframe that represent the paid media spends (e.g., advertising expenses). These variables are used to model the impact of paid media on the dependent variable.
+            paid_media_vars: A list of column names in the input dataframe that represent additional paid media variables (e.g., ad impressions, clicks, etc.). These variables can be used to model non-linear relationships between paid media and the dependent variable.
+            paid_media_signs: A list of signs (positive or negative) that indicate the expected direction of the relationship between each paid media variable and the dependent variable.
+        Organic Variables
+            organic_vars: A list of column names in the input dataframe that represent organic variables (e.g., social media engagement, content metrics, etc.). These variables are used to model the impact of organic factors on the dependent variable.
+            organic_signs: A list of signs (positive or negative) that indicate the expected direction of the relationship between each organic variable and the dependent variable.
+        Context Variables
+            context_vars: A list of column names in the input dataframe that represent context variables (e.g., seasonality, weather, economic indicators, etc.). These variables are used to model external factors that can impact the dependent variable.
+            context_signs: A list of signs (positive or negative) that indicate the expected direction of the relationship between each context variable and the dependent variable.
+        Factor Variables
+            factor_vars: A list of column names in the input dataframe that represent factor variables (e.g., categorical variables like region, product category, etc.). These variables can be used to model non-linear relationships and interactions between variables.
+        
+        """
         def __init__(
             self,
             dep_var: Optional[str] = None,
@@ -13,13 +34,12 @@ class MMMData:
             date_var: str = "auto",
             paid_media_spends: Optional[List[str]] = None,
             paid_media_vars: Optional[List[str]] = None,
-            paid_media_signs: Optional[List[str]] = None,
+            paid_media_signs: Optional[List[PaidMediaSigns]] = None,
             organic_vars: Optional[List[str]] = None,
-            organic_signs: Optional[List[str]] = None,
+            organic_signs: Optional[List[OrganicSigns]] = None,
             context_vars: Optional[List[str]] = None,
-            context_signs: Optional[List[str]] = None,
+            context_signs: Optional[List[ContextSigns]] = None,
             factor_vars: Optional[List[str]] = None,
-            adstock: AdstockType = AdstockType.GEOMETRIC,
         ) -> None:
             self.dep_var: Optional[str] = dep_var
             self.dep_var_type: DependentVarType = dep_var_type
@@ -32,7 +52,6 @@ class MMMData:
             self.context_vars: Optional[List[str]] = context_vars
             self.context_signs: Optional[List[str]] = context_signs
             self.factor_vars: Optional[List[str]] = factor_vars
-            self.adstock: AdstockType = adstock
 
         def __str__(self) -> str:
             return f"""
@@ -48,7 +67,6 @@ class MMMData:
             context_vars: {self.context_vars}
             context_signs: {self.context_signs}
             factor_vars: {self.factor_vars}
-            adstock: {self.adstock}
             """
 
         def update(self, **kwargs: Any) -> None:
@@ -103,49 +121,3 @@ class MMMData:
         :param column_name: The name of the column to remove.
         """
         self.data.drop(columns=[column_name], inplace=True)
-
-# Example usage:
-if __name__ == "__main__":
-    # Create a sample DataFrame
-    sample_data: dict[str, List[int]] = {
-        'A': [1, 2, 3],
-        'B': [4, 5, 6],
-        'C': [7, 8, 9]
-    }
-    df: pd.DataFrame = pd.DataFrame(sample_data)
-
-    # Initialize MMMDataSpec
-    mmmdata_spec: MMMData.MMMDataSpec = MMMData.MMMDataSpec(
-        dep_var="sales",
-        dep_var_type="revenue",
-        paid_media_spends=["tv", "radio", "print"],
-        paid_media_vars=["tv_GRP", "radio_GRP", "print_GRP"],
-        prophet_country="US"
-    )
-
-    # Initialize MMMData with the sample DataFrame and MMMDataSpec
-    mmm_data: MMMData = MMMData(df, mmmdata_spec)
-
-    # Display the data
-    mmm_data.display_data()
-
-    # Get summary statistics
-    summary: pd.DataFrame = mmm_data.get_summary()
-    print(summary)
-
-    # Add a new column
-    mmm_data.add_column('D', [10, 11, 12])
-    mmm_data.display_data()
-
-    # Remove a column
-    mmm_data.remove_column('A')
-    mmm_data.display_data()
-
-    # Print MMMDataSpec
-    print(mmm_data.mmmdata_spec)
-
-    # Update some attributes in MMMDataSpec
-    mmm_data.mmmdata_spec.update(dep_var="conversions", dep_var_type="count", prophet_country="UK")
-
-    # Print updated MMMDataSpec
-    print(mmm_data.mmmdata_spec)
