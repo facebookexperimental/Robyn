@@ -1,3 +1,5 @@
+#pyre-strict
+
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 import pandas as pd
@@ -5,7 +7,6 @@ from datetime import datetime
 from pyre_extensions import strict
 
 @strict
-@dataclass(frozen=True)
 class MMMDataCollection:
     """Collection of data and parameters for MMM modeling"""
     

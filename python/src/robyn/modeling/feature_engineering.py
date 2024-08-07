@@ -7,6 +7,7 @@ class FeatureEngineering:
     def __init__(self, mmm_data_collection: MMMDataCollection) -> None:
         self.mmm_data_collection = mmm_data_collection
 
+    #inputs.robyn_engineering
     def feature_engineering(self, quiet: bool = False) -> MMMDataCollection:
         """Performs feature engineering for the Robyn model.
 

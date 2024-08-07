@@ -4,6 +4,8 @@ from typing import List, Optional, Any
 import pandas as pd
 from enums import DependentVarType, AdstockType, SaturationType, ProphetCountry, PaidMediaSigns
 
+
+@dataclass(frozen=True)
 class MMMData:
     class MMMDataSpec:
 
