@@ -3,6 +3,10 @@ import numpy as np
 import pandas as pd
 from scipy.stats import weibull_min
 
+from robyn.data.entities.enums import AdstockType
+from robyn.data.entities.hyperparameters import Hyperparameters
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+
 class AdstockSaturationTransformation:
     def __init__(self) -> None:
         pass
@@ -118,7 +122,7 @@ class AdstockSaturationTransformation:
     #         "media_impressions_imme": media_impressions_imme.tolist()
     #     }   
 
-    def transform_adstock(self, media_spend_data: List[float], adstock: Literal["geometric", "weibull_cdf", "weibull_pdf"], theta: Optional[float] = None, shape: Optional[float] = None, scale: Optional[float] = None, windlen: Optional[int] = None) -> Dict[str, Union[List[float], float, np.ndarray]]:
+    def transform_adstock(self, media_spend_data: List[float], adstock: AdstockType, theta: Optional[float] = None, shape: Optional[float] = None, scale: Optional[float] = None, windlen: Optional[int] = None) -> Dict[str, Union[List[float], float, np.ndarray]]:
         """
         Transforms the input data using the adstock model.
 
@@ -165,7 +169,7 @@ class AdstockSaturationTransformation:
     
     #TODO method should take only required input data instead of MMMDataCollection. Send only information that is needed.
     #TODO review return type. It is open ended dictionary. Can make strictly typed dictionary
-    def run_transformations(data_collection: MMMDataCollection, hyperparameters: Dict[str, HyperParameterConfig]) -> Dict[str, pd.DataFrame]:
+    def run_transformations(data_collection: MMMDataCollection, hyperparameters: Hyperparameters) -> Dict[str, pd.DataFrame]:
         """
         Transform media for model fitting.
 

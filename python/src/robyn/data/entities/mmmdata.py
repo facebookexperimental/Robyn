@@ -1,8 +1,9 @@
 # pyre-strict
 
+from dataclasses import dataclass
 from typing import List, Optional, Any
 import pandas as pd
-from enums import DependentVarType, AdstockType, SaturationType, ProphetCountry, PaidMediaSigns
+from enums import ContextSigns, DependentVarType, OrganicSigns, PaidMediaSigns
 
 
 @dataclass(frozen=True)

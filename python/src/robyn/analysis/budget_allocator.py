@@ -1,13 +1,18 @@
 # pyre-strict
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from typing import Optional
+
+from robyn.analysis.budget_allocation_result import BudgetAllocationResult
+from robyn.analysis.budgetallocator_config import BudgetAllocatorConfig
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
 
 class BudgetAllocator:
     def budget_allocator(
         self,
         mmmdata_collection: MMMDataCollection,
-        model_output_collection: ModelOutputsCollection,
+        model_output_collection: ModelOutputCollection,
         select_model: str,
         budget_allocator_config: BudgetAllocatorConfig
     ) -> BudgetAllocationResult:
@@ -22,7 +27,7 @@ class BudgetAllocator:
         """
         pass
 
-    def budget_allocator(
+    def budget_allocator_from_robyn_object(
         self,
         robyn_object: Dict[str, Any],
         select_model: str,
@@ -38,7 +43,7 @@ class BudgetAllocator:
         """
         pass
 
-    def budget_allocator(
+    def budget_allocator_from_json(
         self,
         json_file: str,
         select_model: str,
@@ -63,11 +68,6 @@ class BudgetAllocator:
         # Implementation details...
         pass
 
-    def _prepare_data(self, date_range: str) -> None:
-        # Corresponds to data preparation steps in robyn_allocator()
-        # Implementation details...
-        pass
-
     def _optimize_allocation(
         self,
         scenario: str,
@@ -83,25 +83,6 @@ class BudgetAllocator:
 
     def _get_hill_params(self) -> Dict[str, Any]:
         # Corresponds to get_hill_params() function
-        # Implementation details...
-        pass
-
-    def _check_metric_dates(
-        self,
-        date_range: str,
-        available_dates: List[date],
-        day_interval: int
-    ) -> Dict[str, Any]:
-        # Corresponds to check_metric_dates() function
-        # Implementation details...
-        pass
-
-    def _robyn_response(
-        self,
-        metric_name: str,
-        date_range: str
-    ) -> Dict[str, Any]:
-        # Corresponds to robyn_response() function
         # Implementation details...
         pass
 

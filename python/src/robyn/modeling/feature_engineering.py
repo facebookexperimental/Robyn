@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from plotnine import ggplot, aes, geom_point, geom_line, labs, theme_gray, scale_x_continuous, scale_y_continuous
 
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+
 class FeatureEngineering:
     def __init__(self, mmm_data_collection: MMMDataCollection) -> None:
         self.mmm_data_collection = mmm_data_collection
