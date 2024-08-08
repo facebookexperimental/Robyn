@@ -5,6 +5,7 @@
 
 from robyn.analysis.budget_allocation_result import BudgetAllocationResult
 from robyn.analysis.budgetallocator_config import BudgetAllocatorConfig
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
 from robyn.modeling.entities.modeloutput import ModelOutput
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 
@@ -17,7 +18,7 @@ class Robyn:
         Args:
             working_dir (str): The path to the working directory.
         """
-        pass
+        self.working_dir = working_dir
 
     # Load input data for the first time and validates
     def initialize(
@@ -26,7 +27,7 @@ class Robyn:
         holidays_data: HolidaysData,
         hyperparameters: HyperParametersConfig,
         calibration_input: CalibrationInputConfig,
-    ) -> None:
+    ) -> MMMDataCollection:
         """
         Loads input data for the first time and validates it.
 

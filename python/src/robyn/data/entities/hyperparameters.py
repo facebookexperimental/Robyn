@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 @dataclass(frozen=True)
-class Hyperparameter:
+class ChannelHyperparameters:
     """
-    Hyperparameter is an immutable data class that holds the hyperparameters for a model.
+    ChannelHyperparameters is an immutable data class that holds the hyperparameters for a model.
 
     Attributes:
         thetas (List[float]): List of theta values.
@@ -43,7 +43,7 @@ class Hyperparameters:
     Attributes:
         hyperparameters (Dict[str, Hyperparameter]): A dictionary of hyperparameters where the key is the channel name and the value is a Hyperparameter object.
     """
-    hyperparameters: Dict[str, Hyperparameter] = field(default_factory=dict)
+    hyperparameters: Dict[str, ChannelHyperparameters] = field(default_factory=dict)
 
     def __str__(self) -> str:
         return (
@@ -52,7 +52,7 @@ class Hyperparameters:
             + "\n)"
         )
 
-    def get_hyperparameter(self, channel: str) -> Hyperparameter:
+    def get_hyperparameter(self, channel: str) -> ChannelHyperparameters:
         """
         Get the hyperparameter for a specific channel.
 

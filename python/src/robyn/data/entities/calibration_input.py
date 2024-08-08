@@ -1,41 +1,37 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import Dict
 import pandas as pd
 from enums import CalibrationScope
 
+# Define a new data class to hold the calibration data for each channel
 @dataclass(frozen=True)
-class CalibrationInput:
+class ChannelCalibrationData:
     """
-    CalibrationInput is an immutable data class that holds the necessary inputs for a calibration process.
+    ChannelCalibrationData is an immutable data class that holds the calibration data for a single channel.
 
     Attributes:
-        channel (List[str]): List of channel names.
-        lift_start_date (pd.Series): Series of lift start dates.
-        lift_end_date (pd.Series): Series of lift end dates.
-        lift_abs (List[int]): List of absolute lift values.
-        spend (List[int]): List of spend values.
-        confidence (List[float]): List of confidence intervals.
-        metric (List[str]): List of metrics.
-        calibration_scopes (List[CalibrationScope]): List of calibration scopes.
+        lift_start_date (pd.Timestamp): Lift start date.
+        lift_end_date (pd.Timestamp): Lift end date.
+        lift_abs (int): Absolute lift value.
+        spend (int): Spend value.
+        confidence (float): Confidence interval.
+        metric (str): Metric.
+        calibration_scope (CalibrationScope): Calibration scope.
     """
 
-    #TODO should this be a dictionary with keys as channel names and values as lists of lift start dates, lift end dates, lift_abs, spend, confidence, etc?
-
-    channel: List[str] = field(default_factory=list)
-    lift_start_date: pd.Series = field(default_factory=pd.Series)
-    lift_end_date: pd.Series = field(default_factory=pd.Series)
-    lift_abs: List[int] = field(default_factory=list)
-    spend: List[int] = field(default_factory=list)
-    confidence: List[float] = field(default_factory=list)
-    metric: List[str] = field(default_factory=list)
-    calibration_scope: List[CalibrationScope] = field(default_factory=list)
+    lift_start_date: pd.Timestamp = field(default_factory=pd.Timestamp)
+    lift_end_date: pd.Timestamp = field(default_factory=pd.Timestamp)
+    lift_abs: int = 0
+    spend: int = 0
+    confidence: float = 0.0
+    metric: str = ""
+    calibration_scope: CalibrationScope = CalibrationScope.IMMEDIATE
 
     def __str__(self) -> str:
         return (
-            f"CalibrationInput(\n"
-            f"  channel={self.channel},\n"
-            f"  lift_start_date={self.lift_start_date.tolist()},\n"
-            f"  lift_end_date={self.lift_end_date.tolist()},\n"
+            f"ChannelCalibrationData(\n"
+            f"  lift_start_date={self.lift_start_date},\n"
+            f"  lift_end_date={self.lift_end_date},\n"
             f"  lift_abs={self.lift_abs},\n"
             f"  spend={self.spend},\n"
             f"  confidence={self.confidence},\n"
@@ -43,3 +39,22 @@ class CalibrationInput:
             f"  calibration_scope={self.calibration_scope}\n"
             f")"
         )
+
+
+# Modify the CalibrationInput data class to use a dictionary with channel names as keys
+@dataclass(frozen=True)
+class CalibrationInput:
+    """
+    CalibrationInput is an immutable data class that holds the necessary inputs for a calibration process.
+
+    Attributes:
+        channel_data (Dict[str, ChannelCalibrationData]): Dictionary with channel names as keys and ChannelCalibrationData instances as values.
+    """
+
+    channel_data: Dict[str, ChannelCalibrationData] = field(default_factory=dict)
+
+    def __str__(self) -> str:
+        channel_data_str = "\n".join(
+            f"  {channel}: {data}" for channel, data in self.channel_data.items()
+        )
+        return f"CalibrationInput(\n{channel_data_str}\n)"
