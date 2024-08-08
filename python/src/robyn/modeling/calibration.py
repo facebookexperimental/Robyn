@@ -1,8 +1,10 @@
 #pyre-strict
 
+from typing import Optional, Dict
 import pandas as pd
-from typing import Optional, List, Dict
-from data import CalibrationInput
+
+from robyn.data.entities.calibration_input import CalibrationInput
+from robyn.modeling.entities.calibration_result import CalibrationResult
 
 class Calibration:
     """

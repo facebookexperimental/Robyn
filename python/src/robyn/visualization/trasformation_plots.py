@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from plotnine import ggplot, aes, geom_line, labs, theme_gray, geom_hline, geom_text, facet_grid
-from transformation import AdstockSaturationTransformation
+from robyn.analysis.transformation import AdstockSaturationTransformation
 
 class AdstockSaturationPlots:
     def plot_adstock_models(self, theta_values: np.ndarray, shape_values: np.ndarray, scale_values: np.ndarray, plot: bool = True) -> tuple:

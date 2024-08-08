@@ -18,14 +18,14 @@ class HolidaysData:
         Initialize a HolidaysData object.
 
         Args:
-        dt_holidays (pd.DataFrame): A pandas DataFrame containing holiday data.
-        prophet_vars (List[ProphetVariableType]): A list of Prophet variable types.
-        prophet_signs (List[ProphetSigns]): A list of signs for Prophet variables.
-        prophet_country (str): The country for which holidays are defined.
-        day_interval (int): The interval between days in the holiday data.
+            dt_holidays (pd.DataFrame): A pandas DataFrame containing holiday data.
+            prophet_vars (List[ProphetVariableType]): A list of Prophet variable types.
+            prophet_signs (List[ProphetSigns]): A list of signs for Prophet variables.
+            prophet_country (str): The country for which holidays are defined.
+            day_interval (int): The interval between days in the holiday data.
 
         Returns:
-        None
+            None
         """
         self.dt_holidays: pd.DataFrame = dt_holidays
         self.prophet_vars: List[ProphetVariableType] = prophet_vars

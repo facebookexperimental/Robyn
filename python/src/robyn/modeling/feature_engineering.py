@@ -21,22 +21,22 @@ class FeatureEngineering:
         """
         print(">> Running Robyn feature engineering...")
 
-        # dt_transform = self.__prepare_data()
-        # dt_transform_roll_wind = self.__create_rolling_window_data(dt_transform)
-        # dt_input_roll_wind = dt_transform.loc[(self.mmm_data_collection['rollingWindowStartWhich']-1):(self.mmm_data_collection['rollingWindowEndWhich']-1)]
-        # media_cost_factor = self.__calculate_media_cost_factor(dt_input_roll_wind)
+        dt_transform = self.__prepare_data()
+        dt_transform_roll_wind = self.__create_rolling_window_data(dt_transform)
+        dt_input_roll_wind = dt_transform.loc[(self.mmm_data_collection['rollingWindowStartWhich']-1):(self.mmm_data_collection['rollingWindowEndWhich']-1)]
+        media_cost_factor = self.__calculate_media_cost_factor(dt_input_roll_wind)
 
-        # mod_nls_collect, plot_nls_collect, yhat_collect = self.__run_models(dt_input_roll_wind, media_cost_factor)
+        mod_nls_collect, plot_nls_collect, yhat_collect = self.__run_models(dt_input_roll_wind, media_cost_factor)
 
-        # if mod_nls_collect:
-        #     mod_nls_collect = pd.concat(mod_nls_collect)
-        #     yhat_collect = pd.concat(yhat_collect)
-        #     repeat_factor = len(yhat_collect) // len(dt_transform_roll_wind)
-        #     yhat_collect['ds'] = dt_transform_roll_wind['ds'].repeat(repeat_factor).reset_index(drop=True)
-        # else:
-        #     mod_nls_collect = None
-        #     plot_nls_collect = None
-        #     yhat_collect = None
+        if mod_nls_collect:
+            mod_nls_collect = pd.concat(mod_nls_collect)
+            yhat_collect = pd.concat(yhat_collect)
+            repeat_factor = len(yhat_collect) // len(dt_transform_roll_wind)
+            yhat_collect['ds'] = dt_transform_roll_wind['ds'].repeat(repeat_factor).reset_index(drop=True)
+        else:
+            mod_nls_collect = None
+            plot_nls_collect = None
+            yhat_collect = None
 
         self.mmm_data_collection['dt_mod'] = dt_transform
         self.mmm_data_collection['dt_modRollWind'] = dt_transform_roll_wind

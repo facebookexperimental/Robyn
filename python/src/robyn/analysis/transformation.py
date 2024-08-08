@@ -56,20 +56,6 @@ class AdstockSaturationTransformation:
         """
         pass
     # Used AI to generate the following code by giving reference to R code.
-    # def adstock_weibull(self, media_impressions: List[float], shape: float, scale: float, windlen: Optional[int] = None, stype: str = "cdf") -> Dict[str, Union[List[float], float, np.ndarray]]:
-    #     """
-    #     Adstock Weibull function
-
-    #     Args:
-    #         media_impressions: The time series data of media impressions (e.g. TV, digital, etc.).
-    #         shape: The shape parameter of the Weibull distribution.
-    #         scale: The scale parameter of the Weibull distribution.
-    #         windlen: The length of the adstock window.
-    #         stype: The type of adstock transformation to perform.
-
-    #     Returns:
-    #         A dictionary containing the transformed data and related information.
-    #     """
     #     media_impressions = np.array(media_impressions)
 
     #     if windlen is None:

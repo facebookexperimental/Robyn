@@ -4,7 +4,9 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 import matplotlib.pyplot as plt
 
-class MMMPlotter:
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+
+class MMMDataPlotter:
     def __init__(self, mmm_data_collection: MMMDataCollection) -> None:
         """
         Initialize the RobynPlotter with an MMMDataCollection.
@@ -110,120 +112,11 @@ class MMMPlotter:
 
     def generate_mmm_plots(
         self, 
-        robyn_object: Dict[str, Any],
-        plot_folder: str,
         plot_pareto: bool = True,
-        plot_folder_tag: Optional[str] = None
     ) -> None:
         """
         Generate all Marketing Mix Model plots.
 
-        :param robyn_object: Dictionary containing all necessary data
-        :param plot_folder: Folder to save plots
         :param plot_pareto: Whether to plot Pareto front
-        :param plot_folder_tag: Optional tag for plot folder
         """
-        pass
-
-# Example usage:
-if __name__ == "__main__":
-    # Initialize MMMDataCollection (this would be replaced with actual data collection initialization)
-    mmm_data_collection = MMMDataCollection()
-
-    # Initialize RobynPlotter with MMMDataCollection
-    plotter = RobynPlotter(mmm_data_collection)
-
-    # Example call to generate_mmm_plots (this would not do anything as methods are not implemented)
-    robyn_object = {"key": "value"}
-    plot_folder = "path/to/plot_folder"
-    plotter.generate_mmm_plots(robyn_object, plot_folder)
-from typing import Dict, Any
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-class MMMPlots:
-    """
-    A class to generate plots for Media Mix Modeling (MMM).
-
-    Attributes:
-    ----------
-    InputCollect : Dict[str, Any]
-        A dictionary containing input data for MMM.
-    OutputCollect : Dict[str, Any]
-        A dictionary containing output data for MMM.
-    plot_folder : str
-        The folder path to save the plots.
-
-    Methods:
-    -------
-    prophet_decomposition_plot()
-        Generate a prophet decomposition plot.
-    hyperparameter_sampling_distribution_plot()
-        Generate a hyperparameter sampling distribution plot.
-    pareto_front_plot()
-        Generate a pareto front plot.
-    ridgeline_model_convergence_plot()
-        Generate a ridgeline model convergence plot.
-    """
-
-    def __init__(self, InputCollect: Dict[str, Any], OutputCollect: Dict[str, Any], plot_folder: str):
-        """
-        Initialize the MMMPlots class.
-
-        Parameters:
-        ----------
-        InputCollect : Dict[str, Any]
-            A dictionary containing input data for MMM.
-        OutputCollect : Dict[str, Any]
-            A dictionary containing output data for MMM.
-        plot_folder : str
-            The folder path to save the plots.
-        """
-        self.InputCollect = InputCollect
-        self.OutputCollect = OutputCollect
-        self.plot_folder = plot_folder
-
-    def prophet_decomposition_plot(self) -> None:
-        """
-        Generate a prophet decomposition plot.
-
-        Returns:
-        -------
-        None
-        """
-        # implementation of prophet_decomposition_plot
-        pass
-
-    def hyperparameter_sampling_distribution_plot(self) -> None:
-        """
-        Generate a hyperparameter sampling distribution plot.
-
-        Returns:
-        -------
-        None
-        """
-        # implementation of hyperparameter_sampling_distribution_plot
-        pass
-
-    def pareto_front_plot(self) -> None:
-        """
-        Generate a pareto front plot.
-
-        Returns:
-        -------
-        None
-        """
-        # implementation of pareto_front_plot
-        pass
-
-    def ridgeline_model_convergence_plot(self) -> None:
-        """
-        Generate a ridgeline model convergence plot.
-
-        Returns:
-        -------
-        None
-        """
-        # implementation of ridgeline_model_convergence_plot
         pass

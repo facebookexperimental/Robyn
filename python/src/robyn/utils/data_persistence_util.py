@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
-from mmm_data_collection import MMMDataCollection
-from model_output_collection import ModelOutputCollection
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
 
 class DataPersistenceUtil:
     @staticmethod

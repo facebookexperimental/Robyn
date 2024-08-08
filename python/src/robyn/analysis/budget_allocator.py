@@ -8,6 +8,7 @@ from robyn.analysis.budgetallocator_config import BudgetAllocatorConfig
 from robyn.data.entities.mmmdata_collection import MMMDataCollection
 from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
 
+
 class BudgetAllocator:
     def budget_allocator(
         self,
