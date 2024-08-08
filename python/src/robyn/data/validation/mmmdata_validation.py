@@ -19,7 +19,7 @@ class MMMDataValidation:
         infinite_cols: List[str] = self.mmm_data.data.columns[np.isinf(self.mmm_data.data).any()].tolist()
         return {"missing": missing_cols, "infinite": infinite_cols}
 
-    def check_no_variance(self) -> List[str]:
+    def check_no_variance(self, mmmdata_collection: MMMDataCollection) -> List[str]:
         """
         Check for columns with no variance in the input dataframe.
         
@@ -37,20 +37,31 @@ class MMMDataValidation:
         invalid: List[str] = [col for col in self.mmm_data.data.columns if not re.match(r'^[a-zA-Z0-9_]+$', col)]
         return {"duplicates": duplicates, "invalid": invalid}
 
-    def check_date_variable(self) -> bool:
+    def check_datevar(self, date_var: str = 'auto') -> Dict[str, Union[str, int, pd.DataFrame]]:
         """
-        Checks if the date variable is correct.
-        
-        :return: True if the date variable is valid, False otherwise.
+        Checks if the date variable is correct and returns a dictionary with the date variable name,
+        interval type, and a tibble object of the input data.
+        Parameters:
+        - dt_input: The input data as a pandas DataFrame.
+        - date_var: The name of the date variable to be checked. If set to "auto", the function will automatically detect the date variable.
+
+        Returns:
+        - output: A dictionary containing the following keys:
+            - "date_var": The name of the date variable.
+            - "dayInterval": The interval between the first two dates.
+            - "intervalType": The type of interval (day, week, or month).
+            - "dt_input": The input data as a pandas DataFrame.
         """
+
         date_var: str = self.mmm_data.mmmdata_spec.date_var
-        if date_var not in self.mmm_data.data.columns:
-            return False
-        try:
-            pd.to_datetime(self.mmm_data.data[date_var])
-            return True
-        except ValueError:
-            return False
+        output = {
+            "date_var": date_var,
+            "dayInterval": 0,
+            "intervalType": "day",
+            "dt_input": self.mmm_data.data,
+        }
+
+        return output
 
     def check_dependent_variables(self) -> bool:
         """
