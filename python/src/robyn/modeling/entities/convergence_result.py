@@ -21,21 +21,3 @@ class ConvergenceResult(TypedDict):
     conv_msg: str
     sd_qtref: float
     med_lowb: float
-
-# Example usage:
-if __name__ == "__main__":
-    # Example matplotlib figures
-    fig1 = plt.figure()
-    fig2 = plt.figure()
-
-    # Example ConvergenceResult
-    convergence_result: ConvergenceResult = {
-        'moo_distrb_plot': fig1,
-        'moo_cloud_plot': fig2,
-        'errors': None,
-        'conv_msg': "Convergence successful.",
-        'sd_qtref': 3.0,
-        'med_lowb': 2.0
-    }
-
-    print(convergence_result)

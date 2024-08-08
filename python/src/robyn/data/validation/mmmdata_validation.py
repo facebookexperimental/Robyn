@@ -1,9 +1,12 @@
 # pyre-strict
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
 import numpy as np
 import re
+
+from robyn.data.entities.mmmdata import MMMData
+
 
 class MMMDataValidation:
     def __init__(self, mmm_data: MMMData) -> None:
@@ -87,10 +90,3 @@ class MMMDataValidation:
             "date_variable": self.check_date_variable(),
             "dependent_variables": self.check_dependent_variables()
         }
-
-# Example usage:
-if __name__ == "__main__":
-    # Assuming you have already created an MMMData object named 'mmm_data'
-    validator: MMMDataValidation = MMMDataValidation(mmm_data)
-    validation_results: Dict[str, Any] = validator.validate()
-    print(validation_results)

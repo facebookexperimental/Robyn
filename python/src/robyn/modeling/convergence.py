@@ -1,8 +1,12 @@
 # pyre-strict
 
-from typing import Dict, Any, Tuple, Optional
+from typing import Any, Tuple
+from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
+
+from robyn.modeling.entities.convergence_result import ConvergenceResult
+from robyn.modeling.entities.modeloutput import ModelOutput
 
 class ModelConvergence:
     """
@@ -17,7 +21,7 @@ class ModelConvergence:
 
     def converge(
         self,
-        output_models: OutputModels,
+        model_output: ModelOutput,
         n_cuts: int = 20,
         sd_qtref: int = 3,
         med_lowb: int = 2,

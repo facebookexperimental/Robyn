@@ -1,11 +1,13 @@
+#pyre-strict   
+
 from dataclasses import dataclass
 from typing import List, Optional
 import pandas as pd
-import numpy as np
+
 from matplotlib.figure import Figure
 from scipy.optimize import OptimizeResult
 
-@dataclass
+@dataclass(frozen=True)
 class BudgetAllocationResult:
     """
     A data class to store the result of a budget allocation optimization.

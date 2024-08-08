@@ -5,13 +5,18 @@
 from typing import Optional, Dict, Any, List
 import pandas as pd
 
+from robyn.data.entities.calibration_input import CalibrationInput
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+from robyn.modeling.entities.model_refresh_config import ModelRefreshConfig
+from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
+
 class ModelRefresh:
     def model_refresh(
         self,
         mmmdata_collection: MMMDataCollection,
-        model_output_collection: ModelOutputsCollection,
+        model_output_collection: ModelOutputCollection,
         refresh_config: ModelRefreshConfig,
-        calibration_input: Optional[CalibrationInputConfig] = None,
+        calibration_input: Optional[CalibrationInput] = None,
         objective_weights: Optional[Dict[str, float]] = None
     ) -> Any:
         """
@@ -30,7 +35,7 @@ class ModelRefresh:
         self,
         robyn_object: Dict[str, Any],
         refresh_config: ModelRefreshConfig,
-        calibration_input: Optional[CalibrationInputConfig] = None,
+        calibration_input: Optional[CalibrationInput] = None,
         objective_weights: Optional[Dict[str, float]] = None
     ) -> Any:
         """
@@ -48,7 +53,7 @@ class ModelRefresh:
         self,
         json_file: str,
         refresh_config: ModelRefreshConfig,
-        calibration_input: Optional[CalibrationInputConfig] = None,
+        calibration_input: Optional[CalibrationInput] = None,
         objective_weights: Optional[Dict[str, float]] = None
     ) -> Any:
         """
@@ -69,9 +74,9 @@ if __name__ == "__main__":
     
     # Example calls (without actual implementation)
     mmmdata_collection = MMMDataCollection()
-    model_output_collection = ModelOutputsCollection()
+    model_output_collection = ModelOutputCollection()
     refresh_config = ModelRefreshConfig()
-    calibration_input = CalibrationInputConfig()
+    calibration_input = CalibrationInput()
     robyn_object = {"key": "value"}
     json_file = "path/to/json_file.json"
 

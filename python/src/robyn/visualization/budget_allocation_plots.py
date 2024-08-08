@@ -1,5 +1,8 @@
 from typing import Dict, Any, List
 
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
+
 class BudgetAllocationPlots:
     """
     A class for generating various plots related to budget allocation optimization.

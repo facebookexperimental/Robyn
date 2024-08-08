@@ -1,5 +1,8 @@
 # pyre-strict
 
+from typing import Optional
+
+
 class BudgetAllocatorConfig:
     """
     Configuration for budget allocation.
