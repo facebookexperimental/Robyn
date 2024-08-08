@@ -1,4 +1,4 @@
-### Copyright (c) Meta Platforms, Inc. and its affiliates.  
+### Copyright (c) Meta Platforms, Inc. and its affiliates.
 ### This source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree.
 
 import pandas as pd
@@ -51,17 +51,17 @@ def asSerialisedFeather(modelData):
 
     # Create an in-memory bytes buffer
     modelDataFeather = io.BytesIO()
-    
+
     # Convert the input model data into a DataFrame and then to Feather format,
     # writing the binary data into our in-memory buffer
     pd.DataFrame(modelData).to_feather(modelDataFeather)
-    
+
     # Move the buffer position to the start of the stream
     modelDataFeather.seek(0)
-    
+
     # Read the binary Feather data from the buffer
     modelDataBinary = modelDataFeather.read()
-    
+
     # Convert the binary data to a hexadecimal string and return it
     return binascii.hexlify(modelDataBinary).decode()
 
@@ -148,13 +148,16 @@ def plot_outputgraphs(OutputJson,argumenttype,graphtype,max_size=(1000, 1500)):
     else:
         warnings.warn("Graphtype does not exist")
 
-def load_modeldata(sol_id,InputJson,OutputJson):
+def load_modeldata(sol_id,InputJson,OutputJson,dpi,width,height):
     """
     Loads the model data for the given solution ID.
     Args:
         sol_id: The ID of the solution to load.
         InputJson: A dictionary containing the input data for the model.
         OutputJson: A dictionary containing the output data for the model.
+        dpi: The dpi of the rendered images.
+        width: The width of the rendered images.
+        height: The height of the rendered images.
     Returns:
         A dictionary containing the loaded model data.
     """
@@ -170,15 +173,14 @@ def load_modeldata(sol_id,InputJson,OutputJson):
         'InputCollect' : json.dumps(InputJson),
         'OutputCollect' : json.dumps(OutputJson),
         "jsonOnepagersArgs": json.dumps(onepagersArgs),
-        'dpi' : 100,
-        'width' : 15,
-        'height' : 20
+        'dpi' : dpi,
+        'width' : width,
+        'height' : height
     }
 
     # Get response
     onepager = robyn_api('robyn_onepagers',payload=payload)
     return onepager
-
 def create_robyn_directory(path="~/RobynOutcomes"):
     """
     Creates a directory for Robyn output files.
@@ -195,11 +197,11 @@ def create_robyn_directory(path="~/RobynOutcomes"):
         print('No path specified. Using default arugments')
     else:
         print('Using specified path')
-    
+
     #if path ends with '/' add it to the end
     if('/' != path[-1:]):
         path = path+'/'
-    
+
     ##check path to see if is a valid directory
     isExist = os.path.exists(path)
     if not isExist:
@@ -208,9 +210,9 @@ def create_robyn_directory(path="~/RobynOutcomes"):
        print('Path did not exist. Creating path:',path)
     else:
         print('Path exists: ',path)
-    
+
     return path
-        
+
 def writefile(datset,path,sol_id):
     """
     Writes a file to the specified path.
@@ -228,7 +230,7 @@ def writefile(datset,path,sol_id):
     out_file.close()
     print('Onepager written to path:',imagepath)
 
-def load_onepager(InputJson,OutputJson,path,sol='all',top_pareto=False,write=False,max_size=(1000, 1500)):
+def load_onepager(InputJson,OutputJson,path,sol='all',top_pareto=False,write=False,dpi=100,width=15,height=20,max_size=(1000, 1500)):
     """
     Loads the one-page summary for the given solution ID.
     Args:
@@ -238,6 +240,9 @@ def load_onepager(InputJson,OutputJson,path,sol='all',top_pareto=False,write=Fal
         sol: Optional. The solution ID to load. Defaults to 'all'.
         top_pareto: Optional. If True, loads the one-page summaries for the top Pareto models. Defaults to False.
         write: Optional. If True, writes the one-page summaries to files. Defaults to False.
+        dpi: Optional. The dpi of the rendered images. Default to 100.
+        width: Optional. The width of the rendered images. Default to 15.
+        height: Optional. The height of the rendered images. Default to 20.
         max_size: Optional. The maximum size of the rendered images. Defaults to (1000, 1500).
     Returns:
         None. The function renders the one-page summaries and displays them using the `display()` function from IPython.
@@ -246,7 +251,7 @@ def load_onepager(InputJson,OutputJson,path,sol='all',top_pareto=False,write=Fal
         print('Fetching one pager data for top models')
         for i in range(len(OutputJson['clusters']['models'])):
             sol_id = OutputJson['clusters']['models'][i]['solID']
-            onepager = load_modeldata(sol_id,InputJson=InputJson,OutputJson=OutputJson)
+            onepager = load_modeldata(sol_id,InputJson=InputJson,OutputJson=OutputJson,dpi=dpi,width=width,height=height)
             image_data = binascii.unhexlify("".join(onepager))
             if(write==True):
                 writefile(datset=image_data,path=path,sol_id=sol_id)
@@ -259,7 +264,7 @@ def load_onepager(InputJson,OutputJson,path,sol='all',top_pareto=False,write=Fal
         if(sol in OutputJson['allSolutions']):
             print('Fetching one pager for specified solution id')
             sol_id = sol
-            onepager = load_modeldata(sol_id,InputJson=InputJson,OutputJson=OutputJson)
+            onepager = load_modeldata(sol_id,InputJson=InputJson,OutputJson=OutputJson,dpi=dpi,width=width,height=height)
             image_data = binascii.unhexlify("".join(onepager))
             if(write==True):
                 writefile(datset=image_data,path=path,sol_id=sol_id)
@@ -267,21 +272,23 @@ def load_onepager(InputJson,OutputJson,path,sol='all',top_pareto=False,write=Fal
             image.thumbnail(max_size, Image.Resampling.LANCZOS)
             display(image)
         else:
-           warnings.warn("Sepcified solution id does not exist. Please check again") 
-        
-def write_robynmodel(sol,path,InputJson,OutputJson,OutputModels):
+           warnings.warn("Sepcified solution id does not exist. Please check again")
+def write_robynmodel(sol,InputJson,OutputJson,OutputModels,path=False):
     """
     Writes the Robyn model to a file.
     Args:
         sol: The solution ID to write.
-        path: The path to the directory where the model is written.
         InputJson: A dictionary containing the input data for the model.
         OutputJson: A dictionary containing the output data for the model.
         OutputModels: A dictionary containing the output models for the model.
+        path: Optional. The path to the directory where the model is written.
     Returns:
         None. The function writes the model to a file.
     """
-    updatedPath = create_robyn_directory(path)
+    if(path!=False):
+        updatedPath = create_robyn_directory(path)
+    else:
+        updatedPath = OutputJson['plot_folder'][0]
     if(sol in OutputJson['allSolutions']):
         writeArgs = {
         "select_model" : sol,
@@ -300,6 +307,3 @@ def write_robynmodel(sol,path,InputJson,OutputJson,OutputModels):
         # Get response
         respJson = robyn_api('robyn_write',payload=payload)
         print('File written to path: ',updatedPath)
-
-
-
