@@ -62,7 +62,7 @@ class MMMModelExecutor:
 
     def model_train(
         self,
-        InputCollect: Dict[str, Any],
+        resultHyper,
         hyper_collect: Dict[str, Any],
         cores: int,
         iterations: int,
