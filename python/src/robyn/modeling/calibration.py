@@ -37,9 +37,10 @@ class Calibration:
         Performs calibration on the provided input data.
     """
 
+    #TODO review and update attributes
     def __init__(self,
                  calibration_input: CalibrationInput,
-                 df_raw: pd.DataFrame,
+                 mmmdata: MMMData,
                  dayInterval: int,
                  xDecompVec: pd.DataFrame,
                  coefs: pd.DataFrame,
@@ -54,7 +55,7 @@ class Calibration:
         ----
         calibration_input : pd.DataFrame
             The input data for calibration.
-        df_raw : pd.DataFrame
+        mmmdata : MMMData
             The raw data.
         dayInterval : int
             The day interval.
