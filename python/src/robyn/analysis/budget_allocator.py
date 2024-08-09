@@ -1,7 +1,11 @@
-from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Any
 import pandas as pd
 import numpy as np
 import nlopt
+
+from robyn.data.entities.mmmdata_collection import MMMDataCollection
+from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
 
 class BudgetAllocatorConfig:
     """
@@ -63,7 +67,7 @@ class BudgetAllocationResult:
     """
     dt_optimOut: pd.DataFrame
     mainPoints: List[float]
-    nlsMod: Optional[OptimizeResult]
+    nlsMod: Optional[object]
     scenario: str
     usecase: str
     total_budget: float
@@ -97,7 +101,7 @@ class BudgetAllocator:
         self.select_model = select_model
         self.config = config
 
-    def allocate_budget(self) -> BudgetAllocatorResult:
+    def allocate_budget(self) -> BudgetAllocationResult:
         """
         Allocates budget for a given model using the Robyn framework.
         This method corresponds to the original 'robyn_allocator' function.
@@ -125,32 +129,33 @@ class BudgetAllocator:
         Returns:
             np.ndarray: Optimized allocation.
         """
-        def objective(x, grad):
-            if grad.size > 0:
-                grad[:] = self.calculate_gradient(x, coeff, alpha, inflexion, x_hist_carryover)
-            return -np.sum(self.calculate_objective(x, coeff, alpha, inflexion, x_hist_carryover))
+        # def objective(x, grad):
+        #     if grad.size > 0:
+        #         grad[:] = self.calculate_gradient(x, coeff, alpha, inflexion, x_hist_carryover)
+        #     return -np.sum(self.calculate_objective(x, coeff, alpha, inflexion, x_hist_carryover))
 
-        def constraint(x, grad):
-            if grad.size > 0:
-                grad[:] = np.ones_like(x)
-            return np.sum(x) - total_budget
+        # def constraint(x, grad):
+        #     if grad.size > 0:
+        #         grad[:] = np.ones_like(x)
+        #     return np.sum(x) - total_budget
 
-        n = len(x0)
-        opt = nlopt.opt(nlopt.algorithm.from_string(self.config.optim_algo), n)
-        opt.set_lower_bounds(channel_constr_low)
-        opt.set_upper_bounds(channel_constr_up)
-        opt.set_min_objective(objective)
-        opt.set_maxeval(self.config.maxeval)
+        # n = len(x0)
+        # opt = nlopt.opt(nlopt.algorithm.from_string(self.config.optim_algo), n)
+        # opt.set_lower_bounds(channel_constr_low)
+        # opt.set_upper_bounds(channel_constr_up)
+        # opt.set_min_objective(objective)
+        # opt.set_maxeval(self.config.maxeval)
 
-        if self.config.constr_mode == "eq":
-            opt.add_equality_constraint(constraint, 1e-8)
-        elif self.config.constr_mode == "ineq":
-            opt.add_inequality_constraint(constraint, 1e-8)
+        # if self.config.constr_mode == "eq":
+        #     opt.add_equality_constraint(constraint, 1e-8)
+        # elif self.config.constr_mode == "ineq":
+        #     opt.add_inequality_constraint(constraint, 1e-8)
 
-        opt.set_xtol_rel(1e-10)
+        # opt.set_xtol_rel(1e-10)
 
-        result = opt.optimize(x0)
-        return result
+        # result = opt.optimize(x0)
+        # return result
+        pass
         
     @staticmethod
     def calculate_objective(x: float, coeff: float, alpha: float, inflexion: float, x_hist_carryover: float, get_sum: bool = False) -> float:
