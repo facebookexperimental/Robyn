@@ -159,16 +159,6 @@ class MMMDataValidation:
 
         return factor_vars
 
-    def check_unique_variables(all_vars: List[str]) -> List[str]:
-        """
-        Checks if variables are unique.
-
-        :return: A list of duplicate variables.
-        """
-        var_count = Counter(all_vars)
-        duplicates = [var for var, count in var_count.items() if count > 1]
-        return duplicates
-
     def check_data_dimension(self, all_vars: List[str], rel: int = 10) -> bool:
         """
         Checks if the data has the correct dimension.
@@ -226,7 +216,6 @@ class MMMDataValidation:
             "paidmedia": self.check_paidmedia(),
             "organic_variables": self.check_organic_variables(),
             "factor_variables": self.check_factor_variables(),
-            "unique_variables": self.check_unique_variables(all_vars=[]),
             "data_dimension": self.check_data_dimension(all_vars=[], rel=10),
             "model_training_window": self.check_model_training_window(
                 all_media_vars=[], timeWindow=TimeWindow()
