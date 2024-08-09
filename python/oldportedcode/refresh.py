@@ -246,6 +246,7 @@ def robyn_refresh(json_file=None, robyn_object=None, dt_input=None, dt_holidays=
     ##    else:
     ##        robyn_write(input_collect_rf, output_collect_rf, select_model=selectID, **kwargs)
 
+    ## this is wrong. invisible() is not a function in Python
     return(invisible(robyn))
 
 
@@ -303,7 +304,7 @@ def model_refresh(
         refresh_config: ModelRefreshConfig,
         calibration_input: Optional[CalibrationInputConfig] = None,
         objective_weights: Optional[Dict[str, float]] = None
-    ) -> Any:
+    ) -> List[Any]:
         """
         Refresh the model with new MMM data collection and model output collection.
 
@@ -314,47 +315,7 @@ def model_refresh(
         :param objective_weights: Optional dictionary of objective weights.
         :return: The refreshed model output.
         """
-        # Check for NA values
-        self._check_nas(mmmdata_collection.dt_input, mmmdata_collection.dt_holidays)
-
-        # Load initial model
-        robyn = self._load_initial_model(mmmdata_collection, model_output_collection, refresh_config)
-
-        # Check rule of thumb: 50% of data shouldn't be new
-        self._check_refresh_data(robyn, mmmdata_collection.dt_input)
-
-        # Get previous data
-        input_collect_rf, list_output_prev, list_report_prev = self._get_previous_data(robyn, refresh_config)
-
-        # Update refresh model parameters
-        self._update_refresh_params(input_collect_rf, mmmdata_collection, refresh_config)
-
-        # Refresh rolling window
-        self._refresh_rolling_window(input_collect_rf, mmmdata_collection.dt_input)
-
-        # Update refresh model parameters
-        if calibration_input:
-            input_collect_rf.calibration_input = self._update_calibration_input(input_collect_rf, calibration_input)
-
-        # Refresh hyperparameter bounds
-        input_collect_rf.hyperparameters = self._refresh_hyperparameters(list_output_prev, refresh_config)
-
-        # Feature engineering for refreshed data
-        input_collect_rf = self._robyn_engineering(input_collect_rf)
-
-        # Refresh model with adjusted decomp.rssd
-        output_models_rf = self._robyn_run(input_collect_rf, refresh_config, list_output_prev)
-
-        # Select winner model for current refresh
-        output_collect_rf = self._select_winner_model(input_collect_rf, output_models_rf, refresh_config, list_output_prev, objective_weights)
-
-        # Update Robyn object with new refresh data
-        robyn = self._update_robyn_object(robyn, input_collect_rf, output_collect_rf, list_report_prev, refresh_config)
-
-        # Generate plots and export results
-        self._export_results(output_collect_rf, refresh_config)
-
-        return robyn
+        pass
 
     def model_refresh_from_robyn_object(
         self,
@@ -362,7 +323,7 @@ def model_refresh(
         refresh_config: ModelRefreshConfig,
         calibration_input: Optional[CalibrationInputConfig] = None,
         objective_weights: Optional[Dict[str, float]] = None
-    ) -> Any:
+    ) -> List[Any]:
         """
         Refresh the model with a Robyn object.
 
@@ -372,14 +333,7 @@ def model_refresh(
         :param objective_weights: Optional dictionary of objective weights.
         :return: The refreshed model output.
         """
-        robyn_imported = self._robyn_load(robyn_object)
-        return self.model_refresh(
-            mmmdata_collection=robyn_imported['mmmdata_collection'],
-            model_output_collection=robyn_imported['model_output_collection'],
-            refresh_config=refresh_config,
-            calibration_input=calibration_input,
-            objective_weights=objective_weights
-        )
+        pass
 
     def model_refresh_from_reloadedstate(
         self,
@@ -387,7 +341,7 @@ def model_refresh(
         refresh_config: ModelRefreshConfig,
         calibration_input: Optional[CalibrationInputConfig] = None,
         objective_weights: Optional[Dict[str, float]] = None
-    ) -> Any:
+    ) -> List[Any]:  # Updated return type to Dict[str, Any]:
         """
         Refresh the model with a JSON file.
 
@@ -397,87 +351,4 @@ def model_refresh(
         :param objective_weights: Optional dictionary of objective weights.
         :return: The refreshed model output.
         """
-        json = self._robyn_read(json_file, step=2, quiet=True)
-        mmmdata_collection = self._robyn_recreate(
-            json_file=json_file,
-            dt_input=json['ExportedModel']['dt_input'],
-            dt_holidays=json['ExportedModel']['dt_holidays'],
-            plot_folder=json['ExportedModel']['plot_folder'],
-            quiet=False
-        )
-        model_output_collection = self._robyn_chain(json_file)
-        return self.model_refresh(
-            mmmdata_collection=mmmdata_collection,
-            model_output_collection=model_output_collection,
-            refresh_config=refresh_config,
-            calibration_input=calibration_input,
-            objective_weights=objective_weights
-        )
-
-    def _check_nas(self, dt_input, dt_holidays):
-        # Check for NA values in the input data
-        pass
-
-    def _load_initial_model(self, mmmdata_collection, model_output_collection, refresh_config):
-        # Load the initial Robyn model
-        pass
-
-    def _check_refresh_data(self, robyn, dt_input):
-        # Check the rule of thumb for refresh data
-        pass
-
-    def _get_previous_data(self, robyn, refresh_config):
-        # Get the previous data for the refresh
-        pass
-
-    def _update_refresh_params(self, input_collect_rf, mmmdata_collection, refresh_config):
-        # Update the refresh model parameters
-        pass
-
-    def _refresh_rolling_window(self, input_collect_rf, dt_input):
-        # Refresh the rolling window
-        pass
-
-    def _update_calibration_input(self, input_collect_rf, calibration_input):
-        # Update the calibration input
-        pass
-
-    def _refresh_hyperparameters(self, list_output_prev, refresh_config):
-        # Refresh the hyperparameter bounds
-        pass
-
-    def _robyn_engineering(self, input_collect_rf):
-        # Perform feature engineering for the refreshed data
-        pass
-
-    def _robyn_run(self, input_collect_rf, refresh_config, list_output_prev):
-        # Run the Robyn model with the refreshed data
-        pass
-
-    def _select_winner_model(self, input_collect_rf, output_models_rf, refresh_config, list_output_prev, objective_weights):
-        # Select the winner model for the current refresh
-        pass
-
-    def _update_robyn_object(self, robyn, input_collect_rf, output_collect_rf, list_report_prev, refresh_config):
-        # Update the Robyn object with the new refresh data
-        pass
-
-    def _export_results(self, output_collect_rf, refresh_config):
-        # Generate plots and export the refresh results
-        pass
-
-    def _robyn_load(self, robyn_object):
-        # Load the Robyn object from a dictionary
-        pass
-
-    def _robyn_read(self, json_file, step, quiet):
-        # Read the Robyn model from a JSON file
-        pass
-
-    def _robyn_recreate(self, json_file, dt_input, dt_holidays, plot_folder, quiet):
-        # Recreate the Robyn model from a JSON file
-        pass
-
-    def _robyn_chain(self, json_file):
-        # Get the Robyn model chain from a JSON file
         pass
