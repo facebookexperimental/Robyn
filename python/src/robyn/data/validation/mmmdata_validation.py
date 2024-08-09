@@ -52,9 +52,7 @@ class MMMDataValidation:
         ]
         return {"duplicates": duplicates, "invalid": invalid}
 
-    def check_datevar(
-        self, date_var: str = "auto"
-    ) -> Dict[str, Union[str, int, pd.DataFrame]]:
+    def check_datevar(self) -> bool:
         """
         Checks if the date variable is correct and returns a dictionary with the date variable name,
         interval type, and a tibble object of the input data.
@@ -69,16 +67,8 @@ class MMMDataValidation:
             - "intervalType": The type of interval (day, week, or month).
             - "dt_input": The input data as a pandas DataFrame.
         """
-
         date_var: str = self.mmm_data.mmmdata_spec.date_var
-        output = {
-            "date_var": date_var,
-            "dayInterval": 0,
-            "intervalType": "day",
-            "dt_input": self.mmm_data.data,
-        }
-
-        return output
+        return True
 
     def check_dependent_variables(self) -> bool:
         """
@@ -104,7 +94,7 @@ class MMMDataValidation:
         invalid_context_vars: List[str] = []
         return invalid_context_vars
 
-    def check_paidmedia(self) -> Dict[str, Any]:
+    def check_paidmedia(self) -> List[str]:
         """
         Checks if paid media variables are valid.
 
@@ -119,14 +109,10 @@ class MMMDataValidation:
         paid_media_signs: Optional[List[str]] = (
             self.mmm_data.mmmdata_spec.paid_media_signs
         )
+        invalid_variables: List[str] = []
+        return invalid_variables
 
-        return {
-            "paid_media_vars": paid_media_vars,
-            "paid_media_signs": paid_media_signs,
-            "mediaVarCount": len(paid_media_vars) if paid_media_vars is not None else 0,
-        }
-
-    def check_organic_variables(self) -> Dict[str, Any]:
+    def check_organic_variables(self) -> bool:
         """
         Checks if organic variables are valid.
 
@@ -135,14 +121,10 @@ class MMMDataValidation:
         """
         organic_vars: Optional[List[str]] = self.mmm_data.mmmdata_spec.organic_vars
         organic_signs: Optional[List[str]] = self.mmm_data.mmmdata_spec.organic_signs
-        if organic_vars is None:
-            return None
-        if organic_signs is None:
-            organic_signs = []
 
-        return {"organic_signs": organic_signs}
+        return True
 
-    def check_factor_variables(self) -> List[str]:
+    def check_factor_variables(self) -> bool:
         """
         Checks if factor variables are valid.
 
@@ -157,7 +139,7 @@ class MMMDataValidation:
         if factor_vars is None:
             factor_vars = []
 
-        return factor_vars
+        return True
 
     def check_data_dimension(self, all_vars: List[str], rel: int = 10) -> bool:
         """
@@ -173,7 +155,7 @@ class MMMDataValidation:
 
     def check_model_training_window(
         self, all_media_vars: List[str], timeWindow: TimeWindow
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, List[str]]:
         """
         Checks if the time windows are valid for training the model.
 
@@ -188,16 +170,8 @@ class MMMDataValidation:
         """
         window_start: Optional[int] = TimeWindow.window_start
         window_end: Optional[int] = TimeWindow.window_end
-
-        output = {
-            "dt_input": self.mmm_data.data,
-            "window_start": window_start,
-            "rollingWindowStartWhich": None,
-            "refreshAddedStart": None,
-            "window_end": window_end,
-            "rollingWindowEndWhich": None,
-            "rollingWindowLength": None,
-        }
+        invalid_variables = []
+        output = {"invalid_variables": invalid_variables, "errors": []}
         return output
 
     def validate(self) -> Dict[str, Any]:

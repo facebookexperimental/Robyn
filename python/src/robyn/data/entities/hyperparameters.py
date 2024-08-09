@@ -1,7 +1,8 @@
-#pyre-strict
+# pyre-strict
 
 from dataclasses import dataclass, field
 from typing import Dict, List
+
 
 @dataclass(frozen=True)
 class ChannelHyperparameters:
@@ -16,6 +17,7 @@ class ChannelHyperparameters:
         gammas (List[float]): List of gamma values.
         penalty (List[float]): List of penalty values.
     """
+
     thetas: List[float] = field(default_factory=list)
     shapes: List[float] = field(default_factory=list)
     scales: List[float] = field(default_factory=list)
@@ -35,6 +37,7 @@ class ChannelHyperparameters:
             f")"
         )
 
+
 @dataclass(frozen=True)
 class Hyperparameters:
     """
@@ -43,12 +46,16 @@ class Hyperparameters:
     Attributes:
         hyperparameters (Dict[str, Hyperparameter]): A dictionary of hyperparameters where the key is the channel name and the value is a Hyperparameter object.
     """
+
     hyperparameters: Dict[str, ChannelHyperparameters] = field(default_factory=dict)
 
     def __str__(self) -> str:
         return (
             f"Hyperparameters(\n"
-            + "\n".join(f"  {channel}={hyperparameter}" for channel, hyperparameter in self.hyperparameters.items())
+            + "\n".join(
+                f"  {channel}={hyperparameter}"
+                for channel, hyperparameter in self.hyperparameters.items()
+            )
             + "\n)"
         )
 
@@ -78,3 +85,20 @@ class Hyperparameters:
         bool: True if the channel exists, False otherwise.
         """
         return channel in self.hyperparameters
+
+    def get_hyperparameter_limits() -> pd.DataFrame:
+        """
+        Returns the hyperparameter limits.
+
+        Returns:
+            pd.DataFrame: The hyperparameter limits.
+        """
+        return pd.DataFrame(
+            {
+                "thetas": [">=0", "<1"],
+                "alphas": [">0", "<10"],
+                "gammas": [">0", "<=1"],
+                "shapes": [">=0", "<20"],
+                "scales": [">=0", "<=1"],
+            }
+        )

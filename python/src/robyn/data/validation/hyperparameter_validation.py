@@ -61,12 +61,14 @@ class HyperparameterValidation:
                 return False
         return True
 
-    def _check_hyperparameter_limits(df: pd.DataFrame, column: str) -> None:
+    def _check_hyperparameter_limits(
+        hyperparameters: pd.DataFrame, column: str
+    ) -> None:
         """
-        Check if the dataframe are within the limits.
+        Check if the hyperparameters dataframe are within the limits.
 
         Args:
-            df (pd.DataFrame): The dataframe to check.
+            hyperparameters (pd.DataFrame): The dataframe to check.
             column (str): The column in hyperparameter to check.
 
         Returns:
@@ -104,20 +106,3 @@ class HyperparameterValidation:
             List[str]: The hyperparameter column names.
         """
         return self._combine_filtered_elements([], [], all_media)
-
-    def hyper_limits() -> pd.DataFrame:
-        """
-        Returns the hyperparameter limits.
-
-        Returns:
-            pd.DataFrame: The hyperparameter limits.
-        """
-        return pd.DataFrame(
-            {
-                "thetas": [">=0", "<1"],
-                "alphas": [">0", "<10"],
-                "gammas": [">0", "<=1"],
-                "shapes": [">=0", "<20"],
-                "scales": [">=0", "<=1"],
-            }
-        )
