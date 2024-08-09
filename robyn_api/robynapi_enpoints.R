@@ -192,7 +192,7 @@ function() {
   return(Robyn::dt_simulated_weekly)
 }
 
-#* Provides holiday data suitable for use with Robyn models
+#* Provides holidays data suitable for use with Robyn models
 #* This endpoint returns a dataset of holidays that can be used within Robyn models to account for seasonal variations.
 #* @get /dt_prophet_holidays
 function() {
@@ -202,25 +202,25 @@ function() {
 #* Receives model-related data and configurations, processes them, and returns an 'InputCollect' object
 #* This endpoint handles the ingestion of model data and parameters, converting them into the appropriate format for the Robyn model.
 #* @param dt_input A hexadecimal string representing the binary content of a model data feather file.
-#* @param dt_holiday A hexadecimal string representing the binary content of a holiday data feather file.
+#* @param dt_holidays A hexadecimal string representing the binary content of a holidays data feather file.
 #* @param jsonInputArgs A JSON string of additional parameters to be used with the 'robyn_inputs()' function.
 #* @param InputCollect A JSON string representing the 'InputCollect' object created by the 'robyn_inputs()' function.
 #* @param calibration_input A hexadecimal string representing the binary content of a calibration data feather file.
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_inputs
-function(dt_input=FALSE, dt_holiday=FALSE, jsonInputArgs=FALSE, InputCollect=FALSE, calibration_input=FALSE) {
+function(dt_input=FALSE, dt_holidays=FALSE, jsonInputArgs=FALSE, InputCollect=FALSE, calibration_input=FALSE) {
 
+  inputArgs <- if (!jsonInputArgs==FALSE) jsonlite::fromJSON(jsonInputArgs) else NULL
   dt_input <- if (!dt_input==FALSE) hex_to_raw(dt_input) %>% arrow::read_feather() else NULL
-  dt_holiday <- if (!dt_holiday==FALSE) hex_to_raw(dt_holiday) %>% arrow::read_feather() else NULL
+  dt_holidays <- if (!dt_holidays==FALSE) hex_to_raw(dt_holidays) %>% arrow::read_feather() else NULL
   InputCollect <- if (!InputCollect==FALSE) transform_InputCollect(InputCollect) else NULL
   calibration_input <- if (!calibration_input==FALSE) hex_to_raw(calibration_input) %>% arrow::read_feather() else NULL
-  argsInput <- if (!jsonInputArgs==FALSE) jsonlite::fromJSON(jsonInputArgs) else NULL
   
   InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input,
-                                               dt_holidays = dt_holiday,
+                                               dt_holidays = dt_holidays,
                                                InputCollect = InputCollect,
                                                calibration_input = calibration_input
-                                               ), argsInput))
+                                               ), inputArgs))
   
   return(recursive_ggplot_serialize(InputCollect))
 }
@@ -234,10 +234,11 @@ function(dt_input=FALSE, dt_holiday=FALSE, jsonInputArgs=FALSE, InputCollect=FAL
 #* @post /robyn_run
 function(InputCollect, jsonRunArgs) {
   
+  runArgs <- jsonlite::fromJSON(jsonRunArgs)
   InputCollect <- transform_InputCollect(InputCollect)
-  argsRun <- jsonlite::fromJSON(jsonRunArgs)
   
-  OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect), argsRun))
+  OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect
+                                            ), runArgs))
   
   return(recursive_ggplot_serialize(OutputModels))
 }
@@ -253,13 +254,13 @@ function(InputCollect, jsonRunArgs) {
 #* @post /robyn_outputs
 function(InputCollect, OutputModels, jsonOutputsArgs) {
   
+  outputsArgs <- jsonlite::fromJSON(jsonOutputsArgs)
   InputCollect <- transform_InputCollect(InputCollect)
   OutputModels <- jsonlite::fromJSON(OutputModels)
-  argsOutputs <- jsonlite::fromJSON(jsonOutputsArgs)
   
   OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect, 
                                                  OutputModels = OutputModels
-                                                 ), argsOutputs))
+                                                 ), outputsArgs))
   
   return(recursive_ggplot_serialize(OutputCollect))
 }
@@ -276,19 +277,19 @@ function(InputCollect, OutputModels, jsonOutputsArgs) {
 #* @post /robyn_onepagers
 function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=100, width=12, height=8) {
   
-  argsOonepagers <- jsonlite::fromJSON(jsonOnepagersArgs)
+  onepagersArgs <- jsonlite::fromJSON(jsonOnepagersArgs)
   InputCollect <- transform_InputCollect(InputCollect)
-  OutputCollect <- transform_OutputCollect(OutputCollect, argsOonepagers[["select_model"]])
+  OutputCollect <- transform_OutputCollect(OutputCollect, onepagersArgs[["select_model"]])
   
   onepager <- do.call(robyn_onepagers, c(list(InputCollect = InputCollect, 
                                               OutputCollect = OutputCollect
-                                              ), argsOonepagers))
+                                              ), onepagersArgs))
   
   dpi <- as.numeric(dpi)
   width <- as.numeric(width)
   height <- as.numeric(height)
   
-  return(ggplot_serialize(onepager[[argsOonepagers[["select_model"]]]], dpi=dpi, width=width, height=height))
+  return(ggplot_serialize(onepager[[onepagersArgs[["select_model"]]]], dpi=dpi, width=width, height=height))
 }
 
 #* Generates and returns a serialized image of the allocation one-pager
@@ -303,11 +304,13 @@ function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi=100, width=12, heig
 #* @post /robyn_allocator
 function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi=100, width=12, height=8) {
   
-  argsAllocator <- jsonlite::fromJSON(jsonAllocatorArgs)
+  allocatorArgs <- jsonlite::fromJSON(jsonAllocatorArgs)
   InputCollect <- transform_InputCollect(InputCollect)
-  OutputCollect <- transform_OutputCollect(OutputCollect, argsAllocator[["select_model"]])
+  OutputCollect <- transform_OutputCollect(OutputCollect, allocatorArgs[["select_model"]])
   
-  AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect), argsAllocator))
+  AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect,
+                                                      OutputCollect = OutputCollect
+                                                      ), allocatorArgs))
   
   dpi <- as.numeric(dpi)
   width <- as.numeric(width)
@@ -334,9 +337,9 @@ function(InputCollect=FALSE, OutputCollect=FALSE, OutputModels=FALSE, jsonWriteA
 }
 
 #* Recreates a model from data files and additional parameters
-#* This endpoint reads model data and holiday data from hexadecimal-encoded feather files and additional parameters from a JSON object to recreate a Robyn model.
+#* This endpoint reads model data and holidays data from hexadecimal-encoded feather files and additional parameters from a JSON object to recreate a Robyn model.
 #* @param dt_input A hexadecimal string of the model data feather file.
-#* @param dt_holidays A hexadecimal string of the holiday data feather file.
+#* @param dt_holidays A hexadecimal string of the holidays data feather file.
 #* @param jsonRecreateArgs A JSON string containing additional parameters for the 'robyn_recreate()' function.
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_recreate
@@ -346,7 +349,9 @@ function(dt_input, dt_holidays, jsonRecreateArgs) {
   dt_input <- dt_input %>% hex_to_raw() %>% arrow::read_feather()
   dt_holidays <- dt_holidays %>% hex_to_raw() %>% arrow::read_feather()
   
-  RobynRecreated <- do.call(robyn_recreate, c(list(dt_input = dt_input, dt_holidays = dt_holidays), recreateArgs))
+  RobynRecreated <- do.call(robyn_recreate, c(list(dt_input = dt_input,
+                                                   dt_holidays = dt_holidays
+                                                   ), recreateArgs))
   
   return(recursive_ggplot_serialize(RobynRecreated)) 
 }
@@ -361,4 +366,25 @@ function(adstock, all_media) {
   hyper_names_list <- hyper_names(adstock = adstock, all_media = jsonlite::fromJSON(all_media))
   
   return(hyper_names_list)
+}
+
+#* Refresh a model from data files and additional parameters
+#* This endpoint uses the 'robyn_refresh()' function to read model data and holidays data from hexadecimal-encoded feather files
+#* and additional parameters from a JSON object. This process refreshes the Robyn model.
+#* @param dt_input
+#* @param dt_holidays
+#* @param jsonRefreshArgs
+#* @serializer json list(digits = 20, na = 'null')
+#* @post /robyn_refresh
+function(dt_input, dt_holidays, jsonRefreshArgs) {
+  
+  refreshArgs <- jsonlite::fromJSON(jsonRefreshArgs)
+  dt_input <- if (!dt_input==FALSE) hex_to_raw(dt_input) %>% arrow::read_feather() else NULL
+  dt_holidays <- if (!dt_holidays==FALSE) hex_to_raw(dt_holidays) %>% arrow::read_feather() else NULL
+  
+  RobynRefresh <- do.call(robyn_refresh, c(list(dt_input = dt_input,
+                                                dt_holidays = dt_holidays
+                                                ), refreshArgs))
+  
+  return(recursive_ggplot_serialize(RobynRefresh))
 }
