@@ -284,3 +284,103 @@ def which_usecase(metric_value, date_range):
         usecase = "all_historical_vec"
 
     return usecase
+
+
+class ModelResponseType(TypedDict):
+    metric_name: str
+    date: List[str]
+    input_total: List[float]
+    input_carryover: List[float]
+    input_immediate: List[float]
+    response_total: List[float]
+    response_carryover: List[float]
+    response_immediate: List[float]
+    usecase: str
+
+def robyn_response(
+    InputCollect: Optional[Dict] = None,
+     OutputCollect: Optional[Dict] = None,
+    select_build: Optional[int] = None,
+    select_model: Optional[str] = None,
+    metric_name: Optional[str] = None,
+    metric_value: Optional[Union[float, List[float]]] = None,
+    date_range: Optional[Union[str, List[str]]] = None,
+    dt_hyppar: Optional[pd.DataFrame] = None,
+    dt_coef: Optional[pd.DataFrame] = None
+) -> ModelResponseType:
+    """
+    Main function to calculate response curves for media mix modeling.
+    
+    Args:
+        InputCollect (dict): Dictionary containing input data and parameters.
+        OutputCollect (dict): Dictionary containing output data and results.
+        select_build (int): Index of the selected build.
+        select_model (str): ID of the selected model.
+        metric_name (str): Name of the metric to analyze.
+        metric_value (float or list): Value(s) of the metric to analyze.
+        date_range (str or list): Date range for analysis.
+        dt_hyppar (pd.DataFrame): DataFrame containing hyperparameters.
+        dt_coef (pd.DataFrame): DataFrame containing coefficients.
+    
+    Returns:
+        ModelResponseType: A dictionary containing response curve data and metadata.
+    """
+    pass
+
+
+def robyn_response_from_robyn_object(
+    robyn_object: Optional[str] = None,
+    select_build: Optional[int] = None,
+    select_model: Optional[str] = None,
+    metric_name: Optional[str] = None,
+    metric_value: Optional[Union[float, List[float]]] = None,
+    date_range: Optional[Union[str, List[str]]] = None,
+    dt_hyppar: Optional[pd.DataFrame] = None,
+    dt_coef: Optional[pd.DataFrame] = None,
+) -> ModelResponseType:
+    """
+    Calculate response curves using a Robyn object file.
+    
+    Args:
+        robyn_object (str): Path to the Robyn object file.
+        select_build (int): Index of the selected build.
+        select_model (str): ID of the selected model.
+        metric_name (str): Name of the metric to analyze.
+        metric_value (float or list): Value(s) of the metric to analyze.
+        date_range (str or list): Date range for analysis.
+        dt_hyppar (pd.DataFrame): DataFrame containing hyperparameters.
+        dt_coef (pd.DataFrame): DataFrame containing coefficients.
+    
+    Returns:
+        ModelResponseType: A dictionary containing response curve data and metadata.
+    """
+    pass
+
+
+def robyn_response_from_json(
+    json_file: Optional[str] = None,
+    select_build: Optional[int] = None,
+    select_model: Optional[str] = None,
+    metric_name: Optional[str] = None,
+    metric_value: Optional[Union[float, List[float]]] = None,
+    date_range: Optional[Union[str, List[str]]] = None,
+    dt_hyppar: Optional[pd.DataFrame] = None,
+    dt_coef: Optional[pd.DataFrame] = None,
+) -> ModelResponseType:
+    """
+    Calculate response curves using a JSON file containing Robyn data.
+    
+    Args:
+        json_file (str): Path to the JSON file containing Robyn data.
+        select_build (int): Index of the selected build.
+        select_model (str): ID of the selected model.
+        metric_name (str): Name of the metric to analyze.
+        metric_value (float or list): Value(s) of the metric to analyze.
+        date_range (str or list): Date range for analysis.
+        dt_hyppar (pd.DataFrame): DataFrame containing hyperparameters.
+        dt_coef (pd.DataFrame): DataFrame containing coefficients.
+    
+    Returns:
+        ModelResponseType: A dictionary containing response curve data and metadata.
+    """
+    pass
