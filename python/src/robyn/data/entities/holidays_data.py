@@ -2,8 +2,8 @@
 
 from typing import List
 import pandas as pd
-from enums import ProphetVariableType
-from enums import ProphetSigns
+from robyn.data.entities.enums import ProphetVariableType
+from robyn.data.entities.enums import ProphetSigns
 
 class HolidaysData:
     def __init__(

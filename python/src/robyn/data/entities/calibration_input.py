@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict
 import pandas as pd
-from enums import CalibrationScope
+from robyn.data.entities.enums import CalibrationScope
 
 
 # Define a new data class to hold the calibration data for each channel

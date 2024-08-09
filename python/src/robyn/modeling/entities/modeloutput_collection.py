@@ -5,7 +5,7 @@ from datetime import datetime
 
 from robyn.modeling.entities.modeloutput import ModelOutput, ResultHypParam, XDecompAgg
 
-@dataclass(frozen=True)
+
 class ModelOutputCollection:
     # Group 1: Model Results
     resultHypParam: ResultHypParam

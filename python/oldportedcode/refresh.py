@@ -246,6 +246,7 @@ def robyn_refresh(json_file=None, robyn_object=None, dt_input=None, dt_holidays=
     ##    else:
     ##        robyn_write(input_collect_rf, output_collect_rf, select_model=selectID, **kwargs)
 
+    ## this is wrong. invisible() is not a function in Python
     return(invisible(robyn))
 
 
@@ -294,3 +295,60 @@ def refresh_hyps(initBounds, listOutputPrev, refresh_steps, rollingWindowLength)
         else:
             hyper_updated_prev[hn][0] = getRange
     return hyper_updated_prev
+
+
+def model_refresh(
+        self,
+        mmmdata_collection: MMMDataCollection,
+        model_output_collection: ModelOutputsCollection,
+        refresh_config: ModelRefreshConfig,
+        calibration_input: Optional[CalibrationInputConfig] = None,
+        objective_weights: Optional[Dict[str, float]] = None
+    ) -> List[Any]:
+        """
+        Refresh the model with new MMM data collection and model output collection.
+
+        :param mmmdata_collection: Collection of MMM data.
+        :param model_output_collection: Collection of model outputs.
+        :param refresh_config: Configuration for the model refresh.
+        :param calibration_input: Optional calibration input configuration.
+        :param objective_weights: Optional dictionary of objective weights.
+        :return: The refreshed model output.
+        """
+        pass
+
+    def model_refresh_from_robyn_object(
+        self,
+        robyn_object: Dict[str, Any],
+        refresh_config: ModelRefreshConfig,
+        calibration_input: Optional[CalibrationInputConfig] = None,
+        objective_weights: Optional[Dict[str, float]] = None
+    ) -> List[Any]:
+        """
+        Refresh the model with a Robyn object.
+
+        :param robyn_object: Dictionary containing the Robyn object.
+        :param refresh_config: Configuration for the model refresh.
+        :param calibration_input: Optional calibration input configuration.
+        :param objective_weights: Optional dictionary of objective weights.
+        :return: The refreshed model output.
+        """
+        pass
+
+    def model_refresh_from_reloadedstate(
+        self,
+        json_file: str,
+        refresh_config: ModelRefreshConfig,
+        calibration_input: Optional[CalibrationInputConfig] = None,
+        objective_weights: Optional[Dict[str, float]] = None
+    ) -> List[Any]:  # Updated return type to Dict[str, Any]:
+        """
+        Refresh the model with a JSON file.
+
+        :param json_file: Path to the JSON file containing the model configuration.
+        :param refresh_config: Configuration for the model refresh.
+        :param calibration_input: Optional calibration input configuration.
+        :param objective_weights: Optional dictionary of objective weights.
+        :return: The refreshed model output.
+        """
+        pass
