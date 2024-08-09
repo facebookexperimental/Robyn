@@ -3,6 +3,7 @@ from typing import Dict
 import pandas as pd
 from enums import CalibrationScope
 
+
 # Define a new data class to hold the calibration data for each channel
 @dataclass(frozen=True)
 class ChannelCalibrationData:
@@ -19,8 +20,8 @@ class ChannelCalibrationData:
         calibration_scope (CalibrationScope): Calibration scope.
     """
 
-    lift_start_date: pd.Timestamp = field(default_factory=pd.Timestamp)
-    lift_end_date: pd.Timestamp = field(default_factory=pd.Timestamp)
+    lift_start_date: pd.Timestamp = field(default_factory=pd.Timestamp.now)
+    lift_end_date: pd.Timestamp = field(default_factory=pd.Timestamp.now)
     lift_abs: int = 0
     spend: int = 0
     confidence: float = 0.0
