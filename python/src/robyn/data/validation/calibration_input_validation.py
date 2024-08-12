@@ -13,6 +13,11 @@ class CalibrationInputValidation(Validation):
     def check_calibration(
         self, mmmdata: MMMData, calibration_input: CalibrationInput, window_start: int, window_end: int
     ) -> ValidationResult:
+        """
+        This function checks the calibration input data for consistency and correctness.
+        It verifies that the input data contains the required columns, that the date range
+        is within the modeling window, and that the spend values match the input data.
+        """
         # method implementation goes here
         raise NotImplementedError("Not yet implemented")
 
