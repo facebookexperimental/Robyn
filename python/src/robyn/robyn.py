@@ -45,7 +45,7 @@ class Robyn:
             hyperparameters (HyperParametersConfig): The hyperparameters configuration object.
             calibration_input (CalibrationInputConfig): The calibration input configuration object.
         """
-        pass
+        raise NotImplementedError("Not yet implemented")
 
     # Load previous state from Json file
     def reinitialize_from_json(self, robyn_object_json_file: str) -> None:
