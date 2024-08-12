@@ -6,6 +6,7 @@
 
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.mmmdata_collection import TimeWindow
+from robyn.data.validation.validation import Validation, ValidationResult
 
 
 @dataclass
@@ -19,27 +20,26 @@ class CalibrationInputValidation:
 
     def check_calibration_input(
         self, mmm_data: MMMData, time_window: TimeWindow, day_interval: int
-    ) -> Dict[str, List[str]]:
+    ) -> ValidationResult:
         """
         Check if the calibration input is valid.
         """
         invalid_variables: List[str] = []
         errors: List[str] = []
-
-        return {"invalid_variables": invalid_variables, "errors": errors}
+        raise NotImplementedError("Not yet implemented")
 
     def check_objective_weights(
         self, objective_weights: Optional[List[float]], refresh: bool
-    ) -> bool:
+    ) -> ValidationResult:
         """
         Check if the objective weights are valid.
         """
-        return True
+        raise NotImplementedError("Not yet implemented")
 
     def check_iteration(
         self, iterations: int, trials: int, hyps_fixed: bool, refresh: bool
-    ) -> Optional[str]:
+    ) -> ValidationResult:
         """
         Check if the iteration and trials are valid.
         """
-        return None
+        raise NotImplementedError("Not yet implemented")

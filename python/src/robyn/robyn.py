@@ -37,6 +37,7 @@ class Robyn:
     ) -> None:
         """
         Loads input data for the first time and validates it.
+        Calls validate from MMMDataValidation, HolidaysDataValidation, HyperparametersValidation, and CalibrationInputValidation.
 
         Args:
             mmm_data (MMMData): The MMM data object.
@@ -44,7 +45,7 @@ class Robyn:
             hyperparameters (HyperParametersConfig): The hyperparameters configuration object.
             calibration_input (CalibrationInputConfig): The calibration input configuration object.
         """
-        pass
+        raise NotImplementedError("Not yet implemented")
 
     # Load previous state from Json file
     def reinitialize_from_json(self, robyn_object_json_file: str) -> None:

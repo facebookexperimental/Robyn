@@ -10,6 +10,7 @@ import pandas as pd
 from robyn.data.entities.enums import AdstockType
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
+from robyn.data.validation.validation import Validation, ValidationResult
 
 
 @dataclass
@@ -19,7 +20,6 @@ class HyperparameterValidation:
     """
 
     HYPS_NAMES = ["thetas", "shapes", "scales", "alphas", "gammas", "penalty"]
-
     HYPS_OTHERS = ["lambda", "train_size"]
 
     def __init__(self, hyperparameters: Hyperparameters) -> None:
@@ -30,7 +30,7 @@ class HyperparameterValidation:
         adstock: AdstockType,
         mmm_data: MMMData,
         exposure_vars: Optional[List[str]],
-    ) -> Optional[pd.DataFrame]:
+    ) -> ValidationResult:
         """
         Check if the hyperparameters are valid.
 
@@ -42,28 +42,20 @@ class HyperparameterValidation:
         Returns:
             Optional[pd.DataFrame]: The validated hyperparameters.
         """
+        raise NotImplementedError("Not yet implemented")
 
-        return None
-
-    def _check_train_size(self) -> bool:
+    def _check_train_size(self) -> ValidationResult:
         """
         Check if the train size is valid.
 
         Returns:
             bool: True if the train size is valid, False otherwise.
         """
-        if "train_size" in self.hyperparameters:
-            if (
-                not 1 <= len(self.hyperparameters["train_size"]) <= 2
-                or any(self.hyperparameters["train_size"] <= 0.1)
-                or any(self.hyperparameters["train_size"] > 1)
-            ):
-                return False
-        return True
+        raise NotImplementedError("Not yet implemented")
 
     def _check_hyperparameter_limits(
         hyperparameters: pd.DataFrame, column: str
-    ) -> None:
+    ) -> ValidationResult:
         """
         Check if the hyperparameters dataframe are within the limits.
 
@@ -72,15 +64,15 @@ class HyperparameterValidation:
             column (str): The column in hyperparameter to check.
 
         Returns:
-            None
+            ValidationResult
         """
-        return
+        raise NotImplementedError("Not yet implemented")
 
     def _combine_filtered_elements(
         filter_parameters: List[str],
         all_hyperparameters: List[str],
         all_media: List[str],
-    ) -> List[str]:
+    ) -> ValidationResult:
         """
         Combine the filtered elements.
 
@@ -92,9 +84,11 @@ class HyperparameterValidation:
         Returns:
             List[str]: The combined elements.
         """
-        return all_media
+        raise NotImplementedError("Not yet implemented")
 
-    def hyper_names(self, adstock: AdstockType, all_media: List[str]) -> List[str]:
+    def hyper_names(
+        self, adstock: AdstockType, all_media: List[str]
+    ) -> ValidationResult:
         """
         Returns the sorted hyperparameter column names.
 
@@ -105,4 +99,4 @@ class HyperparameterValidation:
         Returns:
             List[str]: The hyperparameter column names.
         """
-        return self._combine_filtered_elements([], [], all_media)
+        raise NotImplementedError("Not yet implemented")
