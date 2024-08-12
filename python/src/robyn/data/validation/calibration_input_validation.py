@@ -1,4 +1,36 @@
-# Following methods from checks module should go here.
-# def check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_var,window_start, window_end, paid_media_spends, organic_vars):
-# def check_obj_weight(calibration_input, objective_weights, refresh):
-# def check_iteration(calibration_input, iterations, trials, hyps_fixed, refresh):
+from calibration_input import CalibrationInput
+from mmmdata import MMMData
+from robyn.data.validation.validation import Validation, ValidationResult
+from typing import List
+
+from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
+
+class CalibrationInputValidation(Validation):
+    def __init__(self, mmmdata: MMMData, calibration_input: CalibrationInput) -> None:
+        self.mmmdata = mmmdata
+        self.calibration_input = calibration_input
+
+    def check_calibration(
+        self, mmmdata: MMMData, calibration_input: CalibrationInput, window_start: int, window_end: int
+    ) -> ValidationResult:
+        # method implementation goes here
+        raise NotImplementedError("Not yet implemented")
+
+    def check_obj_weight(
+        self, calibration_input: CalibrationInput, objective_weights: List[float], refresh: bool
+    ) -> ValidationResult:
+        # method implementation goes here
+        raise NotImplementedError("Not yet implemented")
+
+    def check_iteration(
+        self,
+        calibration_input: CalibrationInput,
+        trials_config: TrialsConfig,
+        hyps_fixed: bool,
+        refresh: bool,
+    ) -> ValidationResult:
+        # method implementation goes here
+        raise NotImplementedError("Not yet implemented")
+
+    def validate(self) -> ValidationResult:
+        raise NotImplementedError("Not yet implemented")

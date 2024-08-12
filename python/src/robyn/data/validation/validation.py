@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 @dataclass
 class ValidationResult:
@@ -13,6 +13,5 @@ class Validation(ABC):
     """Abstract base class for validation operations"""
     
     @abstractmethod
-    def validate(self) -> ValidationResult:
+    def validate(self) -> List[ValidationResult]:
         """Perform validation and return the result"""
-        pass
