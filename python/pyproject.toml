@@ -18,6 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "cmake",
     "pandas",
     "numpy>=1.20.0",
     "matplotlib",
@@ -34,8 +35,9 @@ dependencies = [
     "rpy2",
     "pytest",
     "plotly",
-    "nlopt",
-    "cmake",
+    #"nlopt",
+    "jupyter",
+    "notebook",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]

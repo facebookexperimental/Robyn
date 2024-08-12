@@ -38,7 +38,7 @@ Config/reticulate:
   )
 URL: https://github.com/facebookexperimental/Robyn, https://facebookexperimental.github.io/Robyn/
 BugReports: https://github.com/facebookexperimental/Robyn/issues
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
