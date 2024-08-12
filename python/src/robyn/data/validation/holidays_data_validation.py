@@ -1,27 +1,37 @@
-from dataclasses import dataclass
+#pyre-strict
 
+from typing import List
 from robyn.data.entities.holidays_data import HolidaysData
+from robyn.data.validation.validation import Validation, ValidationResult
 
-@dataclass
-class ValidationResult:
-    is_valid: bool
-    errors: list[str]
-    warnings: list[str]
 
-def check_prophet(self, holidays_data: HolidaysData) -> ValidationResult:
-    """
-    Check if the Prophet model is valid for the given data.
+class HolidaysDataValidation(Validation):
+    def __init__(self, holidays_data: HolidaysData) -> None:
+        self.holidays_data: HolidaysData = holidays_data
 
-    Parameters:
-    - holidays_data (HolidaysData): The holidays data to check.
+    def check_holidays(self) -> ValidationResult:
+        """
+        Check if the holidays data is valid.
 
-    Returns:
-    - ValidationResult: The result of the validation.
-    """
+        Returns:
+        - bool: True if the holidays data is valid, False otherwise.
+        """
+        raise NotImplementedError("Not yet implemented")
 
-    is_valid = True
-    errors = []
-    warnings = []
-    prophet_signs = None
+    def check_prophet(self, holidays_data: HolidaysData) -> ValidationResult:
+        """
+        Check if the Prophet model is valid for the given data.
 
-    return ValidationResult(is_valid, errors, warnings)
+        Returns:
+        - bool: True if the Prophet model is valid, False otherwise.
+        """
+        raise NotImplementedError("Not yet implemented")
+
+    def validate(self) -> List[ValidationResult]:
+        """
+        Perform all validations and return the result.
+
+        Returns:
+        - ValidationResult: The result of the validation operation.
+        """
+        raise NotImplementedError("Not yet implemented")
