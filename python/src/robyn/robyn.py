@@ -42,11 +42,27 @@ class Robyn:
         Args:
             mmm_data (MMMData): The MMM data object.
             holidays_data (HolidaysData): The holidays data object.
-            hyperparameters (HyperParametersConfig): The hyperparameters configuration object.
-            calibration_input (CalibrationInputConfig): The calibration input configuration object.
+            hyperparameters (Hyperparameters): The hyperparameters configuration object.
+            calibration_input (CalibrationInput): The calibration input configuration object.
         """
-        raise NotImplementedError("Not yet implemented")
+        # Validate MMMData
+        MMMDataValidation.validate(mmm_data)
 
+        # Validate HolidaysData
+        HolidaysDataValidation.validate(holidays_data)
+
+        # Validate Hyperparameters
+        HyperparametersValidation.validate(hyperparameters)
+
+        # Validate CalibrationInput
+        CalibrationInputValidation.validate(calibration_input)
+
+        # Assign the validated data to the instance variables
+        self.mmm_data = mmm_data
+        self.holidays_data = holidays_data
+        self.hyperparameters = hyperparameters
+        self.calibration_input = calibration_input
+        
     # Load previous state from Json file
     def reinitialize_from_json(self, robyn_object_json_file: str) -> None:
         """

@@ -6,7 +6,7 @@ import pandas as pd
 from robyn.data.entities.enums import ContextSigns, DependentVarType, OrganicSigns, PaidMediaSigns
 
 
-@dataclass(frozen=True)
+@dataclass
 class MMMData:
     class MMMDataSpec:
 
