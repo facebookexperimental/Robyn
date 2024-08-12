@@ -6,9 +6,10 @@ import numpy as np
 import re
 
 from robyn.data.entities.mmmdata import MMMData
+from robyn.data.validation.validation import Validation, ValidationResult
 
 
-class MMMDataValidation:
+class MMMDataValidation(Validation):
     def __init__(self, mmm_data: MMMData) -> None:
         self.mmm_data: MMMData = mmm_data
 
@@ -66,7 +67,7 @@ class MMMDataValidation:
             return False
         return self.mmm_data.data[dep_var].dtype in ['int64', 'float64']
 
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> ValidationResult:
         """
         Perform all validations and return the results.
         

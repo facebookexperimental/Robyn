@@ -37,6 +37,7 @@ class Robyn:
     ) -> None:
         """
         Loads input data for the first time and validates it.
+        Calls validate from MMMDataValidation, HolidaysDataValidation, HyperparametersValidation, and CalibrationInputValidation.
 
         Args:
             mmm_data (MMMData): The MMM data object.
