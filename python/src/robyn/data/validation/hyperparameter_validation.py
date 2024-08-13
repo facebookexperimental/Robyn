@@ -100,3 +100,24 @@ class HyperparameterValidation:
             List[str]: The hyperparameter column names.
         """
         raise NotImplementedError("Not yet implemented")
+
+    def check_hyper_fixed(
+        self,
+        adstock: AdstockType,
+        all_media: List[str],
+        dt_mod: pd.DataFrame,
+        dt_hyper_fixed: Optional[pd.DataFrame],
+        add_penalty_factor: bool,
+    ) -> ValidationResult:
+        """
+        Checks if hyperparameters are fixed and adjusts the list of hyperparameter names based on the input data and conditions.
+        Args:
+            adstock (AdstockType): Adstock data.
+            all_media (List[str]): List of all media types.
+            dt_mod (pd.DataFrame): DataFrame containing model data.
+            dt_hyper_fixed (Optional[pd.DataFrame]): DataFrame containing fixed hyperparameters, can be None.
+            add_penalty_factor (bool): Flag to determine if penalty factors should be added.
+        Returns:
+            ValidationResult: ValidationResult containing the status of hyperparameters being fixed and the list of hyperparameter names.
+        """
+        raise NotImplementedError("Not yet implemented")

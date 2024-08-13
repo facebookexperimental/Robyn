@@ -43,3 +43,14 @@ class CommonValidationUtil:
             return date.strftime("%Y-%m-%d")
         else:
             raise TypeError("Unsupported date type")
+
+    def validate_instance_types(
+        elements: List[Any], expected_type: Type
+    ) -> ValidationResult:
+        """
+        Validates that all elements in the provided list are instances of the specified class type.
+        Args:
+            elements (List[Any]): List of elements to be checked.
+            expected_type (Type): The class type that all elements in the list are expected to be instances of.
+        """
+        raise NotImplementedError("Not yet implemented")

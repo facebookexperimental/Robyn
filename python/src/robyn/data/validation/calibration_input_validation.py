@@ -43,3 +43,18 @@ class CalibrationInputValidation:
         Check if the iteration and trials are valid.
         """
         raise NotImplementedError("Not yet implemented")
+
+    def check_calibconstr(
+        self, calibration_constraint: float, iterations: int, trials: int, refresh: bool
+    ) -> ValidationResult:
+        """
+        Checks and adjusts the calibration constraint based on the total iterations and trials.
+        Args:
+            calibration_constraint (float): The calibration constraint value to check.
+            iterations (int): Number of iterations per trial.
+            trials (int): Number of trials.
+            refresh (bool): Indicates if a refresh operation is requested.
+        Returns:
+            ValidationResult: The verified calibration constraint.
+        """
+        raise NotImplementedError("Not yet implemented")
