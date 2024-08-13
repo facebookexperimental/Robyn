@@ -217,7 +217,7 @@ class BudgetAllocator:
         pass
 
     @staticmethod
-    def get_adstock_parameters(InputCollect: Dict[str, Any], dt_hyppar: pd.DataFrame) -> pd.DataFrame:
+    def get_adstock_parameters(mmmdata_collection: MMMDataCollection, dt_hyppar: pd.DataFrame) -> pd.DataFrame:
         """
         Retrieves the adstock parameters based on the adstock type specified in InputCollect.
         This method corresponds to the original 'get_adstock_params' function.
@@ -226,8 +226,7 @@ class BudgetAllocator:
         pass
 
     @staticmethod
-    def get_hill_parameters(InputCollect: Dict[str, Any], OutputCollect: Dict[str, Any], dt_hyppar: pd.DataFrame, 
-                            dt_coef: pd.DataFrame, mediaSpendSorted: List[str], select_model: Any, 
+    def get_hill_parameters(mmmdata_collection: MMMDataCollection, model_output_collection: ModelOutputCollection, select_model: Any, 
                             chnAdstocked: Optional[pd.DataFrame] = None) -> Dict[str, Any]:
         """
         Calculate the hill parameters for the given inputs.

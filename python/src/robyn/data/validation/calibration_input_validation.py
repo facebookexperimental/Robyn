@@ -22,10 +22,11 @@ class CalibrationInputValidation:
         self, mmm_data: MMMData, time_window: TimeWindow, day_interval: int
     ) -> ValidationResult:
         """
-        Check if the calibration input is valid.
+        This function checks the calibration input data for consistency and correctness.
+        It verifies that the input data contains the required columns, that the date range
+        is within the modeling window, and that the spend values match the input data.
         """
-        invalid_variables: List[str] = []
-        errors: List[str] = []
+        # method implementation goes here
         raise NotImplementedError("Not yet implemented")
 
     def check_objective_weights(

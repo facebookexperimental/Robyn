@@ -17,7 +17,7 @@ class FeatureEngineering:
             quiet (bool, optional): If True, suppresses the printing of recommendations and warnings. Defaults to False.
 
         Returns:
-            Dict[str, Union[pd.DataFrame, List[str], int, str, Dict[str, Optional[Union[pd.DataFrame, List[pd.DataFrame]]]]]]: The updated input dictionary with engineered features.
+            The updated input dictionary with engineered features.
         """
         print(">> Running Robyn feature engineering...")
 

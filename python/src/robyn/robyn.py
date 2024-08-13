@@ -62,6 +62,8 @@ class Robyn:
         self,
         num_of_cores: int,
         trials_config: TrialsConfig,
+        plot: bool = False,
+        export: bool = False,
     ) -> ModelOutput:
         """
         Runs the models for all trials and iterations using the specified number of cores.
@@ -81,6 +83,10 @@ class Robyn:
         self,
         select_model: str,
         budger_allocator_config: BudgetAllocatorConfig,
+        report: bool = False,
+        plot: bool = False,
+        onepager: bool = False,
+        export: bool = False,
     ) -> BudgetAllocationResult:
         """
         Runs the budget allocator for the given MMMDataCollection and ModelOutputsCollection.
@@ -102,6 +108,10 @@ class Robyn:
         robyn_object_json: str,
         select_model: str,
         budger_allocator_config: BudgetAllocatorConfig,
+        report: bool = False,
+        plot: bool = False,
+        onepager: bool = False,
+        export: bool = False,
     ) -> BudgetAllocationResult:
         """
         Runs the budget allocator using the specified JSON file.
@@ -134,54 +144,43 @@ class Robyn:
         """
         pass
 
-    def robyn_response(
-        self,
-        select_build=None,
-        select_model=None,
-        metric_name=None,
-        metric_value=None,
-        date_range=None,
-        dt_hyppar=None,
-        dt_coef=None,
-        quiet=False,
-    ):
-        """
-        Generates a response for the given input parameters.
 
-        Args:
-            select_build (_type_, optional): The selected build. Defaults to None.
-            select_model (_type_, optional): The selected model. Defaults to None.
-            metric_name (_type_, optional): The metric name. Defaults to None.
-            metric_value (_type_, optional): The metric value. Defaults to None.
-            date_range (_type_, optional): The date range. Defaults to None.
-            dt_hyppar (_type_, optional): The dt hyppar. Defaults to None.
-            dt_coef (_type_, optional): The dt coef. Defaults to None.
+    # Model Evaluate (outputs.R from Robyn)
+    def model_evaluate(self,
+        pareto_fronts : str="auto",
+        calibration_constraint : float=0.1,
+        plot_pareto: bool=True,
+        clusters: bool=True,
+        plot:bool=False,
+        select_model:str="clusters",
+        ) -> Any: #TODO Update return type
+        """
+        Evaluate the model using the given data collection and output models.
+
+        Parameters:
+        - mmmdata_collection (MMMDataCollection): The collection of MMMData objects.
+        - output_models (ModelOutput): The output models to evaluate.
+        - pareto_fronts (str, optional): The method to calculate pareto fronts. Defaults to "auto".
+        - calibration_constraint (float, optional): The calibration constraint value. Defaults to 0.1.
+        - plot_pareto (bool, optional): Whether to plot the pareto fronts. Defaults to True.
+        - clusters (bool, optional): Whether to use clustering. Defaults to True.
+        - plot (bool, optional): Whether to plot the results. Defaults to False.
+        - select_model (str, optional): The method to select the model. Defaults to "clusters".
+
+        Returns:
+        - ModelOutputCollection: The collection of model outputs.
         """
         pass
 
-    # If json_file has everything always including MMMDataCollection, ModelOutputCollection then use reinitialize_from_json
-    def robyn_response_from_json(
-        self,
-        json_file=None,
-        select_build=None,
-        select_model=None,
-        metric_name=None,
-        metric_value=None,
-        date_range=None,
-        dt_hyppar=None,
-        dt_coef=None,
-    ):
-        """
-        Generates a response for the given input parameters using a JSON file.
 
-        Args:
-            json_file (_type_, optional): The path to the JSON file. Defaults to None.
-            select_build (_type_, optional): The selected build. Defaults to None.
-            select_model (_type_, optional): The selected model. Defaults to None.
-            metric_name (_type_, optional): The metric name. Defaults to None.
-            metric_value (_type_, optional): The metric value. Defaults to None.
-            date_range (_type_, optional): The date range. Defaults to None.
-            dt_hyppar (_type_, optional): The dt hyppar. Defaults to None.
-            dt_coef (_type_, optional): The dt coef. Defaults to None.
-        """
-        pass
+    # model_response (response.R from Robyn)
+    #TODO Review inputs and return type
+
+    def model_response(self, 
+        select_build: int, 
+        select_model: str, 
+        metric_name: str, 
+        metric_value: float, 
+        date_range: str, 
+        dt_hyppar: dict, 
+        dt_coef: dict) -> Any:
