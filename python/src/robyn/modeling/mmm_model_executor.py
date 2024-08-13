@@ -2,6 +2,8 @@
 
 from typing import Optional, Dict, Any
 
+from mmmdata_collection import MMMDataCollection
+
 class MMMModelExecutor:
     def model_run(
         self,
@@ -104,7 +106,7 @@ class MMMModelExecutor:
     #model.R robyn_mmm
     def run_nevergrad_optimization(
         self,
-        InputCollect: Dict[str, Any],
+        mmmdata_collection: MMMDataCollection,
         hyper_collect: Dict[str, Any],
         iterations: int,
         cores: int,

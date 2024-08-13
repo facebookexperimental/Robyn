@@ -3,39 +3,12 @@
 from typing import Optional, Dict
 import pandas as pd
 
+from mmmdata import MMMData
+from robyn.data.entities.enums import AdstockType
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.modeling.entities.calibration_result import CalibrationResult
 
 class Calibration:
-    """
-    A class used to perform calibration on the provided input data.
-
-    Attributes:
-    ----------
-    calibration_input : pd.DataFrame
-        The input data for calibration.
-    df_raw : pd.DataFrame
-        The raw data.
-    dayInterval : int
-        The day interval.
-    xDecompVec : pd.DataFrame
-        The decomposed vector.
-    coefs : pd.DataFrame
-        The coefficients.
-    hypParamSam : Dict[str, float]
-        The hyperparameter samples.
-    wind_start : int
-        The start of the window (default is 1).
-    wind_end : int
-        The end of the window (default is the number of rows in df_raw).
-    adstock : str
-        The adstock type (default is None).
-
-    Methods:
-    -------
-    calibrate()
-        Performs calibration on the provided input data.
-    """
 
     #TODO review and update attributes
     def __init__(self,
@@ -47,40 +20,30 @@ class Calibration:
                  hypParamSam: Dict[str, float],
                  wind_start: int = 1,
                  wind_end: Optional[int] = None,
-                 adstock: Optional[str] = None):
+                 adstock: AdstockType = None) -> None:
         """
-        Initializes the Calibration class.
-
+        Initializes a Calibration object.
         Args:
-        ----
-        calibration_input : pd.DataFrame
-            The input data for calibration.
-        mmmdata : MMMData
-            The raw data.
-        dayInterval : int
-            The day interval.
-        xDecompVec : pd.DataFrame
-            The decomposed vector.
-        coefs : pd.DataFrame
-            The coefficients.
-        hypParamSam : Dict[str, float]
-            The hyperparameter samples.
-        wind_start : int
-            The start of the window (default is 1).
-        wind_end : int
-            The end of the window (default is the number of rows in df_raw).
-        adstock : str
-            The adstock type (default is None).
+            calibration_input (CalibrationInput): The calibration input.
+            mmmdata (MMMData): The MMMData object.
+            dayInterval (int): The day interval.
+            xDecompVec (pd.DataFrame): The decomposition vector.
+            coefs (pd.DataFrame): The coefficients.
+            hypParamSam (Dict[str, float]): The hyperparameter sample.
+            wind_start (int, optional): The start of the window. Defaults to 1.
+            wind_end (int, optional): The end of the window. Defaults to None.
+            adstock (str, optional): The adstock. Defaults to None.
         """
         self.calibration_input = calibration_input
-        self.df_raw = df_raw
+        self.mmmdata = mmmdata
         self.dayInterval = dayInterval
         self.xDecompVec = xDecompVec
         self.coefs = coefs
         self.hypParamSam = hypParamSam
         self.wind_start = wind_start
-        self.wind_end = wind_end if wind_end else len(df_raw)
+        self.wind_end = wind_end
         self.adstock = adstock
+
 
     def calibrate(self) -> CalibrationResult:
         """
