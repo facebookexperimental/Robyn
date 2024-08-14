@@ -1,17 +1,25 @@
-from calibration_input import CalibrationInput
-from mmmdata import MMMData
+# Following methods from checks module should go here.
+# def check_calibration(dt_input, date_var, calibration_input, dayInterval, dep_var,window_start, window_end, paid_media_spends, organic_vars):
+# def check_obj_weight(calibration_input, objective_weights, refresh):
+# def check_iteration(calibration_input, iterations, trials, hyps_fixed, refresh):
+
+
+from robyn.data.entities.mmmdata import MMMData
+from robyn.data.entities.mmmdata_collection import TimeWindow
 from robyn.data.validation.validation import Validation, ValidationResult
-from typing import List
 
-from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 
-class CalibrationInputValidation(Validation):
-    def __init__(self, mmmdata: MMMData, calibration_input: CalibrationInput) -> None:
-        self.mmmdata = mmmdata
-        self.calibration_input = calibration_input
+@dataclass
+class CalibrationInputValidation:
+    """
+    CalibrationInputValidation class to validate calibration Input in mmmdata_collection.
+    """
 
-    def check_calibration(
-        self, mmmdata: MMMData, calibration_input: CalibrationInput, window_start: int, window_end: int
+    def __init__(self, calibrationInput: CalibrationInput) -> None:
+        self.calibrationInput: CalibrationInput = calibrationInput
+
+    def check_calibration_input(
+        self, mmm_data: MMMData, time_window: TimeWindow, day_interval: int
     ) -> ValidationResult:
         """
         This function checks the calibration input data for consistency and correctness.
@@ -21,21 +29,33 @@ class CalibrationInputValidation(Validation):
         # method implementation goes here
         raise NotImplementedError("Not yet implemented")
 
-    def check_obj_weight(
-        self, calibration_input: CalibrationInput, objective_weights: List[float], refresh: bool
+    def check_objective_weights(
+        self, objective_weights: Optional[List[float]], refresh: bool
     ) -> ValidationResult:
-        # method implementation goes here
+        """
+        Check if the objective weights are valid.
+        """
         raise NotImplementedError("Not yet implemented")
 
     def check_iteration(
-        self,
-        calibration_input: CalibrationInput,
-        trials_config: TrialsConfig,
-        hyps_fixed: bool,
-        refresh: bool,
+        self, iterations: int, trials: int, hyps_fixed: bool, refresh: bool
     ) -> ValidationResult:
-        # method implementation goes here
+        """
+        Check if the iteration and trials are valid.
+        """
         raise NotImplementedError("Not yet implemented")
 
-    def validate(self) -> ValidationResult:
+    def check_calibconstr(
+        self, calibration_constraint: float, iterations: int, trials: int, refresh: bool
+    ) -> ValidationResult:
+        """
+        Checks and adjusts the calibration constraint based on the total iterations and trials.
+        Args:
+            calibration_constraint (float): The calibration constraint value to check.
+            iterations (int): Number of iterations per trial.
+            trials (int): Number of trials.
+            refresh (bool): Indicates if a refresh operation is requested.
+        Returns:
+            ValidationResult: The verified calibration constraint.
+        """
         raise NotImplementedError("Not yet implemented")
