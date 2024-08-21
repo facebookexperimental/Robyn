@@ -1,6 +1,5 @@
 from enum import Enum
 
-
 class DependentVarType(str, Enum):
     """
     Enum class for dependent variable types.
@@ -9,10 +8,8 @@ class DependentVarType(str, Enum):
     REVENUE (str): Revenue type.
     CONVERSION (str): Conversion type.
     """
-
     REVENUE = "revenue"
     CONVERSION = "conversion"
-
 
 class AdstockType(str, Enum):
     """
@@ -22,12 +19,8 @@ class AdstockType(str, Enum):
     GEOMETRIC (str): Geometric adstock type.
     WEIBULL (str): Weibull adstock type.
     """
-
     GEOMETRIC = "geometric"
     WEIBULL = "weibull"
-    WEIBULL_CDF = "weibull_cdf"
-    WEIBULL_PDF = "weibull_pdf"
-
 
 class SaturationType(str, Enum):
     """
@@ -37,10 +30,8 @@ class SaturationType(str, Enum):
     MICHAELIS_MENTEN (str): Michaelis-Menten saturation type.
     LOGISTIC (str): Logistic saturation type.
     """
-
     MICHAELIS_MENTEN = "michaelis_menten"
     LOGISTIC = "logistic"
-
 
 class ProphetVariableType(str, Enum):
     """
@@ -53,13 +44,11 @@ class ProphetVariableType(str, Enum):
     WEEKDAY (str): Weekday variable type.
     HOLIDAY (str): Holiday variable type.
     """
-
     TREND = "trend"
     SEASON = "season"
     MONTHLY = "monthly"
     WEEKDAY = "weekday"
     HOLIDAY = "holiday"
-
 
 class PaidMediaSigns(Enum):
     """
@@ -70,11 +59,9 @@ class PaidMediaSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
-
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
-
 
 class OrganicSigns(Enum):
     """
@@ -85,11 +72,9 @@ class OrganicSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
-
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
-
 
 class ContextSigns(Enum):
     """
@@ -100,11 +85,9 @@ class ContextSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
-
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
-
 
 class ProphetSigns(Enum):
     """
@@ -115,11 +98,9 @@ class ProphetSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
-
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
-
 
 class CalibrationScope(Enum):
     IMMEDIATE = "immediate"
