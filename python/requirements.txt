@@ -1,0 +1,17 @@
+pandas
+numpy>=1.20.0
+matplotlib
+scikit-learn
+prophet
+scipy
+lmfit
+plotnine
+nevergrad
+PyQt6
+nevergrad
+seaborn
+tqdm
+rpy2
+plotly
+pytest
+nlopt
