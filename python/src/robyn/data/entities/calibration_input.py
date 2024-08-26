@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict
 import pandas as pd
-from robyn.data.entities.enums import CalibrationScope
+from robyn.data.entities.enums import CalibrationScope, DependentVarType
 
 # Define a new data class to hold the calibration data for each channel
 @dataclass(frozen=True)
@@ -15,7 +15,7 @@ class ChannelCalibrationData:
         lift_abs (float): Absolute lift value.
         spend (float): Spend value.
         confidence (float): Confidence interval.
-        metric (str): Metric.
+        metric (str): DependentVarType.
         calibration_scope (CalibrationScope): Calibration scope.
     """
 
@@ -41,7 +41,6 @@ class ChannelCalibrationData:
         )
 
 
-# Modify the CalibrationInput data class to use a dictionary with channel names as keys
 @dataclass(frozen=True)
 class CalibrationInput:
     """

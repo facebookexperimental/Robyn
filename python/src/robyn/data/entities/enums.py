@@ -1,3 +1,6 @@
+#pyre-strict
+# Enum classes for different types of variables, model parameters etc.
+
 from enum import Enum
 
 class DependentVarType(str, Enum):
@@ -13,12 +16,14 @@ class DependentVarType(str, Enum):
 
 class AdstockType(str, Enum):
     """
-    Enum class for adstock types.
-
+    Enumeration class representing different types of adstock models.
     Attributes:
-    GEOMETRIC (str): Geometric adstock type.
-    WEIBULL (str): Weibull adstock type.
+        GEOMETRIC (str): Represents the geometric adstock model.
+        WEIBULL (str): Represents the Weibull adstock model.
+        WEIBULL_CDF (str): Represents the Weibull cumulative distribution function adstock model.
+        WEIBULL_PDF (str): Represents the Weibull probability density function adstock model.
     """
+
     GEOMETRIC = "geometric"
     WEIBULL = "weibull"
     WEIBULL_CDF = "weibull_cdf"
@@ -105,5 +110,12 @@ class ProphetSigns(Enum):
     DEFAULT = "default"
 
 class CalibrationScope(Enum):
+    """
+    Enumeration representing the calibration scope.
+
+    Attributes:
+        IMMEDIATE (str): Represents the immediate calibration scope.
+        TOTAL (str): Represents the total calibration scope.
+    """
     IMMEDIATE = "immediate"
     TOTAL = "total"
