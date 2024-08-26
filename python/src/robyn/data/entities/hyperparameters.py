@@ -1,11 +1,11 @@
 #pyre-strict
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List
 
 from robyn.data.entities.enums import AdstockType
 
-
+@dataclass
 class ChannelHyperparameters:
     """
     ChannelHyperparameters is an immutable data class that holds the hyperparameters for a model.
@@ -21,8 +21,8 @@ class ChannelHyperparameters:
     thetas: List[float] = None # if adstock is geometric 
     shapes: List[float] = None # if adstock is weibull
     scales: List[float] = None # if adstock is weibull
-    alphas: List[float] #Mandatory
-    gammas: List[float] #Mandatory
+    alphas: List[float] = None #Mandatory
+    gammas: List[float] = None #Mandatory
     penalty: List[bool] = None #optional. User only provides if they want to use it. They don't provide values. Model run calculates it. 
 
     def __str__(self) -> str:
@@ -37,7 +37,7 @@ class ChannelHyperparameters:
             f")"
         )
 
-#@dataclass(frozen=True)
+@dataclass
 class Hyperparameters:
     """
     Hyperparameters is an immutable data class that holds a dictionary of hyperparameters for multiple channels.
@@ -47,7 +47,7 @@ class Hyperparameters:
     """
     hyperparameters: Dict[str, ChannelHyperparameters] = None,
     adstock: AdstockType = None, #Mandatory. User provides this. 
-    lambda_: float # User does not provide this. Model run calculates it. 
+    lambda_: float = 0.0 # User does not provide this. Model run calculates it. 
     train_size: List[float] = (0.5, 0.8), # User can provide this.
 
     def __str__(self) -> str:
