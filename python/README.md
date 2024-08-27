@@ -30,8 +30,7 @@ pip3 install -r requirements.txt
   
 **2. Getting started**
 
-  * Use this [demo.py](https://github.com/facebookexperimental/Robyn/tree/main/python/src/scripts/demo.py) script as step-by-step guide that is
-  intended to cover most common use-cases. Test the package using simulated dataset provided in the package. 
+  * python/src/tutorials contains tutorials for most common scenarios.Tutorials uses simulated dataset provided in the package. 
   
   * Visit our [website](https://facebookexperimental.github.io/Robyn/) to explore more details about Project Robyn.
   
