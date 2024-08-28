@@ -7,8 +7,8 @@ from robyn.entities.modelrun_trials_config import TrialsConfig
 
 def main():
     # Load and prepare data
-    mmmdata_collection = MMMDataCollection()  # You'll need to implement this class
-    mmmdata = MMMData()  # You'll need to implement this class
+    mmmdata_collection = MMMDataCollection()
+    mmmdata = MMMData()
 
     # Configure model run
     trials_config = TrialsConfig(
@@ -28,7 +28,7 @@ def main():
         refresh=False,
         seed=123,
         quiet=False,
-        cores=None,
+        cores=None, 1 1
         nevergrad_algo="TwoPointsDE",
         intercept=True,
         intercept_sign="non_negative"
