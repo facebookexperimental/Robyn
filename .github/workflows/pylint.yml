@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - robynpy_release
+      - main
 
 jobs:
   build:
