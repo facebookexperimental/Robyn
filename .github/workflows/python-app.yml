@@ -6,9 +6,9 @@ name: Robyn Python application
 
 on:
   push:
-    branches: [ "main", "robynpy_release" ]
+    branches: [ "robynpy_release" ]
   pull_request:
-    branches: [ "main", "robynpy_release" ]
+    branches: [ "robynpy_release" ]
 
 permissions:
   contents: read
