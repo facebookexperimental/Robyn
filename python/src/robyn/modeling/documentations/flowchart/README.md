@@ -1,3 +1,4 @@
+```mermaid
 graph TD
     A[Start] --> B[Load Data]
     B --> C[robyn_inputs]
