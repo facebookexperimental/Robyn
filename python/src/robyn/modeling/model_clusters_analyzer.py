@@ -1,199 +1,111 @@
 # cluster.R https://github.com/facebookexperimental/Robyn/blob/python_rewrite/python/src/oldportedcode/cluster.py
 
 # pyre-strict
-
-from typing import Any, Dict, List, Optional, Tuple
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 
 class ModelClustersAnalyzer:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, seed=123):
+        self.seed = seed
+        np.random.seed(seed)
 
     def model_clusters_analyze(
         self,
-        input: Dict[str, Any],
-        dep_var_type: str,
-        cluster_by: str = "hyperparameters",
-        all_media: Optional[List[str]] = None,
-        k: str = "auto",
-        limit: int = 1,
-        weights: Optional[Dict[str, float]] = None,
-        dim_red: str = "PCA",
-        quiet: bool = False,
-        export: bool = False,
-        seed: int = 123,
-    ) -> Dict[str, Any]:
-        """
-        Clusters the data based on specified parameters and returns a dictionary containing various outputs.
+        input_df,
+        dep_var_type,
+        cluster_by="hyperparameters",
+        all_media=None,
+        k="auto",
+        max_clusters=10,
+        limit=1,
+        weights=None,
+        dim_red="PCA",
+        quiet=False,
+        export=False,
+    ):
+        if weights is None:
+            weights = [1, 1, 1]  # Default weights
 
-        Args:
-            input: The input data, either a model_clusters_analyze object or a dataframe.
-            dep_var_type: The type of dependent variable ('continuous' or 'categorical').
-            cluster_by: The variable to cluster by, either 'hyperparameters' or 'performance'.
-            all_media: The list of media variables.
-            k: The number of clusters.
-            limit: The maximum number of top solutions to select.
-            weights: The weights for balancing the clusters.
-            dim_red: The dimensionality reduction technique to use.
-            quiet: Whether to suppress print statements.
-            export: Whether to export the results.
-            seed: The random seed for reproducibility.
+        # Normalize weights
+        weights = np.array(weights)
+        weights = weights / weights.sum()
 
-        Returns:
-            A dictionary containing various outputs such as cluster data, cluster confidence intervals, number of clusters, etc.
-        """
-        pass
+        # Prepare data
+        if cluster_by == "hyperparameters":
+            features = input_df.filter(regex="hyper").columns.tolist()
+        else:
+            features = all_media
 
-    def _determine_optimal_k(
-        self, df: pd.DataFrame, max_clusters: int, random_state: int = 42
-    ) -> int:
-        """
-        Determines the optimal number of clusters using the elbow method.
+        X = input_df[features]
 
-        Args:
-            df: The input dataframe.
-            max_clusters: The maximum number of clusters to consider.
-            random_state: Random state for reproducibility.
+        # Dimensionality Reduction
+        if dim_red == "PCA":
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            pca = PCA(n_components=2, random_state=self.seed)
+            X_pca = pca.fit_transform(X_scaled)
+            X = pd.DataFrame(X_pca, columns=["PC1", "PC2"])
 
-        Returns:
-            The optimal number of clusters.
-        """
-        pass
+        # Determine number of clusters
+        if k == "auto":
+            k = self._determine_optimal_k(X, max_clusters)
 
-    def _clusterKmeans_auto(
-        self,
-        df: pd.DataFrame,
-        min_clusters: int = 3,
-        limit_clusters: int = 10,
-        seed: Optional[int] = None,
-    ) -> Tuple[pd.DataFrame, int, List[float], Any, np.ndarray, np.ndarray]:
-        """
-        Performs automatic K-means clustering and dimensionality reduction.
+        # Clustering
+        kmeans = KMeans(n_clusters=k, random_state=self.seed)
+        clusters = kmeans.fit_predict(X)
+        input_df["Cluster"] = clusters
 
-        Args:
-            df: The input dataframe.
-            min_clusters: The minimum number of clusters.
-            limit_clusters: The maximum number of clusters.
-            seed: Random seed for reproducibility.
+        # Plotting results
+        if not quiet:
+            self._plot_clusters(X, clusters)
 
-        Returns:
-            A tuple containing the clustered dataframe, optimal number of clusters, WSS values, KMeans object, PCA and t-SNE results.
-        """
-        pass
+        # Select top models per cluster based on weighted errors
+        top_models = self._select_top_models(input_df, weights, limit)
 
-    def _plot_wss_and_save(
-        self,
-        wss: List[float],
-        path: str,
-        dpi: int = 500,
-        width: int = 5,
-        height: int = 4,
-    ) -> None:
-        """
-        Creates and saves a WSS plot.
+        return top_models
 
-        Args:
-            wss: Array of WSS values.
-            path: File path for the saved plot.
-            dpi: Dots per inch (resolution) of the saved plot.
-            width: Width of the figure in inches.
-            height: Height of the figure in inches.
-        """
-        pass
+    def _determine_optimal_k(self, df, max_clusters):
+        # This uses the Elbow Method to determine the optimal k
+        sse = []
+        for k in range(1, max_clusters + 1):
+            kmeans = KMeans(n_clusters=k, random_state=self.seed)
+            kmeans.fit(df)
+            sse.append(kmeans.inertia_)
 
-    def _prepare_df(
-        self, x: pd.DataFrame, all_media: List[str], dep_var_type: str, cluster_by: str
-    ) -> pd.DataFrame:
-        """
-        Prepares the dataframe for clustering.
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(1, max_clusters + 1), sse, marker="o")
+        plt.xlabel("Number of clusters")
+        plt.ylabel("SSE")
+        plt.title("Elbow Method For Optimal k")
+        plt.show()
 
-        Args:
-            x: The input dataframe.
-            all_media: List of media variables.
-            dep_var_type: The type of dependent variable.
-            cluster_by: The variable to cluster by.
+        # Placeholder for actual determination logic
+        return 3  # Example: return 3 as the optimal number of clusters
 
-        Returns:
-            The prepared dataframe.
-        """
-        pass
+    def _plot_clusters(self, X, clusters):
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(
+            x=X.iloc[:, 0],
+            y=X.iloc[:, 1],
+            hue=clusters,
+            palette="viridis",
+            s=100,
+            alpha=0.6,
+        )
+        plt.title("Cluster Plot")
+        plt.show()
 
-    def _clusters_df(
-        self,
-        df: pd.DataFrame,
-        all_paid: List[str],
-        balance: Optional[Dict[str, float]],
-        limit: int,
-        ts_validation: bool,
-    ) -> pd.DataFrame:
-        """
-        Selects top models by minimum (weighted) distance to zero.
+    def _select_top_models(self, df, weights, limit):
+        # Placeholder for selecting top models based on weighted errors
+        return df.head(limit)  # Example: return top 'limit' rows
 
-        Args:
-            df: The input dataframe.
-            all_paid: List of paid media variables.
-            balance: Weights for balancing.
-            limit: The maximum number of top solutions to select.
-            ts_validation: Whether time series validation is used.
 
-        Returns:
-            A dataframe of top solutions.
-        """
-        pass
-
-    def _confidence_calcs(
-        self,
-        xDecompAgg: pd.DataFrame,
-        df: pd.DataFrame,
-        all_paid: List[str],
-        dep_var_type: str,
-        k: int,
-        cluster_by: str,
-        boot_n: int = 1000,
-        sim_n: int = 10000,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
-        """
-        Performs confidence interval calculations.
-
-        Args:
-            xDecompAgg: The input data for statistical calculations.
-            df: The dataframe with cluster information.
-            all_paid: The list of paid values.
-            dep_var_type: The type of dependent variable.
-            k: The number of clusters.
-            cluster_by: The method of clustering.
-            boot_n: The number of bootstrap iterations.
-            sim_n: The number of simulations.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            A dictionary containing confidence interval results, simulation results, and other statistics.
-        """
-        pass
-
-    def _plot_clusters_ci(
-        self,
-        sim_collect: pd.DataFrame,
-        df_ci: pd.DataFrame,
-        dep_var_type: str,
-        boot_n: int,
-        sim_n: int,
-    ) -> Any:
-        """
-        Plots cluster confidence intervals.
-
-        Args:
-            sim_collect: The simulation results.
-            df_ci: The confidence interval results.
-            dep_var_type: The type of dependent variable.
-            boot_n: The number of bootstrap iterations.
-            sim_n: The number of simulations.
-
-        Returns:
-            A plot object.
-        """
-        pass
+# Example usage:
+# analyzer = ModelClustersAnalyzer()
+# results = analyzer.model_clusters_analyze(input_df, 'revenue', all_media=['TV', 'Radio', 'Online'])

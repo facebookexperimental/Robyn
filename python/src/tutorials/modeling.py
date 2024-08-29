@@ -150,8 +150,13 @@ def optimize_pareto(
 def analyze_clusters(model_output: ModelOutputCollection) -> Dict[str, Any]:
     """Analyze model clusters."""
     cluster_analyzer = ModelClustersAnalyzer()
+    print("=========================")
+    print("Clustering input: ", model_output.model_output)
+    print("=========================")
+
+    input_df = pd.DataFrame(model_output.model_output.trials)
     cluster_results = cluster_analyzer.model_clusters_analyze(
-        input=model_output.model_output,
+        input_df=input_df,  # TODO fix this
         dep_var_type="continuous",
         cluster_by="hyperparameters",
         k="auto",
@@ -216,6 +221,9 @@ def main():
     # Analyze clusters
     print("Analyzing model clusters...")
     cluster_results = analyze_clusters(model_output)
+    print("=========================")
+    print("Cluster results: ", cluster_results)
+    print("=========================")
     print(f"Number of clusters: {cluster_results['n_clusters']}")
 
     # Evaluate model

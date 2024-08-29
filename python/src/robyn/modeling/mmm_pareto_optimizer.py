@@ -35,17 +35,13 @@ class ParetoOptimizer:
 
         result_hyp_param = pd.DataFrame(
             [vars(trial) for trial in modeloutput.model_output.trials]
-        )
+        )  # TODO Verify
 
-        x_decomp_agg = pd.concat(
-            [trial.xDecompAgg for trial in modeloutput.model_output.trials]
-        )
+        print("=========================")
+        print("result_hyp_param in pareto_optimizer: ", result_hyp_param)
+        print("=========================")
 
-        # Add this print statement to see the attributes of the first trial object
-        print("=========================")
-        if modeloutput.trials:
-            print("Attributes of trial object:", dir(modeloutput.trials[0]))
-        print("=========================")
+        x_decomp_agg = modeloutput.xDecompAgg  # TODO verify
 
         if calibrated:
             result_calibration = pd.concat(
@@ -56,12 +52,12 @@ class ParetoOptimizer:
             result_calibration = None
         pareto_results = cls.pareto_front(
             x=result_hyp_param["nrmse"],
-            y=result_hyp_param["decomp.rssd"],
+            y=result_hyp_param["decomp_rssd"],
             fronts=pareto_fronts,
             sort=False,
         )
         result_hyp_param = result_hyp_param.merge(
-            pareto_results, left_on=["nrmse", "decomp.rssd"], right_on=["x", "y"]
+            pareto_results, left_on=["nrmse", "decomp_rssd"], right_on=["x", "y"]
         )
         result_hyp_param = result_hyp_param.rename(
             columns={"pareto_front": "robynPareto"}
@@ -85,7 +81,9 @@ class ParetoOptimizer:
         points = np.column_stack((x, y))
         fronts_list = []
         for _ in range(fronts):
-            pareto = cls.is_pareto_efficient_simple(points)
+            pareto = ParetoOptimizer.is_pareto_efficient_simple(
+                points
+            )  # Corrected call
             fronts_list.append(points[pareto])
             points = points[~pareto]
             if len(points) == 0:

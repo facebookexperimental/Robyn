@@ -1,126 +1,265 @@
-## Robyn MMM workflow
+## Robyn MMM flowchart
 
 ```mermaid
 graph TD
     A[Start] --> B[Load Data]
-    B --> C[robyn_inputs]
-    C --> D[robyn_run]
-    D --> E[robyn_outputs]
-    E --> F[robyn_allocator]
-    F --> G[End]
+    B --> |dt_input, dt_holidays| C[robyn_inputs]
 
-    subgraph "robyn_inputs"
-        C1[Feature Engineering<br>Decompose time series]
-        C2[Adstock Transformations<br>Apply adstock to media variables]
-        C3[Saturation Transformations<br>Apply saturation to media variables]
-        C4[check_inputs<br>Validate input data and parameters]
-        C5[robyn_engineering<br>Prepare data for modeling]
+    subgraph "inputs.R"
+        C --> D[check_datevar]
+        C --> E[check_prophet]
+        C --> F[check_context]
+        C --> G[check_paidmedia]
+        C --> H[check_organicvars]
+        C --> I[check_windows]
+        C --> J[check_hyperparameters]
+        C --> K[robyn_engineering]
     end
 
-    subgraph "robyn_run"
-        D1[Hyperparameter Optimization<br>Use Nevergrad to optimize hyperparameters]
-        D2[Model Training<br>Train ridge regression model]
-        D3[Model Evaluation<br>Calculate model performance metrics]
-        D4[robyn_train<br>Manage model training process]
-        D5[robyn_mmm<br>Core MMM function]
+    subgraph "transformation.R"
+        K --> L[prophet_decomp]
+        K --> M[run_transformations]
+        M --> N[adstock_geometric / adstock_weibull]
+        M --> O[saturation_hill]
     end
 
-    subgraph "robyn_outputs"
-        E1[Pareto Front Analysis<br>Identify efficient model solutions]
-        E2[Model Selection<br>Choose best model based on criteria]
-        E3[robyn_pareto<br>Calculate Pareto-optimal solutions]
-        E4[robyn_clusters<br>Cluster similar models]
+    C --> |InputCollect| P[robyn_run]
+
+    subgraph "model.R"
+        P --> Q[hyper_collector]
+        P --> R[robyn_train]
+        R --> S[robyn_mmm]
+        S --> T[nloptr::nloptr]
+        S --> U[glmnet::glmnet]
+        S --> V[model_decomp]
     end
 
-    subgraph "robyn_allocator"
-        F1[Budget Allocation<br>Optimize budget across channels]
-        F2[Response Curves<br>Generate media response curves]
-        F3[robyn_response<br>Calculate channel-specific responses]
+    P --> |OutputModels| W[robyn_outputs]
+
+    subgraph "outputs.R"
+        W --> X[robyn_pareto]
+        W --> Y[robyn_clusters]
+        W --> Z[robyn_plots]
+        W --> AA[robyn_csv]
+        W --> AB[robyn_onepagers]
     end
 
-    C --> C1 --> C2 --> C3
-    C --> C4 --> C5
-    D --> D1 --> D2 --> D3
-    D --> D4 --> D5
-    E --> E1 --> E2
-    E --> E3 --> E4
-    F --> F1 --> F2
-    F --> F3
-
-    subgraph "Inputs"
-        H1[dt_input<br>Main input data]
-        H2[dt_holidays<br>Holiday data]
-        H3[paid_media_spends<br>Paid media spend data]
-        H4[paid_media_vars<br>Paid media variables]
-        H5[organic_vars<br>Organic media variables]
-        H6[prophet_vars<br>Prophet decomposition variables]
-        H7[hyperparameters<br>Model hyperparameters]
+    subgraph "json.R"
+        W --> |InputCollect, OutputCollect| AC[robyn_write]
+        AC --> AD[write_json]
     end
 
-    subgraph "Outputs"
-        I1[InputCollect<br>Processed input data]
-        I2[OutputModels<br>Trained model results]
-        I3[OutputCollect<br>Aggregated model outputs]
-        I4[AllocatorCollect<br>Budget allocation results]
+    subgraph "allocator.R"
+        W --> |InputCollect, OutputCollect| AE[robyn_allocator]
+        AE --> AF[nloptr::nloptr]
+        AE --> AG[allocation_plots]
     end
 
-    H1 --> B
-    H2 --> B
-    H1 --> C
-    H2 --> C
-    H3 --> C
-    H4 --> C
-    H5 --> C
-    H6 --> C
-    H7 --> C
-    C --> I1
-    I1 --> D
-    D --> I2
-    I1 --> E
-    I2 --> E
-    E --> I3
-    I1 --> F
-    I3 --> F
-    F --> I4
-
-    subgraph "Auxiliary Functions"
-        J1[checks.R<br>Input validation functions]
-        J2[transformations.R<br>Adstock and saturation functions]
-        J3[model.R<br>Core modeling functions]
-        J4[pareto.R<br>Pareto optimization functions]
-        J5[clusters.R<br>Model clustering functions]
-        J6[plots.R<br>Plotting functions]
-        J7[auxiliary.R<br>Helper functions]
-        J8[json.R<br>JSON import/export functions]
+    subgraph "refresh.R"
+        AC --> |json_file| AH[robyn_refresh]
+        AH --> AI[refresh_hyps]
+        AH --> AJ[robyn_run]
+        AH --> AK[robyn_outputs]
+        AH --> AL[refresh_plots]
     end
 
-    J1 --> C4
-    J2 --> C2
-    J2 --> C3
-    J3 --> D4
-    J3 --> D5
-    J4 --> E3
-    J5 --> E4
-    J6 --> E
-    J6 --> F
-    J7 --> C
-    J7 --> D
-    J7 --> E
-    J7 --> F
-    J8 --> C
-    J8 --> D
-    J8 --> E
-    J8 --> F
-
-    subgraph "External Libraries"
-        K1[nevergrad<br>Hyperparameter optimization]
-        K2[reticulate<br>Python integration]
-        K3[prophet<br>Time series decomposition]
-        K4[glmnet<br>Regularized regression]
+    subgraph "response.R"
+        AM[robyn_response] --> AN[transform_adstock]
+        AM --> AO[saturation_hill]
     end
 
-    K1 --> D1
-    K2 --> D
-    K3 --> C1
-    K4 --> D2
+    subgraph "json.R"
+        AP[robyn_recreate] --> AQ[robyn_read]
+        AP --> AR[robyn_inputs]
+        AP --> AS[robyn_run]
+    end
+
+    C --> |InputCollect| AT[Output: InputCollect]
+    P --> |OutputModels| AU[Output: OutputModels]
+    W --> |plots, csv files| AV[Output: Plots and CSV files]
+    AC --> |json_file| AW[Output: JSON file]
+    AE --> |allocation results| AX[Output: Allocation results]
+    AH --> |refreshed model| AY[Output: Refreshed model]
+    AM --> |response curves| AZ[Output: Response curves]
+```
+
+### Class Diagram
+
+```mermaid
+classDiagram
+    class RobynInputs {
+        +dt_input : DataFrame
+        +dt_holidays : DataFrame
+        +date_var : str
+        +dep_var : str
+        +dep_var_type : str
+        +prophet_vars : list
+        +prophet_country : str
+        +context_vars : list
+        +paid_media_spends : list
+        +paid_media_vars : list
+        +organic_vars : list
+        +factor_vars : list
+        +window_start : str
+        +window_end : str
+        +adstock : str
+        +hyperparameters : dict
+        +calibration_input : DataFrame
+        +robyn_inputs(InputCollect) : InputCollect
+        -check_datevar()
+        -check_prophet()
+        -check_context()
+        -check_paidmedia()
+        -check_organicvars()
+        -check_windows()
+        -check_hyperparameters()
+        -robyn_engineering()
+    }
+
+    class RobynRun {
+        +InputCollect : InputCollect
+        +dt_hyper_fixed : DataFrame
+        +iterations : int
+        +trials : int
+        +intercept : bool
+        +intercept_sign : str
+        +nevergrad_algo : str
+        +robyn_run(InputCollect) : OutputModels
+        -hyper_collector()
+        -robyn_train()
+        -robyn_mmm()
+    }
+
+    class RobynOutputs {
+        +InputCollect : InputCollect
+        +OutputModels : OutputModels
+        +pareto_fronts : int
+        +calibration_constraint : float
+        +csv_out : str
+        +clusters : bool
+        +plot_folder : str
+        +robyn_outputs(InputCollect, OutputModels) : OutputCollect
+        -robyn_pareto()
+        -robyn_clusters()
+        -robyn_plots()
+        -robyn_csv()
+        -robyn_onepagers()
+    }
+
+    class RobynWrite {
+        +InputCollect : InputCollect
+        +OutputCollect : OutputCollect
+        +select_model : str
+        +robyn_write(InputCollect, OutputCollect) : json_file
+        -write_json()
+    }
+
+    class RobynAllocator {
+        +InputCollect : InputCollect
+        +OutputCollect : OutputCollect
+        +select_model : str
+        +scenario : str
+        +channel_constr_low : list
+        +channel_constr_up : list
+        +robyn_allocator(InputCollect, OutputCollect) : AllocationResults
+        -allocation_plots()
+    }
+
+    class RobynRefresh {
+        +json_file : str
+        +dt_input : DataFrame
+        +dt_holidays : DataFrame
+        +refresh_steps : int
+        +refresh_mode : str
+        +refresh_iters : int
+        +refresh_trials : int
+        +robyn_refresh(json_file) : RefreshedModel
+        -refresh_hyps()
+        -refresh_plots()
+    }
+
+    class RobynResponse {
+        +InputCollect : InputCollect
+        +OutputCollect : OutputCollect
+        +select_model : str
+        +metric_name : str
+        +metric_value : float
+        +date_range : str
+        +robyn_response(InputCollect, OutputCollect) : ResponseCurves
+        -transform_adstock()
+        -saturation_hill()
+    }
+
+    class InputCollect {
+        +dt_input : DataFrame
+        +dt_holidays : DataFrame
+        +dt_mod : DataFrame
+        +all_media : list
+        +paid_media_spends : list
+        +organic_vars : list
+        +prophet_vars : list
+        +context_vars : list
+        +window_start : str
+        +window_end : str
+        +adstock : str
+        +hyperparameters : dict
+    }
+
+    class OutputModels {
+        +resultHypParam : DataFrame
+        +xDecompAgg : DataFrame
+        +mediaVecCollect : DataFrame
+        +xDecompVecCollect : DataFrame
+        +convergence : dict
+        +ts_validation : bool
+    }
+
+    class OutputCollect {
+        +resultHypParam : DataFrame
+        +xDecompAgg : DataFrame
+        +mediaVecCollect : DataFrame
+        +xDecompVecCollect : DataFrame
+        +allSolutions : list
+        +allPareto : dict
+        +clusters : dict
+        +plots : dict
+    }
+
+    class AllocationResults {
+        +dt_optimOut : DataFrame
+        +plots : dict
+    }
+
+    class RefreshedModel {
+        +InputCollect : InputCollect
+        +OutputCollect : OutputCollect
+        +ReportCollect : dict
+    }
+
+    class ResponseCurves {
+        +response_curves : dict
+        +plot : object
+    }
+
+    RobynInputs ..> InputCollect : produces
+    RobynRun ..> OutputModels : produces
+    RobynOutputs ..> OutputCollect : produces
+    RobynWrite ..> json_file : produces
+    RobynAllocator ..> AllocationResults : produces
+    RobynRefresh ..> RefreshedModel : produces
+    RobynResponse ..> ResponseCurves : produces
+
+    RobynRun --> RobynInputs : uses
+    RobynOutputs --> RobynRun : uses
+    RobynWrite --> RobynOutputs : uses
+    RobynAllocator --> RobynOutputs : uses
+    RobynRefresh --> RobynWrite : uses
+    RobynResponse --> RobynOutputs : uses
+
+    InputCollect --> OutputModels : input for
+    OutputModels --> OutputCollect : input for
+    InputCollect --> OutputCollect : input for
+    OutputCollect --> AllocationResults : input for
+    OutputCollect --> RefreshedModel : input for
+    OutputCollect --> ResponseCurves : input for
 ```
