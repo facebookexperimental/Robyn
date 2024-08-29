@@ -34,3 +34,5 @@ Robyn_Fork.Rproj
 python/.venv
 python/src/scripts/.venv
 python/dist
+requirements.txt
+pythonvenv/
