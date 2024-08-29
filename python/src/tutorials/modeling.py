@@ -151,7 +151,7 @@ def analyze_clusters(model_output: ModelOutputCollection) -> Dict[str, Any]:
     """Analyze model clusters."""
     cluster_analyzer = ModelClustersAnalyzer()
     cluster_results = cluster_analyzer.model_clusters_analyze(
-        input=model_output,
+        input=model_output.model_output,
         dep_var_type="continuous",
         cluster_by="hyperparameters",
         k="auto",
@@ -197,10 +197,14 @@ def main():
     print("Data prepared successfully.")
 
     # Run the model
+    print("=========================")
     print("Running MMM model...")
     model_output = run_model(mmm_data)
-    print("Model Output: ", model_output)
+    print("=========================")
+    print("=========================")
+    print("Model Output after run_model at main.py: ", model_output)
     print("Model run completed.")
+    print("=========================")
 
     # Optimize Pareto front
     print("Optimizing Pareto front...")

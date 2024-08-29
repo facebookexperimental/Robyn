@@ -7,6 +7,7 @@ import pandas as pd
 
 from robyn.data.entities.mmmdata_collection import MMMDataCollection
 from robyn.modeling.entities.modeloutput import ModelOutput
+from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
 
 
 class ParetoOptimizer:
@@ -14,7 +15,7 @@ class ParetoOptimizer:
     def pareto_optimize(
         cls,
         mmmdata_collection: MMMDataCollection,
-        modeloutput: ModelOutput,
+        modeloutput: ModelOutputCollection,
         pareto_fronts: Union[str, int] = "auto",
         min_candidates: int = 100,
         calibration_constraint: float = 0.1,
@@ -28,14 +29,24 @@ class ParetoOptimizer:
             pareto_fronts = cls.get_pareto_fronts(pareto_fronts)
         else:
             raise ValueError("pareto_fronts must be 'auto' or an integer")
-        print("Model output trials in pareto_optimizer: ", modeloutput.trials)
-        # Assuming modeloutput.trials is a list of trial results
-        result_hyp_param = pd.concat(
-            [trial.resultCollect.resultHypParam for trial in modeloutput.trials]
+        print("=========================")
+        print("Model output in pareto_optimizer: ", modeloutput)
+        print("=========================")
+
+        result_hyp_param = pd.DataFrame(
+            [vars(trial) for trial in modeloutput.model_output.trials]
         )
+
         x_decomp_agg = pd.concat(
-            [trial.resultCollect.xDecompAgg for trial in modeloutput.trials]
+            [trial.xDecompAgg for trial in modeloutput.model_output.trials]
         )
+
+        # Add this print statement to see the attributes of the first trial object
+        print("=========================")
+        if modeloutput.trials:
+            print("Attributes of trial object:", dir(modeloutput.trials[0]))
+        print("=========================")
+
         if calibrated:
             result_calibration = pd.concat(
                 [trial.resultCollect.liftCalibration for trial in modeloutput.trials]

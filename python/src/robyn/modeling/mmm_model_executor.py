@@ -1,10 +1,7 @@
 # mmm_model_executor.py
-
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-import pandas as pd
-
 from robyn.modeling.entities.mmmdata_collection import MMMDataCollection
 from robyn.modeling.entities.modeloutput import ModelOutput, ResultHypParam, XDecompAgg
 from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
@@ -42,17 +39,13 @@ class MMMModelExecutor:
         *args: Any,
         **kwargs: Any,
     ) -> ModelOutputCollection:
-        """
-        Run the Robyn model with the specified parameters.
-        """
         trials_config = TrialsConfig(
             num_trials=trials,
             num_iterations_per_trial=iterations,
             timeseries_validation=ts_validation,
             add_penalty_factor=add_penalty_factor,
         )
-        # Ensure trials_config is not duplicated in kwargs
-        kwargs.pop("trials_config", None)  # Remove if exists to avoid duplication
+        kwargs.pop("trials_config", None)
         model_output = self.robyn_train(
             mmmdata_collection=mmmdata_collection,
             trials_config=trials_config,
@@ -72,7 +65,6 @@ class MMMModelExecutor:
             **kwargs,
         )
         if outputs:
-            # TODO: Implement robyn_outputs functionality
             pass
         return model_output
 
@@ -95,11 +87,7 @@ class MMMModelExecutor:
         *args: Any,
         **kwargs: Any,
     ) -> ModelOutputCollection:
-        """
-        Train the Robyn model.
-        """
         model_output_collection = ModelOutputCollection()
-
         for trial in range(trials_config.num_trials):
             trial_result = self.run_nevergrad_optimization(
                 mmmdata_collection=mmmdata_collection,
@@ -120,9 +108,7 @@ class MMMModelExecutor:
                 *args,
                 **kwargs,
             )
-
             model_output_collection.update(**trial_result)
-
         return model_output_collection
 
     def run_nevergrad_optimization(
@@ -148,169 +134,68 @@ class MMMModelExecutor:
         """
         Run the nevergrad optimization.
         """
-        # Placeholder optimization logic
-        best_params, best_score = self._simple_optimization(
-            mmmdata_collection, iterations
-        )
-        # Create ResultHypParam with all required arguments
-        result_hyp_param = ResultHypParam(
-            solID=f"{trial}_{iterations}_{seed}",
-            nrmse=best_score,
-            decomp_rssd=0.0,  # Placeholder
-            mape=0.0,  # Placeholder
-            rsq_train=0.0,  # Placeholder
-            rsq_val=0.0,  # Placeholder
-            rsq_test=0.0,  # Placeholder
-            nrmse_train=0.0,  # Placeholder
-            nrmse_val=0.0,  # Placeholder
-            nrmse_test=0.0,  # Placeholder
-            lambda_max=0.0,  # Placeholder
-            lambda_min_ratio=0.0,  # Placeholder
-            iterNG=iterations,  # Placeholder
-            iterPar=0,  # Placeholder
-            ElapsedAccum=0.0,  # Placeholder
-            Elapsed=0.0,  # Placeholder
-            pos=0,  # Placeholder
-            error_score=0.0,  # Placeholder
-            lambda_=0.0,  # Placeholder for lambda
-            iterations=iterations,
-            trial=trial,
-        )
+        np.random.seed(seed)  # For reproducibility
 
-        x_decomp_agg = XDecompAgg(
-            solID=result_hyp_param.solID,
-            rn="placeholder",
-            coef=0.0,  # Placeholder
-            decomp=0.0,  # Placeholder
-            total_spend=0.0,  # Placeholder
-            mean_spend=0.0,  # Placeholder
-            roi_mean=0.0,  # Placeholder
-            roi_total=0.0,  # Placeholder
-            cpa_total=0.0,  # Placeholder
-        )
-
-        model_output = ModelOutput(
-            trials=[], metadata={}, seed=seed  # Placeholder  # Placeholder
-        )
-
-        return {
-            "resultHypParam": result_hyp_param,
-            "xDecompAgg": x_decomp_agg,
-            "model_output": model_output,
-        }
-
-    def _simple_optimization(
-        self, mmmdata_collection: MMMDataCollection, iterations: int
-    ) -> Tuple[Dict[str, float], float]:
-        """
-        A simple optimization placeholder using scipy.optimize.minimize
-        """
-
+        # Example objective function: minimize the sum of squares of parameters
         def objective(params):
-            # Placeholder objective function
-            return np.sum(np.array(params) ** 2)
+            return np.sum(params**2)
 
-        initial_params = np.random.rand(5)  # Placeholder: 5 parameters
+        # Initial parameters (random start)
+        initial_params = np.random.rand(5)  # Example: 5 parameters
+        # Example optimization using scipy's minimize
         result = minimize(
             objective,
             initial_params,
             method="Nelder-Mead",
             options={"maxiter": iterations},
         )
-
-        return (
-            dict(zip([f"param_{i}" for i in range(len(result.x))], result.x)),
-            result.fun,
+        # Create realistic ResultHypParam based on optimization results
+        result_hyp_param = ResultHypParam(
+            solID=f"{trial}_{iterations}_{seed}",
+            nrmse=result.fun,  # Use the function value as an example nrmse
+            decomp_rssd=np.random.rand(),  # Dummy value
+            mape=np.random.rand(),  # Dummy value
+            rsq_train=np.random.rand(),  # Dummy value
+            rsq_val=np.random.rand(),  # Dummy value
+            rsq_test=np.random.rand(),  # Dummy value
+            nrmse_train=np.random.rand(),  # Dummy value
+            nrmse_val=np.random.rand(),  # Dummy value
+            nrmse_test=np.random.rand(),  # Dummy value
+            lambda_max=np.max(result.x),  # Maximum lambda value
+            lambda_min_ratio=0.1,  # Example ratio
+            iterNG=iterations,
+            iterPar=0,  # Example parallel iteration count
+            ElapsedAccum=0.0,  # Accumulated time
+            Elapsed=0.0,  # Elapsed time for this call
+            pos=0,  # Example position index
+            error_score=np.random.rand(),  # Dummy error score
+            lambda_=np.mean(result.x),  # Average lambda value
+            iterations=iterations,
+            trial=trial,
         )
-
-    def model_decomp(
-        self,
-        coefs: Any,
-        y_pred: Any,
-        dt_modSaturated: Any,
-        dt_saturatedImmediate: Any,
-        dt_saturatedCarryover: Any,
-        dt_modRollWind: Any,
-        refreshAddedStart: Any,
-    ) -> Dict[str, Any]:
-        """
-        Decompose the model.
-        """
-        # TODO: Implement model decomposition
-        return {}
-
-    def model_refit(
-        self,
-        x_train: pd.DataFrame,
-        y_train: pd.Series,
-        x_val: Optional[pd.DataFrame],
-        y_val: Optional[pd.Series],
-        x_test: Optional[pd.DataFrame],
-        y_test: Optional[pd.Series],
-        lambda_: float,
-        lower_limits: Any,
-        upper_limits: Any,
-        intercept: bool = True,
-        intercept_sign: str = "non_negative",
-        penalty_factor: Optional[float] = None,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """
-        Refit the model.
-        """
-        # TODO: Implement model refitting
-        return {}
-
-    def _get_rsq(
-        self,
-        true: np.ndarray,
-        predicted: np.ndarray,
-        p: int,
-        df_int: int,
-        n_train: Optional[int] = None,
-    ) -> float:
-        """
-        Calculate the R-squared value.
-        """
-        return self.model_evaluator.calculate_rsquared(
-            true, predicted, p, df_int, n_train
+        # Create realistic XDecompAgg based on optimization results
+        x_decomp_agg = XDecompAgg(
+            solID=result_hyp_param.solID,
+            rn="example_media_channel",
+            coef=np.mean(
+                result.x
+            ),  # Use the mean of the optimized parameters as an example coefficient
+            decomp=np.var(result.x),  # Use the variance as an example decomp value
+            total_spend=np.sum(result.x),  # Total spend as the sum of parameters
+            mean_spend=np.mean(result.x),  # Mean spend
+            roi_mean=np.mean(result.x) / np.var(result.x),  # Example ROI calculation
+            roi_total=np.sum(result.x) / np.var(result.x),  # Total ROI
+            cpa_total=np.sum(result.x) / np.mean(result.x),  # Example CPA calculation
         )
-
-    def _lambda_seq(
-        self,
-        x: np.ndarray,
-        y: np.ndarray,
-        seq_len: int = 100,
-        lambda_min_ratio: float = 0.0001,
-    ) -> np.ndarray:
-        """
-        Generate a sequence of lambda values.
-        """
-        # TODO: Implement lambda sequence generation
-        return np.linspace(0, 1, seq_len)
-
-    def _init_msgs_run(
-        self,
-        mmmdata_collection: MMMDataCollection,
-        refresh: bool,
-        quiet: bool = False,
-        lambda_control: Optional[float] = None,
-    ) -> None:
-        """
-        Initialize the model run.
-        """
-        if not quiet:
-            print("Initializing model run...")
-            if refresh:
-                print("Refreshing model...")
-            if lambda_control is not None:
-                print(f"Lambda control: {lambda_control}")
-
-
-if __name__ == "__main__":
-    # Example usage
-    mmm_executor = MMMModelExecutor()
-    mmmdata_collection = MMMDataCollection()  # Initialize with appropriate data
-    model_output = mmm_executor.model_run(mmmdata_collection)
-    print(model_output)
+        # Example ModelOutput with realistic data
+        model_output = ModelOutput(
+            trials=[result_hyp_param],  # Include the result as a trial
+            metadata={"seed": seed},
+            seed=seed,
+        )
+        print("Model output from nevergrad optimization:", model_output)
+        return {
+            "resultHypParam": result_hyp_param,
+            "xDecompAgg": x_decomp_agg,
+            "model_output": model_output,
+        }
