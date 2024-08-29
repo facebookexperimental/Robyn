@@ -8,32 +8,32 @@ graph TD
     F --> G[End]
 
     subgraph "robyn_inputs"
-        C1[Feature Engineering]
-        C2[Adstock Transformations]
-        C3[Saturation Transformations]
-        C4[check_inputs]
-        C5[robyn_engineering]
+        C1[Feature Engineering<br>Decompose time series]
+        C2[Adstock Transformations<br>Apply adstock to media variables]
+        C3[Saturation Transformations<br>Apply saturation to media variables]
+        C4[check_inputs<br>Validate input data and parameters]
+        C5[robyn_engineering<br>Prepare data for modeling]
     end
 
     subgraph "robyn_run"
-        D1[Hyperparameter Optimization]
-        D2[Model Training]
-        D3[Model Evaluation]
-        D4[robyn_train]
-        D5[robyn_mmm]
+        D1[Hyperparameter Optimization<br>Use Nevergrad to optimize hyperparameters]
+        D2[Model Training<br>Train ridge regression model]
+        D3[Model Evaluation<br>Calculate model performance metrics]
+        D4[robyn_train<br>Manage model training process]
+        D5[robyn_mmm<br>Core MMM function]
     end
 
     subgraph "robyn_outputs"
-        E1[Pareto Front Analysis]
-        E2[Model Selection]
-        E3[robyn_pareto]
-        E4[robyn_clusters]
+        E1[Pareto Front Analysis<br>Identify efficient model solutions]
+        E2[Model Selection<br>Choose best model based on criteria]
+        E3[robyn_pareto<br>Calculate Pareto-optimal solutions]
+        E4[robyn_clusters<br>Cluster similar models]
     end
 
     subgraph "robyn_allocator"
-        F1[Budget Allocation]
-        F2[Response Curves]
-        F3[robyn_response]
+        F1[Budget Allocation<br>Optimize budget across channels]
+        F2[Response Curves<br>Generate media response curves]
+        F3[robyn_response<br>Calculate channel-specific responses]
     end
 
     C --> C1 --> C2 --> C3
@@ -46,20 +46,20 @@ graph TD
     F --> F3
 
     subgraph "Inputs"
-        H1[dt_input]
-        H2[dt_holidays]
-        H3[paid_media_spends]
-        H4[paid_media_vars]
-        H5[organic_vars]
-        H6[prophet_vars]
-        H7[hyperparameters]
+        H1[dt_input<br>Main input data]
+        H2[dt_holidays<br>Holiday data]
+        H3[paid_media_spends<br>Paid media spend data]
+        H4[paid_media_vars<br>Paid media variables]
+        H5[organic_vars<br>Organic media variables]
+        H6[prophet_vars<br>Prophet decomposition variables]
+        H7[hyperparameters<br>Model hyperparameters]
     end
 
     subgraph "Outputs"
-        I1[InputCollect]
-        I2[OutputModels]
-        I3[OutputCollect]
-        I4[AllocatorCollect]
+        I1[InputCollect<br>Processed input data]
+        I2[OutputModels<br>Trained model results]
+        I3[OutputCollect<br>Aggregated model outputs]
+        I4[AllocatorCollect<br>Budget allocation results]
     end
 
     H1 --> B
@@ -82,14 +82,14 @@ graph TD
     F --> I4
 
     subgraph "Auxiliary Functions"
-        J1[checks.R]
-        J2[transformations.R]
-        J3[model.R]
-        J4[pareto.R]
-        J5[clusters.R]
-        J6[plots.R]
-        J7[auxiliary.R]
-        J8[json.R]
+        J1[checks.R<br>Input validation functions]
+        J2[transformations.R<br>Adstock and saturation functions]
+        J3[model.R<br>Core modeling functions]
+        J4[pareto.R<br>Pareto optimization functions]
+        J5[clusters.R<br>Model clustering functions]
+        J6[plots.R<br>Plotting functions]
+        J7[auxiliary.R<br>Helper functions]
+        J8[json.R<br>JSON import/export functions]
     end
 
     J1 --> C4
@@ -111,10 +111,10 @@ graph TD
     J8 --> F
 
     subgraph "External Libraries"
-        K1[nevergrad]
-        K2[reticulate]
-        K3[prophet]
-        K4[glmnet]
+        K1[nevergrad<br>Hyperparameter optimization]
+        K2[reticulate<br>Python integration]
+        K3[prophet<br>Time series decomposition]
+        K4[glmnet<br>Regularized regression]
     end
 
     K1 --> D1
