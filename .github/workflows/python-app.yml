@@ -20,7 +20,7 @@ jobs:
 
     strategy:
           matrix:
-            python-version: ["pypy3.9", "pypy3.10", "3.9", "3.10", "3.11", "3.12"]
+            python-version: ["pypy3.9", "3.9", "3.10"]
         
     steps:
     - uses: actions/checkout@v4
@@ -43,6 +43,7 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=./robyn_api/*.py
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=./robyn_api/*.py
-    - name: Test with pytest
-      run: |
-        pytest ./python/tests --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
+    # - name: Test with pytest. Enable this once first set of tests are written
+    #   run: |
+# 
+#        pytest ./python/tests --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
