@@ -1,9 +1,12 @@
 # main.py
 
 import pandas as pd
+
+import sys
+sys.path.append('/Users/yijuilee/project_robyn/modelling/Robyn/python/src')
 from robyn.data.entities.mmmdata_collection import MMMDataCollection
-from robyn.entities.modelrun_trials_config import TrialsConfig
-from robyn.mmm_model_executor import MMMModelExecutor
+from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
+from robyn.modeling.mmm_model_executor import MMMModelExecutor
 
 
 def load_simulated_data():
