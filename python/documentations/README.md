@@ -1,4 +1,5 @@
 ## Robyn MMM workflow
+
 ```mermaid
 graph TD
     A[Start] --> B[Load Data]
@@ -122,9 +123,10 @@ graph TD
     K2 --> D
     K3 --> C1
     K4 --> D2
+```
 
+### Modeling Component
 
-## Modeling Component
 ```mermaid
 graph TD
     A[Start] --> B[robyn_inputs]
@@ -155,3 +157,6 @@ graph TD
     R2 -.-> S1
     R3 -.-> S2
     R3 -.-> S3
+```
+
+#### R reference files
