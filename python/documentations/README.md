@@ -1,6 +1,4 @@
 ## Robyn MMM workflow
-
-```mermaid
 ```mermaid
 graph TD
     A[Start] --> B[Load Data]
