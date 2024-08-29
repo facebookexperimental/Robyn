@@ -1,36 +1,37 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
-import pandas as pd
-from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from robyn.modeling.entities.modeloutput import ModelOutput, ResultHypParam, XDecompAgg
 
 
+@dataclass
 class ModelOutputCollection:
+
     # Group 1: Model Results
-    resultHypParam: ResultHypParam
-    xDecompAgg: XDecompAgg
-    mediaVecCollect: pd.DataFrame
-    xDecompVecCollect: pd.DataFrame
+    resultHypParam: Optional[ResultHypParam] = None
+    xDecompAgg: Optional[XDecompAgg] = None
+    mediaVecCollect: Optional[pd.DataFrame] = None
+    xDecompVecCollect: Optional[pd.DataFrame] = None
     resultCalibration: Optional[pd.DataFrame] = None
-    model_output: ModelOutput
+    model_output: Optional[ModelOutput] = None
 
     # Group 2: Model Solutions
-    allSolutions: List[str]
-    allPareto: Dict[str, Any]
-    calibration_constraint: float
-    pareto_fronts: int
+    allSolutions: List[str] = field(default_factory=list)
+    allPareto: Dict[str, Any] = field(default_factory=dict)
+    calibration_constraint: float = 0.0
+    pareto_fronts: int = 0
     selectID: Optional[str] = None
 
     # Group 3: Model Configuration
-    cores: int
-    iterations: int
-    trials: List[Any]
-    intercept_sign: str
-    nevergrad_algo: str
-    add_penalty_factor: bool
-    seed: int
-    hyper_fixed: bool
+    cores: int = 0
+    iterations: int = 0
+    trials: List[Any] = field(default_factory=list)
+    intercept_sign: str = ""
+    nevergrad_algo: str = ""
+    add_penalty_factor: bool = False
+    seed: int = 0
+    hyper_fixed: bool = False
     hyper_updated: Optional[Dict[str, List[float]]] = None
 
     # Group 4: Output and Visualization
@@ -47,4 +48,6 @@ class ModelOutputCollection:
             if hasattr(self, key):
                 object.__setattr__(self, key, value)
             else:
-                raise AttributeError(f"'ModelOutputCollection' object has no attribute '{key}'")
+                raise AttributeError(
+                    f"'ModelOutputCollection' object has no attribute '{key}'"
+                )

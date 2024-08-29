@@ -1,15 +1,23 @@
 # pyre-strict
 
-from dataclasses import dataclass
-from typing import List, Optional, Any
+from dataclasses import dataclass, field
+from typing import Any, List, Optional
+
 import pandas as pd
-from robyn.data.entities.enums import ContextSigns, DependentVarType, OrganicSigns, PaidMediaSigns
+from robyn.data.entities.enums import (
+    ContextSigns,
+    DependentVarType,
+    OrganicSigns,
+    PaidMediaSigns,
+)
 
 
-@dataclass(frozen=True)
+@dataclass
 class MMMData:
-    class MMMDataSpec:
+    data: pd.DataFrame = field(init=False)
+    mmmdata_spec: "MMMData.MMMDataSpec" = field(init=False)
 
+    class MMMDataSpec:
         """
         Dependent Variable (Target Variable)
             dep_var: The name of the column in the input dataframe that represents the dependent variable (target variable) that we want to model. This is the variable that we're trying to predict or explain. For example, it could be "sales", "revenue", "conversions", etc.
@@ -28,8 +36,9 @@ class MMMData:
             context_signs: A list of signs (positive or negative) that indicate the expected direction of the relationship between each context variable and the dependent variable.
         Factor Variables
             factor_vars: A list of column names in the input dataframe that represent factor variables (e.g., categorical variables like region, product category, etc.). These variables can be used to model non-linear relationships and interactions between variables.
-        
+
         """
+
         def __init__(
             self,
             dep_var: Optional[str] = None,
@@ -75,14 +84,16 @@ class MMMData:
         def update(self, **kwargs: Any) -> None:
             """
             Update the attributes of the MMMDataSpec object.
-            
+
             :param kwargs: Keyword arguments corresponding to the attributes to update.
             """
             for key, value in kwargs.items():
                 if hasattr(self, key):
                     setattr(self, key, value)
                 else:
-                    raise AttributeError(f"{key} is not a valid attribute of MMMDataSpec")
+                    raise AttributeError(
+                        f"{key} is not a valid attribute of MMMDataSpec"
+                    )
 
     def __init__(self, data: pd.DataFrame, mmmdata_spec: MMMDataSpec) -> None:
         """

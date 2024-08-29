@@ -1,6 +1,6 @@
 # mmm_model_executor.py
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -51,7 +51,8 @@ class MMMModelExecutor:
             timeseries_validation=ts_validation,
             add_penalty_factor=add_penalty_factor,
         )
-
+        # Ensure trials_config is not duplicated in kwargs
+        kwargs.pop("trials_config", None)  # Remove if exists to avoid duplication
         model_output = self.robyn_train(
             mmmdata_collection=mmmdata_collection,
             trials_config=trials_config,
@@ -70,11 +71,9 @@ class MMMModelExecutor:
             *args,
             **kwargs,
         )
-
         if outputs:
             # TODO: Implement robyn_outputs functionality
             pass
-
         return model_output
 
     def robyn_train(
@@ -149,19 +148,31 @@ class MMMModelExecutor:
         """
         Run the nevergrad optimization.
         """
-        # TODO: Implement nevergrad optimization
-        # For now, we'll use a simple optimization as a placeholder
+        # Placeholder optimization logic
         best_params, best_score = self._simple_optimization(
             mmmdata_collection, iterations
         )
-
+        # Create ResultHypParam with all required arguments
         result_hyp_param = ResultHypParam(
             solID=f"{trial}_{iterations}_{seed}",
             nrmse=best_score,
             decomp_rssd=0.0,  # Placeholder
             mape=0.0,  # Placeholder
             rsq_train=0.0,  # Placeholder
-            lambda_=0.0,  # Placeholder
+            rsq_val=0.0,  # Placeholder
+            rsq_test=0.0,  # Placeholder
+            nrmse_train=0.0,  # Placeholder
+            nrmse_val=0.0,  # Placeholder
+            nrmse_test=0.0,  # Placeholder
+            lambda_max=0.0,  # Placeholder
+            lambda_min_ratio=0.0,  # Placeholder
+            iterNG=iterations,  # Placeholder
+            iterPar=0,  # Placeholder
+            ElapsedAccum=0.0,  # Placeholder
+            Elapsed=0.0,  # Placeholder
+            pos=0,  # Placeholder
+            error_score=0.0,  # Placeholder
+            lambda_=0.0,  # Placeholder for lambda
             iterations=iterations,
             trial=trial,
         )

@@ -19,18 +19,23 @@ class ParetoOptimizer:
         min_candidates: int = 100,
         calibration_constraint: float = 0.1,
         calibrated: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
-        if pareto_fronts == "auto":
-            pareto_fronts = cls.get_pareto_fronts(modeloutput.trials)
-
+        # Validate or set the number of Pareto fronts
+        if isinstance(pareto_fronts, str) and pareto_fronts.lower() == "auto":
+            pareto_fronts = cls.get_pareto_fronts("auto")
+        elif isinstance(pareto_fronts, int):
+            pareto_fronts = cls.get_pareto_fronts(pareto_fronts)
+        else:
+            raise ValueError("pareto_fronts must be 'auto' or an integer")
+        print("Model output trials in pareto_optimizer: ", modeloutput.trials)
+        # Assuming modeloutput.trials is a list of trial results
         result_hyp_param = pd.concat(
             [trial.resultCollect.resultHypParam for trial in modeloutput.trials]
         )
         x_decomp_agg = pd.concat(
             [trial.resultCollect.xDecompAgg for trial in modeloutput.trials]
         )
-
         if calibrated:
             result_calibration = pd.concat(
                 [trial.resultCollect.liftCalibration for trial in modeloutput.trials]
@@ -38,14 +43,12 @@ class ParetoOptimizer:
             result_calibration = result_calibration.rename(columns={"liftMedia": "rn"})
         else:
             result_calibration = None
-
         pareto_results = cls.pareto_front(
             x=result_hyp_param["nrmse"],
             y=result_hyp_param["decomp.rssd"],
             fronts=pareto_fronts,
             sort=False,
         )
-
         result_hyp_param = result_hyp_param.merge(
             pareto_results, left_on=["nrmse", "decomp.rssd"], right_on=["x", "y"]
         )
@@ -53,11 +56,9 @@ class ParetoOptimizer:
             columns={"pareto_front": "robynPareto"}
         )
         result_hyp_param = result_hyp_param.sort_values(["iterNG", "iterPar", "nrmse"])
-
         pareto_solutions = result_hyp_param[
             result_hyp_param["robynPareto"].isin(range(1, pareto_fronts + 1))
         ]["solID"].unique()
-
         return {
             "pareto_solutions": pareto_solutions,
             "pareto_fronts": pareto_fronts,
@@ -93,11 +94,13 @@ class ParetoOptimizer:
     @staticmethod
     def get_pareto_fronts(pareto_fronts: Union[str, int]) -> int:
         if isinstance(pareto_fronts, str) and pareto_fronts.lower() == "auto":
-            return 5  # You might want to implement a more sophisticated logic here
+            return 5  # Default number of fronts if 'auto'
         elif isinstance(pareto_fronts, int):
             return pareto_fronts
         else:
-            raise ValueError("pareto_fronts must be 'auto' or an integer")
+            raise ValueError(
+                f"Invalid value for pareto_fronts: {pareto_fronts}. Must be 'auto' or an integer."
+            )
 
     @classmethod
     def run_dt_resp(
@@ -108,7 +111,7 @@ class ParetoOptimizer:
         decompSpendDistPar: pd.DataFrame,
         resultHypParamPar: pd.DataFrame,
         xDecompAggPar: pd.DataFrame,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> pd.DataFrame:
         # Implementation of response calculation
         # This is a placeholder and should be implemented based on your specific requirements

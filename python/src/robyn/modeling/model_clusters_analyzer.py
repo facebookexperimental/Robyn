@@ -1,10 +1,12 @@
-#cluster.R https://github.com/facebookexperimental/Robyn/blob/python_rewrite/python/src/oldportedcode/cluster.py
+# cluster.R https://github.com/facebookexperimental/Robyn/blob/python_rewrite/python/src/oldportedcode/cluster.py
 
 # pyre-strict
 
-from typing import Dict, List, Optional, Any
-import pandas as pd
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+import pandas as pd
+
 
 class ModelClustersAnalyzer:
     def __init__(self) -> None:
@@ -14,15 +16,15 @@ class ModelClustersAnalyzer:
         self,
         input: Dict[str, Any],
         dep_var_type: str,
-        cluster_by: str = 'hyperparameters',
+        cluster_by: str = "hyperparameters",
         all_media: Optional[List[str]] = None,
-        k: str = 'auto',
+        k: str = "auto",
         limit: int = 1,
         weights: Optional[Dict[str, float]] = None,
-        dim_red: str = 'PCA',
+        dim_red: str = "PCA",
         quiet: bool = False,
         export: bool = False,
-        seed: int = 123
+        seed: int = 123,
     ) -> Dict[str, Any]:
         """
         Clusters the data based on specified parameters and returns a dictionary containing various outputs.
@@ -45,7 +47,9 @@ class ModelClustersAnalyzer:
         """
         pass
 
-    def _determine_optimal_k(self, df: pd.DataFrame, max_clusters: int, random_state: int = 42) -> int:
+    def _determine_optimal_k(
+        self, df: pd.DataFrame, max_clusters: int, random_state: int = 42
+    ) -> int:
         """
         Determines the optimal number of clusters using the elbow method.
 
@@ -64,7 +68,7 @@ class ModelClustersAnalyzer:
         df: pd.DataFrame,
         min_clusters: int = 3,
         limit_clusters: int = 10,
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
     ) -> Tuple[pd.DataFrame, int, List[float], Any, np.ndarray, np.ndarray]:
         """
         Performs automatic K-means clustering and dimensionality reduction.
@@ -80,7 +84,14 @@ class ModelClustersAnalyzer:
         """
         pass
 
-    def _plot_wss_and_save(self, wss: List[float], path: str, dpi: int = 500, width: int = 5, height: int = 4) -> None:
+    def _plot_wss_and_save(
+        self,
+        wss: List[float],
+        path: str,
+        dpi: int = 500,
+        width: int = 5,
+        height: int = 4,
+    ) -> None:
         """
         Creates and saves a WSS plot.
 
@@ -94,11 +105,7 @@ class ModelClustersAnalyzer:
         pass
 
     def _prepare_df(
-        self,
-        x: pd.DataFrame,
-        all_media: List[str],
-        dep_var_type: str,
-        cluster_by: str
+        self, x: pd.DataFrame, all_media: List[str], dep_var_type: str, cluster_by: str
     ) -> pd.DataFrame:
         """
         Prepares the dataframe for clustering.
@@ -120,7 +127,7 @@ class ModelClustersAnalyzer:
         all_paid: List[str],
         balance: Optional[Dict[str, float]],
         limit: int,
-        ts_validation: bool
+        ts_validation: bool,
     ) -> pd.DataFrame:
         """
         Selects top models by minimum (weighted) distance to zero.
@@ -174,7 +181,7 @@ class ModelClustersAnalyzer:
         df_ci: pd.DataFrame,
         dep_var_type: str,
         boot_n: int,
-        sim_n: int
+        sim_n: int,
     ) -> Any:
         """
         Plots cluster confidence intervals.
