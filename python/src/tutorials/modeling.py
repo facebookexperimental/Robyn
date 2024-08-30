@@ -153,8 +153,10 @@ def analyze_clusters(model_output: ModelOutputCollection) -> Dict[str, Any]:
     print("=========================")
     print("Clustering input: ", model_output.model_output)
     print("=========================")
-
     input_df = pd.DataFrame(model_output.model_output.trials)
+    print("=========================")
+    print("Clustering input dataframe: ", input_df)
+    print("=========================")
     cluster_results = cluster_analyzer.model_clusters_analyze(
         input_df=input_df,  # TODO fix this
         dep_var_type="continuous",

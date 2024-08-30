@@ -52,6 +52,8 @@ class MMMData:
             context_vars: Optional[List[str]] = None,
             context_signs: Optional[List[ContextSigns]] = None,
             factor_vars: Optional[List[str]] = None,
+            prophet_vars: Optional[List[str]] = None,
+            prophet_country: Optional[str] = None,
         ) -> None:
             self.dep_var: Optional[str] = dep_var
             self.dep_var_type: DependentVarType = dep_var_type
@@ -64,6 +66,8 @@ class MMMData:
             self.context_vars: Optional[List[str]] = context_vars
             self.context_signs: Optional[List[str]] = context_signs
             self.factor_vars: Optional[List[str]] = factor_vars
+            self.prophet_vars: Optional[List[str]] = prophet_vars
+            self.prophet_country: Optional[str] = prophet_country
 
         def __str__(self) -> str:
             return f"""
@@ -79,6 +83,8 @@ class MMMData:
             context_vars: {self.context_vars}
             context_signs: {self.context_signs}
             factor_vars: {self.factor_vars}
+            prophet_vars: {self.prophet_vars}
+            prophet_country: {self.prophet_country}
             """
 
         def update(self, **kwargs: Any) -> None:

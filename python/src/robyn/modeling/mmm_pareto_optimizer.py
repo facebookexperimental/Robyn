@@ -29,17 +29,17 @@ class ParetoOptimizer:
             pareto_fronts = cls.get_pareto_fronts(pareto_fronts)
         else:
             raise ValueError("pareto_fronts must be 'auto' or an integer")
-        print("=========================")
-        print("Model output in pareto_optimizer: ", modeloutput)
-        print("=========================")
+        # print("=========================")
+        # print("Model output in pareto_optimizer: ", modeloutput)
+        # print("=========================")
 
         result_hyp_param = pd.DataFrame(
             [vars(trial) for trial in modeloutput.model_output.trials]
         )  # TODO Verify
 
-        print("=========================")
-        print("result_hyp_param in pareto_optimizer: ", result_hyp_param)
-        print("=========================")
+        # print("=========================")
+        # print("result_hyp_param in pareto_optimizer: ", result_hyp_param)
+        # print("=========================")
 
         x_decomp_agg = modeloutput.xDecompAgg  # TODO verify
 

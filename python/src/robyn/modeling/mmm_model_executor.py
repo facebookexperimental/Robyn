@@ -88,6 +88,10 @@ class MMMModelExecutor:
         **kwargs: Any,
     ) -> ModelOutputCollection:
         model_output_collection = ModelOutputCollection()
+        all_trials = []
+        all_result_hyp_params = []
+        all_x_decomp_aggs = []
+        
         for trial in range(trials_config.num_trials):
             trial_result = self.run_nevergrad_optimization(
                 mmmdata_collection=mmmdata_collection,
@@ -108,7 +112,24 @@ class MMMModelExecutor:
                 *args,
                 **kwargs,
             )
-            model_output_collection.update(**trial_result)
+            all_trials.extend(trial_result['model_output'].trials)
+            all_result_hyp_params.append(trial_result['resultHypParam'])
+            all_x_decomp_aggs.append(trial_result['xDecompAgg'])
+        
+        # Create a new ModelOutput with all trials
+        combined_model_output = ModelOutput(
+            trials=all_trials,
+            metadata={"seed": seed},
+            seed=seed
+        )
+        
+        # Update the ModelOutputCollection
+        model_output_collection.update(
+            resultHypParam=all_result_hyp_params,
+            xDecompAgg=all_x_decomp_aggs,
+            model_output=combined_model_output
+        )
+        
         return model_output_collection
 
     def run_nevergrad_optimization(
