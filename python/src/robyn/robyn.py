@@ -48,7 +48,8 @@ class Robyn:
         hyperparameters_validation = HyperparametersValidation(hyperparameters)
         calibration_input_validation = CalibrationInputValidation(mmm_data, calibration_input)
 
-        mmm_data_validation.validate()
+        mmm_data_validation_results = mmm_data_validation.validate()
+        print(mmm_data_validation_results)
         holidays_data_validation.validate()
         hyperparameters_validation.validate()
         calibration_input_validation.validate()
