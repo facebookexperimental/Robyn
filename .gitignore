@@ -36,3 +36,4 @@ python/src/scripts/.venv
 python/dist
 requirements.txt
 pythonvenv/
+*.txt
