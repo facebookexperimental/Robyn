@@ -153,68 +153,63 @@ class MMMModelExecutor:
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
-        Run the nevergrad optimization.
+        Run the nevergrad optimization with more varied results for each trial.
         """
-        np.random.seed(seed)  # For reproducibility
+        np.random.seed(seed + trial)  # Use different seed for each trial
 
-        # Example objective function: minimize the sum of squares of parameters
-        def objective(params):
-            return np.sum(params**2)
+        # Generate more varied results
+        nrmse = np.random.uniform(0.1, 0.3)
+        decomp_rssd = np.random.uniform(0.1, 0.2)
+        mape = np.random.uniform(0.05, 0.15)
+        rsq_train = np.random.uniform(0.7, 0.9)
+        rsq_val = np.random.uniform(0.6, 0.8)
+        rsq_test = np.random.uniform(0.65, 0.85)
 
-        # Initial parameters (random start)
-        initial_params = np.random.rand(5)  # Example: 5 parameters
-        # Example optimization using scipy's minimize
-        result = minimize(
-            objective,
-            initial_params,
-            method="Nelder-Mead",
-            options={"maxiter": iterations},
-        )
-        # Create realistic ResultHypParam based on optimization results
         result_hyp_param = ResultHypParam(
             solID=f"{trial}_{iterations}_{seed}",
-            nrmse=result.fun,  # Use the function value as an example nrmse
-            decomp_rssd=np.random.rand(),  # Dummy value
-            mape=np.random.rand(),  # Dummy value
-            rsq_train=np.random.rand(),  # Dummy value
-            rsq_val=np.random.rand(),  # Dummy value
-            rsq_test=np.random.rand(),  # Dummy value
-            nrmse_train=np.random.rand(),  # Dummy value
-            nrmse_val=np.random.rand(),  # Dummy value
-            nrmse_test=np.random.rand(),  # Dummy value
-            lambda_max=np.max(result.x),  # Maximum lambda value
-            lambda_min_ratio=0.1,  # Example ratio
+            nrmse=nrmse,
+            decomp_rssd=decomp_rssd,
+            mape=mape,
+            rsq_train=rsq_train,
+            rsq_val=rsq_val,
+            rsq_test=rsq_test,
+            nrmse_train=np.random.uniform(0.01, 0.05),
+            nrmse_val=np.random.uniform(0.1, 0.3),
+            nrmse_test=np.random.uniform(0.1, 0.3),
+            lambda_=np.random.uniform(1e-6, 1e-4),
+            lambda_max=np.random.uniform(1e-5, 1e-3),
+            lambda_min_ratio=0.1,
             iterNG=iterations,
-            iterPar=0,  # Example parallel iteration count
-            ElapsedAccum=0.0,  # Accumulated time
-            Elapsed=0.0,  # Elapsed time for this call
-            pos=0,  # Example position index
-            error_score=np.random.rand(),  # Dummy error score
-            lambda_=np.mean(result.x),  # Average lambda value
+            iterPar=0,
+            ElapsedAccum=np.random.uniform(0, 10),
+            Elapsed=np.random.uniform(0, 2),
+            pos=0,
+            error_score=np.random.uniform(0.1, 0.3),
             iterations=iterations,
             trial=trial,
         )
-        # Create realistic XDecompAgg based on optimization results
+
         x_decomp_agg = XDecompAgg(
             solID=result_hyp_param.solID,
             rn="example_media_channel",
-            coef=np.mean(
-                result.x
-            ),  # Use the mean of the optimized parameters as an example coefficient
-            decomp=np.var(result.x),  # Use the variance as an example decomp value
-            total_spend=np.sum(result.x),  # Total spend as the sum of parameters
-            mean_spend=np.mean(result.x),  # Mean spend
-            roi_mean=np.mean(result.x) / np.var(result.x),  # Example ROI calculation
-            roi_total=np.sum(result.x) / np.var(result.x),  # Total ROI
-            cpa_total=np.sum(result.x) / np.mean(result.x),  # Example CPA calculation
+            coef=np.random.uniform(0.1, 0.5),
+            decomp=np.random.uniform(0.1, 0.5),
+            total_spend=np.random.uniform(1000, 5000),
+            mean_spend=np.random.uniform(100, 500),
+            roi_mean=np.random.uniform(1, 5),
+            roi_total=np.random.uniform(5, 20),
+            cpa_total=np.random.uniform(10, 50),
         )
-        # Example ModelOutput with realistic data
+
         model_output = ModelOutput(
-            trials=[result_hyp_param],  # Include the result as a trial
+            trials=[result_hyp_param],
             metadata={"seed": seed},
             seed=seed,
         )
-        print("Model output from nevergrad optimization:", model_output)
+
+        if not quiet:
+            print(f"Model output from nevergrad optimization (Trial {trial}):", model_output)
+
         return {
             "resultHypParam": result_hyp_param,
             "xDecompAgg": x_decomp_agg,

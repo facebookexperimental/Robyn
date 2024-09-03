@@ -1,9 +1,9 @@
 # model_evaluation.py
-
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from robyn.modeling.entities.modeloutput import ModelOutput
 
 
 class ModelEvaluator:
@@ -74,30 +74,41 @@ class ModelEvaluator:
         """
         return np.sum((true - predicted) ** 2) / len(true)
 
-    def evaluate_model(
-        self,
-        true: np.ndarray,
-        predicted: np.ndarray,
-        p: int,
-        df_int: int,
-        n_train: Optional[int] = None,
-    ) -> Dict[str, float]:
+    def evaluate_model(self, model_output: ModelOutput) -> Dict[str, float]:
         """
-        Evaluate the model using multiple metrics.
+        Evaluate the model using multiple metrics from the ModelOutput object.
 
-        :param true: True values
-        :param predicted: Predicted values
-        :param p: Number of predictors
-        :param df_int: Degrees of freedom for intercept
-        :param n_train: Number of training samples (optional)
+        :param model_output: ModelOutput object containing model results
         :return: Dictionary containing evaluation metrics
         """
-        return {
-            "r_squared": self.calculate_rsquared(true, predicted, p, df_int, n_train),
-            "nrmse": self.calculate_nrmse(true, predicted),
-            "mape": self.calculate_mape(true, predicted),
-            "decomp_rssd": self.calculate_decomp_rssd(true, predicted),
+        metrics = {}
+        for trial in model_output.trials:
+            metrics[trial.solID] = {
+                "nrmse": trial.nrmse,
+                "mape": trial.mape,
+                "rsq_train": trial.rsq_train,
+                "rsq_val": trial.rsq_val,
+                "rsq_test": trial.rsq_test,
+                "nrmse_train": trial.nrmse_train,
+                "nrmse_val": trial.nrmse_val,
+                "nrmse_test": trial.nrmse_test,
+                "decomp_rssd": trial.decomp_rssd,
+            }
+
+        # Calculate average metrics across all trials
+        avg_metrics = {
+            "avg_nrmse": np.mean([m["nrmse"] for m in metrics.values()]),
+            "avg_mape": np.mean([m["mape"] for m in metrics.values()]),
+            "avg_rsq_train": np.mean([m["rsq_train"] for m in metrics.values()]),
+            "avg_rsq_val": np.mean([m["rsq_val"] for m in metrics.values()]),
+            "avg_rsq_test": np.mean([m["rsq_test"] for m in metrics.values()]),
+            "avg_nrmse_train": np.mean([m["nrmse_train"] for m in metrics.values()]),
+            "avg_nrmse_val": np.mean([m["nrmse_val"] for m in metrics.values()]),
+            "avg_nrmse_test": np.mean([m["nrmse_test"] for m in metrics.values()]),
+            "avg_decomp_rssd": np.mean([m["decomp_rssd"] for m in metrics.values()]),
         }
+
+        return {"per_trial_metrics": metrics, "average_metrics": avg_metrics}
 
     def cross_validate(
         self, model: Any, X: pd.DataFrame, y: pd.Series, cv: int = 5

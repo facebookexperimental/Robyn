@@ -236,7 +236,6 @@ def main():
                     print(f"    {trial_attr}: {type(trial_value)}")
     print("=========================")
 
-
     # Step 4: Analyze results
     print("Optimizing Pareto front...")
     pareto_optimizer = ParetoOptimizer()
@@ -252,27 +251,30 @@ def main():
 
     print("Analyzing model clusters...")
     cluster_analyzer = ModelClustersAnalyzer()
-    
+
     # Debug print statements
     print("Model output type:", type(model_output.model_output))
     print("Model output attributes:")
     for attr, value in model_output.model_output.__dict__.items():
         print(f"  {attr}: {type(value)}")
-    
-    if hasattr(model_output.model_output, 'trials') and model_output.model_output.trials:
+
+    if (
+        hasattr(model_output.model_output, "trials")
+        and model_output.model_output.trials
+    ):
         print("Number of trials:", len(model_output.model_output.trials))
         print("First trial data:")
         for attr, value in vars(model_output.model_output.trials[0]).items():
             print(f"  {attr}: {value}")
     else:
         print("No trials data found in model output.")
-    
+
     cluster_results = cluster_analyzer.model_clusters_analyze(
         input_data=model_output.model_output,
         dep_var_type="continuous",
         cluster_by="hyperparameters",
         k="auto",
-        quiet=False,  # Set to False to see more output
+        quiet=True,  # Set to False to see more output
     )
     if cluster_results is not None:
         print("=========================")
@@ -285,7 +287,16 @@ def main():
     print("Evaluating model performance...")
     evaluator = ModelEvaluator()
     metrics = evaluator.evaluate_model(model_output.model_output)
-    print(f"Model metrics: {metrics}")
+
+    print("Average metrics across all trials:")
+    for metric, value in metrics["average_metrics"].items():
+        print(f"  {metric}: {value:.6f}")
+
+    print("\nMetrics for each trial:")
+    for trial_id, trial_metrics in metrics["per_trial_metrics"].items():
+        print(f"  Trial {trial_id}:")
+        for metric, value in trial_metrics.items():
+            print(f"    {metric}: {value:.6f}")
 
     # Step 5: Model refresh (optional)
     print("Refreshing model...")
