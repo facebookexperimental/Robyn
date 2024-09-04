@@ -17,10 +17,10 @@ class MMMDataValidation(Validation):
         
         :return: validation result with error_details containing a dictionary with keys 'missing' and 'infinite', each containing a list of column names with missing or infinite values.
         """
-        dt_input = self.mmm_data.data
+        data = self.mmm_data.data
         
-        missing_cols = dt_input.columns[dt_input.isnull().any()].tolist()
-        infinite_cols = dt_input.columns[np.isinf(dt_input).any()].tolist()
+        missing_cols = data.columns[data.isnull().any()].tolist()
+        infinite_cols = data.columns[np.isinf(data).any()].tolist()
         
         error_details = {}
         error_message = ""
@@ -49,9 +49,9 @@ class MMMDataValidation(Validation):
         
         :return: A list of column names with no variance.
         """
-        dt_input = self.mmm_data.data
+        data = self.mmm_data.data
         
-        no_variance_cols = dt_input.columns[dt_input.nunique() == 1].tolist()
+        no_variance_cols = data.columns[data.nunique() == 1].tolist()
         
         error_details = {}
         error_message = ""
@@ -119,7 +119,7 @@ class MMMDataValidation(Validation):
         :return: True if the date variable is valid, False otherwise.
         """
         mmmdata_spec = self.mmm_data.mmmdata_spec
-        dt_input = self.mmm_data.data
+        data = self.mmm_data.data
         date_var = mmmdata_spec.date_var
         
         error_details = {}
@@ -133,12 +133,12 @@ class MMMDataValidation(Validation):
                 error_message=error_message
             )
         
-        if date_var not in dt_input.columns:
+        if date_var not in data.columns:
             error_message = f"Date variable '{date_var}' not found in the input data."
         else:
             try:
-                dt_input[date_var] = pd.to_datetime(dt_input[date_var])
-                if not dt_input[date_var].is_monotonic_increasing:
+                data[date_var] = pd.to_datetime(data[date_var])
+                if not data[date_var].is_monotonic_increasing:
                     error_message = f"Date variable '{date_var}' is not in ascending order."
             except ValueError:
                 error_message = f"Date variable '{date_var}' contains invalid date values."
@@ -160,16 +160,16 @@ class MMMDataValidation(Validation):
         :return: True if the dependent variables are valid, False otherwise.
         """
         mmmdata_spec = self.mmm_data.mmmdata_spec
-        dt_input = self.mmm_data.data
+        data = self.mmm_data.data
         dep_var = mmmdata_spec.dep_var
         
         error_details = {}
         error_message = ""
         
-        if dep_var not in dt_input.columns:
+        if dep_var not in data.columns:
             error_message = f"Dependent variable '{dep_var}' not found in the input data."
         else:
-            if not pd.api.types.is_numeric_dtype(dt_input[dep_var]):
+            if not pd.api.types.is_numeric_dtype(data[dep_var]):
                 error_message = f"Dependent variable '{dep_var}' must be numeric."
             # The check for dep_var_type has been removed as it will be an ENUM in the Python implementation
         
@@ -181,7 +181,7 @@ class MMMDataValidation(Validation):
             error_details=error_details,
             error_message=error_message
         )
-
+    
 
     def validate(self) -> List[ValidationResult]:
         """
