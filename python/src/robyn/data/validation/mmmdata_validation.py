@@ -124,6 +124,14 @@ class MMMDataValidation(Validation):
         
         error_details = {}
         error_message = ""
+
+        if date_var == "auto":
+            error_message = "Date variable is not set. Please set the date variable to proceed."
+            return ValidationResult(
+                status=False,
+                error_details={'date_variable': error_message},
+                error_message=error_message
+            )
         
         if date_var not in dt_input.columns:
             error_message = f"Date variable '{date_var}' not found in the input data."
@@ -154,7 +162,6 @@ class MMMDataValidation(Validation):
         mmmdata_spec = self.mmm_data.mmmdata_spec
         dt_input = self.mmm_data.data
         dep_var = mmmdata_spec.dep_var
-        dep_var_type = mmmdata_spec.dep_var_type
         
         error_details = {}
         error_message = ""
@@ -164,8 +171,7 @@ class MMMDataValidation(Validation):
         else:
             if not pd.api.types.is_numeric_dtype(dt_input[dep_var]):
                 error_message = f"Dependent variable '{dep_var}' must be numeric."
-            elif dep_var_type not in ["revenue", "conversion"]:
-                error_message = f"Invalid dep_var_type '{dep_var_type}'. Must be 'revenue' or 'conversion'."
+            # The check for dep_var_type has been removed as it will be an ENUM in the Python implementation
         
         if error_message:
             error_details['dependent_variable'] = error_message
