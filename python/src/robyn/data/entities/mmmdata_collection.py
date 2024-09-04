@@ -14,7 +14,7 @@ from robyn.data.entities.mmmdata import MMMData
 
 
 @dataclass(frozen=True)
-class IntermediateData:  # TODO temparory grouped as IntermediateData. Update accordingly
+class IntermediateData:
     dt_mod: Optional[pd.DataFrame]
     dt_modRollWind: Optional[pd.DataFrame]
     xDecompAggPrev: Optional[pd.DataFrame]

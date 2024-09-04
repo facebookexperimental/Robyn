@@ -24,6 +24,7 @@ from robyn.data.entities.mmmdata_collection import (
     ModelParameters,
     TimeWindow,
 )
+from robyn.modeling.allocator import RobynAllocator
 from robyn.modeling.convergence import ModelConvergence
 from robyn.modeling.entities.convergence_result import ConvergenceResult
 from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
@@ -277,7 +278,7 @@ def main():
         add_penalty_factor=False,
     )
     model_output = model_executor.model_run(
-        mmmdata_collection=mmm_data, trials_config=trials_config, seed=42, quiet=True
+        mmmdata_collection=mmm_data, trials_config=trials_config, seed=42, quiet=False
     )
     print("Model run completed.")
     print("=========================")
@@ -335,7 +336,7 @@ def main():
         dep_var_type="continuous",
         cluster_by="hyperparameters",
         k="auto",
-        quiet=True,  # Set to False to see more output
+        quiet=False,  # Set to False to see more output
     )
     if cluster_results is not None:
         print("=========================")
@@ -384,6 +385,30 @@ def main():
     print("Convergence analysis completed.")
     print("Convergence messages:")
     print(convergence_result["conv_msg"])
+    # # Step 5: Run allocator
+    # print("Running budget allocator...")
+
+    # print("MMM Data Collection:", mmm_data)
+    # allocator = RobynAllocator(
+    #     mmm_data, model_output, select_model=model_output.model_output.trials[0].solID
+    # )
+    # allocator_result = allocator.allocate(
+    #     scenario="max_response",
+    #     total_budget=None,  # Use historical budget
+    #     date_range="all",
+    #     channel_constr_low=0.7,
+    #     channel_constr_up=1.2,
+    #     channel_constr_multiplier=3,
+    #     plots=True,
+    #     export=True,
+    #     quiet=False,
+    # )
+    # print("Budget allocation completed.")
+    # print("Allocation Summary:")
+    # print(allocator_result["allocation_results"])
+
+    # if allocator_result["plots"]:
+    #     print("Allocation plots generated. Check the output folder.")
 
     print("MMM Modeling Demo completed.")
 
