@@ -4,6 +4,7 @@ from typing import Any, Dict
 import numpy as np
 import pandas as pd
 
+
 sys.path.append("/Users/yijuilee/project_robyn/modelling/Robyn/python/src")
 
 from robyn.data.entities.calibration_input import CalibrationInput
@@ -23,6 +24,8 @@ from robyn.data.entities.mmmdata_collection import (
     ModelParameters,
     TimeWindow,
 )
+from robyn.modeling.convergence import ModelConvergence
+from robyn.modeling.entities.convergence_result import ConvergenceResult
 from robyn.modeling.entities.modeloutput_collection import ModelOutputCollection
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 from robyn.modeling.mmm_model_executor import MMMModelExecutor
@@ -30,6 +33,51 @@ from robyn.modeling.mmm_pareto_optimizer import ParetoOptimizer
 from robyn.modeling.model_clusters_analyzer import ModelClustersAnalyzer
 from robyn.modeling.model_evaluation import ModelEvaluator
 from robyn.modeling.model_refresh import ModelRefresh, ModelRefreshConfig
+from robyn.modeling.transformation import saturation_hill, transform_adstock
+
+
+def apply_adstock_transformations(mmm_data: MMMDataCollection) -> pd.DataFrame:
+    """
+    Apply adstock transformations to the media variables in the dataset.
+    """
+    data = mmm_data.intermediate_data.dt_mod.copy()
+    all_media = mmm_data.model_parameters.all_media
+    adstock_type = mmm_data.adstock
+    hyperparameters = mmm_data.hyperparameters.hyperparameters
+
+    for media in all_media:
+        if adstock_type == AdstockType.GEOMETRIC:
+            theta = hyperparameters[media].thetas[
+                0
+            ]  # Using the first value of the range
+            transformed = transform_adstock(
+                data[media].values, "geometric", theta=theta
+            )
+        elif adstock_type == AdstockType.WEIBULL_CDF:
+            shape = hyperparameters[media].shapes[0]
+            scale = hyperparameters[media].scales[0]
+            transformed = transform_adstock(
+                data[media].values, "weibull_cdf", shape=shape, scale=scale
+            )
+        elif adstock_type == AdstockType.WEIBULL_PDF:
+            shape = hyperparameters[media].shapes[0]
+            scale = hyperparameters[media].scales[0]
+            transformed = transform_adstock(
+                data[media].values, "weibull_pdf", shape=shape, scale=scale
+            )
+        else:
+            raise ValueError(f"Unsupported adstock type: {adstock_type}")
+
+        # Apply saturation
+        alpha = hyperparameters[media].alphas[0]
+        gamma = hyperparameters[media].gammas[0]
+        saturated = saturation_hill(transformed["x_decayed"], alpha, gamma)
+
+        # Update the dataframe with transformed and saturated values
+        data[f"{media}_adstocked"] = transformed["x_decayed"]
+        data[f"{media}_saturated"] = saturated
+
+    return data
 
 
 def generate_sample_data() -> pd.DataFrame:
@@ -190,7 +238,16 @@ def prepare_mmmdata_collection(data: pd.DataFrame) -> MMMDataCollection:
     for attr, value in mmm_data.__dict__.items():
         print(f"{attr}: {type(value)}")
 
-    return mmm_data
+    print("Applying adstock transformations...")
+    transformed_data = apply_adstock_transformations(mmm_data)
+    # Update the MMMDataCollection with the new transformed data
+    updated_mmm_data = MMMDataCollection.update(obj=mmm_data, dt_mod=transformed_data)
+
+    print("MMMDataCollection updated.")
+    print("MMMDataCollection attributes:")
+    for attr, value in updated_mmm_data.__dict__.items():
+        print(f"{attr}: {type(value)}")
+    return updated_mmm_data
 
 
 def main():
@@ -205,6 +262,10 @@ def main():
     print("Preparing MMM data collection...")
     mmm_data = prepare_mmmdata_collection(data)
     print("MMM data collection prepared.")
+
+    # You can add some print statements here to show the effects of the transformations
+    print("Sample of transformed data:")
+    print(mmm_data.intermediate_data.dt_mod.head())
 
     # Step 3: Build initial model
     print("Running MMM model...")
@@ -310,6 +371,19 @@ def main():
         refresh_config=refresh_config,
     )
     print("Model refreshed successfully.")
+
+    print("Analyzing model convergence...")
+    model_convergence = ModelConvergence()
+    convergence_result: ConvergenceResult = model_convergence.converge(
+        model_output=model_output.model_output,
+        n_cuts=20,
+        sd_qtref=3,
+        med_lowb=2,
+        nrmse_win=(0, 0.998),
+    )
+    print("Convergence analysis completed.")
+    print("Convergence messages:")
+    print(convergence_result["conv_msg"])
 
     print("MMM Modeling Demo completed.")
 

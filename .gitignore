@@ -37,3 +37,5 @@ python/dist
 requirements.txt
 pythonvenv/
 *.txt
+*.png
+*.jpg
