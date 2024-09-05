@@ -34,3 +34,10 @@ RobynApp.Rcheck/RobynApp/R/RobynApp.rdx
 RobynApp_1.0.0.tar.gz
 Robyn_Fork.Rproj
 python/src/tutorials/demo.py
+python/.venv
+python/**/.venv
+python/dist
+python/**/__pycache__
+python/.vscode
+python/src/robynpy.egg-info*
+python/oldportedcode

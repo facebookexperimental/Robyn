@@ -3,6 +3,8 @@
 # TODO This needs to be rewritten to match the new structure of the codebase
 # TODO Add separate methods if state is loaded from robyn_object or json_file for each method
 
+import logging
+
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
@@ -11,7 +13,6 @@ from robyn.data.validation.calibration_input_validation import CalibrationInputV
 from robyn.data.validation.holidays_data_validation import HolidaysDataValidation
 from robyn.data.validation.hyperparameter_validation import HyperparametersValidation
 from robyn.data.validation.mmmdata_validation import MMMDataValidation
-
 
 
 class Robyn:
@@ -23,6 +24,8 @@ class Robyn:
             working_dir (str): The path to the working directory.
         """
         self.working_dir = working_dir
+        logger = logging.getLogger()
+        logger.info(f"Robyn initialized with working directory: {working_dir}")
 
     # Load input data for the first time and validates
     def initialize(

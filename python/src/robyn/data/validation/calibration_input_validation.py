@@ -26,15 +26,6 @@ class CalibrationInputValidation(Validation):
         # method implementation goes here
         raise NotImplementedError("Not yet implemented")
 
-    def check_iteration(
-        self,
-        calibration_input: CalibrationInput,
-        hyps_fixed: bool,
-        refresh: bool,
-    ) -> ValidationResult:
-        # method implementation goes here
-        raise NotImplementedError("Not yet implemented")
-
     def validate(self) -> ValidationResult:
         pass
         #raise NotImplementedError("Not yet implemented")
