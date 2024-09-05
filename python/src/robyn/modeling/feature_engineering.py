@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from fbprophet import Prophet
 from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
 from robyn.modeling.entities.feature_engineering_data import FeatureEngineeringInputData, FeatureEngineeringOutputData
@@ -45,7 +44,6 @@ class FeatureEngineering:
         output_data = FeatureEngineeringOutputData(
             dt_mod=dt_transform,
             dt_modRollWind=dt_transform_roll_wind,
-            dt_inputRollWind=dt_input_roll_wind,
             modNLS={
                 "results": mod_nls_collect,
                 "yhat": yhat_collect,
