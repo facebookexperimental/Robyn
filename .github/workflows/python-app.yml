@@ -6,7 +6,7 @@ name: Robyn Python application
 
 on:
   push:
-    branches: [ "main", "robynpy_release, "python_rewrite_modeling" ]
+    branches: [ "main", "robynpy_release", "python_rewrite_modeling" ]
   pull_request:
     branches: [ "main", "robynpy_release", "python_rewrite_modeling" ]
 
