@@ -159,27 +159,15 @@ class FeatureEngineering:
         """
         pass
 
-    @staticmethod
-    def hyper_names(adstock: str, all_media: List[str], all_vars: Optional[List[str]] = None) -> List[str]:
+    def _apply_transformations(self, x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
         """
-        Get the names of all hyperparameters.
+        Apply adstock and saturation transformations to the input series.
 
         Args:
-            adstock (str): The type of adstock transformation.
-            all_media (List[str]): List of all media variables.
-            all_vars (Optional[List[str]], optional): List of all variables. Defaults to None.
+            x (pd.Series): Input series to transform.
+            params (ChannelHyperparameters): Hyperparameters for the channel.
 
         Returns:
-            List[str]: The names of all hyperparameters.
-        """
-        pass
-
-    @staticmethod
-    def hyper_limits() -> pd.DataFrame:
-        """
-        Get the limits for hyperparameters.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the upper and lower bounds for each hyperparameter.
+            pd.Series: Transformed series.
         """
         pass

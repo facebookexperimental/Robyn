@@ -100,16 +100,3 @@ class FeaturePlotter:
             None
         """
         pass
-
-    def _apply_transformations(self, x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
-        """
-        Apply adstock and saturation transformations to the input series.
-
-        Args:
-            x (pd.Series): Input series to transform.
-            params (ChannelHyperparameters): Hyperparameters for the channel.
-
-        Returns:
-            pd.Series: Transformed series.
-        """
-        pass
