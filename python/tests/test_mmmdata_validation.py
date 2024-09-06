@@ -2,8 +2,8 @@ import unittest
 import pandas as pd
 import numpy as np
 
-from robyn.data.entities.mmmdata import MMMData
-from robyn.data.validation.mmmdata_validation import MMMDataValidation
+from src.robyn.data.entities.mmmdata import MMMData
+from src.robyn.data.validation.mmmdata_validation import MMMDataValidation
 
 
 class TestMMMDataValidation(unittest.TestCase):
@@ -106,6 +106,3 @@ class TestMMMDataValidation(unittest.TestCase):
         results = self.validation.validate()
         self.assertEqual(len(results), 5)  # Ensure all 5 validations are performed
         self.assertTrue(all(result.status for result in results))
-
-if __name__ == '__main__':
-    unittest.main()
