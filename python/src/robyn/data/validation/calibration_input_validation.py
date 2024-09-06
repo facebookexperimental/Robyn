@@ -1,3 +1,4 @@
+# pyre-strict
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.validation.validation import Validation, ValidationResult
