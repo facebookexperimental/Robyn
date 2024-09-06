@@ -33,7 +33,7 @@ jobs:
 
       - name: updating PATH to enable importing robyn modules
         run: |
-          echo "export PYTHONPATH=$PYTHONPATH:$(pwd)/python" >> $GITHUB_ENV
+          echo "PYTHONPATH=$PYTHONPATH:$(pwd)/python/src" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
