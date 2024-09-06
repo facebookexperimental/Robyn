@@ -21,7 +21,7 @@ from robyn.data.entities.mmmdata import MMMData
 
 
 @dataclass
-class FeatureEngineeringOutputData:
+class FeaturizedMMMData:
     """
     A dataclass to hold the output of the feature engineering process.
 
@@ -60,7 +60,7 @@ class FeatureEngineering:
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
 
-    def perform_feature_engineering(self, quiet: bool = False) -> FeatureEngineeringOutputData:
+    def perform_feature_engineering(self, quiet: bool = False) -> FeaturizedMMMData:
         """
         Perform the feature engineering process.
 
@@ -72,7 +72,7 @@ class FeatureEngineering:
             quiet (bool, optional): If True, suppresses print statements. Defaults to False.
 
         Returns:
-            FeatureEngineeringOutputData: The output of the feature engineering process.
+            FeaturizedMMMData: The output of the feature engineering process.
         """
         if not quiet:
             print(">> Running Robyn feature engineering...")
@@ -87,9 +87,7 @@ class FeatureEngineering:
 
         self._check_no_variance(dt_transform)
 
-        return FeatureEngineeringOutputData(
-            dt_mod=dt_transform, dt_modRollWind=dt_transform_roll_wind, modNLS=model_results
-        )
+        return FeaturizedMMMData(dt_mod=dt_transform, dt_modRollWind=dt_transform_roll_wind, modNLS=model_results)
 
     def _prepare_data(self) -> pd.DataFrame:
         """
@@ -180,30 +178,6 @@ class FeatureEngineering:
 
         Args:
             dt_transform (pd.DataFrame): The transformed data to check.
-        """
-        pass
-
-    @staticmethod
-    def plot_adstock(adstock: str, theta: float = None, shape: float = None, scale: float = None) -> None:
-        """
-        Plot the adstock transformation.
-
-        Args:
-            adstock (str): The type of adstock transformation.
-            theta (float, optional): The theta parameter for geometric adstock.
-            shape (float, optional): The shape parameter for Weibull adstock.
-            scale (float, optional): The scale parameter for Weibull adstock.
-        """
-        pass
-
-    @staticmethod
-    def plot_saturation(alphas: List[float], gammas: List[float]) -> None:
-        """
-        Plot the saturation curve transformation.
-
-        Args:
-            alphas (List[float]): The alpha parameters for the saturation curves.
-            gammas (List[float]): The gamma parameters for the saturation curves.
         """
         pass
 
