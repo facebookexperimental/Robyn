@@ -74,20 +74,7 @@ class FeatureEngineering:
         Returns:
             FeaturizedMMMData: The output of the feature engineering process.
         """
-        if not quiet:
-            print(">> Running Robyn feature engineering...")
-
-        dt_transform = self._prepare_data()
-        dt_transform_roll_wind = self._create_rolling_window_data(dt_transform)
-        media_cost_factor = self._calculate_media_cost_factor(dt_transform_roll_wind)
-        model_results = self._run_models(dt_transform_roll_wind, media_cost_factor)
-
-        if self.mmm_data.mmmdata_spec.prophet_vars:
-            dt_transform = self._prophet_decomposition(dt_transform)
-
-        self._check_no_variance(dt_transform)
-
-        return FeaturizedMMMData(dt_mod=dt_transform, dt_modRollWind=dt_transform_roll_wind, modNLS=model_results)
+        pass
 
     def _prepare_data(self) -> pd.DataFrame:
         """
@@ -169,15 +156,6 @@ class FeatureEngineering:
 
         Returns:
             pd.DataFrame: The DataFrame with holidays.
-        """
-        pass
-
-    def _check_no_variance(self, dt_transform: pd.DataFrame) -> None:
-        """
-        Check for columns with no variance in the transformed data.
-
-        Args:
-            dt_transform (pd.DataFrame): The transformed data to check.
         """
         pass
 
