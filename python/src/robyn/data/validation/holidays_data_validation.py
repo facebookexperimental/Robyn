@@ -1,5 +1,6 @@
 #pyre-strict
 
+import logging
 from typing import List
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.enums import ProphetVariableType
@@ -10,6 +11,7 @@ import numpy as np
 class HolidaysDataValidation(Validation):
     def __init__(self, holidays_data: HolidaysData) -> None:
         self.holidays_data: HolidaysData = holidays_data
+        self.logger = logging.getLogger(__name__)
 
     def check_holidays(self) -> ValidationResult:
         """
@@ -19,7 +21,8 @@ class HolidaysDataValidation(Validation):
         Check for invalid characters (spaces) in the column names.
 
         Returns:
-        - bool: True if the holidays data is valid, False otherwise.
+        - ValidationResult: A ValidationResult object containing the status (True if the holidays data is valid, False otherwise),
+            error details, and error message.
         """
         dt_holidays = self.holidays_data.dt_holidays
 
@@ -48,7 +51,6 @@ class HolidaysDataValidation(Validation):
         missing_cols = [var for var in vars_to_check if var not in dt_holidays.columns]
         if missing_cols:
             error_details['missing_columns'] = missing_cols
-            print(error_details)
             error_message += f"Missing required columns in holidays data: {', '.join(missing_cols)}. "
 
         # Check for invalid characters (spaces)
@@ -68,7 +70,8 @@ class HolidaysDataValidation(Validation):
         Check if the Prophet model is valid for the given data.
 
         Returns:
-        - bool: True if the Prophet model is valid, False otherwise.
+        - ValidationResult: A ValidationResult object containing the status (True if the holidays data is valid, False otherwise),
+            error details, and error message.
         """
         dt_holidays = self.holidays_data.dt_holidays
         prophet_vars = self.holidays_data.prophet_vars
@@ -85,7 +88,7 @@ class HolidaysDataValidation(Validation):
             if  ProphetVariableType.HOLIDAY not in prophet_vars:
                 if prophet_country is not None:
                     warning_message = f"Warning: Input 'prophet_country' is defined as {prophet_country} but 'holiday' is not setup within 'prophet_vars' parameter. "
-                    # TODO: Print warning message
+                    self.logger.warning(warning_message)
                 prophet_country = None
 
             if ProphetVariableType.HOLIDAY in prophet_vars and (
@@ -117,7 +120,7 @@ class HolidaysDataValidation(Validation):
                 error_message=error_message.strip()
             )
         except Exception as e:
-            print(e)
+            self.logger.error(e)
             return ValidationResult(status=False, error_details=error_details, error_message=str(e))
 
 
