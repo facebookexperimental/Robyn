@@ -87,16 +87,3 @@ class FeaturePlotter:
         dt_mod = featurized_data.dt_mod
         # Rest of the method implementation
         pass
-
-    def save_plots(self, plots: Dict[str, plt.Figure], output_dir: str) -> None:
-        """
-        Save all generated plots to the specified output directory.
-
-        Args:
-            plots (Dict[str, plt.Figure]): Dictionary mapping plot names to matplotlib Figure objects.
-            output_dir (str): Directory path where the plots should be saved.
-
-        Returns:
-            None
-        """
-        pass
