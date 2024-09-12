@@ -1,26 +1,22 @@
 # pyre-strict
 
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-
 import numpy as np
 import pandas as pd
 
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
-from robyn.data.entities.enums import AdStockType
+from robyn.data.entities.enums import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
-from robyn.modeling.entities.featurized_mmm_data import FeaturizedMMMData
+from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.entities.enums import NevergradAlgorithm
 from sklearn.linear_model import Ridge
 
 
 @dataclass(frozen=True)
 class ModelRefitOutput:
-
     rsq_train: float
     rsq_val: Optional[float]
     rsq_test: Optional[float]
@@ -47,7 +43,6 @@ class HyperCollectorOutput:
 
 @dataclass(frozen=True)
 class ModelDecompOutput:
-
     x_decomp_vec: pd.DataFrame
     x_decomp_vec_scaled: pd.DataFrame
     x_decomp_agg: pd.DataFrame
@@ -83,9 +78,10 @@ class RidgeModelBuilder:
         objective_weights: Optional[List[float]] = None,
         nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
         intercept: bool = True,
-        intercept_sign: str = "non_negative",  # TODO: Enum?
-        ad_stock: AdStockType = AdStockType.GEOMETRIC
+        intercept_sign: str = "non_negative",
+        adstock: AdstockType = AdstockType.GEOMETRIC,
     ) -> ModelOutputs:
+        # Implementation here
         pass
 
     def _model_train(
@@ -103,32 +99,27 @@ class RidgeModelBuilder:
         rssd_zero_penalty: bool = True,
         seed: int = 123,
     ) -> ModelOutputs:
-        # Implementation
+        # Implementation here
         pass
 
-    # model.R robyn_mmm
-    def run_nevergrad_optimization(self,
-                      hyper_collect: Hyperparameters,
-                      iterations: int,
-                      cores: int,
-                      nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
-                      intercept:bool = True,
-                      intercept_sign: str = "non_negative",
-                      ts_validation = True,
-                      add_penalty_factor = False,
-                      objective_weights: Optional[Dict[str, float]] = None,
-                      dt_hyper_fixed: Optional[pd.DataFrame] = None,
-                      rssd_zero_penalty: bool = True,
-                      trial: int = 1,
-                      seed: int = 123,
-                      ):
-        # Implementation
+    def run_nevergrad_optimization(
+        self,
+        hyper_collect: Hyperparameters,
+        iterations: int,
+        cores: int,
+        nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
+        intercept: bool = True,
+        intercept_sign: str = "non_negative",
+        ts_validation: bool = True,
+        add_penalty_factor: bool = False,
+        objective_weights: Optional[Dict[str, float]] = None,
+        dt_hyper_fixed: Optional[pd.DataFrame] = None,
+        rssd_zero_penalty: bool = True,
+        trial: int = 1,
+        seed: int = 123,
+    ) -> List[Trial]:
+        # Implementation here
         pass
-
-        def _iteration(self) -> Trial:
-            # Implementation
-            # Inner method to run nevergrad optimization
-            pass
 
     @staticmethod
     def model_decomp(
@@ -167,7 +158,7 @@ class RidgeModelBuilder:
         seq_len: int = 100,
         lambda_min_ratio: float = 0.0001,
     ) -> np.ndarray:
-        # Implementation
+        # Implementation here
         pass
 
     @staticmethod
