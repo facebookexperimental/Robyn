@@ -22,4 +22,3 @@ class TrialsConfig:
 
     trials: int
     iterations: int
-    cores: Optional[int] = None
