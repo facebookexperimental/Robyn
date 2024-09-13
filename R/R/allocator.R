@@ -62,6 +62,8 @@
 #' Defaults to 100000.
 #' @param constr_mode Character. Options are \code{"eq"} or \code{"ineq"},
 #' indicating constraints with equality or inequality.
+#' @param keep_zero_coefs Boolean. By default, zero coefficient (betas) channels
+#' will be removed to avoid spending budget were there is no impact.
 #' @param plots Boolean. Generate plots?
 #' @return A list object containing allocator result.
 #' @examples
@@ -101,6 +103,7 @@ robyn_allocator <- function(robyn_object = NULL,
                             optim_algo = "SLSQP_AUGLAG",
                             maxeval = 100000,
                             constr_mode = "eq",
+                            keep_zero_coefs = FALSE,
                             plots = TRUE,
                             plot_folder = NULL,
                             plot_folder_sub = NULL,
@@ -375,7 +378,7 @@ robyn_allocator <- function(robyn_object = NULL,
       paste(zero_constraint_channel, collapse = ", ")
     )
   }
-  if (!all(coefSelectorSorted)) {
+  if (!all(coefSelectorSorted) & !keep_zero_coefs) {
     zero_coef_channel <- setdiff(names(coefSelectorSorted), mediaSpendSorted[coefSelectorSorted])
     if (!quiet) {
       message(
