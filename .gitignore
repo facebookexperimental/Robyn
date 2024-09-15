@@ -1,4 +1,5 @@
 .DS_Store
+.idea
 .Rproj.user
 .Rhistory
 node_modules/
