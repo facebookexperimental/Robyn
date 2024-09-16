@@ -107,92 +107,73 @@ convert_dates_to_Date <- function(json_data) {
 ### Robyn functions expect data/objects to be R unique one, but if bypassing data/obj via REST API, we need to convert these into R unique type like tibble or factor.
 #* transform InputCollect from API
 transform_InputCollect <- function(InputCollect) {
-  promise({
-    message("Function transform_InputCollect Start...")
-    lock(mutex)
-    message("Function transform_InputCollect Locking...")
-    InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
+  InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
 
-    # list > tibble
-    vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind", "calibration_input")
-    for (var in vars_to_tibble) {
-      InputCollect[[var]] <- as_tibble(InputCollect[[var]])
-      InputCollect[[var]][] <- lapply(InputCollect[[var]], function(col) {
-        if (all(grepl("^\\d{4}-\\d{2}-\\d{2}$", col))) {
-          return(as.Date(col))
-        }
-        return(col)
-      })
-    }
-
-    # Null Treatment
-    for (var in names(InputCollect)) {
-      if (length(InputCollect[[var]]) == 0) {
-        InputCollect[[var]] <- NULL
-        named_list <- setNames(alist(x = NULL), var)
-        InputCollect <- c(InputCollect, named_list)
-
+  # list > tibble
+  vars_to_tibble <- c("dt_input", "dt_holidays", "dt_mod", "dt_modRollWind", "dt_inputRollWind", "calibration_input")
+  for (var in vars_to_tibble) {
+    InputCollect[[var]] <- as_tibble(InputCollect[[var]])
+    InputCollect[[var]][] <- lapply(InputCollect[[var]], function(col) {
+      if (all(grepl("^\\d{4}-\\d{2}-\\d{2}$", col))) {
+        return(as.Date(col))
       }
-    }
+      return(col)
+    })
+  }
 
-    # Add class name which is used as a checker in Robyn
-    class(InputCollect) <- c("robyn_inputs", "list")
-    message("Function transform_InputCollect UnLocking...")
-    unlock(mutex)
-    message("Function transform_InputCollect Complete...")
-    return(InputCollect)
-  })
+  # Null Treatment
+  for (var in names(InputCollect)) {
+    if (length(InputCollect[[var]]) == 0) {
+      InputCollect[[var]] <- NULL
+      named_list <- setNames(alist(x = NULL), var)
+      InputCollect <- c(InputCollect, named_list)
+
+    }
+  }
+
+  # Add class name which is used as a checker in Robyn
+  class(InputCollect) <- c("robyn_inputs", "list")
+  return(InputCollect)
 }
 
 #* transform OutputCollect from API
 transform_OutputCollect <- function(OutputCollect, select_model = FALSE) {
-  promise({
-    message("Function transform_OutputCollect Start...")
-    lock(mutex)
-    message("Function transform_OutputCollect Locking...")
+  OutputCollect <- jsonlite::fromJSON(OutputCollect)
+  # Add class name which is used as a checker in Robyn
+  class(OutputCollect) <- c("robyn_outputs", "list")
 
-    OutputCollect <- jsonlite::fromJSON(OutputCollect)
-    # Add class name which is used as a checker in Robyn
-    class(OutputCollect) <- c("robyn_outputs", "list")
+  # Null Treatment (When ts_validation = FALSE, val and test score need to be added)
+  keys_to_check <- c("rsq_val", "rsq_test", "nrmse_val", "nrmse_test")
+  for (lst_name in c("xDecompAgg", "resultHypParam")) {
+    lst <- OutputCollect[[lst_name]]
+    for (key in keys_to_check) {
+      if (!(key %in% names(lst))) {
+        lst[[key]] <- NA
+      }
+    }
+    OutputCollect[[lst_name]] <- lst
+  }
 
-    # Null Treatment (When ts_validation = FALSE, val and test score need to be added)
-    keys_to_check <- c("rsq_val", "rsq_test", "nrmse_val", "nrmse_test")
-    for (lst_name in c("xDecompAgg", "resultHypParam")) {
-      lst <- OutputCollect[[lst_name]]
+  for (trial in grep("^trial[0-9]+$", names(OutputCollect[['OutputModels']]), value = TRUE))
+    for (lst_name in c("xDecompAgg", "resultHypParam", "decompSpendDist")) {
+      lst <- OutputCollect[['OutputModels']][[trial]][['resultCollect']][[lst_name]]
       for (key in keys_to_check) {
         if (!(key %in% names(lst))) {
           lst[[key]] <- NA
         }
       }
-      OutputCollect[[lst_name]] <- lst
+      OutputCollect[['OutputModels']][[trial]][['resultCollect']][[lst_name]] <- lst
     }
 
-    for (trial in grep("^trial[0-9]+$", names(OutputCollect[['OutputModels']]), value = TRUE))
-      for (lst_name in c("xDecompAgg", "resultHypParam", "decompSpendDist")) {
-        lst <- OutputCollect[['OutputModels']][[trial]][['resultCollect']][[lst_name]]
-        for (key in keys_to_check) {
-          if (!(key %in% names(lst))) {
-            lst[[key]] <- NA
-          }
-        }
-        OutputCollect[['OutputModels']][[trial]][['resultCollect']][[lst_name]] <- lst
-      }
+  # convert only target model data
+  if (!select_model == FALSE) {
+    OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] <-
+      OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] %>%
+        as_tibble() %>%
+        mutate(across(where(is.character), as.factor))
+  }
 
-    # convert only target model data
-    if (!select_model == FALSE) {
-      OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] <-
-        OutputCollect[['allPareto']][['plotDataCollect']][[select_model]][['plot2data']][['plotWaterfallLoop']] %>%
-          as_tibble() %>%
-          mutate(across(where(is.character), as.factor))
-    }
-
-    message("Function transform_OutputCollect UnLocking...")
-    unlock(mutex)
-    message("Function transform_OutputCollect Complete...")
-
-    return(OutputCollect)
-  })
-
+  return(OutputCollect)
 }
 
 #* @apiTitle Robyn API
