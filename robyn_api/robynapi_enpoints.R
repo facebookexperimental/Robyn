@@ -108,9 +108,9 @@ convert_dates_to_Date <- function(json_data) {
 #* transform InputCollect from API
 transform_InputCollect <- function(InputCollect) {
   promise({
-    message("Transforming InputCollect Start...")
+    message("Function transform_InputCollect Start...")
     lock(mutex)
-    message("Transforming InputCollect Locking...")
+    message("Function transform_InputCollect Locking...")
     InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
 
     # list > tibble
@@ -137,9 +137,9 @@ transform_InputCollect <- function(InputCollect) {
 
     # Add class name which is used as a checker in Robyn
     class(InputCollect) <- c("robyn_inputs", "list")
-    message("Transforming InputCollect UnLocking...")
+    message("Function transform_InputCollect UnLocking...")
     unlock(mutex)
-    message("Transforming InputCollect Complete...")
+    message("Function transform_InputCollect Complete...")
     return(InputCollect)
   })
 }
@@ -147,9 +147,10 @@ transform_InputCollect <- function(InputCollect) {
 #* transform OutputCollect from API
 transform_OutputCollect <- function(OutputCollect, select_model = FALSE) {
   promise({
-    message("Transforming OutputCollect Start...")
+    message("Function transform_OutputCollect Start...")
     lock(mutex)
-    message("Transforming OutputCollect Locking...")
+    message("Function transform_OutputCollect Locking...")
+
     OutputCollect <- jsonlite::fromJSON(OutputCollect)
     # Add class name which is used as a checker in Robyn
     class(OutputCollect) <- c("robyn_outputs", "list")
@@ -184,9 +185,11 @@ transform_OutputCollect <- function(OutputCollect, select_model = FALSE) {
           as_tibble() %>%
           mutate(across(where(is.character), as.factor))
     }
-    message("Transforming OutputCollect UnLocking...")
+
+    message("Function transform_OutputCollect UnLocking...")
     unlock(mutex)
-    message("Transforming OutputCollect Complete...")
+    message("Function transform_OutputCollect Complete...")
+
     return(OutputCollect)
   })
 
@@ -226,20 +229,29 @@ function() {
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_inputs
 function(dt_input = FALSE, dt_holidays = FALSE, jsonInputArgs = FALSE, InputCollect = FALSE, calibration_input = FALSE) {
+  promise({
+    message("Function robyn_inputs Start...")
+    lock(mutex)
+    message("Function robyn_inputs Locking...")
 
-  inputArgs <- if (!jsonInputArgs == FALSE) jsonlite::fromJSON(jsonInputArgs) else NULL
-  dt_input <- if (!dt_input == FALSE) hex_to_raw(dt_input) %>% arrow::read_feather() else NULL
-  dt_holidays <- if (!dt_holidays == FALSE) hex_to_raw(dt_holidays) %>% arrow::read_feather() else NULL
-  InputCollect <- if (!InputCollect == FALSE) transform_InputCollect(InputCollect) else NULL
-  calibration_input <- if (!calibration_input == FALSE) hex_to_raw(calibration_input) %>% arrow::read_feather() else NULL
+    inputArgs <- if (!jsonInputArgs == FALSE) jsonlite::fromJSON(jsonInputArgs) else NULL
+    dt_input <- if (!dt_input == FALSE) hex_to_raw(dt_input) %>% arrow::read_feather() else NULL
+    dt_holidays <- if (!dt_holidays == FALSE) hex_to_raw(dt_holidays) %>% arrow::read_feather() else NULL
+    InputCollect <- if (!InputCollect == FALSE) transform_InputCollect(InputCollect) else NULL
+    calibration_input <- if (!calibration_input == FALSE) hex_to_raw(calibration_input) %>% arrow::read_feather() else NULL
 
-  InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input,
-                                               dt_holidays = dt_holidays,
-                                               InputCollect = InputCollect,
-                                               calibration_input = calibration_input
-  ), inputArgs))
+    InputCollect <- do.call(robyn_inputs, c(list(dt_input = dt_input,
+                                                 dt_holidays = dt_holidays,
+                                                 InputCollect = InputCollect,
+                                                 calibration_input = calibration_input
+    ), inputArgs))
 
-  return(recursive_ggplot_serialize(InputCollect))
+    message("Function robyn_inputs Unlocking...")
+    unlock(mutex)
+    message("Function robyn_inputs Complete...")
+
+    return(recursive_ggplot_serialize(InputCollect))
+  })
 }
 
 #* Executes a Robyn model with the provided inputs and returns serialized model outputs
@@ -250,14 +262,23 @@ function(dt_input = FALSE, dt_holidays = FALSE, jsonInputArgs = FALSE, InputColl
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_run
 function(InputCollect, jsonRunArgs) {
+  promise({
+    message("Function robyn_run Start...")
+    lock(mutex)
+    message("Function robyn_run Locking...")
 
-  runArgs <- jsonlite::fromJSON(jsonRunArgs)
-  InputCollect <- transform_InputCollect(InputCollect)
+    runArgs <- jsonlite::fromJSON(jsonRunArgs)
+    InputCollect <- transform_InputCollect(InputCollect)
 
-  OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect
-  ), runArgs))
+    OutputModels <- do.call(robyn_run, c(list(InputCollect = InputCollect
+    ), runArgs))
 
-  return(recursive_ggplot_serialize(OutputModels))
+    message("Function robyn_run Unlocking...")
+    unlock(mutex)
+    message("Function robyn_run Complete...")
+
+    return(recursive_ggplot_serialize(OutputModels))
+  })
 }
 
 #* Executes model selection based on provided inputs and returns the serialized output collection
@@ -270,16 +291,25 @@ function(InputCollect, jsonRunArgs) {
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_outputs
 function(InputCollect, OutputModels, jsonOutputsArgs) {
+  promise({
+    message("Function robyn_outputs Start...")
+    lock(mutex)
+    message("Function robyn_outputs Locking...")
 
-  outputsArgs <- jsonlite::fromJSON(jsonOutputsArgs)
-  InputCollect <- transform_InputCollect(InputCollect)
-  OutputModels <- jsonlite::fromJSON(OutputModels)
+    outputsArgs <- jsonlite::fromJSON(jsonOutputsArgs)
+    InputCollect <- transform_InputCollect(InputCollect)
+    OutputModels <- jsonlite::fromJSON(OutputModels)
 
-  OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect,
-                                                 OutputModels = OutputModels
-  ), outputsArgs))
+    OutputCollect <- do.call(robyn_outputs, c(list(InputCollect = InputCollect,
+                                                   OutputModels = OutputModels
+    ), outputsArgs))
 
-  return(recursive_ggplot_serialize(OutputCollect))
+    message("Function robyn_outputs UnLocking...")
+    unlock(mutex)
+    message("Function robyn_outputs Complete...")
+
+    return(recursive_ggplot_serialize(OutputCollect))
+  })
 }
 
 #* Generates a model one-pager and returns a serialized image
@@ -293,20 +323,29 @@ function(InputCollect, OutputModels, jsonOutputsArgs) {
 #* @param height The height of the image to be returned, specified in inches.
 #* @post /robyn_onepagers
 function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi = 100, width = 12, height = 8) {
+  promise({
+    message("Function robyn_onepagers Start...")
+    lock(mutex)
+    message("Function robyn_onepagers Locking...")
 
-  onepagersArgs <- jsonlite::fromJSON(jsonOnepagersArgs)
-  InputCollect <- transform_InputCollect(InputCollect)
-  OutputCollect <- transform_OutputCollect(OutputCollect, onepagersArgs[["select_model"]])
+    onepagersArgs <- jsonlite::fromJSON(jsonOnepagersArgs)
+    InputCollect <- transform_InputCollect(InputCollect)
+    OutputCollect <- transform_OutputCollect(OutputCollect, onepagersArgs[["select_model"]])
 
-  onepager <- do.call(robyn_onepagers, c(list(InputCollect = InputCollect,
-                                              OutputCollect = OutputCollect
-  ), onepagersArgs))
+    onepager <- do.call(robyn_onepagers, c(list(InputCollect = InputCollect,
+                                                OutputCollect = OutputCollect
+    ), onepagersArgs))
 
-  dpi <- as.numeric(dpi)
-  width <- as.numeric(width)
-  height <- as.numeric(height)
+    dpi <- as.numeric(dpi)
+    width <- as.numeric(width)
+    height <- as.numeric(height)
 
-  return(ggplot_serialize(onepager[[onepagersArgs[["select_model"]]]], dpi = dpi, width = width, height = height))
+    message("Function robyn_onepagers UnLocking...")
+    unlock(mutex)
+    message("Function robyn_onepagers Complete...")
+
+    return(ggplot_serialize(onepager[[onepagersArgs[["select_model"]]]], dpi = dpi, width = width, height = height))
+  })
 }
 
 #* Generates and returns a serialized image of the allocation one-pager
@@ -320,20 +359,29 @@ function(InputCollect, OutputCollect, jsonOnepagersArgs, dpi = 100, width = 12, 
 #* @param height The height of the image to be returned, specified in inches.
 #* @post /robyn_allocator
 function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi = 100, width = 12, height = 8) {
+  promise({
+    message("Function robyn_allocator Start...")
+    lock(mutex)
+    message("Function robyn_allocator Locking...")
 
-  allocatorArgs <- jsonlite::fromJSON(jsonAllocatorArgs)
-  InputCollect <- transform_InputCollect(InputCollect)
-  OutputCollect <- transform_OutputCollect(OutputCollect, allocatorArgs[["select_model"]])
+    allocatorArgs <- jsonlite::fromJSON(jsonAllocatorArgs)
+    InputCollect <- transform_InputCollect(InputCollect)
+    OutputCollect <- transform_OutputCollect(OutputCollect, allocatorArgs[["select_model"]])
 
-  AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect,
-                                                      OutputCollect = OutputCollect
-  ), allocatorArgs))
+    AllocatorCollect <- do.call(robyn_allocator, c(list(InputCollect = InputCollect,
+                                                        OutputCollect = OutputCollect
+    ), allocatorArgs))
 
-  dpi <- as.numeric(dpi)
-  width <- as.numeric(width)
-  height <- as.numeric(height)
+    dpi <- as.numeric(dpi)
+    width <- as.numeric(width)
+    height <- as.numeric(height)
 
-  return(ggplot_serialize(AllocatorCollect$plots$plots, dpi = dpi, width = width, height = height))
+    message("Function robyn_allocator UnLocking...")
+    unlock(mutex)
+    message("Function robyn_allocator Complete...")
+
+    return(ggplot_serialize(AllocatorCollect$plots$plots, dpi = dpi, width = width, height = height))
+  })
 }
 
 #* Exports model data in JSON format
@@ -344,13 +392,22 @@ function(InputCollect, OutputCollect, jsonAllocatorArgs, dpi = 100, width = 12, 
 #* @param jsonWriteArgs A JSON string containing additional parameters for the 'robyn_write()' function.
 #* @post /robyn_write
 function(InputCollect = FALSE, OutputCollect = FALSE, OutputModels = FALSE, jsonWriteArgs) {
+  promise({
+    message("Function robyn_write Start...")
+    lock(mutex)
+    message("Function robyn_write Locking...")
 
-  writeArgs <- jsonlite::fromJSON(jsonWriteArgs)
-  InputCollect <- if (!InputCollect == FALSE) transform_InputCollect(InputCollect) else NULL
-  OutputModels <- if (!OutputModels == FALSE) jsonlite::fromJSON(OutputModels) else NULL
-  OutputCollect <- if (!OutputCollect == FALSE) transform_OutputCollect(OutputCollect) else NULL
+    writeArgs <- jsonlite::fromJSON(jsonWriteArgs)
+    InputCollect <- if (!InputCollect == FALSE) transform_InputCollect(InputCollect) else NULL
+    OutputModels <- if (!OutputModels == FALSE) jsonlite::fromJSON(OutputModels) else NULL
+    OutputCollect <- if (!OutputCollect == FALSE) transform_OutputCollect(OutputCollect) else NULL
 
-  do.call(robyn_write, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect, OutputModels = OutputModels), writeArgs))
+    do.call(robyn_write, c(list(InputCollect = InputCollect, OutputCollect = OutputCollect, OutputModels = OutputModels), writeArgs))
+
+    message("Function robyn_write UnLocking...")
+    unlock(mutex)
+    message("Function robyn_write Complete...")
+  })
 }
 
 #* Recreates a model from data files and additional parameters
@@ -361,20 +418,30 @@ function(InputCollect = FALSE, OutputCollect = FALSE, OutputModels = FALSE, json
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_recreate
 function(dt_input, dt_holidays, jsonRecreateArgs) {
+  promise({
+    message("Function robyn_recreate Start...")
+    lock(mutex)
+    message("Function robyn_recreate Locking...")
 
-  recreateArgs <- jsonlite::fromJSON(jsonRecreateArgs)
-  dt_input <- dt_input %>%
-    hex_to_raw() %>%
-    arrow::read_feather()
-  dt_holidays <- dt_holidays %>%
-    hex_to_raw() %>%
-    arrow::read_feather()
+    recreateArgs <- jsonlite::fromJSON(jsonRecreateArgs)
+    dt_input <- dt_input %>%
+      hex_to_raw() %>%
+      arrow::read_feather()
+    dt_holidays <- dt_holidays %>%
+      hex_to_raw() %>%
+      arrow::read_feather()
 
-  RobynRecreated <- do.call(robyn_recreate, c(list(dt_input = dt_input,
-                                                   dt_holidays = dt_holidays
-  ), recreateArgs))
+    RobynRecreated <- do.call(robyn_recreate, c(list(dt_input = dt_input,
+                                                     dt_holidays = dt_holidays
+    ), recreateArgs))
 
-  return(recursive_ggplot_serialize(RobynRecreated))
+
+    message("Function robyn_recreate UnLocking...")
+    unlock(mutex)
+    message("Function robyn_recreate Complete...")
+
+    return(recursive_ggplot_serialize(RobynRecreated))
+  })
 }
 
 #* Retrieves the names of hyperparameters based on adstock and media spend data
@@ -398,14 +465,23 @@ function(adstock, all_media) {
 #* @serializer json list(digits = 20, na = 'null')
 #* @post /robyn_refresh
 function(dt_input, dt_holidays, jsonRefreshArgs) {
+  promise({
+    message("Function robyn_refresh Start...")
+    lock(mutex)
+    message("Function robyn_refresh Locking...")
 
-  refreshArgs <- jsonlite::fromJSON(jsonRefreshArgs)
-  dt_input <- if (!dt_input == FALSE) hex_to_raw(dt_input) %>% arrow::read_feather() else NULL
-  dt_holidays <- if (!dt_holidays == FALSE) hex_to_raw(dt_holidays) %>% arrow::read_feather() else NULL
+    refreshArgs <- jsonlite::fromJSON(jsonRefreshArgs)
+    dt_input <- if (!dt_input == FALSE) hex_to_raw(dt_input) %>% arrow::read_feather() else NULL
+    dt_holidays <- if (!dt_holidays == FALSE) hex_to_raw(dt_holidays) %>% arrow::read_feather() else NULL
 
-  RobynRefresh <- do.call(robyn_refresh, c(list(dt_input = dt_input,
-                                                dt_holidays = dt_holidays
-  ), refreshArgs))
+    RobynRefresh <- do.call(robyn_refresh, c(list(dt_input = dt_input,
+                                                  dt_holidays = dt_holidays
+    ), refreshArgs))
 
-  return(recursive_ggplot_serialize(RobynRefresh))
+    message("Function robyn_refresh UnLocking...")
+    unlock(mutex)
+    message("Function robyn_refresh Complete...")
+
+    return(recursive_ggplot_serialize(RobynRefresh))
+  })
 }
