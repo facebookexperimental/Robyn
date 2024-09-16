@@ -108,9 +108,9 @@ convert_dates_to_Date <- function(json_data) {
 #* transform InputCollect from API
 transform_InputCollect <- function(InputCollect) {
   promise({
-    sink("Transforming InputCollect Start...", append=FALSE, split=FALSE)
+    message("Transforming InputCollect Start...")
     lock(mutex)
-    sink("Transforming InputCollect Locking...", append=FALSE, split=FALSE)
+    message("Transforming InputCollect Locking...")
     InputCollect <- jsonlite::fromJSON(InputCollect) %>% convert_dates_to_Date()
 
     # list > tibble
@@ -137,9 +137,9 @@ transform_InputCollect <- function(InputCollect) {
 
     # Add class name which is used as a checker in Robyn
     class(InputCollect) <- c("robyn_inputs", "list")
-    sink("Transforming InputCollect UnLocking...", append=FALSE, split=FALSE)
+    message("Transforming InputCollect UnLocking...")
     unlock(mutex)
-    sink("Transforming InputCollect Complete...", append=FALSE, split=FALSE)
+    message("Transforming InputCollect Complete...")
     return(InputCollect)
   })
 }
@@ -147,9 +147,9 @@ transform_InputCollect <- function(InputCollect) {
 #* transform OutputCollect from API
 transform_OutputCollect <- function(OutputCollect, select_model = FALSE) {
   promise({
-    sink("Transforming OutputCollect Start...", append=FALSE, split=FALSE)
+    message("Transforming OutputCollect Start...")
     lock(mutex)
-    sink("Transforming OutputCollect Locking...", append=FALSE, split=FALSE)
+    message("Transforming OutputCollect Locking...")
     OutputCollect <- jsonlite::fromJSON(OutputCollect)
     # Add class name which is used as a checker in Robyn
     class(OutputCollect) <- c("robyn_outputs", "list")
@@ -184,9 +184,9 @@ transform_OutputCollect <- function(OutputCollect, select_model = FALSE) {
           as_tibble() %>%
           mutate(across(where(is.character), as.factor))
     }
-    sink("Transforming OutputCollect UnLocking...", append=FALSE, split=FALSE)
+    message("Transforming OutputCollect UnLocking...")
     unlock(mutex)
-    sink("Transforming OutputCollect Complete...", append=FALSE, split=FALSE)
+    message("Transforming OutputCollect Complete...")
     return(OutputCollect)
   })
 
