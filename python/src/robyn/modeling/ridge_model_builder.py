@@ -1,17 +1,19 @@
 # pyre-strict
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
-import pandas as pd
-import numpy as np
+
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+import numpy as np
+import pandas as pd
+
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
+from robyn.data.entities.enums import AdstockType
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.enums import Models, NevergradAlgorithm
-from robyn.modeling.entities.modeloutputs import ModelOutputs
+from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 from robyn.modeling.feature_engineering import FeaturizedMMMData
+from robyn.modeling.entities.enums import NevergradAlgorithm
 from sklearn.linear_model import Ridge
 
 
@@ -95,7 +97,7 @@ class ModelDecompOutput:
 
 class RidgeModelBuilder:
     """
-    Builds and manages Ridge regression models for Marketing Mix Modeling (MMM).
+    A class for building and managing Ridge regression models for Marketing Mix Modeling (MMM).
 
     This class handles the entire process of building, training, and analyzing Ridge
     regression models for MMM, including hyperparameter optimization and model decomposition.
@@ -137,7 +139,7 @@ class RidgeModelBuilder:
         nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
         intercept: bool = True,
         intercept_sign: str = "non_negative",
-        adstock: str = "geometric",
+        adstock: AdstockType = AdstockType.GEOMETRIC,
     ) -> ModelOutputs:
         """
         Build and train multiple Ridge regression models based on the given configuration.
@@ -153,7 +155,7 @@ class RidgeModelBuilder:
             nevergrad_algo (NevergradAlgorithm): Nevergrad algorithm to use for optimization.
             intercept (bool): Whether to include an intercept in the model.
             intercept_sign (str): Sign constraint for the intercept.
-            adstock (str): Type of adstock to use.
+            adstock (AdstockType): Type of adstock to use.
 
         Returns:
             ModelOutputs: The outputs of the built models.
@@ -217,7 +219,7 @@ class RidgeModelBuilder:
         rssd_zero_penalty: bool = True,
         trial: int = 1,
         seed: int = 123,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Trial]:
         """
         Run Nevergrad optimization for hyperparameter tuning.
 
@@ -240,7 +242,7 @@ class RidgeModelBuilder:
             seed (int): Random seed for reproducibility.
 
         Returns:
-            List[Dict[str, Any]]: List of results for each iteration of the optimization.
+            List[Trial]: List of results for each iteration of the optimization.
         """
         # Implementation here
         pass
