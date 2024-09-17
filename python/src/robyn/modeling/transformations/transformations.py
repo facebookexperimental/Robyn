@@ -3,19 +3,47 @@
 import numpy as np
 from typing import Dict, Union
 from robyn.data.entities.enums import AdstockType
-from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.data.entities.mmmdata import MMMData
 
 
 class Transformation:
-    def __init__(self, input_data: np.ndarray):
-        self.input_data = input_data
+    def __init__(self, mmm_data: MMMData):
+        """
+        Initialize the Transformation class with MMMData.
 
-    def michaelis_menten(self, vmax: float, km: float, reverse: bool = False) -> np.ndarray:
+        Args:
+            mmm_data (MMMData): The MMMData object containing all input data.
+        """
+        self.mmm_data = mmm_data
+        self.media_channels = self._get_media_channels()
+        self.channel_data = self._get_channel_data()
+
+    def _get_media_channels(self) -> list:
+        """
+        Get all media channels from MMMData.
+
+        Returns:
+            list: List of all media channel names.
+        """
+        return (self.mmm_data.mmmdata_spec.paid_media_vars or []) + (
+            self.mmm_data.mmmdata_spec.paid_media_spends or []
+        )
+
+    def _get_channel_data(self) -> Dict[str, np.ndarray]:
+        """
+        Extract the data for all media channels.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary with channel names as keys and their data as values.
+        """
+        return {channel: self.mmm_data.data[channel].values for channel in self.media_channels}
+
+    def michaelis_menten(self, channel: str, vmax: float, km: float, reverse: bool = False) -> np.ndarray:
         """
         Michaelis-Menten Transformation
 
         Args:
+            channel (str): Name of the media channel
             vmax (float): Maximum rate achieved by the system
             km (float): Michaelis constant
             reverse (bool): If True, reverse the transformation
@@ -25,11 +53,12 @@ class Transformation:
         """
         pass
 
-    def adstock_geometric(self, theta: float) -> Dict[str, Union[np.ndarray, float]]:
+    def adstock_geometric(self, channel: str, theta: float) -> Dict[str, Union[np.ndarray, float]]:
         """
         Geometric Adstocking
 
         Args:
+            channel (str): Name of the media channel
             theta (float): Decay rate
 
         Returns:
@@ -38,12 +67,13 @@ class Transformation:
         pass
 
     def adstock_weibull(
-        self, shape: float, scale: float, window_length: int = None, adstock_type: str = "cdf"
+        self, channel: str, shape: float, scale: float, window_length: int = None, adstock_type: str = "cdf"
     ) -> Dict[str, Union[np.ndarray, float]]:
         """
         Weibull Adstocking
 
         Args:
+            channel (str): Name of the media channel
             shape (float): Shape parameter
             scale (float): Scale parameter
             window_length (int): Window length
@@ -56,6 +86,7 @@ class Transformation:
 
     def transform_adstock(
         self,
+        channel: str,
         adstock: AdstockType,
         theta: float = None,
         shape: float = None,
@@ -66,6 +97,7 @@ class Transformation:
         Transform using specified adstock method
 
         Args:
+            channel (str): Name of the media channel
             adstock (AdstockType): Type of adstock transformation
             theta (float): Theta parameter for geometric adstock
             shape (float): Shape parameter for Weibull adstock
@@ -77,11 +109,14 @@ class Transformation:
         """
         pass
 
-    def saturation_hill(self, alpha: float, gamma: float, marginal_input: np.ndarray = None) -> np.ndarray:
+    def saturation_hill(
+        self, channel: str, alpha: float, gamma: float, marginal_input: np.ndarray = None
+    ) -> np.ndarray:
         """
         Hill Saturation Transformation
 
         Args:
+            channel (str): Name of the media channel
             alpha (float): Alpha parameter
             gamma (float): Gamma parameter
             marginal_input (np.ndarray): Marginal input values
@@ -92,12 +127,12 @@ class Transformation:
         pass
 
     @staticmethod
-    def weibull_cdf(input_data: np.ndarray, shape: float, scale: float) -> np.ndarray:
+    def weibull_cdf(time_series_data: np.ndarray, shape: float, scale: float) -> np.ndarray:
         """
         Weibull Cumulative Distribution Function
 
         Args:
-            input_data (np.ndarray): Input values
+            time_series_data (np.ndarray): Time series data of a media channel
             shape (float): Shape parameter
             scale (float): Scale parameter
 
@@ -107,12 +142,12 @@ class Transformation:
         pass
 
     @staticmethod
-    def weibull_pdf(input_data: np.ndarray, shape: float, scale: float) -> np.ndarray:
+    def weibull_pdf(time_series_data: np.ndarray, shape: float, scale: float) -> np.ndarray:
         """
         Weibull Probability Density Function
 
         Args:
-            input_data (np.ndarray): Input values
+            time_series_data (np.ndarray): Time series data of a media channel
             shape (float): Shape parameter
             scale (float): Scale parameter
 
@@ -122,32 +157,14 @@ class Transformation:
         pass
 
     @staticmethod
-    def normalize(input_data: np.ndarray) -> np.ndarray:
+    def normalize(time_series_data: np.ndarray) -> np.ndarray:
         """
-        Normalize the input data
+        Normalize the time series data
 
         Args:
-            input_data (np.ndarray): Input values
+            time_series_data (np.ndarray): Time series data of a media channel
 
         Returns:
-            np.ndarray: Normalized values
-        """
-        pass
-
-
-class MediaTransformer:
-    def __init__(self, mmm_data: MMMData, hyperparameters: Hyperparameters):
-        self.mmm_data = mmm_data
-        self.hyperparameters = hyperparameters
-
-    def transform_media(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-        """
-        Transform media data using adstock and saturation methods
-
-        Returns:
-            Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-                - Dictionary of transformed media data
-                - Dictionary of immediate effects
-                - Dictionary of carryover effects
+            np.ndarray: Normalized time series data
         """
         pass
