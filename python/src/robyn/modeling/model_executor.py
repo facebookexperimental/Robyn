@@ -1,6 +1,7 @@
 # pyre-strict
 
-from typing import Optional, Dict, Any
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
 
 from robyn.modeling.base_model_executor import BaseModelExecutor
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
@@ -10,6 +11,14 @@ from robyn.modeling.ridge_model_builder import RidgeModelBuilder
 
 
 class ModelExecutor(BaseModelExecutor):
+    """
+    Concrete implementation of the model executor for marketing mix models.
+
+    This class extends BaseModelExecutor and implements the model_run method
+    to execute specific types of marketing mix models, particularly the Ridge
+    regression model. It serves as the main entry point for running models
+    with various configurations and hyperparameters.
+    """
 
     def model_run(
         self,
@@ -29,26 +38,44 @@ class ModelExecutor(BaseModelExecutor):
         model_name: Models = Models.RIDGE,
     ) -> ModelOutputs:
         """
-        Run the Robyn model with the specified parameters.
+        Execute the Robyn model run with specified parameters.
+
+        This method orchestrates the entire model running process, including
+        hyperparameter optimization, model training, and output generation.
+        It currently supports Ridge regression models and can be extended
+        to support other model types in the future.
 
         Args:
-            dt_hyper_fixed: Fixed hyperparameters.
-            ts_validation: Enable time-series validation.
-            add_penalty_factor: Add penalty factor.
-            refresh: Refresh the model.
-            seed: Random seed.
-            cores: Number of cores to use.
-            trials_config: Configuration for trials.
-            rssd_zero_penalty: Enable RSSD zero penalty.
-            objective_weights: Objective weights.
-            nevergrad_algo: Nevergrad algorithm to use.
-            intercept: Include intercept term.
-            intercept_sign: Sign of the intercept term.
-            outputs: Output results.
-            model_name: Model to use.
+            dt_hyper_fixed (Optional[Dict[str, Any]]): Fixed hyperparameters for the model.
+                If provided, these values will not be optimized.
+            ts_validation (bool): Whether to use time series validation.
+                If True, the data will be split into train, validation, and test sets.
+            add_penalty_factor (bool): Whether to add penalty factors to the regularization.
+                This can help in handling multicollinearity.
+            refresh (bool): Whether to refresh the model, typically used in iterative modeling processes.
+            seed (int): Random seed for reproducibility of results.
+            cores (Optional[int]): Number of CPU cores to use for parallel processing.
+                If None, will use a default value based on system capabilities.
+            trials_config (Optional[TrialsConfig]): Configuration for multiple trials of model training.
+            rssd_zero_penalty (bool): Whether to apply a penalty for zero coefficients in RSSD calculation.
+            objective_weights (Optional[Dict[str, float]]): Weights for different objectives in the optimization process.
+            nevergrad_algo (NevergradAlgorithm): The Nevergrad algorithm to use for hyperparameter optimization.
+            intercept (bool): Whether to include an intercept term in the model.
+            intercept_sign (str): Sign constraint for the intercept ('non_negative' or 'unconstrained').
+            outputs (bool): Whether to generate additional outputs beyond the standard model results.
+            model_name (Models): The type of model to run. Currently, only RIDGE is supported.
 
         Returns:
-            ModelOutputs: The results of the model run.
+            ModelOutputs: The outputs of the model run, including trained model, performance metrics,
+                          and various analysis results.
+
+        Raises:
+            NotImplementedError: If a model other than Ridge regression is specified.
+
+        Note:
+            This method is the core of the ModelExecutor class and ties together various
+            components of the Robyn framework. It's designed to be flexible and extensible
+            to accommodate future model types and configurations.
         """
         if model_name == Models.RIDGE:
             model_builder = RidgeModelBuilder(

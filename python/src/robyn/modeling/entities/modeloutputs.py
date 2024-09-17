@@ -1,3 +1,5 @@
+# pyre-strict
+
 from dataclasses import dataclass
 from typing import List, Dict, Any
 import pandas as pd
@@ -9,19 +11,19 @@ class Trial:
     Represents the results of a single model trial.
 
     Attributes:
-        resultHypParam (pd.DataFrame): Hyperparameters and their values for this trial.
-        xDecompAgg (pd.DataFrame): Aggregated decomposition results for this trial.
-        liftCalibration (pd.DataFrame): Lift calibration results for this trial.
-        decompSpendDist (pd.DataFrame): Decomposition spend distribution for this trial.
+        result_hyp_param (pd.DataFrame): Hyperparameters and their values for this trial.
+        x_decomp_agg (pd.DataFrame): Aggregated decomposition results for this trial.
+        lift_calibration (pd.DataFrame): Lift calibration results for this trial.
+        decomp_spend_dist (pd.DataFrame): Decomposition spend distribution for this trial.
         nrmse (float): Normalized Root Mean Square Error for this trial.
         decomp_rssd (float): Decomposition Root Sum Squared Distance for this trial.
         mape (float): Mean Absolute Percentage Error for this trial.
     """
 
-    resultHypParam: pd.DataFrame
-    xDecompAgg: pd.DataFrame
-    liftCalibration: pd.DataFrame
-    decompSpendDist: pd.DataFrame
+    result_hyp_param: pd.DataFrame
+    x_decomp_agg: pd.DataFrame
+    lift_calibration: pd.DataFrame
+    decomp_spend_dist: pd.DataFrame
     nrmse: float
     decomp_rssd: float
     mape: float
@@ -48,7 +50,7 @@ class ModelOutputs:
         hyper_fixed (bool): Whether hyperparameters were fixed.
         convergence (Dict[str, Any]): Convergence information for the optimization process.
         ts_validation_plot (Any): Time series validation plot (if applicable).
-        selectID (str): ID of the selected model.
+        select_id (str): ID of the selected model.
         seed (int): Random seed used for reproducibility.
     """
 
@@ -65,5 +67,5 @@ class ModelOutputs:
     hyper_fixed: bool
     convergence: Dict[str, Any]
     ts_validation_plot: Any  # This could be a matplotlib figure or other plot object
-    selectID: str
+    select_id: str
     seed: int
