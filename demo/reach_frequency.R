@@ -1,6 +1,7 @@
 library(plotly)
 library(ggplot2)
 library(Robyn)
+library(reticulate)
 
 # simulate reach
 reach = seq(from = 0, to = 10000000, by = 10000)
@@ -185,7 +186,6 @@ fx_objective_rnf.chanel(x = x0, alpha = alphas_eval, inflexion = inflexions_eval
 if (TRUE) {
   local_opts <- list(
     "algorithm" = "NLOPT_LD_SLSQP",
-
     "xtol_rel" = 1e-20,
     #"xtol_abs" = c(1000, 0.0001),
     "ftol_rel" = 1e-20,
@@ -240,8 +240,6 @@ if (TRUE) {
   )
 
   print(nlsMod)
-
-
   set_budget
   set_cpm
   buy_imps
@@ -285,3 +283,122 @@ nlsMod$objective
 # }
 #
 # ggplot(data.frame(x = freq, y = sim_freq_dv))+ geom_line(aes(x = x, y = y))
+
+
+## Decompose imp into R&F
+## fit RnF to main mod saturation with nevergrad
+## main model: 1st multiply rnf == imp, then lag * adstock_vec, then vec sum, then hill
+r_vec1 <- c(10000, 14000, 12000, 15000)
+f_vec1 <- c(2.2, 2.5, 2.3, 2.1)
+imp_vec1 <- r_vec1 * f_vec1
+adst_vec <- c(0.8, 1, 0.5, 0.2)
+
+vec_collect <- list()
+for (i in seq_along(imp_vec1)) {
+  vec_collect[[i]] <- lag(imp_vec1[i] * adst_vec, n = i-1, default = 0)
+}
+vec_collect <- sapply(vec_collect, rbind)
+adstocked_vec <- rowSums(vec_collect)
+alpha_imp <- 1
+gamma_imp <- 0.5
+saturated_vec <- saturation_hill(adstocked_vec, alpha_imp, gamma_imp)
+
+## rnf model: 1st lag  reach and lag freq individually, then vec sum, then hill individually
+
+r_vec_collect <- list()
+for (i in seq_along(r_vec1)) {
+  r_vec_collect[[i]] <- lag(r_vec1[i] * adst_vec, n = i-1, default = 0)
+}
+r_vec_collect <- sapply(r_vec_collect, rbind)
+r_adstocked_vec <- rowSums(r_vec_collect)
+r_saturated_vec <- saturation_hill(r_adstocked_vec, 0.1, 0.5)
+
+f_vec_collect <- list()
+for (i in seq_along(f_vec1)) {
+  f_vec_collect[[i]] <- lag(f_vec1[i] * adst_vec, n = i-1, default = 0)
+}
+f_vec_collect <- sapply(f_vec_collect, rbind)
+f_adstocked_vec <- rowSums(f_vec_collect)
+f_saturated_vec <- saturation_hill(f_adstocked_vec, 0.1, 0.5)
+rnf_saturated_vec <- sqrt(r_saturated_vec * f_saturated_vec)
+
+df_sat <- data.frame(x = rep(seq_along(saturated_vec),2) ,
+                     saturated = c(saturated_vec, rnf_saturated_vec),
+                     type = c(rep("imp_sat", length(saturated_vec)),
+                              rep("rnf_sat", length(saturated_vec))))
+df_sat %>% ggplot(aes(x = x, y = saturated, color = type)) + geom_line()
+
+saturation_hill(1:1000, 0.1, 0.5)
+# saturated_vec = sqrt(hill(r_adstocked, alpha_reach, gamma_reach) * hill(f_adstocked, alpha_freq, gamma_freq))
+
+## rnf model: estimate alpha & gamma for reach and freq separately
+
+if (reticulate::py_module_available("nevergrad")) {
+  ng <- reticulate::import("nevergrad", delay_load = TRUE)
+}
+
+ng <- reticulate::import("nevergrad", delay_load = TRUE)
+my_tuple <- reticulate::tuple(as.integer(4))
+instrumentation <- ng$p$Array(shape = my_tuple, lower = 0, upper = 1)
+optimizer <- ng$optimizers$registry["TwoPointsDE"](instrumentation, budget = 1000)
+
+hp_bounds <- list(alpha_reach = c(0, 10),
+                  gamma_reach = c(0,1),
+                  alpha_freq = c(0, 10),
+                  gamma_freq = c(0,1))
+ng_hp <- list()
+mse_collect <- c()
+rsq_collect <- c()
+pred_collect <- list()
+for (i in 1:10000) {
+  ng_hp[[i]] <- optimizer$ask()
+  ng_hp_val <- ng_hp[[i]]$value
+  ng_hp_val_scaled <- mapply(function(hpb, hp) {
+    qunif(hp, min = min(hpb), max = max(hpb))
+    },
+    hpb = hp_bounds,
+    hp = ng_hp_val)
+
+  alpha_reach <- ng_hp_val_scaled[1]
+  gamma_reach <- ng_hp_val_scaled[2]
+  alpha_freq <- ng_hp_val_scaled[3]
+  gamma_freq <- ng_hp_val_scaled[4]
+  # inflx1 <- c(range(r_adstocked_vec) %*% c(1 - gamma_reach, gamma_reach))
+  # inflx2 <- c(range(f_adstocked_vec) %*% c(1 - gamma_freq, gamma_freq))
+  # saturated_vec_pred <- sqrt((r_adstocked_vec**alpha_reach / (r_adstocked_vec**alpha_reach + inflx1**alpha_reach)) *
+  #   (f_adstocked_vec**alpha_freq / (f_adstocked_vec**alpha_freq + inflx2**alpha_freq)))
+
+  ## predict imp saturation vector
+  saturated_vec_pred <- sqrt(saturation_hill(r_adstocked_vec, alpha_reach, gamma_reach) *
+                               saturation_hill(f_adstocked_vec, alpha_freq, gamma_freq))
+  mse_iter <- mean((saturated_vec - saturated_vec_pred)**2)
+  rsq_iter <- Robyn:::get_rsq(saturated_vec, saturated_vec_pred)
+  pred_collect[[i]] <- saturated_vec_pred
+  optimizer$tell(ng_hp[[i]], tuple(mse_iter))
+  mse_collect[i] <- mse_iter
+  rsq_collect[i] <- rsq_iter
+}
+
+best_iter <- which.min(mse_collect)
+ng_hp[[best_iter]]$value
+best_hp <- ng_hp[[best_iter]]$value
+sim_r <- saturation_hill(reach, best_hp[1], best_hp[2])
+sim_f <- saturation_hill(freq, best_hp[3], best_hp[4])
+p1 <- data.frame(reach=reach, sat=sim_r) %>% ggplot(aes(x=reach, y=sat)) + geom_line()
+p2 <- data.frame(freq=freq, sat=sim_f) %>% ggplot(aes(x=freq, y=sat)) + geom_line()
+imps <- seq(0, max(adstocked_vec), 1001)
+sim_imp <- saturation_hill(imps, alpha_imp, gamma_imp)
+p3 <- data.frame(imps=imps, sat=sim_imp) %>% ggplot(aes(x=imps, y=sat)) + geom_line()
+## imp decomposition into R&F
+p3+p1+p2
+
+p_mse <- data.frame(iterations=seq_along(mse_collect), mse = mse_collect) %>%
+  ggplot(aes(x=iterations, y=mse))+geom_line()+
+  labs(title = paste0("Predict saturated imp. MSE convergence with error reduction of ",
+                      round((1-mse_collect[best_iter]/max(mse_collect)),8)*100, "%"))
+p_rsq <- data.frame(iterations=seq_along(rsq_collect), adj.rsq = rsq_collect) %>%
+  ggplot(aes(x=iterations, y=adj.rsq))+geom_line() +
+  labs(title = paste0("Predict saturated imp. Adj.R2 convergence with highest value: ", round(rsq_collect[best_iter],8)))
+p_mse / p_rsq
+
+
