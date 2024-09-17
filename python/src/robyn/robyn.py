@@ -55,7 +55,8 @@ class Robyn:
         print(mmm_data_validation_results)
         holidays_data_validation_results = holidays_data_validation.validate()
         print(holidays_data_validation_results)
-        hyperparameters_validation.validate()
+        hyperparameters_validation_results = hyperparameters_validation.validate()
+        print(hyperparameters_validation_results)
         calibration_input_validation.validate()
 
         print("Validation complete")

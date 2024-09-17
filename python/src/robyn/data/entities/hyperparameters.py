@@ -72,6 +72,7 @@ class Hyperparameters:
         """
         return self.hyperparameters[channel]
 
+    # TODO: this probabaly should be moved to hyperparameters_validation.py
     def has_channel(self, channel: str) -> bool:
         """
         Check if a channel exists in the hyperparameters dictionary.
@@ -91,6 +92,7 @@ class Hyperparameters:
         Returns:
             pd.DataFrame: The hyperparameter limits.
         """
+        # TODO: double check on these values
         return {
                 "thetas": [">=0", "<1"],
                 "alphas": [">0", "<10"],
