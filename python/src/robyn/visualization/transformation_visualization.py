@@ -4,40 +4,70 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 class TransformationVisualizer:
-    @staticmethod
-    def plot_adstock(plot: bool = True) -> Optional[Tuple[plt.Figure, plt.Figure]]:
-        """
-        Generate adstock visualization plots
+    def __init__(self):
+        self.adstock_figures: Optional[Tuple[plt.Figure, plt.Figure]] = None
+        self.saturation_figures: Optional[Tuple[plt.Figure, plt.Figure]] = None
 
-        Args:
-            plot (bool): Whether to display the plot
+    def create_adstock_plots(self) -> None:
+        """
+        Generate adstock visualization plots and store them as instance variables.
+        """
+        pass
+
+    def create_saturation_plots(self) -> None:
+        """
+        Generate saturation visualization plots and store them as instance variables.
+        """
+        pass
+
+    def get_adstock_plots(self) -> Optional[Tuple[plt.Figure, plt.Figure]]:
+        """
+        Retrieve the adstock plots.
 
         Returns:
-            Optional[Tuple[plt.Figure, plt.Figure]]: Tuple of matplotlib figures if plot is True, else None
+            Optional[Tuple[plt.Figure, plt.Figure]]: Tuple of matplotlib figures for adstock plots
         """
-        if plot:
-            # Implementation for geometric adstock plot
-            # Implementation for Weibull adstock plot
-            return fig_geometric, fig_weibull
-        return None
+        pass
 
-    @staticmethod
-    def plot_saturation(plot: bool = True) -> Optional[Tuple[plt.Figure, plt.Figure]]:
+    def get_saturation_plots(self) -> Optional[Tuple[plt.Figure, plt.Figure]]:
         """
-        Generate saturation visualization plots
-
-        Args:
-            plot (bool): Whether to display the plot
+        Retrieve the saturation plots.
 
         Returns:
-            Optional[Tuple[plt.Figure, plt.Figure]]: Tuple of matplotlib figures if plot is True, else None
+            Optional[Tuple[plt.Figure, plt.Figure]]: Tuple of matplotlib figures for saturation plots
         """
-        if plot:
-            # Implementation for alpha changes plot
-            # Implementation for gamma changes plot
-            return fig_alpha, fig_gamma
-        return None
+        pass
+
+    def display_adstock_plots(self) -> None:
+        """
+        Display the adstock plots.
+        """
+        pass
+
+    def display_saturation_plots(self) -> None:
+        """
+        Display the saturation plots.
+        """
+        pass
+
+    def save_adstock_plots(self, filenames: List[str]) -> None:
+        """
+        Save the adstock plots to files.
+
+        Args:
+            filenames (List[str]): List of filenames to save the plots
+        """
+        pass
+
+    def save_saturation_plots(self, filenames: List[str]) -> None:
+        """
+        Save the saturation plots to files.
+
+        Args:
+            filenames (List[str]): List of filenames to save the plots
+        """
+        pass
