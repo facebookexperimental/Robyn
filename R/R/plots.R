@@ -1570,6 +1570,7 @@ decomp_plot <- function(
   ))
   varType <- str_to_title(InputCollect$dep_var_type)
   pal <- names(lares::lares_pal()$palette)
+
   df <- OutputCollect$xDecompVecCollect[OutputCollect$xDecompVecCollect$solID %in% solID, ] %>%
     select(
       "solID", "ds", "dep_var", any_of("intercept"),
@@ -1579,15 +1580,24 @@ decomp_plot <- function(
     filter(!.data$variable %in% exclude) %>%
     mutate(variable = ifelse(
       .data$variable %in% bvars, paste0("Baseline_L", baseline_level), as.character(.data$variable)
-    )) %>%
+    ))
+
+  # Sort variables by baseline first & amount of absolute impact
+  levs <- df %>%
+    group_by(.data$variable) %>%
+    summarize(impact = sum(abs(.data$value))) %>%
+    arrange(desc(.data$impact)) %>%
+    filter(.data$impact > 0) %>%
+    pull(.data$variable)
+  df <- df %>%
     group_by(.data$solID, .data$ds, .data$variable) %>%
     summarise(
       value = sum(.data$value, na.rm = TRUE),
       value = sum(.data$value, na.rm = TRUE),
       .groups = "drop"
     ) %>%
-    arrange(abs(.data$value)) %>%
-    mutate(variable = factor(.data$variable, levels = unique(.data$variable)))
+    filter(.data$variable %in% levs) %>%
+    mutate(variable = factor(.data$variable, levels = rev(levs)))
 
   p <- ggplot(df, aes(x = as.character(ds), y = value, fill = variable)) +
     facet_grid(solID ~ .) +
