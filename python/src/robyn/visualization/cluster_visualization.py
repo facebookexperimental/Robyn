@@ -1,111 +1,59 @@
 # pyre-strict
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Dict, Any
-import pandas as pd
+from robyn.modeling.entities.clustering_results import ClusteringResults
 
 
-class ClusteringVisualizer:
-    @staticmethod
-    def plot_wss(wss_data: pd.DataFrame) -> plt.Figure:
+class ClusterVisualizer:
+    """
+    Class for visualizing clustering results.
+    """
+
+    def __init__(self, results: ClusteringResults):
         """
-        Plot Within Sum of Squares.
+        Initialize the ClusterVisualizer with clustering results.
 
         Args:
-            wss_data (pd.DataFrame): Data containing WSS values.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+            results (ClusteringResults): Results of the clustering process.
         """
-        # Implementation here
+        self.results = results
+
+    def plot_wss(self) -> None:
+        """
+        Plot the Within-Cluster Sum of Squares (WSS) for different numbers of clusters.
+        """
         pass
 
-    @staticmethod
-    def plot_correlations(cluster_data: pd.DataFrame) -> plt.Figure:
+    def plot_correlations(self) -> None:
         """
-        Plot correlations by cluster.
-
-        Args:
-            cluster_data (pd.DataFrame): Clustered data.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+        Plot the correlations between variables for each cluster.
         """
-        # Implementation here
         pass
 
-    @staticmethod
-    def plot_clusters_ci(ci_data: pd.DataFrame, dep_var_type: str, boot_n: int, sim_n: int) -> plt.Figure:
+    def plot_cluster_means(self) -> None:
         """
-        Plot confidence intervals for clusters.
-
-        Args:
-            ci_data (pd.DataFrame): Confidence interval data.
-            dep_var_type (str): Dependent variable type.
-            boot_n (int): Number of bootstrap iterations.
-            sim_n (int): Number of simulations.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+        Plot the mean values of variables for each cluster.
         """
-        # Implementation here
         pass
 
-    @staticmethod
-    def plot_models_errors(top_models: pd.DataFrame, weights: List[float]) -> plt.Figure:
+    def plot_dimensionality_reduction(self) -> None:
         """
-        Plot errors for top models.
-
-        Args:
-            top_models (pd.DataFrame): Data for top models.
-            weights (List[float]): Weights for different error types.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+        Plot the results of dimensionality reduction (PCA or t-SNE).
         """
-        # Implementation here
         pass
 
-    @staticmethod
-    def plot_models_rois(top_models: pd.DataFrame, all_media: List[str]) -> plt.Figure:
+    def plot_confidence_intervals(self) -> None:
         """
-        Plot ROIs for top models.
-
-        Args:
-            top_models (pd.DataFrame): Data for top models.
-            all_media (List[str]): List of all media channels.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+        Plot the confidence intervals for each cluster.
         """
-        # Implementation here
         pass
 
-    @staticmethod
-    def plot_pca(pca_data: pd.DataFrame) -> plt.Figure:
+    def plot_top_models_errors(self) -> None:
         """
-        Plot PCA results.
-
-        Args:
-            pca_data (pd.DataFrame): PCA transformed data.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+        Plot the errors of the top models selected from each cluster.
         """
-        # Implementation here
         pass
 
-    @staticmethod
-    def plot_tsne(tsne_data: pd.DataFrame) -> plt.Figure:
+    def plot_top_models_performance(self) -> None:
         """
-        Plot t-SNE results.
-
-        Args:
-            tsne_data (pd.DataFrame): t-SNE transformed data.
-
-        Returns:
-            plt.Figure: Matplotlib figure object.
+        Plot the performance metrics of the top models selected from each cluster.
         """
-        # Implementation here
         pass
