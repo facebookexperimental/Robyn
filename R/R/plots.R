@@ -1586,7 +1586,8 @@ decomp_plot <- function(
   levs <- df %>%
     group_by(.data$variable) %>%
     summarize(impact = sum(abs(.data$value))) %>%
-    arrange(desc(.data$impact)) %>%
+    mutate(is_baseline = grepl("Baseline_L", .data$variable)) %>%
+    arrange(desc(.data$is_baseline), desc(.data$impact)) %>%
     filter(.data$impact > 0) %>%
     pull(.data$variable)
   df <- df %>%
