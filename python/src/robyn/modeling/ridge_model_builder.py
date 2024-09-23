@@ -1,9 +1,14 @@
 # pyre-strict
 
+
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
+from scipy.stats import uniform
+import nevergrad as ng
 
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
@@ -14,7 +19,6 @@ from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.entities.enums import NevergradAlgorithm
-from sklearn.linear_model import Ridge
 
 
 @dataclass(frozen=True)
@@ -106,7 +110,7 @@ class RidgeModelBuilder:
     def __init__(
         self,
         mmm_data: MMMData,
-        holiday_data: HolidaysData,
+        holidays_data: HolidaysData,
         calibration_input: CalibrationInput,
         hyperparameters: Hyperparameters,
         featurized_mmm_data: FeaturizedMMMData,
@@ -116,13 +120,13 @@ class RidgeModelBuilder:
 
         Args:
             mmm_data (MMMData): Marketing Mix Model data.
-            holiday_data (HolidaysData): Holiday data for the model.
+            holidays_data (HolidaysData): Holiday data for the model.
             calibration_input (CalibrationInput): Calibration input data.
             hyperparameters (Hyperparameters): Hyperparameters for the model.
             featurized_mmm_data (FeaturizedMMMData): Featurized MMM data.
         """
         self.mmm_data = mmm_data
-        self.holiday_data = holiday_data
+        self.holidays_data = holidays_data
         self.calibration_input = calibration_input
         self.hyperparameters = hyperparameters
         self.featurized_mmm_data = featurized_mmm_data
@@ -140,28 +144,41 @@ class RidgeModelBuilder:
         intercept: bool = True,
         intercept_sign: str = "non_negative",
         adstock: AdstockType = AdstockType.GEOMETRIC,
+        cores: int = 1,
     ) -> ModelOutputs:
-        """
-        Build and train multiple Ridge regression models based on the given configuration.
+        np.random.seed(seed)
 
-        Args:
-            trials_config (TrialsConfig): Configuration for the number of trials and iterations.
-            dt_hyper_fixed (Optional[pd.DataFrame]): Fixed hyperparameters, if any.
-            ts_validation (bool): Whether to use time series validation.
-            add_penalty_factor (bool): Whether to add penalty factors to the model.
-            seed (int): Random seed for reproducibility.
-            rssd_zero_penalty (bool): Whether to apply zero penalty in RSSD calculation.
-            objective_weights (Optional[List[float]]): Weights for different objectives in optimization.
-            nevergrad_algo (NevergradAlgorithm): Nevergrad algorithm to use for optimization.
-            intercept (bool): Whether to include an intercept in the model.
-            intercept_sign (str): Sign constraint for the intercept.
-            adstock (AdstockType): Type of adstock to use.
+        hyper_collect = self._hyper_collector(
+            adstock=adstock.value,
+            all_media=self.mmm_data.all_media,
+            paid_media_spends=self.mmm_data.paid_media_spends,
+            organic_vars=self.mmm_data.organic_vars,
+            prophet_vars=self.mmm_data.prophet_vars,
+            context_vars=self.mmm_data.context_vars,
+            dt_mod=self.featurized_mmm_data.dt_mod,
+            hyper_in=self.hyperparameters,
+            ts_validation=ts_validation,
+            add_penalty_factor=add_penalty_factor,
+            dt_hyper_fixed=dt_hyper_fixed,
+            cores=cores,
+        )
 
-        Returns:
-            ModelOutputs: The outputs of the built models.
-        """
-        # Implementation here
-        pass
+        model_outputs = self._model_train(
+            hyper_collect=hyper_collect,
+            trials_config=trials_config,
+            cores=cores,
+            intercept_sign=intercept_sign,
+            intercept=intercept,
+            nevergrad_algo=nevergrad_algo,
+            dt_hyper_fixed=dt_hyper_fixed,
+            ts_validation=ts_validation,
+            add_penalty_factor=add_penalty_factor,
+            objective_weights=objective_weights,
+            rssd_zero_penalty=rssd_zero_penalty,
+            seed=seed,
+        )
+
+        return model_outputs
 
     def _model_train(
         self,
@@ -178,31 +195,28 @@ class RidgeModelBuilder:
         rssd_zero_penalty: bool = True,
         seed: int = 123,
     ) -> ModelOutputs:
-        """
-        Train the Ridge regression model with the given parameters.
+        trials_results = []
 
-        This method handles the core training process, including hyperparameter optimization
-        and model evaluation across multiple trials.
+        for trial in range(trials_config.trials):
+            trial_seed = seed + trial
+            trial_results = self.run_nevergrad_optimization(
+                hyper_collect=hyper_collect,
+                iterations=trials_config.iterations,
+                cores=cores,
+                nevergrad_algo=nevergrad_algo,
+                intercept=intercept,
+                intercept_sign=intercept_sign,
+                ts_validation=ts_validation,
+                add_penalty_factor=add_penalty_factor,
+                objective_weights=objective_weights,
+                dt_hyper_fixed=dt_hyper_fixed,
+                rssd_zero_penalty=rssd_zero_penalty,
+                trial=trial,
+                seed=trial_seed,
+            )
+            trials_results.extend(trial_results)
 
-        Args:
-            hyper_collect (Hyperparameters): Collected hyperparameters.
-            trials_config (TrialsConfig): Configuration for trials and iterations.
-            cores (int): Number of CPU cores to use for parallel processing.
-            intercept_sign (str): Sign constraint for the intercept.
-            intercept (bool): Whether to include an intercept in the model.
-            nevergrad_algo (NevergradAlgorithm): Nevergrad algorithm for optimization.
-            dt_hyper_fixed (Optional[pd.DataFrame]): Fixed hyperparameters, if any.
-            ts_validation (bool): Whether to use time series validation.
-            add_penalty_factor (bool): Whether to add penalty factors to the model.
-            objective_weights (Optional[Dict[str, float]]): Weights for different objectives.
-            rssd_zero_penalty (bool): Whether to apply zero penalty in RSSD calculation.
-            seed (int): Random seed for reproducibility.
-
-        Returns:
-            ModelOutputs: The outputs of the trained models.
-        """
-        # Implementation here
-        pass
+        return ModelOutputs(trials=trials_config.trials, iterations=trials_config.iterations, results=trials_results)
 
     def run_nevergrad_optimization(
         self,
@@ -220,32 +234,33 @@ class RidgeModelBuilder:
         trial: int = 1,
         seed: int = 123,
     ) -> List[Trial]:
-        """
-        Run Nevergrad optimization for hyperparameter tuning.
+        np.random.seed(seed)
 
-        This method uses Nevergrad to optimize hyperparameters over multiple iterations,
-        evaluating model performance for each set of hyperparameters.
+        param_count = len(hyper_collect.hyper_bound_list_updated)
+        instrumentation = ng.p.Array(shape=(param_count,))
+        optimizer = ng.optimizers.registry[nevergrad_algo.value](instrumentation, budget=iterations, num_workers=cores)
 
-        Args:
-            hyper_collect (Hyperparameters): Collected hyperparameters.
-            iterations (int): Number of iterations for optimization.
-            cores (int): Number of CPU cores to use for parallel processing.
-            nevergrad_algo (NevergradAlgorithm): Nevergrad algorithm for optimization.
-            intercept (bool): Whether to include an intercept in the model.
-            intercept_sign (str): Sign constraint for the intercept.
-            ts_validation (bool): Whether to use time series validation.
-            add_penalty_factor (bool): Whether to add penalty factors to the model.
-            objective_weights (Optional[Dict[str, float]]): Weights for different objectives.
-            dt_hyper_fixed (Optional[pd.DataFrame]): Fixed hyperparameters, if any.
-            rssd_zero_penalty (bool): Whether to apply zero penalty in RSSD calculation.
-            trial (int): Current trial number.
-            seed (int): Random seed for reproducibility.
+        trial_results = []
+        for _ in range(iterations):
+            candidate = optimizer.ask()
+            hyperparams = self._scale_hyperparameters(candidate.value, hyper_collect)
 
-        Returns:
-            List[Trial]: List of results for each iteration of the optimization.
-        """
-        # Implementation here
-        pass
+            model_output = self._fit_and_evaluate_model(
+                hyperparams,
+                ts_validation,
+                add_penalty_factor,
+                intercept,
+                intercept_sign,
+                rssd_zero_penalty,
+                objective_weights,
+            )
+
+            optimizer.tell(candidate, model_output.objective)
+            trial_results.append(
+                Trial(hyperparameters=hyperparams, performance=model_output.performance, model=model_output.model)
+            )
+
+        return trial_results
 
     @staticmethod
     def model_decomp(
@@ -257,26 +272,33 @@ class RidgeModelBuilder:
         dt_mod_roll_wind: pd.DataFrame,
         refresh_added_start: str,
     ) -> ModelDecompOutput:
-        """
-        Perform model decomposition to analyze feature contributions.
+        x_decomp = dt_mod_saturated.copy()
+        for col in x_decomp.columns:
+            if col in coefs:
+                x_decomp[col] *= coefs[col]
 
-        This method decomposes the model's predictions to understand the contribution
-        of each feature, including immediate and carryover effects for media variables.
+        x_decomp_vec = x_decomp.copy()
+        x_decomp_vec["y_pred"] = y_pred
+        x_decomp_vec_scaled = x_decomp_vec.div(x_decomp_vec.sum(axis=1), axis=0)
 
-        Args:
-            coefs (Dict[str, float]): Model coefficients.
-            y_pred (np.ndarray): Predicted values.
-            dt_mod_saturated (pd.DataFrame): Saturated model data.
-            dt_saturated_immediate (pd.DataFrame): Immediate effects data.
-            dt_saturated_carryover (pd.DataFrame): Carryover effects data.
-            dt_mod_roll_wind (pd.DataFrame): Rolling window data.
-            refresh_added_start (str): Start date for refresh period.
+        x_decomp_agg = x_decomp.sum()
+        x_decomp_agg_perc = x_decomp_agg / x_decomp_agg.sum()
 
-        Returns:
-            ModelDecompOutput: Decomposition results.
-        """
-        # Implementation here
-        pass
+        coefs_out_cat = pd.DataFrame({"variable": coefs.keys(), "coefficient": coefs.values()})
+
+        media_decomp_immediate = dt_saturated_immediate.mul(coefs, axis=1)
+        media_decomp_carryover = dt_saturated_carryover.mul(coefs, axis=1)
+
+        return ModelDecompOutput(
+            x_decomp_vec=x_decomp_vec,
+            x_decomp_vec_scaled=x_decomp_vec_scaled,
+            x_decomp_agg=pd.DataFrame(
+                {"variable": x_decomp_agg.index, "value": x_decomp_agg.values, "percentage": x_decomp_agg_perc.values}
+            ),
+            coefs_out_cat=coefs_out_cat,
+            media_decomp_immediate=media_decomp_immediate,
+            media_decomp_carryover=media_decomp_carryover,
+        )
 
     @staticmethod
     def _model_refit(
@@ -292,30 +314,53 @@ class RidgeModelBuilder:
         intercept: bool = True,
         intercept_sign: str = "non_negative",
     ) -> ModelRefitOutput:
-        """
-        Refit the Ridge regression model with given parameters.
+        model = Ridge(alpha=lambda_, fit_intercept=intercept)
+        model.fit(x_train, y_train)
 
-        This method refits the model using the provided data and parameters, calculating
-        various performance metrics for train, validation, and test sets.
+        if intercept_sign == "non_negative" and model.intercept_ < 0:
+            model.intercept_ = 0
+            model = Ridge(alpha=lambda_, fit_intercept=False)
+            model.fit(x_train, y_train)
 
-        Args:
-            x_train (np.ndarray): Training features.
-            y_train (np.ndarray): Training target.
-            x_val (Optional[np.ndarray]): Validation features.
-            y_val (Optional[np.ndarray]): Validation target.
-            x_test (Optional[np.ndarray]): Test features.
-            y_test (Optional[np.ndarray]): Test target.
-            lambda_ (float): Regularization strength.
-            lower_limits (Optional[List[float]]): Lower bounds for coefficients.
-            upper_limits (Optional[List[float]]): Upper bounds for coefficients.
-            intercept (bool): Whether to fit an intercept.
-            intercept_sign (str): Sign constraint for the intercept.
+        y_train_pred = model.predict(x_train)
+        y_val_pred = model.predict(x_val) if x_val is not None else None
+        y_test_pred = model.predict(x_test) if x_test is not None else None
 
-        Returns:
-            ModelRefitOutput: Results of the refitted model.
-        """
-        # Implementation here
-        pass
+        rsq_train = model.score(x_train, y_train)
+        rsq_val = model.score(x_val, y_val) if x_val is not None else None
+        rsq_test = model.score(x_test, y_test) if x_test is not None else None
+
+        nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (np.max(y_train) - np.min(y_train))
+        nrmse_val = (
+            np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (np.max(y_val) - np.min(y_val))
+            if y_val is not None
+            else None
+        )
+        nrmse_test = (
+            np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (np.max(y_test) - np.min(y_test))
+            if y_test is not None
+            else None
+        )
+
+        return ModelRefitOutput(
+            rsq_train=rsq_train,
+            rsq_val=rsq_val,
+            rsq_test=rsq_test,
+            nrmse_train=nrmse_train,
+            nrmse_val=nrmse_val,
+            nrmse_test=nrmse_test,
+            coefs=model.coef_,
+            y_train_pred=y_train_pred,
+            y_val_pred=y_val_pred,
+            y_test_pred=y_test_pred,
+            y_pred=(
+                np.concatenate([y_train_pred, y_val_pred, y_test_pred])
+                if y_val_pred is not None and y_test_pred is not None
+                else y_train_pred
+            ),
+            mod=model,
+            df_int=1 if intercept else 0,
+        )
 
     @staticmethod
     def _lambda_seq(
@@ -324,23 +369,9 @@ class RidgeModelBuilder:
         seq_len: int = 100,
         lambda_min_ratio: float = 0.0001,
     ) -> np.ndarray:
-        """
-        Generate a sequence of lambda values for regularization.
-
-        This method creates a sequence of lambda values to be used in regularization,
-        based on the input data and specified parameters.
-
-        Args:
-            x (np.ndarray): Input features.
-            y (np.ndarray): Target variable.
-            seq_len (int): Length of the lambda sequence.
-            lambda_min_ratio (float): Minimum ratio for lambda.
-
-        Returns:
-            np.ndarray: Sequence of lambda values.
-        """
-        # Implementation here
-        pass
+        n, p = x.shape
+        lambda_max = np.linalg.norm(x.T.dot(y), ord=np.inf) / (n * 0.001)
+        return np.logspace(np.log10(lambda_max * lambda_min_ratio), np.log10(lambda_max), num=seq_len)
 
     @staticmethod
     def _hyper_collector(
@@ -357,28 +388,231 @@ class RidgeModelBuilder:
         dt_hyper_fixed: Optional[pd.DataFrame] = None,
         cores: int = 1,
     ) -> HyperCollectorOutput:
-        """
-        Collect and organize hyperparameters for model optimization.
+        hyper_names = RidgeModelBuilder._get_hyper_names(adstock, all_media, dt_mod.columns)
 
-        This method gathers hyperparameters from various sources, organizes them into
-        fixed and variable sets, and prepares them for use in model optimization.
+        hyper_list_all = {}
+        hyper_bound_list_updated = {}
+        hyper_bound_list_fixed = {}
+
+        for name in hyper_names:
+            if name in hyper_in:
+                value = hyper_in[name]
+                if isinstance(value, (list, tuple)) and len(value) == 2:
+                    hyper_bound_list_updated[name] = value
+                else:
+                    hyper_bound_list_fixed[name] = value
+                hyper_list_all[name] = value
+
+        if ts_validation and "train_size" not in hyper_list_all:
+            hyper_bound_list_updated["train_size"] = [0.5, 0.8]
+            hyper_list_all["train_size"] = [0.5, 0.8]
+
+        if add_penalty_factor:
+            for var in dt_mod.columns:
+                penalty_name = f"{var}_penalty"
+                if penalty_name not in hyper_list_all:
+                    hyper_bound_list_updated[penalty_name] = [0, 1]
+                    hyper_list_all[penalty_name] = [0, 1]
+
+        all_fixed = len(hyper_bound_list_updated) == 0
+
+        dt_hyper_fixed_mod = pd.DataFrame(hyper_bound_list_fixed, index=[0]) if hyper_bound_list_fixed else None
+
+        return HyperCollectorOutput(
+            hyper_list_all=hyper_list_all,
+            hyper_bound_list_updated=hyper_bound_list_updated,
+            hyper_bound_list_fixed=hyper_bound_list_fixed,
+            dt_hyper_fixed_mod=dt_hyper_fixed_mod,
+            all_fixed=all_fixed,
+        )
+
+    @staticmethod
+    def _get_hyper_names(adstock: str, all_media: List[str], all_vars: List[str]) -> List[str]:
+        hyper_names = []
+        for media in all_media:
+            if adstock == "geometric":
+                hyper_names.extend([f"{media}_thetas", f"{media}_alphas", f"{media}_gammas"])
+            elif adstock in ["weibull_cdf", "weibull_pdf"]:
+                hyper_names.extend([f"{media}_shapes", f"{media}_scales", f"{media}_alphas", f"{media}_gammas"])
+
+        hyper_names.extend([f"{var}_penalty" for var in all_vars])
+        hyper_names.append("lambda")
+
+        return hyper_names
+
+    def _scale_hyperparameters(
+        self, candidate_values: np.ndarray, hyper_collect: HyperCollectorOutput
+    ) -> Dict[str, float]:
+        """
+        Scale the hyperparameters from the Nevergrad optimizer to their actual ranges.
 
         Args:
-            adstock (str): Type of adstock to use.
-            all_media (List[str]): List of all media variables.
-            paid_media_spends (List[str]): List of paid media spend variables.
-            organic_vars (List[str]): List of organic variables.
-            prophet_vars (List[str]): List of Prophet model variables.
-            context_vars (List[str]): List of context variables.
-            dt_mod (pd.DataFrame): Modified input data.
-            hyper_in (Dict[str, Any]): Input hyperparameters.
-            ts_validation (bool): Whether to use time series validation.
-            add_penalty_factor (bool): Whether to add penalty factors.
-            dt_hyper_fixed (Optional[pd.DataFrame]): Fixed hyperparameters, if any.
-            cores (int): Number of CPU cores to use.
+            candidate_values (np.ndarray): Candidate values from Nevergrad optimizer.
+            hyper_collect (HyperCollectorOutput): Collected hyperparameters.
 
         Returns:
-            HyperCollectorOutput: Organized hyperparameters and related information.
+            Dict[str, float]: Scaled hyperparameters.
         """
-        # Implementation here
-        pass
+        scaled_params = {}
+        for i, (name, bounds) in enumerate(hyper_collect.hyper_bound_list_updated.items()):
+            scaled_params[name] = bounds[0] + (bounds[1] - bounds[0]) * candidate_values[i]
+
+        # Add fixed hyperparameters
+        scaled_params.update(hyper_collect.hyper_bound_list_fixed)
+
+        return scaled_params
+
+    def _fit_and_evaluate_model(
+        self,
+        hyperparams: Dict[str, float],
+        ts_validation: bool,
+        add_penalty_factor: bool,
+        intercept: bool,
+        intercept_sign: str,
+        rssd_zero_penalty: bool,
+        objective_weights: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Fit the Ridge regression model and evaluate its performance.
+
+        Args:
+            hyperparams (Dict[str, float]): Hyperparameters for the model.
+            ts_validation (bool): Whether to use time series validation.
+            add_penalty_factor (bool): Whether to add penalty factors to the regularization.
+            intercept (bool): Whether to include an intercept term in the model.
+            intercept_sign (str): Sign constraint for the intercept.
+            rssd_zero_penalty (bool): Whether to apply a penalty for zero coefficients in RSSD calculation.
+            objective_weights (Optional[Dict[str, float]]): Weights for different objectives in the optimization process.
+
+        Returns:
+            Dict[str, Any]: Model output including performance metrics and model object.
+        """
+        X, y = self._prepare_data(hyperparams)
+
+        if ts_validation:
+            train_size = hyperparams.get("train_size", 0.8)
+            split_index = int(len(X) * train_size)
+            X_train, X_test = X[:split_index], X[split_index:]
+            y_train, y_test = y[:split_index], y[split_index:]
+        else:
+            X_train, y_train = X, y
+            X_test, y_test = None, None
+
+        lambda_ = hyperparams["lambda"]
+
+        if add_penalty_factor:
+            penalty_factor = [hyperparams.get(f"{col}_penalty", 1.0) for col in X.columns]
+        else:
+            penalty_factor = None
+
+        model_output = self._model_refit(
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            lambda_=lambda_,
+            intercept=intercept,
+            intercept_sign=intercept_sign,
+            penalty_factor=penalty_factor,
+        )
+
+        rssd = self._calculate_rssd(model_output.coefs, rssd_zero_penalty)
+
+        objective = self._calculate_objective(model_output.rsq_train, model_output.rsq_test, rssd, objective_weights)
+
+        return {
+            "model": model_output.mod,
+            "performance": {
+                "rsq_train": model_output.rsq_train,
+                "rsq_test": model_output.rsq_test,
+                "nrmse_train": model_output.nrmse_train,
+                "nrmse_test": model_output.nrmse_test,
+                "rssd": rssd,
+            },
+            "objective": objective,
+        }
+
+    def _prepare_data(self, hyperparams: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
+        """
+        Prepare the data for modeling, including adstock transformations.
+
+        Args:
+            hyperparams (Dict[str, float]): Hyperparameters for the model.
+
+        Returns:
+            Tuple[pd.DataFrame, pd.Series]: Prepared features (X) and target variable (y).
+        """
+        dt_mod = self.featurized_mmm_data.dt_mod
+        y = dt_mod[self.mmm_data.mmmdata_spec.dep_var]  # Use the dynamic field from MMMDataSpec if set
+        X = dt_mod.drop(["ds", self.mmm_data.mmmdata_spec.dep_var], axis=1)
+
+        for media in self.mmm_data.paid_media_spends:
+            if self.mmm_data.adstock == AdstockType.GEOMETRIC:
+                X[media] = self._geometric_adstock(X[media], hyperparams[f"{media}_thetas"])
+            elif self.mmm_data.adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
+                X[media] = self._weibull_adstock(
+                    X[media], hyperparams[f"{media}_shapes"], hyperparams[f"{media}_scales"], self.mmm_data.adstock
+                )
+
+            # Apply saturation (Hill transformation)
+            X[media] = self._hill_transformation(
+                X[media], hyperparams[f"{media}_alphas"], hyperparams[f"{media}_gammas"]
+            )
+
+        return X, y
+
+    @staticmethod
+    def _geometric_adstock(x: pd.Series, theta: float) -> pd.Series:
+        """Apply geometric adstock transformation."""
+        y = x.copy()
+        for i in range(1, len(x)):
+            y.iloc[i] += theta * y.iloc[i - 1]
+        return y
+
+    @staticmethod
+    def _weibull_adstock(x: pd.Series, shape: float, scale: float, adstock_type: AdstockType) -> pd.Series:
+        """Apply Weibull adstock transformation."""
+        L = len(x)
+        lag_weights = np.arange(1, L + 1)
+
+        if adstock_type == AdstockType.WEIBULL_CDF:
+            adstock_weights = 1 - np.exp(-((lag_weights / scale) ** shape))
+        elif adstock_type == AdstockType.WEIBULL_PDF:
+            adstock_weights = (
+                (shape / scale) * (lag_weights / scale) ** (shape - 1) * np.exp(-((lag_weights / scale) ** shape))
+            )
+        else:
+            raise ValueError(f"Invalid Weibull adstock type: {adstock_type}")
+
+        adstock_weights = adstock_weights / np.sum(adstock_weights)
+        return pd.Series(np.convolve(x, adstock_weights[::-1], mode="full")[:L])
+
+    @staticmethod
+    def _hill_transformation(x: pd.Series, alpha: float, gamma: float) -> pd.Series:
+        """Apply Hill (saturation) transformation."""
+        return x**gamma / (x**gamma + alpha**gamma)
+
+    @staticmethod
+    def _calculate_rssd(coefs: np.ndarray, rssd_zero_penalty: bool) -> float:
+        """Calculate Root Sum Squared Distance (RSSD)."""
+        rssd = np.sqrt(np.sum(coefs**2))
+        if rssd_zero_penalty:
+            zero_coef_ratio = np.sum(coefs == 0) / len(coefs)
+            rssd *= 1 + zero_coef_ratio
+        return rssd
+
+    @staticmethod
+    def _calculate_objective(
+        rsq_train: float, rsq_test: Optional[float], rssd: float, objective_weights: Optional[Dict[str, float]] = None
+    ) -> float:
+        """Calculate the objective function value."""
+        if objective_weights is None:
+            objective_weights = {"rsq_train": 1.0, "rsq_test": 1.0, "rssd": 1.0}
+
+        objective = (
+            objective_weights["rsq_train"] * (1 - rsq_train)
+            + objective_weights.get("rsq_test", 0) * (1 - (rsq_test or 0))
+            + objective_weights["rssd"] * rssd
+        )
+
+        return objective
