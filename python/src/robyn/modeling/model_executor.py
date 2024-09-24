@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+import os
 
 from robyn.modeling.base_model_executor import BaseModelExecutor
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
@@ -77,15 +78,23 @@ class ModelExecutor(BaseModelExecutor):
             components of the Robyn framework. It's designed to be flexible and extensible
             to accommodate future model types and configurations.
         """
+        self._validate_input()
+
+        if cores is None:
+            cores = max(1, os.cpu_count() - 1) if os.cpu_count() is not None else 1
+
+        prepared_hyperparameters = self._prepare_hyperparameters(dt_hyper_fixed, add_penalty_factor, ts_validation)
+
         if model_name == Models.RIDGE:
             model_builder = RidgeModelBuilder(
                 self.mmmdata,
                 self.holidays_data,
                 self.calibration_input,
-                self.hyperparameters,
+                prepared_hyperparameters,
                 self.featurized_mmm_data,
             )
-            return model_builder.build_models(
+
+            model_outputs = model_builder.build_models(
                 trials_config=trials_config,
                 dt_hyper_fixed=dt_hyper_fixed,
                 ts_validation=ts_validation,
@@ -97,5 +106,35 @@ class ModelExecutor(BaseModelExecutor):
                 intercept=intercept,
                 intercept_sign=intercept_sign,
             )
+
+            if outputs:
+                # Generate additional outputs if required
+                additional_outputs = self._generate_additional_outputs(model_outputs)
+                model_outputs.update(additional_outputs)
+
+            return model_outputs
         else:
             raise NotImplementedError(f"Model {model_name} is not implemented yet.")
+
+    def _generate_additional_outputs(self, model_outputs: ModelOutputs) -> Dict[str, Any]:
+        """
+        Generate additional outputs based on the model results.
+
+        Args:
+            model_outputs (ModelOutputs): The primary outputs from the model run.
+
+        Returns:
+            Dict[str, Any]: Additional outputs to be included in the final results.
+        """
+        # Implement additional output generation logic here
+        # This could include visualizations, summary statistics, or any other post-processing
+        additional_outputs = {}
+
+        # Example: Calculate and add average performance across trials
+        if hasattr(model_outputs, "trials") and model_outputs.trials > 1:
+            avg_performance = sum(trial.performance for trial in model_outputs.results) / model_outputs.trials
+            additional_outputs["average_performance"] = avg_performance
+
+        # Add more additional outputs as needed
+
+        return additional_outputs
