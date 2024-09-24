@@ -112,8 +112,8 @@ def test_ridge_model_builder_initialization(ridge_model_builder):
 def test_build_models(ridge_model_builder):
     trials_config = TrialsConfig(trials=1, iterations=10)
     result = ridge_model_builder.build_models(trials_config)
-    print("Type of result.trials:", type(result.trials))  # Should print <class 'list'>
-    print("Content of result.trials:", result.trials)  # Should print list content
+    print("Type of result.trials:", type(result.trials))
+    print("Content of result.trials:", result.trials)
     assert isinstance(result, ModelOutputs)
     assert len(result.trials) == 10
     assert result.iterations == 10
