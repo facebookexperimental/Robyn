@@ -41,3 +41,5 @@ python/**/__pycache__
 python/.vscode
 python/src/robynpy.egg-info*
 python/oldportedcode
+python/src/tutorials/mytestenv
+*.log
