@@ -129,15 +129,30 @@ class BaseModelExecutor(ABC):
         """
         prepared_hyperparameters = self.hyperparameters.copy()
 
+        # Update with fixed hyperparameters if provided
         if dt_hyper_fixed:
-            prepared_hyperparameters.update(dt_hyper_fixed)
+            for key, value in dt_hyper_fixed.items():
+                if prepared_hyperparameters.has_channel(key):
+                    channel_params = prepared_hyperparameters.get_hyperparameter(key)
+                    # Assuming dt_hyper_fixed is structured similarly to ChannelHyperparameters
+                    channel_params.thetas = value.get("thetas", channel_params.thetas)
+                    channel_params.shapes = value.get("shapes", channel_params.shapes)
+                    channel_params.scales = value.get("scales", channel_params.scales)
+                    channel_params.alphas = value.get("alphas", channel_params.alphas)
+                    channel_params.gammas = value.get("gammas", channel_params.gammas)
+                    channel_params.penalty = value.get("penalty", channel_params.penalty)
 
+        # Add penalty factors if required
         if add_penalty_factor:
-            for var in self.mmmdata.all_variables:
-                prepared_hyperparameters[f"{var}_penalty"] = [0, 1]
+            for channel in prepared_hyperparameters.hyperparameters:
+                channel_params = prepared_hyperparameters.get_hyperparameter(channel)
+                channel_params.penalty = [0, 1]  # Example of setting penalty
 
-        if ts_validation and "train_size" not in prepared_hyperparameters:
-            prepared_hyperparameters["train_size"] = [0.5, 0.8]
+        print("Hyperparameters prepared, ", prepared_hyperparameters)
+
+        # Handle train_size if using time series validation
+        if ts_validation and not prepared_hyperparameters.train_size:
+            prepared_hyperparameters.train_size = [0.5, 0.8]
 
         return prepared_hyperparameters
 

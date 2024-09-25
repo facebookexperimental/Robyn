@@ -64,6 +64,15 @@ class Hyperparameters:
             + "\n)"
         )
 
+    def copy(self):
+        # Create a new instance with the same data
+        return Hyperparameters(
+            hyperparameters=self.hyperparameters.copy(),
+            adstock=self.adstock,
+            lambda_=self.lambda_,
+            train_size=self.train_size.copy() if self.train_size else None,
+        )
+
     def __post_init__(self):
         self.update_hyper_bounds()
 

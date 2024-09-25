@@ -1,18 +1,18 @@
 # pyre-strict
 
-from typing import List
+from typing import List, Optional
 import pandas as pd
 from robyn.data.entities.enums import ProphetVariableType
 from robyn.data.entities.enums import ProphetSigns
+
 
 class HolidaysData:
     def __init__(
         self,
         dt_holidays: pd.DataFrame,
-        prophet_vars: List[ProphetVariableType],
-        prophet_signs: List[ProphetSigns],
-        prophet_country: str, #TODO Is there a library for country codes so that we can type
-
+        prophet_vars: Optional[List[ProphetVariableType]] = None,
+        prophet_signs: Optional[List[ProphetSigns]] = None,
+        prophet_country: Optional[str] = None,  # TODO Is there a library for country codes so that we can type
     ) -> None:
         """
         Initialize a HolidaysData object.
