@@ -1,13 +1,14 @@
 # pyre-strict
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional, Any
 import pandas as pd
 from robyn.data.entities.enums import ContextSigns, DependentVarType, OrganicSigns, PaidMediaSigns
 
+
 class MMMData:
     class MMMDataSpec:
-
         """
         Dependent Variable (Target Variable)
             dep_var: The name of the column in the input dataframe that represents the dependent variable (target variable) that we want to model. This is the variable that we're trying to predict or explain. For example, it could be "sales", "revenue", "conversions", etc.
@@ -26,15 +27,16 @@ class MMMData:
             context_signs: A list of signs (positive or negative) that indicate the expected direction of the relationship between each context variable and the dependent variable.
         Factor Variables
             factor_vars: A list of column names in the input dataframe that represent factor variables (e.g., categorical variables like region, product category, etc.). These variables can be used to model non-linear relationships and interactions between variables.
-        
+
         """
+
         def __init__(
             self,
             dep_var: Optional[str] = None,
             dep_var_type: DependentVarType = DependentVarType.REVENUE,
             date_var: str = "auto",
-            # window_start: datetime,
-            # window_end: datetime,
+            window_start: datetime = None,
+            window_end: datetime = None,
             paid_media_spends: Optional[List[str]] = None,
             paid_media_vars: Optional[List[str]] = None,
             paid_media_signs: Optional[List[PaidMediaSigns]] = None,
@@ -43,10 +45,15 @@ class MMMData:
             context_vars: Optional[List[str]] = None,
             context_signs: Optional[List[ContextSigns]] = None,
             factor_vars: Optional[List[str]] = None,
+            all_media: Optional[List[str]] = None,
+            prophet_vars: Optional[List[str]] = None,
+            prophet_country: Optional[str] = None,
         ) -> None:
             self.dep_var: Optional[str] = dep_var
             self.dep_var_type: DependentVarType = dep_var_type
             self.date_var: str = date_var
+            self.window_start: datetime = window_start
+            self.window_end: datetime = window_end
             self.paid_media_spends: Optional[List[str]] = paid_media_spends
             self.paid_media_vars: Optional[List[str]] = paid_media_vars
             self.paid_media_signs: Optional[List[str]] = paid_media_signs
@@ -55,6 +62,9 @@ class MMMData:
             self.context_vars: Optional[List[str]] = context_vars
             self.context_signs: Optional[List[str]] = context_signs
             self.factor_vars: Optional[List[str]] = factor_vars
+            self.all_media = all_media or paid_media_spends
+            self.prophet_vars = prophet_vars
+            self.prophet_country = prophet_country
 
         def __str__(self) -> str:
             return f"""
@@ -62,6 +72,8 @@ class MMMData:
             dep_var: {self.dep_var}
             dep_var_type: {self.dep_var_type}
             date_var: {self.date_var}
+            window_start: {self.window_start}
+            window_end: {self.window_end}
             paid_media_spends: {self.paid_media_spends}
             paid_media_vars: {self.paid_media_vars}
             paid_media_signs: {self.paid_media_signs}
@@ -70,12 +82,15 @@ class MMMData:
             context_vars: {self.context_vars}
             context_signs: {self.context_signs}
             factor_vars: {self.factor_vars}
+            all_media: {self.all_media}
+            prophet_vars: {self.prophet_vars}
+            prophet_country: {self.prophet_country}
             """
 
         def update(self, **kwargs: Any) -> None:
             """
             Update the attributes of the MMMDataSpec object.
-            
+
             :param kwargs: Keyword arguments corresponding to the attributes to update.
             """
             for key, value in kwargs.items():
