@@ -43,4 +43,3 @@ python/src/robynpy.egg-info*
 python/oldportedcode
 python/src/tutorials/mytestenv
 *.log
-*.env
