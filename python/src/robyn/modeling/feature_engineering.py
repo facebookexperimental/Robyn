@@ -6,8 +6,8 @@ from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
-
-# from prophet import Prophet
+from prophet import Prophet
+from robyn.data.entities.holidays_data import HolidaysData
 
 from robyn.data.entities.enums import (
     DependentVarType,
@@ -34,9 +34,12 @@ class FeaturizedMMMData:
 
 
 class FeatureEngineering:
-    def __init__(self, mmm_data: MMMData, hyperparameters: Hyperparameters):
+    def __init__(
+        self, mmm_data: MMMData, hyperparameters: Hyperparameters, holidays_data: Optional[HolidaysData] = None
+    ):
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
+        self.holidays_data = holidays_data
 
     def perform_feature_engineering(self, quiet: bool = False) -> FeaturizedMMMData:
         dt_mod = self._prepare_data()
@@ -44,9 +47,9 @@ class FeatureEngineering:
         media_cost_factor = self._calculate_media_cost_factor(dt_modRollWind)
         modNLS = self._run_models(dt_modRollWind, media_cost_factor)
 
-        if "trend" in self.mmm_data.mmmdata_spec.prophet_vars:
-            pass
-            # dt_mod = self._prophet_decomposition(dt_mod)
+        if "trend" in self.holidays_data.prophet_vars:
+            dt_mod = self._prophet_decomposition(dt_mod)
+            print("Prophet decomposition complete.")
 
         if not quiet:
             print("Feature engineering complete.")
@@ -170,33 +173,58 @@ class FeatureEngineering:
     def _hill_function(x, alpha, gamma):
         return x**alpha / (x**alpha + gamma**alpha)
 
-    def _prophet_decomposition(self, dt_transform: pd.DataFrame) -> pd.DataFrame:
-        from prophet import Prophet
+    def _prophet_decomposition(self, dt_mod: pd.DataFrame) -> pd.DataFrame:
+        prophet_vars = self.holidays_data.prophet_vars
+        print(f"Prophet variables: {prophet_vars}")
 
-        model = Prophet(holidays=self._set_holidays())
-        model.fit(dt_transform[["ds", "dep_var"]].rename(columns={"dep_var": "y"}))
+        if not any(var in prophet_vars for var in ["trend", "season", "holiday", "monthly", "weekday"]):
+            return dt_mod
 
+        prophet_data = dt_mod[[self.mmm_data.mmmdata_spec.date_var, self.mmm_data.mmmdata_spec.dep_var]].copy()
+        prophet_data.columns = ["ds", "y"]
+
+        use_trend = "trend" in prophet_vars
+        use_holiday = "holiday" in prophet_vars
+        use_season = "season" in prophet_vars or "yearly.seasonality" in prophet_vars
+        use_monthly = "monthly" in prophet_vars
+        use_weekday = "weekday" in prophet_vars or "weekly.seasonality" in prophet_vars
+
+        model = Prophet(yearly_seasonality=use_season, weekly_seasonality=use_weekday, daily_seasonality=False)
+
+        if use_holiday and self.holidays_data is not None:
+            holidays_df = self._prepare_holidays_for_prophet(self.holidays_data.dt_holidays)
+            model.add_country_holidays(country_name=self.holidays_data.prophet_country)
+            model.holidays = holidays_df
+        elif use_holiday:
+            print(
+                "Warning: Holiday decomposition requested but no holiday data provided. Skipping holiday decomposition."
+            )
+
+        if use_monthly:
+            model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
+
+        model.fit(prophet_data)
         future = model.make_future_dataframe(periods=0)
         forecast = model.predict(future)
 
-        dt_transform["trend"] = forecast["trend"]
-        dt_transform["season"] = forecast["seasonal"]
+        if use_trend:
+            dt_mod["trend"] = forecast["trend"].values
+        if use_season:
+            dt_mod["season"] = forecast["yearly"].values
+        if use_holiday and "holidays" in forecast.columns:
+            dt_mod["holiday"] = forecast["holidays"].values
+        if use_weekday:
+            dt_mod["weekday"] = forecast["weekly"].values
+        if use_monthly:
+            dt_mod["monthly"] = forecast["monthly"].values
 
-        return dt_transform
+        return dt_mod
 
-    def _set_holidays(self) -> pd.DataFrame:
-        if self.mmm_data.mmmdata_spec.prophet_country:
-            from prophet.holidays import get_holiday_names, load_holidays
-
-            country_holidays = get_holiday_names(self.mmm_data.mmmdata_spec.prophet_country)
-            holidays = load_holidays(
-                self.mmm_data.mmmdata_spec.prophet_country,
-                years=[self.mmm_data.data["ds"].dt.year.min(), self.mmm_data.data["ds"].dt.year.max()],
-            )
-
-            return holidays[holidays["holiday"].isin(country_holidays)]
-        else:
-            return pd.DataFrame()  # Return empty DataFrame if no country specified
+    def _prepare_holidays_for_prophet(self, holidays_df: pd.DataFrame) -> pd.DataFrame:
+        # Assuming holidays_df has 'ds' and 'holiday' columns
+        prepared_holidays = holidays_df[["ds", "holiday"]].copy()
+        prepared_holidays["ds"] = pd.to_datetime(prepared_holidays["ds"])
+        return prepared_holidays
 
     def _apply_transformations(self, x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
         x_adstock = self._apply_adstock(x, params)
