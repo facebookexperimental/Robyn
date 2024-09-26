@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
 
 # from prophet import Prophet
 
@@ -94,42 +95,18 @@ class FeatureEngineering:
     def _fit_spend_exposure(
         self, dt_modRollWind: pd.DataFrame, paid_media_var: str, media_cost_factor: float
     ) -> Dict[str, Any]:
-        """
-        Fit the Michaelis-Menten model and a linear model to the spend and exposure data.
-
-        Args:
-            dt_modRollWind (pd.DataFrame): The rolling window data.
-            paid_media_var (str): The name of the paid media variable.
-            media_cost_factor (float): The media cost factor.
-
-        Returns:
-            dict: The results of the model fitting, including plots and predictions.
-        """
         print(f"Processing {paid_media_var}")
 
         def michaelis_menten(x, Vmax, Km):
-            return Vmax * x / (Km + x)  # our version at the moment is x = spend, y is exposure.
-
-        # new version would be flipped.
-
-        def linear_model(x, a, b):
-            return a * x + b
+            return Vmax * x / (Km + x)
 
         spend_var = paid_media_var
         exposure_var = self.mmm_data.mmmdata_spec.paid_media_vars[
             self.mmm_data.mmmdata_spec.paid_media_spends.index(paid_media_var)
         ]
 
-        if spend_var not in dt_modRollWind.columns or exposure_var not in dt_modRollWind.columns:
-            print(f"Error: {spend_var} or {exposure_var} not found in dt_modRollWind")
-            return None
-
         spend_data = dt_modRollWind[spend_var]
         exposure_data = dt_modRollWind[exposure_var]
-
-        if spend_data.empty or exposure_data.empty:
-            print(f"Error: spend_data or exposure_data is empty for {paid_media_var}")
-            return None
 
         print(f"spend_data range: {spend_data.min()} - {spend_data.max()}")
         print(f"exposure_data range: {exposure_data.min()} - {exposure_data.max()}")
@@ -142,49 +119,52 @@ class FeatureEngineering:
                 exposure_data,
                 p0=[max(exposure_data), np.median(spend_data)],
                 bounds=([0, 0], [np.inf, np.inf]),
+                maxfev=10000,  # Increase maximum number of function evaluations
             )
 
-            # Fit linear model
-            popt_lm, _ = curve_fit(linear_model, spend_data, exposure_data)
-
-            # Calculate R-squared for both models
+            # Calculate R-squared for Michaelis-Menten model
             yhat_nls = michaelis_menten(spend_data, *popt_nls)
-            yhat_lm = linear_model(spend_data, *popt_lm)
             rsq_nls = 1 - np.sum((exposure_data - yhat_nls) ** 2) / np.sum(
                 (exposure_data - np.mean(exposure_data)) ** 2
             )
-            rsq_lm = 1 - np.sum((exposure_data - yhat_lm) ** 2) / np.sum((exposure_data - np.mean(exposure_data)) ** 2)
 
-            # Create plot
-            plt.figure(figsize=(10, 6))
-            plt.scatter(spend_data, exposure_data, label="Data")
-            spend_range = np.linspace(min(spend_data), max(spend_data), 100)
-            plt.plot(spend_range, michaelis_menten(spend_range, *popt_nls), label="NLS fit")
-            plt.plot(spend_range, linear_model(spend_range, *popt_lm), label="Linear fit")
-            plt.xlabel(f"Spend [{spend_var}]")
-            plt.ylabel(f"Exposure [{exposure_var}]")
-            plt.title(f"Spend vs Exposure for {paid_media_var}")
-            plt.legend()
-            plt.show(block=False)
+            # Fit linear model
+            lm = LinearRegression(fit_intercept=False)
+            lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
+            yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
+            rsq_lm = lm.score(spend_data.values.reshape(-1, 1), exposure_data)
 
-            res = {
-                "channel": paid_media_var,
-                "Vmax": popt_nls[0],
-                "Km": popt_nls[1],
-                "rsq_nls": rsq_nls,
-                "rsq_lm": rsq_lm,
-                "coef_lm": popt_lm[0],
-            }
+            # Choose the better model
+            if rsq_nls > rsq_lm:
+                model_type = "nls"
+                yhat = yhat_nls
+                rsq = rsq_nls
+                coef = {"Vmax": popt_nls[0], "Km": popt_nls[1]}
+            else:
+                model_type = "lm"
+                yhat = yhat_lm
+                rsq = rsq_lm
+                coef = {"coef": lm.coef_[0]}
 
-            plot_data = pd.DataFrame(
-                {"spend": spend_data, "exposure": exposure_data, "yhat_nls": yhat_nls, "yhat_lm": yhat_lm}
-            )
+            res = {"channel": paid_media_var, "model_type": model_type, "rsq": rsq, "coef": coef}
 
-            return {"res": res, "plot": plot_data, "yhat": yhat_nls}
+            plot_data = pd.DataFrame({"spend": spend_data, "exposure": exposure_data, "yhat": yhat})
+
+            return {"res": res, "plot": plot_data, "yhat": yhat}
 
         except Exception as e:
             print(f"Error fitting models for {paid_media_var}: {str(e)}")
-            return None
+            # Fallback to linear model
+            lm = LinearRegression(fit_intercept=False)
+            lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
+            yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
+            rsq_lm = lm.score(spend_data.values.reshape(-1, 1), exposure_data)
+
+            res = {"channel": paid_media_var, "model_type": "lm", "rsq": rsq_lm, "coef": {"coef": lm.coef_[0]}}
+
+            plot_data = pd.DataFrame({"spend": spend_data, "exposure": exposure_data, "yhat": yhat_lm})
+
+            return {"res": res, "plot": plot_data, "yhat": yhat_lm}
 
     @staticmethod
     def _hill_function(x, alpha, gamma):
