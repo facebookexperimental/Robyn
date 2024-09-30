@@ -91,7 +91,49 @@ class ParetoOptimizer:
         Returns:
             ParetoResult: The results of the Pareto optimization process.
         """
-        aggregated_data = self._aggregate_model_data(calibrated)
+        hyper_fixed = self.model_outputs.hyper_fixed
+        aggregated_data = self._aggregate_model_data(calibrated, hyper_fixed)
+        
+        resultHypParam = aggregated_data['result_hyp_param']
+        xDecompAgg = aggregated_data['x_decomp_agg']
+        resultCalibration = aggregated_data['result_calibration']
+
+        if not hyper_fixed:
+            # Filter and group data to calculate coef0
+            xDecompAggCoef0 = (xDecompAgg[xDecompAgg['rn'].isin(self.mmm_data.mmmdata_spec.paid_media_spends)]
+                            .groupby('solID')['coef']
+                            .apply(lambda x: min(x.dropna()) == 0))
+            # calculate quantiles
+            mape_lift_quantile10 = resultHypParam['mape'].quantile(calibration_constraint)
+            nrmse_quantile90 = resultHypParam['nrmse'].quantile(0.9)
+            decomprssd_quantile90 = resultHypParam['decomp.rssd'].quantile(0.9)
+            # merge resultHypParam with xDecompAggCoef0
+            resultHypParam = pd.merge(resultHypParam, xDecompAggCoef0, on='solID', how='left')
+            # create a new column 'mape.qt10'
+            resultHypParam['mape.qt10'] = (resultHypParam['mape'] <= mape_lift_quantile10) & \
+                                        (resultHypParam['nrmse'] <= nrmse_quantile90) & \
+                                        (resultHypParam['decomp.rssd'] <= decomprssd_quantile90)
+            # filter resultHypParam
+            resultHypParamPareto = resultHypParam[resultHypParam['mape.qt10'] == True]
+            # calculate Pareto front
+            paretoResults = pareto_front(xi=resultHypParamPareto['nrmse'],
+                                        yi=resultHypParamPareto['decomp.rssd'],
+                                        pareto_fronts=pareto_fronts,
+                                        sort=False)
+            # merge resultHypParamPareto with paretoResults
+            resultHypParamPareto = pd.merge(resultHypParamPareto, paretoResults, left_on=['nrmse', 'decomp.rssd'], right_on=['x', 'y'])
+            # rename column
+            resultHypParamPareto = resultHypParamPareto.rename(columns={'pareto_front': 'robynPareto'})
+            # sort and select columns
+            resultHypParamPareto = resultHypParamPareto.sort_values(['iterNG', 'iterPar', 'nrmse']).loc[:, ['solID', 'robynPareto']]
+            # group by solID and get the first row of each group
+            resultHypParamPareto = resultHypParamPareto.groupby('solID').first().reset_index()
+            # merge resultHypParam with resultHypParamPareto
+            resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on='solID', how='left')
+            pareto_fronts_df = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates)
+        else:
+            resultHypParam = resultHypParam.assign(mape_qt10=True, robynPareto=1, coef0=np.nan)
+
         pareto_fronts_df = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates)
         response_curves = self._compute_response_curves(pareto_fronts_df)
         plot_data = self._generate_plot_data(pareto_fronts_df, response_curves)
@@ -107,7 +149,7 @@ class ParetoOptimizer:
             plot_data_collect=plot_data,
             df_caov_pct_all=self.carryover_calculator.calculate_all(),
         )
-
+    
     def _aggregate_model_data(self, calibrated: bool) -> Dict[str, pd.DataFrame]:
         """
         Aggregate and prepare data from model outputs for Pareto optimization.
@@ -124,7 +166,46 @@ class ParetoOptimizer:
                 - 'x_decomp_agg': Aggregated decomposition results
                 - 'result_calibration': Calibration results (if calibrated is True)
         """
-        pass
+        # Extract resultCollect from self.model_outputs
+        OutModels = [model.resultCollect for model in self.model_outputs if 'resultCollect' in dir(model)]
+
+        # Create lists of resultHypParam and xDecompAgg using list comprehension
+        resultHypParam_list = [trial.result_hyp_param for trial in self.model_outputs.trials]
+        xDecompAgg_list = [trial.x_decomp_agg for trial in self.model_outputs.trials]
+
+        # Concatenate the lists into DataFrames using pd.concat
+        resultHypParam = pd.DataFrame(resultHypParam_list, ignore_index=True)
+        xDecompAgg = pd.DataFrame(xDecompAgg_list, ignore_index=True)
+
+        if calibrated:
+            resultCalibration = pd.concat([pd.DataFrame(model.liftCalibration) for model in OutModels])
+            resultCalibration = resultCalibration.rename(columns={'liftMedia': 'rn'})
+        else:
+            resultCalibration = None
+        if not hyper_fixed:
+            df_names = [resultHypParam, xDecompAgg]
+            if calibrated:
+                df_names.append(resultCalibration)
+            for df in df_names:
+                df['iterations'] = (df['iterNG'] - 1) * self.model_outputs.cores + df['iterPar']
+        elif hyper_fixed and calibrated:
+            df_names = [resultCalibration]
+            for df in df_names:
+                df['iterations'] = (df['iterNG'] - 1) * self.model_outputs.cores + df['iterPar']
+        
+        # Check if recreated model and bootstrap results are available
+        if len(xDecompAgg['solID'].unique()) == 1 and 'boot_mean' not in xDecompAgg.columns:
+            # Get bootstrap results from model_outputs object
+            bootstrap = getattr(self.model_outputs, 'bootstrap', None)
+            if bootstrap is not None:
+                # Merge bootstrap results with xDecompAgg using left join
+                xDecompAgg = pd.merge(xDecompAgg, bootstrap, left_on='rn', right_on='variable')
+        
+        return {
+            'result_hyp_param': resultHypParam,
+            'x_decomp_agg': xDecompAgg,
+            'result_calibration': resultCalibration,
+        }
 
     def _compute_pareto_fronts(
         self, data: Dict[str, pd.DataFrame], pareto_fronts: str, min_candidates: int
