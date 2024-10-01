@@ -43,7 +43,11 @@ python/src/robynpy.egg-info*
 python/oldportedcode
 python/src/tutorials/mytestenv
 *.log
+<<<<<<< HEAD
 python/src/tutorials/test_modeling.py
 python/src/tutorials/data/*
 python/src/tutorials/test_modeling.py
 *.txt
+=======
+python/src/tutorials/data/R/*
+>>>>>>> 8c2e2cbf (add data mapper code)
