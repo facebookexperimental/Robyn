@@ -1,7 +1,7 @@
 # pyre-strict
 
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
 
 
@@ -21,12 +21,28 @@ class Trial:
     """
 
     result_hyp_param: pd.DataFrame
-    x_decomp_agg: pd.DataFrame
-    lift_calibration: pd.DataFrame
-    decomp_spend_dist: pd.DataFrame
+    lift_calibration: Optional[pd.DataFrame]
+    decomp_spend_dist: Optional[pd.DataFrame]
     nrmse: float
     decomp_rssd: float
     mape: float
+    x_decomp_agg: pd.DataFrame
+    rsq_train: float
+    rsq_val: float
+    rsq_test: float
+    lambda_: float
+    lambda_hp: float
+    lambda_max: float
+    lambda_min_ratio: float
+    pos: int
+    elapsed: float
+    elapsed_accum: float
+    sol_id: str
+    trial: int
+    iter_ng: int
+    iter_par: int
+    train_size: float
+    solID: str
 
 
 @dataclass
@@ -69,3 +85,5 @@ class ModelOutputs:
     ts_validation_plot: Any  # This could be a matplotlib figure or other plot object
     select_id: str
     seed: int
+    hyper_bound_ng: Dict[str, Any]  # For hyperBoundNG
+    hyper_bound_fixed: Dict[str, Any]  # For hyperBoundFixed
