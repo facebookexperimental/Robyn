@@ -42,7 +42,7 @@ class Trial:
     iter_ng: int
     iter_par: int
     train_size: float
-    solID: str
+    sol_id: str
 
 
 @dataclass
