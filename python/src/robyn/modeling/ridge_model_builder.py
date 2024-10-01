@@ -145,7 +145,43 @@ class RidgeModelBuilder:
         total_time = (end_time - start_time) / 60
         print(f"Total run time: {total_time:.2f} mins")
 
-        return ModelOutputs(output_models)
+        # Create ModelOutputs with all required arguments
+        model_outputs = ModelOutputs(
+            output_models,
+            train_timestamp=datetime.now(),
+            cores=cores,
+            iterations=trials_config.iterations,
+            intercept=intercept,
+            intercept_sign=intercept_sign,
+            nevergrad_algo=nevergrad_algo,
+            ts_validation=ts_validation,
+            add_penalty_factor=add_penalty_factor,
+            hyper_updated=hyper_collect["hyper_list_all"],
+            hyper_fixed=hyper_collect["all_fixed"],
+            convergence=self._calculate_convergence(output_models),  # Implement this method
+            ts_validation_plot=(
+                self._create_ts_validation_plot(output_models) if ts_validation else None
+            ),  # Implement this method
+            select_id=self._select_best_model(output_models),  # Implement this method
+            seed=seed,
+        )
+
+        return model_outputs
+
+    def _calculate_convergence(self, output_models: List[Trial]) -> Dict[str, Any]:
+        # Implement convergence calculation logic here
+        # This is a placeholder implementation
+        return {"converged": True, "message": "Convergence calculation not implemented"}
+
+    def _create_ts_validation_plot(self, output_models: List[Trial]) -> Any:
+        # Implement time series validation plot creation logic here
+        # This is a placeholder implementation
+        return None
+
+    def _select_best_model(self, output_models: List[Trial]) -> str:
+        # Implement logic to select the best model
+        # This is a placeholder implementation
+        return output_models[0].result_hyp_param.index[0]
 
     def _model_train(
         self,
@@ -164,7 +200,6 @@ class RidgeModelBuilder:
     ) -> List[Trial]:
         trials = []
         for trial in range(1, trials_config.trials + 1):
-            print(f"Running trial {trial} of {trials_config.trials}")
             trial_result = self._run_nevergrad_optimization(
                 hyper_collect,
                 trials_config.iterations,
