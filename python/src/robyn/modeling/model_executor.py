@@ -1,3 +1,4 @@
+# model_executor.py
 # pyre-strict
 
 from abc import ABC, abstractmethod
@@ -37,6 +38,7 @@ class ModelExecutor(BaseModelExecutor):
         intercept_sign: str = "non_negative",
         outputs: bool = False,
         model_name: Models = Models.RIDGE,
+        lambda_control: Optional[float] = None,
     ) -> ModelOutputs:
         """
         Execute the Robyn model run with specified parameters.

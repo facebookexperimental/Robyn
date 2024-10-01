@@ -1,3 +1,5 @@
+# ridge_model_builder.py
+# pyre-strict
 import warnings
 import numpy as np
 import pandas as pd
@@ -23,6 +25,10 @@ from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.entities.enums import NevergradAlgorithm
+import io
+import matplotlib.pyplot as plt
+import seaborn as sns
+import base64
 
 # Add these warning filters at the top of your file
 warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
@@ -45,6 +51,10 @@ class ModelRefitOutput:
     y_pred: np.ndarray
     mod: Ridge
     df_int: int
+    lambda_: float
+    lambda_hp: float
+    lambda_max: float
+    lambda_min_ratio: float
 
 
 class RidgeModelBuilder:
@@ -159,29 +169,178 @@ class RidgeModelBuilder:
             hyper_updated=hyper_collect["hyper_list_all"],
             hyper_fixed=hyper_collect["all_fixed"],
             convergence=self._calculate_convergence(output_models),  # Implement this method
-            ts_validation_plot=(
-                self._create_ts_validation_plot(output_models) if ts_validation else None
-            ),  # Implement this method
-            select_id=self._select_best_model(output_models),  # Implement this method
+            ts_validation_plot=(self._create_ts_validation_plot(output_models) if ts_validation else None),
+            select_id=self._select_best_model(output_models),
             seed=seed,
+            hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],  # Add this line
+            hyper_bound_fixed=hyper_collect["hyper_bound_list_fixed"],  # Add this line
         )
+
+        # Print convergence information
+        convergence_info = model_outputs.convergence
+        print(f"Finished in {total_time:.2f} mins")
+        for msg in convergence_info["conv_msg"]:
+            print(f"- {msg}")
 
         return model_outputs
 
     def _calculate_convergence(self, output_models: List[Trial]) -> Dict[str, Any]:
-        # Implement convergence calculation logic here
-        # This is a placeholder implementation
-        return {"converged": True, "message": "Convergence calculation not implemented"}
+        # Extract nrmse and decomp.rssd from all trials
+        nrmse_values = np.array([trial.nrmse for trial in output_models])
+        decomp_rssd_values = np.array([trial.decomp_rssd for trial in output_models])
 
-    def _create_ts_validation_plot(self, output_models: List[Trial]) -> Any:
-        # Implement time series validation plot creation logic here
-        # This is a placeholder implementation
-        return None
+        # Calculate quantiles
+        quantiles = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50]
+        cuts = [int(len(nrmse_values) * q) for q in quantiles]
+
+        # Calculate errors for each quantile
+        errors = {
+            "nrmse": [np.mean(nrmse_values[:cut]) for cut in cuts],
+            "decomp.rssd": [np.mean(decomp_rssd_values[:cut]) for cut in cuts],
+            "cuts": cuts,
+        }
+
+        # Calculate standard deviations and medians at 20% quantile
+        nrmse_sd_20 = np.std(nrmse_values[: cuts[2]])
+        rssd_sd_20 = np.std(decomp_rssd_values[: cuts[2]])
+        nrmse_med_20 = np.median(nrmse_values[: cuts[2]])
+        rssd_med_20 = np.median(decomp_rssd_values[: cuts[2]])
+
+        # Check convergence conditions
+        nrmse_converged = (nrmse_sd_20 <= 0.055) and (abs(nrmse_med_20) <= 0.15)
+        rssd_converged = (rssd_sd_20 <= 0.067) and (abs(rssd_med_20) <= 0.59)
+
+        # Prepare convergence messages
+        conv_msg = []
+        if nrmse_converged and rssd_converged:
+            conv_msg.append("NRMSE & DECOMP.RSSD converged")
+        elif nrmse_converged:
+            conv_msg.append(
+                f"Only NRMSE converged: sd@qt.20 {nrmse_sd_20:.3f} <= 0.055 & |med@qt.20| {abs(nrmse_med_20):.2f} <= 0.15"
+            )
+            conv_msg.append(
+                f"DECOMP.RSSD NOT converged: sd@qt.20 {rssd_sd_20:.3f} > 0.067 & |med@qt.20| {abs(rssd_med_20):.2f} <= 0.59"
+            )
+        elif rssd_converged:
+            conv_msg.append(
+                f"Only DECOMP.RSSD converged: sd@qt.20 {rssd_sd_20:.3f} <= 0.067 & |med@qt.20| {abs(rssd_med_20):.2f} <= 0.59"
+            )
+            conv_msg.append(
+                f"NRMSE NOT converged: sd@qt.20 {nrmse_sd_20:.3f} > 0.055 & |med@qt.20| {abs(nrmse_med_20):.2f} <= 0.15"
+            )
+        else:
+            conv_msg.append(f"Model has not converged:")
+            conv_msg.append(
+                f"NRMSE NOT converged: sd@qt.20 {nrmse_sd_20:.3f} > 0.055 & |med@qt.20| {abs(nrmse_med_20):.2f} <= 0.15"
+            )
+            conv_msg.append(
+                f"DECOMP.RSSD NOT converged: sd@qt.20 {rssd_sd_20:.3f} > 0.067 & |med@qt.20| {abs(rssd_med_20):.2f} <= 0.59"
+            )
+
+        # Create plots
+        moo_distrb_plot = self._create_moo_distrb_plot(nrmse_values, decomp_rssd_values)
+        moo_cloud_plot = self._create_moo_cloud_plot(nrmse_values, decomp_rssd_values)
+
+        return {
+            "errors": errors,
+            "conv_msg": conv_msg,
+            "moo_distrb_plot": moo_distrb_plot,
+            "moo_cloud_plot": moo_cloud_plot,
+            "nrmse_converged": nrmse_converged,
+            "rssd_converged": rssd_converged,
+            "nrmse_sd_20": nrmse_sd_20,
+            "rssd_sd_20": rssd_sd_20,
+            "nrmse_med_20": nrmse_med_20,
+            "rssd_med_20": rssd_med_20,
+        }
+
+    def _create_moo_distrb_plot(self, nrmse_values: List[float], decomp_rssd_values: List[float]) -> str:
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+
+        sns.histplot(nrmse_values, kde=True, ax=ax1)
+        ax1.set_title("Distribution of NRMSE")
+        ax1.set_xlabel("NRMSE")
+
+        sns.histplot(decomp_rssd_values, kde=True, ax=ax2)
+        ax2.set_title("Distribution of DECOMP.RSSD")
+        ax2.set_xlabel("DECOMP.RSSD")
+
+        plt.tight_layout()
+
+        # Convert plot to base64 string
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+        image_png = buffer.getvalue()
+        buffer.close()
+        graphic = base64.b64encode(image_png)
+
+        return graphic.decode("utf-8")
+
+    def _create_moo_cloud_plot(self, nrmse_values: List[float], decomp_rssd_values: List[float]) -> str:
+        plt.figure(figsize=(10, 6))
+        plt.scatter(nrmse_values, decomp_rssd_values, alpha=0.5)
+        plt.xlabel("NRMSE")
+        plt.ylabel("DECOMP.RSSD")
+        plt.title("MOO Cloud Plot")
+
+        # Convert plot to base64 string
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+        image_png = buffer.getvalue()
+        buffer.close()
+        graphic = base64.b64encode(image_png)
+
+        return graphic.decode("utf-8")
+
+    def _create_ts_validation_plot(self, output_models: List[Trial]) -> str:
+        # Extract relevant data
+        train_size = [trial.train_size for trial in output_models]
+        nrmse_train = [trial.nrmse for trial in output_models]
+        nrmse_val = [trial.rsq_val for trial in output_models]
+        nrmse_test = [trial.rsq_test for trial in output_models]
+
+        # Create the plot
+        plt.figure(figsize=(10, 6))
+        plt.scatter(train_size, nrmse_train, alpha=0.5, label="Train")
+        plt.scatter(train_size, nrmse_val, alpha=0.5, label="Validation")
+        plt.scatter(train_size, nrmse_test, alpha=0.5, label="Test")
+
+        plt.xlabel("Train Size")
+        plt.ylabel("NRMSE")
+        plt.title("Time Series Validation Plot")
+        plt.legend()
+
+        # Convert plot to base64 string
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+        image_png = buffer.getvalue()
+        buffer.close()
+        graphic = base64.b64encode(image_png)
+
+        return graphic.decode("utf-8")
 
     def _select_best_model(self, output_models: List[Trial]) -> str:
-        # Implement logic to select the best model
-        # This is a placeholder implementation
-        return output_models[0].result_hyp_param.index[0]
+        # Extract relevant metrics
+        nrmse_values = np.array([trial.nrmse for trial in output_models])
+        decomp_rssd_values = np.array([trial.decomp_rssd for trial in output_models])
+
+        # Normalize the metrics
+        nrmse_norm = (nrmse_values - np.min(nrmse_values)) / (np.max(nrmse_values) - np.min(nrmse_values))
+        decomp_rssd_norm = (decomp_rssd_values - np.min(decomp_rssd_values)) / (
+            np.max(decomp_rssd_values) - np.min(decomp_rssd_values)
+        )
+
+        # Calculate the combined score (assuming equal weights)
+        combined_score = nrmse_norm + decomp_rssd_norm
+
+        # Find the index of the best model (lowest combined score)
+        best_index = np.argmin(combined_score)
+
+        # Return the solID of the best model
+        return output_models[best_index].result_hyp_param["solID"].values[0]
 
     def _model_train(
         self,
@@ -199,7 +358,7 @@ class RidgeModelBuilder:
         cores: int,
     ) -> List[Trial]:
         trials = []
-        for trial in range(1, trials_config.trials + 1):
+        for trial in range(1, 2):
             trial_result = self._run_nevergrad_optimization(
                 hyper_collect,
                 trials_config.iterations,
@@ -260,6 +419,19 @@ class RidgeModelBuilder:
         best_lift_calibration = None
         best_decomp_spend_dist = None
         best_x_decomp_agg = None
+        best_rsq_train = None
+        best_rsq_val = None
+        best_rsq_test = None
+        best_lambda = None
+        best_lambda_hp = None
+        best_lambda_max = None
+        best_lambda_min_ratio = None
+        best_pos = None
+        best_elapsed = None
+        best_elapsed_accum = None
+        best_sol_id = None
+        best_iter_ng = None
+        best_iter_par = None
 
         start_time = time.time()
         with tqdm(
@@ -268,26 +440,55 @@ class RidgeModelBuilder:
             bar_format="{l_bar}{bar}",
             ncols=75,
         ) as pbar:
-            for _ in range(iterations):
+            for iter_ng in range(iterations):
                 candidate = optimizer.ask()
                 params = candidate.kwargs
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    loss, nrmse, decomp_rssd, mape, lift_calibration, decomp_spend_dist, x_decomp_agg = (
-                        self._evaluate_model(
-                            params, ts_validation, add_penalty_factor, rssd_zero_penalty, objective_weights
-                        )
+                    (
+                        loss,
+                        nrmse,
+                        decomp_rssd,
+                        mape,
+                        lift_calibration,
+                        decomp_spend_dist,
+                        x_decomp_agg,
+                        rsq_train,
+                        rsq_val,
+                        rsq_test,
+                        lambda_,
+                        lambda_hp,
+                        lambda_max,
+                        lambda_min_ratio,
+                        pos,
+                    ) = self._evaluate_model(
+                        params, ts_validation, add_penalty_factor, rssd_zero_penalty, objective_weights
                     )
                 optimizer.tell(candidate, loss)
+                elapsed = time.time() - start_time
                 if loss < best_loss:
                     best_loss = loss
                     best_params = params
+                    best_params["solID"] = f"{trial}_{iter_ng + 1}_1"  # Add solID
                     best_nrmse = nrmse
                     best_decomp_rssd = decomp_rssd
                     best_mape = mape
                     best_lift_calibration = lift_calibration
                     best_decomp_spend_dist = decomp_spend_dist
                     best_x_decomp_agg = x_decomp_agg
+                    best_rsq_train = rsq_train
+                    best_rsq_val = rsq_val
+                    best_rsq_test = rsq_test
+                    best_lambda = lambda_
+                    best_lambda_hp = lambda_hp
+                    best_lambda_max = lambda_max
+                    best_lambda_min_ratio = lambda_min_ratio
+                    best_pos = pos
+                    best_elapsed = elapsed
+                    best_elapsed_accum = elapsed
+                    best_sol_id = f"{trial}_{iter_ng + 1}_1"
+                    best_iter_ng = iter_ng + 1
+                    best_iter_par = 1
                 pbar.update(1)
 
         end_time = time.time()
@@ -301,6 +502,22 @@ class RidgeModelBuilder:
             decomp_rssd=best_decomp_rssd,
             mape=best_mape,
             x_decomp_agg=best_x_decomp_agg,
+            rsq_train=best_rsq_train,
+            rsq_val=best_rsq_val,
+            rsq_test=best_rsq_test,
+            lambda_=best_lambda,
+            lambda_hp=best_lambda_hp,
+            lambda_max=best_lambda_max,
+            lambda_min_ratio=best_lambda_min_ratio,
+            pos=best_pos,
+            elapsed=best_elapsed,
+            elapsed_accum=best_elapsed_accum,
+            sol_id=best_sol_id,
+            trial=trial,
+            iter_ng=best_iter_ng,
+            iter_par=best_iter_par,
+            train_size=best_params.get("train_size", 1.0),
+            sol_id=best_params["solID"],
         )
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
@@ -358,10 +575,64 @@ class RidgeModelBuilder:
             rssd *= 1 + zero_coef_ratio
         return rssd
 
+    def _select_best_model(self, output_models: List[Trial]) -> str:
+        # Extract relevant metrics
+        nrmse_values = np.array([trial.nrmse for trial in output_models])
+        decomp_rssd_values = np.array([trial.decomp_rssd for trial in output_models])
+
+        # Normalize the metrics
+        nrmse_norm = (nrmse_values - np.min(nrmse_values)) / (np.max(nrmse_values) - np.min(nrmse_values))
+        decomp_rssd_norm = (decomp_rssd_values - np.min(decomp_rssd_values)) / (
+            np.max(decomp_rssd_values) - np.min(decomp_rssd_values)
+        )
+
+        # Calculate the combined score (assuming equal weights)
+        combined_score = nrmse_norm + decomp_rssd_norm
+
+        # Find the index of the best model (lowest combined score)
+        best_index = np.argmin(combined_score)
+
+        # Return the solID of the best model
+        return output_models[best_index].sol_id
+
     def _calculate_mape(self, model: Ridge) -> float:
-        # Implementation depends on your calibration data structure
-        # This is a placeholder implementation
-        return 0.0
+        if self.calibration_input is None:
+            return 0.0
+
+        mape_values = []
+
+        for _, calibration_data in self.calibration_input.items():
+            # Extract relevant data
+            df_raw = self.mmm_data.data
+            wind_start = self.featurized_mmm_data.rollingWindowStartWhich
+            wind_end = self.featurized_mmm_data.rollingWindowEndWhich
+            dayInterval = self.mmm_data.mmmdata_spec.intervalType
+
+            # Calculate lift using the calibration data
+            lift_actual = calibration_data["liftStartDate"]
+            lift_start = calibration_data["liftStartDate"]
+            lift_end = calibration_data["liftEndDate"]
+            lift_media = calibration_data["liftMedia"]
+
+            # Filter data for the lift period
+            df_lift = df_raw[
+                (df_raw[self.mmm_data.mmmdata_spec.date_var] >= lift_start)
+                & (df_raw[self.mmm_data.mmmdata_spec.date_var] <= lift_end)
+            ]
+
+            # Calculate predicted values
+            X_lift = self._prepare_features(df_lift)
+            y_pred = model.predict(X_lift)
+
+            # Calculate predicted lift
+            lift_pred = np.mean(y_pred) / np.mean(df_raw[self.mmm_data.mmmdata_spec.dep_var][wind_start:wind_end])
+
+            # Calculate MAPE
+            mape = np.abs((lift_actual - lift_pred) / lift_actual) * 100
+            mape_values.append(mape)
+
+        # Return mean MAPE across all calibration points
+        return np.mean(mape_values)
 
     def _evaluate_model(
         self,
@@ -370,7 +641,23 @@ class RidgeModelBuilder:
         add_penalty_factor: bool,
         rssd_zero_penalty: bool,
         objective_weights: Optional[List[float]],
-    ) -> Tuple[float, float, float, float, Optional[pd.DataFrame], Optional[pd.DataFrame], pd.DataFrame]:
+    ) -> Tuple[
+        float,
+        float,
+        float,
+        float,
+        Optional[pd.DataFrame],
+        Optional[pd.DataFrame],
+        pd.DataFrame,
+        float,
+        float,
+        float,
+        float,
+        float,
+        float,
+        float,
+        int,
+    ]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
         X, y = self._prepare_data(params)
@@ -378,8 +665,10 @@ class RidgeModelBuilder:
         if ts_validation:
             train_size = params.get("train_size", 0.8)
             X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_size, shuffle=False)
+            X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, test_size=0.5, shuffle=False)
         else:
             X_train, y_train = X, y
+            X_val, y_val = None, None
             X_test, y_test = None, None
 
         lambda_ = params.get("lambda", 1.0)
@@ -387,7 +676,22 @@ class RidgeModelBuilder:
         model.fit(X_train, y_train)
 
         y_train_pred = model.predict(X_train)
-        nrmse = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (y_train.max() - y_train.min())
+        nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (y_train.max() - y_train.min())
+        rsq_train = r2_score(y_train, y_train_pred)
+
+        if ts_validation:
+            y_val_pred = model.predict(X_val)
+            y_test_pred = model.predict(X_test)
+            nrmse_val = np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (y_val.max() - y_val.min())
+            nrmse_test = np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (y_test.max() - y_test.min())
+            rsq_val = r2_score(y_val, y_val_pred)
+            rsq_test = r2_score(y_test, y_test_pred)
+            nrmse = nrmse_val  # Use validation NRMSE for optimization
+        else:
+            y_val_pred = y_test_pred = None
+            nrmse_val = nrmse_test = None
+            rsq_val = rsq_test = 0.0
+            nrmse = nrmse_train  # Use training NRMSE when not doing validation
 
         decomp_rssd = self._calculate_rssd(model.coef_, rssd_zero_penalty)
 
@@ -395,6 +699,12 @@ class RidgeModelBuilder:
 
         lift_calibration = None  # Implement this if needed
         decomp_spend_dist = None  # Implement this if needed
+
+        lambda_hp = params.get("lambda", 0.0)
+        lambda_max = self._lambda_seq(X_train, y_train)[0]
+        lambda_min_ratio = 0.0001
+
+        pos = np.all(model.coef_ >= 0)
 
         # Calculate x_decomp_agg
         x_decomp = X_train * model.coef_
@@ -417,7 +727,23 @@ class RidgeModelBuilder:
             + (objective_weights[2] * mape if self.calibration_input else 0)
         )
 
-        return loss, nrmse, decomp_rssd, mape, lift_calibration, decomp_spend_dist, x_decomp_agg
+        return (
+            loss,
+            nrmse,
+            decomp_rssd,
+            mape,
+            lift_calibration,
+            decomp_spend_dist,
+            x_decomp_agg,
+            rsq_train,
+            rsq_val,
+            rsq_test,
+            lambda_,
+            lambda_hp,
+            lambda_max,
+            lambda_min_ratio,
+            int(pos),
+        )
 
     @staticmethod
     def _hyper_collector(
