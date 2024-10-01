@@ -148,8 +148,6 @@ class BaseModelExecutor(ABC):
                 channel_params = prepared_hyperparameters.get_hyperparameter(channel)
                 channel_params.penalty = [0, 1]  # Example of setting penalty
 
-        print("Hyperparameters prepared, ", prepared_hyperparameters)
-
         # Handle train_size if using time series validation
         if ts_validation and not prepared_hyperparameters.train_size:
             prepared_hyperparameters.train_size = [0.5, 0.8]
