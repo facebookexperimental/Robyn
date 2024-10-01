@@ -43,3 +43,4 @@ python/src/robynpy.egg-info*
 python/oldportedcode
 python/src/tutorials/mytestenv
 *.log
+/Users/yijuilee/project_robyn/robynpy_interfaces/Robyn/python/src/tutorials/test_modeling.py
