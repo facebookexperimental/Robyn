@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import seaborn as sns
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.modeling.feature_engineering import FeaturizedMMMData  # New import
@@ -58,9 +58,53 @@ class FeaturePlotter:
         Returns:
             plt.Figure: A matplotlib Figure object containing the spend-exposure plot.
         """
-        dt_mod = featurized_data.dt_mod
-        # Rest of the method implementation
-        pass
+        if channel not in featurized_data.modNLS:
+            raise ValueError(f"No spend-exposure data available for channel: {channel}")
+
+        model_data = featurized_data.modNLS[channel]
+        plot_data = model_data["plot"]
+        res = model_data["res"]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Plot scatter of actual data
+        sns.scatterplot(x="spend", y="exposure", data=plot_data, ax=ax, alpha=0.6, label="Actual")
+
+        # Plot fitted line
+        sns.lineplot(x="spend", y="yhat", data=plot_data, ax=ax, color="red", label="Fitted")
+
+        ax.set_xlabel(f"Spend [{channel}]")
+        ax.set_ylabel(f"Exposure [{channel}]")
+        ax.set_title(f"Spend vs Exposure for {channel}")
+
+        # Add model information to the plot
+        model_type = res["model_type"]
+        rsq = res["rsq"]
+        if model_type == "nls":
+            Vmax, Km = res["coef"]["Vmax"], res["coef"]["Km"]
+            ax.text(
+                0.05,
+                0.95,
+                f"Model: Michaelis-Menten\nR² = {rsq:.4f}\nVmax = {Vmax:.2f}\nKm = {Km:.2f}",
+                transform=ax.transAxes,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
+            )
+        else:
+            coef = res["coef"]["coef"]
+            ax.text(
+                0.05,
+                0.95,
+                f"Model: Linear\nR² = {rsq:.4f}\nCoefficient = {coef:.4f}",
+                transform=ax.transAxes,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
+            )
+
+        plt.legend()
+        plt.tight_layout()
+
+        return fig
 
     def plot_feature_importance(self, feature_importance: Dict[str, float]) -> plt.Figure:
         """

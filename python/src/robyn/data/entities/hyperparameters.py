@@ -1,9 +1,10 @@
-#pyre-strict
+# pyre-strict
 
 from dataclasses import dataclass
 from typing import Dict, List
 
 from robyn.data.entities.enums import AdstockType
+
 
 @dataclass
 class ChannelHyperparameters:
@@ -18,12 +19,15 @@ class ChannelHyperparameters:
         gammas (List[float]): List of gamma values.
         penalty (List[float]): List of penalty values.
     """
-    thetas: List[float] = None # if adstock is geometric 
-    shapes: List[float] = None # if adstock is weibull
-    scales: List[float] = None # if adstock is weibull
-    alphas: List[float] = None #Mandatory
-    gammas: List[float] = None #Mandatory
-    penalty: List[bool] = None #optional. User only provides if they want to use it. They don't provide values. Model run calculates it. 
+
+    thetas: List[float] = None  # if adstock is geometric
+    shapes: List[float] = None  # if adstock is weibull
+    scales: List[float] = None  # if adstock is weibull
+    alphas: List[float] = None  # Mandatory
+    gammas: List[float] = None  # Mandatory
+    penalty: List[bool] = (
+        None  # optional. User only provides if they want to use it. They don't provide values. Model run calculates it.
+    )
 
     def __str__(self) -> str:
         return (
@@ -37,6 +41,7 @@ class ChannelHyperparameters:
             f")"
         )
 
+
 @dataclass
 class Hyperparameters:
     """
@@ -45,10 +50,11 @@ class Hyperparameters:
     Attributes:
         hyperparameters (Dict[str, Hyperparameter]): A dictionary of hyperparameters where the key is the channel name and the value is a Hyperparameter object.
     """
-    hyperparameters: Dict[str, ChannelHyperparameters] = None,
-    adstock: AdstockType = None, #Mandatory. User provides this. 
-    lambda_: float = 0.0 # User does not provide this. Model run calculates it. 
-    train_size: List[float] = (0.5, 0.8), # User can provide this.
+
+    hyperparameters: Dict[str, ChannelHyperparameters] = (None,)
+    adstock: AdstockType = (None,)  # Mandatory. User provides this.
+    lambda_: float = 0.0  # User does not provide this. Model run calculates it.
+    train_size: List[float] = ((0.5, 0.8),)  # User can provide this.
 
     def __str__(self) -> str:
         return (
@@ -94,9 +100,9 @@ class Hyperparameters:
         """
         # TODO: double check on these values
         return {
-                "thetas": [">=0", "<1"],
-                "alphas": [">0", "<10"],
-                "gammas": [">0", "<=1"],
-                "shapes": [">=0", "<20"],
-                "scales": [">=0", "<=1"],
-            }
+            "thetas": [">=0", "<1"],
+            "alphas": [">0", "<10"],
+            "gammas": [">0", "<=1"],
+            "shapes": [">=0", "<20"],
+            "scales": [">=0", "<=1"],
+        }
