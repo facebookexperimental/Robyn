@@ -358,7 +358,7 @@ class RidgeModelBuilder:
         cores: int,
     ) -> List[Trial]:
         trials = []
-        for trial in range(1, 2):
+        for trial in range(1, trials_config.trials + 1):
             trial_result = self._run_nevergrad_optimization(
                 hyper_collect,
                 trials_config.iterations,
@@ -512,7 +512,6 @@ class RidgeModelBuilder:
             pos=best_pos,
             elapsed=best_elapsed,
             elapsed_accum=best_elapsed_accum,
-            sol_id=best_sol_id,
             trial=trial,
             iter_ng=best_iter_ng,
             iter_par=best_iter_par,
