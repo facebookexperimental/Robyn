@@ -19,7 +19,13 @@ class Convergence:
 
     def calculate_convergence(self, trials: List[Any]) -> Dict[str, Any]:
         df = pd.concat([trial.result_hyp_param for trial in trials])
-        calibrated = sum(df["mape"]) > 0
+
+        # Check if 'mape' is present in the DataFrame
+        if "mape" in df.columns and df["mape"].sum() > 0:
+            calibrated = True
+        else:
+            calibrated = False
+            print("Warning: 'mape' column not found or all zeros. Assuming model is not calibrated.")
 
         dt_objfunc_cvg = self._prepare_data(df)
         errors = self._calculate_errors(dt_objfunc_cvg)
@@ -36,11 +42,12 @@ class Convergence:
         }
 
     def _prepare_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        value_vars = ["nrmse", "decomp.rssd"]
+        if "mape" in df.columns and df["mape"].sum() > 0:
+            value_vars.append("mape")
+
         dt_objfunc_cvg = df.melt(
-            id_vars=["ElapsedAccum", "trial"],
-            value_vars=["nrmse", "decomp.rssd", "mape"],
-            var_name="error_type",
-            value_name="value",
+            id_vars=["ElapsedAccum", "trial"], value_vars=value_vars, var_name="error_type", value_name="value"
         )
         dt_objfunc_cvg = dt_objfunc_cvg[dt_objfunc_cvg["value"] > 0]
         dt_objfunc_cvg = dt_objfunc_cvg[np.isfinite(dt_objfunc_cvg["value"])]
