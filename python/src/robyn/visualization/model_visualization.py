@@ -79,25 +79,6 @@ class ModelVisualizer:
         image.thumbnail(max_size, Image.Resampling.LANCZOS)
         display(image)
 
-    def plot_pareto_front(self) -> None:
-        """
-        Plot the Pareto front of the model results.
-
-        This method creates a scatter plot of the Pareto-optimal solutions
-        based on the model's objectives (e.g., NRMSE and DECOMP.RSSD).
-        """
-        # Assuming the relevant data is stored in model_outputs.trials
-        nrmse_values = [trial.nrmse for trial in self.model_outputs.trials]
-        decomp_rssd_values = [trial.decomp_rssd for trial in self.model_outputs.trials]
-
-        plt.figure(figsize=(10, 6))
-        plt.scatter(nrmse_values, decomp_rssd_values, alpha=0.6)
-        plt.xlabel("NRMSE")
-        plt.ylabel("DECOMP.RSSD")
-        plt.title("Pareto Front of Model Solutions")
-        plt.grid(True, linestyle="--", alpha=0.7)
-        plt.show()
-
     def plot_hyperparameter_distribution(self, hyperparameter: str) -> None:
         """
         Plot the distribution of a specific hyperparameter across all trials.
