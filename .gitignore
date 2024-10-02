@@ -45,3 +45,4 @@ python/src/tutorials/mytestenv
 *.log
 python/src/tutorials/test_modeling.py
 python/src/tutorials/data/*
+python/src/tutorials/test_modeling.py
