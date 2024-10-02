@@ -171,7 +171,6 @@ class RidgeModelBuilder:
             hyper_updated=hyper_collect["hyper_list_all"],
             hyper_fixed=hyper_collect["all_fixed"],
             convergence=convergence_results,
-            ts_validation_plot=(self._create_ts_validation_plot(output_models) if ts_validation else None),
             select_id=self._select_best_model(output_models),
             seed=seed,
             hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],  # Add this line
@@ -357,7 +356,15 @@ class RidgeModelBuilder:
 
         end_time = time.time()
         print(f" Finished in {(end_time - start_time) / 60:.2f} mins")
-
+        best_params.update(
+            {
+                "ElapsedAccum": best_elapsed_accum,
+                "trial": trial,
+                "nrmse": best_nrmse,
+                "decomp.rssd": best_decomp_rssd,
+                "mape": best_mape,
+            }
+        )
         return Trial(
             result_hyp_param=pd.DataFrame([best_params]),
             lift_calibration=best_lift_calibration,
@@ -580,7 +587,6 @@ class RidgeModelBuilder:
                 "median": x_decomp.median(),
             }
         )
-
         if objective_weights is None:
             objective_weights = [1 / 3, 1 / 3, 1 / 3] if self.calibration_input else [0.5, 0.5]
 
