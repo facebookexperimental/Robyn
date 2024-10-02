@@ -156,9 +156,10 @@ class RidgeModelBuilder:
         print(f"Total run time: {total_time:.2f} mins")
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(output_models)
+
         # Create ModelOutputs with all required arguments
         model_outputs = ModelOutputs(
-            output_models,
+            trials=output_models,
             train_timestamp=datetime.now(),
             cores=cores,
             iterations=trials_config.iterations,
@@ -169,7 +170,7 @@ class RidgeModelBuilder:
             add_penalty_factor=add_penalty_factor,
             hyper_updated=hyper_collect["hyper_list_all"],
             hyper_fixed=hyper_collect["all_fixed"],
-            convergence=self.convergence_results,
+            convergence=convergence_results,
             ts_validation_plot=(self._create_ts_validation_plot(output_models) if ts_validation else None),
             select_id=self._select_best_model(output_models),
             seed=seed,
