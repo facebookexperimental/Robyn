@@ -46,3 +46,4 @@ python/src/tutorials/mytestenv
 python/src/tutorials/test_modeling.py
 python/src/tutorials/data/*
 python/src/tutorials/test_modeling.py
+*.txt
