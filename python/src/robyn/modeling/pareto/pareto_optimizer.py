@@ -116,25 +116,19 @@ class ParetoOptimizer:
             # filter resultHypParam
             resultHypParamPareto = resultHypParam[resultHypParam['mape.qt10'] == True]
             # calculate Pareto front
-            paretoResults = pareto_front(xi=resultHypParamPareto['nrmse'],
-                                        yi=resultHypParamPareto['decomp.rssd'],
+            pareto_fronts_df = self._compute_pareto_fronts(resultHypParamPareto,
                                         pareto_fronts=pareto_fronts,
                                         sort=False)
-            # merge resultHypParamPareto with paretoResults
-            resultHypParamPareto = pd.merge(resultHypParamPareto, paretoResults, left_on=['nrmse', 'decomp.rssd'], right_on=['x', 'y'])
-            # rename column
+            # merge resultHypParamPareto with pareto_fronts_df
+            resultHypParamPareto = pd.merge(resultHypParamPareto, pareto_fronts_df, left_on=['nrmse', 'decomp.rssd'], right_on=['x', 'y'])
             resultHypParamPareto = resultHypParamPareto.rename(columns={'pareto_front': 'robynPareto'})
-            # sort and select columns
             resultHypParamPareto = resultHypParamPareto.sort_values(['iterNG', 'iterPar', 'nrmse']).loc[:, ['solID', 'robynPareto']]
-            # group by solID and get the first row of each group
             resultHypParamPareto = resultHypParamPareto.groupby('solID').first().reset_index()
-            # merge resultHypParam with resultHypParamPareto
             resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on='solID', how='left')
             pareto_fronts_df = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates)
         else:
             resultHypParam = resultHypParam.assign(mape_qt10=True, robynPareto=1, coef0=np.nan)
 
-        pareto_fronts_df = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates)
         response_curves = self._compute_response_curves(pareto_fronts_df)
         plot_data = self._generate_plot_data(pareto_fronts_df, response_curves)
 
@@ -166,6 +160,7 @@ class ParetoOptimizer:
                 - 'x_decomp_agg': Aggregated decomposition results
                 - 'result_calibration': Calibration results (if calibrated is True)
         """
+        hyper_fixed = self.model_outputs.hyper_fixed
         # Extract resultCollect from self.model_outputs
         OutModels = [model.resultCollect for model in self.model_outputs if 'resultCollect' in dir(model)]
 
@@ -207,24 +202,43 @@ class ParetoOptimizer:
             'result_calibration': resultCalibration,
         }
 
+    
     def _compute_pareto_fronts(
-        self, data: Dict[str, pd.DataFrame], pareto_fronts: str, min_candidates: int
+        self, resultHypParamPareto: pd.DataFrame, pareto_fronts: str
     ) -> pd.DataFrame:
         """
         Calculate Pareto fronts from the aggregated model data.
 
-        This method identifies Pareto-optimal solutions based on specified optimization criteria
-        (typically NRMSE and DECOMP.RSSD) and assigns them to Pareto fronts.
+        This method identifies Pareto-optimal solutions based on NRMSE and DECOMP.RSSD
+        optimization criteria and assigns them to Pareto fronts.
 
         Args:
-            data (Dict[str, pd.DataFrame]): Aggregated model data from _aggregate_model_data.
+            resultHypParamPareto (pd.DataFrame): DataFrame containing model results,
+                                                including 'nrmse' and 'decomp.rssd' columns.
             pareto_fronts (str): Number of Pareto fronts to compute or "auto".
-            min_candidates (int): Minimum number of candidates when using "auto" Pareto fronts.
 
         Returns:
             pd.DataFrame: A dataframe of Pareto-optimal solutions with their corresponding front numbers.
         """
-        pass
+        data = pd.DataFrame({'x': resultHypParamPareto['nrmse'], 'y': resultHypParamPareto['decomp.rssd']})
+        data = data.sort_values(by=['x', 'y'], ascending=[True, True])
+        pareto_fronts_df = pd.DataFrame(columns=['x', 'y', 'pareto_front'])
+        i = 1
+
+        while not data.empty and (pareto_fronts == "auto" or i <= int(pareto_fronts)):
+            # Identify Pareto front
+            is_pareto = data.apply(lambda row: all((row['y'] <= data['y']) & (row['x'] <= data['x'])), axis=1)
+            pareto_front = data[is_pareto]
+            pareto_front['pareto_front'] = i
+
+            # Append to result dataframe
+            pareto_fronts_df = pd.concat([pareto_fronts_df, pareto_front])
+
+            # Remove identified Pareto front from data
+            data = data[~is_pareto]
+            i += 1
+
+        return pareto_fronts_df.reset_index(drop=True)
 
     def _compute_response_curves(self, pareto_fronts_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         """
