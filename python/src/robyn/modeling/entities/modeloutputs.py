@@ -69,3 +69,5 @@ class ModelOutputs:
     convergence: Dict[str, Any]
     select_id: str
     seed: int
+    hyper_bound_ng: Dict[str, Any]  # For hyperBoundNG
+    hyper_bound_fixed: Dict[str, Any]  # For hyperBoundFixed

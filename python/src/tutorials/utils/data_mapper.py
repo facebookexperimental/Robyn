@@ -77,10 +77,11 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         modNLS=data["InputCollect"].get("modNLS", {}),
     )
     # Other initializations...
-    # Process OutputModels
     trials = []
     attributes = {}
     convergence_data = None
+    hyper_bound_ng = {}
+    hyper_bound_fixed = {}
 
     for trial_key, trial_data in data["OutputModels"].items():
         if trial_key == "attributes":
@@ -93,6 +94,10 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
             x_decomp_agg = pd.DataFrame(result_collect.get("xDecompAgg", []))
             lift_calibration = pd.DataFrame(result_collect.get("liftCalibration", []))
             decomp_spend_dist = pd.DataFrame(result_collect.get("decompSpendDist", []))
+        elif trial_key == "hyperBoundNG":
+            hyper_bound_ng = trial_data
+        elif trial_key == "hyperBoundFixed":
+            hyper_bound_fixed = trial_data
 
             for _, row in result_hyp_param.iterrows():
                 trial = Trial(
@@ -136,6 +141,8 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         convergence=convergence_data,
         select_id=attributes.get("select_id", ""),
         seed=attributes.get("seed", 0),
+        hyper_bound_ng=hyper_bound_ng,
+        hyper_bound_fixed=hyper_bound_fixed,
     )
 
     return {
