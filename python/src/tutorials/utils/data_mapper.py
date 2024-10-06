@@ -143,6 +143,7 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         seed=attributes.get("seed", 0),
         hyper_bound_ng=hyper_bound_ng,
         hyper_bound_fixed=hyper_bound_fixed,
+        ts_validation_plot=data["OutputModels"].get("ts_validation_plot"),  # Add this line
     )
 
     return {
