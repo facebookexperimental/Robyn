@@ -7,29 +7,27 @@ class InputVisualizer(BaseVisualizer):
         super().__init__()
         self.input_data = input_data
 
-    def plot_adstock(self, plot: bool = False) -> plt.Figure:
+    def plot_adstock(self) -> plt.Figure:
         """
         Create example plots for adstock hyperparameters.
 
-        Args:
-            plot (bool): Whether to display the plot.
-
         Returns:
             plt.Figure: The generated figure.
         """
-        pass
+        fig, ax = plt.subplots()
+        # Add plotting logic here
+        return fig
 
-    def plot_saturation(self, plot: bool = False) -> plt.Figure:
+    def plot_saturation(self) -> plt.Figure:
         """
         Create example plots for saturation hyperparameters.
 
-        Args:
-            plot (bool): Whether to display the plot.
-
         Returns:
             plt.Figure: The generated figure.
         """
-        pass
+        fig, ax = plt.subplots()
+        # Add plotting logic here
+        return fig
 
     def plot_spend_exposure_fit(self) -> Dict[str, plt.Figure]:
         """
@@ -38,4 +36,6 @@ class InputVisualizer(BaseVisualizer):
         Returns:
             Dict[str, plt.Figure]: A dictionary of generated figures.
         """
-        pass
+        figures = {}
+        # Add plotting logic here
+        return figures
