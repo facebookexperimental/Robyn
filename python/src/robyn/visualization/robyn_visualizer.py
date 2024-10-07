@@ -24,11 +24,11 @@ class RobynVisualizer:
     def set_response_data(self, response_data: Dict[str, Any]):
         self.response_visualizer = ResponseVisualizer(response_data)
 
-    def plot_adstock(self, plot: bool = False) -> plt.Figure:
-        return self.input_visualizer.plot_adstock(plot)
+    def plot_adstock(self) -> plt.Figure:
+        return self.input_visualizer.plot_adstock()
 
-    def plot_saturation(self, plot: bool = False) -> plt.Figure:
-        return self.input_visualizer.plot_saturation(plot)
+    def plot_saturation(self) -> plt.Figure:
+        return self.input_visualizer.plot_saturation()
 
     def plot_moo_distribution(self) -> plt.Figure:
         return self.model_visualizer.plot_moo_distribution()
