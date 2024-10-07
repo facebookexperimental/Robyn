@@ -39,25 +39,6 @@ class ParetoUtils:
         self.max_fronts = max_fronts
         self.normalization_range = normalization_range
         self.cached_pareto_front: Optional[pd.DataFrame] = None
-
-    def calculate_pareto_front(self, x: np.ndarray, y: np.ndarray) -> pd.DataFrame:
-        """
-        Calculate Pareto fronts for given x and y coordinates.
-
-        This method identifies the Pareto-optimal points and assigns them to fronts.
-        It caches the result for potential reuse.
-
-        Args:
-            x (np.ndarray): x-coordinates, typically representing one optimization metric.
-            y (np.ndarray): y-coordinates, typically representing another optimization metric.
-
-        Returns:
-            pd.DataFrame: Dataframe with columns 'x', 'y', and 'pareto_front'.
-        """
-        # Implementation here
-        self.cached_pareto_front = pd.DataFrame()  # Placeholder for the actual result
-        return self.cached_pareto_front
-
     
     @staticmethod
     def calculate_errors_scores(df: pd.DataFrame, balance: List[float] = [1, 1, 1], ts_validation: bool = True) -> np.ndarray:
@@ -86,7 +67,7 @@ class ParetoUtils:
 
         # Replace infinite values with the maximum finite value
         for col in errors.columns:
-            max_val = errors[np.isfinite(errors[col])][col].max()  # Updated line
+            max_val = errors[np.isfinite(errors[col])][col].max()
             errors[col] = errors[col].apply(lambda x: max_val if np.isinf(x) else x)
 
         # Normalize error values
@@ -121,6 +102,18 @@ class ParetoUtils:
         else:
             return x
 
+    def calculate_fx_objective(self, x: float, coeff: float, alpha: float, inflexion: float, x_hist_carryover: float, get_sum: bool = True) -> float:
+        # Adstock scales
+        x_adstocked = x + np.mean(x_hist_carryover)
+        
+        # Hill transformation
+        if get_sum:
+            x_out = coeff * np.sum((1 + inflexion**alpha / x_adstocked**alpha)**-1)
+        else:
+            x_out = coeff * ((1 + inflexion**alpha / x_adstocked**alpha)**-1)
+        
+        return x_out
+    
     def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
         """
         Calculate Normalized Root Mean Square Error (NRMSE).

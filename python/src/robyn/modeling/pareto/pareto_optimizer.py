@@ -3,6 +3,7 @@
 from typing import List, Dict, Optional
 import pandas as pd
 import numpy as np
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 
 from robyn.data.entities.mmmdata import MMMData
@@ -39,6 +40,13 @@ class ParetoResult:
     plot_data_collect: Dict[str, pd.DataFrame]
     df_caov_pct_all: pd.DataFrame
 
+
+@dataclass
+class ParetoData:
+    decomp_spend_dist: pd.DataFrame
+    result_hyp_param: pd.DataFrame
+    x_decomp_agg: pd.DataFrame
+    pareto_fronts: List[int]
 
 class ParetoOptimizer:
     """
@@ -91,46 +99,13 @@ class ParetoOptimizer:
         Returns:
             ParetoResult: The results of the Pareto optimization process.
         """
-        hyper_fixed = self.model_outputs.hyper_fixed
-        aggregated_data = self._aggregate_model_data(calibrated, hyper_fixed)
-        
-        resultHypParam = aggregated_data['result_hyp_param']
-        xDecompAgg = aggregated_data['x_decomp_agg']
-        resultCalibration = aggregated_data['result_calibration']
+        aggregated_data = self._aggregate_model_data(calibrated, self.model_outputs.hyper_fixed)
+        result_hyp_param = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates, calibration_constraint)
+        aggregated_data['result_hyp_param'] = result_hyp_param
 
-        if not hyper_fixed:
-            # Filter and group data to calculate coef0
-            xDecompAggCoef0 = (xDecompAgg[xDecompAgg['rn'].isin(self.mmm_data.mmmdata_spec.paid_media_spends)]
-                            .groupby('solID')['coef']
-                            .apply(lambda x: min(x.dropna()) == 0))
-            # calculate quantiles
-            mape_lift_quantile10 = resultHypParam['mape'].quantile(calibration_constraint)
-            nrmse_quantile90 = resultHypParam['nrmse'].quantile(0.9)
-            decomprssd_quantile90 = resultHypParam['decomp.rssd'].quantile(0.9)
-            # merge resultHypParam with xDecompAggCoef0
-            resultHypParam = pd.merge(resultHypParam, xDecompAggCoef0, on='solID', how='left')
-            # create a new column 'mape.qt10'
-            resultHypParam['mape.qt10'] = (resultHypParam['mape'] <= mape_lift_quantile10) & \
-                                        (resultHypParam['nrmse'] <= nrmse_quantile90) & \
-                                        (resultHypParam['decomp.rssd'] <= decomprssd_quantile90)
-            # filter resultHypParam
-            resultHypParamPareto = resultHypParam[resultHypParam['mape.qt10'] == True]
-            # calculate Pareto front
-            pareto_fronts_df = self._compute_pareto_fronts(resultHypParamPareto,
-                                        pareto_fronts=pareto_fronts,
-                                        sort=False)
-            # merge resultHypParamPareto with pareto_fronts_df
-            resultHypParamPareto = pd.merge(resultHypParamPareto, pareto_fronts_df, left_on=['nrmse', 'decomp.rssd'], right_on=['x', 'y'])
-            resultHypParamPareto = resultHypParamPareto.rename(columns={'pareto_front': 'robynPareto'})
-            resultHypParamPareto = resultHypParamPareto.sort_values(['iterNG', 'iterPar', 'nrmse']).loc[:, ['solID', 'robynPareto']]
-            resultHypParamPareto = resultHypParamPareto.groupby('solID').first().reset_index()
-            resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on='solID', how='left')
-            pareto_fronts_df = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates)
-        else:
-            resultHypParam = resultHypParam.assign(mape_qt10=True, robynPareto=1, coef0=np.nan)
-
-        response_curves = self._compute_response_curves(pareto_fronts_df)
-        plot_data = self._generate_plot_data(pareto_fronts_df, response_curves)
+        pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates)
+        response_curves = self._compute_response_curves(result_hyp_param)
+        plot_data = self._generate_plot_data(result_hyp_param, response_curves)
 
         return ParetoResult(
             pareto_solutions=pareto_fronts_df["solID"].tolist(),
@@ -204,7 +179,7 @@ class ParetoOptimizer:
 
     
     def _compute_pareto_fronts(
-        self, resultHypParamPareto: pd.DataFrame, pareto_fronts: str
+        self, aggregated_data: Dict[str, pd.DataFrame], pareto_fronts: str, min_candidates: int, calibration_constraint: float
     ) -> pd.DataFrame:
         """
         Calculate Pareto fronts from the aggregated model data.
@@ -219,6 +194,59 @@ class ParetoOptimizer:
 
         Returns:
             pd.DataFrame: A dataframe of Pareto-optimal solutions with their corresponding front numbers.
+        """
+        resultHypParam = aggregated_data['result_hyp_param']
+        xDecompAgg = aggregated_data['x_decomp_agg']
+        resultCalibration = aggregated_data['result_calibration']
+
+        if not self.model_outputs.hyper_fixed:
+            # Filter and group data to calculate coef0
+            xDecompAggCoef0 = (xDecompAgg[xDecompAgg['rn'].isin(self.mmm_data.mmmdata_spec.paid_media_spends)]
+                            .groupby('solID')['coef']
+                            .apply(lambda x: min(x.dropna()) == 0))
+            # calculate quantiles
+            mape_lift_quantile10 = resultHypParam['mape'].quantile(calibration_constraint)
+            nrmse_quantile90 = resultHypParam['nrmse'].quantile(0.9)
+            decomprssd_quantile90 = resultHypParam['decomp.rssd'].quantile(0.9)
+            # merge resultHypParam with xDecompAggCoef0
+            resultHypParam = pd.merge(resultHypParam, xDecompAggCoef0, on='solID', how='left')
+            # create a new column 'mape.qt10'
+            resultHypParam['mape.qt10'] = (resultHypParam['mape'] <= mape_lift_quantile10) & \
+                                        (resultHypParam['nrmse'] <= nrmse_quantile90) & \
+                                        (resultHypParam['decomp.rssd'] <= decomprssd_quantile90)
+            # filter resultHypParam
+            resultHypParamPareto = resultHypParam[resultHypParam['mape.qt10'] == True]
+            # calculate Pareto front
+            pareto_fronts_df = ParetoOptimizer._pareto_fronts(resultHypParamPareto,
+                                        pareto_fronts=pareto_fronts,
+                                        sort=False)
+            # merge resultHypParamPareto with pareto_fronts_df
+            resultHypParamPareto = pd.merge(resultHypParamPareto, pareto_fronts_df, left_on=['nrmse', 'decomp.rssd'], right_on=['x', 'y'])
+            resultHypParamPareto = resultHypParamPareto.rename(columns={'pareto_front': 'robynPareto'})
+            resultHypParamPareto = resultHypParamPareto.sort_values(['iterNG', 'iterPar', 'nrmse']).loc[:, ['solID', 'robynPareto']]
+            resultHypParamPareto = resultHypParamPareto.groupby('solID').first().reset_index()
+            resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on='solID', how='left')
+        else:
+            resultHypParam = resultHypParam.assign(mape_qt10=True, robynPareto=1, coef0=np.nan)
+
+        # Calculate combined weighted error scores
+        resultHypParam['error_score'] = ParetoUtils.calculate_errors_scores(df=resultHypParam, ts_validation=self.model_outputs.ts_validation)
+
+        return resultHypParam
+
+        
+    @staticmethod
+    def _pareto_fronts(resultHypParamPareto: pd.DataFrame, pareto_fronts: str) -> pd.DataFrame:
+        """
+        Calculate Pareto fronts from the aggregated model data.
+
+        This method identifies Pareto-optimal solutions based on NRMSE and DECOMP.RSSD
+        optimization criteria and assigns them to Pareto fronts.
+
+        Args:
+            resultHypParamPareto (pd.DataFrame): DataFrame containing model results,
+                                                including 'nrmse' and 'decomp.rssd' columns.
+            pareto_fronts (Union[str, int]): Number of Pareto fronts to calculate or "auto".
         """
         data = pd.DataFrame({'x': resultHypParamPareto['nrmse'], 'y': resultHypParamPareto['decomp.rssd']})
         data = data.sort_values(by=['x', 'y'], ascending=[True, True])
@@ -240,7 +268,74 @@ class ParetoOptimizer:
 
         return pareto_fronts_df.reset_index(drop=True)
 
-    def _compute_response_curves(self, pareto_fronts_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+
+    def prepare_pareto_data(self, aggregated_data: Dict[str, pd.DataFrame], 
+                            pareto_fronts: str, min_candidates: int) -> ParetoData:
+        result_hyp_param = aggregated_data['result_hyp_param']
+        x_decomp_agg = aggregated_data['x_decomp_agg']
+
+        # 1. Binding Pareto results
+        x_decomp_agg = pd.merge(x_decomp_agg, 
+                                result_hyp_param[['robynPareto', 'solID']], 
+                                on='solID', how='left')
+
+        decomp_spend_dist = pd.concat([
+            pd.DataFrame(trial.decomp_spend_dist).assign(trial=trial.trial)
+            for trial in self.model_outputs.trials
+        ])
+
+        if not self.model_outputs.hyper_fixed:
+            decomp_spend_dist['solID'] = decomp_spend_dist.apply(
+                lambda row: f"{row['trial']}_{row['iterNG']}_{row['iterPar']}", axis=1
+            )
+
+        decomp_spend_dist = pd.merge(decomp_spend_dist, 
+                                    result_hyp_param[['robynPareto', 'solID']], 
+                                    on='solID', how='left')
+
+        # 2. Preparing for parallel processing
+        # Note: Python parallel processing would be implemented differently
+        # You might want to use multiprocessing or concurrent.futures here
+
+        # 3. Determining the number of Pareto fronts
+        if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
+            pareto_fronts = 1
+
+        # 4. Handling automatic Pareto front selection
+        if pareto_fronts == "auto":
+            n_pareto = result_hyp_param['robynPareto'].notna().sum()
+
+            if n_pareto <= min_candidates and len(result_hyp_param) > 1 and not self.model_outputs.calibrated:
+                raise ValueError(
+                    f"Less than {min_candidates} candidates in pareto fronts. "
+                    "Increase iterations to get more model candidates or decrease min_candidates."
+                )
+
+            auto_pareto = (result_hyp_param[result_hyp_param['robynPareto'].notna()]
+                        .groupby('robynPareto')
+                        .agg(n=('solID', 'nunique'))
+                        .reset_index()
+                        .sort_values('robynPareto'))
+            
+            auto_pareto['n_cum'] = auto_pareto['n'].cumsum()
+            auto_pareto = auto_pareto[auto_pareto['n_cum'] >= min_candidates].iloc[0]
+
+            print(f">> Automatically selected {auto_pareto['robynPareto']} Pareto-fronts "
+                f"to contain at least {min_candidates} pareto-optimal models ({auto_pareto['n_cum']})")
+
+            pareto_fronts = int(auto_pareto['robynPareto'])
+
+        # 5. Creating Pareto front vector
+        pareto_fronts_vec = list(range(1, pareto_fronts + 1))
+
+        # 6. Filtering data for selected Pareto fronts
+        decomp_spend_dist = decomp_spend_dist[decomp_spend_dist['robynPareto'].isin(pareto_fronts_vec)]
+        result_hyp_param = result_hyp_param[result_hyp_param['robynPareto'].isin(pareto_fronts_vec)]
+        x_decomp_agg = x_decomp_agg[x_decomp_agg['robynPareto'].isin(pareto_fronts_vec)]
+
+        return ParetoData(decomp_spend_dist, result_hyp_param, x_decomp_agg, pareto_fronts_vec)
+
+    def _compute_response_curves(self, pareto_data: ParetoData) -> Dict[str, pd.DataFrame]:
         """
         Calculate response curves for Pareto-optimal solutions.
 
@@ -255,8 +350,96 @@ class ParetoOptimizer:
                 - 'media_vec_collect': Collected media vectors for all Pareto-optimal solutions
                 - 'x_decomp_vec_collect': Collected decomposition vectors for all Pareto-optimal solutions
         """
-        pass
+        print(f">>> Calculating response curves for all models' media variables ({len(pareto_data.decomp_spend_dist)})...")
 
+        def run_dt_resp(row: pd.Series) -> pd.Series:
+            get_solID = row['solID']
+            get_spendname = row['rn']
+            startRW = self.mmm_data.mmmdata_spec.window_start
+            endRW = self.mmm_data.mmmdata_spec.window_end
+
+            response_calculator = ResponseCurveCalculator(
+                select_model=get_solID,
+                metric_name=get_spendname,
+                date_range="all",
+                dt_hyppar=pareto_data.result_hyp_param,
+                dt_coef=pareto_data.x_decomp_agg,
+                input_collect=self.mmm_data,
+                output_collect=self.model_outputs
+            )
+            get_resp = response_calculator.calculate_response()
+
+            mean_spend_adstocked = np.mean(get_resp['input_total'][startRW:endRW])
+            mean_carryover = np.mean(get_resp['input_carryover'][startRW:endRW])
+
+            dt_hyppar = pareto_data.result_hyp_param[pareto_data.result_hyp_param['solID'] == get_solID]
+            chn_adstocked = pd.DataFrame({get_spendname: get_resp['input_total'][startRW:endRW]})
+            dt_coef = pareto_data.x_decomp_agg[
+                (pareto_data.x_decomp_agg['solID'] == get_solID) & 
+                (pareto_data.x_decomp_agg['rn'] == get_spendname)
+            ][['rn', 'coef']]
+
+            hill_calculator = HillCalculator(
+                input_collect=self.mmm_data,
+                dt_hyppar=dt_hyppar,
+                dt_coef=dt_coef,
+                media_spend_sorted=[get_spendname],
+                select_model=get_solID,
+                chn_adstocked=chn_adstocked
+            )
+            hills = hill_calculator.get_hill_params()
+
+            mean_response = self._fx_objective(
+                x=row['mean_spend'],
+                coeff=hills['coefs_sorted'][0],
+                alpha=hills['alphas'][0],
+                inflexion=hills['inflexions'][0],
+                x_hist_carryover=mean_carryover,
+                get_sum=False
+            )
+
+            return pd.Series({
+                'mean_response': mean_response,
+                'mean_spend_adstocked': mean_spend_adstocked,
+                'mean_carryover': mean_carryover,
+                'rn': row['rn'],
+                'solID': row['solID']
+            })
+
+        # Parallel processing
+        if self.model_outputs.cores > 1:
+            with ProcessPoolExecutor(max_workers=self.model_outputs.cores) as executor:
+                futures = [executor.submit(run_dt_resp, row) for _, row in pareto_data.decomp_spend_dist.iterrows()]
+                resp_collect = pd.DataFrame([f.result() for f in as_completed(futures)])
+        else:
+            resp_collect = pd.DataFrame([run_dt_resp(row) for _, row in pareto_data.decomp_spend_dist.iterrows()])
+
+        # Merge results
+        decomp_spend_dist = pd.merge(
+            pareto_data.decomp_spend_dist,
+            resp_collect,
+            on=['solID', 'rn'],
+            how='left'
+        )
+
+        decomp_spend_dist['roi_mean'] = decomp_spend_dist['mean_response'] / decomp_spend_dist['mean_spend']
+        decomp_spend_dist['roi_total'] = decomp_spend_dist['xDecompAgg'] / decomp_spend_dist['total_spend']
+        decomp_spend_dist['cpa_mean'] = decomp_spend_dist['mean_spend'] / decomp_spend_dist['mean_response']
+        decomp_spend_dist['cpa_total'] = decomp_spend_dist['total_spend'] / decomp_spend_dist['xDecompAgg']
+
+        x_decomp_agg = pd.merge(
+            pareto_data.x_decomp_agg,
+            decomp_spend_dist[['rn', 'solID', 'total_spend', 'mean_spend', 'mean_spend_adstocked', 'mean_carryover',
+                               'mean_response', 'spend_share', 'effect_share', 'roi_mean', 'roi_total', 'cpa_total']],
+            on=['solID', 'rn'],
+            how='left'
+        )
+
+        return {
+            'media_vec_collect': decomp_spend_dist,
+            'x_decomp_vec_collect': x_decomp_agg
+        }
+    
     def _generate_plot_data(
         self, pareto_fronts_df: pd.DataFrame, response_curves: Dict[str, pd.DataFrame]
     ) -> Dict[str, pd.DataFrame]:
