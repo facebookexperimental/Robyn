@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
+from robyn.modeling.pareto.hill_calculator import HillCalculator
 from robyn.modeling.pareto.response_curve import ResponseCurveCalculator
 from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
@@ -100,23 +101,23 @@ class ParetoOptimizer:
             ParetoResult: The results of the Pareto optimization process.
         """
         aggregated_data = self._aggregate_model_data(calibrated, self.model_outputs.hyper_fixed)
-        result_hyp_param = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates, calibration_constraint)
-        aggregated_data['result_hyp_param'] = result_hyp_param
+        aggregated_data['result_hyp_param'] = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates, calibration_constraint)
 
         pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates)
-        response_curves = self._compute_response_curves(result_hyp_param)
-        plot_data = self._generate_plot_data(result_hyp_param, response_curves)
+        response_curves = self._compute_response_curves(pareto_data)
+        plot_data = self._generate_plot_data(aggregated_data, response_curves)
 
         return ParetoResult(
-            pareto_solutions=pareto_fronts_df["solID"].tolist(),
-            pareto_fronts=len(pareto_fronts_df["pareto_front"].unique()),
+            pareto_solutions=plot_data["solID"].tolist(),
+            pareto_fronts=pareto_fronts,
+            pareto_data=pareto_data,
             result_hyp_param=aggregated_data["result_hyp_param"],
             x_decomp_agg=aggregated_data["x_decomp_agg"],
             result_calibration=aggregated_data.get("result_calibration"),
             media_vec_collect=response_curves["media_vec_collect"],
             x_decomp_vec_collect=response_curves["x_decomp_vec_collect"],
             plot_data_collect=plot_data,
-            df_caov_pct_all=self.carryover_calculator.calculate_all(),
+            # df_caov_pct_all=self.carryover_calculator.calculate_all(),
         )
     
     def _aggregate_model_data(self, calibrated: bool) -> Dict[str, pd.DataFrame]:
@@ -329,11 +330,11 @@ class ParetoOptimizer:
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
         # 6. Filtering data for selected Pareto fronts
-        decomp_spend_dist = decomp_spend_dist[decomp_spend_dist['robynPareto'].isin(pareto_fronts_vec)]
-        result_hyp_param = result_hyp_param[result_hyp_param['robynPareto'].isin(pareto_fronts_vec)]
-        x_decomp_agg = x_decomp_agg[x_decomp_agg['robynPareto'].isin(pareto_fronts_vec)]
+        decomp_spend_dist_pareto = decomp_spend_dist[decomp_spend_dist['robynPareto'].isin(pareto_fronts_vec)]
+        result_hyp_param_pareto = result_hyp_param[result_hyp_param['robynPareto'].isin(pareto_fronts_vec)]
+        x_decomp_agg_pareto = x_decomp_agg[x_decomp_agg['robynPareto'].isin(pareto_fronts_vec)]
 
-        return ParetoData(decomp_spend_dist, result_hyp_param, x_decomp_agg, pareto_fronts_vec)
+        return ParetoData(decomp_spend_dist_pareto, result_hyp_param_pareto, x_decomp_agg_pareto, pareto_fronts_vec)
 
     def _compute_response_curves(self, pareto_data: ParetoData) -> Dict[str, pd.DataFrame]:
         """
@@ -364,8 +365,8 @@ class ParetoOptimizer:
                 date_range="all",
                 dt_hyppar=pareto_data.result_hyp_param,
                 dt_coef=pareto_data.x_decomp_agg,
-                input_collect=self.mmm_data,
-                output_collect=self.model_outputs
+                mmm_data=self.mmm_data,
+                model_outputs=self.model_outputs
             )
             get_resp = response_calculator.calculate_response()
 
@@ -380,7 +381,8 @@ class ParetoOptimizer:
             ][['rn', 'coef']]
 
             hill_calculator = HillCalculator(
-                input_collect=self.mmm_data,
+                mmmdata=self.mmm_data,
+                model_outputs=self.model_outputs,
                 dt_hyppar=dt_hyppar,
                 dt_coef=dt_coef,
                 media_spend_sorted=[get_spendname],
@@ -389,7 +391,7 @@ class ParetoOptimizer:
             )
             hills = hill_calculator.get_hill_params()
 
-            mean_response = self._fx_objective(
+            mean_response = ParetoUtils.calculate_fx_objective(
                 x=row['mean_spend'],
                 coeff=hills['coefs_sorted'][0],
                 alpha=hills['alphas'][0],
@@ -412,7 +414,7 @@ class ParetoOptimizer:
                 futures = [executor.submit(run_dt_resp, row) for _, row in pareto_data.decomp_spend_dist.iterrows()]
                 resp_collect = pd.DataFrame([f.result() for f in as_completed(futures)])
         else:
-            resp_collect = pd.DataFrame([run_dt_resp(row) for _, row in pareto_data.decomp_spend_dist.iterrows()])
+            resp_collect = pareto_data.decomp_spend_dist.apply(run_dt_resp, axis=1)
 
         # Merge results
         decomp_spend_dist = pd.merge(
@@ -421,7 +423,8 @@ class ParetoOptimizer:
             on=['solID', 'rn'],
             how='left'
         )
-
+        
+        # Calculate ROI and CPA metrics after merging
         decomp_spend_dist['roi_mean'] = decomp_spend_dist['mean_response'] / decomp_spend_dist['mean_spend']
         decomp_spend_dist['roi_total'] = decomp_spend_dist['xDecompAgg'] / decomp_spend_dist['total_spend']
         decomp_spend_dist['cpa_mean'] = decomp_spend_dist['mean_spend'] / decomp_spend_dist['mean_response']
@@ -441,7 +444,7 @@ class ParetoOptimizer:
         }
     
     def _generate_plot_data(
-        self, pareto_fronts_df: pd.DataFrame, response_curves: Dict[str, pd.DataFrame]
+        self, aggregated_data: Dict[str, pd.DataFrame], response_curves: Dict[str, pd.DataFrame]
     ) -> Dict[str, pd.DataFrame]:
         """
         Prepare data for various plots used in the Pareto analysis.
@@ -456,4 +459,4 @@ class ParetoOptimizer:
         Returns:
             Dict[str, pd.DataFrame]: A dictionary of dataframes, each containing data for a specific plot type.
         """
-        pass
+        return None
