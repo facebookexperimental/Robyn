@@ -100,7 +100,7 @@ class ParetoOptimizer:
         Returns:
             ParetoResult: The results of the Pareto optimization process.
         """
-        aggregated_data = self._aggregate_model_data(calibrated, self.model_outputs.hyper_fixed)
+        aggregated_data = self._aggregate_model_data(calibrated)
         aggregated_data['result_hyp_param'] = self._compute_pareto_fronts(aggregated_data, pareto_fronts, min_candidates, calibration_constraint)
 
         pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates)
@@ -138,18 +138,18 @@ class ParetoOptimizer:
         """
         hyper_fixed = self.model_outputs.hyper_fixed
         # Extract resultCollect from self.model_outputs
-        OutModels = [model.resultCollect for model in self.model_outputs if 'resultCollect' in dir(model)]
+        trials = [model for model in self.model_outputs.trials if hasattr(model, 'resultCollect')]
 
         # Create lists of resultHypParam and xDecompAgg using list comprehension
         resultHypParam_list = [trial.result_hyp_param for trial in self.model_outputs.trials]
         xDecompAgg_list = [trial.x_decomp_agg for trial in self.model_outputs.trials]
 
         # Concatenate the lists into DataFrames using pd.concat
-        resultHypParam = pd.DataFrame(resultHypParam_list, ignore_index=True)
-        xDecompAgg = pd.DataFrame(xDecompAgg_list, ignore_index=True)
+        resultHypParam = pd.concat(resultHypParam_list, ignore_index=True)
+        xDecompAgg = pd.concat(xDecompAgg_list, ignore_index=True)
 
         if calibrated:
-            resultCalibration = pd.concat([pd.DataFrame(model.liftCalibration) for model in OutModels])
+            resultCalibration = pd.concat([pd.DataFrame(trial.liftCalibration) for trial in trials])
             resultCalibration = resultCalibration.rename(columns={'liftMedia': 'rn'})
         else:
             resultCalibration = None
@@ -219,12 +219,11 @@ class ParetoOptimizer:
             resultHypParamPareto = resultHypParam[resultHypParam['mape.qt10'] == True]
             # calculate Pareto front
             pareto_fronts_df = ParetoOptimizer._pareto_fronts(resultHypParamPareto,
-                                        pareto_fronts=pareto_fronts,
-                                        sort=False)
+                                        pareto_fronts=pareto_fronts)
             # merge resultHypParamPareto with pareto_fronts_df
             resultHypParamPareto = pd.merge(resultHypParamPareto, pareto_fronts_df, left_on=['nrmse', 'decomp.rssd'], right_on=['x', 'y'])
             resultHypParamPareto = resultHypParamPareto.rename(columns={'pareto_front': 'robynPareto'})
-            resultHypParamPareto = resultHypParamPareto.sort_values(['iterNG', 'iterPar', 'nrmse']).loc[:, ['solID', 'robynPareto']]
+            resultHypParamPareto = resultHypParamPareto.sort_values(['iterNG', 'iterPar', 'nrmse'])[['solID', 'robynPareto']]
             resultHypParamPareto = resultHypParamPareto.groupby('solID').first().reset_index()
             resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on='solID', how='left')
         else:
@@ -232,7 +231,6 @@ class ParetoOptimizer:
 
         # Calculate combined weighted error scores
         resultHypParam['error_score'] = ParetoUtils.calculate_errors_scores(df=resultHypParam, ts_validation=self.model_outputs.ts_validation)
-
         return resultHypParam
 
         
@@ -266,7 +264,6 @@ class ParetoOptimizer:
             # Remove identified Pareto front from data
             data = data[~is_pareto]
             i += 1
-
         return pareto_fronts_df.reset_index(drop=True)
 
 
@@ -279,20 +276,42 @@ class ParetoOptimizer:
         x_decomp_agg = pd.merge(x_decomp_agg, 
                                 result_hyp_param[['robynPareto', 'solID']], 
                                 on='solID', how='left')
-
+        
+        # Step 1: Collect decomp_spend_dist from each trial and add the trial number
         decomp_spend_dist = pd.concat([
-            pd.DataFrame(trial.decomp_spend_dist).assign(trial=trial.trial)
+            trial.decomp_spend_dist.assign(trial=trial.trial)
             for trial in self.model_outputs.trials
-        ])
+            if trial.decomp_spend_dist is not None
+        ], ignore_index=True)
 
+        # Step 2: Add solID if hyper_fixed is False
         if not self.model_outputs.hyper_fixed:
-            decomp_spend_dist['solID'] = decomp_spend_dist.apply(
-                lambda row: f"{row['trial']}_{row['iterNG']}_{row['iterPar']}", axis=1
+            decomp_spend_dist['solID'] = (
+                decomp_spend_dist['trial'].astype(str) + '_' +
+                decomp_spend_dist['iterNG'].astype(str) + '_' +
+                decomp_spend_dist['iterPar'].astype(str)
             )
 
-        decomp_spend_dist = pd.merge(decomp_spend_dist, 
-                                    result_hyp_param[['robynPareto', 'solID']], 
-                                    on='solID', how='left')
+        # Step 4: Left join with resultHypParam
+        decomp_spend_dist = pd.merge(
+            decomp_spend_dist,
+            result_hyp_param[['robynPareto', 'solID']],
+            on='solID',
+            how='left'
+        )
+        # decomp_spend_dist = pd.concat([
+        #     pd.DataFrame(trial.decomp_spend_dist).assign(trial=trial.trial)
+        #     for trial in self.model_outputs.trials
+        # ])
+
+        # if not self.model_outputs.hyper_fixed:
+        #     decomp_spend_dist['solID'] = decomp_spend_dist.apply(
+        #         lambda row: f"{row['trial']}_{row['iterNG']}_{row['iterPar']}", axis=1
+        #     )
+
+        # decomp_spend_dist = pd.merge(decomp_spend_dist, 
+        #                             result_hyp_param[['robynPareto', 'solID']], 
+        #                             on='solID', how='left')
 
         # 2. Preparing for parallel processing
         # Note: Python parallel processing would be implemented differently
@@ -305,8 +324,11 @@ class ParetoOptimizer:
         # 4. Handling automatic Pareto front selection
         if pareto_fronts == "auto":
             n_pareto = result_hyp_param['robynPareto'].notna().sum()
+            
+            # Check if any trial has lift_calibration
+            is_calibrated = any(trial.lift_calibration is not None for trial in self.model_outputs.trials)
 
-            if n_pareto <= min_candidates and len(result_hyp_param) > 1 and not self.model_outputs.calibrated:
+            if n_pareto <= min_candidates and len(result_hyp_param) > 1 and not is_calibrated:
                 raise ValueError(
                     f"Less than {min_candidates} candidates in pareto fronts. "
                     "Increase iterations to get more model candidates or decrease min_candidates."
@@ -333,8 +355,10 @@ class ParetoOptimizer:
         decomp_spend_dist_pareto = decomp_spend_dist[decomp_spend_dist['robynPareto'].isin(pareto_fronts_vec)]
         result_hyp_param_pareto = result_hyp_param[result_hyp_param['robynPareto'].isin(pareto_fronts_vec)]
         x_decomp_agg_pareto = x_decomp_agg[x_decomp_agg['robynPareto'].isin(pareto_fronts_vec)]
-
-        return ParetoData(decomp_spend_dist_pareto, result_hyp_param_pareto, x_decomp_agg_pareto, pareto_fronts_vec)
+        return ParetoData(decomp_spend_dist=decomp_spend_dist_pareto, 
+                          result_hyp_param=result_hyp_param_pareto, 
+                          x_decomp_agg=x_decomp_agg_pareto, 
+                          pareto_fronts=pareto_fronts_vec)
 
     def _compute_response_curves(self, pareto_data: ParetoData) -> Dict[str, pd.DataFrame]:
         """
@@ -352,7 +376,6 @@ class ParetoOptimizer:
                 - 'x_decomp_vec_collect': Collected decomposition vectors for all Pareto-optimal solutions
         """
         print(f">>> Calculating response curves for all models' media variables ({len(pareto_data.decomp_spend_dist)})...")
-
         def run_dt_resp(row: pd.Series) -> pd.Series:
             get_solID = row['solID']
             get_spendname = row['rn']
@@ -416,6 +439,8 @@ class ParetoOptimizer:
         else:
             resp_collect = pareto_data.decomp_spend_dist.apply(run_dt_resp, axis=1)
 
+        print("resp_collect", resp_collect)
+        print("pareto_data.decomp_spend_dist", pareto_data.decomp_spend_dist)
         # Merge results
         decomp_spend_dist = pd.merge(
             pareto_data.decomp_spend_dist,
