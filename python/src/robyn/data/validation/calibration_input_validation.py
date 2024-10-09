@@ -28,7 +28,7 @@ class CalibrationInputValidation(Validation):
         error_messages = []
 
         # check data range
-        date_range_result = self._check_data_range()
+        date_range_result = self._check_date_range()
         if not date_range_result.status:
             error_details.update(date_range_result.error_details)
             error_messages.append(date_range_result.error_message)
@@ -188,4 +188,4 @@ class CalibrationInputValidation(Validation):
         
         :return: A dictionary containing the results of all validations.
         """
-        return [self.check_calibration(), self.check_obj_weights()]
+        return [self.check_calibration()]
