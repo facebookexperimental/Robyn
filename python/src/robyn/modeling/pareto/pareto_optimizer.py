@@ -105,6 +105,7 @@ class ParetoOptimizer:
 
         pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates)
         response_curves = self._compute_response_curves(pareto_data)
+        # TODO IMplement
         plot_data = self._generate_plot_data(aggregated_data, response_curves)
 
         return ParetoResult(
