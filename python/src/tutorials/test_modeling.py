@@ -5,7 +5,7 @@ import os
 import sys
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=".env.sample")
 # Retrieve the ROBYN_BASE_PATH environment variable
 base_path = os.getenv("ROBYN_BASE_PATH")
 if not base_path:

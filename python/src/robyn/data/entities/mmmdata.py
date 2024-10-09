@@ -46,6 +46,8 @@ class MMMData:
             context_signs: Optional[List[ContextSigns]] = None,
             factor_vars: Optional[List[str]] = None,
             all_media: Optional[List[str]] = None,
+            day_interval: Optional[int] = 7,
+            interval_type: Optional[str] = "week",
         ) -> None:
             self.dep_var: Optional[str] = dep_var
             self.dep_var_type: DependentVarType = dep_var_type
@@ -61,6 +63,8 @@ class MMMData:
             self.context_signs: Optional[List[str]] = context_signs
             self.factor_vars: Optional[List[str]] = factor_vars
             self.all_media = all_media or paid_media_spends
+            self.day_interval: Optional[int] = day_interval
+            self.interval_type: Optional[str] = interval_type
 
         def __str__(self) -> str:
             return f"""
@@ -79,6 +83,8 @@ class MMMData:
             context_signs: {self.context_signs}
             factor_vars: {self.factor_vars}
             all_media: {self.all_media}
+            day_interval: {self.day_interval}
+            interval_type: {self.interval_type}
             """
 
         def update(self, **kwargs: Any) -> None:

@@ -58,12 +58,11 @@ class FeaturePlotter:
         Returns:
             plt.Figure: A matplotlib Figure object containing the spend-exposure plot.
         """
-        if channel not in featurized_data.modNLS:
+        if channel not in featurized_data.modNLS["results"]:
             raise ValueError(f"No spend-exposure data available for channel: {channel}")
 
-        model_data = featurized_data.modNLS[channel]
-        plot_data = model_data["plot"]
-        res = model_data["res"]
+        res = featurized_data.modNLS["results"][channel]
+        plot_data = featurized_data.modNLS["plots"][channel]
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
