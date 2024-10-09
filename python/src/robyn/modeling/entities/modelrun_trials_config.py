@@ -15,9 +15,6 @@ class TrialsConfig:
         iterations (int): The number of iterations to run for each trial. This
             determines how many times the optimization algorithm will attempt
             to improve the model within each trial.
-        cores (Optional[int]): The number of CPU cores to use for parallel
-            processing. If None, the system will determine the optimal number
-            of cores to use based on available resources.
     """
 
     trials: int

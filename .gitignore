@@ -41,3 +41,9 @@ python/**/__pycache__
 python/.vscode
 python/src/robynpy.egg-info*
 python/oldportedcode
+python/src/tutorials/mytestenv
+*.log
+python/src/tutorials/test_modeling.py
+python/src/tutorials/data/*
+python/src/tutorials/test_modeling.py
+*.txt
