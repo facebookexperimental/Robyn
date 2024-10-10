@@ -392,6 +392,12 @@ class RidgeModelBuilder:
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
         # Get the dependent variable
+        # Check if 'dep_var' is in columns
+        if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
+            # Rename 'dep_var' to the specified value
+            self.featurized_mmm_data.dt_mod = self.featurized_mmm_data.dt_mod.rename(
+                columns={"dep_var": self.mmm_data.mmmdata_spec.dep_var}
+            )
         y = self.featurized_mmm_data.dt_mod[self.mmm_data.mmmdata_spec.dep_var]
 
         # Select all columns except the dependent variable
