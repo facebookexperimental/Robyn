@@ -98,33 +98,32 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
             hyper_bound_ng = trial_data
         elif trial_key == "hyperBoundFixed":
             hyper_bound_fixed = trial_data
-
-            for _, row in result_hyp_param.iterrows():
-                trial = Trial(
-                    result_hyp_param=result_hyp_param,
-                    x_decomp_agg=x_decomp_agg,
-                    lift_calibration=lift_calibration,
-                    decomp_spend_dist=decomp_spend_dist,
-                    nrmse=row.get("NRMSE", 0),
-                    decomp_rssd=row.get("decomp.rssd", 0),
-                    mape=row.get("MAPE", 0),
-                    rsq_train=row.get("rsq_train", 0),
-                    rsq_val=row.get("rsq_val", 0),
-                    rsq_test=row.get("rsq_test", 0),
-                    lambda_=row.get("lambda", 0),
-                    lambda_hp=row.get("lambda_hp", 0),
-                    lambda_max=row.get("lambda_max", 0),
-                    lambda_min_ratio=row.get("lambda_min_ratio", 0),
-                    pos=row.get("pos", 0),
-                    elapsed=row.get("Elapsed", 0),
-                    elapsed_accum=row.get("ElapsedAccum", 0),
-                    trial=row.get("trial", 0),
-                    iter_ng=row.get("iterNG", 0),
-                    iter_par=row.get("iterPar", 0),
-                    train_size=row.get("train_size", 0),
-                    sol_id=row.get("solID", ""),
-                )
-                trials.append(trial)
+        for i, row in result_hyp_param.iterrows():
+            trial = Trial(
+                result_hyp_param=result_hyp_param,
+                x_decomp_agg=x_decomp_agg,
+                lift_calibration=lift_calibration,
+                decomp_spend_dist=decomp_spend_dist,
+                nrmse=row.get("NRMSE", 0),
+                decomp_rssd=row.get("decomp.rssd", 0),
+                mape=row.get("MAPE", 0),
+                rsq_train=row.get("rsq_train", 0),
+                rsq_val=row.get("rsq_val", 0),
+                rsq_test=row.get("rsq_test", 0),
+                lambda_=row.get("lambda", 0),
+                lambda_hp=row.get("lambda_hp", 0),
+                lambda_max=row.get("lambda_max", 0),
+                lambda_min_ratio=row.get("lambda_min_ratio", 0),
+                pos=row.get("pos", 0),
+                elapsed=row.get("Elapsed", 0),
+                elapsed_accum=row.get("ElapsedAccum", 0),
+                trial=row.get("trial", 0),
+                iter_ng=row.get("iterNG", 0),
+                iter_par=row.get("iterPar", 0),
+                train_size=row.get("train_size", 0),
+                sol_id=row.get("solID", ""),
+            )
+            trials.append(trial)
 
     model_outputs = ModelOutputs(
         trials=trials,
@@ -193,5 +192,5 @@ if __name__ == "__main__":
     featurized_mmm_data = imported_data["featurized_mmm_data"]
     model_outputs = imported_data["model_outputs"]
 
-    # print(model_outputs.trials)
+    print(model_outputs.trials)
     # You can now compare these with the outputs from your Python/Python script

@@ -3,12 +3,14 @@
 from typing import List, Optional, Dict, Any, Tuple
 import pandas as pd
 import warnings
-import numpy as np
 from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
+import numpy as np
+
+np.float_ = np.float64
 from prophet import Prophet
 from robyn.data.entities.holidays_data import HolidaysData
 
