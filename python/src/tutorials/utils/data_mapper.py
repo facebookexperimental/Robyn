@@ -84,8 +84,6 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
     hyper_bound_fixed = {}
 
     for trial_key, trial_data in data["OutputModels"].items():
-        print("Trial Key", trial_key)
-        # print("Trial Data", trial_data.keys)
         if trial_key == "attributes":
             attributes = trial_data
         elif trial_key == "convergence":
