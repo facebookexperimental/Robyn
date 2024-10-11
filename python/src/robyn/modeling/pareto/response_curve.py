@@ -1,195 +1,161 @@
 # pyre-strict
 
-from typing import Dict, List, Tuple
+from typing import Optional, Union, Literal
+from dataclasses import dataclass
+from enum import Enum
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
+import matplotlib.pyplot as plt
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
-
-
-@dataclass
-class HillParameters:
-    """
-    Represents the parameters of the Hill function for a specific channel.
-
-    Attributes:
-        alpha (float): The alpha parameter of the Hill function.
-        gamma (float): The gamma parameter of the Hill function.
-    """
-
-    alpha: float
-    gamma: float
-
+from robyn.data.entities.enums import AdstockType
+from robyn.data.entities.hyperparameters import ChannelHyperparameters
 
 @dataclass
-class ResponseCurveData:
-    """
-    Represents the response curve data for a specific model and metric.
+class MetricDateInfo:
+    metric_loc: Union[slice, pd.Series]
+    date_range_updated: pd.Series
 
-    Attributes:
-        model_id (str): The ID of the model.
-        metric_name (str): The name of the metric.
-        channel (str): The name of the channel.
-        spend_values (np.ndarray): Array of spend values.
-        response_values (np.ndarray): Array of response values corresponding to spend values.
-        hill_params (HillParameters): The Hill function parameters used for the calculation.
-    """
+@dataclass
+class MetricValueInfo:
+    metric_value_updated: np.ndarray
+    all_values_updated: pd.Series
 
-    model_id: str
+@dataclass
+class ResponseOutput:
     metric_name: str
-    channel: str
-    spend_values: np.ndarray
-    response_values: np.ndarray
-    hill_params: HillParameters
+    date: pd.Series
+    input_total: np.ndarray
+    input_carryover: np.ndarray
+    input_immediate: np.ndarray
+    response_total: np.ndarray
+    response_carryover: np.ndarray
+    response_immediate: np.ndarray
+    usecase: str
+    plot: plt.Figure
 
+@dataclass
+class AdstockOutput:
+    x: np.ndarray
+    x_decayed: np.ndarray
+    x_imme: Optional[np.ndarray] = None
+
+class UseCase(str, Enum):
+    ALL_HISTORICAL_VEC = "all_historical_vec"
+    SELECTED_HISTORICAL_VEC = "selected_historical_vec"
+    TOTAL_METRIC_DEFAULT_RANGE = "total_metric_default_range"
+    TOTAL_METRIC_SELECTED_RANGE = "total_metric_selected_range"
+    UNIT_METRIC_DEFAULT_LAST_N = "unit_metric_default_last_n"
+    UNIT_METRIC_SELECTED_DATES = "unit_metric_selected_dates"
 
 class ResponseCurveCalculator:
-    """
-    Calculates response curves for marketing mix models.
-
-    This class handles the calculation of response curves for different models and metrics,
-    including the retrieval of Hill function parameters and the calculation of response values.
-
-    Attributes:
-        mmm_data (MMMData): Input data for the marketing mix model.
-        model_outputs (ModelOutputs): Output data from the model runs.
-    """
-
     def __init__(self, mmm_data: MMMData, model_outputs: ModelOutputs):
-        """
-        Initialize the ResponseCurveCalculator.
+        self.mmm_data: MMMData = mmm_data
+        self.model_outputs: ModelOutputs = model_outputs
 
-        Args:
-            mmm_data (MMMData): Input data for the marketing mix model.
-            model_outputs (ModelOutputs): Output data from the model runs.
-        """
-        self.mmm_data = mmm_data
-        self.model_outputs = model_outputs
-        
     def calculate_response(self, 
                            select_model: str,
                            metric_name: str,
-                           metric_value: Optional[Union[float, List[float]]] = None,
+                           metric_value: Optional[Union[float, list[float]]] = None,
                            date_range: Optional[str] = None,
-                           quiet: bool = False,
-                           json_file: Optional[str] = None,
-                           robyn_object: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Calculate the response for a given model and metric.
-
-        Args:
-            select_model (str): The ID of the model to use for calculations.
-            metric_name (str): The name of the metric to calculate the response for.
-            metric_value (Optional[Union[float, List[float]]]): A specific metric value or list of values to use.
-            date_range (Optional[str]): The date range to consider for calculations.
-            quiet (bool): Whether to suppress informational messages.
-            json_file (Optional[str]): Path to a JSON file containing model data.
-            robyn_object (Optional[str]): Path to a Robyn object file containing model data.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the calculated response data.
-        """
-        # Get input data
-        dt_input = self.mmm_data.data
-        # if json_file:
-        #     # Load data from JSON file
-        #     # Update self.mmm_data and self.model_outputs accordingly
-        # elif robyn_object:
-        #     # Load data from Robyn object
-        #     # Update self.mmm_data and self.model_outputs accordingly
-
-        dt_hyppar = self._get_hyperparam_data()
-        dt_coef = self._get_coefficient_data()
-        
-        # Check inputs and determine use case
+                           quiet: bool = False) -> ResponseOutput:
+        # Determine the use case based on input parameters
         usecase = self._which_usecase(metric_value, date_range)
+        
+        # Check the metric type (spend, exposure, organic)
         metric_type = self._check_metric_type(metric_name)
-        all_dates = dt_input[self.mmm_data.mmmdata_spec.date_var]
-        all_values = dt_input[metric_name]
-
-        # Process dates and values
+        
+        all_dates = self.mmm_data.data['date']
+        all_values = self.mmm_data.data[metric_name]
+        
+        # Check and process date range
         ds_list = self._check_metric_dates(date_range, all_dates, quiet)
-        val_list = self._check_metric_value(metric_value, metric_name, all_values, ds_list['metric_loc'])
-        date_range_updated = ds_list['date_range_updated']
-        metric_value_updated = val_list['metric_value_updated']
-        all_values_updated = val_list['all_values_updated']
+        
+        # Check and process metric values
+        val_list = self._check_metric_value(metric_value, metric_name, all_values, ds_list.metric_loc)
+        
+        date_range_updated = ds_list.date_range_updated
+        metric_value_updated = val_list.metric_value_updated
+        all_values_updated = val_list.all_values_updated
 
         # Transform exposure to spend if necessary
         if metric_type == "exposure":
-            all_values_updated = self._transform_exposure_to_spend(metric_name, metric_value_updated, all_values_updated, ds_list['metric_loc'])
+            all_values_updated = self._transform_exposure_to_spend(metric_name, metric_value_updated, all_values_updated, ds_list.metric_loc)
             hpm_name = self._get_spend_name(metric_name)
         else:
             hpm_name = metric_name
 
-        # Apply adstock transformation
+        media_vec_origin = self.mmm_data.data[metric_name]
+        dt_hyppar = self.get_hyperparam_data()
+        dt_coef = self.get_coefficient_data()
+
+        # Get adstock parameters and apply adstock transformation
         adstock_params = self._get_adstock_params(select_model, hpm_name, dt_hyppar)
-        media_vec_origin = dt_input[metric_name]
         x_list = self._transform_adstock(media_vec_origin, adstock_params)
-        m_adstocked = x_list['x_decayed']
+        m_adstocked = x_list.x_decayed
 
         x_list_sim = self._transform_adstock(all_values_updated, adstock_params)
-        media_vec_sim = x_list_sim['x_decayed']
-        media_vec_sim_imme = x_list_sim['x_imme'] if adstock_params['type'] == "weibull_pdf" else x_list_sim['x']
+        media_vec_sim = x_list_sim.x_decayed
         
-        input_total = media_vec_sim[ds_list['metric_loc']]
-        input_immediate = media_vec_sim_imme[ds_list['metric_loc']]
+        input_total = media_vec_sim[ds_list.metric_loc]
+        if self.model_outputs.hyper_fixed['adstock'] == AdstockType.WEIBULL_PDF:
+            media_vec_sim_imme = x_list_sim.x_imme
+            input_immediate = media_vec_sim_imme[ds_list.metric_loc]
+        else:
+            input_immediate = x_list_sim.x[ds_list.metric_loc]
         input_carryover = input_total - input_immediate
 
-        # Apply saturation
-        alpha, gamma = self._get_saturation_params(select_model, hpm_name, dt_hyppar)
+        # Get saturation parameters and apply saturation
+        hill_params = self._get_saturation_params(select_model, hpm_name, dt_hyppar)
         m_adstockedRW = m_adstocked[self.mmm_data.mmmdata_spec.window_start:self.mmm_data.mmmdata_spec.window_end]
         
-        if usecase == "all_historical_vec":
-            metric_saturated_total = self._saturation_hill(m_adstockedRW, alpha, gamma)
-            metric_saturated_carryover = self._saturation_hill(m_adstockedRW, alpha, gamma)
+        if usecase == UseCase.ALL_HISTORICAL_VEC:
+            metric_saturated_total = self._saturation_hill(m_adstockedRW, hill_params)
+            metric_saturated_carryover = self._saturation_hill(m_adstockedRW, hill_params)
         else:
-            metric_saturated_total = self._saturation_hill(m_adstockedRW, alpha, gamma, x_marginal=input_total)
-            metric_saturated_carryover = self._saturation_hill(m_adstockedRW, alpha, gamma, x_marginal=input_carryover)
+            metric_saturated_total = self._saturation_hill(m_adstockedRW, hill_params, x_marginal=input_total)
+            metric_saturated_carryover = self._saturation_hill(m_adstockedRW, hill_params, x_marginal=input_carryover)
         
         metric_saturated_immediate = metric_saturated_total - metric_saturated_carryover
 
-        # Calculate response
+        # Calculate final response values
         coeff = dt_coef[(dt_coef['solID'] == select_model) & (dt_coef['rn'] == hpm_name)]['coef'].values[0]
-        m_saturated = self._saturation_hill(m_adstockedRW, alpha, gamma)
+        m_saturated = self._saturation_hill(m_adstockedRW, hill_params)
         m_response = m_saturated * coeff
         response_total = metric_saturated_total * coeff
         response_carryover = metric_saturated_carryover * coeff
         response_immediate = response_total - response_carryover
 
-        # Prepare output
-        output = {
-            "metric_name": metric_name,
-            "date": date_range_updated,
-            "input_total": input_total,
-            "input_carryover": input_carryover,
-            "input_immediate": input_immediate,
-            "response_total": response_total,
-            "response_carryover": response_carryover,
-            "response_immediate": response_immediate,
-            "usecase": usecase,
-            "plot": self._create_response_plot(m_adstockedRW, m_response, input_total, response_total, 
-                                               input_carryover, response_carryover, input_immediate, 
-                                               response_immediate, metric_name, metric_type, date_range_updated)
-        }
-        
-        return output
+        # Create response plot
+        plot = self._create_response_plot(m_adstockedRW, m_response, input_total, response_total, 
+                                          input_carryover, response_carryover, input_immediate, 
+                                          response_immediate, metric_name, metric_type, date_range_updated)
 
-    def _which_usecase(self, metric_value: Optional[Union[float, List[float]]], date_range: Optional[str]) -> str:
-        if metric_value is None and date_range is None:
-            return "all_historical_vec"
-        elif metric_value is None and date_range is not None:
-            return "selected_historical_vec"
-        elif isinstance(metric_value, (int, float)) and date_range is None:
-            return "total_metric_default_range"
-        elif isinstance(metric_value, (int, float)) and date_range is not None:
-            return "total_metric_selected_range"
-        elif isinstance(metric_value, (list, np.ndarray)) and date_range is None:
-            return "unit_metric_default_last_n"
+        return ResponseOutput(
+            metric_name=metric_name,
+            date=date_range_updated,
+            input_total=input_total,
+            input_carryover=input_carryover,
+            input_immediate=input_immediate,
+            response_total=response_total,
+            response_carryover=response_carryover,
+            response_immediate=response_immediate,
+            usecase=usecase,
+            plot=plot
+        )
+
+
+    def _which_usecase(self, metric_value: Optional[Union[float, list[float]]], date_range: Optional[str]) -> UseCase:
+        if metric_value is None:
+            return UseCase.ALL_HISTORICAL_VEC if date_range is None or date_range == "all" else UseCase.SELECTED_HISTORICAL_VEC
+        elif isinstance(metric_value, (int, float)):
+            return UseCase.TOTAL_METRIC_DEFAULT_RANGE if date_range is None else UseCase.TOTAL_METRIC_SELECTED_RANGE
+        elif isinstance(metric_value, (list, np.ndarray)):
+            return UseCase.UNIT_METRIC_DEFAULT_LAST_N if date_range is None else UseCase.UNIT_METRIC_SELECTED_DATES
         else:
-            return "unit_metric_selected_dates"
+            raise ValueError(f"Invalid metric_value type: {type(metric_value)}")
 
-    def _check_metric_type(self, metric_name: str) -> str:
+    def _check_metric_type(self, metric_name: str) -> Literal["spend", "exposure", "organic"]:
         if metric_name in self.mmm_data.mmmdata_spec.paid_media_spends:
             return "spend"
         elif metric_name in self.mmm_data.mmmdata_spec.paid_media_vars:
@@ -199,7 +165,7 @@ class ResponseCurveCalculator:
         else:
             raise ValueError(f"Unknown metric type for {metric_name}")
 
-    def _check_metric_dates(self, date_range: Optional[str], all_dates: pd.Series, quiet: bool) -> Dict[str, Any]:
+    def _check_metric_dates(self, date_range: Optional[str], all_dates: pd.Series, quiet: bool) -> MetricDateInfo:
         start_rw = self.mmm_data.mmmdata_spec.window_start
         end_rw = self.mmm_data.mmmdata_spec.window_end
 
@@ -220,39 +186,37 @@ class ResponseCurveCalculator:
         if not quiet:
             print(f"Using date range: {date_range_updated.iloc[0]} to {date_range_updated.iloc[-1]}")
 
-        return {
-            "metric_loc": metric_loc,
-            "date_range_updated": date_range_updated
-        }
+        return MetricDateInfo(metric_loc=metric_loc, date_range_updated=date_range_updated)
 
-    def _check_metric_value(self, metric_value: Optional[Union[float, List[float]]], 
-                            metric_name: str, all_values: pd.Series, metric_loc: slice) -> Dict[str, Any]:
+    def _check_metric_value(self, metric_value: Optional[Union[float, list[float]]], 
+                            metric_name: str, all_values: pd.Series, metric_loc: Union[slice, pd.Series]) -> MetricValueInfo:
         if metric_value is None:
             metric_value_updated = all_values[metric_loc]
         elif isinstance(metric_value, (int, float)):
             metric_value_updated = np.full(len(all_values[metric_loc]), metric_value)
         else:
             metric_value_updated = np.array(metric_value)
+            if len(metric_value_updated) != len(all_values[metric_loc]):
+                raise ValueError(f"Length of metric_value ({len(metric_value_updated)}) does not match the selected date range ({len(all_values[metric_loc])})")
 
         all_values_updated = all_values.copy()
         all_values_updated[metric_loc] = metric_value_updated
 
-        return {
-            "metric_value_updated": metric_value_updated,
-            "all_values_updated": all_values_updated
-        }
+        return MetricValueInfo(metric_value_updated=metric_value_updated, all_values_updated=all_values_updated)
 
     def _transform_exposure_to_spend(self, metric_name: str, metric_value_updated: np.ndarray, 
-                                     all_values_updated: pd.Series, metric_loc: slice) -> pd.Series:
+                                     all_values_updated: pd.Series, metric_loc: Union[slice, pd.Series]) -> pd.Series:
         spend_name = self._get_spend_name(metric_name)
         spend_expo_mod = self.mmm_data.mmmdata_spec.modNLS['results']
         temp = spend_expo_mod[spend_expo_mod['channel'] == metric_name]
         
         if temp['rsq_nls'].values[0] > temp['rsq_lm'].values[0]:
+            # Use non-linear least squares model
             Vmax = temp['Vmax'].values[0]
             Km = temp['Km'].values[0]
-            input_immediate = self._mic_men(metric_value_updated, Vmax, Km, reverse=True)
+            input_immediate = Km * metric_value_updated / (Vmax - metric_value_updated)
         else:
+            # Use linear model
             coef_lm = temp['coef_lm'].values[0]
             input_immediate = metric_value_updated / coef_lm
 
@@ -263,42 +227,37 @@ class ResponseCurveCalculator:
         return self.mmm_data.mmmdata_spec.paid_media_spends[
             self.mmm_data.mmmdata_spec.paid_media_vars.index(metric_name)]
 
-    def _mic_men(self, x: np.ndarray, Vmax: float, Km: float, reverse: bool = False) -> np.ndarray:
-        if reverse:
-            return Km * x / (Vmax - x)
-        else:
-            return Vmax * x / (Km + x)
-
-    def _get_adstock_params(self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame) -> Dict[str, Any]:
+    def _get_adstock_params(self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame) -> ChannelHyperparameters:
         adstock_type = self.model_outputs.hyper_fixed['adstock']
-        params = {'type': adstock_type}
+        params = ChannelHyperparameters()
         
-        if adstock_type == "geometric":
-            params['theta'] = dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                        (dt_hyppar['name'] == f"{hpm_name}_thetas")]['value'].values[0]
-        elif "weibull" in adstock_type:
-            params['shape'] = dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                        (dt_hyppar['name'] == f"{hpm_name}_shapes")]['value'].values[0]
-            params['scale'] = dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                        (dt_hyppar['name'] == f"{hpm_name}_scales")]['value'].values[0]
+        if adstock_type == AdstockType.GEOMETRIC:
+            params.thetas = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
+                                       (dt_hyppar['name'] == f"{hpm_name}_thetas")]['value'].values[0]]
+        elif adstock_type in [AdstockType.WEIBULL, AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
+            params.shapes = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
+                                       (dt_hyppar['name'] == f"{hpm_name}_shapes")]['value'].values[0]]
+            params.scales = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
+                                       (dt_hyppar['name'] == f"{hpm_name}_scales")]['value'].values[0]]
         
         return params
 
-    def _transform_adstock(self, x: np.ndarray, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
-        if params['type'] == "geometric":
-            x_decayed = self._geometric_adstock(x, params['theta'])
-            return {'x': x, 'x_decayed': x_decayed}
-        elif params['type'] == "weibull_cdf":
-            x_decayed = self._weibull_adstock(x, params['shape'], params['scale'], cumulative=True)
-            return {'x': x, 'x_decayed': x_decayed}
-        elif params['type'] == "weibull_pdf":
-            x_decayed, x_imme = self._weibull_adstock(x, params['shape'], params['scale'], cumulative=False)
-            return {'x': x, 'x_decayed': x_decayed, 'x_imme': x_imme}
+    def _transform_adstock(self, x: np.ndarray, params: ChannelHyperparameters) -> AdstockOutput:
+        adstock_type = self.model_outputs.hyper_fixed['adstock']
+        if adstock_type == AdstockType.GEOMETRIC:
+            x_decayed = self._geometric_adstock(x, params.thetas[0])
+            return AdstockOutput(x=x, x_decayed=x_decayed)
+        elif adstock_type == AdstockType.WEIBULL_CDF:
+            x_decayed = self._weibull_adstock(x, params.shapes[0], params.scales[0], cumulative=True)
+            return AdstockOutput(x=x, x_decayed=x_decayed)
+        elif adstock_type == AdstockType.WEIBULL_PDF:
+            x_decayed, x_imme = self._weibull_adstock(x, params.shapes[0], params.scales[0], cumulative=False)
+            return AdstockOutput(x=x, x_decayed=x_decayed, x_imme=x_imme)
 
     def _geometric_adstock(self, x: np.ndarray, theta: float) -> np.ndarray:
         return np.convolve(x, theta**np.arange(len(x)))[:len(x)]
 
-    def _weibull_adstock(self, x: np.ndarray, shape: float, scale: float, cumulative: bool) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    def _weibull_adstock(self, x: np.ndarray, shape: float, scale: float, cumulative: bool) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         n = len(x)
         weights = np.array([scale * (((i + 1) / scale) ** (shape - 1)) * np.exp(-((i + 1) / scale) ** shape) for i in range(n)])
         
@@ -313,14 +272,16 @@ class ResponseCurveCalculator:
             x_imme = x * weights[0]
             return x_decayed, x_imme
 
-    def _get_saturation_params(self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame) -> Tuple[float, float]:
-        alpha = dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                          (dt_hyppar['name'] == f"{hpm_name}_alphas")]['value'].values[0]
-        gamma = dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                          (dt_hyppar['name'] == f"{hpm_name}_gammas")]['value'].values[0]
-        return alpha, gamma
+    def _get_saturation_params(self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame) -> ChannelHyperparameters:
+        params = ChannelHyperparameters()
+        params.alphas = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
+                                   (dt_hyppar['name'] == f"{hpm_name}_alphas")]['value'].values[0]]
+        params.gammas = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
+                                   (dt_hyppar['name'] == f"{hpm_name}_gammas")]['value'].values[0]]
+        return params
 
-    def _saturation_hill(self, x: np.ndarray, alpha: float, gamma: float, x_marginal: Optional[np.ndarray] = None) -> np.ndarray:
+    def _saturation_hill(self, x: np.ndarray, hill_params: ChannelHyperparameters, x_marginal: Optional[np.ndarray] = None) -> np.ndarray:
+        alpha, gamma = hill_params.alphas[0], hill_params.gammas[0]
         if x_marginal is None:
             return x**gamma / (x**gamma + alpha**gamma)
         else:
@@ -330,7 +291,8 @@ class ResponseCurveCalculator:
                               input_total: np.ndarray, response_total: np.ndarray,
                               input_carryover: np.ndarray, response_carryover: np.ndarray,
                               input_immediate: np.ndarray, response_immediate: np.ndarray,
-                              metric_name: str, metric_type: str, date_range_updated: pd.Series) -> plt.Figure:
+                              metric_name: str, metric_type: Literal["spend", "exposure", "organic"], 
+                              date_range_updated: pd.Series) -> plt.Figure:
         fig, ax = plt.subplots(figsize=(10, 6))
     
         ax.plot(m_adstockedRW, m_response, color='steelblue', label='Response curve')
@@ -359,5 +321,6 @@ class ResponseCurveCalculator:
     
     def get_hyperparam_data(self) -> pd.DataFrame:
         return pd.concat([trial.result_hyp_param for trial in self.model_outputs.trials])
+
     def get_coefficient_data(self) -> pd.DataFrame:
         return pd.concat([trial.x_decomp_agg for trial in self.model_outputs.trials])
