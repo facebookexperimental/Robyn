@@ -5,11 +5,13 @@ import pandas as pd
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
+from functools import partial
 
+from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.modeling.pareto.hill_calculator import HillCalculator
-from robyn.modeling.pareto.response_curve import ResponseCurveCalculator
+from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, ResponseOutput
 from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 
@@ -64,19 +66,18 @@ class ParetoOptimizer:
         pareto_utils (ParetoUtils): Utility functions for Pareto-related calculations.
     """
 
-    def __init__(self, mmm_data: MMMData, model_outputs: ModelOutputs):
+    def __init__(self, mmm_data: MMMData, model_outputs: ModelOutputs, hyper_parameter: Hyperparameters):
         """
         Initialize the ParetoOptimizer.
 
         Args:
             mmm_data (MMMData): Input data for the marketing mix model.
             model_outputs (ModelOutputs): Output data from the model runs.
+            hyper_parameter (Hyperparameters): Hyperparameters for the model runs.
         """
         self.mmm_data = mmm_data
         self.model_outputs = model_outputs
-        self.response_calculator = ResponseCurveCalculator(mmm_data, model_outputs)
-        self.carryover_calculator = ImmediateCarryoverCalculator(mmm_data, model_outputs)
-        self.pareto_utils = ParetoUtils()
+        self.hyper_parameter = hyper_parameter
 
     def optimize(
         self,
@@ -323,6 +324,7 @@ class ParetoOptimizer:
             pareto_fronts = 1
 
         # 4. Handling automatic Pareto front selection
+        print("pareto_fronts", pareto_fronts)
         if pareto_fronts == "auto":
             n_pareto = result_hyp_param['robynPareto'].notna().sum()
             
@@ -356,11 +358,70 @@ class ParetoOptimizer:
         decomp_spend_dist_pareto = decomp_spend_dist[decomp_spend_dist['robynPareto'].isin(pareto_fronts_vec)]
         result_hyp_param_pareto = result_hyp_param[result_hyp_param['robynPareto'].isin(pareto_fronts_vec)]
         x_decomp_agg_pareto = x_decomp_agg[x_decomp_agg['robynPareto'].isin(pareto_fronts_vec)]
+        print("pareto_fronts_vec", pareto_fronts_vec, len(decomp_spend_dist), len(decomp_spend_dist_pareto))
         return ParetoData(decomp_spend_dist=decomp_spend_dist_pareto, 
                           result_hyp_param=result_hyp_param_pareto, 
                           x_decomp_agg=x_decomp_agg_pareto, 
                           pareto_fronts=pareto_fronts_vec)
 
+    def run_dt_resp(self, row: pd.Series, paretoData: ParetoData) -> pd.Series:
+        get_solID = row['solID']
+        get_spendname = row['rn']
+        startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
+        endRW = self.mmm_data.mmmdata_spec.rolling_window_end_which
+
+        response_calculator = ResponseCurveCalculator(
+            mmm_data=self.mmm_data,
+            model_outputs=self.model_outputs,
+            hyperparameter = self.hyper_parameter)
+
+        get_resp: ResponseOutput = response_calculator.calculate_response(
+            select_model=get_solID,
+            metric_name=get_spendname,
+            date_range="all",
+            dt_hyppar=paretoData.result_hyp_param,
+            dt_coef=paretoData.x_decomp_agg,
+            quiet=True
+        )
+
+        mean_spend_adstocked = np.mean(get_resp.input_total[startRW:endRW])
+        mean_carryover = np.mean(get_resp.input_carryover[startRW:endRW])
+        
+        dt_hyppar = paretoData.result_hyp_param[paretoData.result_hyp_param['solID'] == get_solID]
+        chn_adstocked = pd.DataFrame({get_spendname: get_resp.input_total[startRW:endRW]})
+        dt_coef = paretoData.x_decomp_agg[
+            (paretoData.x_decomp_agg['solID'] == get_solID) & 
+            (paretoData.x_decomp_agg['rn'] == get_spendname)
+        ][['rn', 'coef']]
+
+        hill_calculator = HillCalculator(
+            mmmdata=self.mmm_data,
+            model_outputs=self.model_outputs,
+            dt_hyppar=dt_hyppar,
+            dt_coef=dt_coef,
+            media_spend_sorted=[get_spendname],
+            select_model=get_solID,
+            chn_adstocked=chn_adstocked
+        )
+        hills = hill_calculator.get_hill_params()
+
+        mean_response = ParetoUtils.calculate_fx_objective(
+            x=row['mean_spend'],
+            coeff=hills['coefs_sorted'][0],
+            alpha=hills['alphas'][0],
+            inflexion=hills['inflexions'][0],
+            x_hist_carryover=mean_carryover,
+            get_sum=False
+        )
+
+        return pd.Series({
+            'mean_response': mean_response,
+            'mean_spend_adstocked': mean_spend_adstocked,
+            'mean_carryover': mean_carryover,
+            'rn': row['rn'],
+            'solID': row['solID']
+        })
+    
     def _compute_response_curves(self, pareto_data: ParetoData) -> Dict[str, pd.DataFrame]:
         """
         Calculate response curves for Pareto-optimal solutions.
@@ -377,68 +438,18 @@ class ParetoOptimizer:
                 - 'x_decomp_vec_collect': Collected decomposition vectors for all Pareto-optimal solutions
         """
         print(f">>> Calculating response curves for all models' media variables ({len(pareto_data.decomp_spend_dist)})...")
-        def run_dt_resp(row: pd.Series) -> pd.Series:
-            get_solID = row['solID']
-            get_spendname = row['rn']
-            startRW = self.mmm_data.mmmdata_spec.window_start
-            endRW = self.mmm_data.mmmdata_spec.window_end
-
-            response_calculator = ResponseCurveCalculator(
-                select_model=get_solID,
-                metric_name=get_spendname,
-                date_range="all",
-                dt_hyppar=pareto_data.result_hyp_param,
-                dt_coef=pareto_data.x_decomp_agg,
-                mmm_data=self.mmm_data,
-                model_outputs=self.model_outputs
-            )
-            get_resp = response_calculator.calculate_response()
-
-            mean_spend_adstocked = np.mean(get_resp['input_total'][startRW:endRW])
-            mean_carryover = np.mean(get_resp['input_carryover'][startRW:endRW])
-
-            dt_hyppar = pareto_data.result_hyp_param[pareto_data.result_hyp_param['solID'] == get_solID]
-            chn_adstocked = pd.DataFrame({get_spendname: get_resp['input_total'][startRW:endRW]})
-            dt_coef = pareto_data.x_decomp_agg[
-                (pareto_data.x_decomp_agg['solID'] == get_solID) & 
-                (pareto_data.x_decomp_agg['rn'] == get_spendname)
-            ][['rn', 'coef']]
-
-            hill_calculator = HillCalculator(
-                mmmdata=self.mmm_data,
-                model_outputs=self.model_outputs,
-                dt_hyppar=dt_hyppar,
-                dt_coef=dt_coef,
-                media_spend_sorted=[get_spendname],
-                select_model=get_solID,
-                chn_adstocked=chn_adstocked
-            )
-            hills = hill_calculator.get_hill_params()
-
-            mean_response = ParetoUtils.calculate_fx_objective(
-                x=row['mean_spend'],
-                coeff=hills['coefs_sorted'][0],
-                alpha=hills['alphas'][0],
-                inflexion=hills['inflexions'][0],
-                x_hist_carryover=mean_carryover,
-                get_sum=False
-            )
-
-            return pd.Series({
-                'mean_response': mean_response,
-                'mean_spend_adstocked': mean_spend_adstocked,
-                'mean_carryover': mean_carryover,
-                'rn': row['rn'],
-                'solID': row['solID']
-            })
 
         # Parallel processing
+        run_dt_resp_partial = partial(self.run_dt_resp, 
+                                      paretoData=pareto_data)
+
         if self.model_outputs.cores > 1:
             with ProcessPoolExecutor(max_workers=self.model_outputs.cores) as executor:
-                futures = [executor.submit(run_dt_resp, row) for _, row in pareto_data.decomp_spend_dist.iterrows()]
+                futures = [executor.submit(run_dt_resp_partial, row) for _, row in pareto_data.decomp_spend_dist.iterrows()]
                 resp_collect = pd.DataFrame([f.result() for f in as_completed(futures)])
         else:
-            resp_collect = pareto_data.decomp_spend_dist.apply(run_dt_resp, axis=1)
+            resp_collect = pareto_data.decomp_spend_dist.apply(run_dt_resp_partial, axis=1)
+
 
         print("resp_collect", resp_collect)
         print("pareto_data.decomp_spend_dist", pareto_data.decomp_spend_dist)

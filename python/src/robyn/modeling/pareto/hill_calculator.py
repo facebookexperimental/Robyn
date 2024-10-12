@@ -47,7 +47,7 @@ class HillCalculator:
         inflexions = {}
         for i, media in enumerate(self.media_spend_sorted):
             media_range = self.chn_adstocked[media].agg(['min', 'max'])
-            inflexions[media] = np.dot(media_range, [1 - gammas[i], gammas[i]])
+            inflexions[media] = np.dot(media_range, [1 - gammas.iloc[i], gammas.iloc[i]])
 
         # Get sorted coefficients
         coefs = dict(zip(self.dt_coef['rn'], self.dt_coef['coef']))

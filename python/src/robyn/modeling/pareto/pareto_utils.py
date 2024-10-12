@@ -102,7 +102,8 @@ class ParetoUtils:
         else:
             return x
 
-    def calculate_fx_objective(self, x: float, coeff: float, alpha: float, inflexion: float, x_hist_carryover: float, get_sum: bool = True) -> float:
+    @staticmethod
+    def calculate_fx_objective(x: float, coeff: float, alpha: float, inflexion: float, x_hist_carryover: float, get_sum: bool = True) -> float:
         # Adstock scales
         x_adstocked = x + np.mean(x_hist_carryover)
         

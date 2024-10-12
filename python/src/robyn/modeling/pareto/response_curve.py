@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.data.entities.enums import AdstockType
-from robyn.data.entities.hyperparameters import ChannelHyperparameters
+from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
 
 @dataclass
 class MetricDateInfo:
-    metric_loc: Union[slice, pd.Series]
+    metric_loc: pd.Series
     date_range_updated: pd.Series
 
 @dataclass
@@ -49,23 +49,27 @@ class UseCase(str, Enum):
     UNIT_METRIC_SELECTED_DATES = "unit_metric_selected_dates"
 
 class ResponseCurveCalculator:
-    def __init__(self, mmm_data: MMMData, model_outputs: ModelOutputs):
+    def __init__(self, mmm_data: MMMData, model_outputs: ModelOutputs, hyperparameter: Hyperparameters):
         self.mmm_data: MMMData = mmm_data
         self.model_outputs: ModelOutputs = model_outputs
+        self.hyperparameter: Hyperparameters = hyperparameter
 
     def calculate_response(self, 
                            select_model: str,
                            metric_name: str,
                            metric_value: Optional[Union[float, list[float]]] = None,
                            date_range: Optional[str] = None,
-                           quiet: bool = False) -> ResponseOutput:
+                           quiet: bool = False,
+                           dt_hyppar: pd.DataFrame = pd.DataFrame(),
+                           dt_coef: pd.DataFrame = pd.DataFrame()
+                        ) -> ResponseOutput:
         # Determine the use case based on input parameters
         usecase = self._which_usecase(metric_value, date_range)
         
         # Check the metric type (spend, exposure, organic)
         metric_type = self._check_metric_type(metric_name)
         
-        all_dates = self.mmm_data.data['date']
+        all_dates = self.mmm_data.data[self.mmm_data.mmmdata_spec.date_var]
         all_values = self.mmm_data.data[metric_name]
         
         # Check and process date range
@@ -86,8 +90,6 @@ class ResponseCurveCalculator:
             hpm_name = metric_name
 
         media_vec_origin = self.mmm_data.data[metric_name]
-        dt_hyppar = self.get_hyperparam_data()
-        dt_coef = self.get_coefficient_data()
 
         # Get adstock parameters and apply adstock transformation
         adstock_params = self._get_adstock_params(select_model, hpm_name, dt_hyppar)
@@ -98,7 +100,7 @@ class ResponseCurveCalculator:
         media_vec_sim = x_list_sim.x_decayed
         
         input_total = media_vec_sim[ds_list.metric_loc]
-        if self.model_outputs.hyper_fixed['adstock'] == AdstockType.WEIBULL_PDF:
+        if self.hyperparameter.adstock == AdstockType.WEIBULL_PDF:
             media_vec_sim_imme = x_list_sim.x_imme
             input_immediate = media_vec_sim_imme[ds_list.metric_loc]
         else:
@@ -107,7 +109,8 @@ class ResponseCurveCalculator:
 
         # Get saturation parameters and apply saturation
         hill_params = self._get_saturation_params(select_model, hpm_name, dt_hyppar)
-        m_adstockedRW = m_adstocked[self.mmm_data.mmmdata_spec.window_start:self.mmm_data.mmmdata_spec.window_end]
+        
+        m_adstockedRW = m_adstocked[self.mmm_data.mmmdata_spec.rolling_window_start_which:self.mmm_data.mmmdata_spec.rolling_window_end_which]
         
         if usecase == UseCase.ALL_HISTORICAL_VEC:
             metric_saturated_total = self._saturation_hill(m_adstockedRW, hill_params)
@@ -166,8 +169,8 @@ class ResponseCurveCalculator:
             raise ValueError(f"Unknown metric type for {metric_name}")
 
     def _check_metric_dates(self, date_range: Optional[str], all_dates: pd.Series, quiet: bool) -> MetricDateInfo:
-        start_rw = self.mmm_data.mmmdata_spec.window_start
-        end_rw = self.mmm_data.mmmdata_spec.window_end
+        start_rw = self.mmm_data.mmmdata_spec.rolling_window_start_which
+        end_rw = self.mmm_data.mmmdata_spec.rolling_window_end_which
 
         if date_range == "all" or date_range is None:
             metric_loc = slice(start_rw, end_rw)
@@ -190,6 +193,13 @@ class ResponseCurveCalculator:
 
     def _check_metric_value(self, metric_value: Optional[Union[float, list[float]]], 
                             metric_name: str, all_values: pd.Series, metric_loc: Union[slice, pd.Series]) -> MetricValueInfo:
+        # if isinstance(metric_loc, slice):
+        #     selected_values = all_values.iloc[metric_loc]
+        # elif isinstance(metric_loc, pd.Series):
+        #     selected_values = all_values[metric_loc]
+        # else:  # metric_loc is a list of dates
+        #     selected_values = all_values[all_values.index.isin(metric_loc)]
+
         if metric_value is None:
             metric_value_updated = all_values[metric_loc]
         elif isinstance(metric_value, (int, float)):
@@ -228,30 +238,28 @@ class ResponseCurveCalculator:
             self.mmm_data.mmmdata_spec.paid_media_vars.index(metric_name)]
 
     def _get_adstock_params(self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame) -> ChannelHyperparameters:
-        adstock_type = self.model_outputs.hyper_fixed['adstock']
+        adstock_type = self.hyperparameter.adstock
         params = ChannelHyperparameters()
         
         if adstock_type == AdstockType.GEOMETRIC:
-            params.thetas = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                       (dt_hyppar['name'] == f"{hpm_name}_thetas")]['value'].values[0]]
+            params.thetas = dt_hyppar[dt_hyppar['solID'] == select_model][f"{hpm_name}_thetas"].values[0]
         elif adstock_type in [AdstockType.WEIBULL, AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
-            params.shapes = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                       (dt_hyppar['name'] == f"{hpm_name}_shapes")]['value'].values[0]]
-            params.scales = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                       (dt_hyppar['name'] == f"{hpm_name}_scales")]['value'].values[0]]
+            params.shapes = dt_hyppar[dt_hyppar['solID'] == select_model][f"{hpm_name}_shapes"].values[0]
+            params.scales = dt_hyppar[dt_hyppar['solID'] == select_model][f"{hpm_name}_scales"].values[0]
         
         return params
 
+    # TODO: Move this to transform.py
     def _transform_adstock(self, x: np.ndarray, params: ChannelHyperparameters) -> AdstockOutput:
-        adstock_type = self.model_outputs.hyper_fixed['adstock']
+        adstock_type = self.hyperparameter.adstock
         if adstock_type == AdstockType.GEOMETRIC:
-            x_decayed = self._geometric_adstock(x, params.thetas[0])
+            x_decayed = self._geometric_adstock(x, params.thetas)
             return AdstockOutput(x=x, x_decayed=x_decayed)
         elif adstock_type == AdstockType.WEIBULL_CDF:
-            x_decayed = self._weibull_adstock(x, params.shapes[0], params.scales[0], cumulative=True)
+            x_decayed = self._weibull_adstock(x, params.shapes, params.scales, cumulative=True)
             return AdstockOutput(x=x, x_decayed=x_decayed)
         elif adstock_type == AdstockType.WEIBULL_PDF:
-            x_decayed, x_imme = self._weibull_adstock(x, params.shapes[0], params.scales[0], cumulative=False)
+            x_decayed, x_imme = self._weibull_adstock(x, params.shapes, params.scales, cumulative=False)
             return AdstockOutput(x=x, x_decayed=x_decayed, x_imme=x_imme)
 
     def _geometric_adstock(self, x: np.ndarray, theta: float) -> np.ndarray:
@@ -271,17 +279,15 @@ class ResponseCurveCalculator:
         else:
             x_imme = x * weights[0]
             return x_decayed, x_imme
-
+    
     def _get_saturation_params(self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame) -> ChannelHyperparameters:
         params = ChannelHyperparameters()
-        params.alphas = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                   (dt_hyppar['name'] == f"{hpm_name}_alphas")]['value'].values[0]]
-        params.gammas = [dt_hyppar[(dt_hyppar['solID'] == select_model) & 
-                                   (dt_hyppar['name'] == f"{hpm_name}_gammas")]['value'].values[0]]
+        params.alphas = dt_hyppar[dt_hyppar['solID'] == select_model][f"{hpm_name}_alphas"].values[0]
+        params.gammas = dt_hyppar[dt_hyppar['solID'] == select_model][f"{hpm_name}_gammas"].values[0]
         return params
 
     def _saturation_hill(self, x: np.ndarray, hill_params: ChannelHyperparameters, x_marginal: Optional[np.ndarray] = None) -> np.ndarray:
-        alpha, gamma = hill_params.alphas[0], hill_params.gammas[0]
+        alpha, gamma = hill_params.alphas, hill_params.gammas
         if x_marginal is None:
             return x**gamma / (x**gamma + alpha**gamma)
         else:
@@ -318,9 +324,3 @@ class ResponseCurveCalculator:
                     ha="center", fontsize=8)
         
         return fig
-    
-    def get_hyperparam_data(self) -> pd.DataFrame:
-        return pd.concat([trial.result_hyp_param for trial in self.model_outputs.trials])
-
-    def get_coefficient_data(self) -> pd.DataFrame:
-        return pd.concat([trial.x_decomp_agg for trial in self.model_outputs.trials])
