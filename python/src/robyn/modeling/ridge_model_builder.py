@@ -7,15 +7,13 @@ from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from sklearn.linear_model import Ridge
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
 import time
 from datetime import datetime
 from robyn.modeling.convergence.convergence import Convergence
 from sklearn.model_selection import train_test_split
-
-# Add these imports
 from sklearn.exceptions import ConvergenceWarning
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
@@ -29,11 +27,6 @@ import io
 import matplotlib.pyplot as plt
 import seaborn as sns
 import base64
-
-# Add these warning filters at the top of your file
-warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
-warnings.filterwarnings("ignore", category=ConvergenceWarning)
-warnings.filterwarnings("ignore", category=np.RankWarning)
 
 
 @dataclass
@@ -157,6 +150,14 @@ class RidgeModelBuilder:
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(output_models)
 
+        # Aggregate results from all trials
+        all_result_hyp_param = pd.concat([trial.result_hyp_param for trial in output_models], ignore_index=True)
+        all_x_decomp_agg = pd.concat([trial.x_decomp_agg for trial in output_models], ignore_index=True)
+        all_decomp_spend_dist = pd.concat(
+            [trial.decomp_spend_dist for trial in output_models if trial.decomp_spend_dist is not None],
+            ignore_index=True,
+        )
+
         # Create ModelOutputs with all required arguments
         model_outputs = ModelOutputs(
             trials=output_models,
@@ -173,9 +174,15 @@ class RidgeModelBuilder:
             convergence=convergence_results,
             select_id=self._select_best_model(output_models),
             seed=seed,
-            hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],  # Add this line
-            hyper_bound_fixed=hyper_collect["hyper_bound_list_fixed"],  # Add this line
+            hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],
+            hyper_bound_fixed=hyper_collect["hyper_bound_list_fixed"],
+            ts_validation_plot=None,
         )
+
+        # Add aggregated results to model_outputs
+        model_outputs.all_result_hyp_param = all_result_hyp_param
+        model_outputs.all_x_decomp_agg = all_x_decomp_agg
+        model_outputs.all_decomp_spend_dist = all_decomp_spend_dist
 
         # Print convergence information
         convergence_info = model_outputs.convergence
@@ -221,7 +228,7 @@ class RidgeModelBuilder:
         cores: int,
     ) -> List[Trial]:
         trials = []
-        for trial in range(1, trials_config.trials + 1):
+        for trial in range(1, 2):
             trial_result = self._run_nevergrad_optimization(
                 hyper_collect,
                 trials_config.iterations,
@@ -238,6 +245,7 @@ class RidgeModelBuilder:
                 seed + trial,
                 trials_config.trials,
             )
+
             trials.append(trial_result)
         return trials
 
@@ -274,28 +282,7 @@ class RidgeModelBuilder:
 
         optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
 
-        best_loss = float("inf")
-        best_params = None
-        best_nrmse = None
-        best_decomp_rssd = None
-        best_mape = None
-        best_lift_calibration = None
-        best_decomp_spend_dist = None
-        best_x_decomp_agg = None
-        best_rsq_train = None
-        best_rsq_val = None
-        best_rsq_test = None
-        best_lambda = None
-        best_lambda_hp = None
-        best_lambda_max = None
-        best_lambda_min_ratio = None
-        best_pos = None
-        best_elapsed = None
-        best_elapsed_accum = None
-        best_sol_id = None
-        best_iter_ng = None
-        best_iter_par = None
-
+        all_results = []
         start_time = time.time()
         with tqdm(
             total=iterations,
@@ -308,87 +295,158 @@ class RidgeModelBuilder:
                 params = candidate.kwargs
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    (
-                        loss,
-                        nrmse,
-                        decomp_rssd,
-                        mape,
-                        lift_calibration,
-                        decomp_spend_dist,
-                        x_decomp_agg,
-                        rsq_train,
-                        rsq_val,
-                        rsq_test,
-                        lambda_,
-                        lambda_hp,
-                        lambda_max,
-                        lambda_min_ratio,
-                        pos,
-                    ) = self._evaluate_model(
-                        params, ts_validation, add_penalty_factor, rssd_zero_penalty, objective_weights
+                    result = self._evaluate_model(
+                        params,
+                        ts_validation,
+                        add_penalty_factor,
+                        rssd_zero_penalty,
+                        objective_weights,
+                        start_time=start_time,
+                        iter_ng=iter_ng,
+                        trial=trial,
                     )
-                optimizer.tell(candidate, loss)
-                elapsed = time.time() - start_time
-                if loss < best_loss:
-                    best_loss = loss
-                    best_params = params
-                    best_params["solID"] = f"{trial}_{iter_ng + 1}_1"  # Add solID
-                    best_nrmse = nrmse
-                    best_decomp_rssd = decomp_rssd
-                    best_mape = mape
-                    best_lift_calibration = lift_calibration
-                    best_decomp_spend_dist = decomp_spend_dist
-                    best_x_decomp_agg = x_decomp_agg
-                    best_rsq_train = rsq_train
-                    best_rsq_val = rsq_val
-                    best_rsq_test = rsq_test
-                    best_lambda = lambda_
-                    best_lambda_hp = lambda_hp
-                    best_lambda_max = lambda_max
-                    best_lambda_min_ratio = lambda_min_ratio
-                    best_pos = pos
-                    best_elapsed = elapsed
-                    best_elapsed_accum = elapsed
-                    best_sol_id = f"{trial}_{iter_ng + 1}_1"
-                    best_iter_ng = iter_ng + 1
-                    best_iter_par = 1
+                optimizer.tell(candidate, result["loss"])
+                result["params"].update(
+                    {
+                        "solID": f"{trial}_{iter_ng + 1}_1",
+                        "ElapsedAccum": result["elapsed_accum"],
+                        "trial": trial,
+                        "nrmse": result["nrmse"],
+                        "decomp.rssd": result["decomp_rssd"],
+                        "mape": result["mape"],
+                    }
+                )
+                all_results.append(result)
                 pbar.update(1)
 
         end_time = time.time()
         print(f" Finished in {(end_time - start_time) / 60:.2f} mins")
-        best_params.update(
+
+        # Aggregate results from all iterations
+        result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
+        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
+        x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
+
+        # Find the best result for single-value metrics
+        best_result = min(all_results, key=lambda x: x["loss"])
+
+        return Trial(
+            result_hyp_param=result_hyp_param,
+            lift_calibration=best_result["lift_calibration"],
+            decomp_spend_dist=decomp_spend_dist,
+            nrmse=best_result["nrmse"],
+            decomp_rssd=best_result["decomp_rssd"],
+            mape=best_result["mape"],
+            x_decomp_agg=x_decomp_agg,
+            rsq_train=best_result["rsq_train"],
+            rsq_val=best_result["rsq_val"],
+            rsq_test=best_result["rsq_test"],
+            lambda_=best_result["lambda_"],
+            lambda_hp=best_result["lambda_hp"],
+            lambda_max=best_result["lambda_max"],
+            lambda_min_ratio=best_result["lambda_min_ratio"],
+            pos=best_result["pos"],
+            elapsed=best_result["elapsed"],
+            elapsed_accum=best_result["elapsed_accum"],
+            trial=trial,
+            iter_ng=best_result["iter_ng"],
+            iter_par=best_result["iter_par"],
+            train_size=best_result["params"].get("train_size", 1.0),
+            sol_id=best_result["params"]["solID"],
+        )
+
+    def _calculate_decomp_spend_dist(
+        self, model: Ridge, X: pd.DataFrame, y: pd.Series, params: Dict[str, Any]
+    ) -> pd.DataFrame:
+        paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
+        x_decomp = X[paid_media_cols] * model.coef_[X.columns.get_indexer(paid_media_cols)]
+
+        decomp_spend_dist = pd.DataFrame(
             {
-                "ElapsedAccum": best_elapsed_accum,
-                "trial": trial,
-                "nrmse": best_nrmse,
-                "decomp.rssd": best_decomp_rssd,
-                "mape": best_mape,
+                "rn": paid_media_cols,
+                "coef": model.coef_[X.columns.get_indexer(paid_media_cols)],
+                "xDecompAgg": x_decomp.sum(),
+                "xDecompPerc": x_decomp.sum() / x_decomp.sum().sum(),
+                "xDecompMeanNon0": x_decomp[x_decomp > 0].mean(),
+                "xDecompMeanNon0Perc": x_decomp[x_decomp > 0].mean() / x_decomp[x_decomp > 0].sum(),
+                "xDecompAggRF": x_decomp.sum(),  # You may need to adjust this for refresh
+                "xDecompPercRF": x_decomp.sum() / x_decomp.sum().sum(),  # Adjust for refresh
+                "xDecompMeanNon0RF": x_decomp[x_decomp > 0].mean(),  # Adjust for refresh
+                "xDecompMeanNon0PercRF": x_decomp[x_decomp > 0].mean()
+                / x_decomp[x_decomp > 0].sum(),  # Adjust for refresh
+                "pos": model.coef_[X.columns.get_indexer(paid_media_cols)] >= 0,
+                "mean_spend": X[paid_media_cols].mean(),
+                "total_spend": X[paid_media_cols].sum(),
+                "spend_share": X[paid_media_cols].sum() / X[paid_media_cols].sum().sum(),
+                "spend_share_refresh": X[paid_media_cols].sum() / X[paid_media_cols].sum().sum(),  # Adjust for refresh
+                "effect_share": x_decomp.sum() / x_decomp.sum().sum(),
+                "effect_share_refresh": x_decomp.sum() / x_decomp.sum().sum(),  # Adjust for refresh
             }
         )
-        return Trial(
-            result_hyp_param=pd.DataFrame([best_params]),
-            lift_calibration=best_lift_calibration,
-            decomp_spend_dist=best_decomp_spend_dist,
-            nrmse=best_nrmse,
-            decomp_rssd=best_decomp_rssd,
-            mape=best_mape,
-            x_decomp_agg=best_x_decomp_agg,
-            rsq_train=best_rsq_train,
-            rsq_val=best_rsq_val,
-            rsq_test=best_rsq_test,
-            lambda_=best_lambda,
-            lambda_hp=best_lambda_hp,
-            lambda_max=best_lambda_max,
-            lambda_min_ratio=best_lambda_min_ratio,
-            pos=best_pos,
-            elapsed=best_elapsed,
-            elapsed_accum=best_elapsed_accum,
-            trial=trial,
-            iter_ng=best_iter_ng,
-            iter_par=best_iter_par,
-            train_size=best_params.get("train_size", 1.0),
-            sol_id=best_params["solID"],
+
+        # Add model performance metrics
+        decomp_spend_dist["rsq_train"] = r2_score(y, model.predict(X))
+        decomp_spend_dist["rsq_val"] = params.get("rsq_val", 0)
+        decomp_spend_dist["rsq_test"] = params.get("rsq_test", 0)
+        decomp_spend_dist["nrmse_train"] = np.sqrt(mean_squared_error(y, model.predict(X))) / (y.max() - y.min())
+        decomp_spend_dist["nrmse_val"] = params.get("nrmse_val", 0)
+        decomp_spend_dist["nrmse_test"] = params.get("nrmse_test", 0)
+        decomp_spend_dist["nrmse"] = params.get("nrmse", 0)
+        decomp_spend_dist["decomp.rssd"] = params.get("decomp_rssd", 0)
+        decomp_spend_dist["mape"] = params.get("mape", 0)
+        decomp_spend_dist["lambda"] = params.get("lambda_", 0)
+        decomp_spend_dist["lambda_hp"] = params.get("lambda_hp", 0)
+        decomp_spend_dist["lambda_max"] = params.get("lambda_max", 0)
+        decomp_spend_dist["lambda_min_ratio"] = params.get("lambda_min_ratio", 0)
+        decomp_spend_dist["solID"] = params.get("solID", "")
+        decomp_spend_dist["trial"] = params.get("trial", 0)
+        decomp_spend_dist["iterNG"] = params.get("iter_ng", 0)
+        decomp_spend_dist["iterPar"] = params.get("iter_par", 0)
+
+        return decomp_spend_dist
+
+    def _calculate_x_decomp_agg(
+        self, model: Ridge, X: pd.DataFrame, y: pd.Series, params: Dict[str, Any]
+    ) -> pd.DataFrame:
+        x_decomp = X * model.coef_
+        x_decomp_agg = pd.DataFrame(
+            {
+                "rn": X.columns,
+                "coef": model.coef_,
+                "xDecompAgg": x_decomp.sum(),
+                "xDecompPerc": x_decomp.sum() / x_decomp.sum().sum(),
+                "xDecompMeanNon0": x_decomp[x_decomp > 0].mean(),
+                "xDecompMeanNon0Perc": x_decomp[x_decomp > 0].mean() / x_decomp[x_decomp > 0].sum(),
+                "xDecompAggRF": x_decomp.sum(),  # You may need to adjust this for refresh
+                "xDecompPercRF": x_decomp.sum() / x_decomp.sum().sum(),  # Adjust for refresh
+                "xDecompMeanNon0RF": x_decomp[x_decomp > 0].mean(),  # Adjust for refresh
+                "xDecompMeanNon0PercRF": x_decomp[x_decomp > 0].mean()
+                / x_decomp[x_decomp > 0].sum(),  # Adjust for refresh
+                "pos": model.coef_ >= 0,
+            }
         )
+
+        # Add model performance metrics and parameters
+        x_decomp_agg["train_size"] = params.get("train_size", 1.0)
+        x_decomp_agg["rsq_train"] = r2_score(y, model.predict(X))
+        x_decomp_agg["rsq_val"] = params.get("rsq_val", 0)
+        x_decomp_agg["rsq_test"] = params.get("rsq_test", 0)
+        x_decomp_agg["nrmse_train"] = np.sqrt(mean_squared_error(y, model.predict(X))) / (y.max() - y.min())
+        x_decomp_agg["nrmse_val"] = params.get("nrmse_val", 0)
+        x_decomp_agg["nrmse_test"] = params.get("nrmse_test", 0)
+        x_decomp_agg["nrmse"] = params.get("nrmse", 0)
+        x_decomp_agg["decomp.rssd"] = params.get("decomp_rssd", 0)
+        x_decomp_agg["mape"] = params.get("mape", 0)
+        x_decomp_agg["lambda"] = params.get("lambda_", 0)
+        x_decomp_agg["lambda_hp"] = params.get("lambda_hp", 0)
+        x_decomp_agg["lambda_max"] = params.get("lambda_max", 0)
+        x_decomp_agg["lambda_min_ratio"] = params.get("lambda_min_ratio", 0)
+        x_decomp_agg["solID"] = params.get("solID", "")
+        x_decomp_agg["trial"] = params.get("trial", 0)
+        x_decomp_agg["iterNG"] = params.get("iter_ng", 0)
+        x_decomp_agg["iterPar"] = params.get("iter_par", 0)
+
+        return x_decomp_agg
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
         # Get the dependent variable
@@ -517,25 +575,10 @@ class RidgeModelBuilder:
         add_penalty_factor: bool,
         rssd_zero_penalty: bool,
         objective_weights: Optional[List[float]],
-    ) -> Tuple[
-        float,
-        float,
-        float,
-        float,
-        Optional[pd.DataFrame],
-        Optional[pd.DataFrame],
-        pd.DataFrame,
-        float,
-        float,
-        float,
-        float,
-        float,
-        float,
-        float,
-        int,
-    ]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+        start_time: float,
+        iter_ng: int,
+        trial: int,
+    ) -> Dict[str, Any]:
         X, y = self._prepare_data(params)
 
         if ts_validation:
@@ -570,11 +613,8 @@ class RidgeModelBuilder:
             nrmse = nrmse_train  # Use training NRMSE when not doing validation
 
         decomp_rssd = self._calculate_rssd(model.coef_, rssd_zero_penalty)
-
         mape = self._calculate_mape(model) if self.calibration_input else 0.0
-
-        lift_calibration = None  # Implement this if needed
-        decomp_spend_dist = None  # Implement this if needed
+        lift_calibration = self._calculate_lift_calibration(model) if self.calibration_input else None
 
         lambda_hp = params.get("lambda", 0.0)
         lambda_max = self._lambda_seq(X_train, y_train)[0]
@@ -582,17 +622,6 @@ class RidgeModelBuilder:
 
         pos = np.all(model.coef_ >= 0)
 
-        # Calculate x_decomp_agg
-        x_decomp = X_train * model.coef_
-        x_decomp_agg = pd.DataFrame(
-            {
-                "variable": X_train.columns,
-                "coefficient": model.coef_,
-                "sum": x_decomp.sum(),
-                "mean": x_decomp.mean(),
-                "median": x_decomp.median(),
-            }
-        )
         if objective_weights is None:
             objective_weights = [1 / 3, 1 / 3, 1 / 3] if self.calibration_input else [0.5, 0.5]
 
@@ -602,23 +631,58 @@ class RidgeModelBuilder:
             + (objective_weights[2] * mape if self.calibration_input else 0)
         )
 
-        return (
-            loss,
-            nrmse,
-            decomp_rssd,
-            mape,
-            lift_calibration,
-            decomp_spend_dist,
-            x_decomp_agg,
-            rsq_train,
-            rsq_val,
-            rsq_test,
-            lambda_,
-            lambda_hp,
-            lambda_max,
-            lambda_min_ratio,
-            int(pos),
-        )
+        elapsed = time.time() - start_time
+
+        result_params = {
+            **params,
+            "train_size": train_size,
+            "rsq_train": rsq_train,
+            "rsq_val": rsq_val,
+            "rsq_test": rsq_test,
+            "nrmse_train": nrmse_train,
+            "nrmse_val": nrmse_val if nrmse_val is not None else 0,
+            "nrmse_test": nrmse_test if nrmse_test is not None else 0,
+            "nrmse": nrmse,
+            "decomp.rssd": decomp_rssd,
+            "mape": mape,
+            "lambda": lambda_,
+            "lambda_hp": lambda_hp,
+            "lambda_max": lambda_max,
+            "lambda_min_ratio": lambda_min_ratio,
+            "pos": int(pos),
+            "Elapsed": elapsed,
+            "ElapsedAccum": elapsed,
+            "solID": f"{trial}_{iter_ng + 1}_1",
+            "trial": trial,
+            "iterNG": iter_ng + 1,
+            "iterPar": 1,
+        }
+
+        decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, result_params)
+        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, result_params)
+
+        return {
+            "loss": loss,
+            "nrmse": nrmse,
+            "decomp_rssd": decomp_rssd,
+            "mape": mape,
+            "lift_calibration": lift_calibration,
+            "decomp_spend_dist": decomp_spend_dist,
+            "x_decomp_agg": x_decomp_agg,
+            "rsq_train": rsq_train,
+            "rsq_val": rsq_val,
+            "rsq_test": rsq_test,
+            "lambda_": lambda_,
+            "lambda_hp": lambda_hp,
+            "lambda_max": lambda_max,
+            "lambda_min_ratio": lambda_min_ratio,
+            "pos": int(pos),
+            "elapsed": elapsed,
+            "elapsed_accum": elapsed,
+            "iter_ng": iter_ng + 1,
+            "iter_par": 1,
+            "params": result_params,
+        }
 
     @staticmethod
     def _hyper_collector(
