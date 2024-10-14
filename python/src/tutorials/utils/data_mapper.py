@@ -55,6 +55,9 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         "factor_vars": data["InputCollect"].get("factor_vars", []),
         "window_start": data["InputCollect"].get("window_start"),
         "window_end": data["InputCollect"].get("window_end"),
+        "rolling_window_length": data["InputCollect"].get("rolling_window_length"),
+        "rolling_window_start_which": data["InputCollect"].get("rolling_window_start_which"),
+        "rolling_window_end_which": data["InputCollect"].get("rolling_window_end_which"),
     }
     mmm_data = MMMData(
         data=pd.DataFrame(data["InputCollect"]["dt_input"]), mmmdata_spec=MMMData.MMMDataSpec(**mmm_data_spec_args)
@@ -78,68 +81,82 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
     )
     # Other initializations...
     trials = []
-    attributes = {}
     convergence_data = None
-    hyper_bound_ng = {}
-    hyper_bound_fixed = {}
+    hyper_bound_ng = pd.DataFrame()
+    hyper_bound_fixed = pd.DataFrame()
+    hyper_updated = {}
 
     for trial_key, trial_data in data["OutputModels"].items():
-        if trial_key == "attributes":
-            attributes = trial_data
-        elif trial_key == "convergence":
+        if trial_key == "convergence":
             convergence_data = Convergence.from_dict(trial_data)
+        elif trial_key == "hyper_updated":
+            hyper_updated = trial_data
+        elif trial_key == "hyper_fixed":
+            hyper_fixed = trial_data
+        elif trial_key == "train_timestamp":
+            train_timestamp = trial_data[0]
+        elif trial_key == "cores":
+            cores = trial_data[0]
+        elif trial_key == "iterations":
+            iterations = trial_data[0]
+        elif trial_key == "intercept":
+            intercept = trial_data[0]
+        elif trial_key == "intercept_sign":
+            intercept_sign = trial_data[0]
+        elif trial_key == "nevergrad_algo":
+            nevergrad_algo = trial_data[0]
+        elif trial_key == "ts_validation":
+            ts_validation = trial_data[0]
+        elif trial_key == "add_penalty_factor":
+            add_penalty_factor = trial_data[0]
         elif isinstance(trial_data, dict):
             result_collect = trial_data.get("resultCollect", {})
             result_hyp_param = pd.DataFrame(result_collect.get("resultHypParam", []))
             x_decomp_agg = pd.DataFrame(result_collect.get("xDecompAgg", []))
             lift_calibration = pd.DataFrame(result_collect.get("liftCalibration", []))
             decomp_spend_dist = pd.DataFrame(result_collect.get("decompSpendDist", []))
-        elif trial_key == "hyperBoundNG":
-            hyper_bound_ng = trial_data
-        elif trial_key == "hyperBoundFixed":
-            hyper_bound_fixed = trial_data
-        for i, row in result_hyp_param.iterrows():
+            hyper_bound_ng = pd.DataFrame(trial_data.get("hyperBoundNG", {}))
+            hyper_bound_fixed = pd.DataFrame(trial_data.get("hyperBoundFixed", []))
             trial = Trial(
                 result_hyp_param=result_hyp_param,
                 x_decomp_agg=x_decomp_agg,
                 lift_calibration=lift_calibration,
                 decomp_spend_dist=decomp_spend_dist,
-                nrmse=row.get("NRMSE", 0),
-                decomp_rssd=row.get("decomp.rssd", 0),
-                mape=row.get("MAPE", 0),
-                rsq_train=row.get("rsq_train", 0),
-                rsq_val=row.get("rsq_val", 0),
-                rsq_test=row.get("rsq_test", 0),
-                lambda_=row.get("lambda", 0),
-                lambda_hp=row.get("lambda_hp", 0),
-                lambda_max=row.get("lambda_max", 0),
-                lambda_min_ratio=row.get("lambda_min_ratio", 0),
-                pos=row.get("pos", 0),
-                elapsed=row.get("Elapsed", 0),
-                elapsed_accum=row.get("ElapsedAccum", 0),
-                trial=row.get("trial", 0),
-                iter_ng=row.get("iterNG", 0),
-                iter_par=row.get("iterPar", 0),
-                train_size=row.get("train_size", 0),
-                sol_id=row.get("solID", ""),
+                nrmse= 0,
+                decomp_rssd= 0,
+                mape= 0,
+                rsq_train= 0,
+                rsq_val= 0,
+                rsq_test= 0,
+                lambda_= 0,
+                lambda_hp= 0,
+                lambda_max= 0,
+                lambda_min_ratio= 0,
+                pos= 0,
+                elapsed= 0,
+                elapsed_accum= 0,
+                trial= 0,
+                iter_ng= 0,
+                iter_par= 0,
+                train_size= 0,
+                sol_id= "",
             )
             trials.append(trial)
-
     model_outputs = ModelOutputs(
         trials=trials,
-        train_timestamp=attributes.get("train_timestamp", ""),
-        cores=attributes.get("cores", 1),
-        iterations=attributes.get("iterations", 0),
-        intercept=attributes.get("intercept", True),
-        intercept_sign=attributes.get("intercept_sign", ""),
-        nevergrad_algo=attributes.get("nevergrad_algo", ""),
-        ts_validation=attributes.get("ts_validation", False),
-        add_penalty_factor=attributes.get("add_penalty_factor", False),
-        hyper_fixed=attributes.get("hyper_fixed", False),
-        hyper_updated=attributes.get("hyper_updated", {}),
+        train_timestamp=train_timestamp,
+        cores=cores,
+        iterations=iterations,
+        intercept=intercept,
+        intercept_sign=intercept_sign,
+        nevergrad_algo=nevergrad_algo,
+        ts_validation=ts_validation,
+        add_penalty_factor=add_penalty_factor,
+        hyper_fixed=hyper_fixed,
+        hyper_updated=hyper_updated,
         convergence=convergence_data,
-        select_id=attributes.get("select_id", ""),
-        seed=attributes.get("seed", 0),
+        select_id=data["OutputModels"].get("select_id", ""),
+        seed=data["OutputModels"].get("seed", 0),
         hyper_bound_ng=hyper_bound_ng,
         hyper_bound_fixed=hyper_bound_fixed,
         ts_validation_plot=data["OutputModels"].get("ts_validation_plot"),  # Add this line
