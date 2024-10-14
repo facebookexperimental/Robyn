@@ -37,6 +37,9 @@ class MMMData:
             date_var: str = "auto",
             window_start: datetime = None,
             window_end: datetime = None,
+            rolling_window_length: int = None,
+            rolling_window_start_which: int = 0,
+            rolling_window_end_which: int = None,
             paid_media_spends: Optional[List[str]] = None,
             paid_media_vars: Optional[List[str]] = None,
             paid_media_signs: Optional[List[PaidMediaSigns]] = None,
@@ -54,6 +57,9 @@ class MMMData:
             self.date_var: str = date_var
             self.window_start: datetime = window_start
             self.window_end: datetime = window_end
+            self.rolling_window_length: int = rolling_window_length
+            self.rolling_window_start_which: int = rolling_window_start_which
+            self.rolling_window_end_which: int = rolling_window_end_which
             self.paid_media_spends: Optional[List[str]] = paid_media_spends
             self.paid_media_vars: Optional[List[str]] = paid_media_vars
             self.paid_media_signs: Optional[List[str]] = paid_media_signs
@@ -74,6 +80,9 @@ class MMMData:
             date_var: {self.date_var}
             window_start: {self.window_start}
             window_end: {self.window_end}
+            rolling_window_length: {self.rolling_window_length}
+            rolling_window_start_which: {self.rolling_window_start_which}
+            rolling_window_end_which: {self.rolling_window_end_which}
             paid_media_spends: {self.paid_media_spends}
             paid_media_vars: {self.paid_media_vars}
             paid_media_signs: {self.paid_media_signs}
