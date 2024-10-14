@@ -129,10 +129,11 @@ class ResponseCurveCalculator:
         response_carryover = metric_saturated_carryover * coeff
         response_immediate = response_total - response_carryover
 
+        # TODO: Move this logic out to Visualizers (also not needed every time calculate_response is called for ex, in pareto)
         # Create response plot
-        plot = self._create_response_plot(m_adstockedRW, m_response, input_total, response_total, 
-                                          input_carryover, response_carryover, input_immediate, 
-                                          response_immediate, metric_name, metric_type, date_range_updated)
+        # plot = self._create_response_plot(m_adstockedRW, m_response, input_total, response_total, 
+        #                                   input_carryover, response_carryover, input_immediate, 
+        #                                   response_immediate, metric_name, metric_type, date_range_updated)
 
         return ResponseOutput(
             metric_name=metric_name,
@@ -144,7 +145,7 @@ class ResponseCurveCalculator:
             response_carryover=response_carryover,
             response_immediate=response_immediate,
             usecase=usecase,
-            plot=plot
+            plot=None # TODO: add the call to visualizer here
         )
 
 

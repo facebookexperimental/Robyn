@@ -107,19 +107,18 @@ class ParetoOptimizer:
         pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates)
         response_curves = self._compute_response_curves(pareto_data)
         # TODO IMplement
-        plot_data = self._generate_plot_data(aggregated_data, response_curves)
+        plotting_data = self._generate_plot_data(aggregated_data, response_curves)
 
         return ParetoResult(
-            pareto_solutions=plot_data["solID"].tolist(),
+            pareto_solutions=None, # TODO: plotting_data["solID"].tolist(),
             pareto_fronts=pareto_fronts,
-            pareto_data=pareto_data,
             result_hyp_param=aggregated_data["result_hyp_param"],
-            x_decomp_agg=aggregated_data["x_decomp_agg"],
-            result_calibration=aggregated_data.get("result_calibration"),
-            media_vec_collect=response_curves["media_vec_collect"],
-            x_decomp_vec_collect=response_curves["x_decomp_vec_collect"],
-            plot_data_collect=plot_data,
-            # df_caov_pct_all=self.carryover_calculator.calculate_all(),
+            result_calibration=aggregated_data["result_calibration"],
+            x_decomp_agg=pareto_data.x_decomp_agg,
+            media_vec_collect=None, # TODO: plotting_data["media_vec_collect"],
+            x_decomp_vec_collect=None, # TODO: plotting_data["x_decomp_vec_collect"],
+            plot_data_collect=None, # TODO: plotting_data,
+            df_caov_pct_all=None # TODO: plotting_data.df_caov_pct_all,
         )
     
     def _aggregate_model_data(self, calibrated: bool) -> Dict[str, pd.DataFrame]:
@@ -301,19 +300,6 @@ class ParetoOptimizer:
             on='solID',
             how='left'
         )
-        # decomp_spend_dist = pd.concat([
-        #     pd.DataFrame(trial.decomp_spend_dist).assign(trial=trial.trial)
-        #     for trial in self.model_outputs.trials
-        # ])
-
-        # if not self.model_outputs.hyper_fixed:
-        #     decomp_spend_dist['solID'] = decomp_spend_dist.apply(
-        #         lambda row: f"{row['trial']}_{row['iterNG']}_{row['iterPar']}", axis=1
-        #     )
-
-        # decomp_spend_dist = pd.merge(decomp_spend_dist, 
-        #                             result_hyp_param[['robynPareto', 'solID']], 
-        #                             on='solID', how='left')
 
         # 2. Preparing for parallel processing
         # Note: Python parallel processing would be implemented differently
@@ -324,7 +310,6 @@ class ParetoOptimizer:
             pareto_fronts = 1
 
         # 4. Handling automatic Pareto front selection
-        print("pareto_fronts", pareto_fronts)
         if pareto_fronts == "auto":
             n_pareto = result_hyp_param['robynPareto'].notna().sum()
             
@@ -358,13 +343,24 @@ class ParetoOptimizer:
         decomp_spend_dist_pareto = decomp_spend_dist[decomp_spend_dist['robynPareto'].isin(pareto_fronts_vec)]
         result_hyp_param_pareto = result_hyp_param[result_hyp_param['robynPareto'].isin(pareto_fronts_vec)]
         x_decomp_agg_pareto = x_decomp_agg[x_decomp_agg['robynPareto'].isin(pareto_fronts_vec)]
-        print("pareto_fronts_vec", pareto_fronts_vec, len(decomp_spend_dist), len(decomp_spend_dist_pareto))
+
         return ParetoData(decomp_spend_dist=decomp_spend_dist_pareto, 
                           result_hyp_param=result_hyp_param_pareto, 
                           x_decomp_agg=x_decomp_agg_pareto, 
                           pareto_fronts=pareto_fronts_vec)
 
     def run_dt_resp(self, row: pd.Series, paretoData: ParetoData) -> pd.Series:
+        """
+        Calculate response curves for a given row of Pareto data. 
+        This method is used for parallel processing.
+
+        Args:
+            row (pd.Series): A row of Pareto data.
+            paretoData (ParetoData): Pareto data.
+
+        Returns:
+            pd.Series: A row of response curves.
+        """
         get_solID = row['solID']
         get_spendname = row['rn']
         startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
@@ -375,7 +371,7 @@ class ParetoOptimizer:
             model_outputs=self.model_outputs,
             hyperparameter = self.hyper_parameter)
 
-        get_resp: ResponseOutput = response_calculator.calculate_response(
+        response_output: ResponseOutput = response_calculator.calculate_response(
             select_model=get_solID,
             metric_name=get_spendname,
             date_range="all",
@@ -384,11 +380,11 @@ class ParetoOptimizer:
             quiet=True
         )
 
-        mean_spend_adstocked = np.mean(get_resp.input_total[startRW:endRW])
-        mean_carryover = np.mean(get_resp.input_carryover[startRW:endRW])
+        mean_spend_adstocked = np.mean(response_output.input_total[startRW:endRW])
+        mean_carryover = np.mean(response_output.input_carryover[startRW:endRW])
         
         dt_hyppar = paretoData.result_hyp_param[paretoData.result_hyp_param['solID'] == get_solID]
-        chn_adstocked = pd.DataFrame({get_spendname: get_resp.input_total[startRW:endRW]})
+        chn_adstocked = pd.DataFrame({get_spendname: response_output.input_total[startRW:endRW]})
         dt_coef = paretoData.x_decomp_agg[
             (paretoData.x_decomp_agg['solID'] == get_solID) & 
             (paretoData.x_decomp_agg['rn'] == get_spendname)
@@ -422,7 +418,7 @@ class ParetoOptimizer:
             'solID': row['solID']
         })
     
-    def _compute_response_curves(self, pareto_data: ParetoData) -> Dict[str, pd.DataFrame]:
+    def _compute_response_curves(self, pareto_data: ParetoData) -> ParetoData:
         """
         Calculate response curves for Pareto-optimal solutions.
 
@@ -430,12 +426,10 @@ class ParetoOptimizer:
         providing insights into the relationship between media spend and response.
 
         Args:
-            pareto_fronts_df (pd.DataFrame): Dataframe of Pareto-optimal solutions.
+            pareto_data (ParetoData): Pareto data.
 
         Returns:
-            Dict[str, pd.DataFrame]: A dictionary containing:
-                - 'media_vec_collect': Collected media vectors for all Pareto-optimal solutions
-                - 'x_decomp_vec_collect': Collected decomposition vectors for all Pareto-optimal solutions
+            ParetoData: Pareto data with updated decomp_spend_dist and x_decomp_agg.
         """
         print(f">>> Calculating response curves for all models' media variables ({len(pareto_data.decomp_spend_dist)})...")
 
@@ -450,11 +444,8 @@ class ParetoOptimizer:
         else:
             resp_collect = pareto_data.decomp_spend_dist.apply(run_dt_resp_partial, axis=1)
 
-
-        print("resp_collect", resp_collect)
-        print("pareto_data.decomp_spend_dist", pareto_data.decomp_spend_dist)
         # Merge results
-        decomp_spend_dist = pd.merge(
+        pareto_data.decomp_spend_dist = pd.merge(
             pareto_data.decomp_spend_dist,
             resp_collect,
             on=['solID', 'rn'],
@@ -462,23 +453,20 @@ class ParetoOptimizer:
         )
         
         # Calculate ROI and CPA metrics after merging
-        decomp_spend_dist['roi_mean'] = decomp_spend_dist['mean_response'] / decomp_spend_dist['mean_spend']
-        decomp_spend_dist['roi_total'] = decomp_spend_dist['xDecompAgg'] / decomp_spend_dist['total_spend']
-        decomp_spend_dist['cpa_mean'] = decomp_spend_dist['mean_spend'] / decomp_spend_dist['mean_response']
-        decomp_spend_dist['cpa_total'] = decomp_spend_dist['total_spend'] / decomp_spend_dist['xDecompAgg']
+        pareto_data.decomp_spend_dist['roi_mean'] = pareto_data.decomp_spend_dist['mean_response'] / pareto_data.decomp_spend_dist['mean_spend']
+        pareto_data.decomp_spend_dist['roi_total'] = pareto_data.decomp_spend_dist['xDecompAgg'] / pareto_data.decomp_spend_dist['total_spend']
+        pareto_data.decomp_spend_dist['cpa_mean'] = pareto_data.decomp_spend_dist['mean_spend'] / pareto_data.decomp_spend_dist['mean_response']
+        pareto_data.decomp_spend_dist['cpa_total'] = pareto_data.decomp_spend_dist['total_spend'] / pareto_data.decomp_spend_dist['xDecompAgg']
 
-        x_decomp_agg = pd.merge(
+        pareto_data.x_decomp_agg = pd.merge(
             pareto_data.x_decomp_agg,
-            decomp_spend_dist[['rn', 'solID', 'total_spend', 'mean_spend', 'mean_spend_adstocked', 'mean_carryover',
+            pareto_data.decomp_spend_dist[['rn', 'solID', 'total_spend', 'mean_spend', 'mean_spend_adstocked', 'mean_carryover',
                                'mean_response', 'spend_share', 'effect_share', 'roi_mean', 'roi_total', 'cpa_total']],
             on=['solID', 'rn'],
             how='left'
         )
 
-        return {
-            'media_vec_collect': decomp_spend_dist,
-            'x_decomp_vec_collect': x_decomp_agg
-        }
+        return pareto_data
     
     def _generate_plot_data(
         self, aggregated_data: Dict[str, pd.DataFrame], response_curves: Dict[str, pd.DataFrame]
