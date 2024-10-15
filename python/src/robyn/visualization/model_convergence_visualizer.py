@@ -70,48 +70,66 @@ class ModelConvergenceVisualizer:
         graphic = base64.b64encode(image_png)
         return graphic.decode("utf-8")
 
-    def create_ts_validation_plot(self, output_models: List[Trial]) -> str:
-        result_hyp_param = pd.concat([trial.result_hyp_param for trial in output_models], ignore_index=True)
+    def create_ts_validation_plot(self, trials: List[Trial]) -> str:
+        result_hyp_param = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
+        result_hyp_param["trial"] = result_hyp_param.groupby("solID").cumcount() + 1
+        result_hyp_param["iteration"] = result_hyp_param.index + 1  # Use this instead of 'i'
 
         result_hyp_param_long = result_hyp_param.melt(
-            id_vars=["solID", "trial", "train_size"],
-            value_vars=["rsq_train", "rsq_val", "rsq_test"],
-            var_name="dataset",
-            value_name="rsq",
+            id_vars=["solID", "trial", "train_size", "iteration"],
+            value_vars=["rsq_train", "rsq_val", "rsq_test", "nrmse_train", "nrmse_val", "nrmse_test"],
+            var_name="metric",
+            value_name="value",
         )
 
-        nrmse_data = result_hyp_param.melt(
-            id_vars=["solID"],
-            value_vars=["nrmse_train", "nrmse_val", "nrmse_test"],
-            var_name="nrmse_dataset",
-            value_name="nrmse_value",
+        result_hyp_param_long["dataset"] = result_hyp_param_long["metric"].str.split("_").str[-1]
+        result_hyp_param_long["metric_type"] = result_hyp_param_long["metric"].str.split("_").str[0]
+
+        # Winsorize the data
+        result_hyp_param_long["value"] = result_hyp_param_long.groupby("metric_type")["value"].transform(
+            lambda x: np.clip(x, np.percentile(x, self.nrmse_win[0] * 100), np.percentile(x, self.nrmse_win[1] * 100))
         )
 
-        result_hyp_param_long = result_hyp_param_long.merge(
-            nrmse_data, left_on=["solID", "dataset"], right_on=["solID", "nrmse_dataset"], how="left"
-        )
-
-        result_hyp_param_long["dataset"] = result_hyp_param_long["dataset"].str.replace("rsq_", "")
-        result_hyp_param_long["rsq"] = np.clip(result_hyp_param_long["rsq"], 0.01, 0.99)
-        result_hyp_param_long["nrmse_value"] = np.clip(
-            result_hyp_param_long["nrmse_value"], 0, np.percentile(result_hyp_param_long["nrmse_value"], 99)
-        )
-
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12), height_ratios=[3, 1])
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[3, 1])
 
         # NRMSE plot
-        sns.scatterplot(data=result_hyp_param_long, x="trial", y="nrmse_value", hue="dataset", alpha=0.2, ax=ax1)
-        sns.lineplot(data=result_hyp_param_long, x="trial", y="nrmse_value", hue="dataset", ax=ax1)
-        ax1.set_ylabel("NRMSE [Upper 1% Winsorized]")
-        ax1.set_xlabel("Trial")
+        sns.scatterplot(
+            data=result_hyp_param_long[result_hyp_param_long["metric_type"] == "nrmse"],
+            x="iteration",
+            y="value",
+            hue="dataset",
+            style="trial",
+            alpha=0.5,
+            ax=ax1,
+        )
+        sns.lineplot(
+            data=result_hyp_param_long[result_hyp_param_long["metric_type"] == "nrmse"],
+            x="iteration",
+            y="value",
+            hue="dataset",
+            ax=ax1,
+        )
+        ax1.set_ylabel("NRMSE [Winsorized]")
+        ax1.set_xlabel("Iteration")
         ax1.legend(title="Dataset")
 
         # Train Size plot
-        sns.scatterplot(data=result_hyp_param, x="trial", y="train_size", ax=ax2, color="black", alpha=0.5)
+        sns.scatterplot(data=result_hyp_param, x="iteration", y="train_size", hue="trial", ax=ax2, legend=False)
         ax2.set_ylabel("Train Size")
-        ax2.set_xlabel("Trial")
+        ax2.set_xlabel("Iteration")
         ax2.set_ylim(0, 1)
         ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: "{:.0%}".format(y)))
 
         plt.suptitle("Time-series validation & Convergence")
         plt.tight_layout()
+
+        return self._convert_plot_to_base64(fig)
+
+    def _convert_plot_to_base64(self, fig: plt.Figure) -> str:
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png")
+        buffer.seek(0)
+        image_png = buffer.getvalue()
+        buffer.close()
+        graphic = base64.b64encode(image_png)
+        return graphic.decode("utf-8")
