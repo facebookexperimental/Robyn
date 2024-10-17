@@ -3,17 +3,17 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import pandas as pd
+from dataclasses import field
 
 
 @dataclass
 class Trial:
     result_hyp_param: pd.DataFrame
-    lift_calibration: Optional[pd.DataFrame]
-    decomp_spend_dist: Optional[pd.DataFrame]
+    decomp_spend_dist: pd.DataFrame
+    x_decomp_agg: pd.DataFrame
     nrmse: float
     decomp_rssd: float
     mape: float
-    x_decomp_agg: pd.DataFrame
     rsq_train: float
     rsq_val: float
     rsq_test: float
@@ -22,13 +22,14 @@ class Trial:
     lambda_max: float
     lambda_min_ratio: float
     pos: int
-    elapsed: float
-    elapsed_accum: float
-    trial: int
-    iter_ng: int
-    iter_par: int
-    train_size: float
-    sol_id: str
+    elapsed: float = 0.0
+    elapsed_accum: float = 0.0
+    trial: int = 1
+    iter_ng: int = 1
+    iter_par: int = 1
+    train_size: float = 1.0
+    sol_id: str = "1_1_1"
+    lift_calibration: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 @dataclass
@@ -53,6 +54,12 @@ class ModelOutputs:
         convergence (Dict[str, Any]): Convergence information for the optimization process.
         select_id (str): ID of the selected model.
         seed (int): Random seed used for reproducibility.
+        hyper_bound_ng (Dict[str, Any]): Hyperparameter bounds for Nevergrad optimization.
+        hyper_bound_fixed (Dict[str, Any]): Fixed hyperparameter bounds.
+        ts_validation_plot (Optional[str]): Time series validation plot, if applicable.
+        all_result_hyp_param (pd.DataFrame): Aggregated hyperparameter results from all trials.
+        all_x_decomp_agg (pd.DataFrame): Aggregated decomposition results from all trials.
+        all_decomp_spend_dist (pd.DataFrame): Aggregated spend distribution results from all trials.
     """
 
     trials: List[Trial]
@@ -72,3 +79,6 @@ class ModelOutputs:
     hyper_bound_ng: Dict[str, Any]
     hyper_bound_fixed: Dict[str, Any]
     ts_validation_plot: Optional[str]
+    all_result_hyp_param: pd.DataFrame = field(default_factory=pd.DataFrame)
+    all_x_decomp_agg: pd.DataFrame = field(default_factory=pd.DataFrame)
+    all_decomp_spend_dist: pd.DataFrame = field(default_factory=pd.DataFrame)
