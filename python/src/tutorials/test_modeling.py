@@ -1,22 +1,7 @@
 # test_modeling.py
 
-from dotenv import load_dotenv
 import os
 import sys
-
-# Load environment variables from .env file
-load_dotenv(dotenv_path=".env.sample")
-# Retrieve the ROBYN_BASE_PATH environment variable
-base_path = os.getenv("ROBYN_BASE_PATH")
-if not base_path:
-    raise EnvironmentError("Please set the ROBYN_BASE_PATH environment variable")
-# Retrieve the PYTHONPATH environment variable
-python_path = os.getenv("PYTHONPATH")
-if not python_path:
-    raise EnvironmentError("Please set the PYTHONPATH environment variable in the .env file")
-# Append the paths to sys.path to recognize them as valid Python package paths
-sys.path.append(base_path)
-sys.path.append(python_path)
 
 import sys
 import os
