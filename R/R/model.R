@@ -403,7 +403,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         objective_weights = objective_weights,
         refresh = refresh,
         trial = ngt,
-        seed = seed + runif(1),
+        seed = seed + 1e4 * runif(1),
         quiet = quiet
       )
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
