@@ -388,6 +388,7 @@ robyn_train <- function(InputCollect, hyper_collect,
 
     for (ngt in 1:trials) { # ngt = 1
       if (!quiet) message(paste("  Running trial", ngt, "of", trials))
+      set.seed(seed)
       model_output <- robyn_mmm(
         InputCollect = InputCollect,
         hyper_collect = hyper_collect,
@@ -402,7 +403,7 @@ robyn_train <- function(InputCollect, hyper_collect,
         objective_weights = objective_weights,
         refresh = refresh,
         trial = ngt,
-        seed = seed + ngt,
+        seed = seed + runif(1),
         quiet = quiet
       )
       check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
