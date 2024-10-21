@@ -58,7 +58,9 @@ more iterations to converge.}
 
 \item{refresh}{Boolean. Set to \code{TRUE} when used in \code{robyn_refresh()}.}
 
-\item{seed}{Integer. For reproducible results when running nevergrad.}
+\item{seed}{Integer. For reproducible results when running nevergrad and
+clustering. Each trial will increase the seed by 1 unit (i.e. 10 trials with
+seed 1 will share 9 results with 10 trials with seed 2).}
 
 \item{quiet}{Boolean. Keep messages off?}
 
