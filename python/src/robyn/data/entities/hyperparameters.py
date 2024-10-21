@@ -54,7 +54,7 @@ class Hyperparameters:
     hyperparameters: Dict[str, ChannelHyperparameters] = (None,)
     adstock: AdstockType = (None,)  # Mandatory. User provides this.
     lambda_: float = 0.0  # User does not provide this. Model run calculates it.
-    train_size: List[float] = ((0.5, 0.8),)  # User can provide this.
+    train_size: List[float] = field(default_factory=lambda: [0.5, 0.8])
     hyper_bound_list_updated: Dict[str, List[float]] = field(default_factory=dict)
 
     def __str__(self) -> str:
