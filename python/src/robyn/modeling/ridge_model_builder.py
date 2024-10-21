@@ -10,6 +10,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
+import logging
 import time
 from datetime import datetime
 from robyn.modeling.convergence.convergence import Convergence
@@ -64,6 +65,7 @@ class RidgeModelBuilder:
         self.calibration_input = calibration_input
         self.hyperparameters = hyperparameters
         self.featurized_mmm_data = featurized_mmm_data
+        self.logger = logging.getLogger(__name__)
 
     def build_models(
         self,
@@ -102,16 +104,16 @@ class RidgeModelBuilder:
             - datetime.strptime(self.mmm_data.mmmdata_spec.window_start, "%Y-%m-%d")
         ).days // interval_days + 1
 
-        print(
+        self.logger.info(
             f"Input data has {total_intervals} {interval_type} in total: {dates.min().strftime('%Y-%m-%d')} to {dates.max().strftime('%Y-%m-%d')}"
         )
-        print(
+        self.logger.info(
             f"Initial model is built on rolling window of {rolling_window_length} {interval_type}: {self.mmm_data.mmmdata_spec.window_start} to {self.mmm_data.mmmdata_spec.window_end}"
         )
 
         if ts_validation:
             prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
-            print(
+            self.logger.info(
                 f"Time-series validation with train_size range of {prepared_hyperparameters.train_size[0]*100:.0f}%-{prepared_hyperparameters.train_size[1]*100:.0f}% of the data..."
             )
 
@@ -124,13 +126,12 @@ class RidgeModelBuilder:
         )
 
         prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
-        print(
+        self.logger.info(
             f"Using {prepared_hyperparameters.adstock} adstocking with {len(prepared_hyperparameters.hyperparameters)} hyperparameters ({len(hyper_collect['hyper_bound_list_updated'])} to iterate + {len(hyper_collect['hyper_bound_list_fixed'])} fixed) on {cores} cores"
         )
-        print(
+        self.logger.info(
             f">>> Starting {trials_config.trials} trials with {trials_config.iterations} iterations each using {nevergrad_algo.value} nevergrad algorithm..."
         )
-
         output_models = self._model_train(
             hyper_collect,
             trials_config,
@@ -148,7 +149,7 @@ class RidgeModelBuilder:
 
         end_time = time.time()
         total_time = (end_time - start_time) / 60
-        print(f"Total run time: {total_time:.2f} mins")
+        self.logger.info(f"Total run time: {total_time:.2f} mins")
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(output_models)
 
@@ -188,9 +189,9 @@ class RidgeModelBuilder:
 
         # Print convergence information
         convergence_info = model_outputs.convergence
-        print(f"Finished in {total_time:.2f} mins")
+        self.logger.info(f"Finished in {total_time:.2f} mins")
         for msg in convergence_info["conv_msg"]:
-            print(f"- {msg}")
+            self.logger.info(f"- {msg}")
 
         return model_outputs
 
@@ -322,7 +323,7 @@ class RidgeModelBuilder:
                 pbar.update(1)
 
         end_time = time.time()
-        print(f" Finished in {(end_time - start_time) / 60:.2f} mins")
+        self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
         # Aggregate results from all iterations
         result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
@@ -695,7 +696,8 @@ class RidgeModelBuilder:
         dt_hyper_fixed: Optional[pd.DataFrame],
         cores: int,
     ) -> Dict[str, Any]:
-        print("Collecting hyperparameters for optimization...", hyperparameters_dict)
+        logger = logging.getLogger(__name__)
+        logger.info(f"Collecting hyperparameters for optimization... {hyperparameters_dict}")
 
         prepared_hyperparameters = hyperparameters_dict["prepared_hyperparameters"]
         hyper_to_optimize = hyperparameters_dict["hyper_to_optimize"]
