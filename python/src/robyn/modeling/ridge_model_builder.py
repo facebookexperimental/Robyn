@@ -1,5 +1,5 @@
-# ridge_model_builder.py
 # pyre-strict
+
 import warnings
 import numpy as np
 import pandas as pd
@@ -110,8 +110,9 @@ class RidgeModelBuilder:
         )
 
         if ts_validation:
+            prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
             print(
-                f"Time-series validation with train_size range of {self.hyperparameters.train_size[0]*100:.0f}%-{self.hyperparameters.train_size[1]*100:.0f}% of the data..."
+                f"Time-series validation with train_size range of {prepared_hyperparameters.train_size[0]*100:.0f}%-{prepared_hyperparameters.train_size[1]*100:.0f}% of the data..."
             )
 
         hyper_collect = self._hyper_collector(
@@ -122,8 +123,9 @@ class RidgeModelBuilder:
             cores,
         )
 
+        prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
         print(
-            f"Using {self.hyperparameters.adstock} adstocking with {len(self.hyperparameters.hyperparameters)} hyperparameters ({len(hyper_collect['hyper_bound_list_updated'])} to iterate + {len(hyper_collect['hyper_bound_list_fixed'])} fixed) on {cores} cores"
+            f"Using {prepared_hyperparameters.adstock} adstocking with {len(prepared_hyperparameters.hyperparameters)} hyperparameters ({len(hyper_collect['hyper_bound_list_updated'])} to iterate + {len(hyper_collect['hyper_bound_list_fixed'])} fixed) on {cores} cores"
         )
         print(
             f">>> Starting {trials_config.trials} trials with {trials_config.iterations} iterations each using {nevergrad_algo.value} nevergrad algorithm..."
@@ -687,29 +689,38 @@ class RidgeModelBuilder:
 
     @staticmethod
     def _hyper_collector(
-        hyperparameters: Hyperparameters,
+        hyperparameters_dict: Dict[str, Any],
         ts_validation: bool,
         add_penalty_factor: bool,
         dt_hyper_fixed: Optional[pd.DataFrame],
         cores: int,
     ) -> Dict[str, Any]:
-        # Implement hyper_collector logic here
-        # This should prepare the hyperparameters for optimization
+        print("Collecting hyperparameters for optimization...", hyperparameters_dict)
 
-        # Placeholder implementation
+        prepared_hyperparameters = hyperparameters_dict["prepared_hyperparameters"]
+        hyper_to_optimize = hyperparameters_dict["hyper_to_optimize"]
+
         hyper_collect = {
-            "hyper_list_all": hyperparameters.hyperparameters,
-            "hyper_bound_list_updated": {},
+            "hyper_list_all": prepared_hyperparameters.hyperparameters,
+            "hyper_bound_list_updated": hyper_to_optimize,
             "hyper_bound_list_fixed": {},
             "dt_hyper_fixed_mod": pd.DataFrame(),
             "all_fixed": False,
         }
 
-        for name, value in hyperparameters.hyperparameters.items():
-            if isinstance(value, list) and len(value) == 2:
-                hyper_collect["hyper_bound_list_updated"][name] = value
-            else:
-                hyper_collect["hyper_bound_list_fixed"][name] = value
+        # Collect fixed hyperparameters
+        for channel, channel_params in prepared_hyperparameters.hyperparameters.items():
+            for param_name in ["thetas", "shapes", "scales", "alphas", "gammas", "penalty"]:
+                param_value = getattr(channel_params, param_name)
+                if param_value is not None and f"{channel}_{param_name}" not in hyper_to_optimize:
+                    hyper_collect["hyper_bound_list_fixed"][f"{channel}_{param_name}"] = param_value
+
+        # Handle lambda_ and train_size
+        if isinstance(prepared_hyperparameters.lambda_, (int, float)) and "lambda" not in hyper_to_optimize:
+            hyper_collect["hyper_bound_list_fixed"]["lambda"] = prepared_hyperparameters.lambda_
+
+        if isinstance(prepared_hyperparameters.train_size, list) and "train_size" not in hyper_to_optimize:
+            hyper_collect["hyper_bound_list_fixed"]["train_size"] = prepared_hyperparameters.train_size
 
         if dt_hyper_fixed is not None:
             hyper_collect["dt_hyper_fixed_mod"] = dt_hyper_fixed
