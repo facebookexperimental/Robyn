@@ -1,6 +1,6 @@
-# feature_engineering.py
 # pyre-strict
 from typing import List, Optional, Dict, Any, Tuple
+import logging
 import pandas as pd
 import warnings
 from dataclasses import dataclass
@@ -45,6 +45,7 @@ class FeatureEngineering:
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.holidays_data = holidays_data
+        self.logger = logging.getLogger(__name__)
 
     def perform_feature_engineering(self, quiet: bool = False) -> FeaturizedMMMData:
         dt_transform = self._prepare_data()
@@ -52,7 +53,7 @@ class FeatureEngineering:
         if any(var in self.holidays_data.prophet_vars for var in ["trend", "season", "holiday", "monthly", "weekday"]):
             dt_transform = self._prophet_decomposition(dt_transform)
             if not quiet:
-                print("Prophet decomposition complete.")
+                self.logger.info("Prophet decomposition complete.")
 
         # Include all independent variables
         all_ind_vars = (
@@ -75,7 +76,7 @@ class FeatureEngineering:
         dt_modRollWind = dt_modRollWind[columns_to_keep]
 
         if not quiet:
-            print("Feature engineering complete.")
+            self.logger.info("Feature engineering complete.")
 
         return FeaturizedMMMData(dt_mod=dt_mod, dt_modRollWind=dt_modRollWind, modNLS=modNLS)
 
@@ -118,7 +119,7 @@ class FeatureEngineering:
     def _fit_spend_exposure(
         self, dt_modRollWind: pd.DataFrame, paid_media_var: str, media_cost_factor: float
     ) -> Dict[str, Any]:
-        print(f"Processing {paid_media_var}")
+        self.logger.info(f"Processing {paid_media_var}")
 
         def michaelis_menten(x, Vmax, Km):
             return Vmax * x / (Km + x)
@@ -173,7 +174,7 @@ class FeatureEngineering:
             return {"res": res, "plot": plot_data, "yhat": yhat}
 
         except Exception as e:
-            print(f"Error fitting models for {paid_media_var}: {str(e)}")
+            self.logger.warning(f"Error fitting models for {paid_media_var}: {str(e)}")
             # Fallback to linear model
             lm = LinearRegression(fit_intercept=False)
             lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
