@@ -1,12 +1,10 @@
 # pyre-strict
-from typing import List, Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 import logging
 import pandas as pd
 import warnings
 from dataclasses import dataclass
 from scipy.optimize import curve_fit
-from sklearn.metrics import r2_score
-import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import numpy as np
 
@@ -15,18 +13,9 @@ from prophet import Prophet
 from robyn.data.entities.holidays_data import HolidaysData
 
 from robyn.data.entities.enums import (
-    DependentVarType,
     AdstockType,
-    SaturationType,
-    ProphetVariableType,
-    PaidMediaSigns,
-    OrganicSigns,
-    ContextSigns,
-    ProphetSigns,
-    CalibrationScope,
 )
 
-from robyn.data.entities.calibration_input import CalibrationInput, ChannelCalibrationData
 from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.data.entities.mmmdata import MMMData
 
@@ -39,6 +28,64 @@ class FeaturizedMMMData:
 
 
 class FeatureEngineering:
+    """
+    A class used to perform feature engineering for Marketing Mix Modeling (MMM) data.
+
+    Attributes
+    ----------
+    mmm_data : MMMData
+        The MMM data containing the dataset and specifications.
+    hyperparameters : Hyperparameters
+        The hyperparameters used for feature engineering.
+    holidays_data : Optional[HolidaysData]
+        The holidays data used for Prophet decomposition, if any.
+    logger : logging.Logger
+        Logger for logging information and warnings.
+
+    Methods
+    -------
+    perform_feature_engineering(quiet: bool = False) -> FeaturizedMMMData
+        Performs the feature engineering process and returns the featurized data.
+    
+    _prepare_data() -> pd.DataFrame
+        Prepares the initial dataset by transforming date and dependent variable columns.
+    
+    _create_rolling_window_data(dt_transform: pd.DataFrame) -> pd.DataFrame
+        Creates a rolling window dataset based on the specified window start and end dates.
+    
+    _calculate_media_cost_factor(dt_input_roll_wind: pd.DataFrame) -> pd.Series
+        Calculates the media cost factor for the given rolling window dataset.
+    
+    _run_models(dt_modRollWind: pd.DataFrame, media_cost_factor: float) -> Dict[str, Dict[str, Any]]
+        Runs the models for each paid media variable and returns the results.
+    
+    _fit_spend_exposure(dt_modRollWind: pd.DataFrame, paid_media_var: str, media_cost_factor: float) -> Dict[str, Any]
+        Fits the spend-exposure model for a given paid media variable and returns the results.
+    
+    _hill_function(x, alpha, gamma)
+        Static method to apply the Hill function transformation.
+    
+    _prophet_decomposition(dt_mod: pd.DataFrame) -> pd.DataFrame
+        Performs Prophet decomposition on the dataset and returns the transformed data.
+    
+    _set_holidays(dt_transform: pd.DataFrame, dt_holidays: pd.DataFrame, interval_type: str) -> pd.DataFrame
+        Sets the holidays in the dataset based on the specified interval type.
+    
+    _apply_transformations(x: pd.Series, params: ChannelHyperparameters) -> pd.Series
+        Applies adstock and saturation transformations to the given series.
+    
+    _apply_adstock(x: pd.Series, params: ChannelHyperparameters) -> pd.Series
+        Applies the specified adstock transformation to the given series.
+    
+    _geometric_adstock(x: pd.Series, theta: float) -> pd.Series
+        Static method to apply geometric adstock transformation.
+    
+    _weibull_adstock(x: pd.Series, shape: float, scale: float) -> pd.Series
+        Static method to apply Weibull adstock transformation.
+    
+    _apply_saturation(x: pd.Series, params: ChannelHyperparameters) -> pd.Series
+        Static method to apply saturation transformation.
+    """
     def __init__(
         self, mmm_data: MMMData, hyperparameters: Hyperparameters, holidays_data: Optional[HolidaysData] = None
     ):
@@ -78,6 +125,9 @@ class FeatureEngineering:
         if not quiet:
             self.logger.info("Feature engineering complete.")
 
+        # Fill or interpolate missing values in dt_mod
+        dt_mod = dt_mod.fillna(method='ffill').fillna(method='bfill')
+
         return FeaturizedMMMData(dt_mod=dt_mod, dt_modRollWind=dt_modRollWind, modNLS=modNLS)
 
     def _prepare_data(self) -> pd.DataFrame:
@@ -94,10 +144,16 @@ class FeatureEngineering:
         if window_start is None and window_end is None:
             return dt_transform
         elif window_start is None:
+            if window_end < dt_transform["ds"].min():
+                raise ValueError("window_end is before the start of the data")
             return dt_transform[dt_transform["ds"] <= window_end]
         elif window_end is None:
+            if window_start > dt_transform["ds"].max():
+                raise ValueError("window_start is after the end of the data")
             return dt_transform[dt_transform["ds"] >= window_start]
         else:
+            if window_start > window_end:
+                raise ValueError("window_start is after window_end")
             return dt_transform[(dt_transform["ds"] >= window_start) & (dt_transform["ds"] <= window_end)]
 
     def _calculate_media_cost_factor(self, dt_input_roll_wind: pd.DataFrame) -> pd.Series:
@@ -131,6 +187,10 @@ class FeatureEngineering:
 
         spend_data = dt_modRollWind[spend_var]
         exposure_data = dt_modRollWind[exposure_var]
+
+        if exposure_data.empty:
+            self.logger.warning(f"Exposure data for {paid_media_var} is empty. Skipping model fitting.")
+            return None
 
         try:
             # Fit Michaelis-Menten model
