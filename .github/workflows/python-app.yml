@@ -48,7 +48,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=./robyn_api/*.py
       - name: Test with pytest. Enable this once first set of tests are written
         run: |
-          pytest ./python/tests --doctest-modules --junitxml=junit/test-results.xml --cov=robyn --cov-report=xml --cov-report=html
+          pytest ./python/tests --doctest-modules --junitxml=junit/test-results.xml --cov=robyn --cov-report=html
       - name: 'Upload Unit Test Results'
         uses: actions/upload-artifact@v4
         with:
