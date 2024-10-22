@@ -31,7 +31,6 @@
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued num_abbr ohse removenacols
 #' theme_lares `%>%` scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t
 #' @importFrom lubridate is.Date day floor_date
-#' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
 #' @importFrom parallel detectCores
 #' @importFrom patchwork guide_area plot_layout plot_annotation wrap_plots
