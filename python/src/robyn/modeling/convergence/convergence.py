@@ -1,3 +1,5 @@
+# pyre-strict
+import logging
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any
@@ -12,6 +14,7 @@ class Convergence:
         self.med_lowb = med_lowb
         self.nrmse_win = nrmse_win
         self.visualizer = ModelConvergenceVisualizer(n_cuts, nrmse_win)
+        self.logger = logging.getLogger(__name__)
 
     def calculate_convergence(self, trials: List[Trial]) -> Dict[str, Any]:
         df = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
@@ -23,7 +26,7 @@ class Convergence:
 
         calibrated = "mape" in df.columns and df["mape"].sum() > 0
         if not calibrated:
-            print("Warning: 'mape' column not found or all zeros. Assuming model is not calibrated.")
+            self.logger.warning("'mape' column not found or all zeros. Assuming model is not calibrated.")
 
         dt_objfunc_cvg = self._prepare_data(df)
         errors = self._calculate_errors(dt_objfunc_cvg)

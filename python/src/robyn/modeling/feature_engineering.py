@@ -1,6 +1,6 @@
-# feature_engineering.py
 # pyre-strict
 from typing import List, Optional, Dict, Any, Tuple
+import logging
 import pandas as pd
 import warnings
 from dataclasses import dataclass
@@ -45,6 +45,7 @@ class FeatureEngineering:
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.holidays_data = holidays_data
+        self.logger = logging.getLogger(__name__)
 
     def perform_feature_engineering(self, quiet: bool = False) -> FeaturizedMMMData:
         dt_transform = self._prepare_data()
@@ -52,7 +53,7 @@ class FeatureEngineering:
         if any(var in self.holidays_data.prophet_vars for var in ["trend", "season", "holiday", "monthly", "weekday"]):
             dt_transform = self._prophet_decomposition(dt_transform)
             if not quiet:
-                print("Prophet decomposition complete.")
+                self.logger.info("Prophet decomposition complete.")
 
         # Include all independent variables
         all_ind_vars = (
@@ -75,7 +76,7 @@ class FeatureEngineering:
         dt_modRollWind = dt_modRollWind[columns_to_keep]
 
         if not quiet:
-            print("Feature engineering complete.")
+            self.logger.info("Feature engineering complete.")
 
         return FeaturizedMMMData(dt_mod=dt_mod, dt_modRollWind=dt_modRollWind, modNLS=modNLS)
 
@@ -118,7 +119,7 @@ class FeatureEngineering:
     def _fit_spend_exposure(
         self, dt_modRollWind: pd.DataFrame, paid_media_var: str, media_cost_factor: float
     ) -> Dict[str, Any]:
-        print(f"Processing {paid_media_var}")
+        self.logger.info(f"Processing {paid_media_var}")
 
         def michaelis_menten(x, Vmax, Km):
             return Vmax * x / (Km + x)
@@ -173,7 +174,7 @@ class FeatureEngineering:
             return {"res": res, "plot": plot_data, "yhat": yhat}
 
         except Exception as e:
-            print(f"Error fitting models for {paid_media_var}: {str(e)}")
+            self.logger.warning(f"Error fitting models for {paid_media_var}: {str(e)}")
             # Fallback to linear model
             lm = LinearRegression(fit_intercept=False)
             lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
@@ -195,9 +196,10 @@ class FeatureEngineering:
         recurrence = dt_mod[["ds", "dep_var"]].rename(columns={"dep_var": "y"}).copy()
         recurrence["ds"] = pd.to_datetime(recurrence["ds"])
 
+        # Get holidays and force a copy before any modifications
         holidays = self._set_holidays(
             dt_mod, self.holidays_data.dt_holidays.copy(), self.mmm_data.mmmdata_spec.interval_type
-        )
+        ).copy()  # Add explicit copy here
 
         use_trend = "trend" in prophet_vars
         use_holiday = "holiday" in prophet_vars
@@ -205,6 +207,7 @@ class FeatureEngineering:
         use_monthly = "monthly" in prophet_vars
         use_weekday = "weekday" in prophet_vars or "weekly.seasonality" in prophet_vars
 
+        # Create a fresh copy of the df for regressors
         dt_regressors = pd.concat(
             [
                 recurrence,
@@ -212,7 +215,7 @@ class FeatureEngineering:
                     self.mmm_data.mmmdata_spec.paid_media_spends
                     + self.mmm_data.mmmdata_spec.context_vars
                     + self.mmm_data.mmmdata_spec.organic_vars
-                ],
+                ].copy(),  # Add explicit copy here
             ],
             axis=1,
         )
@@ -223,13 +226,18 @@ class FeatureEngineering:
         if isinstance(prophet_country, str):
             prophet_country = [prophet_country]
 
+        # Create a fresh copy of filtered holidays
+        if use_holiday and holidays is not None:
+            holidays_filtered = holidays[holidays["country"].isin(prophet_country)].copy()
+        else:
+            holidays_filtered = None
+
         prophet_params = {
-            "holidays": (holidays[holidays["country"].isin(prophet_country)] if use_holiday else None),
+            "holidays": holidays_filtered,
             "yearly_seasonality": use_season,
             "weekly_seasonality": use_weekday,
             "daily_seasonality": False,
         }
-
         # Add custom parameters (assuming they're stored in self.custom_params)
         if hasattr(self, "custom_params"):
             if "yearly.seasonality" in self.custom_params:
@@ -284,13 +292,15 @@ class FeatureEngineering:
     def _set_holidays(self, dt_transform: pd.DataFrame, dt_holidays: pd.DataFrame, interval_type: str) -> pd.DataFrame:
         # Ensure 'ds' column is datetime
         dt_transform["ds"] = pd.to_datetime(dt_transform["ds"])
-        dt_holidays["ds"] = pd.to_datetime(dt_holidays["ds"])
+
+        # Make an explicit copy of holidays dataframe
+        holidays = dt_holidays.copy()
+        holidays["ds"] = pd.to_datetime(holidays["ds"])
 
         if interval_type == "day":
-            return dt_holidays
+            return holidays
         elif interval_type == "week":
             week_start = dt_transform["ds"].dt.weekday[0]
-            holidays = dt_holidays.copy()
             # Adjust to the start of the week
             holidays["ds"] = (
                 holidays["ds"] - pd.to_timedelta(holidays["ds"].dt.weekday, unit="D") + pd.Timedelta(days=week_start)
@@ -304,7 +314,6 @@ class FeatureEngineering:
         elif interval_type == "month":
             if not all(dt_transform["ds"].dt.day == 1):
                 raise ValueError("Monthly data should have first day of month as datestamp, e.g.'2020-01-01'")
-            holidays = dt_holidays.copy()
             holidays["ds"] = holidays["ds"].dt.to_period("M").dt.to_timestamp()
             holidays = holidays.groupby(["ds", "country", "year"])["holiday"].agg(lambda x: ", ".join(x)).reset_index()
             return holidays

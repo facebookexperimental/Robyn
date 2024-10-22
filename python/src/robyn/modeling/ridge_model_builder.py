@@ -1,5 +1,5 @@
-# ridge_model_builder.py
 # pyre-strict
+
 import warnings
 import numpy as np
 import pandas as pd
@@ -10,6 +10,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
+import logging
 import time
 from datetime import datetime
 from robyn.modeling.convergence.convergence import Convergence
@@ -64,6 +65,7 @@ class RidgeModelBuilder:
         self.calibration_input = calibration_input
         self.hyperparameters = hyperparameters
         self.featurized_mmm_data = featurized_mmm_data
+        self.logger = logging.getLogger(__name__)
 
     def build_models(
         self,
@@ -102,16 +104,17 @@ class RidgeModelBuilder:
             - datetime.strptime(self.mmm_data.mmmdata_spec.window_start, "%Y-%m-%d")
         ).days // interval_days + 1
 
-        print(
+        self.logger.info(
             f"Input data has {total_intervals} {interval_type} in total: {dates.min().strftime('%Y-%m-%d')} to {dates.max().strftime('%Y-%m-%d')}"
         )
-        print(
+        self.logger.info(
             f"Initial model is built on rolling window of {rolling_window_length} {interval_type}: {self.mmm_data.mmmdata_spec.window_start} to {self.mmm_data.mmmdata_spec.window_end}"
         )
 
         if ts_validation:
-            print(
-                f"Time-series validation with train_size range of {self.hyperparameters.train_size[0]*100:.0f}%-{self.hyperparameters.train_size[1]*100:.0f}% of the data..."
+            prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
+            self.logger.info(
+                f"Time-series validation with train_size range of {prepared_hyperparameters.train_size[0]*100:.0f}%-{prepared_hyperparameters.train_size[1]*100:.0f}% of the data..."
             )
 
         hyper_collect = self._hyper_collector(
@@ -122,13 +125,13 @@ class RidgeModelBuilder:
             cores,
         )
 
-        print(
-            f"Using {self.hyperparameters.adstock} adstocking with {len(self.hyperparameters.hyperparameters)} hyperparameters ({len(hyper_collect['hyper_bound_list_updated'])} to iterate + {len(hyper_collect['hyper_bound_list_fixed'])} fixed) on {cores} cores"
+        prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
+        self.logger.info(
+            f"Using {prepared_hyperparameters.adstock} adstocking with {len(prepared_hyperparameters.hyperparameters)} hyperparameters ({len(hyper_collect['hyper_bound_list_updated'])} to iterate + {len(hyper_collect['hyper_bound_list_fixed'])} fixed) on {cores} cores"
         )
-        print(
+        self.logger.info(
             f">>> Starting {trials_config.trials} trials with {trials_config.iterations} iterations each using {nevergrad_algo.value} nevergrad algorithm..."
         )
-
         output_models = self._model_train(
             hyper_collect,
             trials_config,
@@ -146,7 +149,7 @@ class RidgeModelBuilder:
 
         end_time = time.time()
         total_time = (end_time - start_time) / 60
-        print(f"Total run time: {total_time:.2f} mins")
+        self.logger.info(f"Total run time: {total_time:.2f} mins")
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(output_models)
 
@@ -186,9 +189,9 @@ class RidgeModelBuilder:
 
         # Print convergence information
         convergence_info = model_outputs.convergence
-        print(f"Finished in {total_time:.2f} mins")
+        self.logger.info(f"Finished in {total_time:.2f} mins")
         for msg in convergence_info["conv_msg"]:
-            print(f"- {msg}")
+            self.logger.info(f"- {msg}")
 
         return model_outputs
 
@@ -320,7 +323,7 @@ class RidgeModelBuilder:
                 pbar.update(1)
 
         end_time = time.time()
-        print(f" Finished in {(end_time - start_time) / 60:.2f} mins")
+        self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
         # Aggregate results from all iterations
         result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
@@ -687,29 +690,39 @@ class RidgeModelBuilder:
 
     @staticmethod
     def _hyper_collector(
-        hyperparameters: Hyperparameters,
+        hyperparameters_dict: Dict[str, Any],
         ts_validation: bool,
         add_penalty_factor: bool,
         dt_hyper_fixed: Optional[pd.DataFrame],
         cores: int,
     ) -> Dict[str, Any]:
-        # Implement hyper_collector logic here
-        # This should prepare the hyperparameters for optimization
+        logger = logging.getLogger(__name__)
+        logger.info(f"Collecting hyperparameters for optimization... {hyperparameters_dict}")
 
-        # Placeholder implementation
+        prepared_hyperparameters = hyperparameters_dict["prepared_hyperparameters"]
+        hyper_to_optimize = hyperparameters_dict["hyper_to_optimize"]
+
         hyper_collect = {
-            "hyper_list_all": hyperparameters.hyperparameters,
-            "hyper_bound_list_updated": {},
+            "hyper_list_all": prepared_hyperparameters.hyperparameters,
+            "hyper_bound_list_updated": hyper_to_optimize,
             "hyper_bound_list_fixed": {},
             "dt_hyper_fixed_mod": pd.DataFrame(),
             "all_fixed": False,
         }
 
-        for name, value in hyperparameters.hyperparameters.items():
-            if isinstance(value, list) and len(value) == 2:
-                hyper_collect["hyper_bound_list_updated"][name] = value
-            else:
-                hyper_collect["hyper_bound_list_fixed"][name] = value
+        # Collect fixed hyperparameters
+        for channel, channel_params in prepared_hyperparameters.hyperparameters.items():
+            for param_name in ["thetas", "shapes", "scales", "alphas", "gammas", "penalty"]:
+                param_value = getattr(channel_params, param_name)
+                if param_value is not None and f"{channel}_{param_name}" not in hyper_to_optimize:
+                    hyper_collect["hyper_bound_list_fixed"][f"{channel}_{param_name}"] = param_value
+
+        # Handle lambda_ and train_size
+        if isinstance(prepared_hyperparameters.lambda_, (int, float)) and "lambda" not in hyper_to_optimize:
+            hyper_collect["hyper_bound_list_fixed"]["lambda"] = prepared_hyperparameters.lambda_
+
+        if isinstance(prepared_hyperparameters.train_size, list) and "train_size" not in hyper_to_optimize:
+            hyper_collect["hyper_bound_list_fixed"]["train_size"] = prepared_hyperparameters.train_size
 
         if dt_hyper_fixed is not None:
             hyper_collect["dt_hyper_fixed_mod"] = dt_hyper_fixed

@@ -118,17 +118,6 @@ class BaseModelExecutor(ABC):
         add_penalty_factor: bool,
         ts_validation: bool,
     ) -> Dict[str, Any]:
-        """
-        Prepare the hyperparameters for the model run.
-
-        Args:
-            dt_hyper_fixed (Optional[Dict[str, Any]]): Fixed hyperparameters.
-            add_penalty_factor (bool): Whether to add penalty factors.
-            ts_validation (bool): Whether to use time series validation.
-
-        Returns:
-            Dict[str, Any]: Prepared hyperparameters.
-        """
         prepared_hyperparameters = self.hyperparameters.copy()
 
         # Update with fixed hyperparameters if provided
@@ -136,13 +125,9 @@ class BaseModelExecutor(ABC):
             for key, value in dt_hyper_fixed.items():
                 if prepared_hyperparameters.has_channel(key):
                     channel_params = prepared_hyperparameters.get_hyperparameter(key)
-                    # Assuming dt_hyper_fixed is structured similarly to ChannelHyperparameters
-                    channel_params.thetas = value.get("thetas", channel_params.thetas)
-                    channel_params.shapes = value.get("shapes", channel_params.shapes)
-                    channel_params.scales = value.get("scales", channel_params.scales)
-                    channel_params.alphas = value.get("alphas", channel_params.alphas)
-                    channel_params.gammas = value.get("gammas", channel_params.gammas)
-                    channel_params.penalty = value.get("penalty", channel_params.penalty)
+                    for param in ["thetas", "shapes", "scales", "alphas", "gammas", "penalty"]:
+                        if param in value:
+                            setattr(channel_params, param, value[param])
 
         # Add penalty factors if required
         if add_penalty_factor:
@@ -154,7 +139,21 @@ class BaseModelExecutor(ABC):
         if ts_validation and not prepared_hyperparameters.train_size:
             prepared_hyperparameters.train_size = [0.5, 0.8]
 
-        return prepared_hyperparameters
+        # Extract hyperparameters to be optimized
+        hyper_to_optimize = {}
+        for channel, channel_params in prepared_hyperparameters.hyperparameters.items():
+            for param in ["thetas", "shapes", "scales", "alphas", "gammas"]:
+                values = getattr(channel_params, param)
+                if isinstance(values, list) and len(values) == 2:
+                    hyper_to_optimize[f"{channel}_{param}"] = values
+
+        # Add lambda and train_size if they are to be optimized
+        if isinstance(prepared_hyperparameters.lambda_, list) and len(prepared_hyperparameters.lambda_) == 2:
+            hyper_to_optimize["lambda"] = prepared_hyperparameters.lambda_
+        if isinstance(prepared_hyperparameters.train_size, list) and len(prepared_hyperparameters.train_size) == 2:
+            hyper_to_optimize["train_size"] = prepared_hyperparameters.train_size
+
+        return {"prepared_hyperparameters": prepared_hyperparameters, "hyper_to_optimize": hyper_to_optimize}
 
     def _setup_nevergrad_optimizer(
         self,
@@ -163,21 +162,18 @@ class BaseModelExecutor(ABC):
         cores: int,
         nevergrad_algo: NevergradAlgorithm,
     ) -> ng.optimizers.base.Optimizer:
-        """
-        Set up the Nevergrad optimizer for hyperparameter optimization.
+        hyper_to_optimize = hyperparameters["hyper_to_optimize"]
 
-        Args:
-            hyperparameters (Dict[str, Any]): Prepared hyperparameters.
-            iterations (int): Number of iterations for optimization.
-            cores (int): Number of CPU cores to use.
-            nevergrad_algo (NevergradAlgorithm): Nevergrad algorithm to use.
+        if not hyper_to_optimize:
+            raise ValueError("No hyperparameters to optimize. Please check your hyperparameter configuration.")
 
-        Returns:
-            ng.optimizers.base.Optimizer: Configured Nevergrad optimizer.
-        """
-        param_count = len([v for v in hyperparameters.values() if isinstance(v, list) and len(v) == 2])
-        instrumentation = ng.p.Array(shape=(param_count,))
-        return ng.optimizers.registry[nevergrad_algo.value](instrumentation, budget=iterations, num_workers=cores)
+        instrum_dict = {
+            name: ng.p.Scalar(lower=bounds[0], upper=bounds[1]) for name, bounds in hyper_to_optimize.items()
+        }
+
+        instrum = ng.p.Instrumentation(**instrum_dict)
+
+        return ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
 
     def _calculate_objective(
         self,
