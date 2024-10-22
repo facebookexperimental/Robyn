@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import Mock, patch
 import pandas as pd
 import numpy as np
+import os
 
 from robyn.data.entities.enums import AdstockType, DependentVarType
 from robyn.data.entities.mmmdata import MMMData
@@ -26,8 +27,9 @@ class TestFeatureEngineering(unittest.TestCase):
         Creates mock data and configurations that will be used across multiple test cases.
         """
         # Load test data
-        self.dt_simulated_weekly = pd.read_csv("src/tutorials/resources/dt_simulated_weekly.csv")
-        self.dt_prophet_holidays = pd.read_csv("src/tutorials/resources/dt_prophet_holidays.csv")
+        cwd = os.path.dirname(__file__)
+        self.dt_simulated_weekly = pd.read_csv(cwd + "/../../src/tutorials/resources/dt_simulated_weekly.csv")
+        self.dt_prophet_holidays = pd.read_csv(cwd + "/../../src/tutorials/resources/dt_prophet_holidays.csv")
 
         # Create MMMData
         mmm_data_spec = MMMData.MMMDataSpec(
