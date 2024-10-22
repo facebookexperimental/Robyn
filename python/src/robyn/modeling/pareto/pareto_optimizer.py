@@ -158,7 +158,7 @@ class ParetoOptimizer:
                 - 'x_decomp_agg': Aggregated decomposition results
                 - 'result_calibration': Calibration results (if calibrated is True)
         """
-        hyper_fixed = self.model_outputs.hyper_fixed
+        hyper_fixed = self.model_outputs.hyper_fixed[0]
         # Extract resultCollect from self.model_outputs
         trials = [
             model
@@ -395,7 +395,7 @@ class ParetoOptimizer:
         # You might want to use multiprocessing or concurrent.futures here
 
         # 3. Determining the number of Pareto fronts
-        if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
+        if self.model_outputs.hyper_fixed[0] or len(result_hyp_param) == 1:
             pareto_fronts = 1
 
         # 4. Handling automatic Pareto front selection
@@ -436,6 +436,7 @@ class ParetoOptimizer:
 
             pareto_fronts = int(auto_pareto["robynPareto"])
 
+        print(pareto_fronts)
         # 5. Creating Pareto front vector
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
@@ -632,7 +633,7 @@ class ParetoOptimizer:
         """
         mediaVecCollect = []
         xDecompVecCollect = []
-        plotDataCollect = []
+        plotDataCollect = {}
         df_caov_pct_all = pd.DataFrame()
 
         xDecompAgg = pareto_data.x_decomp_agg
@@ -653,11 +654,20 @@ class ParetoOptimizer:
         pareto_fronts_vec = pareto_data.pareto_fronts
 
         for pf in pareto_fronts_vec:
+            print(xDecompAgg["robynPareto"])
+            print(
+                "pf ",
+                pareto_fronts_vec,
+                "paid_media_spends   ",
+                self.mmm_data.mmmdata_spec.paid_media_spends,
+            )
             plotMediaShare = xDecompAgg[
                 (xDecompAgg["robynPareto"] == pf)
                 & (xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends))
             ]
             uniqueSol = plotMediaShare["solID"].unique()
+            print(uniqueSol)
+            exit()
             plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
 
             # if not quiet and len(xDecompAgg["solID"].unique()) > 1:
@@ -843,11 +853,11 @@ class ParetoOptimizer:
                     m = pd.Series(dt_transformPlot[med].values)
                     adstock = self.hyper_parameter.adstock
                     if adstock == AdstockType.GEOMETRIC:
-                        thetas = hypParam[f"{med}_thetas"]
+                        thetas = hypParam[f"{med}_thetas"].values
                         channelHyperparam = ChannelHyperparameters(thetas=thetas)
                     elif adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
-                        shapes = hypParam[f"{med}_shapes"]
-                        scales = hypParam[f"{med}_scales"]
+                        shapes = hypParam[f"{med}_shapes"].values
+                        scales = hypParam[f"{med}_scales"].values
                         channelHyperparam = ChannelHyperparameters(
                             shapes=shapes, scales=scales
                         )
@@ -1090,17 +1100,19 @@ class ParetoOptimizer:
         )
 
         # Calculate decomposition
-        coefs = pareto_data.x_decomp_agg["coef"][
-            pareto_data.x_decomp_agg["solID"] == solID
+        coefs = pareto_data.x_decomp_agg.loc[
+            pareto_data.x_decomp_agg["solID"] == solID, "coef"
         ].values
-        coefs_names = pareto_data.x_decomp_agg["rn"][
-            pareto_data.x_decomp_agg["solID"] == solID
+        coefs_names = pareto_data.x_decomp_agg.loc[
+            pareto_data.x_decomp_agg["solID"] == solID, "rn"
         ].values
-        coefs_dict = dict(zip(coefs_names, coefs))
 
-        decompCollect = model_decomp(
+        # Create a DataFrame to hold coefficients and their names
+        coefs_df = pd.DataFrame({"name": coefs_names, "coefficient": coefs})
+
+        decompCollect = self._model_decomp(
             inputs={
-                "coefs": coefs_dict,
+                "coefs": coefs_df,
                 "y_pred": dt_saturated_dfs.dt_modSaturated["dep_var"].iloc[
                     rollingWindow
                 ],
@@ -1120,14 +1132,14 @@ class ParetoOptimizer:
 
         # Media decomposition
         mediaDecompImmediate = decompCollect["mediaDecompImmediate"].drop(
-            columns=["ds", "y"]
+            columns=["ds", "y"], errors="ignore"
         )
         mediaDecompImmediate.columns = [
             f"{col}_MDI" for col in mediaDecompImmediate.columns
         ]
 
         mediaDecompCarryover = decompCollect["mediaDecompCarryover"].drop(
-            columns=["ds", "y"]
+            columns=["ds", "y"], errors="ignore"
         )
         mediaDecompCarryover.columns = [
             f"{col}_MDC" for col in mediaDecompCarryover.columns
@@ -1151,13 +1163,13 @@ class ParetoOptimizer:
             "xDecompVecImmediate": temp.drop(
                 columns=temp.columns[
                     temp.columns.str.endswith("_MDC")
-                    | self.mmm_data.mmmdata_spec.all_media
+                    | temp.columns.isin(self.mmm_data.mmmdata_spec.all_media)
                 ]
             ),
             "xDecompVecCarryover": temp.drop(
                 columns=temp.columns[
                     temp.columns.str.endswith("_MDI")
-                    | self.mmm_data.mmmdata_spec.all_media
+                    | temp.columns.isin(self.mmm_data.mmmdata_spec.all_media)
                 ]
             ),
         }
@@ -1172,8 +1184,14 @@ class ParetoOptimizer:
         # Calculate carryover percentages
         df_caov = (
             vec_collect["xDecompVecCarryover"].groupby("solID").sum().reset_index()
+        ).drop(columns="ds")
+        df_total = (
+            vec_collect["xDecompVec"]
+            .groupby("solID")
+            .sum()
+            .reset_index()
+            .drop(columns="ds")
         )
-        df_total = vec_collect["xDecompVec"].groupby("solID").sum().reset_index()
 
         df_caov_pct = df_caov.copy()
         df_caov_pct.iloc[:, 1:] = df_caov_pct.iloc[:, 1:].div(
@@ -1192,10 +1210,16 @@ class ParetoOptimizer:
                 ],
                 axis=0,
             )
-            .melt(id_vars=["solID", "type"])
+            .melt(
+                id_vars=["solID", "type"],
+                value_vars=self.mmm_data.mmmdata_spec.all_media,
+                var_name="rn",
+                value_name="value",
+            )
             .assign(start_date=start_date, end_date=end_date)
         )
 
+        # Grouping and aggregating the data
         xDecompVecImmeCaov = (
             xDecompVecImmeCaov.groupby(
                 ["solID", "start_date", "end_date", "rn", "type"]
@@ -1232,10 +1256,10 @@ class ParetoOptimizer:
         """
         channelHyperparams: dict[str, ChannelHyperparameters] = {}
         for med in self.mmm_data.mmmdata_spec.all_media:
-            alphas = hypParamSam[f"{med}_alphas"]
-            gammas = hypParamSam[f"{med}_gammas"]
+            alphas = hypParamSam[f"{med}_alphas"].values
+            gammas = hypParamSam[f"{med}_gammas"].values
             if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
-                thetas = hypParamSam[f"{med}_thetas"]
+                thetas = hypParamSam[f"{med}_thetas"].values
                 channelHyperparams[med] = ChannelHyperparameters(
                     thetas=thetas,
                     alphas=alphas,
@@ -1245,8 +1269,8 @@ class ParetoOptimizer:
                 AdstockType.WEIBULL_CDF,
                 AdstockType.WEIBULL_PDF,
             ]:
-                shapes = hypParamSam[f"{med}_shapes"]
-                scales = hypParamSam[f"{med}_scales"]
+                shapes = hypParamSam[f"{med}_shapes"].values
+                scales = hypParamSam[f"{med}_scales"].values
                 channelHyperparams[med] = ChannelHyperparameters(
                     shapes=shapes,
                     scales=scales,
@@ -1257,3 +1281,74 @@ class ParetoOptimizer:
         return Hyperparameters(
             adstock=self.hyper_parameter.adstock, hyperparameters=channelHyperparams
         )
+
+    def _model_decomp(self, inputs) -> Dict[str, pd.DataFrame]:
+        # Extracting inputs from the dictionary
+        coefs = inputs["coefs"]
+        y_pred = inputs["y_pred"]
+        dt_modSaturated = inputs["dt_modSaturated"]
+        dt_saturatedImmediate = inputs["dt_saturatedImmediate"]
+        dt_saturatedCarryover = inputs["dt_saturatedCarryover"]
+        dt_modRollWind = inputs["dt_modRollWind"]
+        refreshAddedStart = inputs["refreshAddedStart"]
+
+        # Input for decomp
+        y = dt_modSaturated["dep_var"]
+
+        # Select all columns except 'dep_var'
+        x = dt_modSaturated.drop(columns=["dep_var"])
+        intercept = coefs["coefficient"].iloc[
+            0
+        ]  # Assuming the first row contains the intercept
+        x_name = x.columns
+        x_factor = x_name[x.dtypes == "category"]  # Assuming factors are categorical
+
+        # Decomp x
+        # Create an empty DataFrame for xDecomp
+        xDecomp = pd.DataFrame()
+
+        # Multiply each regressor by its corresponding coefficient
+        for name in x.columns:
+            # Get the corresponding coefficient for the regressor
+            coefficient_value = coefs.loc[coefs["name"] == name, "coefficient"].values
+            xDecomp[name] = x[name] * (
+                coefficient_value if len(coefficient_value) > 0 else 0
+            )
+
+        # Add intercept as the first column
+        xDecomp.insert(0, "intercept", intercept)  # Assuming intercept is defined
+
+        xDecompOut = pd.concat(
+            [
+                pd.DataFrame({"ds": dt_modRollWind["ds"], "y": y, "y_pred": y_pred}),
+                xDecomp,
+            ],
+            axis=1,
+        )
+
+        # Decomp immediate & carryover response
+        sel_coef = coefs["name"].isin(
+            dt_saturatedImmediate.columns
+        )  # Check if coefficient names are in the immediate DataFrame
+        coefs_media = coefs[sel_coef].set_index("name")[
+            "coefficient"
+        ]  # Set names for coefs_media
+
+        mediaDecompImmediate = pd.DataFrame(
+            {
+                name: dt_saturatedImmediate[name] * coefs_media[name]
+                for name in coefs_media.index
+            }
+        )
+        mediaDecompCarryover = pd.DataFrame(
+            {
+                name: dt_saturatedCarryover[name] * coefs_media[name]
+                for name in coefs_media.index
+            }
+        )
+
+        return {
+            "xDecompVec": xDecompOut,
+            "mediaDecompImmediate": mediaDecompImmediate,
+            "mediaDecompCarryover": mediaDecompCarryover,
+        }

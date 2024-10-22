@@ -406,10 +406,10 @@ class Transformation:
             m_carryover: pd.Series = m_adstocked - m_imme
 
             m_adstockedRollWind: pd.Series = m_adstocked.iloc[
-                rollingWindowStartWhich:rollingWindowEndWhich
+                rollingWindowStartWhich : rollingWindowEndWhich + 1
             ]
             m_carryoverRollWind: pd.Series = m_carryover.iloc[
-                rollingWindowStartWhich:rollingWindowEndWhich
+                rollingWindowStartWhich : rollingWindowEndWhich + 1
             ]
 
             mediaSaturated[media] = self.saturation_hill(
@@ -435,14 +435,18 @@ class Transformation:
         dt_modSaturated = pd.concat(
             [
                 dt_modAdstocked.iloc[
-                    rollingWindowStartWhich:rollingWindowEndWhich
+                    rollingWindowStartWhich : rollingWindowEndWhich + 1
                 ].drop(columns=all_media),
                 pd.DataFrame(mediaSaturated),
             ],
             axis=1,
+        ).reset_index()
+        dt_saturatedImmediate = (
+            pd.DataFrame(mediaSaturatedImmediate).fillna(0).reset_index()
         )
-        dt_saturatedImmediate = pd.DataFrame(mediaSaturatedImmediate).fillna(0)
-        dt_saturatedCarryover = pd.DataFrame(mediaSaturatedCarryover).fillna(0)
+        dt_saturatedCarryover = (
+            pd.DataFrame(mediaSaturatedCarryover).fillna(0).reset_index()
+        )
 
         return TransformationResult(
             dt_modSaturated, dt_saturatedImmediate, dt_saturatedCarryover
