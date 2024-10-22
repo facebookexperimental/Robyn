@@ -109,13 +109,15 @@ class ResponseCurveCalculator:
 
         # Get adstock parameters and apply adstock transformation
         adstockType = self.hyperparameter.adstock
-        adstock_params = self._get_adstock_params(select_model, hpm_name, dt_hyppar)
+        channel_hyperparams = self._get_channel_hyperparams(
+            select_model, hpm_name, dt_hyppar
+        )
         x_list = self.transformation.transform_adstock(
-            media_vec_origin, adstockType, adstock_params
+            media_vec_origin, adstockType, channel_hyperparams
         )
 
         x_list_sim = self.transformation.transform_adstock(
-            all_values_updated, adstockType, adstock_params
+            all_values_updated, adstockType, channel_hyperparams
         )
         media_vec_sim = x_list_sim.x_decayed
 
@@ -310,7 +312,7 @@ class ResponseCurveCalculator:
             self.mmm_data.mmmdata_spec.paid_media_vars.index(metric_name)
         ]
 
-    def _get_adstock_params(
+    def _get_channel_hyperparams(
         self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame
     ) -> ChannelHyperparameters:
         adstock_type = self.hyperparameter.adstock
