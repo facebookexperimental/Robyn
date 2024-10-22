@@ -20,7 +20,7 @@ class MMMDataValidation(Validation):
         data = self.mmm_data.data
         
         missing_cols = data.columns[data.isnull().any()].tolist()
-        infinite_cols = data.columns[np.isinf(data).any()].tolist()
+        infinite_cols = [col for col in data.columns if data[col].dtype.kind in 'bifc' and np.isinf(data[col]).any()]
         
         error_details = {}
         error_message = ""
