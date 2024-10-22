@@ -53,5 +53,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: robynpy-artifact
-          path: robynpy.txt
-          retention-days: 5
+          path: junit/test-results.xml
+          retention-days: 30
