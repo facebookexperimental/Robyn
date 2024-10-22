@@ -353,7 +353,6 @@ class Transformation:
         featurized_data: FeaturizedMMMData,
         hyperparameters: Hyperparameters,
         adstockType: AdstockType,  # Use AdstockType enum
-        **kwargs,
     ) -> TransformationResult:
         """
         Run media transformations including adstock and saturation.
@@ -369,14 +368,16 @@ class Transformation:
         """
         all_media: List[str] = self.mmm_data.mmmdata_spec.all_media
         rollingWindowStartWhich: int = (
-            self.mmm_data.mmmdata_spec.rolling_window_start_which
+            self.mmm_data.mmmdata_spec.rolling_window_start_which[0]
         )
-        rollingWindowEndWhich: int = self.mmm_data.mmmdata_spec.rolling_window_end_which
+        rollingWindowEndWhich: int = (
+            self.mmm_data.mmmdata_spec.rolling_window_end_which[0]
+        )
         dt_modAdstocked: pd.DataFrame = featurized_data.dt_mod.copy()
 
         # Handle 'ds' column
         if "ds" in dt_modAdstocked.columns:
-            dt_modAdstocked.set_index("ds", inplace=True)
+            dt_modAdstocked.drop(columns="ds", inplace=True)
 
         mediaAdstocked: Dict[str, pd.Series] = {}
         mediaSaturated: Dict[str, pd.Series] = {}

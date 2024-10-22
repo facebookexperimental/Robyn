@@ -7,14 +7,19 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from robyn.data.entities.enums import AdstockType
+from robyn.data.entities.holidays_data import HolidaysData
 
-from robyn.data.entities.hyperparameters import Hyperparameters
+from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
+from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.pareto.hill_calculator import HillCalculator
 from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, ResponseOutput
+from robyn.modeling.transformations.transformations import Transformation
+from tqdm import tqdm  # Import tqdm for progress bar  # Import tqdm for progress bar
 
 
 @dataclass
@@ -73,6 +78,8 @@ class ParetoOptimizer:
         mmm_data: MMMData,
         model_outputs: ModelOutputs,
         hyper_parameter: Hyperparameters,
+        featurized_mmm_data: FeaturizedMMMData,
+        holidays_data: HolidaysData,
     ):
         """
         Initialize the ParetoOptimizer.
@@ -85,6 +92,10 @@ class ParetoOptimizer:
         self.mmm_data = mmm_data
         self.model_outputs = model_outputs
         self.hyper_parameter = hyper_parameter
+        self.featurized_mmm_data = featurized_mmm_data
+        self.holidays_data = holidays_data
+
+        self.transformer = Transformation(mmm_data)
 
     def optimize(
         self,
@@ -116,20 +127,20 @@ class ParetoOptimizer:
         pareto_data = self.prepare_pareto_data(
             aggregated_data, pareto_fronts, min_candidates
         )
-        response_curves = self._compute_response_curves(pareto_data)
-        plotting_data = self._generate_plot_data(aggregated_data, response_curves)
-
-        return ParetoResult(
-            pareto_solutions=None,  # TODO: plotting_data["solID"].tolist(),
-            pareto_fronts=pareto_fronts,
-            result_hyp_param=aggregated_data["result_hyp_param"],
-            result_calibration=aggregated_data["result_calibration"],
-            x_decomp_agg=pareto_data.x_decomp_agg,
-            media_vec_collect=None,  # TODO: plotting_data["media_vec_collect"],
-            x_decomp_vec_collect=None,  # TODO: plotting_data["x_decomp_vec_collect"],
-            plot_data_collect=None,  # TODO: plotting_data,
-            df_caov_pct_all=None,  # TODO: plotting_data.df_caov_pct_all,
-        )
+        pareto_data = self._compute_response_curves(pareto_data)
+        # plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
+        return {"aggregated_data": aggregated_data, "pareto_data": pareto_data}
+        # return ParetoResult(
+        #     pareto_solutions=None,  # TODO: plotting_data["solID"].tolist(),
+        #     pareto_fronts=pareto_fronts,
+        #     result_hyp_param=aggregated_data["result_hyp_param"],
+        #     result_calibration=aggregated_data["result_calibration"],
+        #     x_decomp_agg=pareto_data.x_decomp_agg,
+        #     media_vec_collect=None,  # TODO: plotting_data["media_vec_collect"],
+        #     x_decomp_vec_collect=None,  # TODO: plotting_data["x_decomp_vec_collect"],
+        #     plot_data_collect=None,  # TODO: plotting_data,
+        #     df_caov_pct_all=None,  # TODO: plotting_data.df_caov_pct_all,
+        # )
 
     def _aggregate_model_data(self, calibrated: bool) -> Dict[str, pd.DataFrame]:
         """
@@ -621,30 +632,41 @@ class ParetoOptimizer:
         """
         mediaVecCollect = []
         xDecompVecCollect = []
-        plotDataCollect = {}
+        plotDataCollect = []
         df_caov_pct_all = pd.DataFrame()
 
-        dt_mod = InputCollect["dt_mod"]
-        dt_modRollWind = InputCollect["dt_modRollWind"]
-        rw_start_loc = InputCollect["rollingWindowStartWhich"]
-        rw_end_loc = InputCollect["rollingWindowEndWhich"]
+        xDecompAgg = pareto_data.x_decomp_agg
+        dt_mod = self.featurized_mmm_data.dt_mod
+        dt_modRollWind = self.featurized_mmm_data.dt_modRollWind
+        rw_start_loc = (
+            self.mmm_data.mmmdata_spec.rolling_window_start_which[0]
+            if isinstance(self.mmm_data.mmmdata_spec.rolling_window_start_which, list)
+            else self.mmm_data.mmmdata_spec.rolling_window_start_which
+        )
+        rw_end_loc = (
+            self.mmm_data.mmmdata_spec.rolling_window_end_which[0]
+            if isinstance(self.mmm_data.mmmdata_spec.rolling_window_end_which, list)
+            else self.mmm_data.mmmdata_spec.rolling_window_end_which
+        )
 
-        # Assuming pareto_fronts_vec is defined earlier in the function
+        # Assuming pareto_fronts_vec is derived from pareto_data
+        pareto_fronts_vec = pareto_data.pareto_fronts
+
         for pf in pareto_fronts_vec:
             plotMediaShare = xDecompAgg[
                 (xDecompAgg["robynPareto"] == pf)
-                & (xDecompAgg["rn"].isin(InputCollect["paid_media_spends"]))
+                & (xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends))
             ]
             uniqueSol = plotMediaShare["solID"].unique()
             plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
 
-            if not quiet and len(xDecompAgg["solID"].unique()) > 1:
-                print(f">> Pareto-Front: {pf} [{len(uniqueSol)} models]")
+            # if not quiet and len(xDecompAgg["solID"].unique()) > 1:
+            print(f">> Pareto-Front: {pf} [{len(uniqueSol)} models]")
 
-            for sid in uniqueSol:
-                if not quiet and len(xDecompAgg["solID"].unique()) > 1:
-                    # Implement a progress bar here if needed
-                    pass
+            for sid in tqdm(uniqueSol, desc="Processing Solutions", unit="solution"):
+                # if not quiet and len(xDecompAgg["solID"].unique()) > 1:
+                #     # Implement a progress bar here if needed
+                #     pass
 
                 # 1. Spend x effect share comparison
                 temp = plotMediaShare[plotMediaShare["solID"] == sid].melt(
@@ -660,7 +682,7 @@ class ParetoOptimizer:
                 )
                 temp["rn"] = pd.Categorical(
                     temp["rn"],
-                    categories=sorted(InputCollect["paid_media_spends"]),
+                    categories=sorted(self.mmm_data.mmmdata_spec.paid_media_spends),
                     ordered=True,
                 )
 
@@ -671,7 +693,7 @@ class ParetoOptimizer:
                     temp["variable"]
                     == (
                         "cpa_total"
-                        if InputCollect["dep_var_type"] == "conversion"
+                        if self.mmm_data.mmmdata_spec.dep_var_type == "conversion"
                         else "roi_total"
                     )
                 ]
@@ -721,50 +743,60 @@ class ParetoOptimizer:
                 # 3. Adstock rate
                 dt_geometric = None
                 weibullCollect = None
-                wb_type = None
-                resultHypParamLoop = resultHypParam[resultHypParam["solID"] == sid]
+                resultHypParamLoop = pareto_data.result_hyp_param[
+                    pareto_data.result_hyp_param["solID"] == sid
+                ]
                 get_hp_names = [
                     name
-                    for name in InputCollect["hyperparameters"].keys()
+                    for name in self.hyper_parameter.hyperparameters.keys()
                     if not name.endswith("_penalty")
                 ]
                 hypParam = resultHypParamLoop[get_hp_names]
 
-                if InputCollect["adstock"] == "geometric":
+                if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
                     hypParam_thetas = [
                         hypParam[f"{media}_thetas"].iloc[0]
-                        for media in InputCollect["all_media"]
+                        for media in self.mmm_data.mmmdata_spec.all_media
                     ]
                     dt_geometric = pd.DataFrame(
                         {
-                            "channels": InputCollect["all_media"],
+                            "channels": self.mmm_data.mmmdata_spec.all_media,
                             "thetas": hypParam_thetas,
                         }
                     )
-
-                if InputCollect["adstock"] in ["weibull_cdf", "weibull_pdf"]:
+                elif self.hyper_parameter.adstock in [
+                    AdstockType.WEIBULL_CDF,
+                    AdstockType.WEIBULL_PDF,
+                ]:
                     shapeVec = [
                         hypParam[f"{media}_shapes"].iloc[0]
-                        for media in InputCollect["all_media"]
+                        for media in self.mmm_data.mmmdata_spec.all_media
                     ]
                     scaleVec = [
                         hypParam[f"{media}_scales"].iloc[0]
-                        for media in InputCollect["all_media"]
+                        for media in self.mmm_data.mmmdata_spec.all_media
                     ]
-                    wb_type = InputCollect["adstock"][8:11]
                     weibullCollect = []
 
-                    for v1, media in enumerate(InputCollect["all_media"]):
+                    for v1, media in enumerate(self.mmm_data.mmmdata_spec.all_media):
                         dt_weibull = pd.DataFrame(
                             {
-                                "x": range(1, InputCollect["rollingWindowLength"] + 1),
-                                "decay_accumulated": adstock_weibull(
-                                    range(1, InputCollect["rollingWindowLength"] + 1),
+                                "x": range(
+                                    1,
+                                    self.mmm_data.mmmdata_spec.rolling_window_length
+                                    + 1,
+                                ),
+                                "decay_accumulated": self.transformer.adstock_weibull(
+                                    range(
+                                        1,
+                                        self.mmm_data.mmmdata_spec.rolling_window_length
+                                        + 1,
+                                    ),
                                     shape=shapeVec[v1],
                                     scale=scaleVec[v1],
-                                    type=wb_type,
+                                    adstockType=self.hyper_parameter.adstock,
                                 )["thetaVecCum"],
-                                "type": wb_type,
+                                "type": self.hyper_parameter.adstock,
                                 "channel": media,
                             }
                         )
@@ -787,62 +819,84 @@ class ParetoOptimizer:
                 }
 
                 # 4. Response curves
-                dt_transformPlot = pd.DataFrame()
-                dt_transformSpend = pd.DataFrame()
-                dt_transformSpendMod = pd.DataFrame()
-                dt_transformAdstock = pd.DataFrame()
-                dt_transformSaturation = pd.DataFrame()
+                dt_transformPlot = dt_mod.loc[
+                    :, ["ds"] + self.mmm_data.mmmdata_spec.all_media
+                ]  # independent variables
+                dt_transformSpend = pd.concat(
+                    [
+                        dt_transformPlot[["ds"]],
+                        self.mmm_data.data[
+                            self.mmm_data.mmmdata_spec.paid_media_spends
+                        ],
+                    ],
+                    axis=1,
+                )  # spends of indep vars
+                dt_transformSpendMod = dt_transformPlot.iloc[
+                    rw_start_loc : rw_end_loc + 1
+                ]  # rolling window of independent variables
 
-                for media in InputCollect["paid_media_spends"]:
-                    m = dt_mod[media].values
-                    if InputCollect["adstock"] == "geometric":
-                        theta = hypParam[f"{media}_thetas"].iloc[0]
-                        x_list = transform_adstock(
-                            m, InputCollect["adstock"], theta=theta
+                dt_transformAdstock = dt_transformPlot.copy()
+                dt_transformSaturation = dt_transformPlot.iloc[
+                    rw_start_loc : rw_end_loc + 1
+                ].copy()
+                for med in self.mmm_data.mmmdata_spec.all_media:
+                    m = pd.Series(dt_transformPlot[med].values)
+                    adstock = self.hyper_parameter.adstock
+                    if adstock == AdstockType.GEOMETRIC:
+                        thetas = hypParam[f"{med}_thetas"]
+                        channelHyperparam = ChannelHyperparameters(thetas=thetas)
+                    elif adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
+                        shapes = hypParam[f"{med}_shapes"]
+                        scales = hypParam[f"{med}_scales"]
+                        channelHyperparam = ChannelHyperparameters(
+                            shapes=shapes, scales=scales
                         )
-                    elif InputCollect["adstock"] in ["weibull_cdf", "weibull_pdf"]:
-                        shape = hypParam[f"{media}_shapes"].iloc[0]
-                        scale = hypParam[f"{media}_scales"].iloc[0]
-                        x_list = transform_adstock(
-                            m, InputCollect["adstock"], shape=shape, scale=scale
-                        )
+                    else:
+                        raise ValueError("Unsupported adstock type")
 
-                    dt_transformAdstock[media] = x_list["x_decayed"]
-
-                    alpha = hypParam[f"{media}_alphas"].iloc[0]
-                    gamma = hypParam[f"{media}_gammas"].iloc[0]
-                    dt_transformSaturation[media] = saturation_hill(
-                        x_list["x_decayed"][rw_start_loc : rw_end_loc + 1], alpha, gamma
+                    x_list = self.transformer.transform_adstock(
+                        m, adstock, channelHyperparam
                     )
+                    m_adstocked = x_list.x_decayed
+                    dt_transformAdstock[med] = m_adstocked
 
+                    m_adstockedRollWind = m_adstocked[rw_start_loc : rw_end_loc + 1]
+                    alpha = hypParam[f"{med}_alphas"].iloc[0]
+                    gamma = hypParam[f"{med}_gammas"].iloc[0]
+                    dt_transformSaturation[med] = self.transformer.saturation_hill(
+                        x=m_adstockedRollWind, alpha=alpha, gamma=gamma
+                    )
                 dt_transformSaturationDecomp = dt_transformSaturation.copy()
-                for media in InputCollect["all_media"]:
-                    coef = plotWaterfall.loc[
-                        (plotWaterfall["solID"] == sid)
-                        & (plotWaterfall["rn"] == media),
+                for i in range(len(self.mmm_data.mmmdata_spec.all_media)):
+                    coef = plotWaterfallLoop.loc[
+                        plotWaterfallLoop["rn"]
+                        == self.mmm_data.mmmdata_spec.all_media[i],
                         "coef",
-                    ].iloc[0]
-                    dt_transformSaturationDecomp[media] *= coef
+                    ].values[0]
+                    dt_transformSaturationDecomp[
+                        self.mmm_data.mmmdata_spec.all_media[i]
+                    ] *= coef
 
                 dt_transformSaturationSpendReverse = dt_transformAdstock.iloc[
                     rw_start_loc : rw_end_loc + 1
                 ].copy()
 
+                # Gather results for dt_scurvePlot
                 dt_scurvePlot = pd.melt(
                     dt_transformSaturationDecomp.reset_index(),
                     id_vars="index",
                     var_name="channel",
                     value_name="response",
+                    value_vars=dt_transformSaturationDecomp.columns[1:],
                 )
-                dt_scurvePlot = dt_scurvePlot.merge(
-                    pd.melt(
-                        dt_transformSaturationSpendReverse.reset_index(),
-                        id_vars="index",
-                        var_name="channel",
-                        value_name="spend",
-                    ),
-                    on=["index", "channel"],
+                spend_data = pd.melt(
+                    dt_transformSaturationSpendReverse.reset_index(),
+                    id_vars="index",
+                    var_name="channel",
+                    value_name="spend",
+                    value_vars=dt_transformSaturationSpendReverse.columns[1:],
                 )
+                dt_scurvePlot = dt_scurvePlot.merge(spend_data, on=["index", "channel"])
                 dt_scurvePlot = dt_scurvePlot[dt_scurvePlot["spend"] >= 0]
 
                 dt_scurvePlotMean = plotWaterfall[
@@ -857,47 +911,106 @@ class ParetoOptimizer:
                         "mean_response",
                         "solID",
                     ]
-                ]
-                dt_scurvePlotMean = dt_scurvePlotMean.rename(columns={"rn": "channel"})
+                ].rename(
+                    columns={"rn": "channel"}
+                )
 
+                # Create plot4data with the required fields
                 plot4data = {
-                    "dt_transformPlot": dt_transformPlot,
-                    "dt_transformSpend": dt_transformSpend,
-                    "dt_transformSpendMod": dt_transformSpendMod,
-                    "dt_transformAdstock": dt_transformAdstock,
-                    "dt_transformSaturation": dt_transformSaturation,
-                    "dt_transformSaturationSpendReverse": dt_transformSaturationSpendReverse,
-                    "dt_transformSaturationDecomp": dt_transformSaturationDecomp,
                     "dt_scurvePlot": dt_scurvePlot,
                     "dt_scurvePlotMean": dt_scurvePlotMean,
                 }
 
+                # 5. Fitted vs actual
+                col_order = (
+                    ["ds", "dep_var"]
+                    + self.mmm_data.mmmdata_spec.all_media
+                    + self.holidays_data.prophet_vars
+                    + self.mmm_data.mmmdata_spec.context_vars
+                )
+                dt_transformDecomp = pd.concat(
+                    [
+                        dt_modRollWind.loc[
+                            :,
+                            ["ds", "dep_var"]
+                            + self.holidays_data.prophet_vars
+                            + self.mmm_data.mmmdata_spec.context_vars,
+                        ],
+                        dt_transformSaturation[self.mmm_data.mmmdata_spec.all_media],
+                    ],
+                    axis=1,
+                )[col_order]
+
+                # Create xDecompVec
+                xDecompVec = xDecompAgg[xDecompAgg["solID"] == sid][
+                    ["solID", "rn", "coef"]
+                ]
+                xDecompVec = xDecompVec.pivot(
+                    index="solID", columns="rn", values="coef"
+                ).reset_index()
+
+                # Handle intercept
+                if "(Intercept)" not in xDecompVec.columns:
+                    xDecompVec["(Intercept)"] = 0
+
+                # Reorder columns
+                xDecompVec = xDecompVec[
+                    ["solID", "(Intercept)"]
+                    + [col for col in col_order if col not in ["ds", "dep_var"]]
+                ]
+
+                # Calculate fitted values
+                intercept = xDecompVec["(Intercept)"]
+                xDecompVec = pd.DataFrame(
+                    np.multiply(
+                        dt_transformDecomp.drop(columns=["ds", "dep_var"]).values,
+                        xDecompVec.drop(columns=["solID", "(Intercept)"]).values,
+                    )
+                )
+
+                # Add intercept and calculate depVarHat
+                xDecompVec["intercept"] = intercept
+                xDecompVec["depVarHat"] = xDecompVec.sum(axis=1) + intercept
+                xDecompVec = pd.concat(
+                    [dt_transformDecomp[["ds", "dep_var"]], xDecompVec], axis=1
+                )
+
+                # Prepare xDecompVecPlot
+                xDecompVecPlot = xDecompVec[["ds", "dep_var", "depVarHat"]].rename(
+                    columns={"dep_var": "actual", "depVarHat": "predicted"}
+                )
+
+                # Melt the DataFrame
+                xDecompVecPlotMelted = xDecompVecPlot.melt(
+                    id_vars="ds", var_name="variable", value_name="value"
+                )
+
+                # Calculate R-squared
+                rsq = xDecompAgg[xDecompAgg["solID"] == sid]["rsq_train"].iloc[0]
+
+                # Prepare plot5data
+                plot5data = {"xDecompVecPlotMelted": xDecompVecPlotMelted, "rsq": rsq}
+
+                # 6. Immediate vs carryover
+                xDecompVecImmeCaov = self.robyn_immcarr(
+                    pareto_data, aggregated_data["result_hyp_param"], sid
+                )
+                df_caov_pct_all = pd.concat([df_caov_pct_all, xDecompVecImmeCaov])
+
+                # Collect results into plotDataCollect
                 plotDataCollect[sid] = {
                     "plot1data": plot1data,
                     "plot2data": plot2data,
                     "plot3data": plot3data,
                     "plot4data": plot4data,
+                    "plot5data": plot5data,  # Include plot5data
+                    "plot6data": {
+                        "xDecompVecPlot": xDecompVecPlot  # Include plot6data
+                    },
+                    "plot7data": xDecompVecImmeCaov,  # Include plot7data
                 }
 
-                # 5. Fitted vs actual
-                fitted_vs_actual = calculate_fitted_vs_actual(
-                    InputCollect,
-                    dt_modRollWind,
-                    dt_transformSaturation,
-                    xDecompAgg,
-                    sid,
-                )
-                xDecompVecPlotMelted = fitted_vs_actual["xDecompVecPlotMelted"]
-                rsq = fitted_vs_actual["rsq"]
-                xDecompVec = fitted_vs_actual["xDecompVec"]
-                xDecompVecPlot = fitted_vs_actual["xDecompVecPlot"]
-
-                # 6. Immediate vs carryover
-                xDecompVecImmeCaov = robyn_immcarr(
-                    InputCollect, OutputCollect, sid, **kwargs
-                )
-                df_caov_pct_all = pd.concat([df_caov_pct_all, xDecompVecImmeCaov])
-
+                # Collect mediaVecCollect
                 mediaVecCollect.append(
                     {
                         "solID": sid,
@@ -910,18 +1023,237 @@ class ParetoOptimizer:
                     }
                 )
 
+                # Collect xDecompVec
                 xDecompVecCollect.append(xDecompVec)
 
         # End of the loop
 
         return {
             "pareto_solutions": list(set([item["solID"] for item in mediaVecCollect])),
-            "pareto_fronts": pareto_fronts,
-            "resultHypParam": resultHypParam,
-            "xDecompAgg": xDecompAgg,
-            "resultCalibration": resultCalibration,
             "mediaVecCollect": mediaVecCollect,
             "xDecompVecCollect": pd.concat(xDecompVecCollect),
             "plotDataCollect": plotDataCollect,
             "df_caov_pct_all": df_caov_pct_all,
         }
+
+    def robyn_immcarr(
+        self,
+        pareto_data: ParetoData,
+        result_hyp_param: pd.DataFrame,
+        solID=None,
+        start_date=None,
+        end_date=None,
+    ):
+        # Define default values when not provided
+        if solID is None:
+            solID = result_hyp_param["solID"].iloc[0]
+        if start_date is None:
+            start_date = self.mmm_data.mmmdata_spec.window_start
+        if end_date is None:
+            end_date = self.mmm_data.mmmdata_spec.window_end
+
+        # Assuming dt_modRollWind is a DataFrame with a 'ds' column
+        dt_modRollWind = pd.to_datetime(self.featurized_mmm_data.dt_modRollWind["ds"])
+        dt_modRollWind = dt_modRollWind.dropna()
+
+        # Check if start_date is a single value
+        if isinstance(start_date, (list, pd.Series)):
+            start_date = start_date[0]
+
+        # Find the closest start_date
+        start_date_closest = dt_modRollWind.iloc[
+            (dt_modRollWind - pd.to_datetime(start_date)).abs().idxmin()
+        ]
+
+        # Check if end_date is a single value
+        if isinstance(end_date, (list, pd.Series)):
+            end_date = end_date[0]  # Take the first element if it's a list or Series
+
+        # Find the closest end_date
+        end_date_closest = dt_modRollWind.iloc[
+            (dt_modRollWind - pd.to_datetime(end_date)).abs().idxmin()
+        ]
+
+        # Filter for custom window
+        rollingWindowStartWhich = dt_modRollWind[dt_modRollWind == start_date].index[0]
+        rollingWindowEndWhich = dt_modRollWind[dt_modRollWind == end_date].index[0]
+        rollingWindow = range(rollingWindowStartWhich, rollingWindowEndWhich + 1)
+
+        # Calculate saturated dataframes with carryover and immediate parts
+        hypParamSam = result_hyp_param[result_hyp_param["solID"] == solID]
+        hyperparameter = self._extract_hyperparameter(hypParamSam)
+
+        dt_saturated_dfs = self.transformer.run_transformations(
+            self.featurized_mmm_data,
+            hyperparameter,
+            hyperparameter.adstock,
+        )
+
+        # Calculate decomposition
+        coefs = pareto_data.x_decomp_agg["coef"][
+            pareto_data.x_decomp_agg["solID"] == solID
+        ].values
+        coefs_names = pareto_data.x_decomp_agg["rn"][
+            pareto_data.x_decomp_agg["solID"] == solID
+        ].values
+        coefs_dict = dict(zip(coefs_names, coefs))
+
+        decompCollect = model_decomp(
+            inputs={
+                "coefs": coefs_dict,
+                "y_pred": dt_saturated_dfs.dt_modSaturated["dep_var"].iloc[
+                    rollingWindow
+                ],
+                "dt_modSaturated": dt_saturated_dfs.dt_modSaturated.iloc[rollingWindow],
+                "dt_saturatedImmediate": dt_saturated_dfs.dt_saturatedImmediate.iloc[
+                    rollingWindow
+                ],
+                "dt_saturatedCarryover": dt_saturated_dfs.dt_saturatedCarryover.iloc[
+                    rollingWindow
+                ],
+                "dt_modRollWind": self.featurized_mmm_data.dt_modRollWind.iloc[
+                    rollingWindow
+                ],
+                "refreshAddedStart": start_date,
+            }
+        )
+
+        # Media decomposition
+        mediaDecompImmediate = decompCollect["mediaDecompImmediate"].drop(
+            columns=["ds", "y"]
+        )
+        mediaDecompImmediate.columns = [
+            f"{col}_MDI" for col in mediaDecompImmediate.columns
+        ]
+
+        mediaDecompCarryover = decompCollect["mediaDecompCarryover"].drop(
+            columns=["ds", "y"]
+        )
+        mediaDecompCarryover.columns = [
+            f"{col}_MDC" for col in mediaDecompCarryover.columns
+        ]
+
+        # Combine results
+        temp = pd.concat(
+            [decompCollect["xDecompVec"], mediaDecompImmediate, mediaDecompCarryover],
+            axis=1,
+        )
+        temp["solID"] = solID
+
+        # Create vector collections
+        vec_collect = {
+            "xDecompVec": temp.drop(
+                columns=temp.columns[
+                    temp.columns.str.endswith("_MDI")
+                    | temp.columns.str.endswith("_MDC")
+                ]
+            ),
+            "xDecompVecImmediate": temp.drop(
+                columns=temp.columns[
+                    temp.columns.str.endswith("_MDC")
+                    | self.mmm_data.mmmdata_spec.all_media
+                ]
+            ),
+            "xDecompVecCarryover": temp.drop(
+                columns=temp.columns[
+                    temp.columns.str.endswith("_MDI")
+                    | self.mmm_data.mmmdata_spec.all_media
+                ]
+            ),
+        }
+
+        # Rename columns
+        this = vec_collect["xDecompVecImmediate"].columns.str.replace(
+            "_MDI", "", regex=False
+        )
+        vec_collect["xDecompVecImmediate"].columns = this
+        vec_collect["xDecompVecCarryover"].columns = this
+
+        # Calculate carryover percentages
+        df_caov = (
+            vec_collect["xDecompVecCarryover"].groupby("solID").sum().reset_index()
+        )
+        df_total = vec_collect["xDecompVec"].groupby("solID").sum().reset_index()
+
+        df_caov_pct = df_caov.copy()
+        df_caov_pct.iloc[:, 1:] = df_caov_pct.iloc[:, 1:].div(
+            df_total.iloc[:, 1:].values
+        )
+        df_caov_pct = df_caov_pct.melt(
+            id_vars="solID", var_name="rn", value_name="carryover_pct"
+        ).fillna(0)
+
+        # Gather everything in an aggregated format
+        xDecompVecImmeCaov = (
+            pd.concat(
+                [
+                    vec_collect["xDecompVecImmediate"].assign(type="Immediate"),
+                    vec_collect["xDecompVecCarryover"].assign(type="Carryover"),
+                ],
+                axis=0,
+            )
+            .melt(id_vars=["solID", "type"])
+            .assign(start_date=start_date, end_date=end_date)
+        )
+
+        xDecompVecImmeCaov = (
+            xDecompVecImmeCaov.groupby(
+                ["solID", "start_date", "end_date", "rn", "type"]
+            )
+            .agg(response=("value", "sum"))
+            .reset_index()
+        )
+
+        xDecompVecImmeCaov["percentage"] = xDecompVecImmeCaov[
+            "response"
+        ] / xDecompVecImmeCaov.groupby(["solID", "start_date", "end_date", "type"])[
+            "response"
+        ].transform(
+            "sum"
+        )
+        xDecompVecImmeCaov.fillna(0, inplace=True)
+
+        # Join with carryover percentages
+        xDecompVecImmeCaov = xDecompVecImmeCaov.merge(
+            df_caov_pct, on=["solID", "rn"], how="left"
+        )
+
+        return xDecompVecImmeCaov
+
+    def _extract_hyperparameter(self, hypParamSam: pd.DataFrame) -> Hyperparameters:
+        """
+        This function extracts hyperparameters from a given DataFrame.
+
+        Parameters:
+        hypParamSam (DataFrame): A DataFrame containing hyperparameters.
+
+        Returns:
+        hyperparameter (dict): A dictionary of hyperparameters.
+        """
+        channelHyperparams: dict[str, ChannelHyperparameters] = {}
+        for med in self.mmm_data.mmmdata_spec.all_media:
+            alphas = hypParamSam[f"{med}_alphas"]
+            gammas = hypParamSam[f"{med}_gammas"]
+            if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
+                thetas = hypParamSam[f"{med}_thetas"]
+                channelHyperparams[med] = ChannelHyperparameters(
+                    thetas=thetas,
+                    alphas=alphas,
+                    gammas=gammas,
+                )
+            elif self.hyper_parameter.adstock in [
+                AdstockType.WEIBULL_CDF,
+                AdstockType.WEIBULL_PDF,
+            ]:
+                shapes = hypParamSam[f"{med}_shapes"]
+                scales = hypParamSam[f"{med}_scales"]
+                channelHyperparams[med] = ChannelHyperparameters(
+                    shapes=shapes,
+                    scales=scales,
+                    alphas=alphas,
+                    gammas=gammas,
+                )
+
+        return Hyperparameters(
+            adstock=self.hyper_parameter.adstock, hyperparameters=channelHyperparams
+        )
