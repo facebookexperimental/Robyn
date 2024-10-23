@@ -5,7 +5,7 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.calibration_input import CalibrationInput, ChannelCalibrationData
 from robyn.data.entities.enums import AdstockType, CalibrationScope
-from robyn.calibration.calibration_transformation import TransformationEngine
+from robyn.calibration.media_transformation import MediaTransformation
 from dataclasses import dataclass
 from typing import Dict, List
 import numpy as np
@@ -46,18 +46,18 @@ class CalibrationResult:
         )
 
 
-class CalibrationEngine:
+class MediaEffectCalibrator:
     """
     Handles the calibration process for media mix models by comparing model predictions
     against actual experimental results.
     """
 
     def __init__(self, mmm_data: MMMData, hyperparameters: Hyperparameters, calibration_input: CalibrationInput):
-        """Initialize the calibration engine with model data and parameters."""
+        """Initialize calibration with model data and parameters."""
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.calibration_input = calibration_input
-        self.transformation_engine = TransformationEngine(hyperparameters)
+        self.media_transformation = MediaTransformation(hyperparameters)
 
         # Convert date column to datetime if it's not already
         date_col = self.mmm_data.mmmdata_spec.date_var
@@ -132,7 +132,7 @@ class CalibrationEngine:
             spend: Spend amount for the channel
             channel: Channel name for getting correct hyperparameters
         """
-        pred_effect = self.transformation_engine.apply_media_transforms(predictions, channel)
+        pred_effect = self.media_transformation.apply_media_transforms(predictions, channel)
         # Sum up the prediction effects for the period
         total_pred_effect = pred_effect.sum()
         # Calculate MAPE using the totals
@@ -151,9 +151,9 @@ class CalibrationEngine:
             spend: Spend amount for the channel
             channel: Channel name for getting correct hyperparameters
         """
-        pred_effect = self.transformation_engine.apply_media_transforms(predictions, channel)
+        pred_effect = self.media_transformation.apply_media_transforms(predictions, channel)
         # Get total effect including carryover
-        total_effect = self.transformation_engine.apply_carryover_effect(pred_effect)
+        total_effect = self.media_transformation.apply_carryover_effect(pred_effect)
         # Calculate MAPE using the totals
         mape = np.abs((total_effect - lift_value) / lift_value)
         return float(mape)

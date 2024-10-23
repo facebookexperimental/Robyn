@@ -10,7 +10,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
-from robyn.calibration.calibration import CalibrationEngine
+from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
 import logging
 import time
 from datetime import datetime
@@ -501,7 +501,7 @@ class RidgeModelBuilder:
             return 0.0
 
         # Initialize calibration engine
-        calibration_engine = CalibrationEngine(
+        calibration_engine = MediaEffectCalibrator(
             mmm_data=self.mmm_data, hyperparameters=self.hyperparameters, calibration_input=self.calibration_input
         )
 
@@ -582,7 +582,7 @@ class RidgeModelBuilder:
             if hasattr(self, "calibration_engine"):
                 calibration_engine = self.calibration_engine
             else:
-                calibration_engine = CalibrationEngine(
+                calibration_engine = MediaEffectCalibrator(
                     mmm_data=self.mmm_data,
                     hyperparameters=self.hyperparameters,
                     calibration_input=self.calibration_input,

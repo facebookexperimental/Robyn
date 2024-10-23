@@ -5,7 +5,7 @@ from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.enums import AdstockType
 
 
-class TransformationEngine:
+class MediaTransformation:
     """
     Handles media transformations including adstock and saturation effects.
     """
