@@ -347,7 +347,7 @@ class ParetoOptimizer:
             pareto_candidates: pd.DataFrame = sorted_data[
                 sorted_data["decomp_rssd"] == sorted_data["decomp_rssd"].cummin()
             ]
-            pareto_candidates.loc[:, "pareto_front"] = front_number
+            pareto_candidates = pareto_candidates.assign(pareto_front=front_number)
 
             # Append to the result DataFrame
             pareto_fronts_df = pd.concat(
@@ -861,7 +861,7 @@ class ParetoOptimizer:
                     # Saturation
                     alpha = hypParam[f"{all_media_channels[med]}_alphas"].iloc[0]
                     gamma = hypParam[f"{all_media_channels[med]}_gammas"].iloc[0]
-                    dt_transformSaturation[med_select] = (
+                    dt_transformSaturation.loc[:, med_select] = (
                         self.transformer.saturation_hill(
                             x=m_adstockedRollWind, alpha=alpha, gamma=gamma
                         )
@@ -1204,9 +1204,9 @@ class ParetoOptimizer:
         )
 
         df_caov_pct = df_caov.copy()
-        df_caov_pct.iloc[:, 1:] = df_caov_pct.iloc[:, 1:].div(
-            df_total.iloc[:, 1:].values
-        )
+        df_caov_pct.loc[:, df_caov_pct.columns[1:]] = df_caov_pct.loc[
+            :, df_caov_pct.columns[1:]
+        ].div(df_total.iloc[:, 1:].values)
         df_caov_pct = df_caov_pct.melt(
             id_vars="solID", var_name="rn", value_name="carryover_pct"
         ).fillna(0)
