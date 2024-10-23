@@ -294,7 +294,7 @@ class RidgeModelBuilder:
 
         return Trial(
             result_hyp_param=result_hyp_param,
-            lift_calibration=best_result["lift_calibration"],
+            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),  # Use get() with default
             decomp_spend_dist=decomp_spend_dist,
             nrmse=best_result["nrmse"],
             decomp_rssd=best_result["decomp_rssd"],
@@ -304,10 +304,10 @@ class RidgeModelBuilder:
             rsq_val=best_result["rsq_val"],
             rsq_test=best_result["rsq_test"],
             lambda_=best_result["lambda_"],
-            lambda_hp=best_result["lambda_hp"],
-            lambda_max=best_result["lambda_max"],
-            lambda_min_ratio=best_result["lambda_min_ratio"],
-            pos=best_result["pos"],
+            lambda_hp=best_result.get("lambda_hp", 0.0),
+            lambda_max=best_result.get("lambda_max", 0.0),
+            lambda_min_ratio=best_result.get("lambda_min_ratio", 0.0001),
+            pos=best_result.get("pos", False),
             elapsed=best_result["elapsed"],
             elapsed_accum=best_result["elapsed_accum"],
             trial=trial,
@@ -554,62 +554,63 @@ class RidgeModelBuilder:
         model = Ridge(alpha=lambda_, fit_intercept=True)
         model.fit(X_train, y_train)
 
-        # Calculate base metrics
+        # Calculate all metrics (even if not in validation mode)
         y_train_pred = model.predict(X_train)
-        nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (y_train.max() - y_train.min())
         rsq_train = r2_score(y_train, y_train_pred)
+        nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (y_train.max() - y_train.min())
 
         if ts_validation and X_val is not None and X_test is not None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
-            nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (y_val.max() - y_val.min())
-            nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (y_test.max() - y_test.min())
             rsq_val = r2_score(y_val, y_val_pred)
             rsq_test = r2_score(y_test, y_test_pred)
+            nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (y_val.max() - y_val.min())
+            nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (y_test.max() - y_test.min())
             nrmse = nrmse_val
         else:
-            nrmse_val = nrmse_test = rsq_val = rsq_test = None
+            # Set default values for non-validation metrics
+            rsq_val = rsq_test = 0.0
+            nrmse_val = nrmse_test = 0.0
             nrmse = nrmse_train
 
-        # Calculate RSSD
+        # Calculate RSSD and MAPE
         decomp_rssd = self._calculate_rssd(model.coef_, rssd_zero_penalty)
 
-        # Calculate MAPE using calibration if available
+        # Handle calibration
+        lift_calibration = None
         if self.calibration_input is not None:
-            mape = self._calculate_mape(
-                model=model,
-                dt_raw=self.featurized_mmm_data.dt_mod,
-                hypParamSam=params,
-                wind_start=self.mmm_data.mmmdata_spec.rolling_window_start_which,
-                wind_end=self.mmm_data.mmmdata_spec.rolling_window_end_which,
-            )
-            calibration_constraint = 0.1  # Default calibration constraint
-            if mape > calibration_constraint:
-                # Penalize models that don't meet calibration constraint
-                decomp_rssd *= 1 + (mape - calibration_constraint)
+            if hasattr(self, "calibration_engine"):
+                calibration_engine = self.calibration_engine
+            else:
+                calibration_engine = CalibrationEngine(
+                    mmm_data=self.mmm_data,
+                    hyperparameters=self.hyperparameters,
+                    calibration_input=self.calibration_input,
+                )
+                self.calibration_engine = calibration_engine
+
+            lift_collect = calibration_engine.calibrate()
+            if lift_collect is not None:
+                lift_calibration = lift_collect
+                mape = float(lift_collect.get_mean_mape())
+                calibration_constraint = 0.1
+                if mape > calibration_constraint:
+                    decomp_rssd *= 1 + (mape - calibration_constraint)
+            else:
+                mape = 0.0
         else:
             mape = 0.0
 
-        # Calculate final loss based on objectives
-        if objective_weights is None:
-            objective_weights = [1 / 3, 1 / 3, 1 / 3] if self.calibration_input else [0.5, 0.5]
-
-        loss = (
-            objective_weights[0] * nrmse
-            + objective_weights[1] * decomp_rssd
-            + (objective_weights[2] * mape if self.calibration_input else 0)
-        )
-
-        # Prepare result parameters
+        # Create result parameters dictionary with all required metrics
         result_params = {
             **params,
             "train_size": train_size,
             "rsq_train": rsq_train,
-            "rsq_val": rsq_val if rsq_val is not None else 0,
-            "rsq_test": rsq_test if rsq_test is not None else 0,
+            "rsq_val": rsq_val,
+            "rsq_test": rsq_test,
             "nrmse_train": nrmse_train,
-            "nrmse_val": nrmse_val if nrmse_val is not None else 0,
-            "nrmse_test": nrmse_test if nrmse_test is not None else 0,
+            "nrmse_val": nrmse_val,
+            "nrmse_test": nrmse_test,
             "nrmse": nrmse,
             "decomp.rssd": decomp_rssd,
             "mape": mape,
@@ -620,28 +621,38 @@ class RidgeModelBuilder:
             "iterPar": 1,
         }
 
-        # Calculate decomposition results
         decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, result_params)
         x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, result_params)
 
-        elapsed = time.time() - start_time
-
         return {
-            "loss": loss,
+            "loss": (
+                objective_weights[0] * nrmse
+                + objective_weights[1] * decomp_rssd
+                + (objective_weights[2] * mape if self.calibration_input else 0)
+            ),
             "params": result_params,
             "nrmse": nrmse,
             "decomp_rssd": decomp_rssd,
             "mape": mape,
+            "lift_calibration": lift_calibration,
             "decomp_spend_dist": decomp_spend_dist,
             "x_decomp_agg": x_decomp_agg,
             "rsq_train": rsq_train,
-            "rsq_val": rsq_val if rsq_val is not None else 0,
-            "rsq_test": rsq_test if rsq_test is not None else 0,
+            "rsq_val": rsq_val,
+            "rsq_test": rsq_test,
+            "nrmse_train": nrmse_train,
+            "nrmse_val": nrmse_val,
+            "nrmse_test": nrmse_test,
             "lambda_": lambda_,
-            "elapsed": elapsed,
-            "elapsed_accum": elapsed,
+            "lambda_hp": params.get("lambda", 0.0),
+            "lambda_max": self._lambda_seq(X_train, y_train)[0],
+            "lambda_min_ratio": 0.0001,
+            "pos": any(model.coef_ >= 0),
+            "elapsed": time.time() - start_time,
+            "elapsed_accum": time.time() - start_time,
             "iter_ng": iter_ng + 1,
             "iter_par": 1,
+            "train_size": train_size,
         }
 
     @staticmethod
