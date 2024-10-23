@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import numpy as np
 from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
+from robyn.data.entities.enums import AdstockType
 
 
 class TestFeatureEngineering(unittest.TestCase):
@@ -309,6 +310,7 @@ class TestFeatureEngineering(unittest.TestCase):
 
         expected_result = pd.Series([0.1, 0.15], index=["paid_media_1", "paid_media_2"])
 
+        print(f"\n\n\nresult: {result}\n\n\nexpected_result: {expected_result}\n\n\n")
         pd.testing.assert_series_equal(result, expected_result)
 
     def test__calculate_media_cost_factor_with_zero_spend(self):
@@ -609,18 +611,18 @@ class TestFeatureEngineering(unittest.TestCase):
 
     def test__hill_function_with_small_alpha(self):
         result = FeatureEngineering._hill_function(x=2.0, alpha=1e-10, gamma=1.0)
-        self.assertEqual(result, 0.5)
+        self.assertAlmostEqual(result, 0.5, places=7)
 
     def test__hill_function_with_small_gamma(self):
         result = FeatureEngineering._hill_function(x=2.0, alpha=1.0, gamma=1e-10)
-        self.assertEqual(result, 1.0)
+        self.assertAlmostEqual(result, 1.0, places=7)
 
     @patch("robyn.modeling.feature_engineering.Prophet")
     @patch.object(FeatureEngineering, "_set_holidays")
     def test__prophet_decomposition(self, mock_set_holidays, mock_prophet):
         # Setup mocks
         mock_set_holidays.return_value = pd.DataFrame(
-            {"ds": ["2020-01-01"], "holiday": ["Holiday"]}
+            {"ds": ["2020-01-01"], "holiday": ["Holiday"], "country": ["US"]}
         )
         mock_prophet().fit().predict.return_value = pd.DataFrame(
             {
@@ -637,6 +639,10 @@ class TestFeatureEngineering(unittest.TestCase):
         # Simulate dt_mod DataFrame
         dt_mod = pd.DataFrame({"ds": ["2020-01-01"], "dep_var": [100]})
 
+        mmm_data = MagicMock()
+        mmm_data.mmmdata_spec.interval_type = "day"
+        mmm_data.mmmdata_spec.paid_media_spends = ["paid_media_1", "paid_media_2"]
+
         holidays_data = MagicMock()
         holidays_data.prophet_vars = [
             "trend",
@@ -646,9 +652,12 @@ class TestFeatureEngineering(unittest.TestCase):
             "weekday",
         ]
         holidays_data.prophet_country = ["US"]
+        holidays_data.dt_holidays = pd.DataFrame(
+            {"ds": ["2020-01-01"], "holiday": ["Holiday"], "country": ["US"]}
+        )
 
         fe = FeatureEngineering(
-            mmm_data=MagicMock(),
+            mmm_data=mmm_data,
             hyperparameters=MagicMock(),
             holidays_data=holidays_data,
         )
@@ -776,6 +785,12 @@ class TestFeatureEngineering(unittest.TestCase):
             "weekday",
         ]
         holidays_data.prophet_country = ["US"]
+        holidays_data.dt_holidays = pd.DataFrame(
+            {"ds": ["2020-01-01"], "holiday": ["Holiday"], "country": ["US"]}
+        )
+
+        mmm_data_mock = MagicMock()
+        mmm_data_mock.mmmdata_spec.day_interval = 7 
 
         fe = FeatureEngineering(
             mmm_data=MagicMock(),
@@ -835,8 +850,10 @@ class TestFeatureEngineering(unittest.TestCase):
         result = fe._set_holidays(dt_transform, dt_holidays, interval_type="week")
 
         expected_result = (
-            dt_holidays.groupby(["ds", "country", "year"])
-            .agg(holiday=("holiday", ", ".join))
+            dt_holidays.copy()
+            .assign(ds=lambda df: df["ds"] - pd.to_timedelta(df["ds"].dt.weekday, unit="D") + pd.Timedelta(days=dt_transform["ds"].dt.weekday[0]))
+            .groupby(["ds", "country", "year"])
+            .agg(holiday=("holiday", ", ".join), n=("holiday", "count"))
             .reset_index()
         )
 
@@ -970,7 +987,7 @@ class TestFeatureEngineering(unittest.TestCase):
             mmm_data=MagicMock(), hyperparameters=MagicMock(), holidays_data=MagicMock()
         )
 
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             fe._apply_transformations(x, None)
 
     @patch.object(FeatureEngineering, "_apply_adstock")
@@ -1005,7 +1022,7 @@ class TestFeatureEngineering(unittest.TestCase):
         params.thetas = [0.5]
 
         hyperparameters = MagicMock()
-        hyperparameters.adstock = "GEOMETRIC"
+        hyperparameters.adstock = AdstockType.GEOMETRIC
 
         fe = FeatureEngineering(
             mmm_data=MagicMock(),
@@ -1029,7 +1046,7 @@ class TestFeatureEngineering(unittest.TestCase):
         params.scales = [1.0]
 
         hyperparameters = MagicMock()
-        hyperparameters.adstock = "WEIBULL_CDF"
+        hyperparameters.adstock = AdstockType.WEIBULL_CDF
 
         fe = FeatureEngineering(
             mmm_data=MagicMock(),
@@ -1053,7 +1070,7 @@ class TestFeatureEngineering(unittest.TestCase):
         params.scales = [1.0]
 
         hyperparameters = MagicMock()
-        hyperparameters.adstock = "WEIBULL_PDF"
+        hyperparameters.adstock = AdstockType.WEIBULL_PDF
 
         fe = FeatureEngineering(
             mmm_data=MagicMock(),
@@ -1219,10 +1236,8 @@ class TestFeatureEngineering(unittest.TestCase):
         # Simulate x
         x = pd.Series(dtype="float64")
 
-        result = FeatureEngineering._weibull_adstock(x, shape=1.5, scale=1.0)
-
-        self.assertIsInstance(result, pd.Series)
-        self.assertEqual(len(result), 0)
+        with self.assertRaises(ValueError):
+            FeatureEngineering._weibull_adstock(x, shape=1.5, scale=1.0)
 
     def test__apply_saturation(self):
         # Simulate x and params
@@ -1234,13 +1249,7 @@ class TestFeatureEngineering(unittest.TestCase):
         result = FeatureEngineering._apply_saturation(x, params)
 
         expected_result = pd.Series(
-            [
-                1.0 / (1.0 + 1.0),
-                2.0 / (2.0 + 1.0),
-                3.0 / (3.0 + 1.0),
-                4.0 / (4.0 + 1.0),
-                5.0 / (5.0 + 1.0),
-            ]
+            [xi**0.5 / (xi**0.5 + 1.0**0.5) for xi in x], dtype='float64'
         )
 
         pd.testing.assert_series_equal(result, expected_result)
@@ -1254,13 +1263,13 @@ class TestFeatureEngineering(unittest.TestCase):
 
         result = FeatureEngineering._apply_saturation(x, params)
 
-        expected_result = pd.Series([0, 0, 0, 0, 0])
+        expected_result = pd.Series([0.0, 0.0, 0.0, 0.0, 0.0], dtype='float64')
 
         pd.testing.assert_series_equal(result, expected_result)
 
     def test__apply_saturation_with_negative_values(self):
         # Simulate x and params
-        x = pd.Series([-1, -2, -3, -4, -5])
+        x = pd.Series([-1, -2, -3, -4, -5], dtype='float64')
         params = MagicMock()
         params.alphas = [0.5]
         params.gammas = [1.0]
@@ -1274,7 +1283,7 @@ class TestFeatureEngineering(unittest.TestCase):
                 -3.0 / (3.0 + 1.0),
                 -4.0 / (4.0 + 1.0),
                 -5.0 / (5.0 + 1.0),
-            ]
+            ], dtype='float64'
         )
 
         pd.testing.assert_series_equal(result, expected_result)

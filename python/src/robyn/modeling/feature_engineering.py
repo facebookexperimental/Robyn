@@ -344,9 +344,17 @@ class FeatureEngineering:
 
         weights = [weibull_pdf(t) for t in range(1, len(x) + 1)]
         weights = weights / np.sum(weights)
-        return np.convolve(x, weights[::-1], mode="full")[: len(x)]
+        result = np.convolve(x, weights[::-1], mode="full")[: len(x)]
+
+        return pd.Series(result, index=x.index)
 
     @staticmethod
     def _apply_saturation(x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
         alpha, gamma = params.alphas[0], params.gammas[0]
-        return x**alpha / (x**alpha + gamma**alpha)
+        # Apply saturation only to positive values
+        return x.apply(lambda v: (v**alpha / (v**alpha + gamma**alpha)) if v >= 0 else v)
+
+    # @staticmethod
+    # def _apply_saturation(x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
+    #     alpha, gamma = params.alphas[0], params.gammas[0]
+    #     return x**alpha / (x**alpha + gamma**alpha)
