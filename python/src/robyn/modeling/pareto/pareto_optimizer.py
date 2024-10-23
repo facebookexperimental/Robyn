@@ -125,22 +125,22 @@ class ParetoOptimizer:
         )
 
         pareto_data = self.prepare_pareto_data(
-            aggregated_data, pareto_fronts, min_candidates
+            aggregated_data, pareto_fronts, min_candidates, calibrated
         )
-        pareto_data = self._compute_response_curves(pareto_data)
-        # plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
-        return {"aggregated_data": aggregated_data, "pareto_data": pareto_data}
-        # return ParetoResult(
-        #     pareto_solutions=None,  # TODO: plotting_data["solID"].tolist(),
-        #     pareto_fronts=pareto_fronts,
-        #     result_hyp_param=aggregated_data["result_hyp_param"],
-        #     result_calibration=aggregated_data["result_calibration"],
-        #     x_decomp_agg=pareto_data.x_decomp_agg,
-        #     media_vec_collect=None,  # TODO: plotting_data["media_vec_collect"],
-        #     x_decomp_vec_collect=None,  # TODO: plotting_data["x_decomp_vec_collect"],
-        #     plot_data_collect=None,  # TODO: plotting_data,
-        #     df_caov_pct_all=None,  # TODO: plotting_data.df_caov_pct_all,
-        # )
+        pareto_data = self._compute_response_curves(pareto_data, aggregated_data)
+        plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
+
+        return ParetoResult(
+            pareto_solutions=plotting_data["pareto_solutions"],
+            pareto_fronts=pareto_fronts,
+            result_hyp_param=aggregated_data["result_hyp_param"],
+            result_calibration=aggregated_data["result_calibration"],
+            x_decomp_agg=pareto_data.x_decomp_agg,
+            media_vec_collect=plotting_data["mediaVecCollect"],
+            x_decomp_vec_collect=plotting_data["xDecompVecCollect"],
+            plot_data_collect=plotting_data["plotDataCollect"],
+            df_caov_pct_all=plotting_data["df_caov_pct_all"],
+        )
 
     def _aggregate_model_data(self, calibrated: bool) -> Dict[str, pd.DataFrame]:
         """
@@ -158,7 +158,7 @@ class ParetoOptimizer:
                 - 'x_decomp_agg': Aggregated decomposition results
                 - 'result_calibration': Calibration results (if calibrated is True)
         """
-        hyper_fixed = self.model_outputs.hyper_fixed[0]
+        hyper_fixed = self.model_outputs.hyper_fixed
         # Extract resultCollect from self.model_outputs
         trials = [
             model
@@ -318,45 +318,70 @@ class ParetoOptimizer:
                                                 including 'nrmse' and 'decomp.rssd' columns.
             pareto_fronts (Union[str, int]): Number of Pareto fronts to calculate or "auto".
         """
-        data = pd.DataFrame(
-            {
-                "x": resultHypParamPareto["nrmse"],
-                "y": resultHypParamPareto["decomp.rssd"],
-            }
-        )
-        data = data.sort_values(by=["x", "y"], ascending=[True, True])
-        pareto_fronts_df = pd.DataFrame(columns=["x", "y", "pareto_front"])
-        i = 1
+        # Ensure nrmse_values and decomp_rssd_values have the same length
+        nrmse_values = resultHypParamPareto["nrmse"]
+        decomp_rssd_values = resultHypParamPareto["decomp.rssd"]
 
-        while not data.empty and (pareto_fronts == "auto" or i <= int(pareto_fronts)):
-            # Identify Pareto front
-            is_pareto = data.apply(
-                lambda row: all((row["y"] <= data["y"]) & (row["x"] <= data["x"])),
-                axis=1,
+        # Ensure nrmse_values and decomp_rssd_values have the same length
+        if len(nrmse_values) != len(decomp_rssd_values):
+            raise ValueError(
+                "Length of nrmse_values must be equal to length of decomp_rssd_values"
             )
-            pareto_front = data[is_pareto]
-            pareto_front["pareto_front"] = i
 
-            # Append to result dataframe
-            pareto_fronts_df = pd.concat([pareto_fronts_df, pareto_front])
+        # Create a DataFrame from nrmse and decomp_rssd
+        data = pd.DataFrame({"nrmse": nrmse_values, "decomp_rssd": decomp_rssd_values})
 
-            # Remove identified Pareto front from data
-            data = data[~is_pareto]
-            i += 1
-        return pareto_fronts_df.reset_index(drop=True)
+        # Sort the DataFrame by nrmse and decomp_rssd
+        sorted_data = data.sort_values(by=["nrmse", "decomp_rssd"]).reset_index(
+            drop=True
+        )
+        pareto_fronts_df = pd.DataFrame()
+        front_number = 1
+
+        # Determine the maximum number of Pareto fronts
+        max_fronts = float("inf") if "auto" in pareto_fronts else pareto_fronts
+
+        # Loop to identify Pareto fronts
+        while len(sorted_data) > 0 and front_number <= max_fronts:
+            # Select non-duplicated cumulative minimums of decomp_rssd
+            pareto_candidates: pd.DataFrame = sorted_data[
+                sorted_data["decomp_rssd"] == sorted_data["decomp_rssd"].cummin()
+            ]
+            pareto_candidates.loc[:, "pareto_front"] = front_number
+
+            # Append to the result DataFrame
+            pareto_fronts_df = pd.concat(
+                [pareto_fronts_df, pareto_candidates], ignore_index=True
+            )
+
+            # Remove selected rows from sorted_data
+            sorted_data = sorted_data[~sorted_data.index.isin(pareto_candidates.index)]
+
+            # Increment the Pareto front counter
+            front_number += 1
+
+        # Merge the original DataFrame with the Pareto front DataFrame
+        result = pd.merge(
+            data,
+            pareto_fronts_df[["nrmse", "decomp_rssd", "pareto_front"]],
+            on=["nrmse", "decomp_rssd"],
+            how="left",
+        )
+        result.columns = ["x", "y", "pareto_front"]
+        return result.reset_index(drop=True)
 
     def prepare_pareto_data(
         self,
         aggregated_data: Dict[str, pd.DataFrame],
         pareto_fronts: str,
         min_candidates: int,
+        calibrated: bool,
     ) -> ParetoData:
         result_hyp_param = aggregated_data["result_hyp_param"]
-        x_decomp_agg = aggregated_data["x_decomp_agg"]
 
         # 1. Binding Pareto results
-        x_decomp_agg = pd.merge(
-            x_decomp_agg,
+        aggregated_data["x_decomp_agg"] = pd.merge(
+            aggregated_data["x_decomp_agg"],
             result_hyp_param[["robynPareto", "solID"]],
             on="solID",
             how="left",
@@ -365,7 +390,7 @@ class ParetoOptimizer:
         # Step 1: Collect decomp_spend_dist from each trial and add the trial number
         decomp_spend_dist = pd.concat(
             [
-                trial.decomp_spend_dist.assign(trial=trial.trial)
+                trial.decomp_spend_dist
                 for trial in self.model_outputs.trials
                 if trial.decomp_spend_dist is not None
             ],
@@ -382,7 +407,7 @@ class ParetoOptimizer:
                 + decomp_spend_dist["iterPar"].astype(str)
             )
 
-        # Step 4: Left join with resultHypParam
+        # Step 3: Left join with resultHypParam
         decomp_spend_dist = pd.merge(
             decomp_spend_dist,
             result_hyp_param[["robynPareto", "solID"]],
@@ -390,53 +415,42 @@ class ParetoOptimizer:
             how="left",
         )
 
-        # 2. Preparing for parallel processing
-        # Note: Python parallel processing would be implemented differently
-        # You might want to use multiprocessing or concurrent.futures here
-
         # 3. Determining the number of Pareto fronts
-        if self.model_outputs.hyper_fixed[0] or len(result_hyp_param) == 1:
+        if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
             pareto_fronts = 1
 
         # 4. Handling automatic Pareto front selection
         if pareto_fronts == "auto":
             n_pareto = result_hyp_param["robynPareto"].notna().sum()
 
-            # Check if any trial has lift_calibration
-            is_calibrated = any(
-                trial.lift_calibration is not None
-                for trial in self.model_outputs.trials
-            )
-
             if (
                 n_pareto <= min_candidates
                 and len(result_hyp_param) > 1
-                and not is_calibrated
+                and not calibrated
             ):
                 raise ValueError(
                     f"Less than {min_candidates} candidates in pareto fronts. "
                     "Increase iterations to get more model candidates or decrease min_candidates."
                 )
 
-            auto_pareto = (
+            # Group by 'robynPareto' and count distinct 'solID'
+            grouped_data = (
                 result_hyp_param[result_hyp_param["robynPareto"].notna()]
-                .groupby("robynPareto")
+                .groupby("robynPareto", as_index=False)
                 .agg(n=("solID", "nunique"))
-                .reset_index()
-                .sort_values("robynPareto")
             )
+            # Calculate cumulative sum and create a new column 'n_cum'
+            grouped_data["n_cum"] = grouped_data["n"].cumsum()
 
-            auto_pareto["n_cum"] = auto_pareto["n"].cumsum()
-            auto_pareto = auto_pareto[auto_pareto["n_cum"] >= min_candidates].iloc[0]
+            # Filter where cumulative sum is greater than or equal to min_candidates
+            auto_pareto = grouped_data[grouped_data["n_cum"] >= min_candidates].head(1)
 
             print(
-                f">> Automatically selected {auto_pareto['robynPareto']} Pareto-fronts "
-                f"to contain at least {min_candidates} pareto-optimal models ({auto_pareto['n_cum']})"
+                f">> Automatically selected {auto_pareto['robynPareto'].values} Pareto-fronts ",
+                f"to contain at least {min_candidates} pareto-optimal models ({auto_pareto['n_cum'].values})",
             )
 
             pareto_fronts = int(auto_pareto["robynPareto"])
-
-        print(pareto_fronts)
         # 5. Creating Pareto front vector
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
@@ -447,8 +461,8 @@ class ParetoOptimizer:
         result_hyp_param_pareto = result_hyp_param[
             result_hyp_param["robynPareto"].isin(pareto_fronts_vec)
         ]
-        x_decomp_agg_pareto = x_decomp_agg[
-            x_decomp_agg["robynPareto"].isin(pareto_fronts_vec)
+        x_decomp_agg_pareto = aggregated_data["x_decomp_agg"][
+            aggregated_data["x_decomp_agg"]["robynPareto"].isin(pareto_fronts_vec)
         ]
 
         return ParetoData(
@@ -534,7 +548,9 @@ class ParetoOptimizer:
             }
         )
 
-    def _compute_response_curves(self, pareto_data: ParetoData) -> ParetoData:
+    def _compute_response_curves(
+        self, pareto_data: ParetoData, aggregated_data: Dict[str, pd.DataFrame]
+    ) -> ParetoData:
         """
         Calculate response curves for Pareto-optimal solutions.
 
@@ -590,7 +606,7 @@ class ParetoOptimizer:
         )
 
         pareto_data.x_decomp_agg = pd.merge(
-            pareto_data.x_decomp_agg,
+            aggregated_data["x_decomp_agg"],
             pareto_data.decomp_spend_dist[
                 [
                     "rn",
@@ -620,64 +636,33 @@ class ParetoOptimizer:
     ) -> Dict[str, pd.DataFrame]:
         """
         Prepare data for various plots used in the Pareto analysis.
-
-        This method generates data for different types of plots used to visualize and analyze
-        the Pareto-optimal solutions, including spend vs. effect comparisons, waterfalls, and more.
-
-        Args:
-            pareto_fronts_df (pd.DataFrame): Dataframe of Pareto-optimal solutions.
-            response_curves (Dict[str, pd.DataFrame]): Response curves data from _compute_response_curves.
-
-        Returns:
-            Dict[str, pd.DataFrame]: A dictionary of dataframes, each containing data for a specific plot type.
         """
-        mediaVecCollect = []
-        xDecompVecCollect = []
+        mediaVecCollect = pd.DataFrame()
+        xDecompVecCollect = pd.DataFrame()
         plotDataCollect = {}
         df_caov_pct_all = pd.DataFrame()
 
         xDecompAgg = pareto_data.x_decomp_agg
         dt_mod = self.featurized_mmm_data.dt_mod
         dt_modRollWind = self.featurized_mmm_data.dt_modRollWind
-        rw_start_loc = (
-            self.mmm_data.mmmdata_spec.rolling_window_start_which[0]
-            if isinstance(self.mmm_data.mmmdata_spec.rolling_window_start_which, list)
-            else self.mmm_data.mmmdata_spec.rolling_window_start_which
-        )
-        rw_end_loc = (
-            self.mmm_data.mmmdata_spec.rolling_window_end_which[0]
-            if isinstance(self.mmm_data.mmmdata_spec.rolling_window_end_which, list)
-            else self.mmm_data.mmmdata_spec.rolling_window_end_which
-        )
+        rw_start_loc = self.mmm_data.mmmdata_spec.rolling_window_start_which
+        rw_end_loc = self.mmm_data.mmmdata_spec.rolling_window_end_which
 
         # Assuming pareto_fronts_vec is derived from pareto_data
         pareto_fronts_vec = pareto_data.pareto_fronts
 
         for pf in pareto_fronts_vec:
-            print(xDecompAgg["robynPareto"])
-            print(
-                "pf ",
-                pareto_fronts_vec,
-                "paid_media_spends   ",
-                self.mmm_data.mmmdata_spec.paid_media_spends,
-            )
             plotMediaShare = xDecompAgg[
                 (xDecompAgg["robynPareto"] == pf)
                 & (xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends))
             ]
             uniqueSol = plotMediaShare["solID"].unique()
-            print(uniqueSol)
-            exit()
+
             plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
 
-            # if not quiet and len(xDecompAgg["solID"].unique()) > 1:
             print(f">> Pareto-Front: {pf} [{len(uniqueSol)} models]")
 
             for sid in tqdm(uniqueSol, desc="Processing Solutions", unit="solution"):
-                # if not quiet and len(xDecompAgg["solID"].unique()) > 1:
-                #     # Implement a progress bar here if needed
-                #     pass
-
                 # 1. Spend x effect share comparison
                 temp = plotMediaShare[plotMediaShare["solID"] == sid].melt(
                     id_vars=["rn", "nrmse", "decomp.rssd", "rsq_train"],
@@ -763,6 +748,7 @@ class ParetoOptimizer:
                 ]
                 hypParam = resultHypParamLoop[get_hp_names]
 
+                wb_type = self.hyper_parameter.adstock.split("_")[-1].upper()
                 if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
                     hypParam_thetas = [
                         hypParam[f"{media}_thetas"].iloc[0]
@@ -787,8 +773,7 @@ class ParetoOptimizer:
                         for media in self.mmm_data.mmmdata_spec.all_media
                     ]
                     weibullCollect = []
-
-                    for v1, media in enumerate(self.mmm_data.mmmdata_spec.all_media):
+                    for v1 in range(len(self.mmm_data.mmmdata_spec.all_media)):
                         dt_weibull = pd.DataFrame(
                             {
                                 "x": range(
@@ -796,7 +781,7 @@ class ParetoOptimizer:
                                     self.mmm_data.mmmdata_spec.rolling_window_length
                                     + 1,
                                 ),
-                                "decay_accumulated": self.transformer.adstock_weibull(
+                                "decay_accumulated": adstock_weibull(
                                     range(
                                         1,
                                         self.mmm_data.mmmdata_spec.rolling_window_length
@@ -804,16 +789,16 @@ class ParetoOptimizer:
                                     ),
                                     shape=shapeVec[v1],
                                     scale=scaleVec[v1],
-                                    adstockType=self.hyper_parameter.adstock,
+                                    type=wb_type,
                                 )["thetaVecCum"],
-                                "type": self.hyper_parameter.adstock,
-                                "channel": media,
+                                "type": wb_type,
+                                "channel": self.mmm_data.mmmdata_spec.all_media[v1],
                             }
                         )
                         dt_weibull["halflife"] = (
                             (dt_weibull["decay_accumulated"] - 0.5).abs().idxmin()
                         )
-                        max_non0 = (dt_weibull["decay_accumulated"] > 0.001).sum()
+                        max_non0 = (dt_weibull["decay_accumulated"] > 0.001).argmax()
                         dt_weibull["cut_time"] = (
                             max_non0 * 2
                             if max_non0 <= 5
@@ -821,17 +806,19 @@ class ParetoOptimizer:
                         )
                         weibullCollect.append(dt_weibull)
 
+                    weibullCollect = pd.concat(weibullCollect)
+                    weibullCollect = weibullCollect[
+                        weibullCollect["x"] <= weibullCollect["cut_time"].max()
+                    ]
+
                 plot3data = {
                     "dt_geometric": dt_geometric,
-                    "weibullCollect": (
-                        pd.concat(weibullCollect) if weibullCollect else None
-                    ),
+                    "weibullCollect": weibullCollect,
+                    "wb_type": wb_type,
                 }
 
-                # 4. Response curves
-                dt_transformPlot = dt_mod.loc[
-                    :, ["ds"] + self.mmm_data.mmmdata_spec.all_media
-                ]  # independent variables
+                # 4. Spend response curve
+                dt_transformPlot = dt_mod[["ds"] + self.mmm_data.mmmdata_spec.all_media]
                 dt_transformSpend = pd.concat(
                     [
                         dt_transformPlot[["ds"]],
@@ -840,78 +827,87 @@ class ParetoOptimizer:
                         ],
                     ],
                     axis=1,
-                )  # spends of indep vars
-                dt_transformSpendMod = dt_transformPlot.iloc[
-                    rw_start_loc : rw_end_loc + 1
-                ]  # rolling window of independent variables
-
+                )
+                dt_transformSpendMod = dt_transformPlot.iloc[rw_start_loc:rw_end_loc]
                 dt_transformAdstock = dt_transformPlot.copy()
-                dt_transformSaturation = dt_transformPlot.iloc[
-                    rw_start_loc : rw_end_loc + 1
-                ].copy()
-                for med in self.mmm_data.mmmdata_spec.all_media:
-                    m = pd.Series(dt_transformPlot[med].values)
+                dt_transformSaturation = dt_transformPlot.iloc[rw_start_loc:rw_end_loc]
+
+                m_decayRate = []
+                all_media_channels = self.mmm_data.mmmdata_spec.all_media
+                for med in range(len(all_media_channels)):
+                    med_select = all_media_channels[med]
+                    m = pd.Series(dt_transformPlot[med_select].values)
                     adstock = self.hyper_parameter.adstock
                     if adstock == AdstockType.GEOMETRIC:
-                        thetas = hypParam[f"{med}_thetas"].values
+                        thetas = hypParam[f"{all_media_channels[med]}_thetas"].values
                         channelHyperparam = ChannelHyperparameters(thetas=thetas)
-                    elif adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
-                        shapes = hypParam[f"{med}_shapes"].values
-                        scales = hypParam[f"{med}_scales"].values
+                    elif adstock in [
+                        AdstockType.WEIBULL_PDF,
+                        AdstockType.WEIBULL_CDF,
+                    ]:
+                        shapes = hypParam[f"{all_media_channels[med]}_shapes"].values
+                        scales = hypParam[f"{all_media_channels[med]}_scales"].values
                         channelHyperparam = ChannelHyperparameters(
                             shapes=shapes, scales=scales
                         )
-                    else:
-                        raise ValueError("Unsupported adstock type")
 
                     x_list = self.transformer.transform_adstock(
                         m, adstock, channelHyperparam
                     )
                     m_adstocked = x_list.x_decayed
-                    dt_transformAdstock[med] = m_adstocked
+                    dt_transformAdstock[med_select] = m_adstocked
+                    m_adstockedRollWind = m_adstocked[rw_start_loc:rw_end_loc]
 
-                    m_adstockedRollWind = m_adstocked[rw_start_loc : rw_end_loc + 1]
-                    alpha = hypParam[f"{med}_alphas"].iloc[0]
-                    gamma = hypParam[f"{med}_gammas"].iloc[0]
-                    dt_transformSaturation[med] = self.transformer.saturation_hill(
-                        x=m_adstockedRollWind, alpha=alpha, gamma=gamma
+                    # Saturation
+                    alpha = hypParam[f"{all_media_channels[med]}_alphas"].iloc[0]
+                    gamma = hypParam[f"{all_media_channels[med]}_gammas"].iloc[0]
+                    dt_transformSaturation[med_select] = (
+                        self.transformer.saturation_hill(
+                            x=m_adstockedRollWind, alpha=alpha, gamma=gamma
+                        )
                     )
+
                 dt_transformSaturationDecomp = dt_transformSaturation.copy()
-                for i in range(len(self.mmm_data.mmmdata_spec.all_media)):
-                    coef = plotWaterfallLoop.loc[
-                        plotWaterfallLoop["rn"]
-                        == self.mmm_data.mmmdata_spec.all_media[i],
-                        "coef",
+                for i in range(len(all_media_channels)):
+                    coef = plotWaterfallLoop["coef"][
+                        plotWaterfallLoop["rn"] == all_media_channels[i]
                     ].values[0]
-                    dt_transformSaturationDecomp[
-                        self.mmm_data.mmmdata_spec.all_media[i]
-                    ] *= coef
+                    dt_transformSaturationDecomp[all_media_channels[i]] *= coef
 
                 dt_transformSaturationSpendReverse = dt_transformAdstock.iloc[
-                    rw_start_loc : rw_end_loc + 1
-                ].copy()
+                    rw_start_loc:rw_end_loc
+                ]
 
-                # Gather results for dt_scurvePlot
-                dt_scurvePlot = pd.melt(
-                    dt_transformSaturationDecomp.reset_index(),
-                    id_vars="index",
+                # Spend response curve
+                dt_scurvePlot = dt_transformSaturationDecomp.melt(
+                    id_vars=["ds"],
+                    value_vars=all_media_channels,
                     var_name="channel",
                     value_name="response",
-                    value_vars=dt_transformSaturationDecomp.columns[1:],
                 )
-                spend_data = pd.melt(
-                    dt_transformSaturationSpendReverse.reset_index(),
-                    id_vars="index",
+
+                # Gather spend data and merge it into dt_scurvePlot
+                spend_data = dt_transformSaturationSpendReverse.melt(
+                    id_vars=["ds"],
+                    value_vars=all_media_channels,
                     var_name="channel",
                     value_name="spend",
-                    value_vars=dt_transformSaturationSpendReverse.columns[1:],
                 )
-                dt_scurvePlot = dt_scurvePlot.merge(spend_data, on=["index", "channel"])
+
+                # Merge spend data into dt_scurvePlot based on the 'channel' and 'ds' columns
+                dt_scurvePlot = dt_scurvePlot.merge(
+                    spend_data[["ds", "channel", "spend"]],
+                    on=["ds", "channel"],
+                    how="left",
+                )
+
+                # Remove outlier introduced by MM nls fitting
                 dt_scurvePlot = dt_scurvePlot[dt_scurvePlot["spend"] >= 0]
 
+                # Calculate dt_scurvePlotMean
                 dt_scurvePlotMean = plotWaterfall[
                     (plotWaterfall["solID"] == sid)
-                    & (plotWaterfall["mean_spend"].notna())
+                    & (~plotWaterfall["mean_spend"].isna())
                 ][
                     [
                         "rn",
@@ -925,7 +921,6 @@ class ParetoOptimizer:
                     columns={"rn": "channel"}
                 )
 
-                # Create plot4data with the required fields
                 plot4data = {
                     "dt_scurvePlot": dt_scurvePlot,
                     "dt_scurvePlotMean": dt_scurvePlotMean,
@@ -935,52 +930,61 @@ class ParetoOptimizer:
                 col_order = (
                     ["ds", "dep_var"]
                     + self.mmm_data.mmmdata_spec.all_media
-                    + self.holidays_data.prophet_vars
+                    + [var.value for var in self.holidays_data.prophet_vars]
                     + self.mmm_data.mmmdata_spec.context_vars
                 )
+                selected_columns = (
+                    ["ds", "dep_var"]
+                    + [var.value for var in self.holidays_data.prophet_vars]
+                    + self.mmm_data.mmmdata_spec.context_vars
+                )
+
+                # Create a DataFrame with the selected columns
+                dt_transformDecomp = dt_modRollWind[selected_columns]
+                # Bind columns from dt_transformSaturation
                 dt_transformDecomp = pd.concat(
                     [
-                        dt_modRollWind.loc[
-                            :,
-                            ["ds", "dep_var"]
-                            + self.holidays_data.prophet_vars
-                            + self.mmm_data.mmmdata_spec.context_vars,
-                        ],
+                        dt_transformDecomp,
                         dt_transformSaturation[self.mmm_data.mmmdata_spec.all_media],
                     ],
                     axis=1,
-                )[col_order]
+                )
+                dt_transformDecomp = dt_transformDecomp[col_order]
 
-                # Create xDecompVec
-                xDecompVec = xDecompAgg[xDecompAgg["solID"] == sid][
-                    ["solID", "rn", "coef"]
-                ]
-                xDecompVec = xDecompVec.pivot(
-                    index="solID", columns="rn", values="coef"
-                ).reset_index()
+                # Create xDecompVec by filtering and pivoting xDecompAgg
+                xDecompVec = (
+                    xDecompAgg[xDecompAgg["solID"] == sid][["solID", "rn", "coef"]]
+                    .pivot(index="solID", columns="rn", values="coef")
+                    .reset_index()
+                )
 
-                # Handle intercept
                 if "(Intercept)" not in xDecompVec.columns:
                     xDecompVec["(Intercept)"] = 0
 
-                # Reorder columns
                 xDecompVec = xDecompVec[
                     ["solID", "(Intercept)"]
                     + [col for col in col_order if col not in ["ds", "dep_var"]]
                 ]
+                intercept = xDecompVec["(Intercept)"].values[0]
 
-                # Calculate fitted values
-                intercept = xDecompVec["(Intercept)"]
+                # Multiply scurved and coefs
+                scurved = dt_transformDecomp.drop(columns=["ds", "dep_var"])
+                coefs = xDecompVec.drop(columns=["solID", "(Intercept)"])
                 xDecompVec = pd.DataFrame(
                     np.multiply(
-                        dt_transformDecomp.drop(columns=["ds", "dep_var"]).values,
-                        xDecompVec.drop(columns=["solID", "(Intercept)"]).values,
-                    )
+                        scurved.values,
+                        coefs.values,
+                    ),
+                    columns=coefs.columns,  # Use the columns from coefs
                 )
 
                 # Add intercept and calculate depVarHat
                 xDecompVec["intercept"] = intercept
                 xDecompVec["depVarHat"] = xDecompVec.sum(axis=1) + intercept
+
+                # Add solID back to xDecompVec
+                xDecompVec["solID"] = sid
+
                 xDecompVec = pd.concat(
                     [dt_transformDecomp[["ds", "dep_var"]], xDecompVec], axis=1
                 )
@@ -989,59 +993,65 @@ class ParetoOptimizer:
                 xDecompVecPlot = xDecompVec[["ds", "dep_var", "depVarHat"]].rename(
                     columns={"dep_var": "actual", "depVarHat": "predicted"}
                 )
-
-                # Melt the DataFrame
                 xDecompVecPlotMelted = xDecompVecPlot.melt(
                     id_vars="ds", var_name="variable", value_name="value"
                 )
 
-                # Calculate R-squared
-                rsq = xDecompAgg[xDecompAgg["solID"] == sid]["rsq_train"].iloc[0]
-
-                # Prepare plot5data
+                # Extract R-squared value
+                rsq = xDecompAgg[xDecompAgg["solID"] == sid]["rsq_train"].values[0]
                 plot5data = {"xDecompVecPlotMelted": xDecompVecPlotMelted, "rsq": rsq}
 
-                # 6. Immediate vs carryover
-                xDecompVecImmeCaov = self.robyn_immcarr(
+                # 6. Diagnostic: fitted vs residual
+                plot6data = {"xDecompVecPlot": xDecompVecPlot}
+
+                # 7. Immediate vs carryover response
+                plot7data = self.robyn_immcarr(
                     pareto_data, aggregated_data["result_hyp_param"], sid
                 )
-                df_caov_pct_all = pd.concat([df_caov_pct_all, xDecompVecImmeCaov])
+                df_caov_pct_all = pd.concat([df_caov_pct_all, plot7data])
 
-                # Collect results into plotDataCollect
+                # Gather all results
+                mediaVecCollect = pd.concat(
+                    [
+                        dt_transformPlot.assign(type="rawMedia", solID=sid),
+                        dt_transformSpend.assign(type="rawSpend", solID=sid),
+                        dt_transformSpendMod.assign(
+                            type="predictedExposure", solID=sid
+                        ),
+                        dt_transformAdstock.assign(type="adstockedMedia", solID=sid),
+                        dt_transformSaturation.assign(type="saturatedMedia", solID=sid),
+                        dt_transformSaturationSpendReverse.assign(
+                            type="saturatedSpendReversed", solID=sid
+                        ),
+                        dt_transformSaturationDecomp.assign(
+                            type="decompMedia", solID=sid
+                        ),
+                    ],
+                    ignore_index=True,
+                )
+
+                xDecompVecCollect = pd.concat(
+                    [xDecompVecCollect, xDecompVec], ignore_index=True
+                )
                 plotDataCollect[sid] = {
                     "plot1data": plot1data,
                     "plot2data": plot2data,
                     "plot3data": plot3data,
                     "plot4data": plot4data,
-                    "plot5data": plot5data,  # Include plot5data
-                    "plot6data": {
-                        "xDecompVecPlot": xDecompVecPlot  # Include plot6data
-                    },
-                    "plot7data": xDecompVecImmeCaov,  # Include plot7data
+                    "plot5data": plot5data,
+                    "plot6data": plot6data,
+                    "plot7data": plot7data,
                 }
 
-                # Collect mediaVecCollect
-                mediaVecCollect.append(
-                    {
-                        "solID": sid,
-                        "rsq": rsq,
-                        "nrmse": resultHypParamLoop["nrmse"].iloc[0],
-                        "decomp.rssd": resultHypParamLoop["decomp.rssd"].iloc[0],
-                        "mape": resultHypParamLoop["mape"].iloc[0],
-                        "xDecompVecPlot": xDecompVecPlot,
-                        "xDecompVecPlotMelted": xDecompVecPlotMelted,
-                    }
-                )
-
-                # Collect xDecompVec
-                xDecompVecCollect.append(xDecompVec)
-
-        # End of the loop
+        pareto_solutions = set()
+        if "solID" in mediaVecCollect.columns:
+            # Update the set with unique solID values from the DataFrame
+            pareto_solutions.update(mediaVecCollect["solID"].unique())
 
         return {
-            "pareto_solutions": list(set([item["solID"] for item in mediaVecCollect])),
+            "pareto_solutions": pareto_solutions,
             "mediaVecCollect": mediaVecCollect,
-            "xDecompVecCollect": pd.concat(xDecompVecCollect),
+            "xDecompVecCollect": xDecompVecCollect,
             "plotDataCollect": plotDataCollect,
             "df_caov_pct_all": df_caov_pct_all,
         }

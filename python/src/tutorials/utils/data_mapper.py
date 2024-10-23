@@ -60,14 +60,16 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         "organic_vars": data["InputCollect"].get("organic_vars", []),
         "context_vars": data["InputCollect"].get("context_vars", []),
         "factor_vars": data["InputCollect"].get("factor_vars", []),
-        "window_start": data["InputCollect"].get("window_start"),
-        "window_end": data["InputCollect"].get("window_end"),
-        "rolling_window_length": data["InputCollect"].get("rollingWindowLength"),
+        "window_start": data["InputCollect"].get("window_start")[0],
+        "window_end": data["InputCollect"].get("window_end")[0],
+        "rolling_window_length": data["InputCollect"].get("rollingWindowLength")[0],
         "rolling_window_start_which": data["InputCollect"].get(
             "rollingWindowStartWhich"
-        ),
+        )[0],
         "all_media": data["InputCollect"].get("all_media", []),
-        "rolling_window_end_which": data["InputCollect"].get("rollingWindowEndWhich"),
+        "rolling_window_end_which": data["InputCollect"].get(
+            "rollingWindowEndWhich", 0
+        )[0],
     }
     mmm_data = MMMData(
         data=pd.DataFrame(data["InputCollect"]["dt_input"]),
@@ -107,7 +109,7 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         elif trial_key == "hyper_updated":
             hyper_updated = trial_data
         elif trial_key == "hyper_fixed":
-            hyper_fixed = trial_data
+            hyper_fixed = trial_data[0]
         elif trial_key == "train_timestamp":
             train_timestamp = trial_data[0]
         elif trial_key == "cores":
@@ -150,7 +152,7 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
                 pos=0,
                 elapsed=0,
                 elapsed_accum=0,
-                trial=0,
+                trial=trial_data.get("trial", 0),
                 iter_ng=0,
                 iter_par=0,
                 train_size=0,
@@ -226,5 +228,4 @@ if __name__ == "__main__":
     featurized_mmm_data = imported_data["featurized_mmm_data"]
     model_outputs = imported_data["model_outputs"]
 
-    print(model_outputs.trials)
     # You can now compare these with the outputs from your Python/Python script

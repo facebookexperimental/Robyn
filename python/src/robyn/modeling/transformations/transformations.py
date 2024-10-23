@@ -368,11 +368,9 @@ class Transformation:
         """
         all_media: List[str] = self.mmm_data.mmmdata_spec.all_media
         rollingWindowStartWhich: int = (
-            self.mmm_data.mmmdata_spec.rolling_window_start_which[0]
+            self.mmm_data.mmmdata_spec.rolling_window_start_which
         )
-        rollingWindowEndWhich: int = (
-            self.mmm_data.mmmdata_spec.rolling_window_end_which[0]
-        )
+        rollingWindowEndWhich: int = self.mmm_data.mmmdata_spec.rolling_window_end_which
         dt_modAdstocked: pd.DataFrame = featurized_data.dt_mod.copy()
 
         # Handle 'ds' column
