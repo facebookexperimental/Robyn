@@ -41,7 +41,7 @@ class Transformation:
         """
         self.mmm_data = mmm_data
 
-    def normalize(x: pd.Series) -> pd.Series:
+    def normalize(self, x: pd.Series) -> pd.Series:
         """
         Normalize a series to [0, 1] range.
 
@@ -139,7 +139,7 @@ class Transformation:
                 )
                 thetaVecCum = thetaVec.cumprod()
             elif adstockType == AdstockType.WEIBULL_PDF:
-                thetaVecCum = normalize(
+                thetaVecCum = self.normalize(
                     pd.Series(
                         stats.weibull_min.pdf(x_bin, shape, scale=scaleTrans),
                         index=x_bin,
@@ -263,10 +263,10 @@ class Transformation:
             for shape in channelHyperparameters.shapes:
                 for scale in channelHyperparameters.scales:
                     y_cdf = self.adstock_weibull(
-                        self, x, shape, scale, adstockType=AstockType.WEIBULL_CDF
+                        self, x, shape, scale, adstockType=AdstockType.WEIBULL_CDF
                     ).thetaVecCum
                     y_pdf = self.adstock_weibull(
-                        self, x, shape, scale, adstockType=AstockType.WEIBULL_PDF
+                        self, x, shape, scale, adstockType=AdstockType.WEIBULL_PDF
                     ).thetaVecCum
                     ax2.plot(x, y_cdf, label=f"CDF: shape={shape}, scale={scale}")
                     ax2.plot(

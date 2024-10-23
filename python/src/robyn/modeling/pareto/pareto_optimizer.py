@@ -748,7 +748,7 @@ class ParetoOptimizer:
                 ]
                 hypParam = resultHypParamLoop[get_hp_names]
 
-                wb_type = self.hyper_parameter.adstock.split("_")[-1].upper()
+                wb_type = self.hyper_parameter.adstock
                 if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
                     hypParam_thetas = [
                         hypParam[f"{media}_thetas"].iloc[0]
@@ -781,7 +781,7 @@ class ParetoOptimizer:
                                     self.mmm_data.mmmdata_spec.rolling_window_length
                                     + 1,
                                 ),
-                                "decay_accumulated": adstock_weibull(
+                                "decay_accumulated": self.transformer.adstock_weibull(
                                     range(
                                         1,
                                         self.mmm_data.mmmdata_spec.rolling_window_length
@@ -789,9 +789,9 @@ class ParetoOptimizer:
                                     ),
                                     shape=shapeVec[v1],
                                     scale=scaleVec[v1],
-                                    type=wb_type,
+                                    adstockType=wb_type,
                                 )["thetaVecCum"],
-                                "type": wb_type,
+                                "adstockType": wb_type,
                                 "channel": self.mmm_data.mmmdata_spec.all_media[v1],
                             }
                         )
