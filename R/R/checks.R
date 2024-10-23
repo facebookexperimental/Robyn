@@ -57,39 +57,26 @@ check_allneg <- function(df) {
   return(df)
 }
 
-check_varnames <- function(dt_input, dt_holidays,
-                           dep_var, date_var,
-                           context_vars, paid_media_spends,
-                           organic_vars) {
+check_varnames <- function(dt_input, dt_holidays) {
   dfs <- list(dt_input = dt_input, dt_holidays = dt_holidays)
   for (i in seq_along(dfs)) {
     # Which names to check by data.frame
     table_name <- names(dfs[i])
-    if (table_name == "dt_input") {
-      vars <- c(
-        dep_var, date_var, context_vars,
-        paid_media_spends, organic_vars, "auto"
-      )
-    }
-    if (table_name == "dt_holidays") {
-      vars <- c("ds", "country") # holiday?
-    }
-    df <- dfs[[i]]
-    vars <- vars[vars != "auto"]
+    temp_vars <- names(dt_input)
     # Duplicate names
-    if (length(vars) != length(unique(vars))) {
-      these <- names(table(vars)[table(vars) > 1])
+    if (length(temp_vars) != length(unique(temp_vars))) {
+      these <- names(table(temp_vars)[table(temp_vars) > 1])
       stop(paste(
         "You have duplicated variable names for", table_name, "in different parameters.",
         "Check:", paste(these, collapse = ", ")
       ))
     }
     # Names with spaces
-    with_space <- grepl(" ", vars)
+    with_space <- grepl(" ", temp_vars)
     if (sum(with_space) > 0) {
       stop(paste(
         "You have invalid variable names on", table_name, "with spaces.\n  ",
-        "Please fix columns:", v2t(vars[with_space])
+        "Please fix columns:", v2t(temp_vars[with_space])
       ))
     }
   }
@@ -297,10 +284,13 @@ check_paidmedia <- function(dt_input, paid_media_vars, paid_media_signs, paid_me
       " contains negative values. Media must be >=0"
     )
   }
+  exposure_selector <- paid_media_spends != paid_media_vars
+  paid_media_selected <- ifelse(exposure_selector, paid_media_vars, paid_media_spends)
   return(invisible(list(
     paid_media_signs = paid_media_signs,
-    expVarCount = expVarCount,
-    paid_media_vars = paid_media_vars
+    paid_media_vars = paid_media_vars,
+    exposure_selector = exposure_selector,
+    paid_media_selected = paid_media_selected
   )))
 }
 
@@ -337,19 +327,18 @@ check_organicvars <- function(dt_input, organic_vars, organic_signs) {
 check_factorvars <- function(dt_input, factor_vars = NULL, context_vars = NULL) {
   check_vector(factor_vars)
   check_vector(context_vars)
-  temp <- select(dt_input, all_of(context_vars))
-  are_not_numeric <- !sapply(temp, is.numeric)
-  if (any(are_not_numeric)) {
-    these <- are_not_numeric[!names(are_not_numeric) %in% factor_vars]
-    these <- these[these]
-    if (length(these) > 0) {
-      message("Automatically set these variables as 'factor_vars': ", v2t(names(these)))
-      factor_vars <- c(factor_vars, names(these))
-    }
-  }
   if (!is.null(factor_vars)) {
     if (!all(factor_vars %in% context_vars)) {
       stop("Input 'factor_vars' must be any from 'context_vars' inputs")
+    }
+  }
+  temp <- select(dt_input, all_of(context_vars))
+  undefined_factor <- !sapply(temp, function(x) is.integer(x) | is.numeric(x)) & !(names(temp) %in% factor_vars)
+  if (any(undefined_factor)) {
+    these <- temp[undefined_factor]
+    if (length(these) > 0) {
+      message("Automatically set these variables as 'factor_vars': ", v2t(names(these)))
+      factor_vars <- c(factor_vars, names(these))
     }
   }
   return(factor_vars)

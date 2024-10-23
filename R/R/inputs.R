@@ -200,12 +200,7 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
     ## Check vars names (duplicates and valid)
-    check_varnames(
-      dt_input, dt_holidays,
-      dep_var, date_var,
-      context_vars, paid_media_spends,
-      organic_vars
-    )
+    check_varnames(dt_input, dt_holidays)
 
     ## Check for NA and all negative values
     dt_input <- check_allneg(dt_input)
@@ -234,8 +229,8 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check paid media variables (and maybe transform paid_media_signs)
     if (is.null(paid_media_vars)) paid_media_vars <- paid_media_spends
-    paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
-    paid_media_signs <- paidmedia$paid_media_signs
+    paid_collect <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
+    paid_media_signs <- paid_collect$paid_media_signs
     exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
     ## Check organic media variables (and maybe transform organic_signs)
@@ -246,8 +241,7 @@ robyn_inputs <- function(dt_input = NULL,
     factor_vars <- check_factorvars(dt_input, factor_vars, context_vars)
 
     ## Check all vars
-
-    all_media <- c(paid_media_spends, organic_vars)
+    all_media <- c(paid_collect$paid_media_selected, organic_vars)
     all_ind_vars <- c(tolower(prophet_vars), context_vars, all_media)
     check_allvars(all_ind_vars)
 
@@ -312,6 +306,7 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_vars = paid_media_vars,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
+      paid_media_selected = paid_collect$paid_media_selected,
       paid_media_total = paid_media_total,
       exposure_vars = exposure_vars,
       organic_vars = organic_vars,
@@ -662,16 +657,16 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   ################################################################
   #### Model exposure metric from spend
 
-  dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
   ExposureCollect <- exposure_handling(
-    dt_transformRollWind,
+    dt_transform,
+    window_start_loc = rollingWindowStartWhich,
+    window_end_loc = rollingWindowEndWhich,
     paid_media_spends,
     paid_media_vars,
     quiet)
 
   ################################################################
   #### Finalize enriched input
-
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
   InputCollect[["ExposureCollect"]] <- ExposureCollect
@@ -773,33 +768,43 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   return(dt_transform)
 }
 
-exposure_handling <- function(dt_transformRollWind, paid_media_spends, paid_media_vars, quiet) {
+exposure_handling <- function(dt_transform,
+                              window_start_loc,
+                              window_end_loc,
+                              paid_media_spends,
+                              paid_media_vars,
+                              quiet) {
   exposure_selector <- paid_media_spends != paid_media_vars
-  indep_paid <- ifelse(exposure_selector, paid_media_vars, paid_media_spends)
-  df_cpm <- list()
-  df_spend_window_scaled <- list()
+  paid_media_selected <- ifelse(exposure_selector, paid_media_vars, paid_media_spends)
+  df_cpe <- list()
+  df_spend_scaled <- list()
   df_expo_p <- list()
   for (i in seq_along(exposure_selector)) {
-    temp_spend <- dt_transformRollWind %>% select(paid_media_spends[i])
-    temp_expo <- dt_transformRollWind %>% select(paid_media_vars[i])
-    temp_cpm <- sum(temp_spend)/ sum(temp_expo) * 1000
-    temp_spend_scaled <- ifelse(exposure_selector[i], temp_expo / 1000 * temp_cpm, temp_spend)
-    df_cpm[[i]] <- data.frame(indep_paid = indep_paid[i],
-                              cpm = temp_cpm,
+    temp_spend <- dt_transform %>% select(paid_media_spends[i])
+    temp_expo <- dt_transform %>% select(paid_media_vars[i])
+    temp_spend_window <- temp_spend[window_start_loc:window_end_loc, ]
+    temp_expo_window <- temp_expo[window_start_loc:window_end_loc, ]
+    ## cpe = cost per exposure, an internal linear scaler between spend & exposure
+    temp_cpe <- sum(temp_spend)/ sum(temp_expo)
+    temp_cpe_window <- sum(temp_spend_window)/ sum(temp_expo_window)
+    temp_spend_scaled <- ifelse(exposure_selector[i], temp_expo * temp_cpe, temp_spend)
+    temp_spend_scaled_window <- ifelse(exposure_selector[i], temp_expo_window * temp_cpe_window, temp_spend_window)
+    df_cpe[[i]] <- data.frame(paid_media_selected = paid_media_selected[i],
+                              cpe = temp_cpe,
+                              cpe_window = temp_cpe_window,
                               adj_rsq = get_rsq(true = unlist(temp_spend),
-                                                predicted = unlist(temp_spend_scaled)))
-
-    if (exposure_selector[i]) {
-      df_spend_window_scaled[[i]] <- temp_expo / 1000 * temp_cpm
-    } else {
-      df_spend_window_scaled[[i]] <- temp_spend
-    }
+                                                predicted = unlist(temp_spend_scaled)),
+                              adj_rsq_window = get_rsq(true = unlist(temp_spend_window),
+                                                predicted = unlist(temp_spend_scaled_window))
+                              )
+    ## Use window cpe to predict the whole dataset to keep the window spend scale right
+    df_spend_scaled[[i]] <- temp_expo * temp_cpe_window
     df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),
                                  spend_scaled = unlist(temp_spend_scaled),
-                                 media = indep_paid[i])
+                                 media = paid_media_selected[i])
   }
-  df_cpm <- bind_rows(df_cpm)
-  df_spend_window_scaled <- bind_cols(df_spend_window_scaled)
+  df_cpe <- bind_rows(df_cpe)
+  df_spend_scaled <- bind_cols(df_spend_scaled)
   df_expo_p <- bind_rows(df_expo_p)
   p_expo <- df_expo_p %>% ggplot(aes(x = spend, y = spend_scaled)) +
     geom_point() +
@@ -808,7 +813,7 @@ exposure_handling <- function(dt_transformRollWind, paid_media_spends, paid_medi
 
   # Give recommendations and show warnings
   threshold <- 0.8
-  temp_names <- df_cpm %>% filter(adj_rsq < threshold) %>% pull(indep_paid)
+  temp_names <- df_cpe %>% filter(adj_rsq < threshold) %>% pull(paid_media_selected)
   if (!quiet & any(exposure_selector)) {
     message(
       paste(
@@ -819,10 +824,10 @@ exposure_handling <- function(dt_transformRollWind, paid_media_spends, paid_medi
       "\n  Weak relationship for: ", v2t(temp_names), " and their spend"
     )
   }
-  return(list(df_cpm = df_cpm,
+  return(list(df_cpe = df_cpe,
               plot_spend_exposure = p_expo,
-              df_spend_window_scaled = df_spend_window_scaled,
-              indep_paid = indep_paid))
+              df_spend_scaled = df_spend_scaled,
+              paid_media_selected = paid_media_selected))
 }
 
 ####################################################################
