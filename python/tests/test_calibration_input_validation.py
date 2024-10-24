@@ -33,9 +33,12 @@ def sample_calibration_input(sample_mmmdata):
     tv_spend = data.loc[data["date"].between("2022-01-01", "2022-01-05"), "tv_spend"].sum()
     radio_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "radio_spend"].sum()
 
+    tv_channel_key = ("tv_spend",)  # Use tuple key
+    radio_channel_key = ("radio_spend",)  # Use tuple key
+
     return CalibrationInput(
         channel_data={
-            ("tv_spend",): ChannelCalibrationData(
+            tv_channel_key: ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-01"),
                 lift_end_date=pd.Timestamp("2022-01-05"),
                 lift_abs=1000,
@@ -44,7 +47,7 @@ def sample_calibration_input(sample_mmmdata):
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
             ),
-            ("radio_spend",): ChannelCalibrationData(
+            radio_channel_key: ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-06"),
                 lift_end_date=pd.Timestamp("2022-01-10"),
                 lift_abs=2000,
@@ -59,16 +62,19 @@ def sample_calibration_input(sample_mmmdata):
 
 @pytest.fixture
 def sample_multichannel_calibration_input(sample_mmmdata):
-    # Calculate combined spend for the channels
+    """Create a sample multi-channel calibration input."""
     data = sample_mmmdata.data
     combined_spend = (
         data.loc[data["date"].between("2022-01-01", "2022-01-05"), ["tv_spend", "radio_spend"]].sum().sum()
     )
     tv_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "tv_spend"].sum()
 
+    multi_channel_key = ("tv_spend", "radio_spend")  # Use tuple key
+    tv_channel_key = ("tv_spend",)  # Use tuple key
+
     return CalibrationInput(
         channel_data={
-            "tv_spend+radio_spend": ChannelCalibrationData(
+            multi_channel_key: ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-01"),
                 lift_end_date=pd.Timestamp("2022-01-05"),
                 lift_abs=3000,
@@ -77,7 +83,7 @@ def sample_multichannel_calibration_input(sample_mmmdata):
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
             ),
-            "tv_spend": ChannelCalibrationData(
+            tv_channel_key: ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-06"),
                 lift_end_date=pd.Timestamp("2022-01-10"),
                 lift_abs=1000,
