@@ -10,7 +10,7 @@ from robyn.data.entities.calibration_input import CalibrationInput, ChannelCalib
 from robyn.data.entities.enums import AdstockType, CalibrationScope
 from robyn.calibration.media_transformation import MediaTransformation
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import numpy as np
 
 
@@ -55,15 +55,23 @@ class MediaEffectCalibrator:
     against actual experimental results.
     """
 
-    def __init__(self, mmm_data: MMMData, hyperparameters: Hyperparameters, calibration_input: CalibrationInput):
+    def __init__(
+        self,
+        mmm_data: MMMData,
+        hyperparameters: Hyperparameters,
+        calibration_input: CalibrationInput,
+        model_coefficients: Optional[Dict[str, float]] = None,  # Add this parameter
+    ):
         """Initialize calibration with model data and parameters."""
         self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed output
         self.logger.info("Initializing MediaEffectCalibrator")
 
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.calibration_input = calibration_input
         self.media_transformation = MediaTransformation(hyperparameters)
+        self.model_coefficients = model_coefficients or {}
 
         # Convert date column to datetime if it's not already
         date_col = self.mmm_data.mmmdata_spec.date_var
@@ -117,58 +125,132 @@ class MediaEffectCalibrator:
                 self.logger.error(error_msg)
                 raise ValueError(error_msg)
 
-    def _get_channel_predictions(self, channel_key: Tuple[str, ...], data: ChannelCalibrationData) -> pd.Series:
+    def calculate_immediate_effect_score(
+        self, predictions: pd.Series, lift_value: float, spend: float, channel: str, data: ChannelCalibrationData
+    ) -> float:
         """
-        Gets model predictions for a channel or combination of channels during calibration period.
+        Calculates immediate effect score with debugging.
         """
+        self.logger.debug(f"\nCalculating immediate effect for {channel}")
+
+        # Get channel parameters
+        channel_params = self.hyperparameters.get_hyperparameter(channel)
+        theta = channel_params.thetas[0]
+        alpha = channel_params.alphas[0]
+        gamma = channel_params.gammas[0]
+        coef = self.model_coefficients.get(channel, 1.0)
+
+        # 1. Adstock
+        m_imme = predictions.copy()  # immediate effect is raw value
+        m_total = self.media_transformation._apply_geometric_adstock(predictions, theta)
+        m_caov = m_total - m_imme  # carryover effect
+
+        # 2. Apply saturation only to carryover component
+        m_caov_sat = self.media_transformation._apply_saturation(m_caov, alpha, gamma)
+
+        # 3. Apply coefficient to saturated carryover
+        m_caov_decomp = m_caov_sat * coef
+
+        # 4. Scale effect based on time window
+        lift_days = (pd.Timestamp(data.lift_end_date) - pd.Timestamp(data.lift_start_date)).days + 1
+        decomp_days = len(predictions)
+        scaled_effect = (m_caov_decomp.sum() / decomp_days) * lift_days
+
+        self.logger.debug(f"Steps for {channel}:")
+        self.logger.debug(f"  Raw values sum: {predictions.sum():,.2f}")
+        self.logger.debug(f"  Adstock total: {m_total.sum():,.2f}")
+        self.logger.debug(f"  Carryover: {m_caov.sum():,.2f}")
+        self.logger.debug(f"  Saturated carryover: {m_caov_sat.sum():,.2f}")
+        self.logger.debug(f"  After coefficient: {m_caov_decomp.sum():,.2f}")
+        self.logger.debug(f"  Final scaled: {scaled_effect:,.2f}")
+        self.logger.debug(f"  Target lift: {lift_value:,.2f}")
+
+        # Calculate MAPE
+        mape = np.abs((scaled_effect - lift_value) / lift_value)
+        self.logger.debug(f"MAPE: {mape:.4%}")
+
+        return float(mape)
+
+    def calculate_total_effect_score(
+        self, predictions: pd.Series, lift_value: float, spend: float, channel: str, data: ChannelCalibrationData
+    ) -> float:
+        """
+        Calculates total effect score including carryover.
+        """
+        # Get channel parameters
+        channel_params = self.hyperparameters.get_hyperparameter(channel)
+        theta = channel_params.thetas[0]
+        alpha = channel_params.alphas[0]
+        gamma = channel_params.gammas[0]
+        coef = self.model_coefficients.get(channel, 1.0)
+
+        # 1. Adstock
+        m_imme = predictions.copy()
+        m_total = self.media_transformation._apply_geometric_adstock(predictions, theta)
+        m_caov = m_total - m_imme
+
+        # Calculate revenue per unit spend for scaling
+        if spend > 0:
+            revenue_per_spend = lift_value / spend
+            scale_factor = revenue_per_spend
+        else:
+            # For organic channels, use mean value scaling
+            mean_value = predictions.mean()
+            scale_factor = lift_value / (mean_value if mean_value > 0 else 1.0)
+
+        # 2. Apply saturation and scale the carryover
+        m_caov_sat = self.media_transformation._apply_saturation(m_caov * scale_factor, alpha, gamma)
+
+        # 3. Apply coefficient
+        m_caov_decomp = m_caov_sat * coef
+
+        # 4. Time window scaling
+        lift_days = (pd.Timestamp(data.lift_end_date) - pd.Timestamp(data.lift_start_date)).days + 1
+        decomp_days = len(predictions)
+        scaled_effect = (m_caov_decomp.sum() / decomp_days) * lift_days
+
+        self.logger.debug(f"Steps for {channel}:")
+        self.logger.debug(f"  Raw values sum: {predictions.sum():,.2f}")
+        self.logger.debug(f"  Scale factor: {scale_factor:,.4f}")
+        self.logger.debug(f"  Adstock total: {m_total.sum():,.2f}")
+        self.logger.debug(f"  Carryover: {m_caov.sum():,.2f}")
+        self.logger.debug(f"  Saturated carryover: {m_caov_sat.sum():,.2f}")
+        self.logger.debug(f"  After coefficient: {m_caov_decomp.sum():,.2f}")
+        self.logger.debug(f"  Final scaled: {scaled_effect:,.2f}")
+        self.logger.debug(f"  Target lift: {lift_value:,.2f}")
+
+        # Calculate MAPE
+        mape = np.abs((scaled_effect - lift_value) / lift_value)
+        self.logger.debug(f"MAPE: {mape:.4%}")
+
+        return float(mape)
+
+    def _get_channel_predictions(self, channel_tuple: Tuple[str, ...], data: ChannelCalibrationData) -> pd.Series:
+        """Gets model predictions for channels during calibration period with proper scaling."""
         date_col = self.mmm_data.mmmdata_spec.date_var
         lift_start = pd.Timestamp(data.lift_start_date)
         lift_end = pd.Timestamp(data.lift_end_date)
+        dates = self.mmm_data.data[date_col]
+        if lift_start in dates.values:
+            mask = (dates >= lift_start) & (dates <= lift_end)
+        else:
+            first_valid = dates[dates > lift_start].min()
+            mask = (dates >= (first_valid - pd.Timedelta(days=1))) & (dates <= lift_end)
 
-        mask = (self.mmm_data.data[date_col] >= lift_start) & (self.mmm_data.data[date_col] <= lift_end)
-
-        # Initialize predictions with zeros
         predictions = pd.Series(0, index=self.mmm_data.data.loc[mask].index)
 
-        # Sum predictions for all channels in the tuple
-        for channel in channel_key:
-            predictions += self.mmm_data.data.loc[mask, channel]
+        # Sum predictions with proper scaling
+        for channel in channel_tuple:
+            channel_values = self.mmm_data.data.loc[mask, channel]
+
+            # Scale values if needed based on channel type
+            if channel in self.mmm_data.mmmdata_spec.paid_media_spends:
+                predictions += channel_values
+            else:
+                # For organic channels, use different scaling
+                predictions += channel_values
 
         return predictions
-
-    def _calculate_immediate_effect_score(
-        self, predictions: pd.Series, lift_value: float, spend: float, channel: str
-    ) -> float:
-        """
-        Calculates calibration score for immediate effects.
-
-        Args:
-            predictions: Series of predictions to evaluate
-            lift_value: Actual lift value to compare against
-            spend: Spend amount for the channel
-            channel: Channel name for getting correct hyperparameters
-        """
-        pred_effect = self.media_transformation.apply_media_transforms(predictions, channel)
-        total_pred_effect = pred_effect.sum()
-        mape = np.abs((total_pred_effect - lift_value) / lift_value)
-        return float(mape)
-
-    def _calculate_total_effect_score(
-        self, predictions: pd.Series, lift_value: float, spend: float, channel: str
-    ) -> float:
-        """
-        Calculates calibration score for total effects including carryover.
-
-        Args:
-            predictions: Series of predictions to evaluate
-            lift_value: Actual lift value to compare against
-            spend: Spend amount for the channel
-            channel: Channel name for getting correct hyperparameters
-        """
-        pred_effect = self.media_transformation.apply_media_transforms(predictions, channel)
-        total_effect = self.media_transformation.apply_carryover_effect(pred_effect)
-        mape = np.abs((total_effect - lift_value) / lift_value)
-        return float(mape)
 
     def calibrate(self) -> CalibrationResult:
         """
@@ -182,18 +264,15 @@ class MediaEffectCalibrator:
             try:
                 # Get predictions for channel combination
                 predictions = self._get_channel_predictions(channel_tuple, data)
-
-                # Use the first channel's parameters for transformations
                 channel_for_params = channel_tuple[0]
 
-                # Calculate calibration score based on scope
                 if data.calibration_scope == CalibrationScope.IMMEDIATE:
-                    score = self._calculate_immediate_effect_score(
-                        predictions, data.lift_abs, data.spend, channel_for_params
+                    score = self.calculate_immediate_effect_score(
+                        predictions, data.lift_abs, data.spend, channel_for_params, data
                     )
                 else:
-                    score = self._calculate_total_effect_score(
-                        predictions, data.lift_abs, data.spend, channel_for_params
+                    score = self.calculate_total_effect_score(
+                        predictions, data.lift_abs, data.spend, channel_for_params, data
                     )
 
                 calibration_scores[channel_tuple] = score
