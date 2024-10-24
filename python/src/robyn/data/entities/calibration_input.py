@@ -1,7 +1,7 @@
 # pyre-strict
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Tuple
 import pandas as pd
 from robyn.data.entities.enums import CalibrationScope, DependentVarType
 
@@ -42,25 +42,35 @@ class CalibrationInput:
 
     Attributes:
         channel_data: Dictionary mapping channel identifiers to their calibration data.
-            Keys can be either strings or tuples of strings for combined channels.
+            Keys must be tuples of strings for both single and combined channels.
     """
 
-    channel_data: Dict[Union[str, Tuple[str, ...]], ChannelCalibrationData] = field(default_factory=dict)
+    channel_data: Dict[Tuple[str, ...], ChannelCalibrationData] = field(default_factory=dict)
 
     def __post_init__(self):
-        # Convert string keys with '+' to tuples if needed
+        """
+        Validates that all channel keys are tuples and converts single string channels
+        to single-element tuples if needed.
+        """
         new_channel_data = {}
         for key, value in self.channel_data.items():
-            if isinstance(key, str) and "+" in key:
-                new_key = tuple(key.split("+"))
-            elif isinstance(key, str):
+            if isinstance(key, str):
                 new_key = (key,)
+            elif not isinstance(key, tuple):
+                raise ValueError(f"Channel key must be a tuple or string, got {type(key)}")
             else:
                 new_key = key
+
+            if not all(isinstance(ch, str) for ch in new_key):
+                raise ValueError(f"All channel names in tuple must be strings: {new_key}")
+
             new_channel_data[new_key] = value
 
         object.__setattr__(self, "channel_data", new_channel_data)
 
     def __str__(self) -> str:
-        channel_data_str = "\n".join(f"  {'+'.join(channels)}: {data}" for channels, data in self.channel_data.items())
-        return f"CalibrationInput(\n{channel_data_str}\n)"
+        channel_strs = []
+        for channels, data in self.channel_data.items():
+            channel_repr = f"  {channels}: {data}"
+            channel_strs.append(channel_repr)
+        return f"CalibrationInput(\n{chr(10).join(channel_strs)}\n)"

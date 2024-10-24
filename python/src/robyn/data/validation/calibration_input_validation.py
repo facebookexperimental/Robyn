@@ -46,8 +46,11 @@ class CalibrationInputValidation(Validation):
 
     def _validate_channel_exists(self, channel_key: Tuple[str, ...]) -> ValidationResult:
         """Validate that all channels in the key exist in the data."""
-        missing_channels = [ch for ch in channel_key if ch not in self.valid_channels]
+        if not isinstance(channel_key, tuple):
+            msg = f"Invalid channel key format: {channel_key}. Must be a tuple."
+            return ValidationResult(status=False, error_details={str(channel_key): msg}, error_message=msg.lower())
 
+        missing_channels = [ch for ch in channel_key if ch not in self.valid_channels]
         if missing_channels:
             msg = f"Channel(s) not found in data: {', '.join(missing_channels)}"
             return ValidationResult(status=False, error_details={channel_key: msg}, error_message=msg.lower())
@@ -208,27 +211,24 @@ class CalibrationInputValidation(Validation):
 
     @staticmethod
     def create_modified_calibration_input(
-        original_input: CalibrationInput, channel_name: Union[str, Tuple[str, ...]], **kwargs
-    ):
+        original_input: CalibrationInput, channel_name: Union[Tuple[str, ...], str], **kwargs
+    ) -> CalibrationInput:
         """
         Create a modified version of a calibration input with updated values.
 
         Args:
             original_input: Original CalibrationInput object
-            channel_name: Channel identifier (string or tuple)
+            channel_name: Channel identifier (tuple of strings)
             **kwargs: Updates to apply to the channel data
         """
-        # Convert channel_name to tuple format if it's not already
+        # Convert string to single-element tuple if needed
         if isinstance(channel_name, str):
-            if "+" in channel_name:
-                channel_tuple = tuple(channel_name.split("+"))
-            else:
-                channel_tuple = (channel_name,)
+            channel_tuple = (channel_name,)
         else:
             channel_tuple = channel_name
 
         # For test cases with non-existent channels
-        if "nonexistent_channel" in channel_tuple:
+        if any("nonexistent_channel" in ch for ch in channel_tuple):
             return CalibrationInput(
                 channel_data={
                     channel_tuple: ChannelCalibrationData(

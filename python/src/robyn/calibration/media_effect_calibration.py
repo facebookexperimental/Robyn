@@ -10,7 +10,7 @@ from robyn.data.entities.calibration_input import CalibrationInput, ChannelCalib
 from robyn.data.entities.enums import AdstockType, CalibrationScope
 from robyn.calibration.media_transformation import MediaTransformation
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import numpy as np
 
 
@@ -117,7 +117,7 @@ class MediaEffectCalibrator:
                 self.logger.error(error_msg)
                 raise ValueError(error_msg)
 
-    def _get_channel_predictions(self, channel_key: str, data: ChannelCalibrationData) -> pd.Series:
+    def _get_channel_predictions(self, channel_key: Tuple[str, ...], data: ChannelCalibrationData) -> pd.Series:
         """
         Gets model predictions for a channel or combination of channels during calibration period.
         """
@@ -127,17 +127,11 @@ class MediaEffectCalibrator:
 
         mask = (self.mmm_data.data[date_col] >= lift_start) & (self.mmm_data.data[date_col] <= lift_end)
 
-        # Handle channel_key whether it's a tuple or string
-        if isinstance(channel_key, tuple):
-            channels = list(channel_key)
-        else:
-            channels = [channel_key]
-
         # Initialize predictions with zeros
         predictions = pd.Series(0, index=self.mmm_data.data.loc[mask].index)
 
-        # Sum predictions for all channels
-        for channel in channels:
+        # Sum predictions for all channels in the tuple
+        for channel in channel_key:
             predictions += self.mmm_data.data.loc[mask, channel]
 
         return predictions
@@ -184,13 +178,13 @@ class MediaEffectCalibrator:
         self.logger.info("Starting calibration process")
         calibration_scores = {}
 
-        for channels, data in self.calibration_input.channel_data.items():
+        for channel_tuple, data in self.calibration_input.channel_data.items():
             try:
                 # Get predictions for channel combination
-                predictions = self._get_channel_predictions(channels, data)
+                predictions = self._get_channel_predictions(channel_tuple, data)
 
                 # Use the first channel's parameters for transformations
-                channel_for_params = channels[0]
+                channel_for_params = channel_tuple[0]
 
                 # Calculate calibration score based on scope
                 if data.calibration_scope == CalibrationScope.IMMEDIATE:
@@ -202,15 +196,12 @@ class MediaEffectCalibrator:
                         predictions, data.lift_abs, data.spend, channel_for_params
                     )
 
-                # Convert channels list to string key for backwards compatibility
-                channel_key = "+".join(channels)
-                calibration_scores[channel_key] = score
+                calibration_scores[channel_tuple] = score
 
             except Exception as e:
-                channel_key = "+".join(channels)
-                error_msg = f"Error calculating calibration for {channel_key}: {str(e)}"
+                error_msg = f"Error calculating calibration for {channel_tuple}: {str(e)}"
                 self.logger.error(error_msg, exc_info=True)
-                calibration_scores[channel_key] = float("inf")
+                calibration_scores[channel_tuple] = float("inf")
 
         result = CalibrationResult(channel_scores=calibration_scores)
         self.logger.info(f"Calibration complete. Mean MAPE: {result.get_mean_mape():.4f}")
