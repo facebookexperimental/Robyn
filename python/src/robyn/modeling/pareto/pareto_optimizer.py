@@ -50,7 +50,7 @@ class ParetoOptimizer:
         self,
         mmm_data: MMMData,
         model_outputs: ModelOutputs,
-        hyper_parameter: Hyperparameters,
+        hyperparameter: Hyperparameters,
         featurized_mmm_data: FeaturizedMMMData,
         holidays_data: HolidaysData,
     ):
@@ -60,11 +60,11 @@ class ParetoOptimizer:
         Args:
             mmm_data (MMMData): Input data for the marketing mix model.
             model_outputs (ModelOutputs): Output data from the model runs.
-            hyper_parameter (Hyperparameters): Hyperparameters for the model runs.
+            hyperparameter (Hyperparameters): Hyperparameters for the model runs.
         """
         self.mmm_data = mmm_data
         self.model_outputs = model_outputs
-        self.hyper_parameter = hyper_parameter
+        self.hyperparameter = hyperparameter
         self.featurized_mmm_data = featurized_mmm_data
         self.holidays_data = holidays_data
 
@@ -301,7 +301,7 @@ class ParetoOptimizer:
 
         # Create initial dataframe and sort (equivalent to R's order())
         data = pd.DataFrame({"nrmse": nrmse, "decomp_rssd": decomp_rssd})
-        soreted_data = data.sort_values(["nrmse", "decomp_rssd"], ascending=[True, True]).copy()
+        sorted_data = data.sort_values(["nrmse", "decomp_rssd"], ascending=[True, True]).copy()
         
         # Initialize empty dataframe for results
         df = pd.DataFrame()
@@ -311,17 +311,17 @@ class ParetoOptimizer:
         max_fronts = float('inf') if isinstance(pareto_fronts, str) and "auto" in pareto_fronts else pareto_fronts
         
         # Main loop matching R's while condition
-        while len(soreted_data) >= 1 and i <= max_fronts:
+        while len(sorted_data) >= 1 and i <= max_fronts:
             # Calculate cummin (matches R's behavior)
-            cummin_mask = ~soreted_data['decomp_rssd'].cummin().duplicated()
-            these = soreted_data[cummin_mask].copy()
+            cummin_mask = ~sorted_data['decomp_rssd'].cummin().duplicated()
+            these = sorted_data[cummin_mask].copy()
             these['pareto_front'] = i
             
             # Append to results (equivalent to R's rbind)
             df = pd.concat([df, these], ignore_index=True)
             
             # Remove processed rows (equivalent to R's row.names logic)
-            soreted_data = soreted_data.loc[~soreted_data.index.isin(these.index)].copy()
+            sorted_data = sorted_data.loc[~sorted_data.index.isin(these.index)].copy()
             i += 1
         
         # Merge results back with original data (equivalent to R's merge)
@@ -415,7 +415,7 @@ class ParetoOptimizer:
                 f">> Automatically selected {auto_pareto['robynPareto'].values} Pareto-fronts ",
                 f"to contain at least {min_candidates} pareto-optimal models ({auto_pareto['n_cum'].values})",
             )
-            pareto_fronts = auto_pareto["robynPareto"].iloc[0]
+            pareto_fronts = auto_pareto["robynPareto"].iloc[0].astype('int64')
         # 5. Creating Pareto front vector
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
@@ -457,7 +457,7 @@ class ParetoOptimizer:
         response_calculator = ResponseCurveCalculator(
             mmm_data=self.mmm_data,
             model_outputs=self.model_outputs,
-            hyperparameter=self.hyper_parameter,
+            hyperparameter=self.hyperparameter,
         )
 
         response_output: ResponseOutput = response_calculator.calculate_response(
@@ -708,13 +708,13 @@ class ParetoOptimizer:
                 ]
                 get_hp_names = [
                     name
-                    for name in self.hyper_parameter.hyperparameters.keys()
+                    for name in self.hyperparameter.hyperparameters.keys()
                     if not name.endswith("_penalty")
                 ]
                 hypParam = resultHypParamLoop[get_hp_names]
 
-                wb_type = self.hyper_parameter.adstock
-                if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
+                wb_type = self.hyperparameter.adstock
+                if self.hyperparameter.adstock == AdstockType.GEOMETRIC:
                     hypParam_thetas = [
                         hypParam[f"{media}_thetas"].iloc[0]
                         for media in self.mmm_data.mmmdata_spec.all_media
@@ -725,7 +725,7 @@ class ParetoOptimizer:
                             "thetas": hypParam_thetas,
                         }
                     )
-                elif self.hyper_parameter.adstock in [
+                elif self.hyperparameter.adstock in [
                     AdstockType.WEIBULL_CDF,
                     AdstockType.WEIBULL_PDF,
                 ]:
@@ -802,7 +802,7 @@ class ParetoOptimizer:
                 for med in range(len(all_media_channels)):
                     med_select = all_media_channels[med]
                     m = pd.Series(dt_transformPlot[med_select].values)
-                    adstock = self.hyper_parameter.adstock
+                    adstock = self.hyperparameter.adstock
                     if adstock == AdstockType.GEOMETRIC:
                         thetas = hypParam[f"{all_media_channels[med]}_thetas"].values
                         channelHyperparam = ChannelHyperparameters(thetas=thetas)
@@ -1234,14 +1234,14 @@ class ParetoOptimizer:
         for med in self.mmm_data.mmmdata_spec.all_media:
             alphas = hypParamSam[f"{med}_alphas"].values
             gammas = hypParamSam[f"{med}_gammas"].values
-            if self.hyper_parameter.adstock == AdstockType.GEOMETRIC:
+            if self.hyperparameter.adstock == AdstockType.GEOMETRIC:
                 thetas = hypParamSam[f"{med}_thetas"].values
                 channelHyperparams[med] = ChannelHyperparameters(
                     thetas=thetas,
                     alphas=alphas,
                     gammas=gammas,
                 )
-            elif self.hyper_parameter.adstock in [
+            elif self.hyperparameter.adstock in [
                 AdstockType.WEIBULL_CDF,
                 AdstockType.WEIBULL_PDF,
             ]:
@@ -1255,7 +1255,7 @@ class ParetoOptimizer:
                 )
 
         return Hyperparameters(
-            adstock=self.hyper_parameter.adstock, hyperparameters=channelHyperparams
+            adstock=self.hyperparameter.adstock, hyperparameters=channelHyperparams
         )
 
     def _model_decomp(self, inputs) -> Dict[str, pd.DataFrame]:
