@@ -1,4 +1,5 @@
 # pyre-strict
+
 from typing import Optional, Dict, Any
 import logging
 import pandas as pd
@@ -46,46 +47,47 @@ class FeatureEngineering:
     -------
     perform_feature_engineering(quiet: bool = False) -> FeaturizedMMMData
         Performs the feature engineering process and returns the featurized data.
-    
+
     _prepare_data() -> pd.DataFrame
         Prepares the initial dataset by transforming date and dependent variable columns.
-    
+
     _create_rolling_window_data(dt_transform: pd.DataFrame) -> pd.DataFrame
         Creates a rolling window dataset based on the specified window start and end dates.
-    
+
     _calculate_media_cost_factor(dt_input_roll_wind: pd.DataFrame) -> pd.Series
         Calculates the media cost factor for the given rolling window dataset.
-    
+
     _run_models(dt_modRollWind: pd.DataFrame, media_cost_factor: float) -> Dict[str, Dict[str, Any]]
         Runs the models for each paid media variable and returns the results.
-    
+
     _fit_spend_exposure(dt_modRollWind: pd.DataFrame, paid_media_var: str, media_cost_factor: float) -> Dict[str, Any]
         Fits the spend-exposure model for a given paid media variable and returns the results.
-    
+
     _hill_function(x, alpha, gamma)
         Static method to apply the Hill function transformation.
-    
+
     _prophet_decomposition(dt_mod: pd.DataFrame) -> pd.DataFrame
         Performs Prophet decomposition on the dataset and returns the transformed data.
-    
+
     _set_holidays(dt_transform: pd.DataFrame, dt_holidays: pd.DataFrame, interval_type: str) -> pd.DataFrame
         Sets the holidays in the dataset based on the specified interval type.
-    
+
     _apply_transformations(x: pd.Series, params: ChannelHyperparameters) -> pd.Series
         Applies adstock and saturation transformations to the given series.
-    
+
     _apply_adstock(x: pd.Series, params: ChannelHyperparameters) -> pd.Series
         Applies the specified adstock transformation to the given series.
-    
+
     _geometric_adstock(x: pd.Series, theta: float) -> pd.Series
         Static method to apply geometric adstock transformation.
-    
+
     _weibull_adstock(x: pd.Series, shape: float, scale: float) -> pd.Series
         Static method to apply Weibull adstock transformation.
-    
+
     _apply_saturation(x: pd.Series, params: ChannelHyperparameters) -> pd.Series
         Static method to apply saturation transformation.
     """
+
     def __init__(
         self, mmm_data: MMMData, hyperparameters: Hyperparameters, holidays_data: Optional[HolidaysData] = None
     ):
@@ -126,7 +128,7 @@ class FeatureEngineering:
             self.logger.info("Feature engineering complete.")
 
         # Fill or interpolate missing values in dt_mod
-        dt_mod = dt_mod.fillna(method='ffill').fillna(method='bfill')
+        dt_mod = dt_mod.fillna(method="ffill").fillna(method="bfill")
 
         return FeaturizedMMMData(dt_mod=dt_mod, dt_modRollWind=dt_modRollWind, modNLS=modNLS)
 
