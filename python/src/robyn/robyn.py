@@ -20,6 +20,7 @@ from robyn.data.validation.calibration_input_validation import (
 from robyn.data.validation.holidays_data_validation import HolidaysDataValidation
 from robyn.data.validation.hyperparameter_validation import HyperparametersValidation
 from robyn.data.validation.mmmdata_validation import MMMDataValidation
+from robyn.modeling.pareto.pareto_optimizer import ParetoOptimizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 import matplotlib.pyplot as plt
 
@@ -135,3 +136,26 @@ class Robyn:
             model_name=Models.RIDGE,
         )
         print("Model training complete.")
+
+        pareto_optimizer = ParetoOptimizer(self.mmm_data, model_outputs, self.hyperparameters, featurized_mmm_data, self.holidays_data)
+
+        pareto_result = pareto_optimizer.optimize(pareto_fronts="auto", min_candidates=100)
+
+        self.logger.info("Pareto Optimization Results:")
+        self.logger.info(f"Number of Pareto fronts: {len(pareto_result.pareto_solutions)}")
+        self.logger.info(f"MediaVecCollect: {pareto_result.media_vec_collect.shape}, {pareto_result.media_vec_collect}")
+
+        self.logger.info("\nHyper parameter solutions:")
+        self.logger.info(pareto_result.result_hyp_param)
+
+        self.logger.info("\nAggregated decomposition results:")
+        self.logger.info(pareto_result.x_decomp_agg)
+        self.logger.info("\nResult Calibration:")
+        self.logger.info(pareto_result.result_calibration)
+        self.logger.info("\nx Decomp Vec Collect:")
+        self.logger.info(f"{pareto_result.x_decomp_vec_collect.shape}, {pareto_result.x_decomp_vec_collect}")
+        self.logger.info("\nCarryover percentage all:")
+        self.logger.info(f"{pareto_result.df_caov_pct_all.shape}, {pareto_result.df_caov_pct_all}")
+        self.logger.info("\nPlot Data Collected")
+        self.logger.info(f"NUMBER OF PLOTS Data collected for: {len(pareto_result.plot_data_collect['2_85_2'])}")
+        self.logger.info(f"Plot data for solid 2_85_2: {pareto_result.plot_data_collect['2_85_2']}")
