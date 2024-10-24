@@ -117,36 +117,6 @@ class CalibrationInputValidation(Validation):
             )
         return ValidationResult(status=True)
 
-    def _get_channel_spend(
-        self, channel_key: Tuple[str, ...], start_date: pd.Timestamp, end_date: pd.Timestamp
-    ) -> float:
-        """
-        Calculate total spend for single or combined channels in the given date range.
-
-        Args:
-            channel_key: Tuple of channel names
-            start_date: Start date for spend calculation
-            end_date: End date for spend calculation
-
-        Returns:
-            Total spend for the channel(s)
-
-        Raises:
-            KeyError: If any channel is not found in the data
-        """
-        date_var = self.mmmdata.mmmdata_spec.date_var
-        data = self.mmmdata.data
-
-        # Get data for the date range
-        date_mask = data[date_var].between(start_date, end_date)
-
-        # For single channel
-        if len(channel_key) == 1:
-            return data.loc[date_mask, channel_key[0]].sum()
-
-        # For multiple channels, sum their individual spends
-        return sum(data.loc[date_mask, channel].sum() for channel in channel_key)
-
     def _check_date_range(self) -> ValidationResult:
         error_details = {}
         error_messages = []
@@ -179,23 +149,45 @@ class CalibrationInputValidation(Validation):
             status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
 
+    def _get_channel_spend(
+        self, channel_key: Tuple[str, ...], start_date: pd.Timestamp, end_date: pd.Timestamp
+    ) -> float:
+        """
+        Calculate total spend for single or combined channels in the given date range.
+        """
+        date_var = self.mmmdata.mmmdata_spec.date_var
+        data = self.mmmdata.data
+
+        # Get data for the date range
+        date_mask = (data[date_var] >= start_date) & (data[date_var] <= end_date)
+
+        # Sum the spend for all channels in the key
+        total_spend = sum(data.loc[date_mask, channel].sum() for channel in channel_key)
+        return total_spend
+
     def _check_spend_values(self) -> ValidationResult:
         error_details = {}
         error_messages = []
 
-        date_var = self.mmmdata.mmmdata_spec.date_var
-        data = self.mmmdata.data
+        for channel_key, cal_data in self.calibration_input.channel_data.items():
+            # Validate that all channels exist
+            channel_validation = self._validate_channel_exists(channel_key)
+            if not channel_validation.status:
+                error_details.update(channel_validation.error_details)
+                error_messages.append(channel_validation.error_message)
+                continue
 
-        for channel, cal_data in self.calibration_input.channel_data.items():
-            channel_spend = data[data[date_var].between(cal_data.lift_start_date, cal_data.lift_end_date)][
-                channel
-            ].sum()
+            # Calculate actual spend from data
+            actual_spend = self._get_channel_spend(channel_key, cal_data.lift_start_date, cal_data.lift_end_date)
 
-            if abs(channel_spend - cal_data.spend) > 0.1 * cal_data.spend:
-                error_details[channel] = (
-                    f"Spend mismatch: calibration input ({cal_data.spend}) vs. data ({channel_spend})"
+            # Check if spend matches within tolerance
+            if abs(actual_spend - cal_data.spend) > 0.1 * cal_data.spend:
+                error_details[channel_key] = (
+                    f"Spend mismatch: calibration input ({cal_data.spend}) " f"vs. data ({actual_spend})"
                 )
-                error_messages.append(f"Spend value for {channel} does not match the input data (±10% tolerance).")
+                error_messages.append(
+                    f"Spend value for {'+'.join(channel_key)} does not match " f"the input data (±10% tolerance)."
+                )
 
         return ValidationResult(
             status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)

@@ -26,51 +26,29 @@ def sample_mmmdata():
     return MMMData(data, mmm_data_spec)
 
 
-# Add a fixture for multi-channel test cases
 @pytest.fixture
-def sample_multichannel_calibration_input():
+def sample_calibration_input(sample_mmmdata):
+    # Calculate actual spends from the data for the given date ranges
+    data = sample_mmmdata.data
+    tv_spend = data.loc[data["date"].between("2022-01-01", "2022-01-05"), "tv_spend"].sum()
+    radio_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "radio_spend"].sum()
+
     return CalibrationInput(
         channel_data={
-            ("tv_spend", "radio_spend"): ChannelCalibrationData(
-                lift_start_date=datetime(2022, 1, 1),
-                lift_end_date=datetime(2022, 1, 5),
-                lift_abs=3000,
-                spend=520,  # Combined spend of both channels
+            "tv_spend": ChannelCalibrationData(
+                lift_start_date=pd.Timestamp("2022-01-01"),
+                lift_end_date=pd.Timestamp("2022-01-05"),
+                lift_abs=1000,
+                spend=tv_spend,  # Use actual spend from data
                 confidence=0.9,
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
             ),
-            ("tv_spend",): ChannelCalibrationData(
-                lift_start_date=datetime(2022, 1, 6),
-                lift_end_date=datetime(2022, 1, 10),
-                lift_abs=1000,
-                spend=300,
-                confidence=0.85,
-                metric=DependentVarType.REVENUE,
-                calibration_scope=CalibrationScope.IMMEDIATE,
-            ),
-        }
-    )
-
-
-@pytest.fixture
-def sample_calibration_input():
-    return CalibrationInput(
-        channel_data={
-            ("tv_spend"): ChannelCalibrationData(
-                lift_start_date=datetime(2022, 1, 1),
-                lift_end_date=datetime(2022, 1, 5),
-                lift_abs=1000,
-                spend=300,
-                confidence=0.9,
-                metric=DependentVarType.REVENUE,
-                calibration_scope=CalibrationScope.IMMEDIATE,
-            ),
-            ("radio_spend"): ChannelCalibrationData(
-                lift_start_date=datetime(2022, 1, 6),
-                lift_end_date=datetime(2022, 1, 10),
+            "radio_spend": ChannelCalibrationData(
+                lift_start_date=pd.Timestamp("2022-01-06"),
+                lift_end_date=pd.Timestamp("2022-01-10"),
                 lift_abs=2000,
-                spend=220,
+                spend=radio_spend,  # Use actual spend from data
                 confidence=0.85,
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
@@ -79,12 +57,49 @@ def sample_calibration_input():
     )
 
 
-# this function is to create the sample data for each unit test as we cannot directly modify the fixture data (as calibration dataclass is marked frozen)
-def create_modified_calibration_input(original_input, channel_name, **kwargs):
-    # Convert channel_name to tuple if it's a string
-    channel_key = (channel_name,) if isinstance(channel_name, str) else channel_name
+@pytest.fixture
+def sample_multichannel_calibration_input(sample_mmmdata):
+    # Calculate combined spend for the channels
+    data = sample_mmmdata.data
+    combined_spend = (
+        data.loc[data["date"].between("2022-01-01", "2022-01-05"), ["tv_spend", "radio_spend"]].sum().sum()
+    )
+    tv_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "tv_spend"].sum()
 
-    # Get original data using tuple key
+    return CalibrationInput(
+        channel_data={
+            "tv_spend+radio_spend": ChannelCalibrationData(
+                lift_start_date=pd.Timestamp("2022-01-01"),
+                lift_end_date=pd.Timestamp("2022-01-05"),
+                lift_abs=3000,
+                spend=combined_spend,
+                confidence=0.9,
+                metric=DependentVarType.REVENUE,
+                calibration_scope=CalibrationScope.IMMEDIATE,
+            ),
+            "tv_spend": ChannelCalibrationData(
+                lift_start_date=pd.Timestamp("2022-01-06"),
+                lift_end_date=pd.Timestamp("2022-01-10"),
+                lift_abs=1000,
+                spend=tv_spend,
+                confidence=0.85,
+                metric=DependentVarType.REVENUE,
+                calibration_scope=CalibrationScope.IMMEDIATE,
+            ),
+        }
+    )
+
+
+def create_modified_calibration_input(original_input, channel_name, **kwargs):
+    # Handle string channel names with '+' by converting to proper format
+    if isinstance(channel_name, str) and "+" in channel_name:
+        channel_key = channel_name  # Keep as string with '+' for CalibrationInput
+    elif isinstance(channel_name, str):
+        channel_key = channel_name
+    else:
+        channel_key = "+".join(channel_name)  # Convert tuple to string with '+'
+
+    # Get original data using the key
     original_channel_data = original_input.channel_data[channel_key]
 
     # Create new channel data with updates
@@ -107,7 +122,10 @@ def create_modified_calibration_input(original_input, channel_name, **kwargs):
 
 def test_check_calibration_valid(sample_mmmdata, sample_calibration_input):
     validator = CalibrationInputValidation(
-        sample_mmmdata, sample_calibration_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=pd.Timestamp("2022-01-01"),
+        window_end=pd.Timestamp("2022-01-10"),
     )
     result = validator.check_calibration()
     assert result.status == True
