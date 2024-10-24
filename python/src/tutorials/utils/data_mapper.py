@@ -1,34 +1,41 @@
 # data_mapper.py
 import json
-import pandas as pd
-from typing import Dict, Any
 import sys
-from robyn.modeling.feature_engineering import FeaturizedMMMData
-from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
+from typing import Any, Dict
+
+import pandas as pd
+from robyn.data.entities.enums import (
+    AdstockType,
+    CalibrationScope,
+    ContextSigns,
+    DependentVarType,
+    OrganicSigns,
+    PaidMediaSigns,
+    ProphetSigns,
+    ProphetVariableType,
+    SaturationType,
+)
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
-from robyn.data.entities.enums import (
-    DependentVarType,
-    AdstockType,
-    SaturationType,
-    ProphetVariableType,
-    PaidMediaSigns,
-    OrganicSigns,
-    ContextSigns,
-    ProphetSigns,
-    CalibrationScope,
-)
 from robyn.modeling.entities.convergence import Convergence
+from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
+from robyn.modeling.feature_engineering import FeaturizedMMMData
 
 
 def export_data(
-    InputCollect: Dict[str, Any], OutputModels: Dict[str, Any], outputsArgs: Dict[str, Any]
+    InputCollect: Dict[str, Any],
+    OutputModels: Dict[str, Any],
+    outputsArgs: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
     Export data from the R/Python script to a JSON format.
     """
-    data = {"InputCollect": InputCollect, "OutputModels": OutputModels, "outputsArgs": outputsArgs}
+    data = {
+        "InputCollect": InputCollect,
+        "OutputModels": OutputModels,
+        "outputsArgs": outputsArgs,
+    }
     return data
 
 
@@ -53,20 +60,30 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         "organic_vars": data["InputCollect"].get("organic_vars", []),
         "context_vars": data["InputCollect"].get("context_vars", []),
         "factor_vars": data["InputCollect"].get("factor_vars", []),
-        "window_start": data["InputCollect"].get("window_start"),
-        "window_end": data["InputCollect"].get("window_end"),
-        "rolling_window_length": data["InputCollect"].get("rolling_window_length"),
-        "rolling_window_start_which": data["InputCollect"].get("rolling_window_start_which"),
-        "rolling_window_end_which": data["InputCollect"].get("rolling_window_end_which"),
+        "window_start": data["InputCollect"].get("window_start")[0],
+        "window_end": data["InputCollect"].get("window_end")[0],
+        "rolling_window_length": data["InputCollect"].get("rollingWindowLength")[0],
+        "rolling_window_start_which": data["InputCollect"].get(
+            "rollingWindowStartWhich"
+        )[0],
+        "all_media": data["InputCollect"].get("all_media", []),
+        "rolling_window_end_which": data["InputCollect"].get(
+            "rollingWindowEndWhich", 0
+        )[0],
     }
     mmm_data = MMMData(
-        data=pd.DataFrame(data["InputCollect"]["dt_input"]), mmmdata_spec=MMMData.MMMDataSpec(**mmm_data_spec_args)
+        data=pd.DataFrame(data["InputCollect"]["dt_input"]),
+        mmmdata_spec=MMMData.MMMDataSpec(**mmm_data_spec_args),
     )
     holidays_data = HolidaysData(
         dt_holidays=pd.DataFrame(data["InputCollect"].get("dt_holidays", {})),
-        prophet_vars=[ProphetVariableType(v) for v in data["InputCollect"].get("prophet_vars", [])],
+        prophet_vars=[
+            ProphetVariableType(v) for v in data["InputCollect"].get("prophet_vars", [])
+        ],
         prophet_country=data["InputCollect"].get("prophet_country"),
-        prophet_signs=[ProphetSigns(s) for s in data["InputCollect"].get("prophet_signs", [])],
+        prophet_signs=[
+            ProphetSigns(s) for s in data["InputCollect"].get("prophet_signs", [])
+        ],
     )
     hyperparameters = Hyperparameters(
         hyperparameters=data["InputCollect"].get("hyperparameters", {}),
@@ -92,7 +109,7 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         elif trial_key == "hyper_updated":
             hyper_updated = trial_data
         elif trial_key == "hyper_fixed":
-            hyper_fixed = trial_data
+            hyper_fixed = trial_data[0]
         elif trial_key == "train_timestamp":
             train_timestamp = trial_data[0]
         elif trial_key == "cores":
@@ -122,24 +139,24 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
                 x_decomp_agg=x_decomp_agg,
                 lift_calibration=lift_calibration,
                 decomp_spend_dist=decomp_spend_dist,
-                nrmse= 0,
-                decomp_rssd= 0,
-                mape= 0,
-                rsq_train= 0,
-                rsq_val= 0,
-                rsq_test= 0,
-                lambda_= 0,
-                lambda_hp= 0,
-                lambda_max= 0,
-                lambda_min_ratio= 0,
-                pos= 0,
-                elapsed= 0,
-                elapsed_accum= 0,
-                trial= 0,
-                iter_ng= 0,
-                iter_par= 0,
-                train_size= 0,
-                sol_id= "",
+                nrmse=0,
+                decomp_rssd=0,
+                mape=0,
+                rsq_train=0,
+                rsq_val=0,
+                rsq_test=0,
+                lambda_=0,
+                lambda_hp=0,
+                lambda_max=0,
+                lambda_min_ratio=0,
+                pos=0,
+                elapsed=0,
+                elapsed_accum=0,
+                trial=trial_data.get("trial", 0),
+                iter_ng=0,
+                iter_par=0,
+                train_size=0,
+                sol_id="",
             )
             trials.append(trial)
     model_outputs = ModelOutputs(
@@ -159,7 +176,9 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         seed=data["OutputModels"].get("seed", 0),
         hyper_bound_ng=hyper_bound_ng,
         hyper_bound_fixed=hyper_bound_fixed,
-        ts_validation_plot=data["OutputModels"].get("ts_validation_plot"),  # Add this line
+        ts_validation_plot=data["OutputModels"].get(
+            "ts_validation_plot"
+        ),  # Add this line
     )
 
     return {
@@ -209,5 +228,4 @@ if __name__ == "__main__":
     featurized_mmm_data = imported_data["featurized_mmm_data"]
     model_outputs = imported_data["model_outputs"]
 
-    print(model_outputs.trials)
     # You can now compare these with the outputs from your Python/Python script
