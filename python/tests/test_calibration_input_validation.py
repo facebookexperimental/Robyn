@@ -26,6 +26,33 @@ def sample_mmmdata():
     return MMMData(data, mmm_data_spec)
 
 
+# Add a fixture for multi-channel test cases
+@pytest.fixture
+def sample_multichannel_calibration_input():
+    return CalibrationInput(
+        channel_data={
+            ("tv_spend", "radio_spend"): ChannelCalibrationData(
+                lift_start_date=datetime(2022, 1, 1),
+                lift_end_date=datetime(2022, 1, 5),
+                lift_abs=3000,
+                spend=520,  # Combined spend of both channels
+                confidence=0.9,
+                metric=DependentVarType.REVENUE,
+                calibration_scope=CalibrationScope.IMMEDIATE,
+            ),
+            ("tv_spend",): ChannelCalibrationData(
+                lift_start_date=datetime(2022, 1, 6),
+                lift_end_date=datetime(2022, 1, 10),
+                lift_abs=1000,
+                spend=300,
+                confidence=0.85,
+                metric=DependentVarType.REVENUE,
+                calibration_scope=CalibrationScope.IMMEDIATE,
+            ),
+        }
+    )
+
+
 @pytest.fixture
 def sample_calibration_input():
     return CalibrationInput(
@@ -219,3 +246,106 @@ def test_validate(sample_mmmdata, sample_calibration_input):
     assert any(not result.status for result in invalid_results)
     assert any(result.error_details for result in invalid_results)
     assert any(result.error_message for result in invalid_results)
+
+
+def test_multichannel_validation(sample_mmmdata, sample_multichannel_calibration_input):
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_multichannel_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+    result = validator.check_calibration()
+    assert result.status == True
+    assert not result.error_details
+    assert not result.error_message
+
+
+def test_invalid_channel(sample_mmmdata, sample_calibration_input):
+    # Test with non-existent channel
+    invalid_input = create_modified_calibration_input(
+        sample_calibration_input, ("nonexistent_channel",), lift_abs=1000
+    )
+
+    validator = CalibrationInputValidation(
+        sample_mmmdata, invalid_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+    )
+    result = validator._check_spend_values()
+    assert result.status == False
+    assert ("nonexistent_channel",) in result.error_details
+    assert "not found in data" in result.error_message.lower()
+
+
+def test_invalid_multichannel_combination(sample_mmmdata, sample_calibration_input):
+    # Test with one valid and one invalid channel
+    invalid_combination = CalibrationInput(
+        channel_data={
+            ("tv_spend", "nonexistent_channel"): ChannelCalibrationData(
+                lift_start_date=datetime(2022, 1, 1),
+                lift_end_date=datetime(2022, 1, 5),
+                lift_abs=1000,
+                spend=300,
+                confidence=0.9,
+                metric=DependentVarType.REVENUE,
+                calibration_scope=CalibrationScope.IMMEDIATE,
+            )
+        }
+    )
+
+    validator = CalibrationInputValidation(
+        sample_mmmdata, invalid_combination, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+    )
+    result = validator._check_spend_values()
+    assert result.status == False
+    assert ("tv_spend", "nonexistent_channel") in result.error_details
+    assert "not found in data" in result.error_message.lower()
+
+
+def test_edge_cases(sample_mmmdata):
+    # Test with empty calibration input
+    empty_input = CalibrationInput(channel_data={})
+    validator = CalibrationInputValidation(
+        sample_mmmdata, empty_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+    )
+    result = validator.check_calibration()
+    assert result.status == True  # Empty input should be valid
+
+    # Test with None calibration input
+    validator_none = CalibrationInputValidation(
+        sample_mmmdata, None, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+    )
+    result_none = validator_none.check_calibration()
+    assert result_none.status == True  # None input should be valid
+
+
+def test_date_boundary_cases(sample_mmmdata, sample_calibration_input):
+    # Test exact boundary dates
+    boundary_input = create_modified_calibration_input(
+        sample_calibration_input,
+        ("tv_spend",),
+        lift_start_date=datetime(2022, 1, 1),  # Exact start
+        lift_end_date=datetime(2022, 1, 10),  # Exact end
+    )
+
+    validator = CalibrationInputValidation(
+        sample_mmmdata, boundary_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+    )
+    result = validator._check_date_range()
+    assert result.status == True
+    assert not result.error_details
+
+
+# Modify your existing test_validate to include multi-channel cases
+def test_validate_with_multichannel(sample_mmmdata, sample_multichannel_calibration_input):
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_multichannel_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    results = validator.validate()
+    assert len(results) == 1
+    assert all(result.status for result in results)
+    assert all(not result.error_details for result in results)
+    assert all(not result.error_message for result in results)
