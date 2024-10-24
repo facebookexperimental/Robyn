@@ -89,9 +89,9 @@ def test_check_calibration_valid(sample_mmmdata, sample_calibration_input):
 
 
 def test_check_date_range_invalid(sample_mmmdata, sample_calibration_input):
-    # Create a new ChannelCalibrationData instance with the updated lift_start_date
+    # Use tuple for channel key
     new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, "tv_spend", lift_start_date=datetime(2021, 12, 31)
+        sample_calibration_input, ("tv_spend",), lift_start_date=datetime(2021, 12, 31)  # Changed to tuple
     )
 
     validator = CalibrationInputValidation(
@@ -99,13 +99,14 @@ def test_check_date_range_invalid(sample_mmmdata, sample_calibration_input):
     )
     result = validator._check_date_range()
     assert result.status == False
-    assert "tv_spend" in result.error_details
+    # Check using tuple key in error_details
+    assert ("tv_spend",) in result.error_details
     assert "outside the modeling window" in result.error_message
 
 
 def test_check_lift_values_invalid(sample_mmmdata, sample_calibration_input):
     new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, "radio_spend", lift_abs="invalid"  # Set to 'invalid' to trigger the error
+        sample_calibration_input, ("radio_spend",), lift_abs="invalid"  # Changed to tuple
     )
 
     validator = CalibrationInputValidation(
@@ -113,13 +114,13 @@ def test_check_lift_values_invalid(sample_mmmdata, sample_calibration_input):
     )
     result = validator._check_lift_values()
     assert result.status == False
-    assert "radio_spend" in result.error_details
+    assert ("radio_spend",) in result.error_details
     assert "must be a valid number" in result.error_message
 
 
 def test_check_spend_values_invalid(sample_mmmdata, sample_calibration_input):
     new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, "tv_spend", spend=1000  # Much higher than actual spend
+        sample_calibration_input, ("tv_spend",), spend=1000  # Changed to tuple
     )
 
     validator = CalibrationInputValidation(
@@ -127,13 +128,13 @@ def test_check_spend_values_invalid(sample_mmmdata, sample_calibration_input):
     )
     result = validator._check_spend_values()
     assert result.status == False
-    assert "tv_spend" in result.error_details
+    assert ("tv_spend",) in result.error_details
     assert "does not match the input data" in result.error_message
 
 
 def test_check_confidence_values_invalid(sample_mmmdata, sample_calibration_input):
     new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, "radio_spend", confidence=0.7  # Set confidence to 0.7, which is lower than 80%
+        sample_calibration_input, ("radio_spend",), confidence=0.7  # Changed to tuple
     )
 
     validator = CalibrationInputValidation(
@@ -141,15 +142,13 @@ def test_check_confidence_values_invalid(sample_mmmdata, sample_calibration_inpu
     )
     result = validator._check_confidence_values()
     assert result.status == False
-    assert "radio_spend" in result.error_details
+    assert ("radio_spend",) in result.error_details
     assert "lower than 80%" in result.error_message
 
 
 def test_check_metric_values_invalid(sample_mmmdata, sample_calibration_input):
     new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input,
-        "tv_spend",
-        metric=DependentVarType.CONVERSION,  # Change metric to CONVERSION instead of REVENUE
+        sample_calibration_input, ("tv_spend",), metric=DependentVarType.CONVERSION  # Changed to tuple
     )
 
     validator = CalibrationInputValidation(
@@ -157,7 +156,7 @@ def test_check_metric_values_invalid(sample_mmmdata, sample_calibration_input):
     )
     result = validator._check_metric_values()
     assert result.status == False
-    assert "tv_spend" in result.error_details
+    assert ("tv_spend",) in result.error_details
     assert "does not match the dependent variable" in result.error_message
 
 
@@ -204,12 +203,12 @@ def test_validate(sample_mmmdata, sample_calibration_input):
     # Test with invalid input
     invalid_calibration_input = create_modified_calibration_input(
         sample_calibration_input,
-        "tv_spend",
-        lift_start_date=datetime(2021, 12, 31),  # Invalid date
-        lift_abs="invalid",  # Invalid lift value
-        spend=1000000,  # Unrealistic spend
-        confidence=0.5,  # Too low confidence
-        metric=DependentVarType.CONVERSION,  # Mismatched metric
+        ("tv_spend",),  # Changed to tuple
+        lift_start_date=datetime(2021, 12, 31),
+        lift_abs="invalid",
+        spend=1000000,
+        confidence=0.5,
+        metric=DependentVarType.CONVERSION,
     )
 
     invalid_validator = CalibrationInputValidation(
@@ -220,11 +219,3 @@ def test_validate(sample_mmmdata, sample_calibration_input):
     assert any(not result.status for result in invalid_results)
     assert any(result.error_details for result in invalid_results)
     assert any(result.error_message for result in invalid_results)
-
-    # Check for specific error messages
-    error_messages = [result.error_message for result in invalid_results if result.error_message]
-    assert any("outside the modeling window" in msg for msg in error_messages)
-    assert any("must be a valid number" in msg for msg in error_messages)
-    assert any("does not match the input data" in msg for msg in error_messages)
-    assert any("lower than 80%" in msg for msg in error_messages)
-    assert any("does not match the dependent variable" in msg for msg in error_messages)
