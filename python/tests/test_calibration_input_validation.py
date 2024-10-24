@@ -62,6 +62,7 @@ def sample_calibration_input(sample_mmmdata):
 
 @pytest.fixture
 def sample_multichannel_calibration_input(sample_mmmdata):
+    """Create a sample multichannel calibration input."""
     data = sample_mmmdata.data
     combined_spend = (
         data.loc[data["date"].between("2022-01-01", "2022-01-05"), ["tv_spend", "radio_spend"]].sum().sum()
@@ -70,7 +71,7 @@ def sample_multichannel_calibration_input(sample_mmmdata):
 
     return CalibrationInput(
         channel_data={
-            "tv_spend+radio_spend": ChannelCalibrationData(
+            ("tv_spend", "radio_spend"): ChannelCalibrationData(  # Changed from 'tv_spend+radio_spend' to tuple
                 lift_start_date=pd.Timestamp("2022-01-01"),
                 lift_end_date=pd.Timestamp("2022-01-05"),
                 lift_abs=3000,
@@ -79,7 +80,7 @@ def sample_multichannel_calibration_input(sample_mmmdata):
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
             ),
-            "tv_spend": ChannelCalibrationData(
+            ("tv_spend",): ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-06"),
                 lift_end_date=pd.Timestamp("2022-01-10"),
                 lift_abs=1000,
