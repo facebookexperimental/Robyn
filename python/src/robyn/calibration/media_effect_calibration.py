@@ -1,3 +1,6 @@
+# pyre-strict
+
+import logging
 from typing import List
 import pandas as pd
 import numpy as np
@@ -54,6 +57,9 @@ class MediaEffectCalibrator:
 
     def __init__(self, mmm_data: MMMData, hyperparameters: Hyperparameters, calibration_input: CalibrationInput):
         """Initialize calibration with model data and parameters."""
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing MediaEffectCalibrator")
+
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.calibration_input = calibration_input
@@ -87,10 +93,12 @@ class MediaEffectCalibrator:
             invalid_channels = [ch for ch in individual_channels if ch not in all_valid_channels]
 
             if invalid_channels:
-                raise ValueError(
+                error_msg = (
                     f"Channel(s) {', '.join(invalid_channels)} not found in model variables. "
                     f"Available channels: {', '.join(sorted(all_valid_channels))}"
                 )
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
 
         # Validate dates are within model window
         model_start = pd.to_datetime(self.mmm_data.mmmdata_spec.window_start)
@@ -107,7 +115,9 @@ class MediaEffectCalibrator:
             lift_end = pd.Timestamp(data.lift_end_date)
 
             if not (model_start <= lift_start <= model_end and model_start <= lift_end <= model_end):
-                raise ValueError(f"Dates for {channel} outside model window ({model_start} to {model_end})")
+                error_msg = f"Dates for {channel} outside model window ({model_start} to {model_end})"
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
 
     def _get_channel_predictions(self, channel: str, data: ChannelCalibrationData) -> pd.Series:
         """Gets model predictions for a channel during calibration period."""
@@ -133,9 +143,7 @@ class MediaEffectCalibrator:
             channel: Channel name for getting correct hyperparameters
         """
         pred_effect = self.media_transformation.apply_media_transforms(predictions, channel)
-        # Sum up the prediction effects for the period
         total_pred_effect = pred_effect.sum()
-        # Calculate MAPE using the totals
         mape = np.abs((total_pred_effect - lift_value) / lift_value)
         return float(mape)
 
@@ -152,9 +160,7 @@ class MediaEffectCalibrator:
             channel: Channel name for getting correct hyperparameters
         """
         pred_effect = self.media_transformation.apply_media_transforms(predictions, channel)
-        # Get total effect including carryover
         total_effect = self.media_transformation.apply_carryover_effect(pred_effect)
-        # Calculate MAPE using the totals
         mape = np.abs((total_effect - lift_value) / lift_value)
         return float(mape)
 
@@ -163,6 +169,7 @@ class MediaEffectCalibrator:
         Performs calibration by comparing model predictions to experimental results.
         Returns CalibrationResult with scores per channel.
         """
+        self.logger.info("Starting calibration process")
         calibration_scores = {}
 
         for channel, data in self.calibration_input.channel_data.items():
@@ -195,12 +202,15 @@ class MediaEffectCalibrator:
                 calibration_scores[channel] = score
 
             except Exception as e:
-                print(f"Error calculating calibration for channel {channel}: {str(e)}")
-                # You might want to handle this differently based on your requirements
+                error_msg = f"Error calculating calibration for channel {channel}: {str(e)}"
+                self.logger.error(error_msg, exc_info=True)
                 calibration_scores[channel] = float("inf")
 
-        return CalibrationResult(
+        result = CalibrationResult(
             channel_scores=calibration_scores,
             calibration_constraint=0.05,  # Default constraint
             calibrated_models=[],  # To be populated with model IDs that pass calibration
         )
+
+        self.logger.info(f"Calibration complete. Mean MAPE: {result.get_mean_mape():.4f}")
+        return result

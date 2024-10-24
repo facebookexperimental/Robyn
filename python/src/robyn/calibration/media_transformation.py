@@ -1,8 +1,11 @@
+# pyre-strict
+
 from typing import Dict, List
 import pandas as pd
 import numpy as np
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.enums import AdstockType
+import logging
 
 
 class MediaTransformation:
@@ -12,6 +15,8 @@ class MediaTransformation:
 
     def __init__(self, hyperparameters: Hyperparameters):
         """Initialize with model hyperparameters."""
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing MediaTransformation")
         self.hyperparameters = hyperparameters
 
     def _apply_geometric_adstock(self, values: pd.Series, theta: float) -> pd.Series:
@@ -60,18 +65,24 @@ class MediaTransformation:
 
             if self.hyperparameters.adstock == AdstockType.GEOMETRIC:
                 if not channel_params.thetas:
-                    raise ValueError(f"Geometric adstock requires theta values for channel {channel}")
+                    error_msg = f"Geometric adstock requires theta values for channel {channel}"
+                    self.logger.error(error_msg)
+                    raise ValueError(error_msg)
                 theta = channel_params.thetas[0]  # Use first theta value
                 transformed = self._apply_geometric_adstock(values, theta)
             else:
                 if not (channel_params.shapes and channel_params.scales):
-                    raise ValueError(f"Weibull adstock requires shape and scale values for channel {channel}")
+                    error_msg = f"Weibull adstock requires shape and scale values for channel {channel}"
+                    self.logger.error(error_msg)
+                    raise ValueError(error_msg)
                 shape = channel_params.shapes[0]  # Use first shape value
                 scale = channel_params.scales[0]  # Use first scale value
                 transformed = self._apply_weibull_adstock(values, shape, scale)
 
             if not (channel_params.alphas and channel_params.gammas):
-                raise ValueError(f"Saturation requires alpha and gamma values for channel {channel}")
+                error_msg = f"Saturation requires alpha and gamma values for channel {channel}"
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
             alpha = channel_params.alphas[0]  # Use first alpha value
             gamma = channel_params.gammas[0]  # Use first gamma value
 
@@ -84,7 +95,9 @@ class MediaTransformation:
             return result
 
         except Exception as e:
-            raise ValueError(f"Error transforming values for channel {channel}: {str(e)}")
+            error_msg = f"Error transforming values for channel {channel}: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            raise ValueError(error_msg)
 
     def apply_carryover_effect(self, values: pd.Series) -> float:
         """
