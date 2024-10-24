@@ -578,6 +578,7 @@ class RidgeModelBuilder:
 
         # Handle calibration
         lift_calibration = None
+        mape = 0.0
         if self.calibration_input is not None:
             if hasattr(self, "calibration_engine"):
                 calibration_engine = self.calibration_engine
@@ -596,10 +597,6 @@ class RidgeModelBuilder:
                 calibration_constraint = 0.1
                 if mape > calibration_constraint:
                     decomp_rssd *= 1 + (mape - calibration_constraint)
-            else:
-                mape = 0.0
-        else:
-            mape = 0.0
 
         # Create result parameters dictionary with all required metrics
         result_params = {

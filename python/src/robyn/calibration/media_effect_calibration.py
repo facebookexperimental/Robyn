@@ -9,7 +9,7 @@ from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.calibration_input import CalibrationInput, ChannelCalibrationData
 from robyn.data.entities.enums import AdstockType, CalibrationScope
 from robyn.calibration.media_transformation import MediaTransformation
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
 import numpy as np
 
@@ -26,8 +26,8 @@ class CalibrationResult:
     """
 
     channel_scores: Dict[str, float]
-    calibration_constraint: float
-    calibrated_models: List[str]
+    calibration_constraint: float = 0.05  # Default constraint moved to class definition
+    calibrated_models: List[str] = field(default_factory=list)  # Empty list default
 
     def get_mean_mape(self) -> float:
         """Returns mean absolute percentage error across all channels."""
@@ -72,25 +72,24 @@ class MediaEffectCalibrator:
 
         self._validate_inputs()
 
-    def _split_channel(self, channel: str) -> List[str]:
-        """Split combined channel names into individual channels."""
-        return channel.split("+")
-
     def _validate_inputs(self) -> None:
         """
         Validates that calibration inputs match model data requirements.
-        Handles both single channels and combined channels (joined with '+').
+        Validates both individual channels and channel combinations.
         """
         all_valid_channels = set(
             self.mmm_data.mmmdata_spec.paid_media_spends + self.mmm_data.mmmdata_spec.organic_vars
         )
 
-        for channel in self.calibration_input.channel_data:
-            # Split combined channels
-            individual_channels = self._split_channel(channel)
+        for channel_key in self.calibration_input.channel_data:
+            # Convert tuple to list of channels
+            if isinstance(channel_key, tuple):
+                channels = list(channel_key)
+            else:
+                channels = [channel_key]
 
             # Check if all individual channels exist in model variables
-            invalid_channels = [ch for ch in individual_channels if ch not in all_valid_channels]
+            invalid_channels = [ch for ch in channels if ch not in all_valid_channels]
 
             if invalid_channels:
                 error_msg = (
@@ -99,7 +98,6 @@ class MediaEffectCalibrator:
                 )
                 self.logger.error(error_msg)
                 raise ValueError(error_msg)
-
         # Validate dates are within model window
         model_start = pd.to_datetime(self.mmm_data.mmmdata_spec.window_start)
         model_end = pd.to_datetime(self.mmm_data.mmmdata_spec.window_end)
@@ -110,25 +108,39 @@ class MediaEffectCalibrator:
         if not isinstance(model_end, pd.Timestamp):
             model_end = pd.Timestamp(model_end)
 
-        for channel, data in self.calibration_input.channel_data.items():
+        for channel_key, data in self.calibration_input.channel_data.items():
             lift_start = pd.Timestamp(data.lift_start_date)
             lift_end = pd.Timestamp(data.lift_end_date)
 
             if not (model_start <= lift_start <= model_end and model_start <= lift_end <= model_end):
-                error_msg = f"Dates for {channel} outside model window ({model_start} to {model_end})"
+                error_msg = f"Dates for {channel_key} outside model window ({model_start} to {model_end})"
                 self.logger.error(error_msg)
                 raise ValueError(error_msg)
 
-    def _get_channel_predictions(self, channel: str, data: ChannelCalibrationData) -> pd.Series:
-        """Gets model predictions for a channel during calibration period."""
+    def _get_channel_predictions(self, channel_key: str, data: ChannelCalibrationData) -> pd.Series:
+        """
+        Gets model predictions for a channel or combination of channels during calibration period.
+        """
         date_col = self.mmm_data.mmmdata_spec.date_var
-
-        # Convert dates to timestamps for comparison
         lift_start = pd.Timestamp(data.lift_start_date)
         lift_end = pd.Timestamp(data.lift_end_date)
 
         mask = (self.mmm_data.data[date_col] >= lift_start) & (self.mmm_data.data[date_col] <= lift_end)
-        return self.mmm_data.data.loc[mask, channel]
+
+        # Handle channel_key whether it's a tuple or string
+        if isinstance(channel_key, tuple):
+            channels = list(channel_key)
+        else:
+            channels = [channel_key]
+
+        # Initialize predictions with zeros
+        predictions = pd.Series(0, index=self.mmm_data.data.loc[mask].index)
+
+        # Sum predictions for all channels
+        for channel in channels:
+            predictions += self.mmm_data.data.loc[mask, channel]
+
+        return predictions
 
     def _calculate_immediate_effect_score(
         self, predictions: pd.Series, lift_value: float, spend: float, channel: str
@@ -172,45 +184,34 @@ class MediaEffectCalibrator:
         self.logger.info("Starting calibration process")
         calibration_scores = {}
 
-        for channel, data in self.calibration_input.channel_data.items():
-            # Handle single or combined channels
-            channel_list = self._split_channel(channel)
-
+        for channels, data in self.calibration_input.channel_data.items():
             try:
-                # Get predictions for all relevant channels
-                predictions = []
-                for ch in channel_list:
-                    pred = self._get_channel_predictions(ch, data)
-                    predictions.append(pred)
+                # Get predictions for channel combination
+                predictions = self._get_channel_predictions(channels, data)
 
-                # Sum predictions for combined channels
-                total_pred = pd.concat(predictions, axis=1).sum(axis=1)
-
-                # Use the first channel's hyperparameters for combined channels
-                channel_for_params = channel_list[0]
+                # Use the first channel's parameters for transformations
+                channel_for_params = channels[0]
 
                 # Calculate calibration score based on scope
                 if data.calibration_scope == CalibrationScope.IMMEDIATE:
                     score = self._calculate_immediate_effect_score(
-                        total_pred, data.lift_abs, data.spend, channel_for_params
+                        predictions, data.lift_abs, data.spend, channel_for_params
                     )
                 else:
                     score = self._calculate_total_effect_score(
-                        total_pred, data.lift_abs, data.spend, channel_for_params
+                        predictions, data.lift_abs, data.spend, channel_for_params
                     )
 
-                calibration_scores[channel] = score
+                # Convert channels list to string key for backwards compatibility
+                channel_key = "+".join(channels)
+                calibration_scores[channel_key] = score
 
             except Exception as e:
-                error_msg = f"Error calculating calibration for channel {channel}: {str(e)}"
+                channel_key = "+".join(channels)
+                error_msg = f"Error calculating calibration for {channel_key}: {str(e)}"
                 self.logger.error(error_msg, exc_info=True)
-                calibration_scores[channel] = float("inf")
+                calibration_scores[channel_key] = float("inf")
 
-        result = CalibrationResult(
-            channel_scores=calibration_scores,
-            calibration_constraint=0.05,  # Default constraint
-            calibrated_models=[],  # To be populated with model IDs that pass calibration
-        )
-
+        result = CalibrationResult(channel_scores=calibration_scores)
         self.logger.info(f"Calibration complete. Mean MAPE: {result.get_mean_mape():.4f}")
         return result

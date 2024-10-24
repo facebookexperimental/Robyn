@@ -1,22 +1,16 @@
+# pyre-strict
+
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List, Union, Tuple
 import pandas as pd
 from robyn.data.entities.enums import CalibrationScope, DependentVarType
 
-# Define a new data class to hold the calibration data for each channel
+
 @dataclass(frozen=True)
 class ChannelCalibrationData:
     """
-    ChannelCalibrationData is an immutable data class that holds the calibration data for a single channel.
-
-    Attributes:
-        lift_start_date (pd.Timestamp): Lift start date.
-        lift_end_date (pd.Timestamp): Lift end date.
-        lift_abs (float): Absolute lift value.
-        spend (float): Spend value.
-        confidence (float): Confidence interval.
-        metric (str): DependentVarType.
-        calibration_scope (CalibrationScope): Calibration scope.
+    ChannelCalibrationData is an immutable data class that holds the calibration data for a single channel
+    or combination of channels.
     """
 
     lift_start_date: pd.Timestamp = field(default_factory=pd.Timestamp)
@@ -47,13 +41,26 @@ class CalibrationInput:
     CalibrationInput is an immutable data class that holds the necessary inputs for a calibration process.
 
     Attributes:
-        channel_data (Dict[str, ChannelCalibrationData]): Dictionary with channel names as keys and ChannelCalibrationData instances as values.
+        channel_data: Dictionary mapping channel identifiers to their calibration data.
+            Keys can be either strings or tuples of strings for combined channels.
     """
 
-    channel_data: Dict[str, ChannelCalibrationData] = field(default_factory=dict)
+    channel_data: Dict[Union[str, Tuple[str, ...]], ChannelCalibrationData] = field(default_factory=dict)
+
+    def __post_init__(self):
+        # Convert string keys with '+' to tuples if needed
+        new_channel_data = {}
+        for key, value in self.channel_data.items():
+            if isinstance(key, str) and "+" in key:
+                new_key = tuple(key.split("+"))
+            elif isinstance(key, str):
+                new_key = (key,)
+            else:
+                new_key = key
+            new_channel_data[new_key] = value
+
+        object.__setattr__(self, "channel_data", new_channel_data)
 
     def __str__(self) -> str:
-        channel_data_str = "\n".join(
-            f"  {channel}: {data}" for channel, data in self.channel_data.items()
-        )
+        channel_data_str = "\n".join(f"  {'+'.join(channels)}: {data}" for channels, data in self.channel_data.items())
         return f"CalibrationInput(\n{channel_data_str}\n)"
