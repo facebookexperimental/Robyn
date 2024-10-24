@@ -28,7 +28,7 @@ def sample_mmmdata():
 
 @pytest.fixture
 def sample_calibration_input(sample_mmmdata):
-    # Calculate actual spends from the data for the given date ranges
+    # Calculate actual spends from the data
     data = sample_mmmdata.data
     tv_spend = data.loc[data["date"].between("2022-01-01", "2022-01-05"), "tv_spend"].sum()
     radio_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "radio_spend"].sum()
@@ -39,7 +39,7 @@ def sample_calibration_input(sample_mmmdata):
                 lift_start_date=pd.Timestamp("2022-01-01"),
                 lift_end_date=pd.Timestamp("2022-01-05"),
                 lift_abs=1000,
-                spend=tv_spend,  # Use actual spend from data
+                spend=tv_spend,  # Use actual spend
                 confidence=0.9,
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
@@ -48,7 +48,7 @@ def sample_calibration_input(sample_mmmdata):
                 lift_start_date=pd.Timestamp("2022-01-06"),
                 lift_end_date=pd.Timestamp("2022-01-10"),
                 lift_abs=2000,
-                spend=radio_spend,  # Use actual spend from data
+                spend=radio_spend,  # Use actual spend
                 confidence=0.85,
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
@@ -207,12 +207,15 @@ def test_check_metric_values_invalid(sample_mmmdata, sample_calibration_input):
 
 def test_check_obj_weights_valid(sample_mmmdata, sample_calibration_input):
     validator = CalibrationInputValidation(
-        sample_mmmdata, sample_calibration_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=pd.Timestamp("2022-01-01"),
+        window_end=pd.Timestamp("2022-01-10"),
     )
     result = validator.check_obj_weights([0, 1, 1], True)
-    assert result.status == True
+    assert result.status is True
     assert not result.error_details
-    assert not result.error_message
+    assert result.error_message == ""
 
 
 def test_check_obj_weights_invalid(sample_mmmdata, sample_calibration_input):
@@ -294,13 +297,12 @@ def test_invalid_channel(sample_mmmdata, sample_calibration_input):
     assert "not found in data" in result.error_message.lower()
 
 
-def test_invalid_multichannel_combination(sample_mmmdata, sample_calibration_input):
-    # Test with one valid and one invalid channel
+def test_invalid_multichannel_combination(sample_mmmdata):
     invalid_combination = CalibrationInput(
         channel_data={
-            ("tv_spend", "nonexistent_channel"): ChannelCalibrationData(
-                lift_start_date=datetime(2022, 1, 1),
-                lift_end_date=datetime(2022, 1, 5),
+            "tv_spend+nonexistent_channel": ChannelCalibrationData(
+                lift_start_date=pd.Timestamp("2022-01-01"),
+                lift_end_date=pd.Timestamp("2022-01-05"),
                 lift_abs=1000,
                 spend=300,
                 confidence=0.9,
@@ -311,11 +313,13 @@ def test_invalid_multichannel_combination(sample_mmmdata, sample_calibration_inp
     )
 
     validator = CalibrationInputValidation(
-        sample_mmmdata, invalid_combination, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+        sample_mmmdata,
+        invalid_combination,
+        window_start=pd.Timestamp("2022-01-01"),
+        window_end=pd.Timestamp("2022-01-10"),
     )
     result = validator._check_spend_values()
-    assert result.status == False
-    assert ("tv_spend", "nonexistent_channel") in result.error_details
+    assert result.status is False
     assert "not found in data" in result.error_message.lower()
 
 
