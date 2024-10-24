@@ -28,27 +28,27 @@ def sample_mmmdata():
 
 @pytest.fixture
 def sample_calibration_input(sample_mmmdata):
-    # Calculate actual spends from the data
+    """Create a sample calibration input with actual spend values."""
     data = sample_mmmdata.data
     tv_spend = data.loc[data["date"].between("2022-01-01", "2022-01-05"), "tv_spend"].sum()
     radio_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "radio_spend"].sum()
 
     return CalibrationInput(
         channel_data={
-            "tv_spend": ChannelCalibrationData(
+            ("tv_spend",): ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-01"),
                 lift_end_date=pd.Timestamp("2022-01-05"),
                 lift_abs=1000,
-                spend=tv_spend,  # Use actual spend
+                spend=tv_spend,
                 confidence=0.9,
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
             ),
-            "radio_spend": ChannelCalibrationData(
+            ("radio_spend",): ChannelCalibrationData(
                 lift_start_date=pd.Timestamp("2022-01-06"),
                 lift_end_date=pd.Timestamp("2022-01-10"),
                 lift_abs=2000,
-                spend=radio_spend,  # Use actual spend
+                spend=radio_spend,
                 confidence=0.85,
                 metric=DependentVarType.REVENUE,
                 calibration_scope=CalibrationScope.IMMEDIATE,
