@@ -30,18 +30,45 @@ class PlotResults:
 
 
 @dataclass
+class ClusterData:
+    """
+    Represents the clustered data with additional information.
+
+    Attributes:
+        data (pd.DataFrame): The DataFrame containing the clustered models.
+        top_solutions (pd.DataFrame): The top solutions based on clustering.
+    """
+
+    data: pd.DataFrame
+    top_solutions: pd.DataFrame
+
+
+@dataclass
+class ClusterCI:
+    """
+    Represents the confidence intervals for the clusters.
+
+    Attributes:
+        df_cluster_ci (pd.DataFrame): The DataFrame containing confidence intervals for the clusters.
+        boot_n (int): The number of bootstrap samples used.
+        sim_n (int): The number of simulations performed.
+    """
+
+    df_cluster_ci: pd.DataFrame
+    boot_n: int
+    sim_n: int
+
+
+@dataclass
 class ClusteringResults:
     """
     Represents the overall results of the clustering process.
 
     Attributes:
-        data (pd.DataFrame): The clustered data with top solutions.
-        df_cluster_ci (pd.DataFrame): The confidence intervals for the clusters.
+        cluster_data (ClusterData): The clustered data with top solutions.
+        cluster_ci (ClusterCI): The confidence intervals for the clusters.
         n_clusters (int): The number of clusters created.
-        boot_n (int): The number of bootstrap samples used.
-        sim_n (int): The number of simulations performed.
         errors_weights (List[float]): The weights used for error calculations.
-        top_solutions (pd.DataFrame): The top solutions based on clustering.
         clusters_means (pd.DataFrame): Mean ROI per cluster.
         clusters_pca (pd.DataFrame): Data related to PCA clusters.
         clusters_tsne (pd.DataFrame): Data related to t-SNE clusters.
@@ -49,13 +76,10 @@ class ClusteringResults:
         plots (PlotResults): An instance of PlotResults containing all generated plots.
     """
 
-    data: pd.DataFrame
-    df_cluster_ci: pd.DataFrame
+    cluster_data: ClusterData
+    cluster_ci: ClusterCI
     n_clusters: int
-    boot_n: int
-    sim_n: int
     errors_weights: List[float]
-    top_solutions: pd.DataFrame
     clusters_means: pd.DataFrame
     clusters_pca: pd.DataFrame
     clusters_tsne: pd.DataFrame
