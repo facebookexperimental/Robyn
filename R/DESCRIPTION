@@ -23,11 +23,11 @@ Imports:
     jsonlite,
     lares,
     lubridate,
-    minpack.lm,
     nloptr,
     patchwork,
     prophet,
     reticulate,
+    rlang,
     stringr,
     tidyr
 Config/reticulate:

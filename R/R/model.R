@@ -514,6 +514,7 @@ robyn_mmm <- function(InputCollect,
     refresh_steps <- InputCollect$refresh_steps
     rollingWindowLength <- InputCollect$rollingWindowLength
     paid_media_spends <- InputCollect$paid_media_spends
+    paid_media_selected <- InputCollect$paid_media_selected
     organic_vars <- InputCollect$organic_vars
     context_vars <- InputCollect$context_vars
     prophet_vars <- InputCollect$prophet_vars
@@ -533,7 +534,7 @@ robyn_mmm <- function(InputCollect,
   dt_inputTrain <- InputCollect$dt_input[rollingWindowStartWhich:rollingWindowEndWhich, ]
   temp <- select(dt_inputTrain, all_of(paid_media_spends))
   dt_spendShare <- data.frame(
-    rn = paid_media_spends,
+    rn = paid_media_selected,
     total_spend = unlist(summarise_all(temp, sum)),
     # mean_spend = unlist(summarise_all(temp, function(x) {
     #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
@@ -546,7 +547,7 @@ robyn_mmm <- function(InputCollect,
   temp <- select(dt_inputTrain, all_of(paid_media_spends)) %>%
     slice(refreshAddedStartWhich:rollingWindowLength)
   dt_spendShareRF <- data.frame(
-    rn = paid_media_spends,
+    rn = paid_media_selected,
     total_spend = unlist(summarise_all(temp, sum)),
     # mean_spend = unlist(summarise_all(temp, function(x) {
     #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
@@ -660,7 +661,12 @@ robyn_mmm <- function(InputCollect,
             adstock <- check_adstock(adstock)
 
             #### Transform media for model fitting
-            temp <- run_transformations(InputCollect, hypParamSam, ...)
+            temp <- run_transformations(all_media = InputCollect$all_media,
+                                        window_start_loc = InputCollect$rollingWindowStartWhich,
+                                        window_end_loc = InputCollect$rollingWindowEndWhich,
+                                        dt_mod = InputCollect$dt_mod,
+                                        adstock = InputCollect$adstock,
+                                        hyperparameters = hypParamSam, ...)
             dt_modSaturated <- temp$dt_modSaturated
             dt_saturatedImmediate <- temp$dt_saturatedImmediate
             dt_saturatedCarryover <- temp$dt_saturatedCarryover
@@ -695,7 +701,7 @@ robyn_mmm <- function(InputCollect,
             ## Define and set sign control
             dt_sign <- select(dt_window, -.data$dep_var)
             x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
-            names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
+            names(x_sign) <- c(prophet_vars, context_vars, paid_media_selected, organic_vars)
             check_factor <- unlist(lapply(dt_sign, is.factor))
             lower.limits <- rep(0, length(prophet_signs))
             upper.limits <- rep(1, length(prophet_signs))
@@ -751,9 +757,12 @@ robyn_mmm <- function(InputCollect,
 
             ## If no lift calibration, refit using best lambda
             mod_out <- model_refit(
-              x_train, y_train,
-              x_val, y_val,
-              x_test, y_test,
+              x_train = x_train,
+              y_train = y_train,
+              x_val = x_val,
+              y_val = y_val,
+              x_test = x_test,
+              y_test = y_test,
               lambda = lambda_scaled,
               lower.limits = lower.limits,
               upper.limits = upper.limits,
@@ -797,7 +806,7 @@ robyn_mmm <- function(InputCollect,
             #### DECOMP.RSSD: Business error
             # Sum of squared distance between decomp share and spend share to be minimized
             dt_decompSpendDist <- decompCollect$xDecompAgg %>%
-              filter(.data$rn %in% paid_media_spends) %>%
+              filter(.data$rn %in% paid_media_selected) %>%
               select(
                 .data$rn, .data$xDecompAgg, .data$xDecompPerc, .data$xDecompMeanNon0Perc,
                 .data$xDecompMeanNon0, .data$xDecompPercRF, .data$xDecompMeanNon0PercRF,
@@ -816,7 +825,7 @@ robyn_mmm <- function(InputCollect,
                 effect_share_refresh = .data$xDecompPercRF / sum(.data$xDecompPercRF)
               )
             dt_decompSpendDist <- left_join(
-              filter(decompCollect$xDecompAgg, .data$rn %in% paid_media_spends),
+              filter(decompCollect$xDecompAgg, .data$rn %in% paid_media_selected),
               select(dt_decompSpendDist, .data$rn, contains("_spend"), contains("_share")),
               by = "rn"
             )
@@ -834,11 +843,11 @@ robyn_mmm <- function(InputCollect,
                   by = "rn"
                 )
               decomp.rssd.media <- dt_decompRF %>%
-                filter(.data$rn %in% paid_media_spends) %>%
+                filter(.data$rn %in% paid_media_selected) %>%
                 summarise(rssd.media = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
                 pull(.data$rssd.media)
               decomp.rssd.nonmedia <- dt_decompRF %>%
-                filter(!.data$rn %in% paid_media_spends) %>%
+                filter(!.data$rn %in% paid_media_selected) %>%
                 summarise(rssd.nonmedia = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
                 pull(.data$rssd.nonmedia)
               decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia /
@@ -908,7 +917,6 @@ robyn_mmm <- function(InputCollect,
           ########### Parallel start
           nrmse.collect <- NULL
           decomp.rssd.collect <- NULL
-          best_mape <- Inf
           if (cores == 1) {
             doparCollect <- lapply(1:iterPar, robyn_iterations)
           } else {
@@ -1145,7 +1153,6 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
     intercept = intercept,
     ...
   ) # coef(mod)
-
   df.int <- 1
 
   ## Drop intercept if negative and intercept_sign == "non_negative"
@@ -1158,6 +1165,7 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
       lambda = lambda,
       lower.limits = lower.limits,
       upper.limits = upper.limits,
+      type.measure = "mse",
       penalty.factor = penalty.factor,
       intercept = FALSE,
       ...

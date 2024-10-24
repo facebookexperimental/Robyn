@@ -667,8 +667,10 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
 
   ################################################################
   #### Finalize enriched input
+  dt_transform <- ExposureCollect$dt_transform
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
+  InputCollect[["dt_modRollWind"]] <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
   InputCollect[["ExposureCollect"]] <- ExposureCollect
   return(InputCollect)
 }
@@ -777,7 +779,6 @@ exposure_handling <- function(dt_transform,
   exposure_selector <- paid_media_spends != paid_media_vars
   paid_media_selected <- ifelse(exposure_selector, paid_media_vars, paid_media_spends)
   df_cpe <- list()
-  df_spend_scaled <- list()
   df_expo_p <- list()
   for (i in seq_along(exposure_selector)) {
     temp_spend <- dt_transform %>% select(paid_media_spends[i])
@@ -798,35 +799,35 @@ exposure_handling <- function(dt_transform,
                                                 predicted = unlist(temp_spend_scaled_window))
                               )
     ## Use window cpe to predict the whole dataset to keep the window spend scale right
-    df_spend_scaled[[i]] <- temp_expo * temp_cpe_window
+    spend_scaled_extrapolated <- temp_expo * temp_cpe_window
     df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),
                                  spend_scaled = unlist(temp_spend_scaled),
                                  media = paid_media_selected[i])
+    dt_transform <- dt_transform %>% mutate(!!paid_media_selected[i]:= unlist(spend_scaled_extrapolated))
   }
   df_cpe <- bind_rows(df_cpe)
-  df_spend_scaled <- bind_cols(df_spend_scaled)
   df_expo_p <- bind_rows(df_expo_p)
-  p_expo <- df_expo_p %>% ggplot(aes(x = spend, y = spend_scaled)) +
+  p_expo <- df_expo_p %>% ggplot(aes(x = .data$spend, y = .data$spend_scaled)) +
     geom_point() +
     geom_smooth(method = "lm", formula = y ~ x) +
     facet_wrap(~ .data$media, scales = "free")
 
   # Give recommendations and show warnings
   threshold <- 0.8
-  temp_names <- df_cpe %>% filter(adj_rsq < threshold) %>% pull(paid_media_selected)
-  if (!quiet & any(exposure_selector)) {
+  temp_names <- df_cpe %>% filter(.data$adj_rsq_window < threshold) %>% pull(paid_media_selected)
+  if (!quiet & any(exposure_selector) & length(temp_names) > 1) {
     message(
       paste(
         "NOTE: potential improvement on splitting channels for better spend exposure fitting.",
         "Threshold (min.adj.R2) =", threshold,
-        "\n  Check: InputCollect$modNLS$plots outputs"
+        "\n  Check: InputCollect$ExposureCollect$plot_spend_exposure outputs"
       ),
       "\n  Weak relationship for: ", v2t(temp_names), " and their spend"
     )
   }
   return(list(df_cpe = df_cpe,
               plot_spend_exposure = p_expo,
-              df_spend_scaled = df_spend_scaled,
+              dt_transform = dt_transform,
               paid_media_selected = paid_media_selected))
 }
 

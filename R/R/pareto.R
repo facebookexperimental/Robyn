@@ -592,7 +592,12 @@ robyn_immcarr <- function(
   rollingWindow <- rollingWindowStartWhich:rollingWindowEndWhich
   # Calculate saturated dataframes with carryover and immediate parts
   hypParamSam <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == solID, ]
-  dt_saturated_dfs <- run_transformations(InputCollect, hypParamSam, ...)
+  dt_saturated_dfs <- run_transformations(all_media = InputCollect$all_media,
+                                          window_start_loc = InputCollect$rollingWindowStartWhich,
+                                          window_end_loc = InputCollect$rollingWindowEndWhich,
+                                          dt_mod = InputCollect$dt_mod,
+                                          adstock = InputCollect$adstock,
+                                          hyperparameters = hypParamSam, ...)
   # Calculate decomposition
   coefs <- OutputCollect$xDecompAgg$coef[OutputCollect$xDecompAgg$solID == solID]
   names(coefs) <- OutputCollect$xDecompAgg$rn[OutputCollect$xDecompAgg$solID == solID]
