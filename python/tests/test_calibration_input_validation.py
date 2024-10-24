@@ -33,8 +33,8 @@ def sample_calibration_input(sample_mmmdata):
     tv_spend = data.loc[data["date"].between("2022-01-01", "2022-01-05"), "tv_spend"].sum()
     radio_spend = data.loc[data["date"].between("2022-01-06", "2022-01-10"), "radio_spend"].sum()
 
-    tv_channel_key = ("tv_spend",)  # Use tuple key
-    radio_channel_key = ("radio_spend",)  # Use tuple key
+    tv_channel_key = ("tv_spend",)
+    radio_channel_key = ("radio_spend",)
 
     return CalibrationInput(
         channel_data={
@@ -62,7 +62,6 @@ def sample_calibration_input(sample_mmmdata):
 
 @pytest.fixture
 def sample_multichannel_calibration_input(sample_mmmdata):
-    # Calculate combined spend for the channels
     data = sample_mmmdata.data
     combined_spend = (
         data.loc[data["date"].between("2022-01-01", "2022-01-05"), ["tv_spend", "radio_spend"]].sum().sum()
@@ -107,9 +106,17 @@ def test_check_calibration_valid(sample_mmmdata, sample_calibration_input):
 
 
 def test_check_date_range_invalid(sample_mmmdata, sample_calibration_input):
-    # Use tuple for channel key
-    new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, ("tv_spend",), lift_start_date=datetime(2021, 12, 31)  # Changed to tuple
+    # First create the validator
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    # Then use the static method to create modified input
+    new_calibration_input = CalibrationInputValidation.create_modified_calibration_input(
+        sample_calibration_input, ("tv_spend",), lift_start_date=datetime(2021, 12, 31)
     )
 
     validator = CalibrationInputValidation(
@@ -117,14 +124,20 @@ def test_check_date_range_invalid(sample_mmmdata, sample_calibration_input):
     )
     result = validator._check_date_range()
     assert result.status == False
-    # Check using tuple key in error_details
     assert ("tv_spend",) in result.error_details
     assert "outside the modeling window" in result.error_message
 
 
 def test_check_lift_values_invalid(sample_mmmdata, sample_calibration_input):
-    new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, ("radio_spend",), lift_abs="invalid"  # Changed to tuple
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    new_calibration_input = CalibrationInputValidation.create_modified_calibration_input(
+        sample_calibration_input, ("radio_spend",), lift_abs="invalid"
     )
 
     validator = CalibrationInputValidation(
@@ -137,8 +150,15 @@ def test_check_lift_values_invalid(sample_mmmdata, sample_calibration_input):
 
 
 def test_check_spend_values_invalid(sample_mmmdata, sample_calibration_input):
-    new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, ("tv_spend",), spend=1000  # Changed to tuple
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    new_calibration_input = CalibrationInputValidation.create_modified_calibration_input(
+        sample_calibration_input, ("tv_spend",), spend=1000
     )
 
     validator = CalibrationInputValidation(
@@ -151,8 +171,15 @@ def test_check_spend_values_invalid(sample_mmmdata, sample_calibration_input):
 
 
 def test_check_confidence_values_invalid(sample_mmmdata, sample_calibration_input):
-    new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, ("radio_spend",), confidence=0.7  # Changed to tuple
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    new_calibration_input = CalibrationInputValidation.create_modified_calibration_input(
+        sample_calibration_input, ("radio_spend",), confidence=0.7
     )
 
     validator = CalibrationInputValidation(
@@ -165,8 +192,15 @@ def test_check_confidence_values_invalid(sample_mmmdata, sample_calibration_inpu
 
 
 def test_check_metric_values_invalid(sample_mmmdata, sample_calibration_input):
-    new_calibration_input = create_modified_calibration_input(
-        sample_calibration_input, ("tv_spend",), metric=DependentVarType.CONVERSION  # Changed to tuple
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    new_calibration_input = CalibrationInputValidation.create_modified_calibration_input(
+        sample_calibration_input, ("tv_spend",), metric=DependentVarType.CONVERSION
     )
 
     validator = CalibrationInputValidation(
@@ -193,16 +227,17 @@ def test_check_obj_weights_valid(sample_mmmdata, sample_calibration_input):
 
 def test_check_obj_weights_invalid(sample_mmmdata, sample_calibration_input):
     validator = CalibrationInputValidation(
-        sample_mmmdata, sample_calibration_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
     )
 
-    # Test case 1: Incorrect number of weights
     result = validator.check_obj_weights([0, 1, 1, 1], False)
     assert result.status == False
     assert "length" in result.error_details
     assert "Invalid number of objective weights" in result.error_message
 
-    # Test case 2: Weights out of valid range
     result = validator.check_obj_weights([-1, 1, 11], False)
     assert result.status == False
     assert "range" in result.error_details
@@ -210,7 +245,6 @@ def test_check_obj_weights_invalid(sample_mmmdata, sample_calibration_input):
 
 
 def test_validate(sample_mmmdata, sample_calibration_input):
-    # Test with valid input
     validator = CalibrationInputValidation(
         sample_mmmdata, sample_calibration_input, window_start=datetime(2022, 1, 1), window_end=datetime(2022, 1, 10)
     )
@@ -222,9 +256,9 @@ def test_validate(sample_mmmdata, sample_calibration_input):
     assert all(not result.error_message for result in results)
 
     # Test with invalid input
-    invalid_calibration_input = create_modified_calibration_input(
+    invalid_calibration_input = CalibrationInputValidation.create_modified_calibration_input(
         sample_calibration_input,
-        ("tv_spend",),  # Changed to tuple
+        ("tv_spend",),
         lift_start_date=datetime(2021, 12, 31),
         lift_abs="invalid",
         spend=1000000,
@@ -256,8 +290,14 @@ def test_multichannel_validation(sample_mmmdata, sample_multichannel_calibration
 
 
 def test_invalid_channel(sample_mmmdata, sample_calibration_input):
-    # Test with non-existent channel
-    invalid_input = create_modified_calibration_input(
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
+    invalid_input = CalibrationInputValidation.create_modified_calibration_input(
         sample_calibration_input, ("nonexistent_channel",), lift_abs=1000
     )
 
@@ -314,8 +354,15 @@ def test_edge_cases(sample_mmmdata):
 
 
 def test_date_boundary_cases(sample_mmmdata, sample_calibration_input):
+    validator = CalibrationInputValidation(
+        sample_mmmdata,
+        sample_calibration_input,
+        window_start=datetime(2022, 1, 1),
+        window_end=datetime(2022, 1, 10),
+    )
+
     # Test exact boundary dates
-    boundary_input = create_modified_calibration_input(
+    boundary_input = CalibrationInputValidation.create_modified_calibration_input(
         sample_calibration_input,
         ("tv_spend",),
         lift_start_date=datetime(2022, 1, 1),  # Exact start
@@ -330,7 +377,6 @@ def test_date_boundary_cases(sample_mmmdata, sample_calibration_input):
     assert not result.error_details
 
 
-# Modify your existing test_validate to include multi-channel cases
 def test_validate_with_multichannel(sample_mmmdata, sample_multichannel_calibration_input):
     validator = CalibrationInputValidation(
         sample_mmmdata,
