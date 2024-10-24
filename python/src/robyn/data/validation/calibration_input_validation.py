@@ -1,5 +1,5 @@
 # pyre-strict
-from robyn.data.entities.calibration_input import CalibrationInput
+from robyn.data.entities.calibration_input import CalibrationInput, ChannelCalibrationData
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.validation.validation import Validation, ValidationResult
 import pandas as pd
@@ -124,6 +124,100 @@ class CalibrationInputValidation(Validation):
         return ValidationResult(
             status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
+
+    def _check_metric_values(self) -> ValidationResult:
+        """Check if metric values match the dependent variable."""
+        error_details: Dict[Tuple[str, ...], str] = {}
+        error_messages: List[str] = []
+
+        dep_var = self.mmmdata.mmmdata_spec.dep_var
+
+        for channel_key, data in self.calibration_input.channel_data.items():
+            if data.metric != DependentVarType(dep_var):
+                error_details[channel_key] = f"Metric mismatch: {data.metric} vs. {dep_var}"
+                error_messages.append(
+                    f"Metric for {'+'.join(channel_key)} does not match the dependent variable ({dep_var})."
+                )
+
+        return ValidationResult(
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
+        )
+
+    def _check_confidence_values(self) -> ValidationResult:
+        """Check if confidence values are within acceptable range."""
+        error_details: Dict[Tuple[str, ...], str] = {}
+        error_messages: List[str] = []
+
+        for channel_key, data in self.calibration_input.channel_data.items():
+            if data.confidence < 0.8:
+                error_details[channel_key] = f"Low confidence: {data.confidence}"
+                error_messages.append(
+                    f"Confidence for {'+'.join(channel_key)} is lower than 80%, "
+                    f"which is considered low confidence."
+                )
+
+        return ValidationResult(
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
+        )
+
+    def _check_lift_values(self) -> ValidationResult:
+        """Check if lift values are valid numbers."""
+        error_details: Dict[Tuple[str, ...], str] = {}
+        error_messages: List[str] = []
+
+        for channel_key, data in self.calibration_input.channel_data.items():
+            if not isinstance(data.lift_abs, (int, float)) or pd.isna(data.lift_abs):
+                error_details[channel_key] = f"Invalid lift value: {data.lift_abs}"
+                error_messages.append(f"Lift value for {'+'.join(channel_key)} must be a valid number.")
+
+        return ValidationResult(
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
+        )
+
+
+def create_modified_calibration_input(original_input, channel_name, **kwargs):
+    """Create a modified version of a calibration input with updated values."""
+    # Convert the channel_name to the format stored in channel_data
+    if isinstance(channel_name, str):
+        channel_tuple = (channel_name,)
+    elif isinstance(channel_name, tuple):
+        channel_tuple = channel_name
+    else:
+        raise ValueError(f"Invalid channel_name type: {type(channel_name)}")
+
+    # Handle multi-channel cases
+    if len(channel_tuple) > 1:
+        # For multi-channel cases, check if it exists in original_input
+        if channel_tuple not in original_input.channel_data:
+            # Try the '+' joined version
+            channel_key = "+".join(channel_tuple)
+            if channel_key not in original_input.channel_data:
+                raise KeyError(f"Channel combination not found: {channel_tuple}")
+        else:
+            channel_key = channel_tuple
+    else:
+        # For single channel cases
+        channel_key = channel_tuple
+
+    # Get original data
+    original_channel_data = original_input.channel_data[channel_key]
+
+    # Create new channel data with updates
+    new_channel_data = ChannelCalibrationData(
+        lift_start_date=kwargs.get("lift_start_date", original_channel_data.lift_start_date),
+        lift_end_date=kwargs.get("lift_end_date", original_channel_data.lift_end_date),
+        lift_abs=kwargs.get("lift_abs", original_channel_data.lift_abs),
+        spend=kwargs.get("spend", original_channel_data.spend),
+        confidence=kwargs.get("confidence", original_channel_data.confidence),
+        metric=kwargs.get("metric", original_channel_data.metric),
+        calibration_scope=kwargs.get("calibration_scope", original_channel_data.calibration_scope),
+    )
+
+    # Create new dictionary with updated data
+    new_channel_data_dict = original_input.channel_data.copy()
+    new_channel_data_dict[channel_key] = new_channel_data
+
+    return CalibrationInput(channel_data=new_channel_data_dict)
 
     def validate(self) -> List[ValidationResult]:
         """Run all validations."""
