@@ -1,5 +1,7 @@
 # pyre-strict
+from typing import Dict
 from robyn.modeling.entities.clustering_results import ClusteredResult
+from robyn.modeling.clustering.clustering_config import ClusteringConfig
 
 
 class ClusterVisualizer:
