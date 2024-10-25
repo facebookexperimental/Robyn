@@ -1,5 +1,5 @@
 # pyre-strict
-from robyn.modeling.entities.clustering_results import ClusteringResults
+from robyn.modeling.entities.clustering_results import ClusteredResult
 
 
 class ClusterVisualizer:
@@ -7,12 +7,12 @@ class ClusterVisualizer:
     Class for visualizing clustering results.
     """
 
-    def __init__(self, results: ClusteringResults):
+    def __init__(self, results: ClusteredResult):
         """
         Initialize the ClusterVisualizer with clustering results.
 
         Args:
-            results (ClusteringResults): Results of the clustering process.
+            results (ClusteredResult): Results of the clustering process.
         """
         self.results = results
 
@@ -40,20 +40,29 @@ class ClusterVisualizer:
         """
         pass
 
-    def plot_confidence_intervals(self) -> None:
+    def plot_confidence_intervals(
+        self, confidence_data: Dict[str, float], config: ClusteringConfig
+    ) -> None:
         """
-        Plot the confidence intervals for each cluster.
+        Creates a plot of the bootstrapped confidence intervals for model performance metrics.
+
+        Args:
+            confidence_data (Dict[str, float]): The data containing confidence intervals for plotting.
+            config (ClusteringConfig): Configuration for the clustering process.
+
+        Returns:
+            None
         """
         pass
 
-    def plot_top_models_errors(self) -> None:
+    def plot_top_solutions(self, config: ClusteringConfig) -> None:
         """
-        Plot the errors of the top models selected from each cluster.
-        """
-        pass
+        Creates plots for the top solutions based on their performance metrics.
 
-    def plot_top_models_performance(self) -> None:
-        """
-        Plot the performance metrics of the top models selected from each cluster.
+        Args:
+            config (ClusteringConfig): Configuration for the clustering process.
+
+        Returns:
+            None
         """
         pass

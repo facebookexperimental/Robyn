@@ -8,7 +8,7 @@ import pandas as pd
 
 
 @dataclass
-class PlotResults:
+class ClusterPlotResults:
     """
     Represents the plots generated during the clustering process.
 
@@ -29,44 +29,32 @@ class PlotResults:
     plot_clusters_ci: Optional[plt.Figure] = None
 
 
-@dataclass
-class ClusterData:
-    """
-    Represents the clustered data with additional information.
-
-    Attributes:
-        data (pd.DataFrame): The DataFrame containing the clustered models.
-        top_solutions (pd.DataFrame): The top solutions based on clustering.
-    """
-
-    data: pd.DataFrame
-    top_solutions: pd.DataFrame
-
 
 @dataclass
-class ClusterCI:
+class ClusterConfidenceIntervals:
     """
     Represents the confidence intervals for the clusters.
 
     Attributes:
-        df_cluster_ci (pd.DataFrame): The DataFrame containing confidence intervals for the clusters.
+        cluster_ci (pd.DataFrame): The DataFrame containing confidence intervals for the clusters.
         boot_n (int): The number of bootstrap samples used.
         sim_n (int): The number of simulations performed.
     """
 
-    df_cluster_ci: pd.DataFrame
+    cluster_ci: pd.DataFrame
     boot_n: int
     sim_n: int
 
 
 @dataclass
-class ClusteringResults:
+class ClusteredResult:
     """
     Represents the overall results of the clustering process.
 
     Attributes:
-        cluster_data (ClusterData): The clustered data with top solutions.
-        cluster_ci (ClusterCI): The confidence intervals for the clusters.
+        cluster_data (pd.DataFrame): The DataFrame containing the clustered models.
+        top_solutions (pd.DataFrame): The top solutions based on clustering.
+        cluster_ci (ClusterConfidenceIntervals): The confidence intervals for the clusters.
         n_clusters (int): The number of clusters created.
         errors_weights (List[float]): The weights used for error calculations.
         clusters_means (pd.DataFrame): Mean ROI per cluster.
@@ -76,12 +64,13 @@ class ClusteringResults:
         plots (PlotResults): An instance of PlotResults containing all generated plots.
     """
 
-    cluster_data: ClusterData
-    cluster_ci: ClusterCI
+    cluster_data: pd.DataFrame
+    top_solutions: pd.DataFrame
+    cluster_ci: ClusterConfidenceIntervals
     n_clusters: int
     errors_weights: List[float]
     clusters_means: pd.DataFrame
     clusters_pca: pd.DataFrame
     clusters_tsne: pd.DataFrame
     correlations: pd.DataFrame
-    plots: PlotResults  # Use the PlotResults dataclass to encapsulate plot information
+    plots: ClusterPlotResults
