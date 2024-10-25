@@ -10,6 +10,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
+from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
 import logging
 import time
 from datetime import datetime
@@ -83,87 +84,53 @@ class RidgeModelBuilder:
     ) -> ModelOutputs:
         start_time = time.time()
 
-        # Calculate intervalType and rollingWindowLength
-        date_col = self.mmm_data.mmmdata_spec.date_var
-        dates = pd.to_datetime(self.mmm_data.data[date_col])
-        total_days = (dates.max() - dates.min()).days
-        interval_days = (dates.iloc[1] - dates.iloc[0]).days
-
-        if interval_days == 1:
-            interval_type = "days"
-        elif 6 <= interval_days <= 8:
-            interval_type = "weeks"
-        elif 28 <= interval_days <= 31:
-            interval_type = "months"
-        else:
-            interval_type = f"{interval_days}-day periods"
-
-        total_intervals = len(dates)
-        rolling_window_length = (
-            datetime.strptime(self.mmm_data.mmmdata_spec.window_end, "%Y-%m-%d")
-            - datetime.strptime(self.mmm_data.mmmdata_spec.window_start, "%Y-%m-%d")
-        ).days // interval_days + 1
-
-        self.logger.info(
-            f"Input data has {total_intervals} {interval_type} in total: {dates.min().strftime('%Y-%m-%d')} to {dates.max().strftime('%Y-%m-%d')}"
-        )
-        self.logger.info(
-            f"Initial model is built on rolling window of {rolling_window_length} {interval_type}: {self.mmm_data.mmmdata_spec.window_start} to {self.mmm_data.mmmdata_spec.window_end}"
-        )
-
-        if ts_validation:
-            prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
-            self.logger.info(
-                f"Time-series validation with train_size range of {prepared_hyperparameters.train_size[0]*100:.0f}%-{prepared_hyperparameters.train_size[1]*100:.0f}% of the data..."
-            )
-
+        # Initialize hyperparameters
         hyper_collect = self._hyper_collector(
-            self.hyperparameters,
-            ts_validation,
-            add_penalty_factor,
-            dt_hyper_fixed,
-            cores,
+            self.hyperparameters, ts_validation, add_penalty_factor, dt_hyper_fixed, cores
         )
 
-        prepared_hyperparameters = self.hyperparameters["prepared_hyperparameters"]
-        self.logger.info(
-            f"Using {prepared_hyperparameters.adstock} adstocking with {len(prepared_hyperparameters.hyperparameters)} hyperparameters ({len(hyper_collect['hyper_bound_list_updated'])} to iterate + {len(hyper_collect['hyper_bound_list_fixed'])} fixed) on {cores} cores"
-        )
-        self.logger.info(
-            f">>> Starting {trials_config.trials} trials with {trials_config.iterations} iterations each using {nevergrad_algo.value} nevergrad algorithm..."
-        )
-        output_models = self._model_train(
-            hyper_collect,
-            trials_config,
-            intercept_sign,
-            intercept,
-            nevergrad_algo,
-            dt_hyper_fixed,
-            ts_validation,
-            add_penalty_factor,
-            objective_weights,
-            rssd_zero_penalty,
-            seed,
-            cores,
-        )
+        # Set up objective weights including calibration if available
+        if objective_weights is None:
+            if self.calibration_input is not None:
+                objective_weights = [1 / 3, 1 / 3, 1 / 3]  # NRMSE, RSSD, MAPE
+            else:
+                objective_weights = [0.5, 0.5]  # NRMSE, RSSD only
 
-        end_time = time.time()
-        total_time = (end_time - start_time) / 60
-        self.logger.info(f"Total run time: {total_time:.2f} mins")
+        # Run trials
+        trials = []
+        for trial in range(1, trials_config.trials + 1):
+            trial_result = self._run_nevergrad_optimization(
+                hyper_collect=hyper_collect,
+                iterations=trials_config.iterations,
+                cores=cores,
+                nevergrad_algo=nevergrad_algo,
+                intercept=intercept,
+                intercept_sign=intercept_sign,
+                ts_validation=ts_validation,
+                add_penalty_factor=add_penalty_factor,
+                objective_weights=objective_weights,
+                dt_hyper_fixed=dt_hyper_fixed,
+                rssd_zero_penalty=rssd_zero_penalty,
+                trial=trial,
+                seed=seed + trial,
+                total_trials=trials_config.trials,
+            )
+            trials.append(trial_result)
+
+        # Calculate convergence
         convergence = Convergence()
-        convergence_results = convergence.calculate_convergence(output_models)
+        convergence_results = convergence.calculate_convergence(trials)
 
-        # Aggregate results from all trials
-        all_result_hyp_param = pd.concat([trial.result_hyp_param for trial in output_models], ignore_index=True)
-        all_x_decomp_agg = pd.concat([trial.x_decomp_agg for trial in output_models], ignore_index=True)
+        # Aggregate results
+        all_result_hyp_param = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
+        all_x_decomp_agg = pd.concat([trial.x_decomp_agg for trial in trials], ignore_index=True)
         all_decomp_spend_dist = pd.concat(
-            [trial.decomp_spend_dist for trial in output_models if trial.decomp_spend_dist is not None],
-            ignore_index=True,
+            [trial.decomp_spend_dist for trial in trials if trial.decomp_spend_dist is not None], ignore_index=True
         )
 
-        # Create ModelOutputs with all required arguments
+        # Create ModelOutputs
         model_outputs = ModelOutputs(
-            trials=output_models,
+            trials=trials,
             train_timestamp=datetime.now(),
             cores=cores,
             iterations=trials_config.iterations,
@@ -175,23 +142,15 @@ class RidgeModelBuilder:
             hyper_updated=hyper_collect["hyper_list_all"],
             hyper_fixed=hyper_collect["all_fixed"],
             convergence=convergence_results,
-            select_id=self._select_best_model(output_models),
+            select_id=self._select_best_model(trials),
             seed=seed,
             hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],
             hyper_bound_fixed=hyper_collect["hyper_bound_list_fixed"],
             ts_validation_plot=None,
+            all_result_hyp_param=all_result_hyp_param,
+            all_x_decomp_agg=all_x_decomp_agg,
+            all_decomp_spend_dist=all_decomp_spend_dist,
         )
-
-        # Add aggregated results to model_outputs
-        model_outputs.all_result_hyp_param = all_result_hyp_param
-        model_outputs.all_x_decomp_agg = all_x_decomp_agg
-        model_outputs.all_decomp_spend_dist = all_decomp_spend_dist
-
-        # Print convergence information
-        convergence_info = model_outputs.convergence
-        self.logger.info(f"Finished in {total_time:.2f} mins")
-        for msg in convergence_info["conv_msg"]:
-            self.logger.info(f"- {msg}")
 
         return model_outputs
 
@@ -335,7 +294,7 @@ class RidgeModelBuilder:
 
         return Trial(
             result_hyp_param=result_hyp_param,
-            lift_calibration=best_result["lift_calibration"],
+            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),  # Use get() with default
             decomp_spend_dist=decomp_spend_dist,
             nrmse=best_result["nrmse"],
             decomp_rssd=best_result["decomp_rssd"],
@@ -345,10 +304,10 @@ class RidgeModelBuilder:
             rsq_val=best_result["rsq_val"],
             rsq_test=best_result["rsq_test"],
             lambda_=best_result["lambda_"],
-            lambda_hp=best_result["lambda_hp"],
-            lambda_max=best_result["lambda_max"],
-            lambda_min_ratio=best_result["lambda_min_ratio"],
-            pos=best_result["pos"],
+            lambda_hp=best_result.get("lambda_hp", 0.0),
+            lambda_max=best_result.get("lambda_max", 0.0),
+            lambda_min_ratio=best_result.get("lambda_min_ratio", 0.0001),
+            pos=best_result.get("pos", False),
             elapsed=best_result["elapsed"],
             elapsed_accum=best_result["elapsed_accum"],
             trial=trial,
@@ -532,44 +491,34 @@ class RidgeModelBuilder:
         # Return the solID of the best model
         return output_models[best_index].sol_id
 
-    def _calculate_mape(self, model: Ridge) -> float:
+    def _calculate_mape(
+        self, model: Ridge, dt_raw: pd.DataFrame, hypParamSam: Dict[str, float], wind_start: int, wind_end: int
+    ) -> float:
+        """
+        Calculate MAPE using calibration data, following Robyn's calibration logic
+        """
         if self.calibration_input is None:
             return 0.0
 
-        mape_values = []
+        # Initialize calibration engine
+        calibration_engine = MediaEffectCalibrator(
+            mmm_data=self.mmm_data, hyperparameters=self.hyperparameters, calibration_input=self.calibration_input
+        )
 
-        for _, calibration_data in self.calibration_input.items():
-            # Extract relevant data
-            df_raw = self.mmm_data.data
-            wind_start = self.featurized_mmm_data.rollingWindowStartWhich
-            wind_end = self.featurized_mmm_data.rollingWindowEndWhich
-            dayInterval = self.mmm_data.mmmdata_spec.intervalType
+        # Calculate MAPE using calibration engine
+        lift_collect = calibration_engine.calibrate(
+            df_raw=dt_raw,
+            hypParamSam=hypParamSam,
+            wind_start=wind_start,
+            wind_end=wind_end,
+            dayInterval=self.mmm_data.mmmdata_spec.day_interval,
+            adstock=self.hyperparameters.adstock,
+        )
 
-            # Calculate lift using the calibration data
-            lift_actual = calibration_data["liftStartDate"]
-            lift_start = calibration_data["liftStartDate"]
-            lift_end = calibration_data["liftEndDate"]
-            lift_media = calibration_data["liftMedia"]
-
-            # Filter data for the lift period
-            df_lift = df_raw[
-                (df_raw[self.mmm_data.mmmdata_spec.date_var] >= lift_start)
-                & (df_raw[self.mmm_data.mmmdata_spec.date_var] <= lift_end)
-            ]
-
-            # Calculate predicted values
-            X_lift = self._prepare_features(df_lift)
-            y_pred = model.predict(X_lift)
-
-            # Calculate predicted lift
-            lift_pred = np.mean(y_pred) / np.mean(df_raw[self.mmm_data.mmmdata_spec.dep_var][wind_start:wind_end])
-
-            # Calculate MAPE
-            mape = np.abs((lift_actual - lift_pred) / lift_actual) * 100
-            mape_values.append(mape)
-
-        # Return mean MAPE across all calibration points
-        return np.mean(mape_values)
+        # Return mean MAPE across all lift studies
+        if lift_collect is not None and not lift_collect.empty:
+            return float(lift_collect["mape_lift"].mean())
+        return 0.0
 
     def _evaluate_model(
         self,
@@ -582,61 +531,74 @@ class RidgeModelBuilder:
         iter_ng: int,
         trial: int,
     ) -> Dict[str, Any]:
-        train_size = 1.0  # Default value when ts_validation is False
+        train_size = params.get("train_size", 1.0) if ts_validation else 1.0
         X, y = self._prepare_data(params)
 
+        # Split data for time series validation if enabled
         if ts_validation:
-            train_size = params.get("train_size", 0.8)
-            X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_size, shuffle=False)
-            X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, test_size=0.5, shuffle=False)
+            train_idx = int(len(X) * train_size)
+            val_test_size = (len(X) - train_idx) // 2
+
+            X_train = X[:train_idx]
+            y_train = y[:train_idx]
+            X_val = X[train_idx : train_idx + val_test_size]
+            y_val = y[train_idx : train_idx + val_test_size]
+            X_test = X[train_idx + val_test_size :]
+            y_test = y[train_idx + val_test_size :]
         else:
             X_train, y_train = X, y
-            X_val, y_val = None, None
-            X_test, y_test = None, None
+            X_val = X_test = y_val = y_test = None
 
+        # Fit model
         lambda_ = params.get("lambda", 1.0)
         model = Ridge(alpha=lambda_, fit_intercept=True)
         model.fit(X_train, y_train)
 
+        # Calculate all metrics (even if not in validation mode)
         y_train_pred = model.predict(X_train)
-        nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (y_train.max() - y_train.min())
         rsq_train = r2_score(y_train, y_train_pred)
+        nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (y_train.max() - y_train.min())
 
-        if ts_validation:
+        if ts_validation and X_val is not None and X_test is not None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
-            nrmse_val = np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (y_val.max() - y_val.min())
-            nrmse_test = np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (y_test.max() - y_test.min())
             rsq_val = r2_score(y_val, y_val_pred)
             rsq_test = r2_score(y_test, y_test_pred)
-            nrmse = nrmse_val  # Use validation NRMSE for optimization
+            nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (y_val.max() - y_val.min())
+            nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (y_test.max() - y_test.min())
+            nrmse = nrmse_val
         else:
-            y_val_pred = y_test_pred = None
-            nrmse_val = nrmse_test = None
+            # Set default values for non-validation metrics
             rsq_val = rsq_test = 0.0
-            nrmse = nrmse_train  # Use training NRMSE when not doing validation
+            nrmse_val = nrmse_test = 0.0
+            nrmse = nrmse_train
 
+        # Calculate RSSD and MAPE
         decomp_rssd = self._calculate_rssd(model.coef_, rssd_zero_penalty)
-        mape = self._calculate_mape(model) if self.calibration_input else 0.0
-        lift_calibration = self._calculate_lift_calibration(model) if self.calibration_input else None
 
-        lambda_hp = params.get("lambda", 0.0)
-        lambda_max = self._lambda_seq(X_train, y_train)[0]
-        lambda_min_ratio = 0.0001
+        # Handle calibration
+        lift_calibration = None
+        mape = 0.0
+        if self.calibration_input is not None:
+            if hasattr(self, "calibration_engine"):
+                calibration_engine = self.calibration_engine
+            else:
+                calibration_engine = MediaEffectCalibrator(
+                    mmm_data=self.mmm_data,
+                    hyperparameters=self.hyperparameters,
+                    calibration_input=self.calibration_input,
+                )
+                self.calibration_engine = calibration_engine
 
-        pos = np.all(model.coef_ >= 0)
+            lift_collect = calibration_engine.calibrate()
+            if lift_collect is not None:
+                lift_calibration = lift_collect
+                mape = float(lift_collect.get_mean_mape())
+                calibration_constraint = 0.1
+                if mape > calibration_constraint:
+                    decomp_rssd *= 1 + (mape - calibration_constraint)
 
-        if objective_weights is None:
-            objective_weights = [1 / 3, 1 / 3, 1 / 3] if self.calibration_input else [0.5, 0.5]
-
-        loss = (
-            objective_weights[0] * nrmse
-            + objective_weights[1] * decomp_rssd
-            + (objective_weights[2] * mape if self.calibration_input else 0)
-        )
-
-        elapsed = time.time() - start_time
-
+        # Create result parameters dictionary with all required metrics
         result_params = {
             **params,
             "train_size": train_size,
@@ -644,18 +606,12 @@ class RidgeModelBuilder:
             "rsq_val": rsq_val,
             "rsq_test": rsq_test,
             "nrmse_train": nrmse_train,
-            "nrmse_val": nrmse_val if nrmse_val is not None else 0,
-            "nrmse_test": nrmse_test if nrmse_test is not None else 0,
+            "nrmse_val": nrmse_val,
+            "nrmse_test": nrmse_test,
             "nrmse": nrmse,
             "decomp.rssd": decomp_rssd,
             "mape": mape,
             "lambda": lambda_,
-            "lambda_hp": lambda_hp,
-            "lambda_max": lambda_max,
-            "lambda_min_ratio": lambda_min_ratio,
-            "pos": int(pos),
-            "Elapsed": elapsed,
-            "ElapsedAccum": elapsed,
             "solID": f"{trial}_{iter_ng + 1}_1",
             "trial": trial,
             "iterNG": iter_ng + 1,
@@ -666,7 +622,12 @@ class RidgeModelBuilder:
         x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, result_params)
 
         return {
-            "loss": loss,
+            "loss": (
+                objective_weights[0] * nrmse
+                + objective_weights[1] * decomp_rssd
+                + (objective_weights[2] * mape if self.calibration_input else 0)
+            ),
+            "params": result_params,
             "nrmse": nrmse,
             "decomp_rssd": decomp_rssd,
             "mape": mape,
@@ -676,16 +637,19 @@ class RidgeModelBuilder:
             "rsq_train": rsq_train,
             "rsq_val": rsq_val,
             "rsq_test": rsq_test,
+            "nrmse_train": nrmse_train,
+            "nrmse_val": nrmse_val,
+            "nrmse_test": nrmse_test,
             "lambda_": lambda_,
-            "lambda_hp": lambda_hp,
-            "lambda_max": lambda_max,
-            "lambda_min_ratio": lambda_min_ratio,
-            "pos": int(pos),
-            "elapsed": elapsed,
-            "elapsed_accum": elapsed,
+            "lambda_hp": params.get("lambda", 0.0),
+            "lambda_max": self._lambda_seq(X_train, y_train)[0],
+            "lambda_min_ratio": 0.0001,
+            "pos": any(model.coef_ >= 0),
+            "elapsed": time.time() - start_time,
+            "elapsed_accum": time.time() - start_time,
             "iter_ng": iter_ng + 1,
             "iter_par": 1,
-            "params": result_params,
+            "train_size": train_size,
         }
 
     @staticmethod
