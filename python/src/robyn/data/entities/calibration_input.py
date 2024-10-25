@@ -1,22 +1,16 @@
+# pyre-strict
+
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List, Tuple
 import pandas as pd
 from robyn.data.entities.enums import CalibrationScope, DependentVarType
 
-# Define a new data class to hold the calibration data for each channel
+
 @dataclass(frozen=True)
 class ChannelCalibrationData:
     """
-    ChannelCalibrationData is an immutable data class that holds the calibration data for a single channel.
-
-    Attributes:
-        lift_start_date (pd.Timestamp): Lift start date.
-        lift_end_date (pd.Timestamp): Lift end date.
-        lift_abs (float): Absolute lift value.
-        spend (float): Spend value.
-        confidence (float): Confidence interval.
-        metric (str): DependentVarType.
-        calibration_scope (CalibrationScope): Calibration scope.
+    ChannelCalibrationData is an immutable data class that holds the calibration data for a single channel
+    or combination of channels.
     """
 
     lift_start_date: pd.Timestamp = field(default_factory=pd.Timestamp)
@@ -47,13 +41,36 @@ class CalibrationInput:
     CalibrationInput is an immutable data class that holds the necessary inputs for a calibration process.
 
     Attributes:
-        channel_data (Dict[str, ChannelCalibrationData]): Dictionary with channel names as keys and ChannelCalibrationData instances as values.
+        channel_data: Dictionary mapping channel identifiers to their calibration data.
+            Keys must be tuples of strings for both single and combined channels.
     """
 
-    channel_data: Dict[str, ChannelCalibrationData] = field(default_factory=dict)
+    channel_data: Dict[Tuple[str, ...], ChannelCalibrationData] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """
+        Validates that all channel keys are tuples and converts single string channels
+        to single-element tuples if needed.
+        """
+        new_channel_data = {}
+        for key, value in self.channel_data.items():
+            if isinstance(key, str):
+                new_key = (key,)
+            elif not isinstance(key, tuple):
+                raise ValueError(f"Channel key must be a tuple or string, got {type(key)}")
+            else:
+                new_key = key
+
+            if not all(isinstance(ch, str) for ch in new_key):
+                raise ValueError(f"All channel names in tuple must be strings: {new_key}")
+
+            new_channel_data[new_key] = value
+
+        object.__setattr__(self, "channel_data", new_channel_data)
 
     def __str__(self) -> str:
-        channel_data_str = "\n".join(
-            f"  {channel}: {data}" for channel, data in self.channel_data.items()
-        )
-        return f"CalibrationInput(\n{channel_data_str}\n)"
+        channel_strs = []
+        for channels, data in self.channel_data.items():
+            channel_repr = f"  {channels}: {data}"
+            channel_strs.append(channel_repr)
+        return f"CalibrationInput(\n{chr(10).join(channel_strs)}\n)"
