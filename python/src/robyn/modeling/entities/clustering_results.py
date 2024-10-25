@@ -1,64 +1,76 @@
 # pyre-strict
-
 from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import matplotlib.pyplot as plt
+
 import pandas as pd
-import numpy as np
-from typing import List
 
 
 @dataclass
-class KMeansResults:
+class ClusterPlotResults:
     """
-    Results of K-means clustering.
+    Represents the plots generated during the clustering process.
 
     Attributes:
-        cluster_assignments (List[int]): Cluster assignments for each data point.
-        centroids (np.ndarray): Coordinates of cluster centroids.
-        inertia (float): Sum of squared distances of samples to their closest cluster center.
+        wss_plot (Optional[plt.Figure]): Plot related to Within Groups Sum of Squares.
+        correlations_plot (Optional[plt.Figure]): Plot showing grouped correlations per cluster.
+        clusters_means_plot (Optional[plt.Figure]): Plot showing mean ROI per cluster.
+        top_solutions_errors_plot (Optional[plt.Figure]): Plot for top solutions based on errors.
+        top_solutions_rois_plot (Optional[plt.Figure]): Plot for top solutions based on ROI.
+        plot_clusters_ci (Optional[plt.Figure]): Plot for confidence intervals of clusters.
     """
 
-    cluster_assignments: List[int]
-    centroids: np.ndarray
-    inertia: float
+    wss_plot: Optional[plt.Figure] = None
+    correlations_plot: Optional[plt.Figure] = None
+    clusters_means_plot: Optional[plt.Figure] = None
+    top_solutions_errors_plot: Optional[plt.Figure] = None
+    top_solutions_rois_plot: Optional[plt.Figure] = None
+    plot_clusters_ci: Optional[plt.Figure] = None
+
 
 
 @dataclass
-class ConfidenceIntervals:
+class ClusterConfidenceIntervals:
     """
-    Confidence intervals for clustered data.
+    Represents the confidence intervals for the clusters.
 
     Attributes:
-        lower_bounds (pd.DataFrame): Lower bounds of confidence intervals.
-        upper_bounds (pd.DataFrame): Upper bounds of confidence intervals.
-        means (pd.DataFrame): Mean values for each cluster.
+        cluster_ci (pd.DataFrame): The DataFrame containing confidence intervals for the clusters.
+        boot_n (int): The number of bootstrap samples used.
+        sim_n (int): The number of simulations performed.
     """
 
-    lower_bounds: pd.DataFrame
-    upper_bounds: pd.DataFrame
-    means: pd.DataFrame
+    cluster_ci: pd.DataFrame
+    boot_n: int
+    sim_n: int
 
 
-class ClusteringResults:
+@dataclass
+class ClusteredResult:
     """
-    Class to hold and manage the results of the clustering process.
+    Represents the overall results of the clustering process.
+
+    Attributes:
+        cluster_data (pd.DataFrame): The DataFrame containing the clustered models.
+        top_solutions (pd.DataFrame): The top solutions based on clustering.
+        cluster_ci (ClusterConfidenceIntervals): The confidence intervals for the clusters.
+        n_clusters (int): The number of clusters created.
+        errors_weights (List[float]): The weights used for error calculations.
+        clusters_means (pd.DataFrame): Mean ROI per cluster.
+        clusters_pca (pd.DataFrame): Data related to PCA clusters.
+        clusters_tsne (pd.DataFrame): Data related to t-SNE clusters.
+        correlations (pd.DataFrame): Grouped correlations per cluster.
+        plots (PlotResults): An instance of PlotResults containing all generated plots.
     """
 
-    def __init__(self, clustered_data: pd.DataFrame, confidence_intervals: ConfidenceIntervals, top_models: List[str]):
-        """
-        Initialize the ClusteringResults with the clustering outputs.
-
-        Args:
-            clustered_data (pd.DataFrame): Data with cluster assignments.
-            confidence_intervals (ConfidenceIntervals): Confidence intervals for each cluster.
-            top_models (List[str]): IDs of top performing models.
-        """
-        pass
-
-    def export_results(self, path: str) -> None:
-        """
-        Export the clustering results to files.
-
-        Args:
-            path (str): Directory path to save the results.
-        """
-        pass
+    cluster_data: pd.DataFrame
+    top_solutions: pd.DataFrame
+    cluster_ci: ClusterConfidenceIntervals
+    n_clusters: int
+    errors_weights: List[float]
+    clusters_means: pd.DataFrame
+    clusters_pca: pd.DataFrame
+    clusters_tsne: pd.DataFrame
+    correlations: pd.DataFrame
+    plots: ClusterPlotResults
