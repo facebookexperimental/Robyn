@@ -200,7 +200,7 @@ class ParetoOptimizer:
 
         # Check if recreated model and bootstrap results are available
         if (
-            len(xDecompAgg["solID"].unique()) == 1
+            len(xDecompAgg["sol_id"].unique()) == 1
             and "boot_mean" not in xDecompAgg.columns
         ):
             # Get bootstrap results from model_outputs object
@@ -248,7 +248,7 @@ class ParetoOptimizer:
                 xDecompAgg[
                     xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends)
                 ]
-                .groupby("solID")["coef"]
+                .groupby("sol_id")["coef"]
                 .apply(lambda x: min(x.dropna()) == 0)
             )
             # calculate quantiles
@@ -259,7 +259,7 @@ class ParetoOptimizer:
             decomprssd_quantile90 = resultHypParam["decomp.rssd"].quantile(0.9)
             # merge resultHypParam with xDecompAggCoef0
             resultHypParam = pd.merge(
-                resultHypParam, xDecompAggCoef0, on="solID", how="left"
+                resultHypParam, xDecompAggCoef0, on="sol_id", how="left"
             )
             # create a new column 'mape.qt10'
             resultHypParam["mape.qt10"] = (
@@ -285,12 +285,12 @@ class ParetoOptimizer:
             )
             resultHypParamPareto = resultHypParamPareto.sort_values(
                 ["iterNG", "iterPar", "nrmse"]
-            )[["solID", "robynPareto"]]
+            )[["sol_id", "robynPareto"]]
             resultHypParamPareto = (
-                resultHypParamPareto.groupby("solID").first().reset_index()
+                resultHypParamPareto.groupby("sol_id").first().reset_index()
             )
             resultHypParam = pd.merge(
-                resultHypParam, resultHypParamPareto, on="solID", how="left"
+                resultHypParam, resultHypParamPareto, on="sol_id", how="left"
             )
         else:
             resultHypParam = resultHypParam.assign(
@@ -382,8 +382,8 @@ class ParetoOptimizer:
         # 1. Binding Pareto results
         aggregated_data["x_decomp_agg"] = pd.merge(
             aggregated_data["x_decomp_agg"],
-            result_hyp_param[["robynPareto", "solID"]],
-            on="solID",
+            result_hyp_param[["robynPareto", "sol_id"]],
+            on="sol_id",
             how="left",
         )
 
@@ -397,9 +397,9 @@ class ParetoOptimizer:
             ignore_index=True,
         )
 
-        # Step 2: Add solID if hyper_fixed is False
+        # Step 2: Add sol_id if hyper_fixed is False
         if not self.model_outputs.hyper_fixed:
-            decomp_spend_dist["solID"] = (
+            decomp_spend_dist["sol_id"] = (
                 decomp_spend_dist["trial"].astype(str)
                 + "_"
                 + decomp_spend_dist["iterNG"].astype(str)
@@ -410,8 +410,8 @@ class ParetoOptimizer:
         # Step 3: Left join with resultHypParam
         decomp_spend_dist = pd.merge(
             decomp_spend_dist,
-            result_hyp_param[["robynPareto", "solID"]],
-            on="solID",
+            result_hyp_param[["robynPareto", "sol_id"]],
+            on="sol_id",
             how="left",
         )
 
@@ -433,11 +433,11 @@ class ParetoOptimizer:
                     "Increase iterations to get more model candidates or decrease min_candidates."
                 )
 
-            # Group by 'robynPareto' and count distinct 'solID'
+            # Group by 'robynPareto' and count distinct 'sol_id'
             grouped_data = (
                 result_hyp_param[result_hyp_param["robynPareto"].notna()]
                 .groupby("robynPareto", as_index=False)
-                .agg(n=("solID", "nunique"))
+                .agg(n=("sol_id", "nunique"))
             )
             # Calculate cumulative sum and create a new column 'n_cum'
             grouped_data["n_cum"] = grouped_data["n"].cumsum()
@@ -484,7 +484,7 @@ class ParetoOptimizer:
         Returns:
             pd.Series: A row of response curves.
         """
-        get_solID = row["solID"]
+        get_sol_id = row["sol_id"]
         get_spendname = row["rn"]
         startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
         endRW = self.mmm_data.mmmdata_spec.rolling_window_end_which
@@ -496,7 +496,7 @@ class ParetoOptimizer:
         )
 
         response_output: ResponseOutput = response_calculator.calculate_response(
-            select_model=get_solID,
+            select_model=get_sol_id,
             metric_name=get_spendname,
             date_range="all",
             dt_hyppar=paretoData.result_hyp_param,
@@ -508,13 +508,13 @@ class ParetoOptimizer:
         mean_carryover = np.mean(response_output.input_carryover[startRW:endRW])
 
         dt_hyppar = paretoData.result_hyp_param[
-            paretoData.result_hyp_param["solID"] == get_solID
+            paretoData.result_hyp_param["sol_id"] == get_sol_id
         ]
         chn_adstocked = pd.DataFrame(
             {get_spendname: response_output.input_total[startRW:endRW]}
         )
         dt_coef = paretoData.x_decomp_agg[
-            (paretoData.x_decomp_agg["solID"] == get_solID)
+            (paretoData.x_decomp_agg["sol_id"] == get_sol_id)
             & (paretoData.x_decomp_agg["rn"] == get_spendname)
         ][["rn", "coef"]]
 
@@ -524,7 +524,7 @@ class ParetoOptimizer:
             dt_hyppar=dt_hyppar,
             dt_coef=dt_coef,
             media_spend_sorted=[get_spendname],
-            select_model=get_solID,
+            select_model=get_sol_id,
             chn_adstocked=chn_adstocked,
         )
         hills = hill_calculator.get_hill_params()
@@ -544,7 +544,7 @@ class ParetoOptimizer:
                 "mean_spend_adstocked": mean_spend_adstocked,
                 "mean_carryover": mean_carryover,
                 "rn": row["rn"],
-                "solID": row["solID"],
+                "sol_id": row["sol_id"],
             }
         )
 
@@ -584,7 +584,7 @@ class ParetoOptimizer:
 
         # Merge results
         pareto_data.decomp_spend_dist = pd.merge(
-            pareto_data.decomp_spend_dist, resp_collect, on=["solID", "rn"], how="left"
+            pareto_data.decomp_spend_dist, resp_collect, on=["sol_id", "rn"], how="left"
         )
 
         # Calculate ROI and CPA metrics after merging
@@ -610,7 +610,7 @@ class ParetoOptimizer:
             pareto_data.decomp_spend_dist[
                 [
                     "rn",
-                    "solID",
+                    "sol_id",
                     "total_spend",
                     "mean_spend",
                     "mean_spend_adstocked",
@@ -623,7 +623,7 @@ class ParetoOptimizer:
                     "cpa_total",
                 ]
             ],
-            on=["solID", "rn"],
+            on=["sol_id", "rn"],
             how="left",
         )
 
@@ -656,7 +656,7 @@ class ParetoOptimizer:
                 (xDecompAgg["robynPareto"] == pf)
                 & (xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends))
             ]
-            uniqueSol = plotMediaShare["solID"].unique()
+            uniqueSol = plotMediaShare["sol_id"].unique()
 
             plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
 
@@ -664,7 +664,7 @@ class ParetoOptimizer:
 
             for sid in tqdm(uniqueSol, desc="Processing Solutions", unit="solution"):
                 # 1. Spend x effect share comparison
-                temp = plotMediaShare[plotMediaShare["solID"] == sid].melt(
+                temp = plotMediaShare[plotMediaShare["sol_id"] == sid].melt(
                     id_vars=["rn", "nrmse", "decomp.rssd", "rsq_train"],
                     value_vars=[
                         "spend_share",
@@ -708,7 +708,7 @@ class ParetoOptimizer:
 
                 # 2. Waterfall
                 plotWaterfallLoop = plotWaterfall[
-                    plotWaterfall["solID"] == sid
+                    plotWaterfall["sol_id"] == sid
                 ].sort_values("xDecompPerc")
                 plotWaterfallLoop["end"] = 1 - plotWaterfallLoop["xDecompPerc"].cumsum()
                 plotWaterfallLoop["start"] = plotWaterfallLoop["end"].shift(1).fillna(1)
@@ -739,7 +739,7 @@ class ParetoOptimizer:
                 dt_geometric = None
                 weibullCollect = None
                 resultHypParamLoop = pareto_data.result_hyp_param[
-                    pareto_data.result_hyp_param["solID"] == sid
+                    pareto_data.result_hyp_param["sol_id"] == sid
                 ]
                 get_hp_names = [
                     name
@@ -906,7 +906,7 @@ class ParetoOptimizer:
 
                 # Calculate dt_scurvePlotMean
                 dt_scurvePlotMean = plotWaterfall[
-                    (plotWaterfall["solID"] == sid)
+                    (plotWaterfall["sol_id"] == sid)
                     & (~plotWaterfall["mean_spend"].isna())
                 ][
                     [
@@ -915,7 +915,7 @@ class ParetoOptimizer:
                         "mean_spend_adstocked",
                         "mean_carryover",
                         "mean_response",
-                        "solID",
+                        "sol_id",
                     ]
                 ].rename(
                     columns={"rn": "channel"}
@@ -953,8 +953,8 @@ class ParetoOptimizer:
 
                 # Create xDecompVec by filtering and pivoting xDecompAgg
                 xDecompVec = (
-                    xDecompAgg[xDecompAgg["solID"] == sid][["solID", "rn", "coef"]]
-                    .pivot(index="solID", columns="rn", values="coef")
+                    xDecompAgg[xDecompAgg["sol_id"] == sid][["sol_id", "rn", "coef"]]
+                    .pivot(index="sol_id", columns="rn", values="coef")
                     .reset_index()
                 )
 
@@ -962,14 +962,14 @@ class ParetoOptimizer:
                     xDecompVec["(Intercept)"] = 0
 
                 xDecompVec = xDecompVec[
-                    ["solID", "(Intercept)"]
+                    ["sol_id", "(Intercept)"]
                     + [col for col in col_order if col not in ["ds", "dep_var"]]
                 ]
                 intercept = xDecompVec["(Intercept)"].values[0]
 
                 # Multiply scurved and coefs
                 scurved = dt_transformDecomp.drop(columns=["ds", "dep_var"])
-                coefs = xDecompVec.drop(columns=["solID", "(Intercept)"])
+                coefs = xDecompVec.drop(columns=["sol_id", "(Intercept)"])
                 xDecompVec = pd.DataFrame(
                     np.multiply(
                         scurved.values,
@@ -982,8 +982,8 @@ class ParetoOptimizer:
                 xDecompVec["intercept"] = intercept
                 xDecompVec["depVarHat"] = xDecompVec.sum(axis=1) + intercept
 
-                # Add solID back to xDecompVec
-                xDecompVec["solID"] = sid
+                # Add sol_id back to xDecompVec
+                xDecompVec["sol_id"] = sid
 
                 xDecompVec = pd.concat(
                     [dt_transformDecomp[["ds", "dep_var"]], xDecompVec], axis=1
@@ -998,7 +998,7 @@ class ParetoOptimizer:
                 )
 
                 # Extract R-squared value
-                rsq = xDecompAgg[xDecompAgg["solID"] == sid]["rsq_train"].values[0]
+                rsq = xDecompAgg[xDecompAgg["sol_id"] == sid]["rsq_train"].values[0]
                 plot5data = {"xDecompVecPlotMelted": xDecompVecPlotMelted, "rsq": rsq}
 
                 # 6. Diagnostic: fitted vs residual
@@ -1013,18 +1013,18 @@ class ParetoOptimizer:
                 # Gather all results
                 mediaVecCollect = pd.concat(
                     [
-                        dt_transformPlot.assign(type="rawMedia", solID=sid),
-                        dt_transformSpend.assign(type="rawSpend", solID=sid),
+                        dt_transformPlot.assign(type="rawMedia", sol_id=sid),
+                        dt_transformSpend.assign(type="rawSpend", sol_id=sid),
                         dt_transformSpendMod.assign(
-                            type="predictedExposure", solID=sid
+                            type="predictedExposure", sol_id=sid
                         ),
-                        dt_transformAdstock.assign(type="adstockedMedia", solID=sid),
-                        dt_transformSaturation.assign(type="saturatedMedia", solID=sid),
+                        dt_transformAdstock.assign(type="adstockedMedia", sol_id=sid),
+                        dt_transformSaturation.assign(type="saturatedMedia", sol_id=sid),
                         dt_transformSaturationSpendReverse.assign(
-                            type="saturatedSpendReversed", solID=sid
+                            type="saturatedSpendReversed", sol_id=sid
                         ),
                         dt_transformSaturationDecomp.assign(
-                            type="decompMedia", solID=sid
+                            type="decompMedia", sol_id=sid
                         ),
                     ],
                     ignore_index=True,
@@ -1044,9 +1044,9 @@ class ParetoOptimizer:
                 }
 
         pareto_solutions = set()
-        if "solID" in mediaVecCollect.columns:
-            # Update the set with unique solID values from the DataFrame
-            pareto_solutions.update(mediaVecCollect["solID"].unique())
+        if "sol_id" in mediaVecCollect.columns:
+            # Update the set with unique sol_id values from the DataFrame
+            pareto_solutions.update(mediaVecCollect["sol_id"].unique())
 
         return {
             "pareto_solutions": pareto_solutions,
@@ -1060,13 +1060,13 @@ class ParetoOptimizer:
         self,
         pareto_data: ParetoData,
         result_hyp_param: pd.DataFrame,
-        solID=None,
+        sol_id=None,
         start_date=None,
         end_date=None,
     ):
         # Define default values when not provided
-        if solID is None:
-            solID = result_hyp_param["solID"].iloc[0]
+        if sol_id is None:
+            sol_id = result_hyp_param["sol_id"].iloc[0]
         if start_date is None:
             start_date = self.mmm_data.mmmdata_spec.window_start
         if end_date is None:
@@ -1100,7 +1100,7 @@ class ParetoOptimizer:
         rollingWindow = range(rollingWindowStartWhich, rollingWindowEndWhich + 1)
 
         # Calculate saturated dataframes with carryover and immediate parts
-        hypParamSam = result_hyp_param[result_hyp_param["solID"] == solID]
+        hypParamSam = result_hyp_param[result_hyp_param["sol_id"] == sol_id]
         hyperparameter = self._extract_hyperparameter(hypParamSam)
 
         dt_saturated_dfs = self.transformer.run_transformations(
@@ -1111,10 +1111,10 @@ class ParetoOptimizer:
 
         # Calculate decomposition
         coefs = pareto_data.x_decomp_agg.loc[
-            pareto_data.x_decomp_agg["solID"] == solID, "coef"
+            pareto_data.x_decomp_agg["sol_id"] == sol_id, "coef"
         ].values
         coefs_names = pareto_data.x_decomp_agg.loc[
-            pareto_data.x_decomp_agg["solID"] == solID, "rn"
+            pareto_data.x_decomp_agg["sol_id"] == sol_id, "rn"
         ].values
 
         # Create a DataFrame to hold coefficients and their names
@@ -1160,7 +1160,7 @@ class ParetoOptimizer:
             [decompCollect["xDecompVec"], mediaDecompImmediate, mediaDecompCarryover],
             axis=1,
         )
-        temp["solID"] = solID
+        temp["sol_id"] = sol_id
 
         # Create vector collections
         vec_collect = {
@@ -1193,11 +1193,11 @@ class ParetoOptimizer:
 
         # Calculate carryover percentages
         df_caov = (
-            vec_collect["xDecompVecCarryover"].groupby("solID").sum().reset_index()
+            vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()
         ).drop(columns="ds")
         df_total = (
             vec_collect["xDecompVec"]
-            .groupby("solID")
+            .groupby("sol_id")
             .sum()
             .reset_index()
             .drop(columns="ds")
@@ -1208,7 +1208,7 @@ class ParetoOptimizer:
             :, df_caov_pct.columns[1:]
         ].div(df_total.iloc[:, 1:].values)
         df_caov_pct = df_caov_pct.melt(
-            id_vars="solID", var_name="rn", value_name="carryover_pct"
+            id_vars="sol_id", var_name="rn", value_name="carryover_pct"
         ).fillna(0)
 
         # Gather everything in an aggregated format
@@ -1221,7 +1221,7 @@ class ParetoOptimizer:
                 axis=0,
             )
             .melt(
-                id_vars=["solID", "type"],
+                id_vars=["sol_id", "type"],
                 value_vars=self.mmm_data.mmmdata_spec.all_media,
                 var_name="rn",
                 value_name="value",
@@ -1232,7 +1232,7 @@ class ParetoOptimizer:
         # Grouping and aggregating the data
         xDecompVecImmeCaov = (
             xDecompVecImmeCaov.groupby(
-                ["solID", "start_date", "end_date", "rn", "type"]
+                ["sol_id", "start_date", "end_date", "rn", "type"]
             )
             .agg(response=("value", "sum"))
             .reset_index()
@@ -1240,7 +1240,7 @@ class ParetoOptimizer:
 
         xDecompVecImmeCaov["percentage"] = xDecompVecImmeCaov[
             "response"
-        ] / xDecompVecImmeCaov.groupby(["solID", "start_date", "end_date", "type"])[
+        ] / xDecompVecImmeCaov.groupby(["sol_id", "start_date", "end_date", "type"])[
             "response"
         ].transform(
             "sum"
@@ -1249,7 +1249,7 @@ class ParetoOptimizer:
 
         # Join with carryover percentages
         xDecompVecImmeCaov = xDecompVecImmeCaov.merge(
-            df_caov_pct, on=["solID", "rn"], how="left"
+            df_caov_pct, on=["sol_id", "rn"], how="left"
         )
 
         return xDecompVecImmeCaov

@@ -212,8 +212,8 @@ class RidgeModelBuilder:
         # Find the index of the best model (lowest combined score)
         best_index = np.argmin(combined_score)
 
-        # Return the solID of the best model
-        return output_models[best_index].result_hyp_param["solID"].values[0]
+        # Return the sol_id of the best model
+        return output_models[best_index].result_hyp_param["sol_id"].values[0]
 
     def _model_train(
         self,
@@ -311,7 +311,7 @@ class RidgeModelBuilder:
                 optimizer.tell(candidate, result["loss"])
                 result["params"].update(
                     {
-                        "solID": f"{trial}_{iter_ng + 1}_1",
+                        "sol_id": f"{trial}_{iter_ng + 1}_1",
                         "ElapsedAccum": result["elapsed_accum"],
                         "trial": trial,
                         "nrmse": result["nrmse"],
@@ -355,7 +355,7 @@ class RidgeModelBuilder:
             iter_ng=best_result["iter_ng"],
             iter_par=best_result["iter_par"],
             train_size=best_result["params"].get("train_size", 1.0),
-            sol_id=best_result["params"]["solID"],
+            sol_id=best_result["params"]["sol_id"],
         )
 
     def _calculate_decomp_spend_dist(
@@ -401,7 +401,7 @@ class RidgeModelBuilder:
         decomp_spend_dist["lambda_hp"] = params.get("lambda_hp", 0)
         decomp_spend_dist["lambda_max"] = params.get("lambda_max", 0)
         decomp_spend_dist["lambda_min_ratio"] = params.get("lambda_min_ratio", 0)
-        decomp_spend_dist["solID"] = params.get("solID", "")
+        decomp_spend_dist["sol_id"] = params.get("sol_id", "")
         decomp_spend_dist["trial"] = params.get("trial", 0)
         decomp_spend_dist["iterNG"] = params.get("iter_ng", 0)
         decomp_spend_dist["iterPar"] = params.get("iter_par", 0)
@@ -444,7 +444,7 @@ class RidgeModelBuilder:
         x_decomp_agg["lambda_hp"] = params.get("lambda_hp", 0)
         x_decomp_agg["lambda_max"] = params.get("lambda_max", 0)
         x_decomp_agg["lambda_min_ratio"] = params.get("lambda_min_ratio", 0)
-        x_decomp_agg["solID"] = params.get("solID", "")
+        x_decomp_agg["sol_id"] = params.get("sol_id", "")
         x_decomp_agg["trial"] = params.get("trial", 0)
         x_decomp_agg["iterNG"] = params.get("iter_ng", 0)
         x_decomp_agg["iterPar"] = params.get("iter_par", 0)
@@ -529,7 +529,7 @@ class RidgeModelBuilder:
         # Find the index of the best model (lowest combined score)
         best_index = np.argmin(combined_score)
 
-        # Return the solID of the best model
+        # Return the sol_id of the best model
         return output_models[best_index].sol_id
 
     def _calculate_mape(self, model: Ridge) -> float:
@@ -656,7 +656,7 @@ class RidgeModelBuilder:
             "pos": int(pos),
             "Elapsed": elapsed,
             "ElapsedAccum": elapsed,
-            "solID": f"{trial}_{iter_ng + 1}_1",
+            "sol_id": f"{trial}_{iter_ng + 1}_1",
             "trial": trial,
             "iterNG": iter_ng + 1,
             "iterPar": 1,

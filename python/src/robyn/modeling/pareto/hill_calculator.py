@@ -20,7 +20,7 @@ class HillCalculator:
         # Filter the media_vec_collect DataFrame
         chn_adstocked = self.model_outputs.media_vec_collect[
             (self.model_outputs.media_vec_collect['type'] == 'adstockedMedia') &
-            (self.model_outputs.media_vec_collect['solID'] == self.select_model)
+            (self.model_outputs.media_vec_collect['sol_id'] == self.select_model)
         ]
         
         # Select only the required media columns
