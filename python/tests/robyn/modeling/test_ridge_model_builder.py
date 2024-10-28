@@ -1,31 +1,28 @@
+# pyre-strict
+
+import unittest
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.modeling.feature_engineering import FeaturizedMMMData
+from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
+from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
+from robyn.modeling.entities.enums import NevergradAlgorithm
+from robyn.modeling.convergence.convergence import Convergence
+from robyn.modeling.ridge_model_builder import RidgeModelBuilder
+from unittest.mock import MagicMock, patch, Mock
+from typing import List, Optional, Dict, Any
+from sklearn.linear_model import Ridge
+import numpy as np
+import pandas as pd
 import logging
+import time
 
 
-class RidgeModelBuilder:
-    def __init__(
-        self,
-        mmm_data: MMMData,
-        holiday_data: HolidaysData,
-        calibration_input: CalibrationInput,
-        hyperparameters: Hyperparameters,
-        featurized_mmm_data: FeaturizedMMMData,
-    ):
-        self.mmm_data = mmm_data
-        self.holiday_data = holiday_data
-        self.calibration_input = calibration_input
-        self.hyperparameters = hyperparameters
-        self.featurized_mmm_data = featurized_mmm_data
-        self.logger = logging.getLogger(__name__)
+class TestRidgeModelBuilder(unittest.TestCase):
 
-    def test_model_outputs_instance():
-        import unittest
-        from unittest.mock import Mock
-        from robyn.modeling.entities.modeloutputs import ModelOutputs
+    def test_model_outputs_instance(self):
 
         # Mock the dependencies
         ConvergenceMock = Mock()
@@ -159,7 +156,7 @@ class RidgeModelBuilder:
         # Assert select_id matches the mocked best_model_id
         self.assertEqual(model_outputs.select_id, best_model_id)
 
-    def test_ts_validation_flag() -> None:
+    def test_ts_validation_flag(self) -> None:
         # Initialize the RidgeModelBuilder with mock data entities
         mmm_data = MagicMock(spec=MMMData)
         holiday_data = MagicMock(spec=HolidaysData)
@@ -194,7 +191,7 @@ class RidgeModelBuilder:
         # Assert that the ts_validation flag in ModelOutputs is True
         assert model_outputs.ts_validation is True
 
-    def test_add_penalty_factor_flag() -> None:
+    def test_add_penalty_factor_flag(self) -> None:
         # Mock Dependencies
         mock_convergence = Mock()
         mock_convergence.calculate_convergence.return_value = {
@@ -317,7 +314,7 @@ class RidgeModelBuilder:
             mock_convergence.assert_called_once()
             mock_select_best_model.assert_called_once_with(model_outputs.trials)
 
-    def test_model_outputs_intercept() -> None:
+    def test_model_outputs_intercept(self) -> None:
         # Import necessary testing libraries
         import unittest
         from unittest.mock import MagicMock
@@ -479,7 +476,7 @@ class RidgeModelBuilder:
         # Assert that the returned solID is the expected one
         assert best_sol_id == "model_1", f"Expected 'model_1' but got {best_sol_id}"
 
-    def test_select_best_model_returns_correct_model_id() -> None:
+    def test_select_best_model_returns_correct_model_id(self) -> None:
         # Step 1: Create mock Trial objects with varying nrmse and decomp_rssd
         trial1 = Trial(
             nrmse=0.1,
@@ -523,7 +520,7 @@ class RidgeModelBuilder:
             best_model_sol_id == "model_2"
         ), f"Expected 'model_2', but got {best_model_sol_id}"
 
-    def test_select_best_model_returns_null_with_empty_trials() -> None:
+    def test_select_best_model_returns_null_with_empty_trials(self) -> None:
         # Create mock or dummy objects for the RidgeModelBuilder dependencies
         mmm_data = MagicMock(spec=MMMData)
         holiday_data = MagicMock(spec=HolidaysData)
@@ -630,7 +627,7 @@ class RidgeModelBuilder:
                 len(model_outputs.trials) == 5
             ), "The number of trials should match the expected value of 5."
 
-    def test_length_of_trials() -> None:
+    def test_length_of_trials(self) -> None:
         # Mock the _run_nevergrad_optimization method to return a successful Trial object
         with mock.patch(
             "RidgeModelBuilder._run_nevergrad_optimization"
@@ -732,7 +729,7 @@ class RidgeModelBuilder:
             # Step 9: Assert the length of trials
             assert len(model_outputs.trials) == expected_number_of_trials
 
-    def test_trial_object_with_expected_properties() -> None:
+    def test_trial_object_with_expected_properties(self) -> None:
         # Setup Mocking for Dependencies
         mock_optimizer = MagicMock()
         mock_optimizer.ask.return_value = MagicMock(kwargs={"param1": 0.5})
@@ -956,7 +953,7 @@ class RidgeModelBuilder:
             mock_optimizer.ask.assert_called()
             mock_optimizer.tell.assert_called_with(mock.ANY, mock.ANY)
 
-    def test_rsq_train_calculation() -> None:
+    def test_rsq_train_calculation(self) -> None:
         # Step 1: Instantiate a Ridge model with predefined coefficients
         lambda_ = 1.0
         model = Ridge(alpha=lambda_, fit_intercept=True)
@@ -989,7 +986,7 @@ class RidgeModelBuilder:
             rsq_train_value == expected_rsq_train
         ), f"Expected {expected_rsq_train}, got {rsq_train_value}"
 
-    def test_nrmse_train_calculation() -> None:
+    def test_nrmse_train_calculation(self) -> None:
         # Step 1: Instantiate a Ridge model with predefined coefficients.
         model = Ridge(alpha=1.0)
         model.coef_ = np.array([0.2, 0.5, 0.3])
@@ -1028,7 +1025,7 @@ class RidgeModelBuilder:
             nrmse_train_value, expected_nrmse_train, atol=1e-7
         ), "NRMSE train value does not match expected value"
 
-    def test_coef_calculation() -> None:
+    def test_coef_calculation(self) -> None:
         # Step 1: Instantiate a Ridge model with predefined coefficients
         model = Ridge(alpha=1.0)
         model.coef_ = np.array(
@@ -1124,7 +1121,7 @@ class RidgeModelBuilder:
             x_decomp_agg_value, expected_x_decomp_agg_value, places=2
         )
 
-    def test_xDecompMeanNon0_calculation() -> None:
+    def test_xDecompMeanNon0_calculation(self) -> None:
         # Step 1: Instantiate a Ridge model with predefined coefficients
         model = Ridge(alpha=0.1)
         model.coef_ = np.array([0.5, 0.0, 0.3, 0.0, 0.2])
@@ -1176,7 +1173,7 @@ class RidgeModelBuilder:
         ) / 5
         assert abs(xDecompMeanNon0 - expected_mean_non_zero) < 1e-6
 
-    def test_calculate_decomp_spend_dist_rsq_train_with_empty_data() -> None:
+    def test_calculate_decomp_spend_dist_rsq_train_with_empty_data(self) -> None:
         model = Ridge()
         X = pd.DataFrame()
         y = pd.Series(dtype=float)
@@ -1198,13 +1195,14 @@ class RidgeModelBuilder:
             "iter_par": 0,
         }
 
+        model.fit(X, y)
         decomp_spend_dist = RidgeModelBuilder._calculate_decomp_spend_dist(
             RidgeModelBuilder, model, X, y, params
         )
         rsq_train = decomp_spend_dist.get("rsq_train", None)
         assert rsq_train == 0, f"Expected rsq_train to be 0, but got {rsq_train}."
 
-    def test_calculate_decomp_spend_dist_nrmse_train_with_empty_data() -> None:
+    def test_calculate_decomp_spend_dist_nrmse_train_with_empty_data(self) -> None:
         model = Ridge()  # Instantiate a Ridge model with default settings
         X = pd.DataFrame()  # Create an empty DataFrame for features
         y = pd.Series(dtype=float)  # Create an empty Series for target
@@ -1229,7 +1227,7 @@ class RidgeModelBuilder:
         nrmse_train = decomp_spend_dist["nrmse_train"].iloc[0]
         assert pd.isna(nrmse_train), "nrmse_train should be NaN for empty data."
 
-    def test_calculate_decomp_spend_dist_coef_with_empty_data() -> None:
+    def test_calculate_decomp_spend_dist_coef_with_empty_data(self) -> None:
         model = Ridge()
         X = pd.DataFrame()
         y = pd.Series(dtype=float)
@@ -1260,7 +1258,7 @@ class RidgeModelBuilder:
 
         assert coef_array.size == 0
 
-    def test_calculate_decomp_spend_dist_xDecompAgg_with_empty_data() -> None:
+    def test_calculate_decomp_spend_dist_xDecompAgg_with_empty_data(self) -> None:
         # Instantiate a Ridge model with predefined coefficients
         model = Ridge()
 
@@ -1306,7 +1304,7 @@ class RidgeModelBuilder:
             xDecompAgg_value
         ), "Expected xDecompAgg to be NaN for empty input data"
 
-    def test_calculate_decomp_spend_dist_xDecompMeanNon0_with_empty_data() -> None:
+    def test_calculate_decomp_spend_dist_xDecompMeanNon0_with_empty_data(self) -> None:
         model = Ridge()
         model.coef_ = np.array([])  # Predefined empty coefficients
         X = pd.DataFrame()  # Empty DataFrame for features
@@ -1333,7 +1331,7 @@ class RidgeModelBuilder:
         # Assert that xDecompMeanNon0 is NaN
         assert xDecompMeanNon0.isna().all()
 
-    def test_coefficient_with_zero_values() -> None:
+    def test_coefficient_with_zero_values(self) -> None:
         # Mock data setup
         mmm_data = MMMData(
             mmmdata_spec=MockSpec(paid_media_spends=["media1", "media2", "media3"]),
@@ -1388,7 +1386,7 @@ class RidgeModelBuilder:
             result["coef"] == 0
         ), "The coefficients should include zeros for unaffected features."
 
-    def test_xdecomp_agg_sum_excluding_zero() -> None:
+    def test_xdecomp_agg_sum_excluding_zero(self) -> None:
         # Mock data and setup
         mmm_data = MagicMock(MMMData)
         holiday_data = MagicMock(HolidaysData)
@@ -1439,7 +1437,7 @@ class RidgeModelBuilder:
             x_decomp_agg_sum, expected_sum
         ), "xDecompAgg sum does not match expected value, zero coefficients were not ignored."
 
-    def test_mean_spend_of_paid_media_columns() -> None:
+    def test_mean_spend_of_paid_media_columns(self) -> None:
         # Mocking data for initialization
         mmm_data = MMMData(...)
         holiday_data = HolidaysData(...)
@@ -1488,7 +1486,7 @@ class RidgeModelBuilder:
         # Assert that the calculated mean spend matches the expected value
         pd.testing.assert_series_equal(mean_spend, expected_mean_spend)
 
-    def test_negative_coefficients_identification() -> None:
+    def test_negative_coefficients_identification(self) -> None:
         # Initialize mock data
         mmm_data = MMMData(...)  # Fill with appropriate mock data
         holiday_data = HolidaysData(...)  # Fill with appropriate mock data
@@ -1570,7 +1568,7 @@ class RidgeModelBuilder:
             effect_share, expected_effect_share, check_names=False
         )
 
-    def test_total_spend_calculation() -> None:
+    def test_total_spend_calculation(self) -> None:
         # Initialize the RidgeModelBuilder with mock data
         mmm_data = MagicMock()
         mmm_data.mmmdata_spec.paid_media_spends = ["media1", "media2"]
@@ -1609,7 +1607,7 @@ class RidgeModelBuilder:
         # Assert that the total_spend column matches the manually calculated total spend
         assert total_spend == manual_total_spend
 
-    def test_rsq_val_with_missing_params() -> None:
+    def test_rsq_val_with_missing_params(self) -> None:
         # Initialize RidgeModelBuilder with mock data entities
         mmm_data = MagicMock(MMMData)
         holiday_data = MagicMock(HolidaysData)
@@ -1646,7 +1644,7 @@ class RidgeModelBuilder:
         rsq_val = result["rsq_val"].iloc[0]
         assert rsq_val == 0, f"Expected rsq_val to be 0, but got {rsq_val}"
 
-    def test_rsq_test_with_missing_params() -> None:
+    def test_rsq_test_with_missing_params(self) -> None:
         # Initialize mock data entities
         mock_mmm_data = MMMData(...)
         mock_holidays_data = HolidaysData(...)
@@ -1688,7 +1686,7 @@ class RidgeModelBuilder:
         # Assert that rsq_test is 0
         assert rsq_test == 0, f"Expected rsq_test to be 0, but got {rsq_test}"
 
-    def test_nrmse_val_with_missing_params() -> None:
+    def test_nrmse_val_with_missing_params(self) -> None:
         # Initialize the RidgeModelBuilder with mock data entities
         mock_mmm_data = MagicMock()
         mock_holidays_data = MagicMock()
@@ -1732,7 +1730,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_val is equal to 0
         assert nrmse_val == 0, f"Expected nrmse_val to be 0, but got {nrmse_val}"
 
-    def test_nrmse_test_with_missing_params() -> None:
+    def test_nrmse_test_with_missing_params(self) -> None:
         # Mock data entities for initialization
         mock_mmm_data = MMMData(...)  # Provide necessary initialization
         mock_holiday_data = HolidaysData(...)  # Provide necessary initialization
@@ -1777,7 +1775,7 @@ class RidgeModelBuilder:
         nrmse_test = result["nrmse_test"].iloc[0]
         assert nrmse_test == 0, f"Expected nrmse_test to be 0, got {nrmse_test}"
 
-    def test_lambda_with_missing_params() -> None:
+    def test_lambda_with_missing_params(self) -> None:
         # Initialize mock data entities
         mmm_data = MagicMock()
         holiday_data = MagicMock()
@@ -1815,7 +1813,7 @@ class RidgeModelBuilder:
         # Assert that lambda is 0
         assert lambda_value == 0
 
-    def test_train_size_parameter() -> None:
+    def test_train_size_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -1844,7 +1842,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `train_size` value equals 0.8
         assert train_size_value == 0.8
 
-    def test_rsq_train_value() -> None:
+    def test_rsq_train_value(self) -> None:
         # Mock the necessary methods
         with patch.object(
             RidgeModelBuilder,
@@ -1881,7 +1879,7 @@ class RidgeModelBuilder:
             # Assert that rsq_train is a float
             assert isinstance(result["rsq_train"], float)
 
-    def test_rsq_val_parameter() -> None:
+    def test_rsq_val_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([1.0, 2.0, 3.0])  # Example coefficients
@@ -1904,7 +1902,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `rsq_val` value equals 0.7
         assert rsq_val_result == 0.7
 
-    def test_rsq_test_parameter() -> None:
+    def test_rsq_test_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -1959,7 +1957,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `rsq_test` value equals 0.6
         assert rsq_test_value == 0.6
 
-    def test_nrmse_train_value() -> None:
+    def test_nrmse_train_value(self) -> None:
         # Prepare test data
         model = Ridge(coef_=np.array([0.5, 0.3, -0.2, 0.1, 0.4]), intercept_=0.0)
         X = pd.DataFrame(
@@ -2003,7 +2001,7 @@ class RidgeModelBuilder:
             nrmse_train, 0.08, atol=0.01
         ), f"Expected nrmse_train close to 0.08, got {nrmse_train}"
 
-    def test_nrmse_val_parameter() -> None:
+    def test_nrmse_val_parameter(self) -> None:
         # Prepare a Ridge regression model with dummy coefficients
         model = Ridge()
         model.coef_ = np.array([0.5, -0.2, 0.1])  # Example coefficients
@@ -2028,7 +2026,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `nrmse_val` value equals 0.1
         assert nrmse_val == 0.1
 
-    def test_nrmse_test_parameter() -> None:
+    def test_nrmse_test_parameter(self) -> None:
         # Prepare a Ridge regression model with coefficients
         model = Ridge()
         model.coef_ = np.array([0.5, 1.0, -1.5, 2.0, -0.5])
@@ -2090,7 +2088,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `decomp.rssd` value equals 0.05
         self.assertEqual(decomp_rssd_value, 0.05)
 
-    def test_mape_parameter() -> None:
+    def test_mape_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.5, 1.0, -0.5])  # Example coefficients
@@ -2113,7 +2111,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `mape` value equals 0.1
         assert mape_value == 0.1
 
-    def test_lambda_parameter() -> None:
+    def test_lambda_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.5, 1.5])
@@ -2134,7 +2132,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `lambda` value equals 0.01
         assert lambda_value == 0.01
 
-    def test_lambda_hp_parameter() -> None:
+    def test_lambda_hp_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.5, -0.2, 0.1])  # Example coefficients
@@ -2177,7 +2175,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `lambda_hp` value equals 0.02
         assert lambda_hp_value == 0.02
 
-    def test_solID_parameter() -> None:
+    def test_solID_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -2252,7 +2250,7 @@ class RidgeModelBuilder:
         # Assert that the trial value is 1
         self.assertEqual(trial_value, 1)
 
-    def test_iterNG_parameter() -> None:
+    def test_iterNG_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -2297,7 +2295,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `iterNG` value equals 10
         assert iterNG_value == 10
 
-    def test_iterPar_parameter() -> None:
+    def test_iterPar_parameter(self) -> None:
         # Prepare a Ridge regression model with given coefficients
         model = Ridge()
         model.coef_ = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -2326,7 +2324,7 @@ class RidgeModelBuilder:
         # Assert that the extracted `iterPar` value equals 2
         assert iterPar_value == 2
 
-    def test_x_decomp_agg_sum_zero() -> None:
+    def test_x_decomp_agg_sum_zero(self) -> None:
         # Set up test environment
         model = Ridge()
         model.coef_ = np.array([0.0, 0.0, 0.0])  # Zero coefficients
@@ -2365,7 +2363,7 @@ class RidgeModelBuilder:
             result_df["xDecompAgg"].sum() == 0.0
         ), "Sum of xDecompAgg should be zero for zero coefficients"
 
-    def test_x_decomp_perc_sum_zero() -> None:
+    def test_x_decomp_perc_sum_zero(self) -> None:
         # Set up the test environment and necessary inputs
         model = Ridge()
         model.coef_ = np.array([0.0, 0.0, 0.0])  # Zero coefficients
@@ -2405,7 +2403,7 @@ class RidgeModelBuilder:
             result_df["xDecompPerc"].sum() == 0.0
         ), "Sum of xDecompPerc should be zero when coefficients are zero"
 
-    def test_x_decomp_agg_pos_all_false() -> None:
+    def test_x_decomp_agg_pos_all_false(self) -> None:
         # Prepare the test setup
         model = Ridge()
         model.coef_ = np.array([-0.1, -0.2, -0.3])
@@ -2449,7 +2447,7 @@ class RidgeModelBuilder:
             x_decomp_agg["pos"] == False
         ), "Expected all 'pos' values to be False for negative coefficients"
 
-    def test_train_size_calculation() -> None:
+    def test_train_size_calculation(self) -> None:
         # Setup mock inputs
         model = Ridge()
         model.coef_ = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -2496,7 +2494,7 @@ class RidgeModelBuilder:
             actual_train_size == expected_train_size
         ), f"Expected train_size to be {expected_train_size}, but got {actual_train_size}"
 
-    def test_lambda_value() -> None:
+    def test_lambda_value(self) -> None:
         # Mock necessary methods and components
         mock_mmm_data = MagicMock()
         mock_holiday_data = MagicMock()
@@ -2548,7 +2546,7 @@ class RidgeModelBuilder:
         # Assert the lambda_hp value
         self.assertEqual(result_df["lambda_hp"].iloc[0], 0.1)
 
-    def test_lambda_max_value() -> None:
+    def test_lambda_max_value(self) -> None:
         # Initialize the input Ridge model, DataFrame `X`, and Series `y`.
         model = Ridge()
         X = pd.DataFrame(
@@ -2630,7 +2628,7 @@ class RidgeModelBuilder:
         # Assert that the columns of X are as expected
         self.assertListEqual(list(X.columns), ["feature1"])
 
-    def test_prepare_data_y_name_is_correct() -> None:
+    def test_prepare_data_y_name_is_correct(self) -> None:
         # Mock the FeaturizedMMMData dependency to provide a DataFrame with a 'dep_var' column
         featurized_mmm_data_mock = MagicMock()
         featurized_mmm_data_mock.dt_mod = pd.DataFrame(
@@ -2657,7 +2655,7 @@ class RidgeModelBuilder:
         # Assert that the name of y is 'dep_var'
         assert y.name == "dep_var", "The dependent variable name should be 'dep_var'"
 
-    def test_date_column_min_value() -> None:
+    def test_date_column_min_value(self) -> None:
         # Mock Setup: Create mock DataFrame structure
         mock_featurized_mmm_data = FeaturizedMMMData()
         mock_featurized_mmm_data.dt_mod = pd.DataFrame(
@@ -2693,7 +2691,7 @@ class RidgeModelBuilder:
             X["date_col"].min() == 0
         ), "Minimum date_col value should be converted to 0"
 
-    def test_dependent_variable_name() -> None:
+    def test_dependent_variable_name(self) -> None:
         # Mock Setup: Mock the FeaturizedMMMData to return a DataFrame with columns 'dep_var', 'date_col', and 'feature1'.
         featurized_mmm_data_mock = MagicMock()
         featurized_mmm_data_mock.dt_mod = pd.DataFrame(
@@ -2725,7 +2723,7 @@ class RidgeModelBuilder:
         # Verify Dependent Variable Name: Check that the name of the returned Series y matches the expected dependent variable name as specified in MMMData.
         assert y.name == "dep_var", "Dependent variable name is not correctly set"
 
-    def test_prepare_data_feature_columns() -> None:
+    def test_prepare_data_feature_columns(self) -> None:
         # Mock the FeaturizedMMMData dependency
         featurized_mmm_data_mock = MagicMock()
         featurized_mmm_data_mock.dt_mod = pd.DataFrame(
@@ -2904,7 +2902,7 @@ class RidgeModelBuilder:
         # Assert that the name of the series y is 'dep_var'
         self.assertEqual(y.name, "dep_var")
 
-    def test_geometric_adstock_first_element() -> None:
+    def test_geometric_adstock_first_element(self) -> None:
         # Initialize the input series x as a pandas Series with values [10, 20, 30]
         x = pd.Series([10, 20, 30])
 
@@ -2918,7 +2916,7 @@ class RidgeModelBuilder:
         # Assert that the first element of the transformed series y.iloc[0] is equal to 10
         assert y.iloc[0] == 10, "The first element should remain unchanged"
 
-    def test_geometric_adstock_second_element() -> None:
+    def test_geometric_adstock_second_element(self) -> None:
         x = pd.Series([10, 20, 30])
         theta = 1.5
         y = RidgeModelBuilder._geometric_adstock(None, x, theta)
@@ -2934,13 +2932,13 @@ class RidgeModelBuilder:
             y.iloc[2] == expected_value
         ), f"Expected {expected_value}, got {y.iloc[2]}"
 
-    def test_geometric_adstock_fourth_element() -> None:
+    def test_geometric_adstock_fourth_element(self) -> None:
         x = pd.Series([1, 2, 3, 4, 5])
         theta = 1
         y = RidgeModelBuilder._geometric_adstock(RidgeModelBuilder(), x, theta)
         assert y.iloc[3] == 10
 
-    def test_geometric_adstock_fifth_element() -> None:
+    def test_geometric_adstock_fifth_element(self) -> None:
         x = pd.Series([1, 2, 3, 4, 5])
         theta = 1
         y = RidgeModelBuilder._geometric_adstock(RidgeModelBuilder, x, theta)
@@ -2960,7 +2958,7 @@ class RidgeModelBuilder:
             "The output series should be equal to the input series when theta is 0.",
         )
 
-    def test_geometric_adstock_empty_series() -> None:
+    def test_geometric_adstock_empty_series(self) -> None:
         # Initialize an empty Pandas Series
         x = pd.Series(dtype=float)
 
@@ -2973,7 +2971,7 @@ class RidgeModelBuilder:
         # Assert that the result is an empty series
         assert result.empty, "Expected an empty series, but got a non-empty output."
 
-    def assert_geometric_adstock_empty_series_empty() -> None:
+    def assert_geometric_adstock_empty_series_empty(self) -> None:
         # Create an empty pandas Series
         x = pd.Series(dtype=float)
 
@@ -2989,7 +2987,7 @@ class RidgeModelBuilder:
         expected_output = pd.Series(dtype=float)
         pd.testing.assert_series_equal(result, expected_output, check_dtype=True)
 
-    def test_hill_transformation_output() -> None:
+    def test_hill_transformation_output(self) -> None:
         # Initialize a Pandas Series with negative values
         x = pd.Series([-0.1, -0.2, -0.3, -0.4, -0.5])
 
@@ -3085,7 +3083,7 @@ class RidgeModelBuilder:
         # Step 9: Use pd.testing.assert_series_equal to assert that the actual output matches the expected output series, allowing for NaN value comparison.
         pd.testing.assert_series_equal(result, expected_output)
 
-    def test_calculate_rssd_without_zero_penalty() -> None:
+    def test_calculate_rssd_without_zero_penalty(self) -> None:
         # Setup Inputs
         coefs = np.array([1.0, 2.0, 3.0])
         rssd_zero_penalty = False
@@ -3113,7 +3111,7 @@ class RidgeModelBuilder:
             abs(calculated_rssd - expected_rssd) < 1e-9
         ), f"RSSD calculation failed, got {calculated_rssd}, expected {expected_rssd}"
 
-    def test_calculate_rssd_returns_expected_value() -> None:
+    def test_calculate_rssd_returns_expected_value(self) -> None:
         # Instantiate an object of RidgeModelBuilder with mock dependencies
         mock_mmm_data = MagicMock(spec=MMMData)
         mock_holidays_data = MagicMock(spec=HolidaysData)
@@ -3139,7 +3137,7 @@ class RidgeModelBuilder:
         # Assert the returned RSSD value is equal to expected value 6.0
         assert rssd_value == 6.0, f"Expected RSSD value to be 6.0, got {rssd_value}"
 
-    def test_calculate_rssd_with_zero_coefficients() -> None:
+    def test_calculate_rssd_with_zero_coefficients(self) -> None:
         # Step 1: Initialize the RidgeModelBuilder class
         # Mock necessary data inputs for the class constructor
         mmm_data = MMMData()  # Assuming a simple instance or mock
@@ -3168,7 +3166,7 @@ class RidgeModelBuilder:
         # Step 5: Assert that the returned RSSD value equals 4.0
         assert rssd_value == 4.0, f"Expected RSSD value to be 4.0, but got {rssd_value}"
 
-    def test_calculate_rssd_with_zero_coefficients_and_zero_penalty() -> None:
+    def test_calculate_rssd_with_zero_coefficients_and_zero_penalty(self) -> None:
         # Instantiate a RidgeModelBuilder object with mock dependencies
         mock_mmm_data = Mock(spec=MMMData)
         mock_holiday_data = Mock(spec=HolidaysData)
@@ -3193,7 +3191,7 @@ class RidgeModelBuilder:
         # Assert that the result is equal to the expected RSSD value of 0.0
         assert result == 0.0, f"Expected RSSD value of 0.0, but got {result}"
 
-    def test_calculate_rssd_value() -> None:
+    def test_calculate_rssd_value(self) -> None:
         # Initialize Input Coefficients
         coefficients = np.array([1.0, 2.0, 3.0])
         # Set RSSD Zero Penalty Flag
@@ -3205,7 +3203,7 @@ class RidgeModelBuilder:
             rssd_result, 3.7416573867739413, atol=1e-9
         ), f"RSSD calculation failed, expected 3.7416573867739413 but got {rssd_result}"
 
-    def test_calculate_rssd_returns_expected_value() -> None:
+    def test_calculate_rssd_returns_expected_value(self) -> None:
         # Create an instance of the RidgeModelBuilder class
         builder = RidgeModelBuilder(None, None, None, None, None)
 
@@ -3221,7 +3219,7 @@ class RidgeModelBuilder:
         # Assert the returned RSSD value is equal to the expected value
         assert rssd_value == 5.0, f"Expected RSSD value to be 5.0, but got {rssd_value}"
 
-    def test_calculate_rssd_single_zero_coefficient_with_zero_penalty() -> None:
+    def test_calculate_rssd_single_zero_coefficient_with_zero_penalty(self) -> None:
         # Step 1: Initialize the RidgeModelBuilder instance if needed
         # Since _calculate_rssd is a method, assume RidgeModelBuilder instance is available as `ridge_model_builder`
 
@@ -3238,7 +3236,7 @@ class RidgeModelBuilder:
             rssd_value == expected_rssd_value
         ), f"Expected {expected_rssd_value}, but got {rssd_value}"
 
-    def test_calculate_rssd_with_negative_coefficients_no_zero_penalty() -> None:
+    def test_calculate_rssd_with_negative_coefficients_no_zero_penalty(self) -> None:
         import numpy as np
         from RidgeModelBuilder import _calculate_rssd
 
@@ -3284,7 +3282,7 @@ class RidgeModelBuilder:
         # Assert the RSSD value
         self.assertAlmostEqual(rssd_value, 3.7416573867739413, places=7)
 
-    def test_calculate_mape_returns_zero_mape_on_valid_data() -> None:
+    def test_calculate_mape_returns_zero_mape_on_valid_data(self) -> None:
         # Mocking the dependencies
         mmm_data_mock = MagicMock()
         mmm_data_mock.data = pd.DataFrame(
@@ -3327,7 +3325,7 @@ class RidgeModelBuilder:
         # Assert that the MAPE is 0.0
         assert mape == 0.0, "Expected MAPE to be 0.0 for perfect predictions"
 
-    def test_calculate_mape_mape_value() -> None:
+    def test_calculate_mape_mape_value(self) -> None:
         # Mock MMMData to return a predefined dataset
         mmm_data = MagicMock()
         mmm_data.data = pd.DataFrame(
@@ -3384,7 +3382,7 @@ class RidgeModelBuilder:
         # Assert that the MAPE value is 0.0
         assert mape_value == 0.0, f"Expected MAPE to be 0.0, but got {mape_value}"
 
-    def test_evaluate_model_loss() -> None:
+    def test_evaluate_model_loss(self) -> None:
         # Mock the methods to return fixed values
         ridge_builder = RidgeModelBuilder(None, None, None, None, None)
         ridge_builder._prepare_data = lambda params: (
@@ -3418,7 +3416,7 @@ class RidgeModelBuilder:
         )
         assert isinstance(result["loss"], float)
 
-    def test_evaluate_model_nrmse() -> None:
+    def test_evaluate_model_nrmse(self) -> None:
         # Mock the _prepare_data method to return features and target
         mock_X = pd.DataFrame(
             np.random.rand(100, 5), columns=[f"feature_{i}" for i in range(5)]
@@ -3504,7 +3502,7 @@ class RidgeModelBuilder:
         # Assert the 'decomp_rssd' value
         self.assertEqual(result["decomp_rssd"], 0.05)
 
-    def test_evaluate_model_mape() -> None:
+    def test_evaluate_model_mape(self) -> None:
         # Create a RidgeModelBuilder instance
         ridge_model_builder = RidgeModelBuilder(
             mmm_data=None,  # Mock or use appropriate data
@@ -3545,7 +3543,7 @@ class RidgeModelBuilder:
         # Assert that the 'mape' in the result is equal to 0.07
         assert result["mape"] == 0.07
 
-    def test_evaluate_model_lift_calibration() -> None:
+    def test_evaluate_model_lift_calibration(self) -> None:
         # Mock the required methods
         ridge_model_builder = RidgeModelBuilder(
             mmm_data=MMMData(),
@@ -3625,7 +3623,7 @@ class RidgeModelBuilder:
         # Assert 'rsq_train' is of type float
         self.assertIsInstance(result["rsq_train"], float)
 
-    def test_evaluate_model_rsq_val() -> None:
+    def test_evaluate_model_rsq_val(self) -> None:
         # Mock the _prepare_data method to return a DataFrame of features and a Series of the target
         mock_features = pd.DataFrame(np.random.rand(100, 5))
         mock_target = pd.Series(np.random.rand(100))
@@ -3677,7 +3675,7 @@ class RidgeModelBuilder:
         # Assert that 'rsq_val' is a float
         assert isinstance(result["rsq_val"], float)
 
-    def test_evaluate_model_rsq_test() -> None:
+    def test_evaluate_model_rsq_test(self) -> None:
         # Mocking the necessary methods
         with patch.object(
             RidgeModelBuilder,
@@ -4223,7 +4221,7 @@ class RidgeModelBuilder:
         # Assert that elapsed is a float
         assert isinstance(result["elapsed"], float), "elapsed should be a float"
 
-    def test_loss_calculation() -> None:
+    def test_loss_calculation(self) -> None:
         # Mock the _prepare_data method to return a DataFrame of features and a Series of target
         RidgeModelBuilder._prepare_data = lambda self, params: (
             pd.DataFrame({"feature1": [1, 2, 3], "feature2": [4, 5, 6]}),
@@ -4258,7 +4256,7 @@ class RidgeModelBuilder:
         # Assert that the returned loss value is of type float
         assert isinstance(result["loss"], float)
 
-    def test_nrmse_calculation() -> None:
+    def test_nrmse_calculation(self) -> None:
         # Mock the _prepare_data method to return a DataFrame of features and a Series of target
         mock_features = pd.DataFrame({"feature1": [1, 2, 3], "feature2": [4, 5, 6]})
         mock_target = pd.Series([7, 8, 9])
@@ -4326,7 +4324,7 @@ class RidgeModelBuilder:
         # Assert that the decomp_rssd in the result matches the expected value
         self.assertEqual(result["decomp_rssd"], 0.01)
 
-    def test_mape_calculation() -> None:
+    def test_mape_calculation(self) -> None:
         # Mock the necessary methods
         with mock.patch.object(
             RidgeModelBuilder,
@@ -4356,7 +4354,7 @@ class RidgeModelBuilder:
                 )
                 assert result["mape"] == 0.0
 
-    def test_lift_calibration_value() -> None:
+    def test_lift_calibration_value(self) -> None:
         # Mock the necessary methods and data
         mock_ridge_model_builder = RidgeModelBuilder(
             mmm_data=MockMMMData(),
@@ -4400,7 +4398,7 @@ class RidgeModelBuilder:
         # Assert the lift_calibration value is None
         assert result["lift_calibration"] is None
 
-    def test_rsq_val_value() -> None:
+    def test_rsq_val_value(self) -> None:
         # Arrange
         mock_model = MagicMock()
         mock_model.predict.return_value = np.array([1.0, 2.0, 3.0])
@@ -4479,7 +4477,7 @@ class RidgeModelBuilder:
         # Assert that 'rsq_test' in the result is a float
         self.assertIsInstance(result["rsq_test"], float)
 
-    def test_pos_value() -> None:
+    def test_pos_value(self) -> None:
         # Mock the necessary components and methods
         mock_model = Ridge()
         mock_coef = np.array([0.5, -0.5, 1.0])  # Mock coefficients for the Ridge model
@@ -4508,7 +4506,7 @@ class RidgeModelBuilder:
             result["pos"], int
         ), f"Expected 'pos' to be an integer, got {type(result['pos'])}"
 
-    def test_elapsed_time_value() -> None:
+    def test_elapsed_time_value(self) -> None:
         # Arrange: Set up the necessary mocks and inputs
         mock_params = {"lambda": 0.5}
         mock_ts_validation = False
@@ -4817,7 +4815,7 @@ class RidgeModelBuilder:
                 result["all_fixed"] == False
             ), "The 'all_fixed' flag should be False as per the test case."
 
-    def test_hyper_list_all() -> None:
+    def test_hyper_list_all(self) -> None:
         # Initialize input dictionary with prepared hyperparameters and hyperparameters to optimize
         hyperparameters_dict = {
             "prepared_hyperparameters": {
@@ -4853,7 +4851,7 @@ class RidgeModelBuilder:
         ]
         assert result["hyper_list_all"] == expected_hyper_list_all
 
-    def test_hyper_bound_list_updated() -> None:
+    def test_hyper_bound_list_updated(self) -> None:
         # Initialize input data
         hyperparameters_dict = {
             "prepared_hyperparameters": {
@@ -4898,7 +4896,7 @@ class RidgeModelBuilder:
         }
         assert result["hyper_bound_list_updated"] == expected_hyper_bound_list_updated
 
-    def test_hyper_bound_list_fixed() -> None:
+    def test_hyper_bound_list_fixed(self) -> None:
         # Mock input data
         hyperparameters_dict = {
             "prepared_hyperparameters": {
@@ -4942,7 +4940,7 @@ class RidgeModelBuilder:
         # Assert that the returned fixed hyperparameters match the expected values
         assert result["hyper_bound_list_fixed"] == expected_fixed_hyperparams
 
-    def test_dt_hyper_fixed_mod() -> None:
+    def test_dt_hyper_fixed_mod(self) -> None:
         hyperparameters_dict = {
             "prepared_hyperparameters": {
                 "hyperparameters": {},
@@ -4968,7 +4966,7 @@ class RidgeModelBuilder:
             "dt_hyper_fixed_mod"
         ].empty, "Expected dt_hyper_fixed_mod to be an empty DataFrame"
 
-    def test_all_fixed() -> None:
+    def test_all_fixed(self) -> None:
         # Initialize the input dictionary with `hyperparameters_dict` containing `prepared_hyperparameters` and `hyper_to_optimize`.
         hyperparameters_dict = {
             "prepared_hyperparameters": {
@@ -5154,7 +5152,7 @@ class RidgeModelBuilder:
         assert isinstance(rsq_train, float), "rsq_train is not a float"
         assert 0 <= rsq_train <= 1, "rsq_train is not between 0 and 1"
 
-    def test_rsq_val_is_float_between_0_and_1() -> None:
+    def test_rsq_val_is_float_between_0_and_1(self) -> None:
         # Arrange mock data
         x_train = np.random.rand(100, 5)
         y_train = np.random.rand(100)
@@ -5181,7 +5179,7 @@ class RidgeModelBuilder:
         if rsq_val is not None:
             assert 0 <= rsq_val <= 1
 
-    def test_rsq_test_is_float_between_0_and_1() -> None:
+    def test_rsq_test_is_float_between_0_and_1(self) -> None:
         # Create mock input data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5210,7 +5208,7 @@ class RidgeModelBuilder:
         # Assert that 0 <= rsq_test <= 1
         assert 0 <= rsq_test <= 1
 
-    def test_nrmse_train_is_positive() -> None:
+    def test_nrmse_train_is_positive(self) -> None:
         # Create mock data arrays
         x_train = np.random.rand(100, 5)  # 100 samples, 5 features
         y_train = np.random.rand(100)  # 100 target values
@@ -5239,7 +5237,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_train is positive
         assert nrmse_train > 0, "nrmse_train should be positive"
 
-    def test_nrmse_val_is_positive() -> None:
+    def test_nrmse_val_is_positive(self) -> None:
         # Prepare mock data for x_train, y_train, x_val, y_val, x_test, and y_test
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5268,7 +5266,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_val > 0 to confirm it is a positive value
         assert nrmse_val > 0, "nrmse_val should be positive"
 
-    def test_nrmse_test_is_positive() -> None:
+    def test_nrmse_test_is_positive(self) -> None:
         # Mock input data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5295,7 +5293,7 @@ class RidgeModelBuilder:
         assert isinstance(nrmse_test, float), "nrmse_test should be a float"
         assert nrmse_test > 0, "nrmse_test should be positive"
 
-    def test_coefs_is_array_of_length_5() -> None:
+    def test_coefs_is_array_of_length_5(self) -> None:
         # Mock data for x_train with 5 features and y_train
         x_train = np.random.rand(100, 5)
         y_train = np.random.rand(100)
@@ -5314,7 +5312,7 @@ class RidgeModelBuilder:
         # Assert that the length of coefs is 5
         assert len(coefs) == 5, f"Expected 5 coefficients, got {len(coefs)}"
 
-    def test_y_train_pred_is_array_of_length_50() -> None:
+    def test_y_train_pred_is_array_of_length_50(self) -> None:
         # Mock data for x_train and y_train with length 50
         x_train = np.random.rand(50, 5)  # 50 samples, 5 features
         y_train = np.random.rand(50)  # 50 samples
@@ -5331,7 +5329,7 @@ class RidgeModelBuilder:
         # Assert that its length is 50
         assert len(y_train_pred) == 50
 
-    def test_y_val_pred_is_array_of_length_20() -> None:
+    def test_y_val_pred_is_array_of_length_20(self) -> None:
         # Arrange: Prepare x_val and y_val with 20 samples
         x_val = np.random.rand(20, 5)  # 20 samples, 5 features
         y_val = np.random.rand(20)  # 20 target values
@@ -5357,7 +5355,7 @@ class RidgeModelBuilder:
         if isinstance(y_val_pred, np.ndarray):
             assert len(y_val_pred) == 20, "y_val_pred should have a length of 20"
 
-    def test_y_test_pred_is_array_of_length_10() -> None:
+    def test_y_test_pred_is_array_of_length_10(self) -> None:
         # Mock data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5385,7 +5383,7 @@ class RidgeModelBuilder:
         ), "y_test_pred should be an np.ndarray"
         assert len(y_test_pred) == 10, "y_test_pred should have a length of 10"
 
-    def test_y_pred_is_array_of_length_80() -> None:
+    def test_y_pred_is_array_of_length_80(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(40, 5)  # 40 samples, 5 features for training
         y_train = np.random.rand(40)  # 40 target values for training
@@ -5414,7 +5412,7 @@ class RidgeModelBuilder:
         # Assert that the length of y_pred is 80
         assert len(y_pred) == 80, "y_pred should have a length of 80."
 
-    def test_mod_is_ridge_instance() -> None:
+    def test_mod_is_ridge_instance(self) -> None:
         # Prepare input data for _model_refit
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5428,7 +5426,7 @@ class RidgeModelBuilder:
         # Assert that mod is an instance of Ridge
         assert isinstance(mod, Ridge)
 
-    def test_df_int_is_1() -> None:
+    def test_df_int_is_1(self) -> None:
         # Create mock data for testing
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5444,7 +5442,7 @@ class RidgeModelBuilder:
         # Assert that df_int equals 1
         assert df_int == 1, f"Expected df_int to be 1, but got {df_int}"
 
-    def test_rsq_train() -> None:
+    def test_rsq_train(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)  # Create a 2D numpy array with random floats
         y_train = np.random.rand(50)  # Create a 1D numpy array with random floats
@@ -5461,7 +5459,7 @@ class RidgeModelBuilder:
         # Assert that rsq_train is between 0 and 1
         assert 0 <= rsq_train <= 1, "rsq_train should be between 0 and 1"
 
-    def test_rsq_val() -> None:
+    def test_rsq_val(self) -> None:
         # Prepare mock input data without validation sets
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5480,7 +5478,7 @@ class RidgeModelBuilder:
         # Assert that rsq_val is None
         assert rsq_val is None
 
-    def test_rsq_test() -> None:
+    def test_rsq_test(self) -> None:
         # Prepare mock input data without test sets
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5494,7 +5492,7 @@ class RidgeModelBuilder:
         # Assert that rsq_test is None
         assert rsq_test is None
 
-    def test_nrmse_train() -> None:
+    def test_nrmse_train(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5511,7 +5509,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_train is greater than 0
         assert nrmse_train > 0
 
-    def test_nrmse_val() -> None:
+    def test_nrmse_val(self) -> None:
         # Prepare mock input data without validation sets
         x_train = np.random.rand(50, 5)  # 2D array with random floats
         y_train = np.random.rand(50)  # 1D array with random floats
@@ -5527,7 +5525,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_val is None
         assert nrmse_val is None
 
-    def test_nrmse_test() -> None:
+    def test_nrmse_test(self) -> None:
         # Prepare mock input data without test sets
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5541,7 +5539,7 @@ class RidgeModelBuilder:
         # Assert that `nrmse_test` is `None`
         assert nrmse_test is None
 
-    def test_coefs() -> None:
+    def test_coefs(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)  # 2D numpy array of shape (50, 5)
         y_train = np.random.rand(50)  # 1D numpy array of length 50
@@ -5558,7 +5556,7 @@ class RidgeModelBuilder:
         # Assert that the length of coefs is 5
         assert len(coefs) == 5
 
-    def test_y_train_pred() -> None:
+    def test_y_train_pred(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)  # 2D numpy array with shape (50, 5)
         y_train = np.random.rand(50)  # 1D numpy array of length 50
@@ -5575,7 +5573,7 @@ class RidgeModelBuilder:
         # Assert that the length of y_train_pred is 50
         assert len(y_train_pred) == 50
 
-    def test_y_val_pred() -> None:
+    def test_y_val_pred(self) -> None:
         # Prepare mock input data without validation sets
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5591,7 +5589,7 @@ class RidgeModelBuilder:
         # Assert that y_val_pred is None
         assert y_val_pred is None
 
-    def test_y_test_pred() -> None:
+    def test_y_test_pred(self) -> None:
         # Prepare mock input data without test sets
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5602,7 +5600,7 @@ class RidgeModelBuilder:
         # Assert that y_test_pred is None
         assert output.y_test_pred is None
 
-    def test_y_pred() -> None:
+    def test_y_pred(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5619,7 +5617,7 @@ class RidgeModelBuilder:
         # Assert that the length of y_pred is 50
         assert len(y_pred) == 50
 
-    def test_mod() -> None:
+    def test_mod(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)  # 2D numpy array with random floats
         y_train = np.random.rand(50)  # 1D numpy array with random floats
@@ -5633,7 +5631,7 @@ class RidgeModelBuilder:
         # Assert that mod is an instance of Ridge
         assert isinstance(mod, Ridge)
 
-    def test_df_int() -> None:
+    def test_df_int(self) -> None:
         # Prepare mock input data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5644,7 +5642,7 @@ class RidgeModelBuilder:
         # Capture the df_int output and assert
         assert refit_output.df_int == 1
 
-    def test_rsq_test_is_none() -> None:
+    def test_rsq_test_is_none(self) -> None:
         # Prepare training and validation data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5662,7 +5660,7 @@ class RidgeModelBuilder:
         # Assert that rsq_test is None
         assert rsq_test is None
 
-    def test_nrmse_train_is_positive_float() -> None:
+    def test_nrmse_train_is_positive_float(self) -> None:
         # Mock data for x_train and y_train
         x_train = np.random.rand(50, 5)  # 50 samples, 5 features
         y_train = np.random.rand(50)  # 50 target values
@@ -5679,7 +5677,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_train is greater than 0
         assert nrmse_train > 0, "nrmse_train should be greater than 0"
 
-    def test_nrmse_val_is_positive_float() -> None:
+    def test_nrmse_val_is_positive_float(self) -> None:
         # Mock inputs
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5725,7 +5723,7 @@ class RidgeModelBuilder:
 
         assert model_output.nrmse_test is None
 
-    def test_y_test_pred_is_none() -> None:
+    def test_y_test_pred_is_none(self) -> None:
         # Prepare mock data for x_train, y_train, x_val, y_val
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5773,7 +5771,7 @@ class RidgeModelBuilder:
         # Assert its length is 70
         self.assertEqual(len(y_pred), 70)
 
-    def test_rsq_train_is_between_0_and_1() -> None:
+    def test_rsq_train_is_between_0_and_1(self) -> None:
         # Prepare test data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5799,7 +5797,7 @@ class RidgeModelBuilder:
         # Assert rsq_train is between 0 and 1
         assert 0 <= rsq_train <= 1
 
-    def test_rsq_val_is_between_0_and_1() -> None:
+    def test_rsq_val_is_between_0_and_1(self) -> None:
         # Prepare the test data
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5823,7 +5821,7 @@ class RidgeModelBuilder:
         rsq_val = refit_output.rsq_val
         assert 0 <= rsq_val <= 1, "rsq_val is not within the valid range [0, 1]"
 
-    def test_nrmse_train_is_greater_than_0() -> None:
+    def test_nrmse_train_is_greater_than_0(self) -> None:
         # Create synthetic training data
         x_train = np.random.rand(50, 5)  # 50 samples, 5 features
         y_train = np.random.rand(50)  # 50 target values
@@ -5842,7 +5840,7 @@ class RidgeModelBuilder:
         # Assert that nrmse_train is greater than 0
         assert nrmse_train > 0, "NRMSE for training data should be greater than 0"
 
-    def test_nrmse_val_is_greater_than_0() -> None:
+    def test_nrmse_val_is_greater_than_0(self) -> None:
         # Define the training and validation data
         x_train = np.random.rand(50, 5)  # 50 samples, 5 features
         y_train = np.random.rand(50)  # 50 target values
@@ -5865,7 +5863,7 @@ class RidgeModelBuilder:
             nrmse_val is not None and nrmse_val > 0
         ), "NRMSE for validation data should be a positive float"
 
-    def test_coefs_length_is_5() -> None:
+    def test_coefs_length_is_5(self) -> None:
         # Prepare dummy input data
         x_train = np.random.rand(50, 5)  # 50 samples, 5 features
         y_train = np.random.rand(50)  # 50 target values
@@ -5905,7 +5903,7 @@ class RidgeModelBuilder:
         # Assert that y_train_pred has a length of 50
         self.assertEqual(len(y_train_pred), 50)
 
-    def test_y_val_pred_length_is_20() -> None:
+    def test_y_val_pred_length_is_20(self) -> None:
         x_train = np.random.rand(100, 5)  # Randomly generated training data
         y_train = np.random.rand(100)  # Randomly generated training target
         x_val = np.random.rand(20, 5)  # Randomly generated validation data
@@ -5924,7 +5922,7 @@ class RidgeModelBuilder:
         # Assert that y_val_pred has a length of 20
         assert len(y_val_pred) == 20
 
-    def test_y_pred_length_is_70() -> None:
+    def test_y_pred_length_is_70(self) -> None:
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
         x_val = np.random.rand(20, 5)
@@ -5946,7 +5944,7 @@ class RidgeModelBuilder:
 
         assert len(y_pred) == 70
 
-    def test_model_instance_is_ridge() -> None:
+    def test_model_instance_is_ridge(self) -> None:
         # Define x_train, y_train, x_val, y_val
         x_train = np.random.rand(50, 5)
         y_train = np.random.rand(50)
@@ -5967,7 +5965,7 @@ class RidgeModelBuilder:
         # Assert mod is an instance of Ridge
         assert isinstance(mod, Ridge)
 
-    def test_df_int_is_0_when_no_intercept() -> None:
+    def test_df_int_is_0_when_no_intercept(self) -> None:
         # Prepare test data
         x_train = np.random.rand(10, 5)
         y_train = np.random.rand(10)
@@ -5994,7 +5992,7 @@ class RidgeModelBuilder:
         # Assert df_int is 0
         assert df_int == 0
 
-    def test_lambda_seq_length() -> None:
+    def test_lambda_seq_length(self) -> None:
         # Generate test data
         x = np.random.rand(10, 5)
         y = np.random.rand(10)
@@ -6009,7 +6007,7 @@ class RidgeModelBuilder:
         # Assert the length of the result
         assert len(result) == seq_len
 
-    def test_lambda_seq_min_value() -> None:
+    def test_lambda_seq_min_value(self) -> None:
         x = np.random.rand(10, 5)  # Generate random feature data
         y = np.random.rand(10)  # Generate random target data
         seq_len = 100  # Set the sequence length
@@ -6024,7 +6022,7 @@ class RidgeModelBuilder:
             np.min(result) > 0
         ), "Minimum value of lambda sequence should be greater than 0"
 
-    def test_lambda_seq_output_type() -> None:
+    def test_lambda_seq_output_type(self) -> None:
         # Prepare mock input data
         x = np.random.rand(10, 5)
         y = np.random.rand(10)
@@ -6094,7 +6092,7 @@ class RidgeModelBuilder:
             len(result) == seq_len
         ), f"Expected length {seq_len}, but got {len(result)}"
 
-    def test_lambda_seq_max_value() -> None:
+    def test_lambda_seq_max_value(self) -> None:
         # Setup Input Data
         x = np.random.rand(10, 5)
         y = np.random.rand(10)
@@ -6122,7 +6120,7 @@ class RidgeModelBuilder:
         # Assert Result Type
         assert isinstance(lambda_sequence, np.ndarray)
 
-    def test_lambda_seq_max_equals_min() -> None:
+    def test_lambda_seq_max_equals_min(self) -> None:
         x = np.random.rand(10, 5)  # Random 10x5 numpy array for features
         y = np.random.rand(10)  # Random 10-element numpy array for target
         seq_len = 100  # Length of the lambda sequence
@@ -6135,7 +6133,7 @@ class RidgeModelBuilder:
             result
         ), "Maximum and minimum values in lambda sequence are not equal"
 
-    def test_lambda_seq_type() -> None:
+    def test_lambda_seq_type(self) -> None:
         # Generate random test data
         x = np.random.rand(10, 5)
         y = np.random.rand(10)
