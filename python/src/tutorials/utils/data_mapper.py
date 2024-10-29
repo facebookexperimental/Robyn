@@ -21,6 +21,7 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.convergence import Convergence
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.feature_engineering import FeaturizedMMMData
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult, ParetoData
 
 
 def export_data(
@@ -171,9 +172,41 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         ts_validation_plot=data["OutputModels"].get("ts_validation_plot"),  # Add this line
     )
 
-    # Extract and process pareto optimization results
-    output_collect = data.get("OutputCollect", {})
+    return {
+        "mmm_data": mmm_data,
+        "holidays_data": holidays_data,
+        "hyperparameters": hyperparameters,
+        "featurized_mmm_data": featurized_mmm_data,
+        "model_outputs": model_outputs,
+    }
 
+
+def save_data_to_json(data: Dict[str, Any], filename: str) -> None:
+    """
+    Save the exported data to a JSON file.
+    """
+    with open(filename, "w") as f:
+        json.dump(data, f)
+
+
+def load_data_from_json(filename: str) -> Dict[str, Any]:
+    """
+    Load the exported data from a JSON file.
+    """
+    with open(filename, "r") as f:
+        return json.load(f)
+
+
+def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Import and process OutputCollect data separately.
+
+    Args:
+        output_collect (Dict[str, Any]): The OutputCollect data dictionary
+
+    Returns:
+        Dict[str, Any]: Dictionary containing processed pareto and cluster data
+    """
     # Create ParetoResult
     try:
         pareto_result = ParetoResult(
@@ -201,7 +234,7 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
             decomp_spend_dist=pd.DataFrame(output_collect.get("decomp_spend_dist", {})),
             result_hyp_param=pd.DataFrame(output_collect.get("resultHypParam", {})),
             x_decomp_agg=pd.DataFrame(output_collect.get("xDecompAgg", {})),
-            pareto_fronts=[output_collect.get("pareto_fronts", 0)],  # Convert to list as per class definition
+            pareto_fronts=[output_collect.get("pareto_fronts", 0)],
         )
     except Exception as e:
         print(f"Warning: Error creating ParetoData: {str(e)}")
@@ -217,12 +250,7 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
                 "data": pd.DataFrame(output_collect["clusters"].get("data", {})),
                 "df_cluster_ci": pd.DataFrame(output_collect["clusters"].get("df_cluster_ci", {})),
             }
-        except Exception as e:
-            print(f"Warning: Error processing cluster data: {str(e)}")
 
-    # Update model_outputs with any cluster information
-    if cluster_data:
-        try:
             # Add cluster information to relevant DataFrames
             for df_name in ["result_hyp_param", "x_decomp_agg", "media_vec_collect", "x_decomp_vec_collect"]:
                 if df_name in output_collect and "data" in cluster_data:
@@ -231,34 +259,27 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
                     df = pd.merge(df, cluster_info, on="solID", how="left")
                     output_collect[df_name] = df.to_dict()
         except Exception as e:
-            print(f"Warning: Error adding cluster information to DataFrames: {str(e)}")
+            print(f"Warning: Error processing cluster data: {str(e)}")
 
     return {
-        "mmm_data": mmm_data,
-        "holidays_data": holidays_data,
-        "hyperparameters": hyperparameters,
-        "featurized_mmm_data": featurized_mmm_data,
-        "model_outputs": model_outputs,
         "pareto_result": pareto_result,
         "pareto_data": pareto_data,
         "cluster_data": cluster_data,
     }
 
 
-def save_data_to_json(data: Dict[str, Any], filename: str) -> None:
+def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFrame]:
     """
-    Save the exported data to a JSON file.
+    Convert plot data collections to DataFrames.
     """
-    with open(filename, "w") as f:
-        json.dump(data, f)
-
-
-def load_data_from_json(filename: str) -> Dict[str, Any]:
-    """
-    Load the exported data from a JSON file.
-    """
-    with open(filename, "r") as f:
-        return json.load(f)
+    converted_data = {}
+    for plot_type, data in plot_data_collect.items():
+        try:
+            converted_data[plot_type] = pd.DataFrame(data)
+        except Exception as e:
+            print(f"Warning: Error converting plot data for {plot_type}: {str(e)}")
+            converted_data[plot_type] = pd.DataFrame()
+    return converted_data
 
 
 # Example usage
