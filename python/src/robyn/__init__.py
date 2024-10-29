@@ -6,7 +6,7 @@ from datetime import datetime
 current_datetime = datetime.now()
 
 # Get the directory of the current module
-module_dir = os.path.dirname(robyn.__file__)
+module_dir = os.path.dirname(__file__)
 
 # Define the path to the logging configuration file
 logging_conf_path = os.path.join(module_dir, "common/config/logging.conf")
