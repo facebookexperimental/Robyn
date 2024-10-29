@@ -26,7 +26,29 @@ class BudgetAllocator:
         self.model_outputs = model_outputs
         self.hyperparameter = hyperparameter
         self.select_model = select_model
-        self.hill_calculator = HillCalculator(mmm_data, model_outputs, hyperparameter)
+
+        # Aggregate trial data if not already aggregated
+        if getattr(self.model_outputs, "all_x_decomp_agg", None) is None:
+            all_decomp_list = []
+            for trial in self.model_outputs.trials:
+                all_decomp_list.append(trial.x_decomp_agg)
+            self.model_outputs.all_x_decomp_agg = pd.concat(all_decomp_list, axis=0)
+
+        # Get coefficients for selected model using all_x_decomp_agg
+        dt_coef = self.model_outputs.all_x_decomp_agg[self.model_outputs.all_x_decomp_agg["solID"] == select_model]
+
+        # Get sorted media spends
+        media_spend_sorted = np.array(self.mmm_data.mmmdata_spec.paid_media_spends)
+
+        # Initialize calculators with correct parameters
+        self.hill_calculator = HillCalculator(
+            mmm_data=mmm_data,
+            model_outputs=model_outputs,
+            hyperparameter=hyperparameter,
+            dt_coef=dt_coef,
+            media_spend_sorted=media_spend_sorted,
+            select_model=select_model,
+        )
         self.response_calculator = ResponseCurveCalculator()
         self.optimizer = AllocationOptimizer()
 

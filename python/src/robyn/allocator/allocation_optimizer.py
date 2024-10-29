@@ -1,7 +1,7 @@
 from typing import Callable, List, Tuple, Dict
 import numpy as np
 from scipy.optimize import minimize
-from ..entities.enums import ConstrMode
+from robyn.allocator.entities.enums import ConstrMode
 
 
 class AllocationOptimizer:

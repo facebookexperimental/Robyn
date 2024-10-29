@@ -33,28 +33,28 @@ def import_input_collect(data: Dict[str, Any]) -> Dict[str, Any]:
     mmm_data_spec_args = {
         "dep_var": data.get("dep_var"),
         "dep_var_type": DependentVarType(dep_var_type),
-        "date_var": data.get("date_var"),
-        "paid_media_spends": data.get("paid_media_spends", []),
-        "paid_media_vars": data.get("paid_media_vars", []),
-        "organic_vars": data.get("organic_vars", []),
-        "context_vars": data.get("context_vars", []),
-        "factor_vars": data.get("factor_vars", []),
-        "window_start": data.get("window_start")[0],
-        "window_end": data.get("window_end")[0],
-        "rolling_window_length": data.get("rollingWindowLength")[0],
-        "rolling_window_start_which": data.get("rollingWindowStartWhich")[0],
-        "all_media": data.get("all_media", []),
-        "rolling_window_end_which": data.get("rollingWindowEndWhich", 0)[0],
+        "date_var": data["InputCollect"].get("date_var"),
+        "paid_media_spends": data["InputCollect"].get("paid_media_spends", []),
+        "paid_media_vars": data["InputCollect"].get("paid_media_vars", []),
+        "organic_vars": data["InputCollect"].get("organic_vars", []),
+        "context_vars": data["InputCollect"].get("context_vars", []),
+        "factor_vars": data["InputCollect"].get("factor_vars", []),
+        "window_start": data["InputCollect"].get("window_start")[0],
+        "window_end": data["InputCollect"].get("window_end")[0],
+        "rolling_window_length": data["InputCollect"].get("rollingWindowLength")[0],
+        "rolling_window_start_which": data["InputCollect"].get("rollingWindowStartWhich")[0],
+        "all_media": data["InputCollect"].get("all_media", []),
+        "rolling_window_end_which": data["InputCollect"].get("rollingWindowEndWhich", 0)[0],
     }
     mmm_data = MMMData(
         data=pd.DataFrame(data["dt_input"]),
         mmmdata_spec=MMMData.MMMDataSpec(**mmm_data_spec_args),
     )
     holidays_data = HolidaysData(
-        dt_holidays=pd.DataFrame(data.get("dt_holidays", {})),
-        prophet_vars=[ProphetVariableType(v) for v in data.get("prophet_vars", [])],
-        prophet_country=data.get("prophet_country"),
-        prophet_signs=[ProphetSigns(s) for s in data.get("prophet_signs", [])],
+        dt_holidays=pd.DataFrame(data["InputCollect"].get("dt_holidays", {})),
+        prophet_vars=[ProphetVariableType(v) for v in data["InputCollect"].get("prophet_vars", [])],
+        prophet_country=data["InputCollect"].get("prophet_country"),
+        prophet_signs=[ProphetSigns(s) for s in data["InputCollect"].get("prophet_signs", [])],
     )
     hyperparameters = Hyperparameters(
         hyperparameters=data.get("hyperparameters", {}),
@@ -272,12 +272,24 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
         seed=data.get("seed", 0),
         hyper_bound_ng=hyper_bound_ng,
         hyper_bound_fixed=hyper_bound_fixed,
-        ts_validation_plot=data.get("ts_validation_plot"),
-        all_result_hyp_param=pd.concat([trial.result_hyp_param for trial in trials]),
-        all_x_decomp_agg=pd.concat([trial.x_decomp_agg for trial in trials]),
-        all_decomp_spend_dist=pd.concat([trial.decomp_spend_dist for trial in trials]),
+        ts_validation_plot=data["OutputModels"].get("ts_validation_plot"),  # Add this line
     )
-    return model_outputs
+
+    return {
+        "mmm_data": mmm_data,
+        "holidays_data": holidays_data,
+        "hyperparameters": hyperparameters,
+        "featurized_mmm_data": featurized_mmm_data,
+        "model_outputs": model_outputs,
+    }
+
+
+def save_data_to_json(data: Dict[str, Any], filename: str) -> None:
+    """
+    Save the exported data to a JSON file.
+    """
+    with open(filename, "w") as f:
+        json.dump(data, f)
 
 
 def load_data_from_json(filename: str) -> Dict[str, Any]:
