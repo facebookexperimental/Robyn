@@ -63,13 +63,9 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         "window_start": data["InputCollect"].get("window_start")[0],
         "window_end": data["InputCollect"].get("window_end")[0],
         "rolling_window_length": data["InputCollect"].get("rollingWindowLength")[0],
-        "rolling_window_start_which": data["InputCollect"].get(
-            "rollingWindowStartWhich"
-        )[0],
+        "rolling_window_start_which": data["InputCollect"].get("rollingWindowStartWhich")[0],
         "all_media": data["InputCollect"].get("all_media", []),
-        "rolling_window_end_which": data["InputCollect"].get(
-            "rollingWindowEndWhich", 0
-        )[0],
+        "rolling_window_end_which": data["InputCollect"].get("rollingWindowEndWhich", 0)[0],
     }
     mmm_data = MMMData(
         data=pd.DataFrame(data["InputCollect"]["dt_input"]),
@@ -77,13 +73,9 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
     )
     holidays_data = HolidaysData(
         dt_holidays=pd.DataFrame(data["InputCollect"].get("dt_holidays", {})),
-        prophet_vars=[
-            ProphetVariableType(v) for v in data["InputCollect"].get("prophet_vars", [])
-        ],
+        prophet_vars=[ProphetVariableType(v) for v in data["InputCollect"].get("prophet_vars", [])],
         prophet_country=data["InputCollect"].get("prophet_country"),
-        prophet_signs=[
-            ProphetSigns(s) for s in data["InputCollect"].get("prophet_signs", [])
-        ],
+        prophet_signs=[ProphetSigns(s) for s in data["InputCollect"].get("prophet_signs", [])],
     )
     hyperparameters = Hyperparameters(
         hyperparameters=data["InputCollect"].get("hyperparameters", {}),
@@ -176,10 +168,70 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         seed=data["OutputModels"].get("seed", 0),
         hyper_bound_ng=hyper_bound_ng,
         hyper_bound_fixed=hyper_bound_fixed,
-        ts_validation_plot=data["OutputModels"].get(
-            "ts_validation_plot"
-        ),  # Add this line
+        ts_validation_plot=data["OutputModels"].get("ts_validation_plot"),  # Add this line
     )
+
+    # Extract and process pareto optimization results
+    output_collect = data.get("OutputCollect", {})
+
+    # Create ParetoResult
+    try:
+        pareto_result = ParetoResult(
+            pareto_solutions=output_collect.get("allSolutions", []),
+            pareto_fronts=output_collect.get("pareto_fronts", 0),
+            result_hyp_param=pd.DataFrame(output_collect.get("resultHypParam", {})),
+            x_decomp_agg=pd.DataFrame(output_collect.get("xDecompAgg", {})),
+            result_calibration=(
+                pd.DataFrame(output_collect.get("resultCalibration", {}))
+                if output_collect.get("resultCalibration")
+                else None
+            ),
+            media_vec_collect=pd.DataFrame(output_collect.get("mediaVecCollect", {})),
+            x_decomp_vec_collect=pd.DataFrame(output_collect.get("xDecompVecCollect", {})),
+            plot_data_collect=_convert_plot_data(output_collect.get("allPareto", {}).get("plotDataCollect", {})),
+            df_caov_pct_all=pd.DataFrame(output_collect.get("allPareto", {}).get("df_caov_pct", {})),
+        )
+    except Exception as e:
+        print(f"Warning: Error creating ParetoResult: {str(e)}")
+        pareto_result = None
+
+    # Create ParetoData
+    try:
+        pareto_data = ParetoData(
+            decomp_spend_dist=pd.DataFrame(output_collect.get("decomp_spend_dist", {})),
+            result_hyp_param=pd.DataFrame(output_collect.get("resultHypParam", {})),
+            x_decomp_agg=pd.DataFrame(output_collect.get("xDecompAgg", {})),
+            pareto_fronts=[output_collect.get("pareto_fronts", 0)],  # Convert to list as per class definition
+        )
+    except Exception as e:
+        print(f"Warning: Error creating ParetoData: {str(e)}")
+        pareto_data = None
+
+    # Process cluster data if available
+    cluster_data = None
+    if output_collect.get("clusters"):
+        try:
+            cluster_data = {
+                "n_clusters": output_collect["clusters"].get("n_clusters"),
+                "models": output_collect["clusters"].get("models", {}),
+                "data": pd.DataFrame(output_collect["clusters"].get("data", {})),
+                "df_cluster_ci": pd.DataFrame(output_collect["clusters"].get("df_cluster_ci", {})),
+            }
+        except Exception as e:
+            print(f"Warning: Error processing cluster data: {str(e)}")
+
+    # Update model_outputs with any cluster information
+    if cluster_data:
+        try:
+            # Add cluster information to relevant DataFrames
+            for df_name in ["result_hyp_param", "x_decomp_agg", "media_vec_collect", "x_decomp_vec_collect"]:
+                if df_name in output_collect and "data" in cluster_data:
+                    df = pd.DataFrame(output_collect[df_name])
+                    cluster_info = cluster_data["data"][["solID", "cluster", "top_sol"]]
+                    df = pd.merge(df, cluster_info, on="solID", how="left")
+                    output_collect[df_name] = df.to_dict()
+        except Exception as e:
+            print(f"Warning: Error adding cluster information to DataFrames: {str(e)}")
 
     return {
         "mmm_data": mmm_data,
@@ -187,6 +239,9 @@ def import_data(data: Dict[str, Any]) -> Dict[str, Any]:
         "hyperparameters": hyperparameters,
         "featurized_mmm_data": featurized_mmm_data,
         "model_outputs": model_outputs,
+        "pareto_result": pareto_result,
+        "pareto_data": pareto_data,
+        "cluster_data": cluster_data,
     }
 
 
