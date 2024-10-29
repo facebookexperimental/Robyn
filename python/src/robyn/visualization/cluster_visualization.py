@@ -1,8 +1,9 @@
 # pyre-strict
-from typing import Dict
 from robyn.modeling.entities.clustering_results import ClusteredResult
 from robyn.modeling.clustering.clustering_config import ClusteringConfig
-
+from typing import Tuple
+import plotly.graph_objects as go
+from plot_data import PlotData
 
 class ClusterVisualizer:
     """
@@ -68,3 +69,14 @@ class ClusterVisualizer:
             None
         """
         pass
+
+    def generate_bootstrap_confidence(data: PlotData) -> go.Figure:
+        """Generate error bar plot showing bootstrapped ROI/CPA confidence intervals.
+        
+        Args:
+            data: PlotData instance containing required data
+            
+        Returns:
+            go.Figure: Error bar plot of performance metrics
+        """
+        pass    

@@ -5,6 +5,9 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from typing import List, Tuple, Optional
+from typing import Tuple
+import plotly.graph_objects as go
+from plot_data import PlotData
 
 
 class TransformationVisualizer:
@@ -70,4 +73,17 @@ class TransformationVisualizer:
         Args:
             filenames (List[str]): List of filenames to save the plots
         """
+        pass
+
+
+    def generate_spend_effect_comparison(data: PlotData) -> go.Figure:
+        """Generate bar and line plot comparing spend share vs effect share.
+        
+        Args:
+            data: PlotData instance containing required data
+            
+        Returns:
+            go.Figure: Plot comparing media spend shares and their effects
+        """
+        # Implementation would go here
         pass
