@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 
-class ResponseCurveCalculator:
+class ResponseCalculator:
     """Calculates response curves and related metrics."""
 
     def calculate_response(
@@ -18,30 +18,40 @@ class ResponseCurveCalculator:
         """
         Calculate response for given spend level and parameters.
 
-        Implementation follows fx_objective from allocator.R
+        Args:
+            spend: Spend value
+            coef: Response coefficient
+            alpha: Alpha parameter for hill function
+            inflexion: Inflexion point parameter
+            x_hist_carryover: Historical carryover value
+            get_sum: Whether to sum the response values
+
+        Returns:
+            float: Calculated response value
         """
-        # Adstock scales
-        x_adstocked = spend + np.mean(x_hist_carryover)
+        eps = 1e-10  # Small epsilon to prevent division by zero
+
+        # Add epsilon to prevent zero division
+        x_adstocked = spend + np.mean(x_hist_carryover) + eps
 
         # Hill transformation
         if get_sum:
-            x_out = coef * np.sum((1 + inflexion**alpha / x_adstocked**alpha) ** -1)
+            x_out = coef * np.sum((1 + (inflexion + eps) ** alpha / (x_adstocked) ** alpha) ** -1)
         else:
-            x_out = coef * ((1 + inflexion**alpha / x_adstocked**alpha) ** -1)
+            x_out = coef * ((1 + (inflexion + eps) ** alpha / (x_adstocked) ** alpha) ** -1)
 
         return x_out
 
     def calculate_gradient(
         self, spend: float, coef: float, alpha: float, inflexion: float, x_hist_carryover: float = 0
     ) -> float:
-        """
-        Calculate gradient for optimization.
+        """Calculate gradient for optimization."""
+        eps = 1e-10
+        x_adstocked = spend + np.mean(x_hist_carryover) + eps
 
-        Implementation follows fx_gradient from allocator.R
-        """
-        x_adstocked = spend + np.mean(x_hist_carryover)
         x_out = -coef * np.sum(
-            (alpha * (inflexion**alpha) * (x_adstocked ** (alpha - 1))) / (x_adstocked**alpha + inflexion**alpha) ** 2
+            (alpha * ((inflexion + eps) ** alpha) * (x_adstocked ** (alpha - 1)))
+            / ((x_adstocked**alpha + (inflexion + eps) ** alpha) ** 2)
         )
         return x_out
 

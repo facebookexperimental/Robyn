@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any, Union
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -12,7 +12,7 @@ from robyn.allocator.entities.allocation_config import AllocationConfig, DateRan
 from robyn.allocator.entities.allocation_results import AllocationResult
 from robyn.allocator.entities.enums import OptimizationScenario
 from robyn.allocator.allocation_optimizer import AllocationOptimizer
-from robyn.allocator.response_calculator import ResponseCurveCalculator
+from robyn.allocator.response_calculator import ResponseCalculator
 
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 from typing import List, Dict, Optional, Union, Tuple, Any
@@ -55,7 +55,7 @@ class BudgetAllocator:
         self.media_params_calculator = MediaResponseParamsCalculator(
             mmm_data=mmm_data, pareto_result=pareto_result, select_model=select_model
         )
-        self.response_calculator = ResponseCurveCalculator()
+        self.response_calculator = ResponseCalculator()
         self.optimizer = AllocationOptimizer()
 
         # Calculate media response parameters
@@ -127,18 +127,35 @@ class BudgetAllocator:
     def _calculate_initial_metrics(
         self, date_range: DateRange, media_spend_sorted: np.ndarray, total_budget: Optional[float]
     ) -> Dict[str, Any]:
-        """Calculate initial metrics for optimization."""
-        # Use data directly from mmm_data
+        """Calculate initial metrics for optimization.
+
+        Args:
+            date_range: Date range information
+            media_spend_sorted: Array of media channel names
+            total_budget: Optional total budget constraint
+
+        Returns:
+            Dictionary containing initial metrics
+        """
+        # Get data from mmm_data
         dt_mod = self.mmm_data.data
 
-        # Get historical spend data using proper date column
+        # Get historical spend data
         hist_spend = dt_mod.loc[date_range.start_index : date_range.end_index, media_spend_sorted]
+
         # Calculate spend statistics
         hist_spend_total = hist_spend.sum()
         hist_spend_mean = hist_spend.mean()
+
+        # Replace any zero means with small positive value
+        zero_mask = hist_spend_mean == 0
+        if zero_mask.any():
+            min_nonzero = hist_spend_mean[hist_spend_mean > 0].min()
+            hist_spend_mean[zero_mask] = min_nonzero * 0.1
+
         hist_spend_share = hist_spend_mean / hist_spend_mean.sum()
 
-        # Calculate initial responses using media parameters
+        # Calculate initial responses
         init_responses = {}
         response_margins = {}
 
@@ -183,47 +200,42 @@ class BudgetAllocator:
             "init_response_total": init_response_total,
             "budget_unit": budget_unit,
             "date_range": date_range,
+            "model_id": self.select_model,
+            "dep_var_type": self.mmm_data.mmmdata_spec.dep_var_type,
+            "interval_type": self.mmm_data.mmmdata_spec.interval_type,
         }
 
     def _optimize_max_response(self, initial_metrics: Dict[str, Any], config: AllocationConfig) -> AllocationResult:
-        """Optimize for maximum response while respecting budget constraint.
-
-        Args:
-            initial_metrics: Dictionary of initial metrics
-            config: Allocation configuration
-
-        Returns:
-            AllocationResult containing optimization results
-        """
-        # Set up optimization problem
-        x0 = initial_metrics["hist_spend_mean"].values
-
-        # Get bounds from constraints
-        bounds = config.constraints.get_bounds(initial_metrics["hist_spend_mean"])
-
-        # Define objective function for maximizing response
-        def objective(x):
-            total_response = 0
-            for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
-                response = self.response_calculator.calculate_response(
-                    spend=x[i],
-                    coef=self.media_params.coefficients[channel],
-                    alpha=self.media_params.alphas[channel],
-                    inflexion=self.media_params.inflexions[channel],
-                )
-                total_response += response
-            return -total_response  # Negative because we're minimizing
-
-        # Define budget constraint
-        def budget_constraint(x):
-            return np.sum(x) - initial_metrics["budget_unit"]
-
-        constraints = [
-            {"type": "eq" if config.constr_mode == ConstrMode.EQUALITY else "ineq", "fun": budget_constraint}
-        ]
-
-        # Run optimization
+        """Optimize for maximum response while respecting budget constraint."""
         try:
+            # Set up optimization problem
+            x0 = initial_metrics["hist_spend_mean"].values
+
+            # Get bounds from constraints
+            bounds = config.constraints.get_bounds(initial_metrics["hist_spend_mean"])
+
+            # Define objective function for maximizing response
+            def objective(x):
+                total_response = 0
+                for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
+                    response = self.response_calculator.calculate_response(
+                        spend=x[i],
+                        coef=self.media_params.coefficients[channel],
+                        alpha=self.media_params.alphas[channel],
+                        inflexion=self.media_params.inflexions[channel],
+                    )
+                    total_response += response
+                return -total_response  # Negative because we're minimizing
+
+            # Define budget constraint
+            def budget_constraint(x):
+                return np.sum(x) - initial_metrics["budget_unit"]
+
+            constraints = [
+                {"type": "eq" if config.constr_mode == ConstrMode.EQUALITY else "ineq", "fun": budget_constraint}
+            ]
+
+            # Run optimization
             result = self.optimizer.optimize(
                 objective_func=objective,
                 bounds=bounds,
@@ -249,22 +261,30 @@ class BudgetAllocator:
                 )
                 optimal_responses[channel] = response
 
+            # Create allocation results DataFrame with constraints
+            optimal_allocations = pd.DataFrame(
+                {
+                    "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
+                    "current_spend": initial_metrics["hist_spend_mean"],
+                    "optimal_spend": optimal_spend,
+                    "current_response": [
+                        initial_metrics["init_responses"][ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                    ],
+                    "optimal_response": [optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends],
+                    # Add constraint bounds
+                    "constr_low": [
+                        config.constraints.channel_constr_low[ch]
+                        for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                    ],
+                    "constr_up": [
+                        config.constraints.channel_constr_up[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                    ],
+                }
+            )
+
             # Prepare result
             return AllocationResult(
-                optimal_allocations=pd.DataFrame(
-                    {
-                        "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
-                        "current_spend": initial_metrics["hist_spend_mean"],
-                        "optimal_spend": optimal_spend,
-                        "current_response": [
-                            initial_metrics["init_responses"][ch]
-                            for ch in self.mmm_data.mmmdata_spec.paid_media_spends
-                        ],
-                        "optimal_response": [
-                            optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
-                        ],
-                    }
-                ),
+                optimal_allocations=optimal_allocations,
                 predicted_responses=pd.DataFrame(
                     {
                         "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
@@ -279,6 +299,14 @@ class BudgetAllocator:
                     "response_lift": (sum(optimal_responses.values()) / initial_metrics["init_response_total"]) - 1,
                     "optimization_iterations": result["nit"],
                     "optimization_status": result["success"],
+                    "model_id": self.select_model,
+                    "scenario": str(config.scenario),
+                    "use_case": initial_metrics.get("use_case", ""),
+                    "date_range_start": initial_metrics["date_range"].start_date,
+                    "date_range_end": initial_metrics["date_range"].end_date,
+                    "n_periods": initial_metrics["date_range"].n_periods,
+                    "interval_type": initial_metrics["interval_type"],
+                    "dep_var_type": initial_metrics["dep_var_type"],
                 },
             )
 
@@ -314,12 +342,12 @@ class BudgetAllocator:
                 if self.mmm_data.mmmdata_spec.dep_var_type == "revenue":
                     # For revenue, target is 80% of initial ROAS
                     config.target_value = (
-                        initial_metrics["init_response_total"] / initial_metrics["init_spend_total"]
+                        initial_metrics["init_response_total"] / initial_metrics["hist_spend_mean"].sum()
                     ) * 0.8
                 else:
                     # For conversion, target is 120% of initial CPA
                     config.target_value = (
-                        initial_metrics["init_spend_total"] / initial_metrics["init_response_total"]
+                        initial_metrics["hist_spend_mean"].sum() / initial_metrics["init_response_total"]
                     ) * 1.2
 
             # Setup optimization
@@ -386,29 +414,35 @@ class BudgetAllocator:
             total_spend = sum(optimal_spend)
             total_response = sum(optimal_responses.values())
 
-            # Calculate efficiency metrics
-            achieved_efficiency = (
-                total_response / total_spend
-                if self.mmm_data.mmmdata_spec.dep_var_type == "revenue"
-                else total_spend / total_response
+            # Calculate achieved efficiency
+            if self.mmm_data.mmmdata_spec.dep_var_type == "revenue":
+                achieved_efficiency = total_response / total_spend
+            else:
+                achieved_efficiency = total_spend / total_response
+
+            # Create allocation results DataFrame with constraints
+            optimal_allocations = pd.DataFrame(
+                {
+                    "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
+                    "current_spend": initial_metrics["hist_spend_mean"],
+                    "optimal_spend": optimal_spend,
+                    "current_response": [
+                        initial_metrics["init_responses"][ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                    ],
+                    "optimal_response": [optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends],
+                    # Add constraint bounds
+                    "constr_low": [
+                        config.constraints.channel_constr_low[ch]
+                        for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                    ],
+                    "constr_up": [
+                        config.constraints.channel_constr_up[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                    ],
+                }
             )
 
-            # Create result
             return AllocationResult(
-                optimal_allocations=pd.DataFrame(
-                    {
-                        "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
-                        "current_spend": initial_metrics["hist_spend_mean"],
-                        "optimal_spend": optimal_spend,
-                        "current_response": [
-                            initial_metrics["init_responses"][ch]
-                            for ch in self.mmm_data.mmmdata_spec.paid_media_spends
-                        ],
-                        "optimal_response": [
-                            optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
-                        ],
-                    }
-                ),
+                optimal_allocations=optimal_allocations,
                 predicted_responses=pd.DataFrame(
                     {
                         "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
@@ -416,7 +450,7 @@ class BudgetAllocator:
                     }
                 ),
                 response_curves=self._generate_response_curves(
-                    optimal_spend=optimal_spend, current_spend=initial_metrics["hist_spend_mean"]
+                    optimal_spend=optimal_spend, current_spend=initial_metrics["hist_spend_mean"].values
                 ),
                 metrics={
                     "total_budget": total_spend * initial_metrics["date_range"].n_periods,
@@ -425,8 +459,14 @@ class BudgetAllocator:
                     "target_efficiency": config.target_value,
                     "optimization_iterations": result["nit"],
                     "optimization_status": result["success"],
-                    "total_response": total_response,
-                    "total_spend": total_spend,
+                    "model_id": self.select_model,
+                    "scenario": str(config.scenario),
+                    "use_case": "all_historical_vec + historical_budget",
+                    "date_range_start": initial_metrics["date_range"].start_date,
+                    "date_range_end": initial_metrics["date_range"].end_date,
+                    "n_periods": initial_metrics["date_range"].n_periods,
+                    "interval_type": initial_metrics["interval_type"],
+                    "dep_var_type": initial_metrics["dep_var_type"],
                 },
             )
 
@@ -434,13 +474,13 @@ class BudgetAllocator:
             raise ValueError(f"Target efficiency optimization failed: {str(e)}")
 
     def _generate_response_curves(
-        self, optimal_spend: np.ndarray, current_spend: np.ndarray, n_points: int = 100
+        self, optimal_spend: np.ndarray, current_spend: pd.Series, n_points: int = 100
     ) -> pd.DataFrame:
         """Generate response curves for visualization.
 
         Args:
             optimal_spend: Array of optimal spend values
-            current_spend: Array of current spend values
+            current_spend: Series of current spend values
             n_points: Number of points to generate for each curve
 
         Returns:
@@ -448,10 +488,14 @@ class BudgetAllocator:
         """
         curves_data = []
 
+        # Convert spend arrays to numpy for efficient computation
+        optimal_spend_np = np.asarray(optimal_spend)
+        current_spend_np = current_spend
+
         for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
             # Generate spend range
-            max_spend = max(optimal_spend[i], current_spend[i]) * 1.5
-            spend_range = np.linspace(0, max_spend, n_points)
+            max_spend = max(optimal_spend_np[i], current_spend_np[i]) * 1.5
+            spend_range = np.linspace(1e-10, max_spend, n_points)  # Add small epsilon to avoid zero
 
             # Calculate response values
             response_values = np.array(
@@ -469,8 +513,10 @@ class BudgetAllocator:
             # Calculate marginal response (response per unit spend)
             marginal_response = np.gradient(response_values, spend_range)
 
-            # Calculate ROI
-            roi = np.where(spend_range > 0, response_values / spend_range, 0)
+            # Calculate ROI (avoid division by zero)
+            mask = spend_range > 1e-10
+            roi = np.zeros_like(spend_range)
+            roi[mask] = response_values[mask] / spend_range[mask]
 
             # Create curve data points
             for j in range(n_points):
@@ -481,8 +527,8 @@ class BudgetAllocator:
                         "response": response_values[j],
                         "marginal_response": marginal_response[j],
                         "roi": roi[j],
-                        "is_current": np.isclose(spend_range[j], current_spend[i], rtol=1e-3),
-                        "is_optimal": np.isclose(spend_range[j], optimal_spend[i], rtol=1e-3),
+                        "is_current": np.isclose(spend_range[j], current_spend_np[i], rtol=1e-3),
+                        "is_optimal": np.isclose(spend_range[j], optimal_spend_np[i], rtol=1e-3),
                     }
                 )
 
@@ -492,8 +538,8 @@ class BudgetAllocator:
         # Add metadata for visualization
         metadata = {
             "channel": list(self.mmm_data.mmmdata_spec.paid_media_spends),
-            "current_spend": current_spend,
-            "optimal_spend": optimal_spend,
+            "current_spend": current_spend_np,
+            "optimal_spend": optimal_spend_np,
             "current_response": [
                 self.response_calculator.calculate_response(
                     spend=spend,
@@ -501,7 +547,7 @@ class BudgetAllocator:
                     alpha=self.media_params.alphas[channel],
                     inflexion=self.media_params.inflexions[channel],
                 )
-                for spend, channel in zip(current_spend, self.mmm_data.mmmdata_spec.paid_media_spends)
+                for spend, channel in zip(current_spend_np, self.mmm_data.mmmdata_spec.paid_media_spends)
             ],
             "optimal_response": [
                 self.response_calculator.calculate_response(
@@ -510,14 +556,14 @@ class BudgetAllocator:
                     alpha=self.media_params.alphas[channel],
                     inflexion=self.media_params.inflexions[channel],
                 )
-                for spend, channel in zip(optimal_spend, self.mmm_data.mmmdata_spec.paid_media_spends)
+                for spend, channel in zip(optimal_spend_np, self.mmm_data.mmmdata_spec.paid_media_spends)
             ],
         }
 
         # Add summary statistics
         summary_stats = {
-            "total_current_spend": current_spend.sum(),
-            "total_optimal_spend": optimal_spend.sum(),
+            "total_current_spend": current_spend_np.sum(),
+            "total_optimal_spend": optimal_spend_np.sum(),
             "total_current_response": sum(metadata["current_response"]),
             "total_optimal_response": sum(metadata["optimal_response"]),
             "response_lift_pct": (sum(metadata["optimal_response"]) / sum(metadata["current_response"]) - 1) * 100,

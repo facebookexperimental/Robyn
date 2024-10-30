@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Union
+import pandas as pd
 import numpy as np
 
 
@@ -10,6 +11,7 @@ class AllocationConstraints:
     channel_constr_low: Dict[str, float]
     channel_constr_up: Dict[str, float]
     channel_constr_multiplier: float = 3.0
+    is_target_efficiency: bool = False  # New flag to handle target efficiency bounds
 
     def __post_init__(self):
         """Validate constraints after initialization."""
@@ -20,7 +22,8 @@ class AllocationConstraints:
         if any(v < 0.01 for v in self.channel_constr_low.values()):
             raise ValueError("Lower bounds must be >= 0.01")
 
-        if any(v > 5 for v in self.channel_constr_up.values()):
+        # Only check upper bound < 5 for non-target efficiency scenarios
+        if not self.is_target_efficiency and any(v > 5 for v in self.channel_constr_up.values()):
             raise ValueError("Upper bounds should be < 5")
 
     def get_bounds(self, initial_spend: Dict[str, float]) -> List[tuple]:
