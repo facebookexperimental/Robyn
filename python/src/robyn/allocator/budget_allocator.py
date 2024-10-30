@@ -27,6 +27,7 @@ from robyn.allocator.entities.allocation_config import AllocationConfig, DateRan
 from robyn.allocator.entities.enums import OptimizationScenario, ConstrMode, UseCase
 from robyn.allocator.entities.allocation_results import AllocationResult
 from robyn.allocator.entities.allocation_constraints import AllocationConstraints
+from robyn.modeling.feature_engineering import FeaturizedMMMData
 
 
 class BudgetAllocator:
@@ -35,15 +36,20 @@ class BudgetAllocator:
     def __init__(
         self,
         mmm_data: MMMData,
+        featurized_mmm_data: FeaturizedMMMData,
         model_outputs: ModelOutputs,
         pareto_result: ParetoResult,
         select_model: str,
     ):
         """Initialize the BudgetAllocator."""
         self.mmm_data = mmm_data
+        self.featurized_mmm_data = featurized_mmm_data
         self.model_outputs = model_outputs
         self.pareto_result = pareto_result
         self.select_model = select_model
+
+        # Validate date data
+        self._validate_date_data()
 
         # Initialize calculators
         self.media_params_calculator = MediaResponseParamsCalculator(
@@ -64,63 +70,81 @@ class BudgetAllocator:
         Returns:
             DateRange object with processed dates and indices
         """
-        dt_mod = self.mmm_data.mmmdata_spec.dt_mod
-        date_col = self.mmm_data.mmmdata_spec.date_var
+        # First ensure we have valid date data
+        try:
+            # Convert date column to datetime if it isn't already
+            date_col = self.mmm_data.mmmdata_spec.date_var
+            raw_dates = self.mmm_data.data[date_col]
 
-        dates = pd.to_datetime(dt_mod[date_col])
-
-        if isinstance(date_range, str):
-            if date_range == "all":
-                start_date = dates.min()
-                end_date = dates.max()
-            elif date_range == "last":
-                end_date = dates.max()
-                start_date = end_date
-            elif date_range.startswith("last_"):
-                n = int(date_range.split("_")[1])
-                end_date = dates.max()
-                start_date = dates.iloc[-n]
+            if not pd.api.types.is_datetime64_any_dtype(raw_dates):
+                # Try to convert if dates are strings
+                dates = pd.to_datetime(raw_dates, format=None)
             else:
-                start_date = end_date = pd.to_datetime(date_range)
-        else:
-            if isinstance(date_range, list):
-                start_date = pd.to_datetime(date_range[0])
-                end_date = pd.to_datetime(date_range[1])
+                dates = raw_dates
+
+        except Exception as e:
+            raise ValueError(f"Error processing dates from {date_col}: {str(e)}")
+
+        # Process the date range
+        try:
+            if isinstance(date_range, str):
+                if date_range == "all":
+                    start_date = dates.min()
+                    end_date = dates.max()
+                elif date_range == "last":
+                    end_date = dates.max()
+                    start_date = end_date
+                elif date_range.startswith("last_"):
+                    n = int(date_range.split("_")[1])
+                    if n > len(dates):
+                        raise ValueError(f"Requested last_{n} dates but only {len(dates)} dates available")
+                    end_date = dates.max()
+                    start_date = dates.iloc[-n]
+                else:
+                    start_date = end_date = pd.to_datetime(date_range)
             else:
-                start_date = end_date = pd.to_datetime(date_range)
+                if isinstance(date_range, list):
+                    start_date = pd.to_datetime(date_range[0])
+                    end_date = pd.to_datetime(date_range[1])
+                else:
+                    start_date = end_date = pd.to_datetime(date_range)
 
-        # Get indices
-        start_idx = dates[dates >= start_date].index[0]
-        end_idx = dates[dates <= end_date].index[-1]
-        n_periods = end_idx - start_idx + 1
+            # Validate dates are within range
+            if start_date < dates.min() or end_date > dates.max():
+                raise ValueError(
+                    f"Date range {start_date} to {end_date} outside available data range "
+                    f"{dates.min()} to {dates.max()}"
+                )
 
-        return DateRange(
-            start_date=start_date,
-            end_date=end_date,
-            start_index=start_idx,
-            end_index=end_idx,
-            n_periods=n_periods,
-            interval_type=self.mmm_data.mmmdata_spec.intervalType,
-        )
+            # Get indices
+            start_idx = dates[dates >= start_date].index[0]
+            end_idx = dates[dates <= end_date].index[-1]
+            n_periods = end_idx - start_idx + 1
+
+            if n_periods < 1:
+                raise ValueError(f"Invalid date range: {start_date} to {end_date}")
+
+            return DateRange(
+                start_date=start_date,
+                end_date=end_date,
+                start_index=start_idx,
+                end_index=end_idx,
+                n_periods=n_periods,
+                interval_type=self.mmm_data.mmmdata_spec.interval_type,
+            )
+
+        except Exception as e:
+            raise ValueError(f"Error processing date range {date_range}: {str(e)}")
 
     def _calculate_initial_metrics(
         self, date_range: DateRange, media_spend_sorted: np.ndarray, total_budget: Optional[float]
     ) -> Dict[str, Any]:
-        """Calculate initial metrics for optimization.
-
-        Args:
-            date_range: Processed date range information
-            media_spend_sorted: Sorted array of media spend column names
-            total_budget: Optional total budget constraint
-
-        Returns:
-            Dictionary containing initial metrics including spends and responses
-        """
-        dt_mod = self.mmm_data.mmmdata_spec.dt_mod
+        """Calculate initial metrics for optimization."""
+        # Use data directly from mmm_data
+        dt_mod = self.mmm_data.data
 
         # Get historical spend data
         hist_spend = dt_mod.loc[date_range.start_index : date_range.end_index, media_spend_sorted]
-
         # Calculate spend statistics
         hist_spend_total = hist_spend.sum()
         hist_spend_mean = hist_spend.mean()
@@ -364,3 +388,160 @@ class BudgetAllocator:
                 "optimization_status": result.success,
             },
         )
+
+    def _generate_response_curves(
+        self, optimal_spend: np.ndarray, current_spend: np.ndarray, n_points: int = 100
+    ) -> pd.DataFrame:
+        """Generate response curves for visualization.
+
+        Args:
+            optimal_spend: Array of optimal spend values
+            current_spend: Array of current spend values
+            n_points: Number of points to generate for each curve
+
+        Returns:
+            DataFrame containing response curves for each channel
+        """
+        curves_data = []
+
+        for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
+            # Generate spend range
+            max_spend = max(optimal_spend[i], current_spend[i]) * 1.5
+            spend_range = np.linspace(0, max_spend, n_points)
+
+            # Calculate response values
+            response_values = np.array(
+                [
+                    self.response_calculator.calculate_response(
+                        spend=spend,
+                        coef=self.media_params.coefficients[channel],
+                        alpha=self.media_params.alphas[channel],
+                        inflexion=self.media_params.inflexions[channel],
+                    )
+                    for spend in spend_range
+                ]
+            )
+
+            # Calculate marginal response (response per unit spend)
+            marginal_response = np.gradient(response_values, spend_range)
+
+            # Calculate ROI
+            roi = np.where(spend_range > 0, response_values / spend_range, 0)
+
+            # Create curve data points
+            for j in range(n_points):
+                curves_data.append(
+                    {
+                        "channel": channel,
+                        "spend": spend_range[j],
+                        "response": response_values[j],
+                        "marginal_response": marginal_response[j],
+                        "roi": roi[j],
+                        "is_current": np.isclose(spend_range[j], current_spend[i], rtol=1e-3),
+                        "is_optimal": np.isclose(spend_range[j], optimal_spend[i], rtol=1e-3),
+                    }
+                )
+
+        # Convert to DataFrame
+        curve_df = pd.DataFrame(curves_data)
+
+        # Add metadata for visualization
+        metadata = {
+            "channel": list(self.mmm_data.mmmdata_spec.paid_media_spends),
+            "current_spend": current_spend,
+            "optimal_spend": optimal_spend,
+            "current_response": [
+                self.response_calculator.calculate_response(
+                    spend=spend,
+                    coef=self.media_params.coefficients[channel],
+                    alpha=self.media_params.alphas[channel],
+                    inflexion=self.media_params.inflexions[channel],
+                )
+                for spend, channel in zip(current_spend, self.mmm_data.mmmdata_spec.paid_media_spends)
+            ],
+            "optimal_response": [
+                self.response_calculator.calculate_response(
+                    spend=spend,
+                    coef=self.media_params.coefficients[channel],
+                    alpha=self.media_params.alphas[channel],
+                    inflexion=self.media_params.inflexions[channel],
+                )
+                for spend, channel in zip(optimal_spend, self.mmm_data.mmmdata_spec.paid_media_spends)
+            ],
+        }
+
+        # Add summary statistics
+        summary_stats = {
+            "total_current_spend": current_spend.sum(),
+            "total_optimal_spend": optimal_spend.sum(),
+            "total_current_response": sum(metadata["current_response"]),
+            "total_optimal_response": sum(metadata["optimal_response"]),
+            "response_lift_pct": (sum(metadata["optimal_response"]) / sum(metadata["current_response"]) - 1) * 100,
+        }
+
+        # Add to curve DataFrame as attributes
+        curve_df.attrs["metadata"] = metadata
+        curve_df.attrs["summary_stats"] = summary_stats
+
+        return curve_df
+
+    def allocate(self, config: AllocationConfig) -> AllocationResult:
+        """Run budget allocation optimization.
+
+        Args:
+            config: Allocation configuration
+
+        Returns:
+            AllocationResult containing optimization results
+        """
+        try:
+            # Get date range
+            date_range = self._process_date_range(config.date_range)
+
+            # Get sorted media spends
+            media_spend_sorted = np.array(self.mmm_data.mmmdata_spec.paid_media_spends)
+
+            # Calculate initial metrics
+            initial_metrics = self._calculate_initial_metrics(
+                date_range=date_range, media_spend_sorted=media_spend_sorted, total_budget=config.total_budget
+            )
+
+            # Run optimization based on scenario
+            if config.scenario == OptimizationScenario.MAX_RESPONSE:
+                result = self._optimize_max_response(initial_metrics=initial_metrics, config=config)
+            else:
+                result = self._optimize_target_efficiency(initial_metrics=initial_metrics, config=config)
+
+            # Generate response curves if plots requested
+            if config.plots:
+                result.response_curves = self._generate_response_curves(
+                    optimal_spend=result.optimal_allocations["optimal_spend"].values,
+                    current_spend=result.optimal_allocations["current_spend"].values,
+                )
+
+            return result
+
+        except Exception as e:
+            print(f"Error during allocation: {str(e)}")
+            raise
+
+    def _validate_date_data(self) -> None:
+        """Validate date data during initialization."""
+        try:
+            date_col = self.mmm_data.mmmdata_spec.date_var
+            if date_col not in self.mmm_data.data.columns:
+                raise ValueError(f"Date column '{date_col}' not found in data")
+
+            # Try converting to datetime
+            dates = pd.to_datetime(self.mmm_data.data[date_col], format=None)
+
+            # Ensure dates are sorted
+            if not dates.is_monotonic_increasing:
+                raise ValueError("Dates must be in ascending order")
+
+            # Check for missing dates
+            if dates.isna().any():
+                raise ValueError("Date column contains missing values")
+
+        except Exception as e:
+            raise ValueError(f"Invalid date data: {str(e)}")
