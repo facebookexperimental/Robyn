@@ -14,7 +14,7 @@ run_transformations(
   window_end_loc,
   dt_mod,
   adstock,
-  hyperparameters,
+  dt_hyppar,
   ...
 )
 }
@@ -40,9 +40,7 @@ Input media exposure metrics (impression, clicks, GRPs etc.) when \code{reverse 
 
 \item{adstock}{Character. Adstock config.}
 
-\item{hyperparameters}{List. Contains hyperparameter lower and upper bounds.
-Names of elements in list must be identical to output of \code{hyper_names()}.
-To fix hyperparameter values, provide only one value.}
+\item{dt_hyppar}{data.frame. All hyperparaters for provided media.}
 
 \item{...}{Additional parameters passed to \code{prophet} functions.}
 }

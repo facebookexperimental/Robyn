@@ -487,10 +487,14 @@ robyn_onepagers <- function(
       trim_rate <- 1.3 # maybe enable as a parameter
       if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
+          select(-"ds") %>%
+          bind_rows(data.frame(
+            channel = unique(dt_scurvePlot$channel), spend = 0, response = 0
+          )) %>%
           filter(
             .data$spend < max(dt_scurvePlotMean$mean_spend_adstocked) * trim_rate,
             .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate,
-            .data$channel %in% InputCollect$paid_media_spends
+            .data$channel %in% InputCollect$paid_media_selected
           ) %>%
           left_join(
             dt_scurvePlotMean[, c("channel", "mean_carryover")], "channel"
