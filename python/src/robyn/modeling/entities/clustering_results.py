@@ -1,44 +1,32 @@
 # pyre-strict
 from dataclasses import dataclass
 from typing import Dict, List, Optional
-
-import matplotlib.pyplot as plt
-
 import pandas as pd
 
 
 @dataclass
 class ClusterPlotResults:
-    """
-    Represents the plots generated during the clustering process.
+    """Collection of visualization data frames generated during cluster analysis.
 
-    Attributes:
-        wss_plot (Optional[plt.Figure]): Plot related to Within Groups Sum of Squares.
-        correlations_plot (Optional[plt.Figure]): Plot showing grouped correlations per cluster.
-        clusters_means_plot (Optional[plt.Figure]): Plot showing mean ROI per cluster.
-        top_solutions_errors_plot (Optional[plt.Figure]): Plot for top solutions based on errors.
-        top_solutions_rois_plot (Optional[plt.Figure]): Plot for top solutions based on ROI.
-        plot_clusters_ci (Optional[plt.Figure]): Plot for confidence intervals of clusters.
+    Args:
+        plot_clusters_ci: Data for confidence interval plots by cluster.
+        plot_models_errors: Data for model error distribution plots.
+        plot_models_rois: Data for ROI comparison plots of top models.
     """
 
-    wss_plot: Optional[plt.Figure] = None
-    correlations_plot: Optional[plt.Figure] = None
-    clusters_means_plot: Optional[plt.Figure] = None
-    top_solutions_errors_plot: Optional[plt.Figure] = None
-    top_solutions_rois_plot: Optional[plt.Figure] = None
-    plot_clusters_ci: Optional[plt.Figure] = None
-
+    plot_clusters_ci: Optional[pd.DataFrame] = None
+    plot_models_errors: Optional[pd.DataFrame] = None
+    plot_models_rois: Optional[pd.DataFrame] = None
 
 
 @dataclass
 class ClusterConfidenceIntervals:
-    """
-    Represents the confidence intervals for the clusters.
+    """Statistical confidence intervals for cluster analysis results.
 
-    Attributes:
-        cluster_ci (pd.DataFrame): The DataFrame containing confidence intervals for the clusters.
-        boot_n (int): The number of bootstrap samples used.
-        sim_n (int): The number of simulations performed.
+    Args:
+        cluster_ci: DataFrame containing confidence intervals for cluster metrics.
+        boot_n: Number of bootstrap iterations used for CI calculations.
+        sim_n: Number of simulations performed for CI estimation.
     """
 
     cluster_ci: pd.DataFrame
@@ -47,21 +35,38 @@ class ClusterConfidenceIntervals:
 
 
 @dataclass
-class ClusteredResult:
-    """
-    Represents the overall results of the clustering process.
+class PCAResults:
+    """Principal Component Analysis results from clustering process.
 
-    Attributes:
-        cluster_data (pd.DataFrame): The DataFrame containing the clustered models.
-        top_solutions (pd.DataFrame): The top solutions based on clustering.
-        cluster_ci (ClusterConfidenceIntervals): The confidence intervals for the clusters.
-        n_clusters (int): The number of clusters created.
-        errors_weights (List[float]): The weights used for error calculations.
-        clusters_means (pd.DataFrame): Mean ROI per cluster.
-        clusters_pca (pd.DataFrame): Data related to PCA clusters.
-        clusters_tsne (pd.DataFrame): Data related to t-SNE clusters.
-        correlations (pd.DataFrame): Grouped correlations per cluster.
-        plots (PlotResults): An instance of PlotResults containing all generated plots.
+    Args:
+        pca_explained: Series containing explained variance ratios.
+        pcadf: DataFrame with PCA-transformed data.
+        plot_explained: Optional DataFrame with explained variance visualization data.
+        plot: Optional dictionary containing additional PCA plot data.
+    """
+
+    pca_explained: pd.Series
+    pcadf: pd.DataFrame
+    plot_explained: Optional[pd.DataFrame] = None
+    plot: Optional[Dict] = None
+
+
+@dataclass
+class ClusteredResult:
+    """Complete clustering analysis results from Robyn's clustering process.
+
+    Args:
+        cluster_data: DataFrame with primary clustering results and model assignments.
+        top_solutions: DataFrame containing best performing models per cluster.
+        cluster_ci: Confidence interval calculations for clustering results.
+        n_clusters: Number of clusters identified in the analysis.
+        errors_weights: List of weights applied to different error metrics.
+        clusters_means: DataFrame of mean values for each cluster.
+        wss: DataFrame containing within-sum-of-squares metrics.
+        correlations: DataFrame of correlation analysis between clusters.
+        clusters_pca: Optional PCA dimensionality reduction results.
+        clusters_tsne: Optional t-SNE analysis results.
+        plots: Optional collection of visualization data frames.
     """
 
     cluster_data: pd.DataFrame
@@ -70,7 +75,8 @@ class ClusteredResult:
     n_clusters: int
     errors_weights: List[float]
     clusters_means: pd.DataFrame
-    clusters_pca: pd.DataFrame
-    clusters_tsne: pd.DataFrame
+    wss: pd.DataFrame
     correlations: pd.DataFrame
-    plots: ClusterPlotResults
+    clusters_pca: Optional[PCAResults] = None
+    clusters_tsne: Optional[pd.DataFrame] = None
+    plots: Optional[ClusterPlotResults] = None
