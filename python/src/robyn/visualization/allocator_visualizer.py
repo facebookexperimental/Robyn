@@ -21,7 +21,7 @@ class AllocationPlotter:
         plt.rcParams["axes.spines.right"] = False
 
         # Store standard figure size and colors
-        self.fig_size = (4, 2)
+        self.fig_size = (12, 8)
         self.colors = plt.cm.Set2(np.linspace(0, 1, 8))
 
         # Set color scheme
