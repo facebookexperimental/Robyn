@@ -239,7 +239,7 @@ class ResponseCurveCalculator:
             date_range_updated = all_dates[metric_loc]
         elif date_range.startswith("last_"):
             n_periods = int(date_range.split("_")[1])
-            metric_loc = slice(end_rw - n_periods + 1, end_rw)
+            metric_loc = slice(end_rw - n_periods, end_rw)
             date_range_updated = all_dates[metric_loc]
         elif isinstance(date_range, list) and len(date_range) == 2:
             start_date, end_date = pd.to_datetime(date_range)
