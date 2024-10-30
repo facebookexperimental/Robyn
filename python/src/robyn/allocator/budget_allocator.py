@@ -62,28 +62,16 @@ class BudgetAllocator:
         self.media_params = self.media_params_calculator.calculate_parameters()
 
     def _process_date_range(self, date_range: Union[str, List[str], datetime]) -> DateRange:
-        """Process and validate date range for allocation calculations.
+        """Process and validate date range for allocation calculations."""
+        # Get correct date column name
+        date_col = self._get_date_column_name()
 
-        Args:
-            date_range: Can be "all", "last", "last_n", specific date, or date range
-
-        Returns:
-            DateRange object with processed dates and indices
-        """
-        # First ensure we have valid date data
-        try:
-            # Convert date column to datetime if it isn't already
-            date_col = self.mmm_data.mmmdata_spec.date_var
-            raw_dates = self.mmm_data.data[date_col]
-
-            if not pd.api.types.is_datetime64_any_dtype(raw_dates):
-                # Try to convert if dates are strings
-                dates = pd.to_datetime(raw_dates, format=None)
-            else:
-                dates = raw_dates
-
-        except Exception as e:
-            raise ValueError(f"Error processing dates from {date_col}: {str(e)}")
+        # Get dates from data
+        raw_dates = self.mmm_data.data[date_col]
+        if not pd.api.types.is_datetime64_any_dtype(raw_dates):
+            dates = pd.to_datetime(raw_dates, format=None)
+        else:
+            dates = raw_dates
 
         # Process the date range
         try:
@@ -143,7 +131,7 @@ class BudgetAllocator:
         # Use data directly from mmm_data
         dt_mod = self.mmm_data.data
 
-        # Get historical spend data
+        # Get historical spend data using proper date column
         hist_spend = dt_mod.loc[date_range.start_index : date_range.end_index, media_spend_sorted]
         # Calculate spend statistics
         hist_spend_total = hist_spend.sum()
@@ -235,53 +223,67 @@ class BudgetAllocator:
         ]
 
         # Run optimization
-        result = self.optimizer.optimize(
-            objective_func=objective,
-            bounds=bounds,
-            constraints=constraints,
-            initial_guess=x0,
-            method=config.optim_algo,
-            maxeval=config.maxeval,
-        )
-
-        # Calculate optimized responses
-        optimal_spend = result.x
-        optimal_responses = {}
-        for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
-            response = self.response_calculator.calculate_response(
-                spend=optimal_spend[i],
-                coef=self.media_params.coefficients[channel],
-                alpha=self.media_params.alphas[channel],
-                inflexion=self.media_params.inflexions[channel],
+        try:
+            result = self.optimizer.optimize(
+                objective_func=objective,
+                bounds=bounds,
+                constraints=constraints,
+                initial_guess=x0,
+                method=config.optim_algo,
+                maxeval=config.maxeval,
             )
-            optimal_responses[channel] = response
 
-        # Prepare result
-        return AllocationResult(
-            optimal_allocations=pd.DataFrame(
-                {
-                    "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
-                    "current_spend": initial_metrics["hist_spend_mean"],
-                    "optimal_spend": optimal_spend,
-                    "current_response": [
-                        initial_metrics["init_responses"][ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
-                    ],
-                    "optimal_response": [optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends],
-                }
-            ),
-            predicted_responses=pd.DataFrame(
-                {"channel": self.mmm_data.mmmdata_spec.paid_media_spends, "response": list(optimal_responses.values())}
-            ),
-            response_curves=self._generate_response_curves(
-                optimal_spend=optimal_spend, current_spend=initial_metrics["hist_spend_mean"]
-            ),
-            metrics={
-                "total_budget": initial_metrics["budget_unit"] * initial_metrics["date_range"].n_periods,
-                "response_lift": (sum(optimal_responses.values()) / initial_metrics["init_response_total"]) - 1,
-                "optimization_iterations": result.nit,
-                "optimization_status": result.success,
-            },
-        )
+            if not result["success"]:
+                print(f"Warning: {result['message']}")
+
+            # Get optimal allocations
+            optimal_spend = result["x"]
+            optimal_responses = {}
+
+            for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
+                response = self.response_calculator.calculate_response(
+                    spend=optimal_spend[i],
+                    coef=self.media_params.coefficients[channel],
+                    alpha=self.media_params.alphas[channel],
+                    inflexion=self.media_params.inflexions[channel],
+                )
+                optimal_responses[channel] = response
+
+            # Prepare result
+            return AllocationResult(
+                optimal_allocations=pd.DataFrame(
+                    {
+                        "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
+                        "current_spend": initial_metrics["hist_spend_mean"],
+                        "optimal_spend": optimal_spend,
+                        "current_response": [
+                            initial_metrics["init_responses"][ch]
+                            for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                        ],
+                        "optimal_response": [
+                            optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                        ],
+                    }
+                ),
+                predicted_responses=pd.DataFrame(
+                    {
+                        "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
+                        "response": list(optimal_responses.values()),
+                    }
+                ),
+                response_curves=self._generate_response_curves(
+                    optimal_spend=optimal_spend, current_spend=initial_metrics["hist_spend_mean"]
+                ),
+                metrics={
+                    "total_budget": initial_metrics["budget_unit"] * initial_metrics["date_range"].n_periods,
+                    "response_lift": (sum(optimal_responses.values()) / initial_metrics["init_response_total"]) - 1,
+                    "optimization_iterations": result["nit"],
+                    "optimization_status": result["success"],
+                },
+            )
+
+        except Exception as e:
+            raise ValueError(f"Max response optimization failed: {str(e)}")
 
     def _optimize_target_efficiency(
         self, initial_metrics: Dict[str, Any], config: AllocationConfig
@@ -289,105 +291,147 @@ class BudgetAllocator:
         """Optimize for target efficiency (ROAS/CPA).
 
         Args:
-            initial_metrics: Dictionary of initial metrics
-            config: Allocation configuration
+            initial_metrics: Dictionary containing initial metrics including:
+                - hist_spend_mean: Current spend by channel
+                - init_responses: Initial response by channel
+                - init_response_total: Total initial response
+                - init_spend_total: Total initial spend
+                - budget_unit: Budget per period
+                - date_range: DateRange object
+            config: AllocationConfig object containing:
+                - target_value: Target ROAS/CPA value
+                - constraints: Spend constraints
+                - optim_algo: Optimization algorithm
+                - maxeval: Maximum evaluations
+                - constr_mode: Constraint mode
 
         Returns:
             AllocationResult containing optimization results
         """
-        # Set default target value if not provided
-        if config.target_value is None:
-            if self.mmm_data.mmmdata_spec.dep_var_type == "revenue":
-                config.target_value = (
-                    initial_metrics["init_response_total"] / initial_metrics["init_spend_total"]
-                ) * 0.8
-            else:  # conversion
-                config.target_value = (
-                    initial_metrics["init_spend_total"] / initial_metrics["init_response_total"]
-                ) * 1.2
+        try:
+            # Set default target value if not provided
+            if config.target_value is None:
+                if self.mmm_data.mmmdata_spec.dep_var_type == "revenue":
+                    # For revenue, target is 80% of initial ROAS
+                    config.target_value = (
+                        initial_metrics["init_response_total"] / initial_metrics["init_spend_total"]
+                    ) * 0.8
+                else:
+                    # For conversion, target is 120% of initial CPA
+                    config.target_value = (
+                        initial_metrics["init_spend_total"] / initial_metrics["init_response_total"]
+                    ) * 1.2
 
-        # Setup optimization similar to max_response but with efficiency constraint
-        x0 = initial_metrics["hist_spend_mean"].values
-        bounds = config.constraints.get_bounds(initial_metrics["hist_spend_mean"])
+            # Setup optimization
+            x0 = initial_metrics["hist_spend_mean"].values
+            bounds = config.constraints.get_bounds(initial_metrics["hist_spend_mean"])
 
-        def objective(x):
-            total_response = 0
+            def objective(x):
+                """Objective function to maximize total response."""
+                total_response = 0
+                for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
+                    response = self.response_calculator.calculate_response(
+                        spend=x[i],
+                        coef=self.media_params.coefficients[channel],
+                        alpha=self.media_params.alphas[channel],
+                        inflexion=self.media_params.inflexions[channel],
+                    )
+                    total_response += response
+                return -total_response  # Negative because we're minimizing
+
+            def efficiency_constraint(x):
+                """Constraint function to maintain target efficiency."""
+                total_response = -objective(x)  # Negative because objective returns negative
+                total_spend = np.sum(x)
+
+                if self.mmm_data.mmmdata_spec.dep_var_type == "revenue":
+                    # For revenue, maintain ROAS >= target
+                    return total_response / total_spend - config.target_value
+                else:
+                    # For conversion, maintain CPA <= target
+                    return total_spend / total_response - config.target_value
+
+            constraints = [
+                {"type": "eq" if config.constr_mode == ConstrMode.EQUALITY else "ineq", "fun": efficiency_constraint}
+            ]
+
+            # Run optimization
+            result = self.optimizer.optimize(
+                objective_func=objective,
+                bounds=bounds,
+                constraints=constraints,
+                initial_guess=x0,
+                method=config.optim_algo,
+                maxeval=config.maxeval,
+            )
+
+            if not result["success"]:
+                print(f"Warning: Optimization may not have converged. Message: {result['message']}")
+
+            # Get optimal allocations
+            optimal_spend = result["x"]
+            optimal_responses = {}
+
+            # Calculate responses for optimal spend
             for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
                 response = self.response_calculator.calculate_response(
-                    spend=x[i],
+                    spend=optimal_spend[i],
                     coef=self.media_params.coefficients[channel],
                     alpha=self.media_params.alphas[channel],
                     inflexion=self.media_params.inflexions[channel],
                 )
-                total_response += response
-            return -total_response
+                optimal_responses[channel] = response
 
-        def efficiency_constraint(x):
-            total_response = -objective(x)
-            total_spend = np.sum(x)
+            # Calculate total metrics
+            total_spend = sum(optimal_spend)
+            total_response = sum(optimal_responses.values())
 
-            if self.mmm_data.mmmdata_spec.dep_var_type == "revenue":
-                return total_response / total_spend - config.target_value
-            else:  # conversion
-                return total_spend / total_response - config.target_value
-
-        constraints = [
-            {"type": "eq" if config.constr_mode == ConstrMode.EQUALITY else "ineq", "fun": efficiency_constraint}
-        ]
-
-        # Run optimization
-        result = self.optimizer.optimize(
-            objective_func=objective,
-            bounds=bounds,
-            constraints=constraints,
-            initial_guess=x0,
-            method=config.optim_algo,
-            maxeval=config.maxeval,
-        )
-
-        # Calculate results similarly to max_response
-        optimal_spend = result.x
-        optimal_responses = {}
-        for i, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends):
-            response = self.response_calculator.calculate_response(
-                spend=optimal_spend[i],
-                coef=self.media_params.coefficients[channel],
-                alpha=self.media_params.alphas[channel],
-                inflexion=self.media_params.inflexions[channel],
+            # Calculate efficiency metrics
+            achieved_efficiency = (
+                total_response / total_spend
+                if self.mmm_data.mmmdata_spec.dep_var_type == "revenue"
+                else total_spend / total_response
             )
-            optimal_responses[channel] = response
 
-        return AllocationResult(
-            optimal_allocations=pd.DataFrame(
-                {
-                    "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
-                    "current_spend": initial_metrics["hist_spend_mean"],
-                    "optimal_spend": optimal_spend,
-                    "current_response": [
-                        initial_metrics["init_responses"][ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
-                    ],
-                    "optimal_response": [optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends],
-                }
-            ),
-            predicted_responses=pd.DataFrame(
-                {"channel": self.mmm_data.mmmdata_spec.paid_media_spends, "response": list(optimal_responses.values())}
-            ),
-            response_curves=self._generate_response_curves(
-                optimal_spend=optimal_spend, current_spend=initial_metrics["hist_spend_mean"]
-            ),
-            metrics={
-                "total_spend": sum(optimal_spend) * initial_metrics["date_range"].n_periods,
-                "response_lift": (sum(optimal_responses.values()) / initial_metrics["init_response_total"]) - 1,
-                "achieved_efficiency": (
-                    sum(optimal_responses.values()) / sum(optimal_spend)
-                    if self.mmm_data.mmmdata_spec.dep_var_type == "revenue"
-                    else sum(optimal_spend) / sum(optimal_responses.values())
+            # Create result
+            return AllocationResult(
+                optimal_allocations=pd.DataFrame(
+                    {
+                        "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
+                        "current_spend": initial_metrics["hist_spend_mean"],
+                        "optimal_spend": optimal_spend,
+                        "current_response": [
+                            initial_metrics["init_responses"][ch]
+                            for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                        ],
+                        "optimal_response": [
+                            optimal_responses[ch] for ch in self.mmm_data.mmmdata_spec.paid_media_spends
+                        ],
+                    }
                 ),
-                "target_efficiency": config.target_value,
-                "optimization_iterations": result.nit,
-                "optimization_status": result.success,
-            },
-        )
+                predicted_responses=pd.DataFrame(
+                    {
+                        "channel": self.mmm_data.mmmdata_spec.paid_media_spends,
+                        "response": list(optimal_responses.values()),
+                    }
+                ),
+                response_curves=self._generate_response_curves(
+                    optimal_spend=optimal_spend, current_spend=initial_metrics["hist_spend_mean"]
+                ),
+                metrics={
+                    "total_budget": total_spend * initial_metrics["date_range"].n_periods,
+                    "response_lift": (total_response / initial_metrics["init_response_total"]) - 1,
+                    "achieved_efficiency": achieved_efficiency,
+                    "target_efficiency": config.target_value,
+                    "optimization_iterations": result["nit"],
+                    "optimization_status": result["success"],
+                    "total_response": total_response,
+                    "total_spend": total_spend,
+                },
+            )
+
+        except Exception as e:
+            raise ValueError(f"Target efficiency optimization failed: {str(e)}")
 
     def _generate_response_curves(
         self, optimal_spend: np.ndarray, current_spend: np.ndarray, n_points: int = 100
@@ -528,7 +572,7 @@ class BudgetAllocator:
     def _validate_date_data(self) -> None:
         """Validate date data during initialization."""
         try:
-            date_col = self.mmm_data.mmmdata_spec.date_var
+            date_col = self._get_date_column_name()
             if date_col not in self.mmm_data.data.columns:
                 raise ValueError(f"Date column '{date_col}' not found in data")
 
@@ -545,3 +589,10 @@ class BudgetAllocator:
 
         except Exception as e:
             raise ValueError(f"Invalid date data: {str(e)}")
+
+    def _get_date_column_name(self) -> str:
+        """Get the date column name, handling cases where it might be a list."""
+        date_var = self.mmm_data.mmmdata_spec.date_var
+        if isinstance(date_var, list):
+            return date_var[0]
+        return date_var
