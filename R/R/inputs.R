@@ -801,16 +801,18 @@ exposure_handling <- function(dt_transform,
     ## Use window cpe to predict the whole dataset to keep the window spend scale right
     spend_scaled_extrapolated <- temp_expo * temp_cpe_window
     df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),
-                                 spend_scaled = unlist(temp_spend_scaled),
+                                 exposure = unlist(temp_expo),
                                  media = paid_media_selected[i])
     dt_transform <- dt_transform %>% mutate(!!paid_media_selected[i]:= unlist(spend_scaled_extrapolated))
   }
   df_cpe <- bind_rows(df_cpe)
   df_expo_p <- bind_rows(df_expo_p)
-  p_expo <- df_expo_p %>% ggplot(aes(x = .data$spend, y = .data$spend_scaled)) +
+  p_expo <- df_expo_p %>% ggplot(aes(x = .data$spend, y = .data$exposure)) +
     geom_point() +
     geom_smooth(method = "lm", formula = y ~ x) +
-    facet_wrap(~ .data$media, scales = "free")
+    facet_wrap(~ .data$media, scales = "free") +
+    labs(title = "Spend & exposure relationship for paid media.",
+         subtitle = "Re-consider media splits if a media shows multiple patterns.")
 
   # Give recommendations and show warnings
   threshold <- 0.8
