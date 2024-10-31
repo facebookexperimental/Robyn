@@ -1,16 +1,13 @@
 # pyre-strict
-
 import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import numpy as np
 from typing import List, Tuple, Optional
+from typing import Tuple
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
 
 class TransformationVisualizer:
-    def __init__(self):
-        self.adstock_figures: Optional[Tuple[plt.Figure, plt.Figure]] = None
-        self.saturation_figures: Optional[Tuple[plt.Figure, plt.Figure]] = None
+    def __init__(self, pareto_result: ParetoResult):
+        self.pareto_Result = ParetoResult
 
     def create_adstock_plots(self) -> None:
         """
@@ -71,3 +68,13 @@ class TransformationVisualizer:
             filenames (List[str]): List of filenames to save the plots
         """
         pass
+
+
+    def generate_spend_effect_comparison(self) -> plt.Figure:
+        """Generate bar and line plot comparing spend share vs effect share.
+            
+        Returns:
+            plt.Figure: Plot comparing media spend shares and their effects
+        """
+        # Implementation would go here
+        fig, ax = plt.subplots()

@@ -1,22 +1,13 @@
 # pyre-strict
-from typing import Dict
+import matplotlib.pyplot as plt
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
-from robyn.modeling.clustering.clustering_config import ClusteringConfig
-
 
 class ClusterVisualizer:
-    """
-    Class for visualizing clustering results.
-    """
 
-    def __init__(self, results: ClusteredResult):
-        """
-        Initialize the ClusterVisualizer with clustering results.
-
-        Args:
-            results (ClusteredResult): Results of the clustering process.
-        """
-        self.results = results
+    def __init__(self, pareto_result: ParetoResult, clustered_result: ClusteredResult):
+        self.pareto_result = pareto_result
+        self.clustered_result = clustered_result
 
     def plot_wss(self) -> None:
         """
@@ -42,9 +33,7 @@ class ClusterVisualizer:
         """
         pass
 
-    def plot_confidence_intervals(
-        self, confidence_data: Dict[str, float], config: ClusteringConfig
-    ) -> None:
+    def plot_confidence_intervals(self) -> None:
         """
         Creates a plot of the bootstrapped confidence intervals for model performance metrics.
 
@@ -57,7 +46,7 @@ class ClusterVisualizer:
         """
         pass
 
-    def plot_top_solutions(self, config: ClusteringConfig) -> None:
+    def plot_top_solutions(self) -> None:
         """
         Creates plots for the top solutions based on their performance metrics.
 
@@ -68,3 +57,13 @@ class ClusterVisualizer:
             None
         """
         pass
+
+    def generate_bootstrap_confidence(self) -> plt.figure:
+        """Generate error bar plot showing bootstrapped ROI/CPA confidence intervals.
+        
+        Returns:
+            plt.Figure: The generated figure.
+        """
+        fig, ax = plt.subplots()
+        # Add plotting logic here
+        return fig    

@@ -1,11 +1,9 @@
-from typing import Dict, Any
 import matplotlib.pyplot as plt
-from .base_visualizer import BaseVisualizer
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
-class InputVisualizer(BaseVisualizer):
-    def __init__(self, input_data: Dict[str, Any]):
-        super().__init__()
-        self.input_data = input_data
+class MediaResponseVisualizer():
+    def __init__(self, pareto_result: ParetoResult):
+        self.pareto_result = pareto_result
 
     def plot_adstock(self) -> plt.Figure:
         """
@@ -29,13 +27,14 @@ class InputVisualizer(BaseVisualizer):
         # Add plotting logic here
         return fig
 
-    def plot_spend_exposure_fit(self) -> Dict[str, plt.Figure]:
+    def plot_spend_exposure_fit(self) -> plt.Figure:
         """
         Check spend exposure fit if available.
 
         Returns:
-            Dict[str, plt.Figure]: A dictionary of generated figures.
+            plt.Figure: The generated figure.
         """
-        figures = {}
+        
+        fig, ax = plt.subplots()
         # Add plotting logic here
-        return figures
+        return fig
