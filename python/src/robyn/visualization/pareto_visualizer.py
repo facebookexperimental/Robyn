@@ -1,24 +1,16 @@
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import List
-import io
-import base64
-from robyn.modeling.entities.modeloutputs import Trial
-from typing import Tuple
-import plotly.graph_objects as go
-from plot_data import PlotData
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
+from robyn.data.entities.mmmdata import MMMData
 
 class ParetoVisualizer:
     """
     Class for visualizing pareto results.
     """
-    def __init__(self, pareto_result: ParetoResult, adstock: AdstockType):
+    def __init__(self, pareto_result: ParetoResult, adstock: AdstockType, mmm_data: MMMData):
         self.pareto_result = pareto_result
         self.adstock = adstock
+        self.mmm_data = mmm_data
 
     def generate_waterfall(self, baseline_level: int = 0) -> plt.Figure:
         """Generate waterfall chart showing response decomposition by predictor.

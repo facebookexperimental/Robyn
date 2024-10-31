@@ -1,13 +1,7 @@
 # pyre-strict
-
 import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import numpy as np
 from typing import List, Tuple, Optional
 from typing import Tuple
-import plotly.graph_objects as go
-from plot_data import PlotData
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
 

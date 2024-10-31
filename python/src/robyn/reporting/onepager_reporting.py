@@ -8,13 +8,13 @@ from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 
 
-from .pareto_visualizer import ParetoVisualizer
-from .cluster_visualizer import ClusterVisualizer
-from .input_visualizer import InputVisualizer
-from .response_visualizer import ResponseVisualizer
-from .transformation_visualizer import TransformationVisualizer
+from robyn.visualization.pareto_visualizer import ParetoVisualizer
+from robyn.visualization.cluster_visualizer import ClusterVisualizer
+from robyn.visualization.input_visualizer import InputVisualizer
+from robyn.visualization.response_visualizer import ResponseVisualizer
+from robyn.visualization.transformation_visualizer import TransformationVisualizer
 
-class OnePagerVisualizer:
+class OnePagerReporter:
     """
         Class for generating comprehensive one-page visualization reports
         combining multiple visualizer outputs.
