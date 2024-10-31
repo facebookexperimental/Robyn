@@ -7,7 +7,6 @@ from robyn.modeling.entities.clustering_results import ClusteredResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 
-
 from robyn.visualization.pareto_visualizer import ParetoVisualizer
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.input_visualizer import InputVisualizer
@@ -34,6 +33,10 @@ class OnePagerReporter:
             pareto_result: Results from Pareto optimization
             clustered_result: Optional clustering results
             adstock: Optional adstock configuration
+        """
+
+        """
+            TODO: add exception handling.
         """
         self.pareto_result = pareto_result
         self.clustered_result = clustered_result
