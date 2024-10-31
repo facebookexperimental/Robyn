@@ -1,46 +1,96 @@
-from typing import Dict, List, Optional, Tuple
-import pandas as pd
-import plotly.graph_objects as go
-from dataclasses import dataclass
+from typing import Optional, List
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 
-@dataclass
-class PlotData:
-    spend_data: pd.DataFrame
-    response_data: pd.DataFrame
-    model_metrics: Dict[str, float]
-    adstock_data: pd.DataFrame
-    response_curves: pd.DataFrame
-    fitted_vs_actual: pd.DataFrame
-    diagnostic_data: pd.DataFrame
-    carryover_data: pd.DataFrame
-    bootstrap_data: Optional[pd.DataFrame] = None
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.clustering_results import ClusteredResult
+from robyn.data.entities.hyperparameters import AdstockType
+from robyn.data.entities.mmmdata import MMMData
 
-# onepager.py
-from typing import Optional
-import plotly.graph_objects as go
-from plot_data import PlotData
-from transformation_visualization import generate_spend_effect_comparison
-from pareto_visualizer import generate_waterfall
-from adstock_plot import generate_adstock_rate
-from response_visualizer import generate_response_curves
-from pareto_visualizer import generate_fitted_vs_actual
-from pareto_visualizer import generate_diagnostic_plot
-from pareto_visualizer import generate_immediate_vs_carryover
-from cluster_visualization import generate_bootstrap_confidence
 
-class MarketingOnePager:
-    def __init__(self, plot_data: PlotData):
-        """Initialize MarketingOnePager with plot data.
+from .pareto_visualizer import ParetoVisualizer
+from .cluster_visualizer import ClusterVisualizer
+from .input_visualizer import InputVisualizer
+from .response_visualizer import ResponseVisualizer
+from .transformation_visualizer import TransformationVisualizer
+
+class OnePagerVisualizer:
+    """
+        Class for generating comprehensive one-page visualization reports
+        combining multiple visualizer outputs.
+    """
+    
+    def __init__(
+        self,
+        pareto_result: ParetoResult,
+        clustered_result: Optional[ClusteredResult] = None,
+        adstock: Optional[AdstockType] = None,
+        mmm_data: Optional[MMMData] = None
+    ):
+        """
+        Initialize OnePager with required results objects.
         
         Args:
-            plot_data: PlotData instance containing all required data
+            pareto_result: Results from Pareto optimization
+            clustered_result: Optional clustering results
+            adstock: Optional adstock configuration
         """
-        self.data = plot_data
+        self.pareto_result = pareto_result
+        self.clustered_result = clustered_result
+        self.adstock = adstock
+        self.mmm_data = mmm_data
+        
+        # Initialize visualizers
+        self.pareto_viz = ParetoVisualizer(pareto_result, adstock) if adstock else None
+        self.cluster_viz = ClusterVisualizer(pareto_result, clustered_result) if clustered_result else None
+        self.input_viz = InputVisualizer(pareto_result)
+        self.response = ResponseVisualizer(pareto_result, mmm_data)
+        self.transfor_viz = TransformationVisualizer(pareto_result)
+
     
+    def generate_one_pager(
+        self,
+        plots: Optional[List[str]] = None,
+        figsize: tuple = (20, 15)
+    ) -> plt.Figure:
+        """
+        Generate a one-page report with multiple visualization plots.
+        
+        Args:
+            plots: List of plot names to include. If None, includes all available plots.
+                Valid options: ['waterfall', 'fitted_vs_actual', 'diagnostic', 
+                'immediate_vs_carryover', 'adstock_rate', 'bootstrap_confidence',
+                'spend_exposure']
+            figsize: Figure size in inches (width, height)
+            
+        Returns:
+            plt.Figure: Combined figure with all requested plots
+        """
+
+        fig = plt.figure(figsize=figsize)
+        return fig
+
+
+
+
+
+
+
+
+
+from typing import Optional
+from python.src.robyn.visualization.transformation_visualizer import generate_spend_effect_comparison
+from response_visualizer import generate_response_curves
+from pareto_visualizer import *
+from python.src.robyn.visualization.cluster_visualizer import generate_bootstrap_confidence
+
+class MarketingOnePager:
+    def __init__(self):
+        self = self
     def generate_onepager(self,
                          export: bool = True,
                          output_path: Optional[str] = None,
-                         baseline_level: int = 0) -> go.Figure:
+                         baseline_level: int = 0) -> plt.Figure:
         """Generate complete marketing one-pager with all plots.
         
         Args:

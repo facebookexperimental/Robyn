@@ -9,61 +9,62 @@ from robyn.modeling.entities.modeloutputs import Trial
 from typing import Tuple
 import plotly.graph_objects as go
 from plot_data import PlotData
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.data.entities.hyperparameters import AdstockType
 
 class ParetoVisualizer:
+    """
+    Class for visualizing pareto results.
+    """
+    def __init__(self, pareto_result: ParetoResult, adstock: AdstockType):
+        self.pareto_result = pareto_result
+        self.adstock = adstock
 
-    def generate_waterfall(data: PlotData, baseline_level: int = 0) -> go.Figure:
+    def generate_waterfall(self, baseline_level: int = 0) -> plt.Figure:
         """Generate waterfall chart showing response decomposition by predictor.
         
         Args:
-            data: PlotData instance containing required data
             baseline_level: Aggregation level for baseline variables (0-5)
             
         Returns:
-            go.Figure: Waterfall plot of response contributions
+            plt.Figure: Waterfall plot of response contributions
         """
-        pass
+        fig, ax = plt.subplots()
 
-    def generate_fitted_vs_actual(data: PlotData) -> go.Figure:
+    def generate_fitted_vs_actual(self) -> plt.Figure:
         """Generate time series plot comparing fitted vs actual values.
-        
-        Args:
-            data: PlotData instance containing required data
             
         Returns:
-            go.Figure: Line plot comparing predicted and actual values
+            plt.Figure: Line plot comparing predicted and actual values
         """
-        pass
+        fig, ax = plt.subplots()
 
-    def generate_diagnostic_plot(data: PlotData) -> go.Figure:
+    def generate_diagnostic_plot(self) -> plt.Figure:
         """Generate diagnostic scatter plot of fitted vs residual values.
         
-        Args:
-            data: PlotData instance containing required data
             
         Returns:
-            go.Figure: Scatter plot with trend line
+            plt.Figure: Scatter plot with trend line
         """
-        pass
+        fig, ax = plt.subplots()
 
-    def generate_immediate_vs_carryover(data: PlotData) -> go.Figure:
+    def generate_immediate_vs_carryover(self) -> plt.Figure:
         """Generate stacked bar chart comparing immediate vs carryover effects.
         
-        Args:
-            data: PlotData instance containing required data
             
         Returns:
-            go.Figure: Stacked bar plot of effect types
+            plt.Figure: Stacked bar plot of effect types
         """
-        pass
+        fig, ax = plt.subplots()
 
-    def generate_adstock_rate(data: PlotData) -> go.Figure:
+    def generate_adstock_rate(self) -> plt.Figure:
         """Generate plot showing adstock rates over time by channel.
-        
-        Args:
-            data: PlotData instance containing required data
             
         Returns:
-            go.Figure: Line plot of adstock decay rates
+            plt.Figure: Line plot of adstock decay rates
         """
-        pass
+
+        """
+            NOTE: Missing intervalType mapping in data_mapper from input collect.
+        """
+        fig, ax = plt.subplots()

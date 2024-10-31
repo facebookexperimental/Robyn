@@ -8,12 +8,12 @@ from typing import List, Tuple, Optional
 from typing import Tuple
 import plotly.graph_objects as go
 from plot_data import PlotData
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
 
 class TransformationVisualizer:
-    def __init__(self):
-        self.adstock_figures: Optional[Tuple[plt.Figure, plt.Figure]] = None
-        self.saturation_figures: Optional[Tuple[plt.Figure, plt.Figure]] = None
+    def __init__(self, pareto_result: ParetoResult):
+        self.pareto_Result = ParetoResult
 
     def create_adstock_plots(self) -> None:
         """
@@ -76,14 +76,11 @@ class TransformationVisualizer:
         pass
 
 
-    def generate_spend_effect_comparison(data: PlotData) -> go.Figure:
+    def generate_spend_effect_comparison(self) -> plt.Figure:
         """Generate bar and line plot comparing spend share vs effect share.
-        
-        Args:
-            data: PlotData instance containing required data
             
         Returns:
-            go.Figure: Plot comparing media spend shares and their effects
+            plt.Figure: Plot comparing media spend shares and their effects
         """
         # Implementation would go here
-        pass
+        fig, ax = plt.subplots()
