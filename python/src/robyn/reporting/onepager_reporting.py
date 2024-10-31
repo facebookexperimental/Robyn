@@ -9,7 +9,7 @@ from robyn.data.entities.mmmdata import MMMData
 
 from robyn.visualization.pareto_visualizer import ParetoVisualizer
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
-from robyn.visualization.input_visualizer import InputVisualizer
+from python.src.robyn.visualization.media_response_visualizer import MediaResponseVisualizer
 from robyn.visualization.response_visualizer import ResponseVisualizer
 from robyn.visualization.transformation_visualizer import TransformationVisualizer
 
@@ -46,7 +46,7 @@ class OnePagerReporter:
         # Initialize visualizers
         self.pareto_viz = ParetoVisualizer(pareto_result, adstock) if adstock else None
         self.cluster_viz = ClusterVisualizer(pareto_result, clustered_result) if clustered_result else None
-        self.input_viz = InputVisualizer(pareto_result)
+        self.input_viz = MediaResponseVisualizer(pareto_result)
         self.response = ResponseVisualizer(pareto_result, mmm_data)
         self.transfor_viz = TransformationVisualizer(pareto_result)
 

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
-class InputVisualizer():
+class MediaResponseVisualizer():
     def __init__(self, pareto_result: ParetoResult):
         self.pareto_result = pareto_result
 
