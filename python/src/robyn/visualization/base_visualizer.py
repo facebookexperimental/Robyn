@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+
 class BaseVisualizer:
     def __init__(self):
         pass
