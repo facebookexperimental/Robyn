@@ -2,15 +2,21 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from robyn.allocator.entities.allocation_results import AllocationResult
 
 
 class AllocationPlotter:
     """Creates visualizations for allocation results matching R version."""
 
-    def __init__(self):
-        """Initialize plotter with default settings."""
+    def __init__(self, result: AllocationResult):
+        """Initialize plotter with allocation results and default settings.
+
+        Args:
+            result: AllocationResult containing optimization results to visualize
+        """
+        # Store allocation results
+        self.result = result
+
         # Use matplotlib's built-in clean style
         plt.style.use("bmh")
 
@@ -30,21 +36,28 @@ class AllocationPlotter:
         self.positive_color = "#2ECC71"  # Green
         self.negative_color = "#E74C3C"  # Red
 
-    def plot_all(self, result: AllocationResult) -> Dict[str, plt.Figure]:
-        """Generate all one-pager plots for allocation results."""
+    def plot_all(self) -> Dict[str, plt.Figure]:
+        """Generate all one-pager plots for allocation results.
+
+        Returns:
+            Dictionary of plot names to figures
+        """
         return {
-            "spend_allocation": self.plot_spend_allocation(result),
-            "response_curves": self.plot_response_curves(result),
-            "efficiency_frontier": self.plot_efficiency_frontier(result),
-            "spend_vs_response": self.plot_spend_vs_response(result),
-            "summary_metrics": self.plot_summary_metrics(result),
+            "spend_allocation": self.plot_spend_allocation(),
+            "response_curves": self.plot_response_curves(),
+            "efficiency_frontier": self.plot_efficiency_frontier(),
+            "spend_vs_response": self.plot_spend_vs_response(),
+            "summary_metrics": self.plot_summary_metrics(),
         }
 
-    def plot_spend_allocation(self, result: AllocationResult) -> plt.Figure:
+    def plot_spend_allocation(self) -> plt.Figure:
         """Plot spend allocation comparison between current and optimized."""
+        if self.result is None:
+            raise ValueError("No allocation results available. Call plot_all() first.")
+
         fig, ax = plt.subplots(figsize=self.fig_size)
 
-        df = result.optimal_allocations
+        df = self.result.optimal_allocations
         channels = df["channel"].values
         x = np.arange(len(channels))
         width = 0.35
@@ -82,9 +95,12 @@ class AllocationPlotter:
         plt.tight_layout()
         return fig
 
-    def plot_response_curves(self, result: AllocationResult) -> plt.Figure:
+    def plot_response_curves(self) -> plt.Figure:
         """Plot response curves with current and optimal points."""
-        curves_df = result.response_curves
+        if self.result is None:
+            raise ValueError("No allocation results available. Call plot_all() first.")
+
+        curves_df = self.result.response_curves
         channels = curves_df["channel"].unique()
         n_channels = len(channels)
         ncols = min(3, n_channels)
@@ -140,11 +156,14 @@ class AllocationPlotter:
         plt.tight_layout()
         return fig
 
-    def plot_efficiency_frontier(self, result: AllocationResult) -> plt.Figure:
+    def plot_efficiency_frontier(self) -> plt.Figure:
         """Plot efficiency frontier showing spend vs response relationship."""
+        if self.result is None:
+            raise ValueError("No allocation results available. Call plot_all() first.")
+
         fig, ax = plt.subplots(figsize=self.fig_size)
 
-        df = result.optimal_allocations
+        df = self.result.optimal_allocations
 
         # Calculate totals
         current_total_spend = df["current_spend"].sum()
@@ -190,11 +209,14 @@ class AllocationPlotter:
         plt.tight_layout()
         return fig
 
-    def plot_spend_vs_response(self, result: AllocationResult) -> plt.Figure:
+    def plot_spend_vs_response(self) -> plt.Figure:
         """Plot channel-level spend vs response changes."""
+        if self.result is None:
+            raise ValueError("No allocation results available. Call plot_all() first.")
+
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
 
-        df = result.optimal_allocations
+        df = self.result.optimal_allocations
         channels = df["channel"].values
         x = np.arange(len(channels))
 
@@ -229,15 +251,18 @@ class AllocationPlotter:
         plt.tight_layout()
         return fig
 
-    def plot_summary_metrics(self, result: AllocationResult) -> plt.Figure:
+    def plot_summary_metrics(self) -> plt.Figure:
         """Plot summary metrics including ROI/CPA changes."""
+        if self.result is None:
+            raise ValueError("No allocation results available. Call plot_all() first.")
+
         fig, ax = plt.subplots(figsize=self.fig_size)
 
-        df = result.optimal_allocations
+        df = self.result.optimal_allocations
         channels = df["channel"].values
 
         # Calculate ROI or CPA metrics
-        if result.metrics.get("dep_var_type") == "revenue":
+        if self.result.metrics.get("dep_var_type") == "revenue":
             current_metric = df["current_response"] / df["current_spend"]
             optimal_metric = df["optimal_response"] / df["optimal_spend"]
             metric_name = "ROI"

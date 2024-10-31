@@ -24,7 +24,7 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 from robyn.allocator.entities.allocation_config import AllocationConfig, DateRange
-from robyn.allocator.entities.enums import OptimizationScenario, ConstrMode, UseCase
+from robyn.allocator.entities.enums import OptimizationScenario, ConstrMode, AllocatorUseCase
 from robyn.allocator.entities.allocation_results import AllocationResult
 from robyn.allocator.entities.allocation_constraints import AllocationConstraints
 from robyn.modeling.feature_engineering import FeaturizedMMMData

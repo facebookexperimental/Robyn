@@ -15,7 +15,7 @@ class ConstrMode(str, Enum):
     INEQUALITY = "ineq"
 
 
-class UseCase(str, Enum):
+class AllocatorUseCase(str, Enum):
     """Defines different use cases for allocation."""
 
     ALL_HISTORICAL_VEC = "all_historical_vec"
