@@ -2,11 +2,16 @@ import os
 import logging
 import logging.config
 from datetime import datetime
+import robyn
 
 current_datetime = datetime.now()
 
 # Get the directory of the current module
-module_dir = os.path.dirname(__file__)
+module_dir = os.path.dirname(robyn.__file__)
+
+log_directory = '/tmp/robynpy/logs'
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
 
 # Define the path to the logging configuration file
 logging_conf_path = os.path.join(module_dir, "common/config/logging.conf")
