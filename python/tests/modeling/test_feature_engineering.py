@@ -28,8 +28,8 @@ class TestFeatureEngineering(unittest.TestCase):
         """
         # Load test data
         cwd = os.path.dirname(__file__)
-        self.dt_simulated_weekly = pd.read_csv(cwd + "/../../src/tutorials/resources/dt_simulated_weekly.csv")
-        self.dt_prophet_holidays = pd.read_csv(cwd + "/../../src/tutorials/resources/dt_prophet_holidays.csv")
+        self.dt_simulated_weekly = pd.read_csv(cwd + "/../../src/robyn/tutorials/resources/dt_simulated_weekly.csv")
+        self.dt_prophet_holidays = pd.read_csv(cwd + "/../../src/robyn/tutorials/resources/dt_prophet_holidays.csv")
 
         # Create MMMData
         mmm_data_spec = MMMData.MMMDataSpec(
