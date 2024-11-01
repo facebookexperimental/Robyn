@@ -3,8 +3,6 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 import seaborn as sns
 
-
-
 class ResponseVisualizer():
     def __init__(self, pareto_result: ParetoResult, mmm_data: MMMData):
         self.response_data = pareto_result
