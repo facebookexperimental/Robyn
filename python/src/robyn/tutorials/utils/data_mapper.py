@@ -19,7 +19,7 @@ from robyn.modeling.entities.clustering_results import (
     ClusteredResult,
     ClusterPlotResults,
     ClusterConfidenceIntervals,
-    PCAResults,
+    DimentionalityReductionResults,
 )
 
 
@@ -128,9 +128,9 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
             pca_results = None
             pca_data = clusters_dict.get("clusters_PCA")
             if pca_data:
-                pca_results = PCAResults(
-                    pca_explained=pd.Series(pca_data.get("pca_explained", [])),
-                    pcadf=pd.DataFrame(pca_data.get("pcadf", [])),
+                pca_results = DimentionalityReductionResults(
+                    explained_variance=pd.Series(pca_data.get("pca_explained", [])),
+                    df=pd.DataFrame(pca_data.get("pcadf", [])),
                     plot_explained=(
                         pd.DataFrame(pca_data.get("plot_explained", [])) if pca_data.get("plot_explained") else None
                     ),
@@ -139,16 +139,16 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
 
             # Create plot results
             plot_results = ClusterPlotResults(
-                plot_clusters_ci=pd.DataFrame(clusters_dict.get("plot_clusters_ci", [])),
-                plot_models_errors=pd.DataFrame(clusters_dict.get("plot_models_errors", [])),
-                plot_models_rois=pd.DataFrame(clusters_dict.get("plot_models_rois", [])),
+                top_solutions_errors_plot=pd.DataFrame(clusters_dict.get("plot_models_errors", [])),
+                top_solutions_rois_plot=pd.DataFrame(clusters_dict.get("plot_models_rois", [])),
             )
 
             # Create confidence intervals
             cluster_ci = ClusterConfidenceIntervals(
-                cluster_ci=pd.DataFrame(clusters_dict.get("df_cluster_ci", [])),
+                cluster_confidence_interval_df=pd.DataFrame(clusters_dict.get("df_cluster_ci", [])),
                 boot_n=clusters_dict.get("boot_n", [0])[0],
                 sim_n=clusters_dict.get("sim_n", [0])[0],
+                clusters_confidence_interval_plot=pd.DataFrame(clusters_dict.get("plot_clusters_ci", [])),
             )
 
             # Create final clustered result
