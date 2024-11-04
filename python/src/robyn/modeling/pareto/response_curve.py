@@ -233,13 +233,12 @@ class ResponseCurveCalculator:
     ) -> MetricDateInfo:
         start_rw = self.mmm_data.mmmdata_spec.rolling_window_start_which
         end_rw = self.mmm_data.mmmdata_spec.rolling_window_end_which
-
         if date_range == "all" or date_range is None:
             metric_loc = slice(start_rw, end_rw)
             date_range_updated = all_dates[metric_loc]
-        elif date_range.startswith("last_"):
+        elif isinstance(date_range, str) and date_range.startswith("last_"):
             n_periods = int(date_range.split("_")[1])
-            metric_loc = slice(end_rw - n_periods + 1, end_rw)
+            metric_loc = slice(end_rw - n_periods, end_rw)
             date_range_updated = all_dates[metric_loc]
         elif isinstance(date_range, list) and len(date_range) == 2:
             start_date, end_date = pd.to_datetime(date_range)
