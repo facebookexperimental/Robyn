@@ -23,7 +23,6 @@ class TestHillCalculator(unittest.TestCase):
             "MockModelOutputs", (object,), {"media_vec_collect": mock_media_vec_collect}
         )()
 
-        # Set media_spend_sorted as an empty list and select_model to a dummy value
         media_spend_sorted = []
         select_model = "model_1"
 
