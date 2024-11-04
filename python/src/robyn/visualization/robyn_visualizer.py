@@ -1,9 +1,9 @@
 from typing import Dict, Any
 import matplotlib.pyplot as plt
-from .input_visualizer import InputVisualizer
-from .model_visualizer import ModelVisualizer
-from .allocator_visualizer import AllocatorVisualizer
-from .response_visualizer import ResponseVisualizer
+from robyn.visualization.input_visualizer import InputVisualizer
+from robyn.visualization.model_convergence_visualizer import ModelVisualizer
+from robyn.visualization.allocator_visualizer import AllocatorVisualizer
+from robyn.visualization.response_visualizer import ResponseVisualizer
 
 class RobynVisualizer:
     def __init__(self):
