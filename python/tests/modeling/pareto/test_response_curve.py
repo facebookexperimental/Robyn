@@ -116,6 +116,7 @@ class TestResponseCurveCalculator(unittest.TestCase):
             self.calculator._check_metric_type("unknown_metric")
 
     def test__check_metric_dates(self):
+
         all_dates = pd.Series(pd.date_range("2020-01-01", periods=5))
         self.mock_mmm_data.mmmdata_spec.rolling_window_start_which = 0
         self.mock_mmm_data.mmmdata_spec.rolling_window_end_which = 5
@@ -128,6 +129,11 @@ class TestResponseCurveCalculator(unittest.TestCase):
             "last_3", all_dates, False
         )
         self.assertEqual(len(metric_date_info.date_range_updated), 3)
+
+        metric_date_info = self.calculator._check_metric_dates(
+            ["2020-01-01", "2020-01-04"], all_dates, False
+        )
+        self.assertEqual(len(metric_date_info.date_range_updated), 4)
 
         with self.assertRaises(ValueError):
             self.calculator._check_metric_dates("invalid_range", all_dates, False)
