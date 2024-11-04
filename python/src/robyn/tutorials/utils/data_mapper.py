@@ -181,15 +181,43 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
 
 def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFrame]:
     """
-    Convert plot data collections to DataFrames.
+    Convert plot data collections to DataFrames while maintaining R's structure.
+
+    Args:
+        plot_data_collect: Dictionary containing plot data from R
+
+    Returns:
+        Dictionary of converted pandas DataFrames
     """
     converted_data = {}
-    for plot_type, data in plot_data_collect.items():
+
+    for model_id, model_data in plot_data_collect.items():
         try:
-            converted_data[plot_type] = pd.DataFrame(data)
+            converted_data[model_id] = {}
+
+            # Convert each plot type (plot1data, plot2data, etc)
+            for plot_type, plot_content in model_data.items():
+                if not isinstance(plot_content, dict):
+                    continue
+
+                converted_data[model_id][plot_type] = {}
+
+                # Convert each component within the plot type
+                for component_name, component_data in plot_content.items():
+                    try:
+                        if isinstance(component_data, pd.DataFrame):
+                            converted_data[model_id][plot_type][component_name] = component_data
+                        elif isinstance(component_data, (list, dict)):
+                            converted_data[model_id][plot_type][component_name] = pd.DataFrame(component_data)
+                        else:
+                            # For scalar values, store as is
+                            converted_data[model_id][plot_type][component_name] = component_data
+                    except Exception as e:
+                        print(f"Warning: Error converting {component_name} in {plot_type} for {model_id}: {str(e)}")
+
         except Exception as e:
-            print(f"Warning: Error converting plot data for {plot_type}: {str(e)}")
-            converted_data[plot_type] = pd.DataFrame()
+            print(f"Warning: Error converting plot data for {model_id}: {str(e)}")
+
     return converted_data
 
 
