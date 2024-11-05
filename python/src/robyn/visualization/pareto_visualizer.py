@@ -1,5 +1,6 @@
 from typing import Optional
 import matplotlib.pyplot as plt
+import numpy as np
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
