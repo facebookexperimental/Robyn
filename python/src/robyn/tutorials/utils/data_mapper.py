@@ -14,7 +14,7 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.convergence import Convergence
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.feature_engineering import FeaturizedMMMData
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult, ParetoData
+from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import (
     ClusteredResult,
     ClusterPlotResults,
@@ -106,18 +106,6 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
         print(f"Warning: Error creating ParetoResult: {str(e)}")
         pareto_result = None
 
-    # Create ParetoData
-    try:
-        pareto_data = ParetoData(
-            decomp_spend_dist=pd.DataFrame(output_collect.get("decomp_spend_dist", {})),
-            result_hyp_param=pd.DataFrame(output_collect.get("resultHypParam", {})),
-            x_decomp_agg=pd.DataFrame(output_collect.get("xDecompAgg", {})),
-            pareto_fronts=[output_collect.get("pareto_fronts", 0)],
-        )
-    except Exception as e:
-        print(f"Warning: Error creating ParetoData: {str(e)}")
-        pareto_data = None
-
     # Process cluster data if available
     cluster_data = None
     if output_collect.get("clusters"):
@@ -174,7 +162,6 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "pareto_result": pareto_result,
-        "pareto_data": pareto_data,
         "cluster_data": cluster_data,
     }
 

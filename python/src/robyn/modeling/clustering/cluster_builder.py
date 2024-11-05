@@ -4,8 +4,7 @@ import pandas as pd
 from robyn.modeling.clustering.clustering_config import ClusteringConfig
 from robyn.modeling.entities.clustering_results import ClusteredResult
 
-from robyn.modeling.entities.modeloutputs import ModelOutputs
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 
 
 class ClusterBuilder:

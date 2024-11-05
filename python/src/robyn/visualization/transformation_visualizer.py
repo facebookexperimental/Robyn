@@ -2,12 +2,12 @@
 import matplotlib.pyplot as plt
 from typing import List, Tuple, Optional
 from typing import Tuple
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 
 
 class TransformationVisualizer:
     def __init__(self, pareto_result: ParetoResult):
-        self.pareto_Result = ParetoResult
+        self.pareto_Result = pareto_result
 
     def create_adstock_plots(self) -> None:
         """

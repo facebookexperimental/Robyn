@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 
 
 @dataclass
