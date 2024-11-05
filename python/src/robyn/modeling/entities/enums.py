@@ -31,6 +31,3 @@ class Models(Enum):
 
     RIDGE = auto()  # Ridge Regression
     # Add other model types as needed
-
-
-HYPERPARAMETER_NAMES = ("thetas", "shapes", "scales", "alphas", "gammas", "penalty")
