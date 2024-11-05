@@ -55,7 +55,7 @@ class ClusterBuilder:
         self.logger.info("Initializing ClusterBuilder")
 
         self.pareto_result: ParetoResult = pareto_result
-        self.cluster_visualizer = ClusterVisualizer(None)
+        self.cluster_visualizer = ClusterVisualizer(None, None)
 
     def cluster_models(self, config: ClusteringConfig) -> ClusteredResult:
         """

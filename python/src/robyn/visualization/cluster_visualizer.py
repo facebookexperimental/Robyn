@@ -17,9 +17,7 @@ from scipy import stats
 
 class ClusterVisualizer:
 
-    def __init__(self, pareto_result: Optional[ParetoResult],
-        clustered_result: Optional[ClusteredResult]):
-
+    def __init__(self, pareto_result: Optional[ParetoResult], clustered_result: Optional[ClusteredResult]):
         if clustered_result is not None:
             self.results = clustered_result
         if pareto_result is not None:
