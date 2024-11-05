@@ -74,16 +74,17 @@ class ResponseCurveCalculator:
     ) -> ResponseOutput:
         # Determine the use case based on input parameters
         usecase = self._which_usecase(metric_value, date_range)
-
+        print(f">>>>>>>>>1")
         # Check the metric type (spend, exposure, organic)
         metric_type = self._check_metric_type(metric_name)
-
+        print(f">>>>>>>>>2")
         all_dates = self.mmm_data.data[self.mmm_data.mmmdata_spec.date_var]
+        print(f">>>>>>>>>2.1: {metric_name}\n\nself.mmm_data.data:\n{self.mmm_data.data}\n\n")
         all_values = self.mmm_data.data[metric_name]
-
+        print(f">>>>>>>>>2.2")
         # Check and process date range
         ds_list = self._check_metric_dates(date_range, all_dates, quiet)
-
+        print(f">>>>>>>>>3")
         # Check and process metric values
         val_list = self._check_metric_value(
             metric_value, metric_name, all_values, ds_list.metric_loc
@@ -92,7 +93,7 @@ class ResponseCurveCalculator:
         date_range_updated = ds_list.date_range_updated
         metric_value_updated = val_list.metric_value_updated
         all_values_updated = val_list.all_values_updated
-
+        print(f">>>>>>>>>4")
         # Transform exposure to spend if necessary
         if metric_type == "exposure":
             all_values_updated = self._transform_exposure_to_spend(
@@ -104,7 +105,7 @@ class ResponseCurveCalculator:
             hpm_name = self._get_spend_name(metric_name)
         else:
             hpm_name = metric_name
-
+        print(f">>>>>>>>>5")
         media_vec_origin = self.mmm_data.data[metric_name]
 
         # Get adstock parameters and apply adstock transformation
@@ -115,7 +116,7 @@ class ResponseCurveCalculator:
         x_list = self.transformation.transform_adstock(
             media_vec_origin, adstockType, channel_hyperparams
         )
-
+        print(f">>>>>>>>>6")
         x_list_sim = self.transformation.transform_adstock(
             all_values_updated, adstockType, channel_hyperparams
         )
@@ -128,7 +129,7 @@ class ResponseCurveCalculator:
         else:
             input_immediate = x_list_sim.x[ds_list.metric_loc]
         input_carryover = input_total - input_immediate
-
+        print(f">>>>>>>>>7")
         # Get saturation parameters and apply saturation
         hill_params = self._get_saturation_params(select_model, hpm_name, dt_hyppar)
 
@@ -158,7 +159,7 @@ class ResponseCurveCalculator:
             )
 
         metric_saturated_immediate = metric_saturated_total - metric_saturated_carryover
-
+        print(f">>>>>>>>>8")
         # Calculate final response values
         coeff = dt_coef[
             (dt_coef["solID"] == select_model) & (dt_coef["rn"] == hpm_name)
@@ -219,6 +220,7 @@ class ResponseCurveCalculator:
     def _check_metric_type(
         self, metric_name: str
     ) -> Literal["spend", "exposure", "organic"]:
+        print(f"metric_name: {metric_name}\n\nself.mmm_data.mmmdata_spec.paid_media_spends: {self.mmm_data.mmmdata_spec.paid_media_spends}")
         if metric_name in self.mmm_data.mmmdata_spec.paid_media_spends:
             return "spend"
         elif metric_name in self.mmm_data.mmmdata_spec.paid_media_vars:
