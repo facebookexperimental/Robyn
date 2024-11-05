@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from src.robyn.modeling.pareto.pareto_utils import ParetoUtils
+from robyn.modeling.pareto.pareto_utils import ParetoUtils
 
 
 @pytest.fixture
