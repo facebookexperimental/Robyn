@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from prophet import Prophet
 from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
@@ -210,6 +211,189 @@ class TestFeatureEngineering(unittest.TestCase):
         dt_transform = pd.DataFrame({"ds": pd.date_range(start="2015-01-01", end="2015-01-10")})
         result = self.feature_engineering._set_holidays(dt_transform, self.holidays_data.dt_holidays, "day")
         self.assertTrue(all(col in result.columns for col in ["holiday", "ds", "country"]))
+
+    # Add these test methods to your existing TestFeatureEngineering class:
+
+    def test_apply_transformations(self):
+        """Test complete transformation pipeline (adstock + saturation)"""
+        x = pd.Series([1, 2, 3, 4, 5])
+        params = MagicMock(spec=ChannelHyperparameters)
+        params.thetas = [0.5]
+        params.alphas = [0.7]
+        params.gammas = [3.0]
+
+        result = self.feature_engineering._apply_transformations(x, params)
+        self.assertEqual(len(result), len(x))
+        self.assertTrue(all(0 <= val <= 1 for val in result))
+
+    def test_apply_saturation(self):
+        """Test saturation transformation"""
+        x = pd.Series([1, 2, 3, 4, 5])
+        params = MagicMock(spec=ChannelHyperparameters)
+        params.alphas = [0.7]
+        params.gammas = [3.0]
+
+        result = self.feature_engineering._apply_saturation(x, params)
+        self.assertEqual(len(result), len(x))
+        self.assertTrue(all(0 <= val <= 1 for val in result))
+
+    def test_weibull_pdf_adstock(self):
+        """Test Weibull PDF adstock transformation"""
+        x = pd.Series([1, 2, 3, 4, 5])
+        params = MagicMock(spec=ChannelHyperparameters)
+        params.shapes = [1.0]
+        params.scales = [1.0]
+        self.hyperparameters.adstock = AdstockType.WEIBULL_PDF
+
+        result = self.feature_engineering._apply_adstock(x, params)
+        self.assertEqual(len(result), len(x))
+
+    def test_fit_spend_exposure_edge_cases(self):
+        """Test edge cases in spend-exposure model fitting"""
+        # Test with zero spend
+        dt_zero_spend = pd.DataFrame({"facebook_S": [0, 0, 0], "facebook_I": [1, 2, 3]})
+        result_zero = self.feature_engineering._fit_spend_exposure(dt_zero_spend, "facebook_S", 1.0)
+        self.assertIsNotNone(result_zero)
+
+        # Test with all zero exposure
+        dt_zero_exposure = pd.DataFrame({"facebook_S": [1, 2, 3], "facebook_I": [0, 0, 0]})
+        result_zero_exp = self.feature_engineering._fit_spend_exposure(dt_zero_exposure, "facebook_S", 1.0)
+        self.assertIsNotNone(result_zero_exp)
+
+        # Test with negative values
+        dt_negative = pd.DataFrame({"facebook_S": [-1, 2, 3], "facebook_I": [1, 2, 3]})
+        result_negative = self.feature_engineering._fit_spend_exposure(dt_negative, "facebook_S", 1.0)
+        self.assertIsNotNone(result_negative)
+
+    def test_prophet_decomposition_with_custom_params(self):
+        """Test Prophet decomposition with custom parameters"""
+        # Create complete test data with all required columns
+        dt_mod = pd.DataFrame(
+            {
+                "ds": pd.to_datetime(self.dt_simulated["DATE"]),
+                "dep_var": self.dt_simulated["revenue"],
+                "facebook_S": self.dt_simulated["facebook_S"],
+                "competitor_sales_B": self.dt_simulated["competitor_sales_B"],
+                "events": self.dt_simulated["events"],
+                "newsletter": self.dt_simulated["newsletter"],
+            }
+        )
+
+        # Add custom parameters
+        self.feature_engineering.custom_params = {"yearly.seasonality": 20, "weekly.seasonality": 4}
+
+        # Set prophet vars to ensure Prophet is called
+        self.holidays_data.prophet_vars = ["trend", "season"]
+        self.mmm_data.mmmdata_spec.day_interval = 7
+
+        # Mock the entire Prophet module
+        with patch("robyn.modeling.feature_engineering.Prophet") as mock_prophet:
+            mock_prophet_instance = mock_prophet.return_value
+            # Return a mocked fit method that returns the instance itself
+            mock_prophet_instance.fit = MagicMock(return_value=mock_prophet_instance)
+
+            # Create prophet output matching input size
+            prophet_output = pd.DataFrame(
+                {
+                    "ds": dt_mod["ds"],
+                    "trend": np.ones(len(dt_mod)),
+                    "yearly": np.zeros(len(dt_mod)),
+                    "holidays": np.zeros(len(dt_mod)),
+                    "yhat": np.ones(len(dt_mod)),
+                }
+            )
+            mock_prophet_instance.predict = MagicMock(return_value=prophet_output)
+
+            result = self.feature_engineering._prophet_decomposition(dt_mod)
+
+            # Verify Prophet was called with custom parameters
+            mock_prophet.assert_called_once()
+            _, kwargs = mock_prophet.call_args
+            self.assertEqual(kwargs.get("yearly_seasonality"), 20)
+            self.assertEqual(kwargs.get("weekly_seasonality"), 4)
+
+    def test_set_holidays_monthly_invalid_dates(self):
+        """Test monthly holiday setting with invalid dates"""
+        dt_transform = pd.DataFrame(
+            {"ds": pd.date_range(start="2015-01-15", end="2015-12-15", freq="M")}  # Not first day of month
+        )
+
+        with self.assertRaises(ValueError):
+            self.feature_engineering._set_holidays(dt_transform, self.dt_holidays, "month")
+
+    def test_create_rolling_window_data_invalid_window_end(self):
+        """Test rolling window creation with invalid window end"""
+        dt_transform = pd.DataFrame(
+            {"ds": pd.to_datetime(self.dt_simulated["DATE"]), "revenue": self.dt_simulated["revenue"]}
+        )
+
+        self.mmm_data.mmmdata_spec.window_start = None
+        self.mmm_data.mmmdata_spec.window_end = pd.Timestamp("1900-01-01")  # Before data starts
+
+        with self.assertRaises(ValueError):
+            self.feature_engineering._create_rolling_window_data(dt_transform)
+
+    def test_create_rolling_window_data_invalid_window_start(self):
+        """Test rolling window creation with invalid window start"""
+        dt_transform = pd.DataFrame(
+            {"ds": pd.to_datetime(self.dt_simulated["DATE"]), "revenue": self.dt_simulated["revenue"]}
+        )
+
+        self.mmm_data.mmmdata_spec.window_start = pd.Timestamp("2100-01-01")  # After data ends
+        self.mmm_data.mmmdata_spec.window_end = None
+
+        with self.assertRaises(ValueError):
+            self.feature_engineering._create_rolling_window_data(dt_transform)
+
+    def test_prophet_decomposition_all_components(self):
+        """Test Prophet decomposition with all possible components"""
+        # Create complete test data with all required columns
+        dt_mod = pd.DataFrame(
+            {
+                "ds": pd.to_datetime(self.dt_simulated["DATE"]),
+                "dep_var": self.dt_simulated["revenue"],
+                "facebook_S": self.dt_simulated["facebook_S"],
+                "competitor_sales_B": self.dt_simulated["competitor_sales_B"],
+                "events": self.dt_simulated["events"],
+                "newsletter": self.dt_simulated["newsletter"],
+            }
+        )
+
+        # Set all prophet variables
+        self.holidays_data.prophet_vars = ["trend", "season", "holiday", "monthly", "weekday"]
+
+        with patch("prophet.Prophet") as mock_prophet:
+            mock_prophet_instance = MagicMock()
+            mock_prophet_instance.fit.return_value = None
+
+            # Create prophet output with all components
+            prophet_output = pd.DataFrame(
+                {
+                    "ds": dt_mod["ds"],
+                    "trend": np.ones(len(dt_mod)),
+                    "yearly": np.zeros(len(dt_mod)),
+                    "weekly": np.zeros(len(dt_mod)),
+                    "monthly": np.zeros(len(dt_mod)),
+                    "holidays": np.zeros(len(dt_mod)),
+                    "yhat": np.ones(len(dt_mod)),
+                }
+            )
+            mock_prophet_instance.predict.return_value = prophet_output
+            mock_prophet.return_value = mock_prophet_instance
+
+            result = self.feature_engineering._prophet_decomposition(dt_mod)
+
+            # Assert all components are present
+            if "trend" in self.holidays_data.prophet_vars:
+                self.assertIn("trend", result.columns)
+            if "season" in self.holidays_data.prophet_vars:
+                self.assertIn("season", result.columns)
+            if "monthly" in self.holidays_data.prophet_vars:
+                self.assertIn("monthly", result.columns)
+            if "weekday" in self.holidays_data.prophet_vars:
+                self.assertIn("weekday", result.columns)
+            if "holiday" in self.holidays_data.prophet_vars:
+                self.assertIn("holiday", result.columns)
 
     def test_set_holidays_monthly(self):
         """Test holiday setting for monthly data"""
