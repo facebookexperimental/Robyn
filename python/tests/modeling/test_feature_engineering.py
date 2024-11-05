@@ -406,7 +406,3 @@ class TestFeatureEngineering(unittest.TestCase):
         dt_transform = pd.DataFrame({"ds": pd.date_range(start="2015-01-01", end="2015-01-10")})
         with self.assertRaises(ValueError):
             self.feature_engineering._set_holidays(dt_transform, self.holidays_data.dt_holidays, "invalid")
-
-
-if __name__ == "__main__":
-    unittest.main()
