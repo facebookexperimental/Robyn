@@ -1,9 +1,11 @@
 # pyre-strict
 
 from dataclasses import dataclass
-from typing import List, Literal
 from enum import Enum
-from data.entities.enums import DependentVarType
+from sys import maxsize
+from typing import List, Literal, Optional
+
+from robyn.data.entities.enums import DependentVarType
 
 
 class ClusterBy(Enum):
@@ -27,11 +29,14 @@ class ClusteringConfig:
         seed (int): Random seed for reproducibility.
     """
 
+    weights: List[float]
     dep_var_type: DependentVarType
     cluster_by: ClusterBy = ClusterBy.HYPERPARAMETERS
-    max_clusters: int = 10
+    max_clusters: int = 30
+    min_clusters: int = 3
+    k_clusters: int = maxsize
     limit: int = 1
-    weights: List[float] = [1, 1, 1]
     dim_reduction: Literal["PCA", "tSNE"] = "PCA"
     export: bool = False
     seed: int = 123
+    all_media: Optional[List[str]] = None

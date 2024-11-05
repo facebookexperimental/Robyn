@@ -16,15 +16,13 @@ class ClusterBuilder:
     and generating error scores, among other functionalities.
     """
 
-    def __init__(self, model_outputs: ModelOutputs, pareto_result: ParetoResult):
+    def __init__(self, pareto_result: ParetoResult):
         """
         Initializes the ClusterBuilder with global instances of ModelOutputs and ParetoResult.
 
         Args:
-            model_outputs (ModelOutputs): The outputs of the modeling process containing trial results.
             pareto_result (ParetoResult): The results of the Pareto optimization process.
         """
-        self.model_outputs: ModelOutputs = model_outputs
         self.pareto_result: ParetoResult = pareto_result
 
     def cluster_models(self, config: ClusteringConfig) -> ClusteredResult:
