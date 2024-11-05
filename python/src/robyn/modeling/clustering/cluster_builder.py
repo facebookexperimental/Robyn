@@ -18,7 +18,7 @@ from robyn.modeling.entities.clustering_results import (
     ClusteredResult,
     ClusterPlotResults,
 )
-from robyn.modeling.entities.enums import HYPERPARAMETER_NAMES
+from robyn.common.constants import HYPERPARAMETER_NAMES
 
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
