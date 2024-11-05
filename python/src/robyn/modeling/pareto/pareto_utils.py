@@ -1,8 +1,9 @@
 # pyre-strict
 
+from typing import List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from typing import Tuple, List, Optional
 
 
 class ParetoUtils:
@@ -39,9 +40,11 @@ class ParetoUtils:
         self.max_fronts = max_fronts
         self.normalization_range = normalization_range
         self.cached_pareto_front: Optional[pd.DataFrame] = None
-    
+
     @staticmethod
-    def calculate_errors_scores(df: pd.DataFrame, balance: List[float] = [1, 1, 1], ts_validation: bool = True) -> np.ndarray:
+    def calculate_errors_scores(
+        df: pd.DataFrame, balance: List[float] = [1, 1, 1], ts_validation: bool = True
+    ) -> np.ndarray:
         """
         Calculate combined error scores based on NRMSE, DECOMP.RSSD, and MAPE.
 
@@ -54,16 +57,22 @@ class ParetoUtils:
             np.ndarray: Array of calculated error scores.
         """
         assert len(balance) == 3, "Balance must be a list of 3 values"
-        
-        error_cols = ['nrmse_test' if ts_validation else 'nrmse_train', 'decomp.rssd', 'mape']
-        assert all(col in df.columns for col in error_cols), f"Missing columns: {[col for col in error_cols if col not in df.columns]}"
+
+        error_cols = [
+            "nrmse_test" if ts_validation else "nrmse_train",
+            "decomp.rssd",
+            "mape",
+        ]
+        assert all(
+            col in df.columns for col in error_cols
+        ), f"Missing columns: {[col for col in error_cols if col not in df.columns]}"
 
         # Normalize balance weights
         balance = np.array(balance) / sum(balance)
 
         # Select and rename columns
         errors = df[error_cols].copy()
-        errors.columns = ['nrmse', 'decomp.rssd', 'mape']
+        errors.columns = ["nrmse", "decomp.rssd", "mape"]
 
         # Replace infinite values with the maximum finite value
         for col in errors.columns:
@@ -72,27 +81,27 @@ class ParetoUtils:
 
         # Normalize error values
         for col in errors.columns:
-            errors[f'{col}_n'] = ParetoUtils._min_max_norm(errors[col])
+            errors[f"{col}_n"] = ParetoUtils.min_max_norm(errors[col])
 
         # Replace NaN with 0
         errors = errors.fillna(0)
 
         # Apply balance weights
-        errors['nrmse_w'] = balance[0] * errors['nrmse_n']
-        errors['decomp.rssd_w'] = balance[1] * errors['decomp.rssd_n']
-        errors['mape_w'] = balance[2] * errors['mape_n']
+        errors["nrmse_w"] = balance[0] * errors["nrmse_n"]
+        errors["decomp.rssd_w"] = balance[1] * errors["decomp.rssd_n"]
+        errors["mape_w"] = balance[2] * errors["mape_n"]
 
         # Calculate error score
-        errors['error_score'] = np.sqrt(
-            errors['nrmse_w']**2 + 
-            errors['decomp.rssd_w']**2 + 
-            errors['mape_w']**2
+        errors["error_score"] = np.sqrt(
+            errors["nrmse_w"] ** 2
+            + errors["decomp.rssd_w"] ** 2
+            + errors["mape_w"] ** 2
         )
 
-        return errors['error_score'].values
+        return errors["error_score"].values
 
     @staticmethod
-    def _min_max_norm(x: pd.Series, min: float = 0, max: float = 1) -> pd.Series:
+    def min_max_norm(x: pd.Series, min: float = 0, max: float = 1) -> pd.Series:
         x = x[np.isfinite(x) & ~x.isna()]
         if len(x) <= 1:
             return x
@@ -103,18 +112,25 @@ class ParetoUtils:
             return x
 
     @staticmethod
-    def calculate_fx_objective(x: float, coeff: float, alpha: float, inflexion: float, x_hist_carryover: float, get_sum: bool = True) -> float:
+    def calculate_fx_objective(
+        x: float,
+        coeff: float,
+        alpha: float,
+        inflexion: float,
+        x_hist_carryover: float,
+        get_sum: bool = True,
+    ) -> float:
         # Adstock scales
         x_adstocked = x + np.mean(x_hist_carryover)
-        
+
         # Hill transformation
         if get_sum:
-            x_out = coeff * np.sum((1 + inflexion**alpha / x_adstocked**alpha)**-1)
+            x_out = coeff * np.sum((1 + inflexion**alpha / x_adstocked**alpha) ** -1)
         else:
-            x_out = coeff * ((1 + inflexion**alpha / x_adstocked**alpha)**-1)
-        
+            x_out = coeff * ((1 + inflexion**alpha / x_adstocked**alpha) ** -1)
+
         return x_out
-    
+
     def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
         """
         Calculate Normalized Root Mean Square Error (NRMSE).

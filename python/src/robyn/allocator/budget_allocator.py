@@ -14,7 +14,6 @@ from robyn.allocator.entities.enums import OptimizationScenario
 from robyn.allocator.allocation_optimizer import AllocationOptimizer
 from robyn.allocator.response_calculator import ResponseCalculator
 
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 from typing import List, Dict, Optional, Union, Tuple, Any
 import numpy as np
 import pandas as pd
@@ -22,7 +21,7 @@ from datetime import datetime, timedelta
 
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.allocator.entities.allocation_config import AllocationConfig, DateRange
 from robyn.allocator.entities.enums import OptimizationScenario, ConstrMode, AllocatorUseCase
 from robyn.allocator.entities.allocation_results import AllocationResult

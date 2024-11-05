@@ -1,6 +1,6 @@
 # pyre-strict
 import matplotlib.pyplot as plt
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
 
 class ClusterVisualizer:

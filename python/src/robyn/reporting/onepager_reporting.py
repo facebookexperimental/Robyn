@@ -2,7 +2,7 @@ from typing import Optional, List
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
-from robyn.modeling.pareto.pareto_optimizer import ParetoResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
