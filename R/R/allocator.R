@@ -1043,7 +1043,7 @@ get_hill_params <- function(InputCollect, OutputCollect = NULL, dt_hyppar, dt_co
       slice(InputCollect$rollingWindowStartWhich:InputCollect$rollingWindowEndWhich)
   }
   inflexions <- unlist(lapply(seq(ncol(chnAdstocked)), function(i) {
-    c(range(chnAdstocked[, i]) %*% c(1 - gammas[i], gammas[i]))
+    .dot_product(range = chnAdstocked[, i], proportion = gammas[i])
   }))
   names(inflexions) <- names(gammas)
   coefs <- dt_coef$coef

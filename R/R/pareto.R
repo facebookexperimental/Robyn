@@ -359,10 +359,10 @@ robyn_pareto <- function(InputCollect, OutputModels,
         filter(.data$solID == sid) %>%
         group_by(.data$channel) %>%
         summarise(Total = sum(.data$response), Carryover = sum(.data$response_carryover)) %>%
-        mutate(Immediate = Total - Carryover,
-               perc_imme = 1 - Carryover / Total,
-               perc_caov = Carryover / Total,
-               carryover_pct = Carryover / Total)
+        mutate(Immediate = .data$Total - .data$Carryover,
+               perc_imme = 1 - .data$Carryover / .data$Total,
+               perc_caov = .data$Carryover / .data$Total,
+               carryover_pct = .data$Carryover / .data$Total)
       plot7data <- bind_cols(
         temp_p7 %>%
           select(rn = "channel", "Immediate", "Carryover") %>%

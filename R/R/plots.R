@@ -1604,3 +1604,27 @@ decomp_plot <- function(
     scale_y_abbr()
   return(p)
 }
+
+# Custom plot for geom_density interval
+geom_density_ci <- function(
+    gg_density,  # ggplot object that contains geom_density
+    ci_low,
+    ci_up,
+    fill = "grey"
+) {
+  build_object <- ggplot_build(gg_density)
+  x_dens <- build_object$data[[1]]$x
+  y_dens <- build_object$data[[1]]$y
+  ind_low <- min(which(x_dens >= ci_low))
+  ind_up <- max(which(x_dens <= ci_up))
+
+  gg_density <- gg_density +
+    geom_area(
+      data=data.frame(
+        x=x_dens[ind_low:ind_up],
+        density=y_dens[ind_low:ind_up]),
+      aes(x=.data$x,y=.data$density),
+      fill=fill,
+      alpha=0.6)
+  return(gg_density)
+}

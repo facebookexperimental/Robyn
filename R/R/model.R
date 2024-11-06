@@ -798,7 +798,7 @@ robyn_mmm <- function(InputCollect,
             #####################################
             #### MAPE: Calibration error
             if (!is.null(calibration_input)) {
-              liftCollect <- robyn_calibrate(
+              liftCollect <- lift_calibration(
                 calibration_input = calibration_input,
                 df_raw = dt_mod,
                 hypParamSam = hypParamSam,

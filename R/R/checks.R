@@ -1088,3 +1088,9 @@ check_refresh_data <- function(Robyn, dt_input) {
     ))
   }
 }
+
+check_qti <- function(interval) {
+  if (interval > 1 | interval < 0.5) {
+    stop("Quantile interval needs to be within 0.5-1.")
+  }
+}
