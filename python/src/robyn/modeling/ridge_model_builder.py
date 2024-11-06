@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
-from scipy.optimize import curve_fit
 from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
@@ -15,7 +14,6 @@ import logging
 import time
 from datetime import datetime
 from robyn.modeling.convergence.convergence import Convergence
-from sklearn.model_selection import train_test_split
 from sklearn.exceptions import ConvergenceWarning
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
@@ -23,33 +21,9 @@ from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
+from robyn.modeling.entities.model_refit_output import ModelRefitOutput
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.entities.enums import NevergradAlgorithm
-import io
-import matplotlib.pyplot as plt
-import seaborn as sns
-import base64
-
-
-@dataclass
-class ModelRefitOutput:
-    rsq_train: float
-    rsq_val: Optional[float]
-    rsq_test: Optional[float]
-    nrmse_train: float
-    nrmse_val: Optional[float]
-    nrmse_test: Optional[float]
-    coefs: np.ndarray
-    y_train_pred: np.ndarray
-    y_val_pred: Optional[np.ndarray]
-    y_test_pred: Optional[np.ndarray]
-    y_pred: np.ndarray
-    mod: Ridge
-    df_int: int
-    lambda_: float
-    lambda_hp: float
-    lambda_max: float
-    lambda_min_ratio: float
 
 
 class RidgeModelBuilder:
