@@ -13,10 +13,6 @@ from robyn.data.entities.holidays_data import HolidaysData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
-<<<<<<< HEAD
-=======
-from robyn.modeling.entities.modeloutputs import ModelOutputs
->>>>>>> 5b4f037c (Removed broken test temporary. Will add on a different PR)
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.pareto.hill_calculator import HillCalculator
 from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
