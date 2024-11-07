@@ -34,7 +34,7 @@ class ParetoVisualizer:
         else:
             return f"{x:.1f}"    
 
-        def generate_waterfall(self, ax: Optional[plt.Axes] = None, baseline_level: int = 0) -> Optional[plt.Figure]:
+    def generate_waterfall(self, ax: Optional[plt.Axes] = None, baseline_level: int = 0) -> Optional[plt.Figure]:
         """Generate waterfall chart showing response decomposition by predictor."""
         # Get data for first model ID
         plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
