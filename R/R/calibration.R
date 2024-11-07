@@ -298,7 +298,6 @@ robyn_calibrate <- function(
       theme_lares(grid = "Xx", ...) +
       scale_x_abbr() +
       theme(
-        axis.title.y = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank()
       )
