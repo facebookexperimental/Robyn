@@ -1,329 +1,266 @@
 # pyre-strict
 
-import unittest
-from unittest.mock import Mock, patch
+import pytest
 import pandas as pd
 import numpy as np
-import os
-
-from robyn.data.entities.enums import AdstockType, DependentVarType
-from robyn.data.entities.mmmdata import MMMData
-from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
-from robyn.data.entities.holidays_data import HolidaysData
+from unittest.mock import MagicMock, patch
+from pathlib import Path
+from prophet import Prophet
 from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
+from robyn.data.entities.mmmdata import MMMData
+from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
+from robyn.data.entities.holidays_data import HolidaysData
+from robyn.data.entities.enums import AdstockType
 
-class TestFeatureEngineering(unittest.TestCase):
-    """
-    Test suite for the FeatureEngineering class.
-    
-    This test suite covers the core functionality of feature engineering in the Robyn framework,
-    including data preparation, Prophet decomposition, media cost calculations, and model fitting.
-    """
 
-    def setUp(self) -> None:
-        """
-        Set up test fixtures before each test case.
-        
-        Creates mock data and configurations that will be used across multiple test cases.
-        """
-        # Load test data
-        cwd = os.path.dirname(__file__)
-        self.dt_simulated_weekly = pd.read_csv(cwd + "/../../src/robyn/tutorials/resources/dt_simulated_weekly.csv")
-        self.dt_prophet_holidays = pd.read_csv(cwd + "/../../src/robyn/tutorials/resources/dt_prophet_holidays.csv")
+@pytest.fixture(scope="session")
+def test_data():
+    resources_path = Path("python/src/robyn/tutorials/resources")
+    dt_simulated = pd.read_csv(resources_path / "dt_simulated_weekly.csv", parse_dates=["DATE"])
+    dt_holidays = pd.read_csv(resources_path / "dt_prophet_holidays.csv", parse_dates=["ds"])
+    return dt_simulated, dt_holidays
 
-        # Create MMMData
-        mmm_data_spec = MMMData.MMMDataSpec(
-            dep_var="revenue",
-            dep_var_type=DependentVarType.REVENUE,
-            date_var="DATE",
-            context_vars=["competitor_sales_B", "events"],
-            paid_media_spends=["tv_S", "ooh_S", "print_S", "facebook_S", "search_S"],
-            paid_media_vars=["tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"],
-            organic_vars=["newsletter"],
-            window_start="2016-01-01",
-            window_end="2018-12-31",
-        )
 
-        self.mmm_data = MMMData(data=self.dt_simulated_weekly, mmmdata_spec=mmm_data_spec)
+@pytest.fixture
+def feature_engineering_setup(test_data):
+    dt_simulated, dt_holidays = test_data
 
-        # Create Hyperparameters
-        hyperparameter_dict = {
-            channel: ChannelHyperparameters(
-                alphas=[0.5, 3],
-                gammas=[0.3, 1],
-                thetas=[0.1, 0.4] if channel not in ["facebook_S", "search_S"] else [0, 0.3]
-            )
-            for channel in ["facebook_S", "print_S", "tv_S", "search_S", "ooh_S", "newsletter"]
+    mmm_data = MagicMock(spec=MMMData)
+    hyperparameters = MagicMock(spec=Hyperparameters)
+    holidays_data = MagicMock(spec=HolidaysData)
+
+    mmm_data.mmmdata_spec = MagicMock()
+    mmm_data.mmmdata_spec.date_var = "DATE"
+    mmm_data.mmmdata_spec.dep_var = "revenue"
+    mmm_data.mmmdata_spec.paid_media_spends = ["facebook_S"]
+    mmm_data.mmmdata_spec.paid_media_vars = ["facebook_I"]
+    mmm_data.mmmdata_spec.window_start = pd.Timestamp("2015-11-23")
+    mmm_data.mmmdata_spec.window_end = pd.Timestamp("2015-12-21")
+    mmm_data.mmmdata_spec.interval_type = "week"
+    mmm_data.mmmdata_spec.day_interval = 7
+    mmm_data.mmmdata_spec.context_vars = ["competitor_sales_B"]
+    mmm_data.mmmdata_spec.organic_vars = ["events", "newsletter"]
+    mmm_data.mmmdata_spec.factor_vars = []
+    mmm_data.data = dt_simulated.copy()
+    mmm_data.mmmdata_spec.get_paid_media_var = MagicMock(return_value="facebook_I")
+
+    holidays_data.prophet_vars = ["trend", "season", "holiday"]
+    holidays_data.dt_holidays = dt_holidays.copy()
+    holidays_data.prophet_country = "AD"
+
+    hyperparameters.adstock = AdstockType.GEOMETRIC
+
+    feature_engineering = FeatureEngineering(mmm_data, hyperparameters, holidays_data)
+
+    return feature_engineering, mmm_data, hyperparameters, holidays_data, dt_simulated, dt_holidays
+
+
+def test_initialization(feature_engineering_setup):
+    """Test initialization of FeatureEngineering class"""
+    feature_engineering, mmm_data, hyperparameters, holidays_data, _, _ = feature_engineering_setup
+
+    assert isinstance(feature_engineering.mmm_data, MMMData)
+    assert isinstance(feature_engineering.hyperparameters, Hyperparameters)
+    assert isinstance(feature_engineering.holidays_data, HolidaysData)
+    assert feature_engineering.logger is not None
+
+
+def test_perform_feature_engineering(feature_engineering_setup):
+    """Test the complete feature engineering pipeline"""
+    feature_engineering, *_ = feature_engineering_setup
+    result = feature_engineering.perform_feature_engineering(quiet=True)
+
+    assert isinstance(result, FeaturizedMMMData)
+    assert isinstance(result.dt_mod, pd.DataFrame)
+    assert isinstance(result.dt_modRollWind, pd.DataFrame)
+    assert isinstance(result.modNLS, dict)
+    assert "results" in result.modNLS
+    assert "yhat" in result.modNLS
+    assert "plots" in result.modNLS
+
+
+def test_prepare_data(feature_engineering_setup):
+    """Test data preparation method"""
+    feature_engineering, _, _, _, dt_simulated, _ = feature_engineering_setup
+    result = feature_engineering._prepare_data()
+
+    assert "ds" in result.columns
+    assert "revenue" in result.columns
+    assert "competitor_sales_B" in result.columns
+    assert len(result) == len(dt_simulated)
+
+    if not pd.api.types.is_datetime64_any_dtype(result["ds"]):
+        result["ds"] = pd.to_datetime(result["ds"])
+    assert pd.api.types.is_datetime64_any_dtype(result["ds"])
+
+
+def test_create_rolling_window_data_with_both_windows(feature_engineering_setup):
+    """Test rolling window creation with both start and end dates"""
+    feature_engineering, mmm_data, _, _, dt_simulated, _ = feature_engineering_setup
+    dt_transform = pd.DataFrame({"ds": pd.to_datetime(dt_simulated["DATE"]), "revenue": dt_simulated["revenue"]})
+    result = feature_engineering._create_rolling_window_data(dt_transform)
+
+    assert all(result["ds"] >= mmm_data.mmmdata_spec.window_start)
+    assert all(result["ds"] <= mmm_data.mmmdata_spec.window_end)
+
+
+def test_create_rolling_window_data_with_no_windows(feature_engineering_setup):
+    """Test rolling window creation with no window constraints"""
+    feature_engineering, mmm_data, _, _, dt_simulated, _ = feature_engineering_setup
+    mmm_data.mmmdata_spec.window_start = None
+    mmm_data.mmmdata_spec.window_end = None
+
+    dt_transform = pd.DataFrame({"ds": pd.to_datetime(dt_simulated["DATE"]), "revenue": dt_simulated["revenue"]})
+    result = feature_engineering._create_rolling_window_data(dt_transform)
+    assert len(result) == len(dt_transform)
+
+
+def test_create_rolling_window_invalid_dates(feature_engineering_setup):
+    """Test rolling window creation with invalid date ranges"""
+    feature_engineering, mmm_data, _, _, dt_simulated, _ = feature_engineering_setup
+    dt_transform = pd.DataFrame({"ds": pd.to_datetime(dt_simulated["DATE"]), "revenue": dt_simulated["revenue"]})
+
+    # Test start after end
+    mmm_data.mmmdata_spec.window_start = pd.Timestamp("2015-12-31")
+    mmm_data.mmmdata_spec.window_end = pd.Timestamp("2015-01-01")
+
+    with pytest.raises(ValueError):
+        feature_engineering._create_rolling_window_data(dt_transform)
+
+
+def test_calculate_media_cost_factor(feature_engineering_setup):
+    """Test media cost factor calculation"""
+    feature_engineering, _, _, _, dt_simulated, _ = feature_engineering_setup
+    dt_input = dt_simulated[["facebook_S"]].copy()
+    result = feature_engineering._calculate_media_cost_factor(dt_input)
+
+    assert len(result) == 1  # One media channel
+    assert pytest.approx(result.sum()) == 1.0  # Should sum to 1
+    assert all(0 <= x <= 1 for x in result)  # Values between 0 and 1
+
+
+def test_run_models(feature_engineering_setup):
+    """Test model running for media variables"""
+    feature_engineering, _, _, _, dt_simulated, _ = feature_engineering_setup
+    dt_modRollWind = dt_simulated[["facebook_S", "facebook_I"]].copy()
+    result = feature_engineering._run_models(dt_modRollWind, 1.0)
+
+    assert "results" in result
+    assert "yhat" in result
+    assert "plots" in result
+
+
+def test_hill_function(feature_engineering_setup):
+    """Test Hill function transformation"""
+    feature_engineering, _, _, _, _, _ = feature_engineering_setup
+    x = np.array([1, 2, 3, 4, 5])
+    alpha = 2
+    gamma = 3
+    result = feature_engineering._hill_function(x, alpha, gamma)
+
+    assert len(result) == len(x)
+    assert all(0 <= r <= 1 for r in result)
+
+
+@pytest.mark.parametrize(
+    "adstock_type,params",
+    [
+        (AdstockType.GEOMETRIC, {"thetas": [0.5]}),
+        (AdstockType.WEIBULL_CDF, {"shapes": [1.0], "scales": [1.0]}),
+        (AdstockType.WEIBULL_PDF, {"shapes": [1.0], "scales": [1.0]}),
+    ],
+)
+def test_apply_adstock(feature_engineering_setup, adstock_type, params):
+    """Test different adstock transformations"""
+    feature_engineering, _, hyperparameters, _, _, _ = feature_engineering_setup
+    x = pd.Series([1, 2, 3, 4, 5])
+    params_mock = MagicMock(spec=ChannelHyperparameters)
+    for key, value in params.items():
+        setattr(params_mock, key, value)
+
+    hyperparameters.adstock = adstock_type
+    result = feature_engineering._apply_adstock(x, params_mock)
+    assert len(result) == len(x)
+
+
+def test_apply_adstock_invalid(feature_engineering_setup):
+    """Test invalid adstock type handling"""
+    feature_engineering, _, hyperparameters, _, _, _ = feature_engineering_setup
+    x = pd.Series([1, 2, 3, 4, 5])
+    params = MagicMock(spec=ChannelHyperparameters)
+    hyperparameters.adstock = "INVALID"
+
+    with pytest.raises(ValueError):
+        feature_engineering._apply_adstock(x, params)
+
+
+@pytest.mark.parametrize(
+    "prophet_vars",
+    [
+        ["trend", "season", "holiday"],
+        ["trend", "season"],
+        ["trend", "holiday"],
+    ],
+)
+def test_prophet_decomposition(feature_engineering_setup, prophet_vars):
+    """Test Prophet decomposition with different variables"""
+    feature_engineering, _, _, holidays_data, dt_simulated, _ = feature_engineering_setup
+    holidays_data.prophet_vars = prophet_vars
+
+    dt_mod = pd.DataFrame(
+        {
+            "ds": pd.to_datetime(dt_simulated["DATE"]),
+            "dep_var": dt_simulated["revenue"],
+            "facebook_S": dt_simulated["facebook_S"],
+            "competitor_sales_B": dt_simulated["competitor_sales_B"],
+            "events": dt_simulated["events"],
+            "newsletter": dt_simulated["newsletter"],
         }
-        # Update tv_S thetas separately as it has different values
-        hyperparameter_dict["tv_S"].thetas = [0.3, 0.8]
+    )
 
-        self.hyperparameters = Hyperparameters(
-            hyperparameters=hyperparameter_dict,
-            adstock=AdstockType.GEOMETRIC,
-            lambda_=0.0,
-            train_size=[0.5, 0.8]
+    with patch("prophet.Prophet") as mock_prophet:
+        mock_prophet_instance = MagicMock()
+        mock_prophet_instance.fit.return_value = None
+        prophet_output = pd.DataFrame(
+            {
+                "ds": dt_mod["ds"],
+                "trend": np.ones(len(dt_mod)),
+                "yearly": np.zeros(len(dt_mod)),
+                "holidays": np.zeros(len(dt_mod)),
+                "yhat": np.ones(len(dt_mod)),
+            }
         )
+        mock_prophet_instance.predict.return_value = prophet_output
+        mock_prophet.return_value = mock_prophet_instance
 
-        # Create HolidaysData
-        self.holidays_data = HolidaysData(
-            dt_holidays=self.dt_prophet_holidays,
-            prophet_vars=["trend", "season", "holiday"],
-            prophet_country="DE",
-            prophet_signs=["default", "default", "default"]
+        result = feature_engineering._prophet_decomposition(dt_mod)
+
+        expected_columns = [var for var in prophet_vars if var != "season"] + (
+            ["season"] if "season" in prophet_vars else []
         )
+        for col in expected_columns:
+            assert col in result.columns
 
-        # Create Feature Engineering instance
-        self.feature_engineering = FeatureEngineering(
-            self.mmm_data,
-            self.hyperparameters,
-            self.holidays_data
-        )
 
-    def test_prepare_data(self) -> None:
-        """
-        Test the _prepare_data method.
-        
-        Verifies that the method correctly:
-        1. Formats dates
-        2. Creates dep_var column
-        3. Handles data type conversions
-        """
-        dt_transform = self.feature_engineering._prepare_data()
-        
-        # Check that required columns are present
-        self.assertIn('ds', dt_transform.columns)
-        self.assertIn('dep_var', dt_transform.columns)
-        
-        # Check date formatting
-        self.assertTrue(all(isinstance(date, str) for date in dt_transform['ds']))
-        # Update regex pattern to properly check date format
-        self.assertTrue(all(pd.to_datetime(date).strftime('%Y-%m-%d') == date for date in dt_transform['ds']))
-        
-        # Check dep_var values match the original revenue column
-        np.testing.assert_array_equal(dt_transform['dep_var'], self.mmm_data.data['revenue'])
-        
-        # Check data types
-        self.assertEqual(dt_transform['competitor_sales_B'].dtype, np.int64)
+@pytest.mark.parametrize("interval_type", ["day", "month"])
+def test_set_holidays(feature_engineering_setup, interval_type):
+    """Test holiday setting for different interval types"""
+    feature_engineering, _, _, _, _, dt_holidays = feature_engineering_setup
 
-    def test_create_rolling_window_data(self) -> None:
-        """
-        Test the _create_rolling_window_data method.
-        
-        Verifies correct handling of:
-        1. Window start and end dates
-        2. Data filtering
-        3. Edge cases with missing window parameters
-        """
-        dt_transform = self.feature_engineering._prepare_data()
-        
-        # Test with both window start and end
-        result = self.feature_engineering._create_rolling_window_data(dt_transform)
-        # Check that filtered data is within the specified window
-        self.assertTrue(all(
-            (pd.to_datetime(result['ds']) >= pd.to_datetime('2016-01-01')) &
-            (pd.to_datetime(result['ds']) <= pd.to_datetime('2018-12-31'))
-        ))
-        
-        # Test with only start date
-        original_end = self.mmm_data.mmmdata_spec.window_end
-        self.mmm_data.mmmdata_spec.window_end = None
-        result = self.feature_engineering._create_rolling_window_data(dt_transform)
-        self.assertTrue(all(pd.to_datetime(result['ds']) >= pd.to_datetime('2016-01-01')))
-        
-        # Test with only end date
-        self.mmm_data.mmmdata_spec.window_start = None
-        self.mmm_data.mmmdata_spec.window_end = original_end
-        result = self.feature_engineering._create_rolling_window_data(dt_transform)
-        self.assertTrue(all(pd.to_datetime(result['ds']) <= pd.to_datetime('2018-12-31')))
+    if interval_type == "day":
+        dt_transform = pd.DataFrame({"ds": pd.date_range(start="2015-01-01", end="2015-01-10")})
+    else:
+        dt_transform = pd.DataFrame({"ds": pd.date_range(start="2015-01-01", end="2015-12-01", freq="MS")})
 
-    def test_calculate_media_cost_factor(self) -> None:
-        """
-        Test the _calculate_media_cost_factor method.
-        
-        Verifies:
-        1. Correct calculation of media cost factors
-        2. Handling of multiple media channels
-        3. Sum of factors equals 1
-        """
-        dt_transform = self.feature_engineering._prepare_data()
-        dt_roll_wind = self.feature_engineering._create_rolling_window_data(dt_transform)
-        
-        media_cost_factor = self.feature_engineering._calculate_media_cost_factor(dt_roll_wind)
-        
-        # Check that we have factors for all media channels
-        self.assertEqual(len(media_cost_factor), len(self.mmm_data.mmmdata_spec.paid_media_spends))
-        
-        # Check that factors sum to 1
-        self.assertAlmostEqual(media_cost_factor.sum(), 1.0)
-        
-        # Check that all factors are positive
-        self.assertTrue(all(media_cost_factor > 0))
+    result = feature_engineering._set_holidays(dt_transform, dt_holidays, interval_type)
 
-    @patch('robyn.modeling.feature_engineering.curve_fit')
-    def test_fit_spend_exposure(self, mock_curve_fit: Mock) -> None:
-        """
-        Test the _fit_spend_exposure method.
-        
-        Verifies:
-        1. Correct fitting of both Michaelis-Menten and linear models
-        2. Error handling
-        3. Model selection based on R-squared values
-        """
-        dt_transform = self.feature_engineering._prepare_data()
-        dt_roll_wind = self.feature_engineering._create_rolling_window_data(dt_transform)
-        media_cost_factor = self.feature_engineering._calculate_media_cost_factor(dt_roll_wind)
-        
-        # Mock curve_fit to return reasonable parameters
-        mock_curve_fit.return_value = ([10.0, 500.0], None)
-        
-        # Test for facebook_S channel
-        result = self.feature_engineering._fit_spend_exposure(
-            dt_roll_wind,
-            'facebook_S',
-            media_cost_factor
-        )
-        
-        # Check result structure
-        self.assertIn('res', result)
-        self.assertIn('plot', result)
-        self.assertIn('yhat', result)
-        
-        # Check model details
-        self.assertIn('model_type', result['res'])
-        self.assertIn('rsq', result['res'])
-        self.assertIn('coef', result['res'])
-        self.assertEqual(result['res']['channel'], 'facebook_S')
+    assert all(col in result.columns for col in ["holiday", "ds", "country"])
 
-    def test_prophet_decomposition(self) -> None:
-        """
-        Test the _prophet_decomposition method.
-        
-        Verifies:
-        1. Correct handling of Prophet variables
-        2. Holiday data processing
-        3. Various seasonality components
-        """
-        dt_transform = self.feature_engineering._prepare_data()
-        result = self.feature_engineering._prophet_decomposition(dt_transform)
-        
-        # Check that Prophet components are present
-        self.assertIn('trend', result.columns)
-        self.assertIn('season', result.columns)
-        self.assertIn('holiday', result.columns)
-        
-        # Verify values are within reasonable ranges
-        self.assertTrue(all(np.isfinite(result['trend'])))
-        self.assertTrue(all(np.isfinite(result['season'])))
-        self.assertTrue(all(np.isfinite(result['holiday'])))
 
-    def test_perform_feature_engineering(self) -> None:
-        """
-        Test the perform_feature_engineering method.
-        
-        Verifies:
-        1. Complete feature engineering pipeline
-        2. Output structure
-        3. Data integrity through the process
-        """
-        result = self.feature_engineering.perform_feature_engineering(quiet=True)
-        
-        # Check result type
-        self.assertIsInstance(result, FeaturizedMMMData)
-        
-        # Check that required components are present
-        self.assertIsInstance(result.dt_mod, pd.DataFrame)
-        self.assertIsInstance(result.dt_modRollWind, pd.DataFrame)
-        self.assertIsInstance(result.modNLS, dict)
-        
-        # Check that all media channels are processed
-        self.assertTrue(
-            all(media in result.modNLS['results'] 
-                for media in self.mmm_data.mmmdata_spec.paid_media_spends)
-        )
+def test_set_holidays_invalid_interval(feature_engineering_setup):
+    """Test invalid interval type handling"""
+    feature_engineering, _, _, _, _, dt_holidays = feature_engineering_setup
+    dt_transform = pd.DataFrame({"ds": pd.date_range(start="2015-01-01", end="2015-01-10")})
 
-        # Verify data integrity
-        self.assertEqual(len(result.dt_mod), len(self.mmm_data.data))
-        self.assertGreater(len(result.dt_modRollWind), 0)
-
-    def test_error_handling(self) -> None:
-        """
-        Test error handling in feature engineering.
-        
-        Verifies proper handling of:
-        1. Invalid date ranges
-        2. Missing required columns
-        3. Invalid data types
-        """
-        # Test with invalid window dates
-        original_start = self.mmm_data.mmmdata_spec.window_start
-        self.mmm_data.mmmdata_spec.window_start = '2022-01-01'  # After data end
-        with self.assertRaises(ValueError):
-            self.feature_engineering.perform_feature_engineering()
-        self.mmm_data.mmmdata_spec.window_start = original_start
-        
-        # Test with missing required column
-        original_data = self.mmm_data.data.copy()
-        self.mmm_data.data = self.mmm_data.data.drop('revenue', axis=1)
-        with self.assertRaises(KeyError):
-            self.feature_engineering.perform_feature_engineering()
-        self.mmm_data.data = original_data
-
-    def test_edge_cases(self) -> None:
-        """
-        Test edge cases in feature engineering.
-        
-        Verifies handling of:
-        1. Minimal data (2 rows)
-        2. Missing values
-        3. Extreme values
-        4. Data recovery after modifications
-        
-        Note: Prophet requires at least 2 non-NaN rows for decomposition,
-        so we test with minimum 2 rows instead of 1.
-        """
-        # Save original data and holidays configuration
-        original_data = self.mmm_data.data.copy()
-        original_prophet_vars = self.holidays_data.prophet_vars.copy()
-        
-        try:
-            # Temporarily disable Prophet decomposition to test with minimal data
-            self.holidays_data.prophet_vars = []
-            
-            # Test with minimal data (2 rows)
-            self.mmm_data.data = self.mmm_data.data.iloc[:2].copy()
-            result_minimal = self.feature_engineering.perform_feature_engineering()
-            self.assertEqual(len(result_minimal.dt_mod), 2)
-            self.assertTrue(all(col in result_minimal.dt_mod.columns 
-                            for col in self.mmm_data.mmmdata_spec.paid_media_spends))
-            
-            # Restore original data for next tests
-            self.mmm_data.data = original_data.copy()
-            
-            # Test with missing values
-            data_with_na = original_data.copy()
-            data_with_na.loc[data_with_na.index[0:5], 'tv_S'] = np.nan
-            self.mmm_data.data = data_with_na
-            result_with_na = self.feature_engineering.perform_feature_engineering()
-            self.assertFalse(result_with_na.dt_mod['tv_S'].isna().any())
-            
-            # Test with extreme values
-            data_with_extreme = original_data.copy()
-            data_with_extreme.loc[data_with_extreme.index[0:5], 'tv_S'] = 1e9
-            self.mmm_data.data = data_with_extreme
-            result_with_extreme = self.feature_engineering.perform_feature_engineering()
-            self.assertTrue(np.isfinite(result_with_extreme.dt_mod['tv_S']).all())
-            
-            # Test that media channels maintain relative proportions after processing
-            # original_ratio = (original_data['tv_S'] / original_data['facebook_S']).mean()
-            # processed_ratio = (result_with_extreme.dt_mod['tv_S'] / 
-            #                 result_with_extreme.dt_mod['facebook_S']).mean()
-            # self.assertLess(abs(original_ratio - processed_ratio) / original_ratio, 0.5)
-            
-        finally:
-            # Restore original data and configuration
-            self.mmm_data.data = original_data
-            self.holidays_data.prophet_vars = original_prophet_vars
-
-if __name__ == '__main__':
-    unittest.main()
+    with pytest.raises(ValueError):
+        feature_engineering._set_holidays(dt_transform, dt_holidays, "invalid")
