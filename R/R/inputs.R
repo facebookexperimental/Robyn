@@ -803,7 +803,8 @@ exposure_handling <- function(dt_transform,
     df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),
                                  exposure = unlist(temp_expo),
                                  media = paid_media_selected[i])
-    dt_transform <- dt_transform %>% mutate(!!paid_media_selected[i]:= unlist(spend_scaled_extrapolated))
+    dt_transform <- dt_transform %>%
+      dplyr::mutate_at(vars(paid_media_selected), function(x) unlist(spend_scaled_extrapolated))
   }
   df_cpe <- bind_rows(df_cpe)
   df_expo_p <- bind_rows(df_expo_p)

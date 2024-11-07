@@ -27,7 +27,6 @@ Imports:
     patchwork,
     prophet,
     reticulate,
-    rlang,
     stringr,
     tidyr
 Config/reticulate:

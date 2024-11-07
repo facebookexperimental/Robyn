@@ -21,8 +21,8 @@
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr across any_of arrange as_tibble bind_rows case_when contains desc distinct
-#' everything filter full_join group_by lag left_join mutate n pull rename row_number select slice
-#' summarise summarise_all ungroup all_of bind_cols mutate_at starts_with ends_with tally n_distinct
+#' everything filter full_join group_by lag left_join mutate mutate_at n pull rename row_number select
+#' slice summarise summarise_all ungroup all_of bind_cols mutate_at starts_with ends_with tally n_distinct
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges geom_density_ridges_gradient
@@ -37,7 +37,6 @@
 #' @importFrom prophet add_regressor add_seasonality fit.prophet prophet
 #' @importFrom reticulate tuple use_condaenv import conda_create conda_install py_module_available
 #' virtualenv_create py_install use_virtualenv
-#' @importFrom rlang `:=`
 #' @importFrom stats AIC BIC coef complete.cases dgamma dnorm end lm model.matrix na.omit
 #' nls.control median qt sd predict pweibull dweibull quantile qunif reorder rnorm start setNames
 #' @importFrom stringr str_count str_detect str_remove str_split str_which str_extract str_replace
