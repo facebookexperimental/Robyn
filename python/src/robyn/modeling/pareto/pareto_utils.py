@@ -92,11 +92,7 @@ class ParetoUtils:
         errors["mape_w"] = balance[2] * errors["mape_n"]
 
         # Calculate error score
-        errors["error_score"] = np.sqrt(
-            errors["nrmse_w"] ** 2
-            + errors["decomp.rssd_w"] ** 2
-            + errors["mape_w"] ** 2
-        )
+        errors["error_score"] = np.sqrt(errors["nrmse_w"] ** 2 + errors["decomp.rssd_w"] ** 2 + errors["mape_w"] ** 2)
 
         return errors["error_score"].values
 
