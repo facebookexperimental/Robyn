@@ -87,11 +87,6 @@ class TransformationVisualizer:
         # Extract scalar value from ySecScale DataFrame
         y_sec_scale = float(plot_data['plot1data']['ySecScale'].iloc[0])
         
-        # Debug prints
-        print("Bar data shape:", bar_data.shape)
-        print("Line data shape:", line_data.shape)
-        print("Y scale value:", y_sec_scale)
-        
         # Transform variable names
         bar_data['variable'] = bar_data['variable'].str.replace('_', ' ').str.title()
         
