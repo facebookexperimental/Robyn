@@ -34,13 +34,18 @@
 #' @examples
 #' # Dummy source of truth data
 #' df_curve_sot <- data.frame(
-#'   spend = c(0, 1933, 94574, 131815, 370320, 470523, 489839,
-#'             514386, 531668, 532889),
-#'   response = c(0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
-#'             1643194, 1677396, 1679811))
+#'   spend = c(
+#'     0, 1933, 94574, 131815, 370320, 470523, 489839,
+#'     514386, 531668, 532889
+#'   ),
+#'   response = c(
+#'     0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
+#'     1643194, 1677396, 1679811
+#'   )
+#' )
 #'
 #' # Default hyperparameter ranges for saturation hill function
-#' hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0,1)))
+#' hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
 #'
 #' curve_out <- robyn_calibrate(
 #'   df_curve_sot = df_curve_sot,
@@ -56,7 +61,9 @@ robyn_calibrate <- function(
     hp_bounds = list(
       hill = list(
         alpha = c(0, 10),
-        gamma = c(0,1))),
+        gamma = c(0, 1)
+      )
+    ),
     max_trials = 10,
     max_iters = 2500,
     loss_min_step_rel = 0.01,
@@ -66,7 +73,6 @@ robyn_calibrate <- function(
     hp_interval = 0.95,
     quiet = FALSE,
     ...) {
-
   ## check all inputs
   # df_curve_sot df format
   # curve types
@@ -74,13 +80,12 @@ robyn_calibrate <- function(
   # hp_interval
 
   if (grepl("saturation", curve_type)) {
-
     response_sot <- df_curve_sot$response
     spend_sot <- df_curve_sot$spend
 
     ## get hyperparameter bounds
     if (is.null(hp_bounds)) {
-      hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0,1)))
+      hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
     }
     hp_bounds_loop <- hp_bounds[["hill"]]
 
@@ -97,7 +102,6 @@ robyn_calibrate <- function(
     max_iters_vec <- rep(max_iters, max_trials)
 
     for (j in seq(max_trials)) {
-
       my_tuple <- reticulate::tuple(as.integer(2))
       instrumentation <- ng$p$Array(shape = my_tuple, lower = 0, upper = 1)
       optimizer <- ng$optimizers$registry["TwoPointsDE"](instrumentation, budget = max_iters)
@@ -108,30 +112,32 @@ robyn_calibrate <- function(
       pred_collect_i <- list()
       if (!quiet) pb_cf <- txtProgressBar(min = 0, max = max_iters_vec[j], style = 3)
       loop_continue <- TRUE
-      i = 0
+      i <- 0
 
       while (loop_continue) {
-        i <- i +1
+        i <- i + 1
         if (!quiet) setTxtProgressBar(pb_cf, i)
 
         ## Nevergrad ask sample
         ng_hp_i[[i]] <- optimizer$ask()
         ng_hp_val <- ng_hp_i[[i]]$value
-        ng_hp_val_scaled <- mapply(function(hpb, hp) {
-          qunif(hp, min = min(hpb), max = max(hpb))
-        },
-        hpb = hp_bounds_loop,
-        hp = ng_hp_val)
+        ng_hp_val_scaled <- mapply(
+          function(hpb, hp) {
+            qunif(hp, min = min(hpb), max = max(hpb))
+          },
+          hpb = hp_bounds_loop,
+          hp = ng_hp_val
+        )
         alpha <- ng_hp_val_scaled["alpha"]
         gamma <- ng_hp_val_scaled["gamma"]
 
         ## predict saturation vector
-        response_pred <-  saturation_hill(spend_sot, alpha, gamma)[["x_saturated"]]
+        response_pred <- saturation_hill(spend_sot, alpha, gamma)[["x_saturated"]]
         response_sot_scaled <- .min_max_norm(response_sot)
 
         ## get loss
         loss_iter <- .mse_loss(y = response_sot_scaled, y_hat = response_pred)
-        max_loss <- ifelse(i==1, loss_iter, max(max_loss, loss_iter))
+        max_loss <- ifelse(i == 1, loss_iter, max(max_loss, loss_iter))
         loss_min_step_abs <- max_loss * loss_min_step_rel
 
         ## collect loop results
@@ -149,11 +155,12 @@ robyn_calibrate <- function(
               close(pb_cf)
               message(paste0(
                 "Trial ", j, " didn't converged after ", i,
-                " iterations. Increase iterations or adjust convergence criterias."))
+                " iterations. Increase iterations or adjust convergence criterias."
+              ))
             }
           } else {
-            current_unit <- (i-loss_stop_abs+1):i
-            previous_unit <- current_unit-loss_stop_abs
+            current_unit <- (i - loss_stop_abs + 1):i
+            previous_unit <- current_unit - loss_stop_abs
             loss_unit_change <- (mean(loss_collect_i[current_unit]) - mean(loss_collect_i[previous_unit]))
             loop_continue <- !all(loss_unit_change > 0, loss_unit_change <= loss_min_step_abs)
 
@@ -162,7 +169,8 @@ robyn_calibrate <- function(
                 close(pb_cf)
                 message(paste0(
                   "Trial ", j, " converged & stopped at iteration ", i,
-                  " from ", max_iters_vec[j]))
+                  " from ", max_iters_vec[j]
+                ))
               }
               max_iters_vec[j] <- i
             }
@@ -188,8 +196,8 @@ robyn_calibrate <- function(
     if (TRUE) {
       best_alpha <- .dot_product(hp_bounds_loop[["alpha"]], best_hp[1])
       best_gamma <- .dot_product(hp_bounds_loop[["gamma"]], best_hp[2])
-      #best_response_pred <- saturation_hill(spend_sot, best_alpha, best_gamma)[["x_saturated"]]
-      #best_inflexion <- saturation_hill(spend_sot, best_alpha, best_gamma)[["inflexion"]]
+      # best_response_pred <- saturation_hill(spend_sot, best_alpha, best_gamma)[["x_saturated"]]
+      # best_inflexion <- saturation_hill(spend_sot, best_alpha, best_gamma)[["inflexion"]]
       alpha_collect <- lapply(ng_hp, FUN = function(x) {
         sapply(x, FUN = function(y) .dot_product(hp_bounds_loop[["alpha"]], y$value[1]))
       })
@@ -202,11 +210,13 @@ robyn_calibrate <- function(
       alpha_collect_converged <- unlist(mapply(
         function(x, start, end) x[start:end],
         x = alpha_collect, start = burn_in_abs,
-        end = max_iters_vec, SIMPLIFY = FALSE))
+        end = max_iters_vec, SIMPLIFY = FALSE
+      ))
       gamma_collect_converged <- unlist(mapply(
         function(x, start, end) x[start:end],
         x = gamma_collect, start = burn_in_abs,
-        end = max_iters_vec, SIMPLIFY = FALSE))
+        end = max_iters_vec, SIMPLIFY = FALSE
+      ))
 
       ## get calibration range for hyparameters
       qt_alpha_out <- .qti(x = alpha_collect_converged, interval = hp_interval)
@@ -221,11 +231,13 @@ robyn_calibrate <- function(
 
     sim_alphas <- alpha_collect_converged[
       alpha_collect_converged > qt_alpha_out[1] &
-        alpha_collect_converged < qt_alpha_out[2]]
+        alpha_collect_converged < qt_alpha_out[2]
+    ]
     sim_alphas <- sample(sim_alphas, sim_n, replace = TRUE)
     sim_gammas <- gamma_collect_converged[
       gamma_collect_converged > qt_gamma_out[1] &
-        gamma_collect_converged < qt_gamma_out[2]]
+        gamma_collect_converged < qt_gamma_out[2]
+    ]
     sim_gammas <- sample(sim_gammas, sim_n, replace = TRUE)
 
     # simulation for plotting
@@ -236,62 +248,91 @@ robyn_calibrate <- function(
     sim_collect <- data.frame(
       sim = as.character(c(sapply(1:sim_n, function(x) rep(x, length(temp_spend))))),
       sim_spend = rep(temp_spend, sim_n),
-      sim_saturation = unlist(sim_collect))
+      sim_saturation = unlist(sim_collect)
+    )
 
     y_lab <- stringr::str_to_title(gsub("saturation_", "", curve_type))
     p_lines <- ggplot() +
-      geom_line(data = sim_collect,
-                aes(x = .data$sim_spend, y = .data$sim_saturation,
-                    color = .data$sim), size = 2, alpha = 0.2) +
+      geom_line(
+        data = sim_collect,
+        aes(
+          x = .data$sim_spend, y = .data$sim_saturation,
+          color = .data$sim
+        ), size = 2, alpha = 0.2
+      ) +
       scale_colour_grey() +
-      theme_lares(legend = "none", ...) +
       geom_point(
         data = df_sot_plot,
-        aes(x=.data$spend, y=.data$response)) +
+        aes(x = .data$spend, y = .data$response)
+      ) +
       geom_line(
         data = df_pred_plot,
-        aes(x=.data$spend, y=.data$response), color = "blue") +
+        aes(x = .data$spend, y = .data$response), color = "blue"
+      ) +
       labs(title = paste0("Spend to ", y_lab, " saturation curve estimation")) +
-      ylab(y_lab) + xlab("Spend")
+      ylab(y_lab) +
+      xlab("Spend") +
+      theme_lares(legend = "none", ...)
 
-    df_mse <- data.frame(mse = unlist(loss_collect),
-                         iterations = unlist(mapply(function(x) 1:x, max_iters_vec, SIMPLIFY = FALSE)),
-                         trials = as.character(unlist(
-                           mapply(function (x, y) rep(x, y),
-                                  x = 1:max_trials, y = max_iters_vec))))
+    df_mse <- data.frame(
+      mse = unlist(loss_collect),
+      iterations = unlist(mapply(function(x) seq(x), max_iters_vec, SIMPLIFY = FALSE)),
+      trials = as.character(unlist(
+        mapply(function(x, y) rep(x, y),
+          x = 1:max_trials, y = max_iters_vec
+        )
+      ))
+    )
     p_mse <- df_mse %>%
       mutate(trials = factor(.data$trials, levels = seq(max_trials))) %>%
       ggplot(aes(x = .data$iterations, y = .data$mse)) +
       geom_line(size = 0.2) +
       facet_grid(.data$trials ~ .) +
-      labs(title = paste0("Loss convergence with error reduction of ",
-                          round((1 - best_loss_val / max_loss), 4) * 100, "%"),
-           x = "Iterations", y = "MSE") +
-      theme_lares(grid = "Xx", ...) + scale_x_abbr() +
-      theme(axis.title.y = element_blank(),
-            axis.text.y = element_blank(),
-            axis.ticks.y = element_blank())
+      labs(
+        title = paste0(
+          "Loss convergence with error reduction of ",
+          round((1 - best_loss_val / max_loss), 4) * 100, "%"
+        ),
+        x = "Iterations", y = "MSE"
+      ) +
+      theme_lares(grid = "Xx", ...) +
+      scale_x_abbr() +
+      theme(
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()
+      )
 
     p_alpha <- data.frame(alpha = alpha_collect_converged) %>% ggplot(aes(x = alpha)) +
       geom_density(fill = "grey99", color = "grey") +
-      labs(title = paste0("Alpha (Hill) density after ", round(burn_in_rel * 100),"% burn-in"),
-           subtitle = paste0("95% interval: ", round(qt_alpha_out[1],4), "-", round(qt_alpha_out[2],4))) +
-      theme_lares(...) + scale_y_abbr()
+      labs(
+        title = paste0("Alpha (Hill) density after ", round(burn_in_rel * 100), "% burn-in"),
+        subtitle = paste0("95% interval: ", round(qt_alpha_out[1], 4), "-", round(qt_alpha_out[2], 4))
+      ) +
+      theme_lares(...) +
+      scale_y_abbr()
     p_alpha <- geom_density_ci(p_alpha, qt_alpha_out[1], qt_alpha_out[2], fill = "lightblue")
     p_gamma <- data.frame(gamma = gamma_collect_converged) %>% ggplot(aes(x = gamma)) +
       geom_density(fill = "grey99", color = "grey") +
-      labs(title = paste0("Gamma (Hill) density after ", round(burn_in_rel * 100),"% burn-in"),
-           subtitle = paste0("95% interval: ", round(qt_gamma_out[1],4), "-", round(qt_gamma_out[2],4))) +
-      theme_lares(...) + scale_y_abbr()
+      labs(
+        title = paste0("Gamma (Hill) density after ", round(burn_in_rel * 100), "% burn-in"),
+        subtitle = paste0("95% interval: ", round(qt_gamma_out[1], 4), "-", round(qt_gamma_out[2], 4))
+      ) +
+      theme_lares(...) +
+      scale_y_abbr()
     p_gamma <- geom_density_ci(p_gamma, qt_gamma_out[1], qt_gamma_out[2], fill = "lightblue")
 
-    if (!quiet) message(
-      paste0("\nBest alpha: ", round(best_alpha,4), " (",
-             paste0(round(qt_alpha_out,4), collapse = "-"), ")",
-
-             ", Best gamma: ", round(best_gamma,4), " (",
-             paste0(round(qt_gamma_out,4), collapse = "-"), ")",
-             ", Max spend: ", max(spend_sot)))
+    if (!quiet) {
+      message(
+        paste0(
+          "\nBest alpha: ", round(best_alpha, 4), " (",
+          paste0(round(qt_alpha_out, 4), collapse = "-"), ")",
+          ", Best gamma: ", round(best_gamma, 4), " (",
+          paste0(round(qt_gamma_out, 4), collapse = "-"), ")",
+          ", Max spend: ", max(spend_sot)
+        )
+      )
+    }
 
     curve_out <- list(
       hill = list(alpha = c(qt_alpha_out), gamma = c(qt_gamma_out)),
@@ -305,15 +346,16 @@ robyn_calibrate <- function(
 }
 
 
-lift_calibration <- function(calibration_input,
-                            df_raw, # df_raw = InputCollect$dt_mod
-                            dayInterval, # dayInterval = InputCollect$dayInterval
-                            xDecompVec, # xDecompVec = decompCollect$xDecompVec
-                            coefs, # coefs = decompCollect$coefsOutCat
-                            hypParamSam,
-                            wind_start = 1,
-                            wind_end = nrow(df_raw),
-                            adstock) {
+lift_calibration <- function(
+    calibration_input,
+    df_raw, # df_raw = InputCollect$dt_mod
+    dayInterval, # dayInterval = InputCollect$dayInterval
+    xDecompVec, # xDecompVec = decompCollect$xDecompVec
+    coefs, # coefs = decompCollect$coefsOutCat
+    hypParamSam,
+    wind_start = 1,
+    wind_end = nrow(df_raw),
+    adstock) {
   ds_wind <- df_raw$ds[wind_start:wind_end]
   include_study <- any(
     calibration_input$liftStartDate >= min(ds_wind) &
