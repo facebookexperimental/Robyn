@@ -6,17 +6,19 @@
 import logging
 import pandas as pd
 
+from robyn.allocator.entities.allocation_config import AllocationConfig
+from robyn.allocator.entities.allocation_constraints import AllocationConstraints
+from robyn.allocator.entities.allocation_results import AllocationResult
+from robyn.modeling.clustering.clustering_config import ClusteringConfig
 from robyn.modeling.entities.enums import Models, NevergradAlgorithm
+from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
-from robyn.modeling.feature_engineering import FeatureEngineering
+from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
 from robyn.modeling.model_executor import ModelExecutor
 from robyn.data.entities.calibration_input import CalibrationInput
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
-from robyn.data.validation.calibration_input_validation import (
-    CalibrationInputValidation,
-)
 from robyn.data.validation.holidays_data_validation import HolidaysDataValidation
 from robyn.data.validation.hyperparameter_validation import HyperparametersValidation
 from robyn.data.validation.mmmdata_validation import MMMDataValidation
@@ -25,9 +27,6 @@ import matplotlib.pyplot as plt
 
 
 class Robyn:
-
-
-    
     def __init__(self, working_dir: str):
         """
         Initializes the Robyn object with a working directory.
@@ -38,9 +37,9 @@ class Robyn:
         self.working_dir = working_dir
         self.logger = logging.getLogger()
         self.logger.info("Robyn initialized with working directory: %s", working_dir)
-        self.mmm_data: MMMData = None,
-        self.holidays_data: HolidaysData = None,
-        self.hyperparameters: Hyperparameters = None,
+        self.mmm_data: MMMData = None
+        self.holidays_data: HolidaysData = None
+        self.hyperparameters: Hyperparameters = None
         self.calibration_input: CalibrationInput = None
 
     # Load input data for the first time and validates
@@ -49,7 +48,6 @@ class Robyn:
         mmm_data: MMMData,
         holidays_data: HolidaysData,
         hyperparameters: Hyperparameters,
-        calibration_input: CalibrationInput,
     ) -> None:
         """
         Loads input data for the first time and validates it.
@@ -61,32 +59,85 @@ class Robyn:
             hyperparameters (HyperParametersConfig): The hyperparameters configuration object.
             calibration_input (CalibrationInputConfig): The calibration input configuration object.
         """
-
         mmm_data_validation = MMMDataValidation(mmm_data)
         holidays_data_validation = HolidaysDataValidation(holidays_data)
         hyperparameters_validation = HyperparametersValidation(hyperparameters)
-        calibration_input_validation = CalibrationInputValidation(
-            mmm_data, calibration_input, pd.Timestamp("2016-01-01"), pd.Timestamp("2018-12-31")
-        )
 
         mmm_data_validation.validate()
         holidays_data_validation.validate()
         hyperparameters_validation.validate()
-        calibration_input_validation.validate()
 
         self.mmm_data = mmm_data
         self.holidays_data = holidays_data
         self.hyperparameters = hyperparameters
-        self.calibration_input = calibration_input
 
         print("Validation complete")
 
+    def feature_engineering(self, plot=True) -> FeaturizedMMMData:
+        """
+        Perform feature engineering on the data.
+
+        This method processes the data to create new features that can be used in 
+        the marketing mix model (MMM). The exact transformations and feature 
+        creation steps are not specified in this placeholder method.
+
+        Args:
+            plot (bool): If True, generate and display plots for the engineered features.
+
+        Returns:
+            FeaturizedMMMData: The data with new features added, ready for use in the MMM.
+        """
+        pass
+
     def model_run(
         self,
-        feature_plots: bool = False,
-        trials_config: TrialsConfig = None,
-    ) -> None:
-        """ """
+        feature_plots=True,
+        trials_config=trials_config,
+        ts_validation=False,
+        add_penalty_factor=False,
+        rssd_zero_penalty=True,
+        cores=16,  # max of cores available or user provided
+        nevergrad_algo=NevergradAlgorithm.TWO_POINTS_DE,
+        intercept=True,
+        intercept_sign="non_negative",
+        model_name=Models.RIDGE,
+        plot=True,
+        export=True,
+        run_calibration=False,
+        calibration_input=None,
+        model_output_plot=True,
+        pareto_fronts="auto",
+        min_candidates=100,
+        run_cluster=True,
+        cluster_config: ClusteringConfig = None
+    ):
+        """
+        Runs the model with the specified configuration and parameters.
+
+        Args:
+            feature_plots (bool): Whether to plot feature engineering results. Default is True.
+            trials_config (TrialsConfig): Configuration for the trials. Default is trials_config.
+            ts_validation (bool): Whether to perform time series validation. Default is False.
+            add_penalty_factor (bool): Whether to add a penalty factor. Default is False.
+            rssd_zero_penalty (bool): Whether to apply zero penalty for RSSD. Default is True.
+            cores (int): Number of cores to use. Default is 16.
+            nevergrad_algo (NevergradAlgorithm): Algorithm to use for optimization. Default is NevergradAlgorithm.TWO_POINTS_DE.
+            intercept (bool): Whether to include an intercept in the model. Default is True.
+            intercept_sign (str): Sign constraint for the intercept. Default is "non_negative".
+            model_name (Models): Name of the model to use. Default is Models.RIDGE.
+            plot (bool): Whether to plot the model results. Default is True.
+            export (bool): Whether to export the model results. Default is True.
+            run_calibration (bool): Whether to run calibration. Default is False.
+            calibration_input: Input data for calibration. Default is None.
+            model_output_plot (bool): Whether to plot the model output. Default is True.
+            pareto_fronts (str): Configuration for Pareto fronts. Default is "auto".
+            min_candidates (int): Minimum number of candidates. Default is 100.
+            run_cluster (bool): Whether to run clustering. Default is True.
+            cluster_config (ClusteringConfig): Configuration for clustering. Default is None.
+
+        Returns:
+            None
+        """
         feature_engineering = FeatureEngineering(
             self.mmm_data, self.hyperparameters, self.holidays_data
         )
@@ -103,7 +154,6 @@ class Robyn:
                     plt.show()
                 except ValueError as e:
                     print(f"Skipping {channel}: {str(e)}")
-
 
         # Setup ModelExecutor
         model_executor = ModelExecutor(
@@ -122,10 +172,9 @@ class Robyn:
         )
 
         # Run the model
-
         model_outputs = model_executor.model_run(
             trials_config=trials_config,
-            ts_validation=False,  # changed from True to False -> deacitvate
+            ts_validation=False,  # changed from True to False -> deactivate
             add_penalty_factor=False,
             rssd_zero_penalty=True,
             cores=8,
@@ -135,3 +184,41 @@ class Robyn:
             model_name=Models.RIDGE,
         )
         print("Model training complete.")
+
+    def build_models(
+        self,
+        trials_config: TrialsConfig = trials_config,
+        ts_validation=False,
+        add_penalty_factor=False,
+        rssd_zero_penalty=True,
+        cores=16,  # max of cores available or user provided
+        nevergrad_algo=NevergradAlgorithm.TWO_POINTS_DE,
+        intercept=True,
+        intercept_sign="non_negative",
+        model_name=Models.RIDGE,
+        plot=True,
+        export=True,
+        run_calibration=False,
+        calibration_input=None
+    ) -> ModelOutputs:
+        pass
+
+    def evaluate_models(
+        self,
+        pareto_fronts="auto",
+        min_candidates=100,
+        run_cluster=True,
+        cluster_config: ClusteringConfig = None
+    ) -> None:
+        pass
+
+    def budget_allocator(
+        self,
+        select_model,
+        allocation_contstraints: AllocationConstraints,
+        allocator_config: AllocationConfig,
+        plot=True,
+        export_allocation_result=False
+    ) -> AllocationResult:
+        pass
+
