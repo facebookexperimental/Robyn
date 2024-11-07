@@ -206,29 +206,60 @@ class ParetoOptimizer:
         min_candidates: int,
         calibrated: bool,
     ) -> ParetoData:
-        """Prepare Pareto optimization data with adaptive candidate sizing."""
+        """
+        Prepare Pareto optimization data with memory-efficient processing.
+
+        Args:
+            aggregated_data: Dictionary containing model results
+            pareto_fronts: Number of Pareto fronts to consider or "auto"
+            min_candidates: Minimum number of candidates to consider
+            calibrated: Whether models are calibrated
+
+        Returns:
+            ParetoData: Processed Pareto data
+        """
         self.logger.info("Preparing Pareto data")
         result_hyp_param = aggregated_data["result_hyp_param"]
         total_models = len(result_hyp_param)
 
+        # Scale minimum candidates based on total models
         scaled_min_candidates = min(min_candidates, max(5, int(total_models * 0.1)))
         self.logger.info(f"Total models: {total_models} | Scaled minimum candidates: {scaled_min_candidates}")
 
+        # Memory-efficient merge using only required columns
         aggregated_data["x_decomp_agg"] = pd.merge(
-            aggregated_data["x_decomp_agg"],
-            result_hyp_param[["robynPareto", "sol_id"]],
-            on="sol_id",
-            how="left",
+            aggregated_data["x_decomp_agg"], result_hyp_param[["robynPareto", "sol_id"]], on="sol_id", how="left"
         )
 
+        # Process decomp_spend_dist in chunks
         self.logger.info("Processing model decompositions")
+        chunk_size = 1000  # Adjust based on available memory
         decomp_spend_dist_list = []
-        for trial in tqdm(self.model_outputs.trials, desc="Processing trials"):
-            if trial.decomp_spend_dist is not None:
-                decomp_spend_dist_list.append(trial.decomp_spend_dist)
+
+        for i in range(0, len(self.model_outputs.trials), chunk_size):
+            chunk_trials = self.model_outputs.trials[i : i + chunk_size]
+            chunk_data = []
+
+            for trial in chunk_trials:
+                if trial.decomp_spend_dist is not None:
+                    # Select only necessary columns
+                    required_cols = ["trial", "iterNG", "iterPar", "rn", "mean_spend", "total_spend", "xDecompAgg"]
+                    trial_data = trial.decomp_spend_dist[
+                        [col for col in required_cols if col in trial.decomp_spend_dist.columns]
+                    ]
+                    chunk_data.append(trial_data)
+
+            if chunk_data:
+                chunk_df = pd.concat(chunk_data, ignore_index=True)
+                decomp_spend_dist_list.append(chunk_df)
+
+            # Clear memory
+            del chunk_data
 
         decomp_spend_dist = pd.concat(decomp_spend_dist_list, ignore_index=True)
+        del decomp_spend_dist_list  # Free memory
 
+        # Add sol_id if not fixed hyperparameters
         if not self.model_outputs.hyper_fixed:
             decomp_spend_dist["sol_id"] = (
                 decomp_spend_dist["trial"].astype(str)
@@ -238,17 +269,17 @@ class ParetoOptimizer:
                 + decomp_spend_dist["iterPar"].astype(str)
             )
 
+        # Efficient merge with only necessary columns
         decomp_spend_dist = pd.merge(
-            decomp_spend_dist,
-            result_hyp_param[["robynPareto", "sol_id"]],
-            on="sol_id",
-            how="left",
+            decomp_spend_dist, result_hyp_param[["robynPareto", "sol_id"]], on="sol_id", how="left"
         )
 
+        # Handle single model or fixed hyperparameters case
         if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
             pareto_fronts = 1
             self.logger.info("Using single Pareto front due to fixed hyperparameters or single model")
 
+        # Automatic Pareto front selection with memory optimization
         if pareto_fronts == "auto":
             n_pareto = result_hyp_param["robynPareto"].notna().sum()
             self.logger.info(f"Number of Pareto-optimal solutions found: {n_pareto}")
@@ -258,13 +289,15 @@ class ParetoOptimizer:
                 self.logger.info(f"Adjusting minimum candidates from {scaled_min_candidates} to {max(1, n_pareto)}")
                 scaled_min_candidates = max(1, n_pareto)
 
+            # Efficient grouping and calculation
             grouped_data = (
                 result_hyp_param[result_hyp_param["robynPareto"].notna()]
-                .groupby("robynPareto", as_index=False)
+                .groupby("robynPareto")
                 .agg(n=("sol_id", "nunique"))
+                .reset_index()
             )
-
             grouped_data["n_cum"] = grouped_data["n"].cumsum()
+
             auto_pareto = grouped_data[grouped_data["n_cum"] >= scaled_min_candidates]
 
             if len(auto_pareto) == 0:
@@ -284,14 +317,21 @@ class ParetoOptimizer:
 
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
+        # Filter data efficiently
         self.logger.info("Filtering data for selected Pareto fronts...")
-        decomp_spend_dist_pareto = decomp_spend_dist[decomp_spend_dist["robynPareto"].isin(pareto_fronts_vec)]
-        result_hyp_param_pareto = result_hyp_param[result_hyp_param["robynPareto"].isin(pareto_fronts_vec)]
-        x_decomp_agg_pareto = aggregated_data["x_decomp_agg"][
-            aggregated_data["x_decomp_agg"]["robynPareto"].isin(pareto_fronts_vec)
-        ]
+        mask = decomp_spend_dist["robynPareto"].isin(pareto_fronts_vec)
+        decomp_spend_dist_pareto = decomp_spend_dist[mask].copy()
+
+        mask = result_hyp_param["robynPareto"].isin(pareto_fronts_vec)
+        result_hyp_param_pareto = result_hyp_param[mask].copy()
+
+        mask = aggregated_data["x_decomp_agg"]["robynPareto"].isin(pareto_fronts_vec)
+        x_decomp_agg_pareto = aggregated_data["x_decomp_agg"][mask].copy()
 
         self.logger.info(f"Final number of models selected: {len(result_hyp_param_pareto)}")
+
+        # Clear any remaining temporary variables
+        del mask, grouped_data
 
         return ParetoData(
             decomp_spend_dist=decomp_spend_dist_pareto,
