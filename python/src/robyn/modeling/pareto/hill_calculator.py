@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 
+
 class HillCalculator:
     def __init__(self, mmmdata: MMMData, model_outputs: ModelOutputs, dt_hyppar: pd.DataFrame, dt_coef: pd.DataFrame,
                  media_spend_sorted: List[str], select_model: str, chn_adstocked: pd.DataFrame = None):
