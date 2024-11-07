@@ -1,9 +1,9 @@
 # pyre-strict
+
 from typing import Optional, Dict, Any
 import logging
 import pandas as pd
 import warnings
-from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from sklearn.linear_model import LinearRegression
 import numpy as np
@@ -15,16 +15,9 @@ from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.enums import (
     AdstockType,
 )
-
+from robyn.modeling.entities.featurized_mmm_data import FeaturizedMMMData
 from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.data.entities.mmmdata import MMMData
-
-
-@dataclass
-class FeaturizedMMMData:
-    dt_mod: pd.DataFrame
-    dt_modRollWind: pd.DataFrame
-    modNLS: Dict[str, Any]
 
 
 class FeatureEngineering:
