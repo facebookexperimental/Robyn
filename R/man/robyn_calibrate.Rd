@@ -14,7 +14,9 @@ robyn_calibrate(
   loss_stop_rel = 0.05,
   burn_in_rel = 0.1,
   sim_n = 50,
-  hp_interval = 0.95
+  hp_interval = 0.95,
+  quiet = FALSE,
+  ...
 )
 }
 \arguments{
@@ -48,6 +50,10 @@ means 10 percent of iterations is used as burn-in period.}
 
 \item{hp_interval}{numeric. Default to 0.95 and is between 0.8-1. 0.95 means
 2.5 - 97.5 percent percentile are used as parameter range for output.}
+
+\item{quiet}{Boolean. Keep messages off?}
+
+\item{...}{Additional parameters passed to \code{robyn_outputs()}.}
 }
 \value{
 List. Class: \code{curve_out}. Contains the results of all trials
@@ -63,14 +69,14 @@ df_curve_sot <- data.frame(
   spend = c(0, 1933, 94574, 131815, 370320, 470523, 489839,
             514386, 531668, 532889),
   response = c(0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
-            1643194, 1677396, 1679811)
-)
+            1643194, 1677396, 1679811))
 
 # Default hyperparameter ranges for saturation hill function
 hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0,1)))
 
 curve_out <- robyn_calibrate(
   df_curve_sot = df_curve_sot,
-  hp_bounds = hp_bounds
+  hp_bounds = hp_bounds,
+  max_trials = 5
 )
 }

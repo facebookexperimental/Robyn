@@ -790,14 +790,15 @@ exposure_handling <- function(dt_transform,
     temp_cpe_window <- sum(temp_spend_window)/ sum(temp_expo_window)
     temp_spend_scaled <- ifelse(exposure_selector[i], temp_expo * temp_cpe, temp_spend)
     temp_spend_scaled_window <- ifelse(exposure_selector[i], temp_expo_window * temp_cpe_window, temp_spend_window)
-    df_cpe[[i]] <- data.frame(paid_media_selected = paid_media_selected[i],
-                              cpe = temp_cpe,
-                              cpe_window = temp_cpe_window,
-                              adj_rsq = get_rsq(true = unlist(temp_spend),
-                                                predicted = unlist(temp_spend_scaled)),
-                              adj_rsq_window = get_rsq(true = unlist(temp_spend_window),
-                                                predicted = unlist(temp_spend_scaled_window))
-                              )
+    df_cpe[[i]] <- data.frame(
+      paid_media_selected = paid_media_selected[i],
+      cpe = temp_cpe,
+      cpe_window = temp_cpe_window,
+      adj_rsq = get_rsq(true = unlist(temp_spend),
+                        predicted = unlist(temp_spend_scaled)),
+      adj_rsq_window = get_rsq(true = unlist(temp_spend_window),
+                               predicted = unlist(temp_spend_scaled_window))
+    )
     ## Use window cpe to predict the whole dataset to keep the window spend scale right
     spend_scaled_extrapolated <- temp_expo * temp_cpe_window
     df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),

@@ -9,6 +9,7 @@
 #' \code{robyn_calibrate()} consumes source of truth or proxy data for
 #' saturation or adstock curve estimation.
 #'
+#' @inheritParams robyn_run
 #' @param df_curve_sot data.frame. Requires two columns named spend and response.
 #' Recommended sources of truth are Halo R&F or Meta conversion lift.
 #' @param curve_type Character. Currently only allows saturation calibration
@@ -36,38 +37,41 @@
 #'   spend = c(0, 1933, 94574, 131815, 370320, 470523, 489839,
 #'             514386, 531668, 532889),
 #'   response = c(0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
-#'             1643194, 1677396, 1679811)
-#' )
+#'             1643194, 1677396, 1679811))
 #'
 #' # Default hyperparameter ranges for saturation hill function
 #' hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0,1)))
 #'
 #' curve_out <- robyn_calibrate(
 #'   df_curve_sot = df_curve_sot,
-#'   hp_bounds = hp_bounds
+#'   hp_bounds = hp_bounds,
+#'   max_trials = 5
 #' )
 #' @return List. Class: \code{curve_out}. Contains the results of all trials
 #' and iterations modeled.
 #' @export
-robyn_calibrate <- function(df_curve_sot = NULL,
-                            curve_type = "saturation_reach",
-                            hp_bounds = list(
-                              hill = list(alpha = c(0, 10), gamma = c(0,1))),
-                            max_trials = 10,
-                            max_iters = 2500,
-                            loss_min_step_rel = 0.01,
-                            loss_stop_rel = 0.05,
-                            burn_in_rel = 0.1,
-                            sim_n = 50,
-                            hp_interval = 0.95
-    ) {
+robyn_calibrate <- function(
+    df_curve_sot = NULL,
+    curve_type = "saturation_reach",
+    hp_bounds = list(
+      hill = list(
+        alpha = c(0, 10),
+        gamma = c(0,1))),
+    max_trials = 10,
+    max_iters = 2500,
+    loss_min_step_rel = 0.01,
+    loss_stop_rel = 0.05,
+    burn_in_rel = 0.1,
+    sim_n = 50,
+    hp_interval = 0.95,
+    quiet = FALSE,
+    ...) {
 
-## check all inputs
+  ## check all inputs
   # df_curve_sot df format
   # curve types
   # hp_bounds format
   # hp_interval
-
 
   if (grepl("saturation", curve_type)) {
 
@@ -75,7 +79,6 @@ robyn_calibrate <- function(df_curve_sot = NULL,
     spend_sot <- df_curve_sot$spend
 
     ## get hyperparameter bounds
-    message("Robyn saturation calibration only supports Hill function currently.")
     if (is.null(hp_bounds)) {
       hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0,1)))
     }
@@ -93,7 +96,7 @@ robyn_calibrate <- function(df_curve_sot = NULL,
     loss_stop_abs <- round(max_iters * loss_stop_rel)
     max_iters_vec <- rep(max_iters, max_trials)
 
-    for (j in 1:max_trials) {
+    for (j in seq(max_trials)) {
 
       my_tuple <- reticulate::tuple(as.integer(2))
       instrumentation <- ng$p$Array(shape = my_tuple, lower = 0, upper = 1)
@@ -103,13 +106,13 @@ robyn_calibrate <- function(df_curve_sot = NULL,
       ng_hp_i <- list()
       loss_collect_i <- c()
       pred_collect_i <- list()
-      pb_cf <- txtProgressBar(min = 0, max = max_iters_vec[j], style = 3)
+      if (!quiet) pb_cf <- txtProgressBar(min = 0, max = max_iters_vec[j], style = 3)
       loop_continue <- TRUE
       i = 0
 
       while (loop_continue) {
         i <- i +1
-        setTxtProgressBar(pb_cf, i)
+        if (!quiet) setTxtProgressBar(pb_cf, i)
 
         ## Nevergrad ask sample
         ng_hp_i[[i]] <- optimizer$ask()
@@ -142,8 +145,12 @@ robyn_calibrate <- function(df_curve_sot = NULL,
         if ((i >= (loss_stop_abs * 2))) {
           if ((i == max_iters_vec[j])) {
             loop_continue <- FALSE
-            close(pb_cf)
-            message(paste0("Trial ", j, " didn't converged after ", i, " iterations. Increase iterations or adjust convergence criterias."))
+            if (!quiet) {
+              close(pb_cf)
+              message(paste0(
+                "Trial ", j, " didn't converged after ", i,
+                " iterations. Increase iterations or adjust convergence criterias."))
+            }
           } else {
             current_unit <- (i-loss_stop_abs+1):i
             previous_unit <- current_unit-loss_stop_abs
@@ -151,8 +158,12 @@ robyn_calibrate <- function(df_curve_sot = NULL,
             loop_continue <- !all(loss_unit_change > 0, loss_unit_change <= loss_min_step_abs)
 
             if (loop_continue == FALSE) {
-              close(pb_cf)
-              message(paste0("Trial ", j, " converged & stopped at iteration ", i, " from ", max_iters_vec[j]))
+              if (!quiet) {
+                close(pb_cf)
+                message(paste0(
+                  "Trial ", j, " converged & stopped at iteration ", i,
+                  " from ", max_iters_vec[j]))
+              }
               max_iters_vec[j] <- i
             }
           }
@@ -161,7 +172,7 @@ robyn_calibrate <- function(df_curve_sot = NULL,
       ng_hp[[j]] <- ng_hp_i
       loss_collect[[j]] <- loss_collect_i
       pred_collect[[j]] <- pred_collect_i
-      close(pb_cf)
+      if (!quiet) close(pb_cf)
     }
 
     ## collect loop output
@@ -227,13 +238,13 @@ robyn_calibrate <- function(df_curve_sot = NULL,
       sim_spend = rep(temp_spend, sim_n),
       sim_saturation = unlist(sim_collect))
 
-    y_lab <- gsub("saturation_", "", curve_type)
+    y_lab <- stringr::str_to_title(gsub("saturation_", "", curve_type))
     p_lines <- ggplot() +
       geom_line(data = sim_collect,
                 aes(x = .data$sim_spend, y = .data$sim_saturation,
                     color = .data$sim), size = 2, alpha = 0.2) +
       scale_colour_grey() +
-      theme(legend.position="none") +
+      theme_lares(legend = "none", ...) +
       geom_point(
         data = df_sot_plot,
         aes(x=.data$spend, y=.data$response)) +
@@ -241,7 +252,7 @@ robyn_calibrate <- function(df_curve_sot = NULL,
         data = df_pred_plot,
         aes(x=.data$spend, y=.data$response), color = "blue") +
       labs(title = paste0("Spend to ", y_lab, " saturation curve estimation")) +
-      ylab(y_lab) + xlab("spend")
+      ylab(y_lab) + xlab("Spend")
 
     df_mse <- data.frame(mse = unlist(loss_collect),
                          iterations = unlist(mapply(function(x) 1:x, max_iters_vec, SIMPLIFY = FALSE)),
@@ -249,31 +260,46 @@ robyn_calibrate <- function(df_curve_sot = NULL,
                            mapply(function (x, y) rep(x, y),
                                   x = 1:max_trials, y = max_iters_vec))))
     p_mse <- df_mse %>%
-      ggplot(aes(x=.data$iterations, y=.data$mse))+geom_line()+facet_grid(.data$trials ~ .)+
+      mutate(trials = factor(.data$trials, levels = seq(max_trials))) %>%
+      ggplot(aes(x = .data$iterations, y = .data$mse)) +
+      geom_line(size = 0.2) +
+      facet_grid(.data$trials ~ .) +
       labs(title = paste0("Loss convergence with error reduction of ",
-                          round((1-best_loss_val/max_loss),4)*100, "%"))
+                          round((1 - best_loss_val / max_loss), 4) * 100, "%"),
+           x = "Iterations", y = "MSE") +
+      theme_lares(grid = "Xx", ...) + scale_x_abbr() +
+      theme(axis.title.y = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank())
 
     p_alpha <- data.frame(alpha = alpha_collect_converged) %>% ggplot(aes(x = alpha)) +
       geom_density(fill = "grey99", color = "grey") +
-      labs(title = paste0("Alpha (Hill) density after", round(burn_in_rel * 100),"% burn-in."),
-           subtitle = paste0("95% interval: ", round(qt_alpha_out[1],4), "-", round(qt_alpha_out[2],4)))
+      labs(title = paste0("Alpha (Hill) density after ", round(burn_in_rel * 100),"% burn-in"),
+           subtitle = paste0("95% interval: ", round(qt_alpha_out[1],4), "-", round(qt_alpha_out[2],4))) +
+      theme_lares(...) + scale_y_abbr()
     p_alpha <- geom_density_ci(p_alpha, qt_alpha_out[1], qt_alpha_out[2], fill = "lightblue")
     p_gamma <- data.frame(gamma = gamma_collect_converged) %>% ggplot(aes(x = gamma)) +
       geom_density(fill = "grey99", color = "grey") +
-      labs(title = paste0("Gamma (Hill) density after", round(burn_in_rel * 100),"% burn-in."),
-           subtitle = paste0("95% interval: ", round(qt_gamma_out[1],4), "-", round(qt_gamma_out[2],4)))
+      labs(title = paste0("Gamma (Hill) density after ", round(burn_in_rel * 100),"% burn-in"),
+           subtitle = paste0("95% interval: ", round(qt_gamma_out[1],4), "-", round(qt_gamma_out[2],4))) +
+      theme_lares(...) + scale_y_abbr()
     p_gamma <- geom_density_ci(p_gamma, qt_gamma_out[1], qt_gamma_out[2], fill = "lightblue")
 
-    message(paste0("best alpha: ", round(best_alpha,4), " (",
-                   paste0(round(qt_alpha_out,4), collapse = "-"), ")",
+    if (!quiet) message(
+      paste0("\nBest alpha: ", round(best_alpha,4), " (",
+             paste0(round(qt_alpha_out,4), collapse = "-"), ")",
 
-                   ", best gamma: ", round(best_gamma,4), " (",
-                   paste0(round(qt_gamma_out,4), collapse = "-"), ")",
-                   ", max spend: ", max(spend_sot)))
+             ", Best gamma: ", round(best_gamma,4), " (",
+             paste0(round(qt_gamma_out,4), collapse = "-"), ")",
+             ", Max spend: ", max(spend_sot)))
 
-    curve_out <- list(hill = list(alpha = c(qt_alpha_out),
-                            gamma = c(qt_gamma_out)),
-                plot = p_lines / p_mse / (p_alpha + p_gamma))
+    curve_out <- list(
+      hill = list(alpha = c(qt_alpha_out), gamma = c(qt_gamma_out)),
+      plot = p_lines / p_mse / (p_alpha + p_gamma) +
+        plot_annotation(
+          theme = theme_lares(background = "white", ...)
+        )
+    )
     return(curve_out)
   }
 }
