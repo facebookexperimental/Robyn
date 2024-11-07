@@ -680,6 +680,7 @@ robyn_mmm <- function(InputCollect,
             dt_modSaturated <- temp$dt_modSaturated
             dt_saturatedImmediate <- temp$dt_saturatedImmediate
             dt_saturatedCarryover <- temp$dt_saturatedCarryover
+            inflexions <- temp$inflexions
 
             #####################################
             #### Split train & test and prepare data for modelling
@@ -902,6 +903,7 @@ robyn_mmm <- function(InputCollect,
 
             resultCollect[["resultHypParam"]] <- as_tibble(hypParamSam) %>%
               select(-.data$lambda) %>%
+              bind_cols(as_tibble(t(inflexions))) %>%
               bind_cols(common[, 1:split_common]) %>%
               mutate(
                 pos = prod(decompCollect$xDecompAgg$pos),

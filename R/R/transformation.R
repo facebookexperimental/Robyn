@@ -382,6 +382,7 @@ run_transformations <- function(all_media,
   saturated_total_collect <- list()
   saturated_immediate_collect <- list()
   saturated_carryover_collect <- list()
+  inflexion_collect <- list()
 
   system.time(
   for (v in seq_along(all_media)) {
@@ -413,15 +414,17 @@ run_transformations <- function(all_media,
     alpha <- dt_hyppar[paste0(all_media[v], "_alphas")][[1]][[1]]
     gamma <- dt_hyppar[paste0(all_media[v], "_gammas")][[1]][[1]]
 
-    saturated_total_collect[[v]] <- saturation_hill(
-      x = input_total_rw,
+    sat_temp_total <- saturation_hill(x = input_total_rw,
       alpha = alpha, gamma = gamma
-    )[["x_saturated"]]
-    saturated_carryover_collect[[v]] <- saturation_hill(
+    )
+    sat_temp_caov <- saturation_hill(
       x = input_total_rw,
       alpha = alpha, gamma = gamma, x_marginal = input_carryover_rw
-    )[["x_saturated"]]
+    )
+    saturated_total_collect[[v]] <- sat_temp_total[["x_saturated"]]
+    saturated_carryover_collect[[v]] <- sat_temp_caov[["x_saturated"]]
     saturated_immediate_collect[[v]] <- saturated_total_collect[[v]] - saturated_carryover_collect[[v]]
+    inflexion_collect[[v]] <- sat_temp_total[["inflexion"]]
     # plot(input_total_rw, saturated_total_collect[[1]])
   })
 
@@ -440,9 +443,12 @@ run_transformations <- function(all_media,
   dt_saturatedImmediate[is.na(dt_saturatedImmediate)] <- 0
   dt_saturatedCarryover <- bind_cols(saturated_carryover_collect)
   dt_saturatedCarryover[is.na(dt_saturatedCarryover)] <- 0
+  inflexion_collect <- unlist(inflexion_collect)
+  names(inflexion_collect) <- paste0(all_media, "_inflexion")
   return(list(
     dt_modSaturated = dt_modSaturated,
     dt_saturatedImmediate = dt_saturatedImmediate,
-    dt_saturatedCarryover = dt_saturatedCarryover
+    dt_saturatedCarryover = dt_saturatedCarryover,
+    inflexions = inflexion_collect
   ))
 }
