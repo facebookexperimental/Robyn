@@ -66,6 +66,96 @@ class ParetoVisualizer:
         waterfall_data['start'] = waterfall_data['start'].fillna(1)
         waterfall_data['sign'] = np.where(waterfall_data['xDecompPerc'] >= 0, 'Positive', 'Negative')
 
+        # Create figure if no axes provided
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(12, 8))
+        else:
+            fig = None
+            
+        # Define colors
+        colors = {'Positive': '#59B3D2', 'Negative': '#E5586E'}
+        
+        # Create categorical y-axis
+        y_pos = range(len(waterfall_data))
+        
+        # Create horizontal bars
+        bars = ax.barh(y=y_pos,
+                    width=waterfall_data['start'] - waterfall_data['end'],
+                    left=waterfall_data['end'],
+                    color=[colors[sign] for sign in waterfall_data['sign']],
+                    height=0.6)
+        
+        # Add text labels
+        for i, row in waterfall_data.iterrows():
+            # Format label text
+            if abs(row['xDecompAgg']) >= 1e9:
+                formatted_num = f"{row['xDecompAgg']/1e9:.1f}B"
+            elif abs(row['xDecompAgg']) >= 1e6:
+                formatted_num = f"{row['xDecompAgg']/1e6:.1f}M"
+            elif abs(row['xDecompAgg']) >= 1e3:
+                formatted_num = f"{row['xDecompAgg']/1e3:.1f}K"
+            else:
+                formatted_num = f"{row['xDecompAgg']:.1f}"
+                
+            # Calculate x-position as the right edge of each positive bar
+            x_pos = max(row['start'], row['end'])
+            
+            # Add label aligned at the end of the bar
+            ax.text(x_pos - 0.01, i,  # Small offset from bar end
+                f"{formatted_num}\n{row['xDecompPerc']*100:.1f}%",
+                ha='right', va='center',
+                fontsize=9,
+                linespacing=0.9)
+        
+        # Set y-ticks and labels
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(waterfall_data['rn'])
+        
+        # Format x-axis as percentage
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
+        ax.set_xticks(np.arange(0, 1.1, 0.2))
+        
+        # Set plot limits
+        ax.set_xlim(0, 1)
+        ax.set_ylim(-0.5, len(waterfall_data) - 0.5)
+        
+        # Add legend at top
+        from matplotlib.patches import Patch
+        legend_elements = [
+            Patch(facecolor=colors['Positive'], label='Positive'),
+            Patch(facecolor=colors['Negative'], label='Negative')
+        ]
+        
+        # Create legend with white background
+        legend = ax.legend(handles=legend_elements,
+                        title='Sign',
+                        loc='upper left',
+                        bbox_to_anchor=(0, 1.15),
+                        ncol=2,
+                        frameon=True,
+                        framealpha=1.0)
+        
+        # Set title
+        ax.set_title('Response Decomposition Waterfall', 
+                    pad=30,
+                    x=0.5,
+                    y=1.05)
+        
+        # Label axes
+        ax.set_xlabel('Contribution')
+        ax.set_ylabel(None)
+        
+        # Customize grid
+        ax.grid(True, axis='x', alpha=0.2)
+        ax.set_axisbelow(True)
+        
+        # Adjust layout
+        if fig:
+            plt.subplots_adjust(right=0.85, top=0.85)
+            return fig
+            
+        return None
+
     def generate_fitted_vs_actual(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate time series plot comparing fitted vs actual values.
         
@@ -73,7 +163,7 @@ class ParetoVisualizer:
             ax: Optional matplotlib axes to plot on. If None, creates new figure
             
         Returns:
-            plt.Figure if ax is None, else None
+            Optional[plt.Figure]: Generated matplotlib Figure object
         """
         # Get the plot data
         plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
@@ -169,7 +259,7 @@ class ParetoVisualizer:
             ax: Optional matplotlib axes to plot on. If None, creates new figure
             
         Returns:
-            plt.Figure if ax is None, else None
+            Optional[plt.Figure]: Generated matplotlib Figure object
         """
         # Get the plot data
         plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
@@ -241,7 +331,7 @@ class ParetoVisualizer:
             ax: Optional matplotlib axes to plot on. If None, creates new figure
             
         Returns:
-            plt.Figure if ax is None, else None
+            Optional[plt.Figure]: Generated matplotlib Figure object
         """
         # Get the plot data
         plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
@@ -257,6 +347,7 @@ class ParetoVisualizer:
             fig, ax = plt.subplots(figsize=(10, 8))
         else:
             fig = None
+            return None
         
         # Define colors
         colors = {'Immediate': '#59B3D2', 'Carryover': 'coral'}
