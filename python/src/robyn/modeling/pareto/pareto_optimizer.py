@@ -3,23 +3,22 @@
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from dataclasses import dataclass
 from functools import partial
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from robyn.data.entities.enums import AdstockType
 from robyn.data.entities.holidays_data import HolidaysData
-
+from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.pareto_result import ParetoResult
-from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.pareto.hill_calculator import HillCalculator
 from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, ResponseOutput
 from robyn.modeling.transformations.transformations import Transformation
+from robyn.modeling.entities.pareto_result import ParetoResult
 from tqdm import tqdm  # Import tqdm for progress bar  # Import tqdm for progress bar
 
 
@@ -34,16 +33,6 @@ class ParetoData:
 class ParetoOptimizer:
     """
     Performs Pareto optimization on marketing mix models.
-
-    This class orchestrates the Pareto optimization process, including data aggregation,
-    Pareto front calculation, response curve calculation, and plot data preparation.
-
-    Attributes:
-        mmm_data (MMMData): Input data for the marketing mix model.
-        model_outputs (ModelOutputs): Output data from the model runs.
-        response_calculator (ResponseCurveCalculator): Calculator for response curves.
-        carryover_calculator (ImmediateCarryoverCalculator): Calculator for immediate and carryover effects.
-        pareto_utils (ParetoUtils): Utility functions for Pareto-related calculations.
     """
 
     def __init__(
@@ -54,98 +43,99 @@ class ParetoOptimizer:
         featurized_mmm_data: FeaturizedMMMData,
         holidays_data: HolidaysData,
     ):
-        """
-        Initialize the ParetoOptimizer.
-
-        Args:
-            mmm_data (MMMData): Input data for the marketing mix model.
-            model_outputs (ModelOutputs): Output data from the model runs.
-            hyper_parameter (Hyperparameters): Hyperparameters for the model runs.
-        """
+        """Initialize the ParetoOptimizer."""
         self.mmm_data = mmm_data
         self.model_outputs = model_outputs
         self.hyper_parameter = hyper_parameter
         self.featurized_mmm_data = featurized_mmm_data
         self.holidays_data = holidays_data
-
         self.transformer = Transformation(mmm_data)
 
-    def optimize(
-        self,
-        pareto_fronts: str = "auto",
-        min_candidates: int = 100,
-        calibration_constraint: float = 0.1,
-        calibrated: bool = False,
-    ) -> ParetoResult:
+    def _ensure_trial_ids(self, trial: Trial) -> Trial:
         """
-        Perform Pareto optimization on the model results.
-
-        This method orchestrates the entire Pareto optimization process, including data aggregation,
-        Pareto front calculation, response curve calculation, and preparation of plot data.
+        Ensure trial has proper sol_id and all its dataframes have sol_id column.
 
         Args:
-            pareto_fronts (str): Number of Pareto fronts to consider or "auto" for automatic selection.
-            min_candidates (int): Minimum number of candidates to consider when using "auto" Pareto fronts.
-            calibration_constraint (float): Constraint for calibration, used if models are calibrated.
-            calibrated (bool): Whether the models have undergone calibration.
+            trial: Trial object to process
 
         Returns:
-            ParetoResult: The results of the Pareto optimization process.
+            Processed trial with consistent sol_id
         """
-        aggregated_data = self._aggregate_model_data(calibrated)
-        aggregated_data["result_hyp_param"] = self._compute_pareto_fronts(
-            aggregated_data, pareto_fronts, min_candidates, calibration_constraint
-        )
+        # Generate sol_id if not present
+        if not trial.sol_id:
+            trial.sol_id = f"{trial.trial}_{trial.iter_ng}_{trial.iter_par}"
 
-        pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates, calibrated)
-        pareto_data = self._compute_response_curves(pareto_data, aggregated_data)
-        plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
+        # Ensure result_hyp_param has sol_id
+        if isinstance(trial.result_hyp_param, pd.DataFrame):
+            if "sol_id" not in trial.result_hyp_param.columns:
+                trial.result_hyp_param["sol_id"] = trial.sol_id
 
-        return ParetoResult(
-            pareto_solutions=plotting_data["pareto_solutions"],
-            pareto_fronts=pareto_fronts,
-            result_hyp_param=aggregated_data["result_hyp_param"],
-            result_calibration=aggregated_data["result_calibration"],
-            x_decomp_agg=pareto_data.x_decomp_agg,
-            media_vec_collect=plotting_data["mediaVecCollect"],
-            x_decomp_vec_collect=plotting_data["xDecompVecCollect"],
-            plot_data_collect=plotting_data["plotDataCollect"],
-            df_caov_pct_all=plotting_data["df_caov_pct_all"],
-        )
+        # Ensure x_decomp_agg has sol_id
+        if isinstance(trial.x_decomp_agg, pd.DataFrame):
+            if "sol_id" not in trial.x_decomp_agg.columns:
+                trial.x_decomp_agg["sol_id"] = trial.sol_id
+
+        # Ensure decomp_spend_dist has sol_id if it exists
+        if isinstance(trial.decomp_spend_dist, pd.DataFrame):
+            if "sol_id" not in trial.decomp_spend_dist.columns:
+                trial.decomp_spend_dist["sol_id"] = trial.sol_id
+
+        return trial
+
+    def _validate_model_outputs(self) -> None:
+        """
+        Validate model outputs data structure and ensure required fields are present.
+
+        Raises:
+            ValueError: If required data is missing or malformed
+        """
+        if not self.model_outputs.trials:
+            raise ValueError("No trials found in model outputs")
+
+        for trial in self.model_outputs.trials:
+            if not isinstance(trial.result_hyp_param, pd.DataFrame):
+                raise ValueError(f"Trial {trial.sol_id} has invalid result_hyp_param")
+            if not isinstance(trial.x_decomp_agg, pd.DataFrame):
+                raise ValueError(f"Trial {trial.sol_id} has invalid x_decomp_agg")
 
     def _aggregate_model_data(self, calibrated: bool) -> Dict[str, pd.DataFrame]:
         """
         Aggregate and prepare data from model outputs for Pareto optimization.
 
-        This method combines hyperparameters, decomposition results, and calibration data (if applicable)
-        from all model runs into a format suitable for Pareto optimization.
-
         Args:
-            calibrated (bool): Whether the models have undergone calibration.
+            calibrated: Whether the models have undergone calibration
 
         Returns:
-            Dict[str, pd.DataFrame]: A dictionary containing aggregated data, including:
-                - 'result_hyp_param': Hyperparameters for all model runs
-                - 'x_decomp_agg': Aggregated decomposition results
-                - 'result_calibration': Calibration results (if calibrated is True)
+            Dictionary containing aggregated data
         """
+        # Validate and ensure proper data structure
+        self._validate_model_outputs()
+
+        # Process all trials to ensure proper sol_id
+        self.model_outputs.trials = [self._ensure_trial_ids(trial) for trial in self.model_outputs.trials]
+
         hyper_fixed = self.model_outputs.hyper_fixed
-        # Extract resultCollect from self.model_outputs
         trials = [model for model in self.model_outputs.trials if hasattr(model, "resultCollect")]
 
-        # Create lists of resultHypParam and xDecompAgg using list comprehension
+        # Create DataFrames with guaranteed sol_id column
         resultHypParam_list = [trial.result_hyp_param for trial in self.model_outputs.trials]
         xDecompAgg_list = [trial.x_decomp_agg for trial in self.model_outputs.trials]
 
-        # Concatenate the lists into DataFrames using pd.concat
         resultHypParam = pd.concat(resultHypParam_list, ignore_index=True)
         xDecompAgg = pd.concat(xDecompAgg_list, ignore_index=True)
+
+        # Verify sol_id is present
+        if "sol_id" not in resultHypParam.columns:
+            raise ValueError("sol_id missing from resultHypParam after aggregation")
+        if "sol_id" not in xDecompAgg.columns:
+            raise ValueError("sol_id missing from xDecompAgg after aggregation")
 
         if calibrated:
             resultCalibration = pd.concat([pd.DataFrame(trial.liftCalibration) for trial in trials])
             resultCalibration = resultCalibration.rename(columns={"liftMedia": "rn"})
         else:
             resultCalibration = None
+
         if not hyper_fixed:
             df_names = [resultHypParam, xDecompAgg]
             if calibrated:
@@ -157,19 +147,73 @@ class ParetoOptimizer:
             for df in df_names:
                 df["iterations"] = (df["iterNG"] - 1) * self.model_outputs.cores + df["iterPar"]
 
-        # Check if recreated model and bootstrap results are available
-        if len(xDecompAgg["solID"].unique()) == 1 and "boot_mean" not in xDecompAgg.columns:
-            # Get bootstrap results from model_outputs object
+        # Handle bootstrap results
+        if len(xDecompAgg["sol_id"].unique()) == 1 and "boot_mean" not in xDecompAgg.columns:
             bootstrap = getattr(self.model_outputs, "bootstrap", None)
             if bootstrap is not None:
-                # Merge bootstrap results with xDecompAgg using left join
-                xDecompAgg = pd.merge(xDecompAgg, bootstrap, left_on="rn", right_on="variable")
+                xDecompAgg = pd.merge(xDecompAgg, bootstrap, left_on="rn", right_on="variable", how="left")
 
         return {
             "result_hyp_param": resultHypParam,
             "x_decomp_agg": xDecompAgg,
             "result_calibration": resultCalibration,
         }
+
+    def optimize(
+        self,
+        pareto_fronts: str = "auto",
+        min_candidates: int = 100,
+        calibration_constraint: float = 0.1,
+        calibrated: bool = False,
+    ) -> ParetoResult:
+        """
+        Perform Pareto optimization on the model results.
+
+        Args:
+            pareto_fronts: Number of Pareto fronts to consider or "auto"
+            min_candidates: Minimum number of candidates for auto selection
+            calibration_constraint: Constraint for calibration
+            calibrated: Whether models are calibrated
+
+        Returns:
+            ParetoResult object containing optimization results
+
+        Raises:
+            ValueError: If data validation fails
+        """
+        try:
+            aggregated_data = self._aggregate_model_data(calibrated)
+            aggregated_data["result_hyp_param"] = self._compute_pareto_fronts(
+                aggregated_data, pareto_fronts, min_candidates, calibration_constraint
+            )
+
+            pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates, calibrated)
+            pareto_data = self._compute_response_curves(pareto_data, aggregated_data)
+            plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
+
+            return ParetoResult(
+                pareto_solutions=plotting_data["pareto_solutions"],
+                pareto_fronts=pareto_fronts,
+                result_hyp_param=aggregated_data["result_hyp_param"],
+                result_calibration=aggregated_data["result_calibration"],
+                x_decomp_agg=pareto_data.x_decomp_agg,
+                media_vec_collect=plotting_data["mediaVecCollect"],
+                x_decomp_vec_collect=plotting_data["xDecompVecCollect"],
+                plot_data_collect=plotting_data["plotDataCollect"],
+                df_caov_pct_all=plotting_data["df_caov_pct_all"],
+            )
+        except Exception as e:
+            print(f"Error during Pareto optimization: {str(e)}")
+            print("\nDebugging information:")
+            print(f"Number of trials: {len(self.model_outputs.trials)}")
+            if self.model_outputs.trials:
+                trial = self.model_outputs.trials[0]
+                print(f"\nFirst trial sol_id: {trial.sol_id}")
+                print("\nColumns in result_hyp_param:")
+                print(trial.result_hyp_param.columns.tolist())
+                print("\nColumns in x_decomp_agg:")
+                print(trial.x_decomp_agg.columns.tolist())
+            raise
 
     def _compute_pareto_fronts(
         self,
@@ -200,7 +244,7 @@ class ParetoOptimizer:
             # Filter and group data to calculate coef0
             xDecompAggCoef0 = (
                 xDecompAgg[xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends)]
-                .groupby("solID")["coef"]
+                .groupby("sol_id")["coef"]
                 .apply(lambda x: min(x.dropna()) == 0)
             )
             # calculate quantiles
@@ -208,7 +252,7 @@ class ParetoOptimizer:
             nrmse_quantile90 = resultHypParam["nrmse"].quantile(0.9)
             decomprssd_quantile90 = resultHypParam["decomp.rssd"].quantile(0.9)
             # merge resultHypParam with xDecompAggCoef0
-            resultHypParam = pd.merge(resultHypParam, xDecompAggCoef0, on="solID", how="left")
+            resultHypParam = pd.merge(resultHypParam, xDecompAggCoef0, on="sol_id", how="left")
             # create a new column 'mape.qt10'
             resultHypParam["mape.qt10"] = (
                 (resultHypParam["mape"] <= mape_lift_quantile10)
@@ -228,10 +272,10 @@ class ParetoOptimizer:
             )
             resultHypParamPareto = resultHypParamPareto.rename(columns={"pareto_front": "robynPareto"})
             resultHypParamPareto = resultHypParamPareto.sort_values(["iterNG", "iterPar", "nrmse"])[
-                ["solID", "robynPareto"]
+                ["sol_id", "robynPareto"]
             ]
-            resultHypParamPareto = resultHypParamPareto.groupby("solID").first().reset_index()
-            resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on="solID", how="left")
+            resultHypParamPareto = resultHypParamPareto.groupby("sol_id").first().reset_index()
+            resultHypParam = pd.merge(resultHypParam, resultHypParamPareto, on="sol_id", how="left")
         else:
             resultHypParam = resultHypParam.assign(mape_qt10=True, robynPareto=1, coef0=np.nan)
 
@@ -303,23 +347,25 @@ class ParetoOptimizer:
     def prepare_pareto_data(
         self,
         aggregated_data: Dict[str, pd.DataFrame],
-        pareto_fronts: Union[str, int],
+        pareto_fronts: str,
         min_candidates: int,
         calibrated: bool,
     ) -> ParetoData:
+        """
+        Prepare Pareto optimization data with adaptive candidate sizing.
+        """
         result_hyp_param = aggregated_data["result_hyp_param"]
+        total_models = len(result_hyp_param)
 
-        # Debug print for columns
-        print("\nColumns in result_hyp_param:", result_hyp_param.columns.tolist())
+        # Scale min_candidates based on total models available
+        scaled_min_candidates = min(
+            min_candidates, max(5, int(total_models * 0.1))  # At least 5 candidates, maximum 10% of total models
+        )
 
-        # Ensure consistent column naming
-        if "solID" in result_hyp_param.columns:
-            result_hyp_param = result_hyp_param.rename(columns={"solID": "sol_id"})
+        print(f"\n>> Total models available: {total_models}")
+        print(f">> Using scaled minimum candidates: {scaled_min_candidates}")
 
         # 1. Binding Pareto results
-        if "solID" in aggregated_data["x_decomp_agg"].columns:
-            aggregated_data["x_decomp_agg"] = aggregated_data["x_decomp_agg"].rename(columns={"solID": "sol_id"})
-
         aggregated_data["x_decomp_agg"] = pd.merge(
             aggregated_data["x_decomp_agg"],
             result_hyp_param[["robynPareto", "sol_id"]],
@@ -327,22 +373,16 @@ class ParetoOptimizer:
             how="left",
         )
 
-        # Step 1: Collect decomp_spend_dist from each trial
-        trial_dfs = []
-        for trial in self.model_outputs.trials:
-            if hasattr(trial, "decomp_spend_dist") and trial.decomp_spend_dist is not None:
-                print(f"Found decomp_spend_dist in trial with shape: {trial.decomp_spend_dist.shape}")
-                trial_dfs.append(trial.decomp_spend_dist)
-            else:
-                print("Trial has no decomp_spend_dist or it is None")
+        # 2. Collect decomp_spend_dist with progress tracking
+        print(">> Processing model decompositions...")
+        decomp_spend_dist_list = []
+        for trial in tqdm(self.model_outputs.trials, desc="Processing trials"):
+            if trial.decomp_spend_dist is not None:
+                decomp_spend_dist_list.append(trial.decomp_spend_dist)
 
-        if not trial_dfs:
-            raise ValueError("No valid decomp_spend_dist found in any trials")
+        decomp_spend_dist = pd.concat(decomp_spend_dist_list, ignore_index=True)
 
-        decomp_spend_dist = pd.concat(trial_dfs, ignore_index=True)
-        print(f"\nConcatenated decomp_spend_dist shape: {decomp_spend_dist.shape}")
-
-        # Step 2: Add sol_id if hyper_fixed is False
+        # Add sol_id if hyper_fixed is False
         if not self.model_outputs.hyper_fixed:
             decomp_spend_dist["sol_id"] = (
                 decomp_spend_dist["trial"].astype(str)
@@ -352,7 +392,7 @@ class ParetoOptimizer:
                 + decomp_spend_dist["iterPar"].astype(str)
             )
 
-        # Step 3: Left join with resultHypParam
+        # Left join with resultHypParam
         decomp_spend_dist = pd.merge(
             decomp_spend_dist,
             result_hyp_param[["robynPareto", "sol_id"]],
@@ -360,21 +400,21 @@ class ParetoOptimizer:
             how="left",
         )
 
-        # Debug print for columns after processing
-        print("\nColumns in decomp_spend_dist:", decomp_spend_dist.columns.tolist())
-
-        # Handle pareto fronts determination
+        # 3. Determining the number of Pareto fronts
         if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
-            num_pareto_fronts = 1
-        elif isinstance(pareto_fronts, str) and pareto_fronts.lower() == "auto":
-            # 4. Handling automatic Pareto front selection
-            n_pareto = result_hyp_param["robynPareto"].notna().sum()
+            pareto_fronts = 1
+            print(">> Using single Pareto front due to fixed hyperparameters or single model")
 
-            if n_pareto <= min_candidates and len(result_hyp_param) > 1 and not calibrated:
-                raise ValueError(
-                    f"Less than {min_candidates} candidates in pareto fronts. "
-                    "Increase iterations to get more model candidates or decrease min_candidates."
-                )
+        # 4. Handling automatic Pareto front selection
+        if pareto_fronts == "auto":
+            n_pareto = result_hyp_param["robynPareto"].notna().sum()
+            print(f">> Number of Pareto-optimal solutions found: {n_pareto}")
+
+            if n_pareto <= scaled_min_candidates and len(result_hyp_param) > 1 and not calibrated:
+                # Instead of raising error, adjust the minimum candidates
+                print(f"Warning: Found only {n_pareto} Pareto-optimal solutions.")
+                print(f"Adjusting minimum candidates from {scaled_min_candidates} to {max(1, n_pareto)}")
+                scaled_min_candidates = max(1, n_pareto)
 
             # Group by 'robynPareto' and count distinct 'sol_id'
             grouped_data = (
@@ -382,33 +422,40 @@ class ParetoOptimizer:
                 .groupby("robynPareto", as_index=False)
                 .agg(n=("sol_id", "nunique"))
             )
-            # Calculate cumulative sum and create a new column 'n_cum'
+
+            # Calculate cumulative sum
             grouped_data["n_cum"] = grouped_data["n"].cumsum()
 
-            # Filter where cumulative sum is greater than or equal to min_candidates
-            auto_pareto = grouped_data[grouped_data["n_cum"] >= min_candidates].head(1)
+            # Filter for candidates meeting minimum threshold
+            auto_pareto = grouped_data[grouped_data["n_cum"] >= scaled_min_candidates]
 
-            if auto_pareto.empty:
-                num_pareto_fronts = 1
+            if len(auto_pareto) == 0:
+                # Use all available Pareto fronts instead of raising error
+                auto_pareto = grouped_data.iloc[[-1]]
+                print(
+                    f"Warning: Using all available Pareto fronts ({len(grouped_data)}) with {int(auto_pareto['n_cum'].iloc[0])} total candidates"
+                )
             else:
-                num_pareto_fronts = int(auto_pareto["robynPareto"].iloc[0])
+                auto_pareto = auto_pareto.iloc[0]
+                print(
+                    f">> Selected {int(auto_pareto['robynPareto'])} Pareto-fronts ",
+                    f"containing {int(auto_pareto['n_cum'])} candidates",
+                )
 
-            print(
-                f">> Automatically selected {num_pareto_fronts} Pareto-fronts ",
-                f"to contain at least {min_candidates} pareto-optimal models",
-            )
-        else:
-            num_pareto_fronts = int(pareto_fronts)
+            pareto_fronts = int(auto_pareto["robynPareto"])
 
-        # Create Pareto front vector
-        pareto_fronts_vec = list(range(1, num_pareto_fronts + 1))
+        # 5. Creating Pareto front vector
+        pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
-        # Filtering data for selected Pareto fronts
+        # 6. Filtering data for selected Pareto fronts
+        print(">> Filtering data for selected Pareto fronts...")
         decomp_spend_dist_pareto = decomp_spend_dist[decomp_spend_dist["robynPareto"].isin(pareto_fronts_vec)]
         result_hyp_param_pareto = result_hyp_param[result_hyp_param["robynPareto"].isin(pareto_fronts_vec)]
         x_decomp_agg_pareto = aggregated_data["x_decomp_agg"][
             aggregated_data["x_decomp_agg"]["robynPareto"].isin(pareto_fronts_vec)
         ]
+
+        print(f">> Final number of models selected: {len(result_hyp_param_pareto)}")
 
         return ParetoData(
             decomp_spend_dist=decomp_spend_dist_pareto,
@@ -417,284 +464,193 @@ class ParetoOptimizer:
             pareto_fronts=pareto_fronts_vec,
         )
 
-    def _compute_response_curves(
-        self, pareto_data: ParetoData, aggregated_data: Dict[str, pd.DataFrame]
-    ) -> ParetoData:
-        """
-        Calculate response curves for Pareto-optimal solutions.
-        """
-        print(
-            f">>> Calculating response curves for all models' media variables ({len(pareto_data.decomp_spend_dist)})..."
-        )
-
-        # Debug print statements
-        print("\nDecomp spend dist columns:", pareto_data.decomp_spend_dist.columns.tolist())
-
-        # Ensure we have either solID or sol_id in decomp_spend_dist
-        if "solID" in pareto_data.decomp_spend_dist.columns:
-            pareto_data.decomp_spend_dist = pareto_data.decomp_spend_dist.rename(columns={"solID": "sol_id"})
-        elif "sol_id" not in pareto_data.decomp_spend_dist.columns:
-            raise ValueError("Neither 'solID' nor 'sol_id' found in decomp_spend_dist columns")
-
-        # Parallel processing
-        run_dt_resp_partial = partial(self.run_dt_resp, paretoData=pareto_data)
-
-        if self.model_outputs.cores > 1:
-            with ProcessPoolExecutor(max_workers=self.model_outputs.cores) as executor:
-                futures = [
-                    executor.submit(run_dt_resp_partial, row) for _, row in pareto_data.decomp_spend_dist.iterrows()
-                ]
-                resp_collect = pd.DataFrame([f.result() for f in as_completed(futures)])
-        else:
-            resp_collect = pareto_data.decomp_spend_dist.apply(run_dt_resp_partial, axis=1)
-
-        # Debug print statements
-        print("\nResp collect columns:", resp_collect.columns.tolist())
-        print("\nResp collect first row:", resp_collect.iloc[0] if not resp_collect.empty else "Empty")
-
-        # Ensure consistent column naming in response collection
-        if "solID" in resp_collect.columns:
-            resp_collect = resp_collect.rename(columns={"solID": "sol_id"})
-
-        # Additional debugging
-        print("\nColumns after renaming:")
-        print("decomp_spend_dist columns:", pareto_data.decomp_spend_dist.columns.tolist())
-        print("resp_collect columns:", resp_collect.columns.tolist())
-
-        # Merge results
-        try:
-            pareto_data.decomp_spend_dist = pd.merge(
-                pareto_data.decomp_spend_dist, resp_collect, on=["sol_id", "rn"], how="left"
-            )
-        except KeyError as e:
-            print(f"\nError during merge: {str(e)}")
-            raise
-
-        # Calculate ROI and CPA metrics after merging
-        pareto_data.decomp_spend_dist["roi_mean"] = (
-            pareto_data.decomp_spend_dist["mean_response"] / pareto_data.decomp_spend_dist["mean_spend"]
-        )
-        pareto_data.decomp_spend_dist["roi_total"] = (
-            pareto_data.decomp_spend_dist["xDecompAgg"] / pareto_data.decomp_spend_dist["total_spend"]
-        )
-        pareto_data.decomp_spend_dist["cpa_mean"] = (
-            pareto_data.decomp_spend_dist["mean_spend"] / pareto_data.decomp_spend_dist["mean_response"]
-        )
-        pareto_data.decomp_spend_dist["cpa_total"] = (
-            pareto_data.decomp_spend_dist["total_spend"] / pareto_data.decomp_spend_dist["xDecompAgg"]
-        )
-
-        # Ensure consistent column naming in x_decomp_agg
-        if "solID" in aggregated_data["x_decomp_agg"].columns:
-            aggregated_data["x_decomp_agg"] = aggregated_data["x_decomp_agg"].rename(columns={"solID": "sol_id"})
-
-        pareto_data.x_decomp_agg = pd.merge(
-            aggregated_data["x_decomp_agg"],
-            pareto_data.decomp_spend_dist[
-                [
-                    "rn",
-                    "sol_id",
-                    "total_spend",
-                    "mean_spend",
-                    "mean_spend_adstocked",
-                    "mean_carryover",
-                    "mean_response",
-                    "spend_share",
-                    "effect_share",
-                    "roi_mean",
-                    "roi_total",
-                    "cpa_total",
-                ]
-            ],
-            on=["sol_id", "rn"],
-            how="left",
-        )
-
-        return pareto_data
-
-    def _clean_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Clean up column names to ensure consistency.
-        """
-        if "solID" in df.columns and "sol_id" in df.columns:
-            # If both exist, drop solID and keep sol_id
-            df = df.drop(columns=["solID"])
-        elif "solID" in df.columns:
-            # If only solID exists, rename it
-            df = df.rename(columns={"solID": "sol_id"})
-        return df
-
-    def _compute_response_curves(
-        self, pareto_data: ParetoData, aggregated_data: Dict[str, pd.DataFrame]
-    ) -> ParetoData:
-        """
-        Calculate response curves for Pareto-optimal solutions.
-        """
-        print(
-            f">>> Calculating response curves for all models' media variables ({len(pareto_data.decomp_spend_dist)})..."
-        )
-
-        # Check if decomp_spend_dist is empty
-        if pareto_data.decomp_spend_dist.empty:
-            print("Warning: decomp_spend_dist is empty. No response curves to calculate.")
-            return pareto_data
-
-        # Clean up column names
-        pareto_data.decomp_spend_dist = self._clean_column_names(pareto_data.decomp_spend_dist)
-        pareto_data.result_hyp_param = self._clean_column_names(pareto_data.result_hyp_param)
-        pareto_data.x_decomp_agg = self._clean_column_names(pareto_data.x_decomp_agg)
-
-        # Debug print statements
-        print("\nDecomp spend dist columns after cleanup:", pareto_data.decomp_spend_dist.columns.tolist())
-        print("Number of rows in decomp_spend_dist:", len(pareto_data.decomp_spend_dist))
-        print("Sample of decomp_spend_dist 'sol_id' values:", pareto_data.decomp_spend_dist["sol_id"].head().tolist())
-
-        # If decomp_spend_dist has no valid sol_id values, we need to fix that
-        if pareto_data.decomp_spend_dist["sol_id"].isna().all():
-            print("Creating sol_id from trial, iterNG, and iterPar...")
-            pareto_data.decomp_spend_dist["sol_id"] = (
-                pareto_data.decomp_spend_dist["trial"].astype(str)
-                + "_"
-                + pareto_data.decomp_spend_dist["iterNG"].astype(str)
-                + "_"
-                + pareto_data.decomp_spend_dist["iterPar"].astype(str)
-            )
-
-        # Additional check for required columns
-        required_cols = ["sol_id", "rn", "mean_spend"]
-        if not all(col in pareto_data.decomp_spend_dist.columns for col in required_cols):
-            missing_cols = [col for col in required_cols if col not in pareto_data.decomp_spend_dist.columns]
-            raise ValueError(f"Missing required columns in decomp_spend_dist: {missing_cols}")
-
-        # Parallel processing
-        run_dt_resp_partial = partial(self.run_dt_resp, paretoData=pareto_data)
-
-        try:
-            if self.model_outputs.cores > 1:
-                with ProcessPoolExecutor(max_workers=self.model_outputs.cores) as executor:
-                    futures = [
-                        executor.submit(run_dt_resp_partial, row)
-                        for _, row in pareto_data.decomp_spend_dist.iterrows()
-                    ]
-                    resp_collect = pd.DataFrame([f.result() for f in as_completed(futures)])
-            else:
-                resp_collect = pd.DataFrame(
-                    [run_dt_resp_partial(row) for _, row in pareto_data.decomp_spend_dist.iterrows()]
-                )
-        except Exception as e:
-            print(f"Error during response calculation: {str(e)}")
-            raise
-
-        # If resp_collect is empty after calculations, something went wrong
-        if resp_collect.empty:
-            print("Warning: No response curves were calculated. Check the input data and parameters.")
-            return pareto_data
-
-        # Debug print statements for response collection
-        print("\nResp collect columns:", resp_collect.columns.tolist())
-        print("Number of rows in resp_collect:", len(resp_collect))
-        if not resp_collect.empty:
-            print("Sample of resp_collect:", resp_collect.head())
-
-        # Clean up response collection
-        resp_collect = self._clean_column_names(resp_collect)
-
-        # Additional debugging
-        print("\nColumns after cleaning:")
-        print("decomp_spend_dist columns:", pareto_data.decomp_spend_dist.columns.tolist())
-        print("resp_collect columns:", resp_collect.columns.tolist())
-
-        # Merge results
-        try:
-            print("\nAttempting merge with the following columns:")
-            print("Left (decomp_spend_dist) unique sol_id values:", pareto_data.decomp_spend_dist["sol_id"].nunique())
-            print("Left (decomp_spend_dist) sol_id sample:", pareto_data.decomp_spend_dist["sol_id"].head().tolist())
-            print("Right (resp_collect) unique sol_id values:", resp_collect["sol_id"].nunique())
-            print("Right (resp_collect) sol_id sample:", resp_collect["sol_id"].head().tolist())
-
-            pareto_data.decomp_spend_dist = pd.merge(
-                pareto_data.decomp_spend_dist,
-                resp_collect,
-                on=["sol_id", "rn"],
-                how="left",
-                validate="1:1",  # Ensure we're not duplicating rows
-            )
-        except KeyError as e:
-            print(f"\nError during merge: {str(e)}")
-            print("Left DataFrame columns:", pareto_data.decomp_spend_dist.columns.tolist())
-            print("Right DataFrame columns:", resp_collect.columns.tolist())
-            raise
-
-        return pareto_data
-
-    def run_dt_resp(self, row: pd.Series, paretoData: ParetoData) -> pd.Series:
+    def run_dt_resp(self, row: pd.Series, paretoData: ParetoData) -> Optional[dict]:
         """
         Calculate response curves for a given row of Pareto data.
+        Added error handling and validation.
+
+        Args:
+            row: A row of Pareto data
+            paretoData: Pareto data object
+
+        Returns:
+            Dictionary with response curve calculations or None if calculation fails
         """
-        # Ensure we're using the correct column name
-        get_solID = row["sol_id"] if "sol_id" in row else row.get("solID")
-        if get_solID is None:
-            raise ValueError("Neither 'sol_id' nor 'solID' found in row")
+        try:
+            get_sol_id = row["sol_id"]
+            get_spendname = row["rn"]
+            startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
+            endRW = self.mmm_data.mmmdata_spec.rolling_window_end_which
 
-        get_spendname = row["rn"]
-        startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
-        endRW = self.mmm_data.mmmdata_spec.rolling_window_end_which
+            response_calculator = ResponseCurveCalculator(
+                mmm_data=self.mmm_data,
+                model_outputs=self.model_outputs,
+                hyperparameter=self.hyper_parameter,
+            )
 
-        response_calculator = ResponseCurveCalculator(
-            mmm_data=self.mmm_data,
-            model_outputs=self.model_outputs,
-            hyperparameter=self.hyperparameter,
-        )
+            response_output: ResponseOutput = response_calculator.calculate_response(
+                select_model=get_sol_id,
+                metric_name=get_spendname,
+                date_range="all",
+                dt_hyppar=paretoData.result_hyp_param,
+                dt_coef=paretoData.x_decomp_agg,
+                quiet=True,
+            )
 
-        # Clean up DataFrames before using them
-        dt_hyppar = self._clean_column_names(paretoData.result_hyp_param)
-        dt_coef = self._clean_column_names(paretoData.x_decomp_agg)
+            mean_spend_adstocked = np.mean(response_output.input_total[startRW:endRW])
+            mean_carryover = np.mean(response_output.input_carryover[startRW:endRW])
 
-        response_output: ResponseOutput = response_calculator.calculate_response(
-            select_model=get_solID,
-            metric_name=get_spendname,
-            date_range="all",
-            dt_hyppar=dt_hyppar,
-            dt_coef=dt_coef,
-            quiet=True,
-        )
+            dt_hyppar = paretoData.result_hyp_param[paretoData.result_hyp_param["sol_id"] == get_sol_id]
+            chn_adstocked = pd.DataFrame({get_spendname: response_output.input_total[startRW:endRW]})
+            dt_coef = paretoData.x_decomp_agg[
+                (paretoData.x_decomp_agg["sol_id"] == get_sol_id) & (paretoData.x_decomp_agg["rn"] == get_spendname)
+            ][["rn", "coef"]]
 
-        mean_spend_adstocked = np.mean(response_output.input_total[startRW:endRW])
-        mean_carryover = np.mean(response_output.input_carryover[startRW:endRW])
+            hill_calculator = HillCalculator(
+                mmmdata=self.mmm_data,
+                model_outputs=self.model_outputs,
+                dt_hyppar=dt_hyppar,
+                dt_coef=dt_coef,
+                media_spend_sorted=[get_spendname],
+                select_model=get_sol_id,
+                chn_adstocked=chn_adstocked,
+            )
+            hills = hill_calculator.get_hill_params()
 
-        dt_hyppar = dt_hyppar[dt_hyppar["sol_id"] == get_solID]
-        chn_adstocked = pd.DataFrame({get_spendname: response_output.input_total[startRW:endRW]})
-        dt_coef = dt_coef[(dt_coef["sol_id"] == get_solID) & (dt_coef["rn"] == get_spendname)][["rn", "coef"]]
+            mean_response = ParetoUtils.calculate_fx_objective(
+                x=row["mean_spend"],
+                coeff=hills["coefs_sorted"][0],
+                alpha=hills["alphas"][0],
+                inflexion=hills["inflexions"][0],
+                x_hist_carryover=mean_carryover,
+                get_sum=False,
+            )
 
-        hill_calculator = HillCalculator(
-            mmmdata=self.mmm_data,
-            model_outputs=self.model_outputs,
-            dt_hyppar=dt_hyppar,
-            dt_coef=dt_coef,
-            media_spend_sorted=[get_spendname],
-            select_model=get_solID,
-            chn_adstocked=chn_adstocked,
-        )
-        hills = hill_calculator.get_hill_params()
-
-        mean_response = ParetoUtils.calculate_fx_objective(
-            x=row["mean_spend"],
-            coeff=hills["coefs_sorted"][0],
-            alpha=hills["alphas"][0],
-            inflexion=hills["inflexions"][0],
-            x_hist_carryover=mean_carryover,
-            get_sum=False,
-        )
-
-        return pd.Series(
-            {
+            return {
                 "mean_response": mean_response,
                 "mean_spend_adstocked": mean_spend_adstocked,
                 "mean_carryover": mean_carryover,
                 "rn": row["rn"],
-                "sol_id": get_solID,  # Consistently use sol_id
+                "sol_id": row["sol_id"],
             }
-        )
+        except Exception as e:
+            print(
+                f"Error processing row for sol_id {row.get('sol_id', 'unknown')}, rn {row.get('rn', 'unknown')}: {str(e)}"
+            )
+            return None
+
+    def _compute_response_curves(
+        self, pareto_data: ParetoData, aggregated_data: Dict[str, pd.DataFrame]
+    ) -> ParetoData:
+        """
+        Calculate response curves with improved error handling and validation.
+        """
+        if pareto_data.decomp_spend_dist.empty:
+            print("Warning: No data in decomp_spend_dist. Skipping response curves calculation.")
+            return pareto_data
+
+        print(f"\n>>> Calculating response curves for {len(pareto_data.decomp_spend_dist)} models' media variables...")
+        print(f"Available columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
+
+        # Validate required columns
+        required_columns = ["rn", "sol_id", "mean_spend", "total_spend"]
+        missing_columns = [col for col in required_columns if col not in pareto_data.decomp_spend_dist.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required columns in decomp_spend_dist: {missing_columns}")
+
+        # Process in batches for better memory management
+        batch_size = min(100, len(pareto_data.decomp_spend_dist))
+        resp_collect_list = []
+
+        try:
+            for i in range(0, len(pareto_data.decomp_spend_dist), batch_size):
+                batch = pareto_data.decomp_spend_dist.iloc[i : i + batch_size]
+                print(f"\nProcessing batch {i//batch_size + 1}, size: {len(batch)}")
+
+                if self.model_outputs.cores > 1 and len(batch) > 1:
+                    with ProcessPoolExecutor(max_workers=self.model_outputs.cores) as executor:
+                        run_dt_resp_partial = partial(self.run_dt_resp, paretoData=pareto_data)
+                        futures = []
+                        for _, row in batch.iterrows():
+                            try:
+                                futures.append(executor.submit(run_dt_resp_partial, row))
+                            except Exception as e:
+                                print(f"Error submitting row to executor: {str(e)}")
+                                continue
+
+                        if not futures:
+                            print("Warning: No futures created for this batch")
+                            continue
+
+                        results = []
+                        for future in tqdm(as_completed(futures), total=len(futures), desc="Processing rows"):
+                            try:
+                                result = future.result()
+                                if result is not None:
+                                    results.append(result)
+                            except Exception as e:
+                                print(f"Error processing future: {str(e)}")
+                                continue
+
+                        if results:
+                            resp_collect_batch = pd.DataFrame(results)
+                            resp_collect_list.append(resp_collect_batch)
+                else:
+                    # Serial processing for small batches or single core
+                    results = []
+                    for _, row in tqdm(batch.iterrows(), total=len(batch), desc="Processing rows"):
+                        try:
+                            result = self.run_dt_resp(row, paretoData=pareto_data)
+                            if result is not None:
+                                results.append(result)
+                        except Exception as e:
+                            print(f"Error processing row: {str(e)}")
+                            continue
+
+                    if results:
+                        resp_collect_batch = pd.DataFrame(results)
+                        resp_collect_list.append(resp_collect_batch)
+
+            if not resp_collect_list:
+                print("Warning: No response curves were calculated successfully")
+                return pareto_data
+
+            # Combine results
+            resp_collect = pd.concat(resp_collect_list, ignore_index=True)
+            print(f"\nSuccessfully processed {len(resp_collect)} response curves")
+
+            # Merge results and calculate metrics
+            print(">> Computing final metrics...")
+            pareto_data.decomp_spend_dist = pd.merge(
+                pareto_data.decomp_spend_dist, resp_collect, on=["sol_id", "rn"], how="left"
+            )
+
+            # Calculate ROI and CPA metrics
+            print(">> Calculating ROI and CPA metrics...")
+            metrics_df = pd.DataFrame()
+            try:
+                metrics_df = pareto_data.decomp_spend_dist.assign(
+                    roi_mean=lambda x: x["mean_response"] / x["mean_spend"],
+                    roi_total=lambda x: x["xDecompAgg"] / x["total_spend"],
+                    cpa_mean=lambda x: x["mean_spend"] / x["mean_response"],
+                    cpa_total=lambda x: x["total_spend"] / x["xDecompAgg"],
+                )
+            except Exception as e:
+                print(f"Warning: Error calculating metrics: {str(e)}")
+                print("Available columns:", pareto_data.decomp_spend_dist.columns.tolist())
+
+            if not metrics_df.empty:
+                pareto_data.decomp_spend_dist = metrics_df
+
+            return pareto_data
+
+        except Exception as e:
+            print(f"Error in response curves calculation: {str(e)}")
+            print("\nDebugging information:")
+            print(f"decomp_spend_dist shape: {pareto_data.decomp_spend_dist.shape}")
+            print(f"decomp_spend_dist columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
+            print(f"Number of response collect batches: {len(resp_collect_list)}")
+            raise
 
     def _generate_plot_data(
         self,
@@ -702,7 +658,7 @@ class ParetoOptimizer:
         pareto_data: ParetoData,
     ) -> Dict[str, pd.DataFrame]:
         """
-        Prepare data for various plots used in the Pareto analysis.
+        Prepare data for various plots with metric calculation.
         """
         mediaVecCollect = pd.DataFrame()
         xDecompVecCollect = pd.DataFrame()
@@ -715,79 +671,138 @@ class ParetoOptimizer:
         rw_start_loc = self.mmm_data.mmmdata_spec.rolling_window_start_which
         rw_end_loc = self.mmm_data.mmmdata_spec.rolling_window_end_which
 
-        # Clean column names to ensure consistency
-        xDecompAgg = self._clean_column_names(xDecompAgg)
+        print("\nStarting plot data generation...")
+        print(f"Available columns in xDecompAgg: {xDecompAgg.columns.tolist()}")
 
-        # Debug print
-        print("\nColumns in xDecompAgg:", xDecompAgg.columns.tolist())
-        print("\nShape of xDecompAgg:", xDecompAgg.shape)
-
-        # Assuming pareto_fronts_vec is derived from pareto_data
+        # Get Pareto fronts vector
         pareto_fronts_vec = pareto_data.pareto_fronts
 
-        print(f"\nProcessing Pareto fronts: {pareto_fronts_vec}")
-
         for pf in pareto_fronts_vec:
+            print(f"\nProcessing Pareto front {pf}")
+
+            # Filter media share data
             plotMediaShare = xDecompAgg[
                 (xDecompAgg["robynPareto"] == pf)
                 & (xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends))
-            ]
+            ].copy()  # Create a copy to avoid SettingWithCopyWarning
 
-            # Debug print
-            print(f"\nShape of plotMediaShare for front {pf}:", plotMediaShare.shape)
+            print(f"Shape of plotMediaShare: {plotMediaShare.shape}")
 
-            uniqueSol = plotMediaShare["sol_id"].unique()  # Changed from solID to sol_id
-            print(f"Unique solutions found for front {pf}:", uniqueSol)
+            # Calculate necessary metrics
+            try:
+                # Calculate media total spends
+                if "mean_spend" in plotMediaShare.columns:
+                    window_length = rw_end_loc - rw_start_loc
+                    plotMediaShare["total_spend"] = plotMediaShare["mean_spend"] * window_length
+                elif "xDecompAgg" in plotMediaShare.columns:
+                    # Fallback: estimate from decomposition
+                    plotMediaShare["total_spend"] = plotMediaShare["xDecompAgg"]
 
+                # Calculate spend shares
+                spend_sums = plotMediaShare.groupby("sol_id")["total_spend"].transform("sum")
+                plotMediaShare["spend_share"] = plotMediaShare["total_spend"] / spend_sums
+
+                # Calculate effect shares
+                effect_sums = plotMediaShare.groupby("sol_id")["xDecompAgg"].transform("sum")
+                plotMediaShare["effect_share"] = plotMediaShare["xDecompAgg"] / effect_sums
+
+                # Calculate ROI and CPA
+                plotMediaShare["roi_total"] = plotMediaShare["xDecompAgg"] / plotMediaShare["total_spend"]
+                plotMediaShare["cpa_total"] = plotMediaShare["total_spend"] / plotMediaShare["xDecompAgg"]
+
+                print("Successfully calculated all required metrics")
+
+            except Exception as e:
+                print(f"Error calculating metrics: {str(e)}")
+                print("Available columns:", plotMediaShare.columns.tolist())
+                continue
+
+            uniqueSol = plotMediaShare["sol_id"].unique()
             plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
+
             print(f">> Pareto-Front: {pf} [{len(uniqueSol)} models]")
 
             for sid in tqdm(uniqueSol, desc="Processing Solutions", unit="solution"):
-                # Get data for the current solution
-                current_solution = plotMediaShare[plotMediaShare["sol_id"] == sid]
+                try:
+                    # 1. Spend x effect share comparison
+                    temp = plotMediaShare[plotMediaShare["sol_id"] == sid]
 
-                # Create empty dictionaries for plot data
-                plot1data = {
-                    "plotMediaShareLoopBar": pd.DataFrame(),
-                    "plotMediaShareLoopLine": pd.DataFrame(),
-                    "ySecScale": 1.0,
-                }
-                plot2data = {"plotWaterfallLoop": pd.DataFrame()}
-                plot3data = {"dt_geometric": None, "weibullCollect": None, "wb_type": self.hyper_parameter.adstock}
-                plot4data = {"dt_scurvePlot": pd.DataFrame(), "dt_scurvePlotMean": pd.DataFrame()}
-                plot5data = {
-                    "xDecompVecPlotMelted": pd.DataFrame(),
-                    "rsq": current_solution["rsq_train"].iloc[0] if not current_solution.empty else 0,
-                }
-                plot6data = {"xDecompVecPlot": pd.DataFrame()}
-                plot7data = pd.DataFrame()
+                    # Select available columns for id_vars
+                    id_columns = ["rn"]
+                    for col in ["nrmse", "decomp.rssd", "rsq_train"]:
+                        if col in temp.columns:
+                            id_columns.append(col)
 
-                # Add model data to mediaVecCollect
-                if not dt_mod.empty and "ds" in dt_mod.columns:
-                    media_data = dt_mod[["ds"] + self.mmm_data.mmmdata_spec.all_media].copy()
-                    media_data["sol_id"] = sid
-                    media_data["type"] = "rawMedia"
-                    mediaVecCollect = pd.concat([mediaVecCollect, media_data], ignore_index=True)
+                    temp = temp.melt(
+                        id_vars=id_columns,
+                        value_vars=[
+                            "spend_share",
+                            "effect_share",
+                            "roi_total",
+                            "cpa_total",
+                        ],
+                        var_name="variable",
+                        value_name="value",
+                    )
 
-                # Store plot data for this solution
-                plotDataCollect[sid] = {
-                    "plot1data": plot1data,
-                    "plot2data": plot2data,
-                    "plot3data": plot3data,
-                    "plot4data": plot4data,
-                    "plot5data": plot5data,
-                    "plot6data": plot6data,
-                    "plot7data": plot7data,
-                }
+                    temp["rn"] = pd.Categorical(
+                        temp["rn"],
+                        categories=sorted(self.mmm_data.mmmdata_spec.paid_media_spends),
+                        ordered=True,
+                    )
 
-        pareto_solutions = set()
-        if "sol_id" in mediaVecCollect.columns:
-            pareto_solutions.update(mediaVecCollect["sol_id"].unique())
+                    plotMediaShareLoopBar = temp[temp["variable"].isin(["spend_share", "effect_share"])]
+                    metric_type = (
+                        "cpa_total" if self.mmm_data.mmmdata_spec.dep_var_type == "conversion" else "roi_total"
+                    )
+                    plotMediaShareLoopLine = temp[temp["variable"] == metric_type]
 
-        print("\nNumber of Pareto solutions found:", len(pareto_solutions))
+                    # Calculate scale while handling infinite values
+                    valid_line_values = plotMediaShareLoopLine["value"][~np.isinf(plotMediaShareLoopLine["value"])]
+                    valid_bar_values = plotMediaShareLoopBar["value"][~np.isinf(plotMediaShareLoopBar["value"])]
+
+                    if not valid_line_values.empty and not valid_bar_values.empty:
+                        ySecScale = max(valid_line_values) / max(valid_bar_values) * 1.1
+                    else:
+                        ySecScale = 1.0
+
+                    plot1data = {
+                        "plotMediaShareLoopBar": plotMediaShareLoopBar,
+                        "plotMediaShareLoopLine": plotMediaShareLoopLine,
+                        "ySecScale": ySecScale,
+                    }
+
+                    # 2. Waterfall plot data
+                    if "xDecompPerc" not in plotWaterfall.columns and "xDecompAgg" in plotWaterfall.columns:
+                        total_decomp = plotWaterfall.groupby("sol_id")["xDecompAgg"].transform("sum")
+                        plotWaterfall["xDecompPerc"] = plotWaterfall["xDecompAgg"] / total_decomp
+
+                    plotWaterfallLoop = (
+                        plotWaterfall[plotWaterfall["sol_id"] == sid]
+                        .sort_values("xDecompPerc")
+                        .assign(
+                            end=lambda x: 1 - x["xDecompPerc"].cumsum(),
+                            start=lambda x: x["end"].shift(1).fillna(1),
+                            id=range(1, len(plotWaterfall[plotWaterfall["sol_id"] == sid]) + 1),
+                            rn=lambda x: pd.Categorical(x["rn"]),
+                            sign=lambda x: pd.Categorical(np.where(x["xDecompPerc"] >= 0, "Positive", "Negative")),
+                        )
+                    )
+
+                    plot2data = {"plotWaterfallLoop": plotWaterfallLoop}
+
+                    # Store results
+                    plotDataCollect[sid] = {
+                        "plot1data": plot1data,
+                        "plot2data": plot2data,
+                    }
+
+                except Exception as e:
+                    print(f"Error processing solution {sid}: {str(e)}")
+                    continue
 
         return {
-            "pareto_solutions": pareto_solutions,
+            "pareto_solutions": set(plotDataCollect.keys()),
             "mediaVecCollect": mediaVecCollect,
             "xDecompVecCollect": xDecompVecCollect,
             "plotDataCollect": plotDataCollect,
@@ -798,13 +813,13 @@ class ParetoOptimizer:
         self,
         pareto_data: ParetoData,
         result_hyp_param: pd.DataFrame,
-        solID=None,
+        sol_id=None,
         start_date=None,
         end_date=None,
     ):
         # Define default values when not provided
-        if solID is None:
-            solID = result_hyp_param["solID"].iloc[0]
+        if sol_id is None:
+            sol_id = result_hyp_param["sol_id"].iloc[0]
         if start_date is None:
             start_date = self.mmm_data.mmmdata_spec.window_start
         if end_date is None:
@@ -834,7 +849,7 @@ class ParetoOptimizer:
         rollingWindow = range(rollingWindowStartWhich, rollingWindowEndWhich + 1)
 
         # Calculate saturated dataframes with carryover and immediate parts
-        hypParamSam = result_hyp_param[result_hyp_param["solID"] == solID]
+        hypParamSam = result_hyp_param[result_hyp_param["sol_id"] == sol_id]
         hyperparameter = self._extract_hyperparameter(hypParamSam)
 
         dt_saturated_dfs = self.transformer.run_transformations(
@@ -844,8 +859,8 @@ class ParetoOptimizer:
         )
 
         # Calculate decomposition
-        coefs = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["solID"] == solID, "coef"].values
-        coefs_names = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["solID"] == solID, "rn"].values
+        coefs = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["sol_id"] == sol_id, "coef"].values
+        coefs_names = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["sol_id"] == sol_id, "rn"].values
 
         # Create a DataFrame to hold coefficients and their names
         coefs_df = pd.DataFrame({"name": coefs_names, "coefficient": coefs})
@@ -874,7 +889,7 @@ class ParetoOptimizer:
             [decompCollect["xDecompVec"], mediaDecompImmediate, mediaDecompCarryover],
             axis=1,
         )
-        temp["solID"] = solID
+        temp["sol_id"] = sol_id
 
         # Create vector collections
         vec_collect = {
@@ -899,14 +914,14 @@ class ParetoOptimizer:
         vec_collect["xDecompVecCarryover"].columns = this
 
         # Calculate carryover percentages
-        df_caov = (vec_collect["xDecompVecCarryover"].groupby("solID").sum().reset_index()).drop(columns="ds")
-        df_total = vec_collect["xDecompVec"].groupby("solID").sum().reset_index().drop(columns="ds")
+        df_caov = (vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()).drop(columns="ds")
+        df_total = vec_collect["xDecompVec"].groupby("sol_id").sum().reset_index().drop(columns="ds")
 
         df_caov_pct = df_caov.copy()
         df_caov_pct.loc[:, df_caov_pct.columns[1:]] = df_caov_pct.loc[:, df_caov_pct.columns[1:]].div(
             df_total.iloc[:, 1:].values
         )
-        df_caov_pct = df_caov_pct.melt(id_vars="solID", var_name="rn", value_name="carryover_pct").fillna(0)
+        df_caov_pct = df_caov_pct.melt(id_vars="sol_id", var_name="rn", value_name="carryover_pct").fillna(0)
 
         # Gather everything in an aggregated format
         xDecompVecImmeCaov = (
@@ -918,7 +933,7 @@ class ParetoOptimizer:
                 axis=0,
             )
             .melt(
-                id_vars=["solID", "type"],
+                id_vars=["sol_id", "type"],
                 value_vars=self.mmm_data.mmmdata_spec.all_media,
                 var_name="rn",
                 value_name="value",
@@ -928,18 +943,18 @@ class ParetoOptimizer:
 
         # Grouping and aggregating the data
         xDecompVecImmeCaov = (
-            xDecompVecImmeCaov.groupby(["solID", "start_date", "end_date", "rn", "type"])
+            xDecompVecImmeCaov.groupby(["sol_id", "start_date", "end_date", "rn", "type"])
             .agg(response=("value", "sum"))
             .reset_index()
         )
 
         xDecompVecImmeCaov["percentage"] = xDecompVecImmeCaov["response"] / xDecompVecImmeCaov.groupby(
-            ["solID", "start_date", "end_date", "type"]
+            ["sol_id", "start_date", "end_date", "type"]
         )["response"].transform("sum")
         xDecompVecImmeCaov.fillna(0, inplace=True)
 
         # Join with carryover percentages
-        xDecompVecImmeCaov = xDecompVecImmeCaov.merge(df_caov_pct, on=["solID", "rn"], how="left")
+        xDecompVecImmeCaov = xDecompVecImmeCaov.merge(df_caov_pct, on=["sol_id", "rn"], how="left")
 
         return xDecompVecImmeCaov
 
