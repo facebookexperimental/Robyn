@@ -53,7 +53,7 @@ class Convergence:
             # Generate convergence messages
             self.logger.debug("Generating convergence messages")
             conv_msg = self._generate_convergence_messages(errors)
-            
+
             # Create visualization plots
             self.logger.info("Creating visualization plots")
             moo_distrb_plot = self.visualizer.create_moo_distrb_plot(dt_objfunc_cvg, conv_msg)
@@ -75,7 +75,7 @@ class Convergence:
 
     def _prepare_data(self, df: pd.DataFrame) -> pd.DataFrame:
         self.logger.debug("Starting data preparation")
-        
+
         # Determine value variables
         value_vars = ["nrmse", "decomp.rssd"]
         if "mape" in df.columns and df["mape"].sum() > 0:
@@ -84,10 +84,7 @@ class Convergence:
 
         self.logger.debug(f"Melting dataframe with value variables: {value_vars}")
         dt_objfunc_cvg = df.melt(
-            id_vars=["ElapsedAccum", "trial"], 
-            value_vars=value_vars, 
-            var_name="error_type", 
-            value_name="value"
+            id_vars=["ElapsedAccum", "trial"], value_vars=value_vars, var_name="error_type", value_name="value"
         )
 
         # Filter and process data
@@ -122,7 +119,7 @@ class Convergence:
 
     def _calculate_errors(self, dt_objfunc_cvg: pd.DataFrame) -> pd.DataFrame:
         self.logger.debug("Starting error calculations")
-        
+
         # Calculate basic statistics
         self.logger.debug("Calculating error statistics by group")
         errors = (
@@ -171,27 +168,25 @@ class Convergence:
     def _generate_convergence_messages(self, errors: pd.DataFrame) -> List[str]:
         self.logger.debug("Starting convergence message generation")
         conv_msg = []
-        
+
         for obj_fun in errors["error_type"].unique():
             self.logger.debug(f"Processing convergence message for {obj_fun}")
             temp_df = errors[errors["error_type"] == obj_fun].copy()
             temp_df["median"] = temp_df["median"].round(2)
             last_qt = temp_df.iloc[-1]
-
             did_converge = "converged" if last_qt["flag_sd"] and last_qt["flag_med"] else "NOT converged"
             symb_sd = "<=" if last_qt["flag_sd"] else ">"
             symb_med = "<=" if last_qt["flag_med"] else ">"
-
             msg = (
                 f"{obj_fun} {did_converge}: "
                 f"sd@qt.{self.n_cuts} {last_qt['std']:.3f} {symb_sd} {last_qt['std_first_sd_avg']:.3f} & "
                 f"|med@qt.{self.n_cuts}| {abs(last_qt['median']):.2f} {symb_med} {last_qt['med_thres']:.2f}"
             )
             conv_msg.append(msg)
-            
+
             # Log convergence status
             log_level = logging.INFO if did_converge == "converged" else logging.WARNING
             self.logger.log(log_level, f"Convergence status for {obj_fun}: {did_converge}")
-
+            self.logger.info(msg)  # Log the message as INFO
         self.logger.debug("Convergence message generation completed")
         return conv_msg
