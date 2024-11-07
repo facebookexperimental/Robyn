@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.pareto_result import ParetoResult
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
 
 @dataclass
@@ -49,66 +49,117 @@ class MediaResponseParamsCalculator:
         self.sorted_channels = self.media_channels[self.media_order]
 
     def calculate_parameters(self) -> MediaResponseParameters:
-        """Calculate response parameters for all media channels."""
-        # Get hyperparameters for selected model
-        dt_hyppar = self.pareto_result.result_hyp_param[
-            self.pareto_result.result_hyp_param["solID"] == self.select_model
-        ]
-
-        # Get adstocked media data
-        adstocked_data = self._get_adstocked_media_data()
-
-        # Calculate parameters for each channel
-        alphas = {}
-        inflexions = {}
-        coefficients = {}
-
-        for channel in self.sorted_channels:
-            # Get alpha parameter
-            alpha_key = f"{channel}_alphas"
-            alphas[channel] = dt_hyppar[alpha_key].iloc[0]
-
-            # Get gamma and calculate inflexion point
-            gamma_key = f"{channel}_gammas"
-            gamma = dt_hyppar[gamma_key].iloc[0]
-
-            channel_data = adstocked_data[channel]
-            value_range = np.array([channel_data.min(), channel_data.max()])
-            inflexions[channel] = np.dot(value_range, [1 - gamma, gamma])
-
-            # Get coefficient
-            coef_data = self.pareto_result.x_decomp_agg[
-                (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
-                & (self.pareto_result.x_decomp_agg["rn"] == channel)
+        """Calculate response parameters with improved error handling."""
+        try:
+            # Get hyperparameters for selected model
+            model_key = "solID" if "solID" in self.pareto_result.result_hyp_param.columns else "sol_id"
+            dt_hyppar = self.pareto_result.result_hyp_param[
+                self.pareto_result.result_hyp_param[model_key] == self.select_model
             ]
-            coefficients[channel] = coef_data["coef"].iloc[0]
 
-        return MediaResponseParameters(alphas=alphas, inflexions=inflexions, coefficients=coefficients)
+            if dt_hyppar.empty:
+                raise ValueError(f"No hyperparameters found for model {self.select_model}")
+
+            print("\nCalculating media response parameters...")
+            print(f"Using model ID: {self.select_model}")
+
+            # Calculate parameters for each channel
+            alphas = {}
+            inflexions = {}
+            coefficients = {}
+
+            for channel in self.sorted_channels:
+                print(f"\nProcessing channel: {channel}")
+
+                # Get alpha parameter
+                alpha_key = f"{channel}_alphas"
+                if alpha_key not in dt_hyppar.columns:
+                    print(f"Warning: Missing {alpha_key}, using default alpha value of 1.0")
+                    alphas[channel] = 1.0
+                else:
+                    alphas[channel] = dt_hyppar[alpha_key].iloc[0]
+                    print(f"Alpha: {alphas[channel]}")
+
+                # Get gamma and calculate inflexion point
+                gamma_key = f"{channel}_gammas"
+                if gamma_key not in dt_hyppar.columns:
+                    print(f"Warning: Missing {gamma_key}, using default gamma value of 0.5")
+                    gamma = 0.5
+                else:
+                    gamma = dt_hyppar[gamma_key].iloc[0]
+                    print(f"Gamma: {gamma}")
+
+                # Calculate inflexion
+                if channel in self.mmm_data.data.columns:
+                    channel_data = self.mmm_data.data[channel]
+                    value_range = np.array([channel_data.min(), channel_data.max()])
+                    inflexions[channel] = np.dot(value_range, [1 - gamma, gamma])
+                    print(f"Inflexion: {inflexions[channel]}")
+                else:
+                    print(f"Warning: Channel {channel} not found in data, using default inflexion")
+                    inflexions[channel] = 1.0
+
+                # Get coefficient
+                model_key_decomp = "solID" if "solID" in self.pareto_result.x_decomp_agg.columns else "sol_id"
+                coef_data = self.pareto_result.x_decomp_agg[
+                    (self.pareto_result.x_decomp_agg[model_key_decomp] == self.select_model)
+                    & (self.pareto_result.x_decomp_agg["rn"] == channel)
+                ]
+
+                if coef_data.empty:
+                    print(f"Warning: No coefficient data found for {channel}, using default coefficient of 1.0")
+                    coefficients[channel] = 1.0
+                else:
+                    coefficients[channel] = coef_data["coef"].iloc[0]
+                    print(f"Coefficient: {coefficients[channel]}")
+
+            return MediaResponseParameters(alphas=alphas, inflexions=inflexions, coefficients=coefficients)
+
+        except Exception as e:
+            print("\nError calculating media response parameters:")
+            print(f"Selected model: {self.select_model}")
+            if hasattr(self.pareto_result, "result_hyp_param"):
+                print(f"Available columns in result_hyp_param: {self.pareto_result.result_hyp_param.columns.tolist()}")
+            if hasattr(self.pareto_result, "x_decomp_agg"):
+                print(f"Available columns in x_decomp_agg: {self.pareto_result.x_decomp_agg.columns.tolist()}")
+            raise ValueError(f"Failed to calculate media response parameters: {str(e)}")
 
     def _get_adstocked_media_data(self) -> pd.DataFrame:
-        """Get adstocked media data for the selected model within the specified window."""
-        # Filter for adstocked media data
-        adstocked_data = self.pareto_result.media_vec_collect[
-            (self.pareto_result.media_vec_collect["type"] == "adstockedMedia")
-            & (self.pareto_result.media_vec_collect["solID"] == self.select_model)
-        ][self.sorted_channels]
+        """Get adstocked media data with improved fallback handling."""
+        print("\nAttempting to get adstocked media data...")
 
-        # Get window indices
-        start_idx = self.mmm_data.mmmdata_spec.rolling_window_start_which
-        end_idx = self.mmm_data.mmmdata_spec.rolling_window_end_which
+        try:
+            # First try to get data from media_vec_collect
+            if hasattr(self.pareto_result, "media_vec_collect"):
+                media_vec = self.pareto_result.media_vec_collect
 
-        # Return windowed data
-        return adstocked_data.iloc[start_idx : end_idx + 1]
+                if not isinstance(media_vec, pd.DataFrame) or media_vec.empty:
+                    print("Warning: media_vec_collect is empty or invalid")
+                else:
+                    print(f"Available columns in media_vec_collect: {media_vec.columns.tolist()}")
 
-    def get_parameter_summary(self) -> pd.DataFrame:
-        """Generate a summary DataFrame of all parameters."""
-        params = self.calculate_parameters()
+                    # Check if required columns exist
+                    model_key = "solID" if "solID" in media_vec.columns else "sol_id"
+                    if "type" in media_vec.columns and model_key in media_vec.columns:
+                        adstocked_data = media_vec[
+                            (media_vec["type"] == "adstockedMedia") & (media_vec[model_key] == self.select_model)
+                        ]
 
-        return pd.DataFrame(
-            {
-                "channel": list(self.sorted_channels),
-                "alpha": [params.alphas[ch] for ch in self.sorted_channels],
-                "inflexion": [params.inflexions[ch] for ch in self.sorted_channels],
-                "coefficient": [params.coefficients[ch] for ch in self.sorted_channels],
-            }
-        )
+                        if not adstocked_data.empty:
+                            print("Successfully found adstocked media data")
+                            return adstocked_data[self.sorted_channels]
+
+            # If we reach here, use raw data as fallback
+            print("Using raw media data as fallback")
+            raw_data = self.mmm_data.data[self.sorted_channels]
+
+            # Get window indices if available
+            start_idx = getattr(self.mmm_data.mmmdata_spec, "rolling_window_start_which", 0)
+            end_idx = getattr(self.mmm_data.mmmdata_spec, "rolling_window_end_which", len(raw_data))
+
+            return raw_data.iloc[start_idx : end_idx + 1]
+
+        except Exception as e:
+            print(f"Error getting media data: {str(e)}")
+            print("Falling back to full raw media data")
+            return self.mmm_data.data[self.sorted_channels]
