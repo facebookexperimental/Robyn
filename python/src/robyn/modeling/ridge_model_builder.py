@@ -4,7 +4,6 @@ import warnings
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Dict, Any, Tuple
-from dataclasses import dataclass
 from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng

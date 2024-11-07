@@ -4,7 +4,6 @@ from typing import Optional, Dict, Any
 import logging
 import pandas as pd
 import warnings
-from dataclasses import dataclass
 from scipy.optimize import curve_fit
 from sklearn.linear_model import LinearRegression
 import numpy as np
