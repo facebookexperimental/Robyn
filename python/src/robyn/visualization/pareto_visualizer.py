@@ -1,7 +1,9 @@
 from typing import Optional
-from matplotlib import ticker
+from matplotlib import ticker, transforms
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
@@ -64,103 +66,101 @@ class ParetoVisualizer:
         waterfall_data['start'] = waterfall_data['start'].fillna(1)
         waterfall_data['sign'] = np.where(waterfall_data['xDecompPerc'] >= 0, 'Positive', 'Negative')
 
+    def generate_fitted_vs_actual(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
+        """Generate time series plot comparing fitted vs actual values.
+        
+        Args:
+            ax: Optional matplotlib axes to plot on. If None, creates new figure
+            
+        Returns:
+            plt.Figure if ax is None, else None
+        """
+        # Get the plot data
+        plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
+        ts_data = plot_data['plot5data']['xDecompVecPlotMelted'].copy()
+        
+        # Convert dates and format variables
+        ts_data['ds'] = pd.to_datetime(ts_data['ds'])
+        ts_data['linetype'] = np.where(ts_data['variable'] == 'predicted', 'solid', 'dotted')
+        ts_data['variable'] = ts_data['variable'].str.title()
+        
         # Create figure if no axes provided
         if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 8))
+            fig, ax = plt.subplots(figsize=(12, 6))
         else:
             fig = None
             
-        # Define colors
-        colors = {'Positive': '#59B3D2', 'Negative': '#E5586E'}
+        # Plot lines with different styles for predicted vs actual
+        for var in ts_data['variable'].unique():
+            var_data = ts_data[ts_data['variable'] == var]
+            linestyle = 'solid' if var_data['linetype'].iloc[0] == 'solid' else 'dotted'
+            ax.plot(var_data['ds'], var_data['value'],
+                    label=var,
+                    linestyle=linestyle,
+                    linewidth=0.6)
         
-        # Create categorical y-axis
-        y_pos = range(len(waterfall_data))
+        # Format y-axis with abbreviations
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(self.format_number))
         
-        # Create horizontal bars
-        bars = ax.barh(y=y_pos,
-                    width=waterfall_data['start'] - waterfall_data['end'],
-                    left=waterfall_data['end'],
-                    color=[colors[sign] for sign in waterfall_data['sign']],
-                    height=0.6)
-        
-        # Add text labels
-        for i, row in waterfall_data.iterrows():
-            # Format label text
-            if abs(row['xDecompAgg']) >= 1e9:
-                formatted_num = f"{row['xDecompAgg']/1e9:.1f}B"
-            elif abs(row['xDecompAgg']) >= 1e6:
-                formatted_num = f"{row['xDecompAgg']/1e6:.1f}M"
-            elif abs(row['xDecompAgg']) >= 1e3:
-                formatted_num = f"{row['xDecompAgg']/1e3:.1f}K"
-            else:
-                formatted_num = f"{row['xDecompAgg']:.1f}"
-                
-            # Calculate x-position as the right edge of each positive bar
-            x_pos = max(row['start'], row['end'])
+        # Add training/validation/test splits if validation is enabled
+        if hasattr(self.pareto_result, 'train_size'):
+            train_size = self.pareto_result.train_size
             
-            # Add label aligned at the end of the bar
-            ax.text(x_pos - 0.01, i,  # Small offset from bar end
-                f"{formatted_num}\n{row['xDecompPerc']*100:.1f}%",
-                ha='right', va='center',
-                fontsize=9,
-                linespacing=0.9)
+            # Calculate split points
+            days = sorted(ts_data['ds'].unique())
+            ndays = len(days)
+            train_cut = round(ndays * train_size)
+            val_cut = train_cut + round(ndays * (1 - train_size) / 2)
+            
+            # Add vertical lines and labels for splits
+            splits = [
+                (train_cut, f"Train: {train_size*100:.1f}%"),
+                (val_cut, f"Validation: {((1-train_size)/2)*100:.1f}%"),
+                (ndays-1, f"Test: {((1-train_size)/2)*100:.1f}%")
+            ]
+            
+            for idx, (cut, label) in enumerate(splits):
+                # Add vertical line
+                ax.axvline(x=days[cut], color='#39638b', alpha=0.8, linestyle='-')
+                
+                # Add rotated text label
+                trans = transforms.blended_transform_factory(
+                    ax.transData, ax.transAxes
+                )
+                ax.text(days[cut], 1.02, label,
+                    rotation=270,
+                    verticalalignment='bottom',
+                    horizontalalignment='left',
+                    transform=trans,
+                    color='#39638b',
+                    alpha=0.5,
+                    fontsize=8)
         
-        # Set y-ticks and labels
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(waterfall_data['rn'])
+        # Customize plot
+        ax.set_title('Actual vs. Predicted Response')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Response')
         
-        # Format x-axis as percentage
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
-        ax.set_xticks(np.arange(0, 1.1, 0.2))
+        # Move legend to top
+        ax.legend(
+            bbox_to_anchor=(0, 1.02, 1, 0.2),
+            loc='lower left',
+            ncol=2,
+            mode="expand",
+            borderaxespad=0,
+        )
         
-        # Set plot limits
-        ax.set_xlim(0, 1)
-        ax.set_ylim(-0.5, len(waterfall_data) - 0.5)
-        
-        # Add legend at top
-        from matplotlib.patches import Patch
-        legend_elements = [
-            Patch(facecolor=colors['Positive'], label='Positive'),
-            Patch(facecolor=colors['Negative'], label='Negative')
-        ]
-        
-        # Create legend with white background
-        legend = ax.legend(handles=legend_elements,
-                        title='Sign',
-                        loc='upper left',
-                        bbox_to_anchor=(0, 1.15),
-                        ncol=2,
-                        frameon=True,
-                        framealpha=1.0)
-        
-        # Set title
-        ax.set_title('Response Decomposition Waterfall', 
-                    pad=30,
-                    x=0.5,
-                    y=1.05)
-        
-        # Label axes
-        ax.set_xlabel('Contribution')
-        ax.set_ylabel(None)
-        
-        # Customize grid
-        ax.grid(True, axis='x', alpha=0.2)
+        # Grid styling
+        ax.grid(True, alpha=0.2)
         ax.set_axisbelow(True)
         
-        # Adjust layout
+        # Use white background
+        ax.set_facecolor('white')
+        
         if fig:
-            plt.subplots_adjust(right=0.85, top=0.85)
+            plt.tight_layout()
             return fig
-            
         return None
-           
-    def generate_fitted_vs_actual(self) -> plt.Figure:
-        """Generate time series plot comparing fitted vs actual values.
-            
-        Returns:
-            plt.Figure: Line plot comparing predicted and actual values
-        """
-        fig, ax = plt.subplots()
 
     def generate_diagnostic_plot(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate diagnostic scatter plot of fitted vs residual values.
