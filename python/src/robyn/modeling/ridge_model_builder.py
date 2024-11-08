@@ -53,7 +53,7 @@ class RidgeModelBuilder:
         nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
         intercept: bool = True,
         intercept_sign: str = "non_negative",
-        cores: int = 2,
+        cores: Optional[int] = None,
     ) -> ModelOutputs:
         start_time = time.time()
 
