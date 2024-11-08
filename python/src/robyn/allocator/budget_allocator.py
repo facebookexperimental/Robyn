@@ -1,9 +1,10 @@
+#pyre-strict
+
 from typing import List, Dict, Optional, Any, Union
 import numpy as np
 import pandas as pd
 from datetime import datetime
 
-from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.allocator.media_response import MediaResponseParamsCalculator
 
@@ -631,7 +632,7 @@ class BudgetAllocator:
                 raise ValueError("Date column contains missing values")
 
         except Exception as e:
-            raise ValueError(f"Invalid date data: {str(e)}")
+            raise ValueError(f"Invalid date data: {str(e)}") from e
 
     def _get_date_column_name(self) -> str:
         """Get the date column name, handling cases where it might be a list."""

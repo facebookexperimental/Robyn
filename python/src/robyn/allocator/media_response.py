@@ -1,5 +1,5 @@
 """
-media_response.py - Calculates parameters for media response curves
+media_response.py - Calculates parameters for media response curves with enhanced logging.
 
 This module implements the parameter calculation logic from allocator.R's get_hill_params(),
 using the ParetoResult data structure from data_mapper.py.
@@ -9,18 +9,26 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 import pandas as pd
 import numpy as np
+import logging
 
 from robyn.data.entities.mmmdata import MMMData
+from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 from robyn.modeling.pareto.pareto_optimizer import ParetoResult
 
 
 @dataclass
 class MediaResponseParameters:
     """Container for media response parameters calculated for each channel."""
-
     alphas: Dict[str, float]
     inflexions: Dict[str, float]
     coefficients: Dict[str, float]
+
+    def __str__(self) -> str:
+        """String representation for logging purposes"""
+        return (f"MediaResponseParameters(\n"
+                f"  alphas: {self.alphas},\n"
+                f"  inflexions: {self.inflexions},\n"
+                f"  coefficients: {self.coefficients}\n)")
 
 
 class MediaResponseParamsCalculator:
@@ -39,6 +47,10 @@ class MediaResponseParamsCalculator:
             pareto_result: Pareto optimization results containing model data
             select_model: Selected model identifier
         """
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing MediaResponseParamsCalculator")
+        self.logger.debug(f"Using model ID: {select_model}")
+
         self.mmm_data = mmm_data
         self.pareto_result = pareto_result
         self.select_model = select_model
@@ -47,6 +59,9 @@ class MediaResponseParamsCalculator:
         self.media_channels = np.array(self.mmm_data.mmmdata_spec.paid_media_spends)
         self.media_order = np.argsort(self.media_channels)
         self.sorted_channels = self.media_channels[self.media_order]
+
+        self.logger.debug(f"Initialized with {len(self.sorted_channels)} media channels")
+        self.logger.debug(f"Media channels: {', '.join(self.sorted_channels)}")
 
     def calculate_parameters(self) -> MediaResponseParameters:
         """Calculate response parameters with improved error handling."""

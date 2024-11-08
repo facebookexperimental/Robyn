@@ -1,3 +1,5 @@
+#pyre-strict
+
 from dataclasses import dataclass, field
 from typing import Dict, Any
 import pandas as pd

@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Optional, Union, List
 from datetime import datetime
 
-from .enums import OptimizationScenario, ConstrMode
-from .allocation_constraints import AllocationConstraints
+from robyn.allocator.entities.enums import OptimizationScenario, ConstrMode
+from robyn.allocator.entities.allocation_constraints import AllocationConstraints
 
 
 @dataclass

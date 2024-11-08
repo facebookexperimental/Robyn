@@ -1,8 +1,8 @@
 from typing import Callable, List, Tuple, Dict
+import logging
 import numpy as np
 from scipy.optimize import minimize
 from robyn.allocator.entities.enums import ConstrMode
-
 
 class AllocationOptimizer:
     """Handles numerical optimization for budget allocation."""
@@ -10,9 +10,12 @@ class AllocationOptimizer:
     def __init__(self):
         """Initialize optimizer."""
         self.supported_methods = {
-            "SLSQP_AUGLAG": "SLSQP",  # Map Robyn method names to scipy method names
-            "MMA_AUGLAG": "SLSQP",  # For now, map both to SLSQP as it's most similar
+            "SLSQP_AUGLAG": "SLSQP", 
+            "MMA_AUGLAG": "SLSQP",  
         }
+        
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing AllocationOptimizer")
 
     def optimize(
         self,
@@ -24,44 +27,49 @@ class AllocationOptimizer:
         maxeval: int = 100000,
         constr_mode: ConstrMode = ConstrMode.EQUALITY,
     ) -> Dict:
-        """
-        Run optimization with given objective and constraints.
+        """Run optimization with given objective and constraints."""
+        
+        self.logger.info(f"Starting optimization with method: {method}")
+        self.logger.debug(f"Optimization parameters: maxeval={maxeval}, constr_mode={constr_mode}")
+        self.logger.debug(f"Initial guess shape: {initial_guess.shape}")
+        self.logger.debug(f"Number of bounds: {len(bounds)}")
+        self.logger.debug(f"Number of constraints: {len(constraints)}")
 
-        Args:
-            objective_func: Function to minimize
-            bounds: List of (lower, upper) bounds for each variable
-            constraints: List of constraint dictionaries
-            initial_guess: Initial values for optimization
-            method: Optimization method (SLSQP_AUGLAG or MMA_AUGLAG)
-            maxeval: Maximum number of function evaluations
-            constr_mode: Constraint mode (equality or inequality)
-
-        Returns:
-            Dictionary containing optimization results
-        """
-        # Convert method name to scipy solver name
+        # Validate method
         if method not in self.supported_methods:
-            raise ValueError(
-                f"Unsupported optimization method: {method}. "
-                f"Supported methods are: {list(self.supported_methods.keys())}"
-            )
+            err_msg = f"Unsupported optimization method: {method}. Supported methods: {list(self.supported_methods.keys())}"
+            self.logger.error(err_msg)
+            raise ValueError(err_msg)
 
         scipy_method = self.supported_methods[method]
+        self.logger.debug(f"Using scipy solver: {scipy_method}")
 
         # Setup optimization options
         options = {"maxiter": maxeval, "ftol": 1e-10, "disp": False}
+        self.logger.debug(f"Optimization options: {options}")
 
         # Process constraints
         processed_constraints = []
-        for c in constraints:
-            constraint_type = c.get("type", "eq")
-            if constraint_type not in ["eq", "ineq"]:
-                raise ValueError(f"Invalid constraint type: {constraint_type}")
+        for i, c in enumerate(constraints):
+            try:
+                constraint_type = c.get("type", "eq")
+                if constraint_type not in ["eq", "ineq"]:
+                    err_msg = f"Invalid constraint type: {constraint_type}"
+                    self.logger.error(err_msg)
+                    raise ValueError(err_msg)
 
-            processed_constraints.append({"type": constraint_type, "fun": c["fun"], "jac": c.get("jac")})
+                processed_constraints.append({
+                    "type": constraint_type,
+                    "fun": c["fun"],
+                    "jac": c.get("jac")
+                })
+                self.logger.debug(f"Processed constraint {i+1}: type={constraint_type}")
+            except KeyError as e:
+                self.logger.error(f"Error processing constraint {i+1}: {str(e)}")
+                raise
 
         try:
-            # Run optimization
+            self.logger.info("Running optimization")
             result = minimize(
                 fun=objective_func,
                 x0=initial_guess,
@@ -72,10 +80,14 @@ class AllocationOptimizer:
             )
 
             if not result.success:
-                print(f"Warning: Optimization may not have converged. Message: {result.message}")
+                self.logger.warning(f"Optimization may not have converged. Message: {result.message}")
+            else:
+                self.logger.info("Optimization completed successfully")
+                self.logger.debug(f"Final objective value: {result.fun}")
+                self.logger.debug(f"Number of iterations: {result.nit}")
+                self.logger.debug(f"Number of function evaluations: {result.nfev}")
 
-            # Return results in a consistent format
-            return {
+            optimization_result = {
                 "x": result.x,
                 "fun": result.fun,
                 "success": result.success,
@@ -84,5 +96,9 @@ class AllocationOptimizer:
                 "nit": result.nit if hasattr(result, "nit") else None,
             }
 
+            self.logger.debug(f"Optimization result shape: {result.x.shape}")
+            return optimization_result
+
         except Exception as e:
+            self.logger.error(f"Optimization failed: {str(e)}", exc_info=True)
             raise ValueError(f"Optimization failed: {str(e)}")
