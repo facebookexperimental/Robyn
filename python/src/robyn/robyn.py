@@ -258,6 +258,9 @@ class Robyn:
         export=False,
     ) -> AllocationResult:
 
+        if not select_model:
+            select_model = self.model_outputs.select_id
+
         # Initialize budget allocator
         allocator = BudgetAllocator(
             mmm_data=self.mmm_data,
