@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 from robyn.modeling.clustering.clustering_config import (
     ClusterBy,
-    ClusteringConfig,
-    DependentVarType,
+    ClusteringConfig
 )
+from robyn.data.entities.enums import DependentVarType
 from robyn.modeling.entities.clustering_results import (
     ClusterConfidenceIntervals,
     ClusteredResult,
@@ -21,19 +21,11 @@ from robyn.modeling.entities.clustering_results import (
 from robyn.common.constants import HYPERPARAMETER_NAMES
 
 from robyn.modeling.entities.pareto_result import ParetoResult
+from robyn.modeling.entities.ci_collection_data import ConfidenceIntervalCollectionData
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from scipy import stats
 from sklearn.cluster import KMeans
-
-
-@dataclass
-class ConfidenceIntervalCollectionData:
-    confidence_interval_df: pd.DataFrame
-    sim_collect: pd.DataFrame
-    boot_n: int
-    sim_n: int
-
 
 class ClusterBuilder:
     """
@@ -142,14 +134,14 @@ class ClusterBuilder:
         )
 
         # Prepare plot data
-        # plots = ClusterPlotResults(
-        #     top_solutions_errors_plot=self.cluster_visualizer.plot_top_solutions_errors(
-        #         df, top_solutions, balance=config.weights
-        #     ),
-        #     top_solutions_rois_plot=self.cluster_visualizer.plot_topsols_rois(
-        #         df, top_solutions, config.all_media, limit=1
-        #     ),
-        # )
+        plots = ClusterPlotResults(
+            top_solutions_errors_plot=self.cluster_visualizer.plot_top_solutions_errors(
+                df, top_solutions, balance=config.weights
+            ),
+            top_solutions_rois_plot=self.cluster_visualizer.plot_topsols_rois(
+                df, top_solutions, config.all_media
+            ),
+        )
 
         # Create confidence intervals object
         
@@ -161,10 +153,9 @@ class ClusterBuilder:
             ),
             boot_n=ci_results.boot_n,
             sim_n=ci_results.sim_n,
-            clusters_confidence_interval_plot= None
-            # self.cluster_visualizer.plot_confidence_intervals(
-            #     ci_results.sim_collect, ci_results.confidence_interval_df, config
-            # ),
+            clusters_confidence_interval_plot=self.cluster_visualizer.plot_confidence_intervals(
+                    ci_results, config
+                ),
         )
 
         # Return clustered results
@@ -182,7 +173,7 @@ class ClusterBuilder:
             clusters_pca=None,  # result.cluster_pca (implementation should be in clusterKmeans)
             clusters_tsne=None,  # result.cluster_tsne (implementation should be in clusterKmeans)
             correlations=None,  # result.correlations (implementation should be in clusterKmeans)
-            plots=ClusterPlotResults(),  # plots (implementation should be in cluster_visualizer)
+            plots= plots
         )
 
     def _calculate_confidence_intervals(
@@ -244,7 +235,7 @@ class ClusterBuilder:
                         df_chn = df_outcome[df_outcome["rn"] == i]
                         v_samp = df_chn["roi_total"]
                     boot_res = self._bootstrap_sampling(v_samp, boot_n)
-                    boot_mean = np.mean(boot_res["boot_means"])
+                    boot_mean = np.mean(boot_res["boot_means"] if len(boot_res["boot_means"]) > 0 else [0.0])
                     boot_se = boot_res["se"][0]
                     ci_low = max(0, boot_res["ci"][0])
                     ci_up = boot_res["ci"][1]
@@ -371,12 +362,13 @@ class ClusterBuilder:
 
             result.wss = self.cluster_visualizer.create_wss_plot(nclusters, k=k)
             result.n_clusters = k
-
-            kmeans = KMeans(n_clusters=k, algorithm="lloyd", max_iter=limit).fit(df)
-            df["cluster"] = pd.Categorical(kmeans.labels_)
+            df_copy = df.copy()
+            kmeans = KMeans(n_clusters=k, algorithm="lloyd", max_iter=limit)
+            df_copy.loc[:, "cluster"] = pd.Categorical(kmeans.fit_predict(df_copy))
             result.cluster_data = pd.concat(
-                [result.cluster_data, df["cluster"]], axis=1
+                [result.cluster_data, df_copy["cluster"]], axis=1
             )
+            df = df_copy
 
             # Group by 'cluster' and calculate the mean for each group
             cluster_means: pd.DataFrame = df.groupby("cluster", observed=False).mean()
