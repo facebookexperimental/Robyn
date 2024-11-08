@@ -5,6 +5,7 @@
 
 import logging
 import pandas as pd
+from robyn.data.entities.enums import DependentVarType
 
 from robyn.allocator.entities.allocation_config import AllocationConfig
 from robyn.allocator.entities.allocation_constraints import AllocationConstraints
@@ -27,7 +28,7 @@ import matplotlib.pyplot as plt
 from robyn.modeling.pareto.pareto_optimizer import ParetoOptimizer
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.clustering.cluster_builder import ClusterBuilder
-from robyn.modeling.clustering.clustering_config import ClusteringConfig
+from robyn.modeling.clustering.clustering_config import ClusterBy, ClusteringConfig
 from robyn.allocator.budget_allocator import BudgetAllocator
 
 
@@ -98,7 +99,7 @@ class Robyn:
         calibration_input=None,
         pareto_fronts="auto",
         min_candidates=5,
-        run_cluster=True,
+        run_cluster=False,
         cluster_config: ClusteringConfig = None,
     ):
         """
@@ -212,17 +213,19 @@ class Robyn:
         pareto_optimizer = ParetoOptimizer(
             mmm_data=self.mmm_data,
             model_outputs=self.model_outputs,
-            hyperparameter=self.hyperparameters,  # Changed to match the expected parameter name
+            hyper_parameter=self.hyperparameters,
             featurized_mmm_data=self.featurized_mmm_data,
             holidays_data=self.holidays_data,
         )
         # Run optimize function
         pareto_result = pareto_optimizer.optimize(pareto_fronts=pareto_fronts, min_candidates=min_candidates)
-        # Visualize and/or export Pareto results if required
+
+        # Visualize and/or export results if required
         if plot:
-            self.visualize_outputs(pareto_result, plot=plot)
+            self.visualize_outputs(pareto_result)  # Remove plot=plot
         if export:
-            self.export_outputs(pareto_result, export=export)
+            self.export_outputs(pareto_result)  # Remove export=export
+
         return pareto_result
 
     def cluster_models(self, pareto_result: ParetoResult, cluster_config: ClusteringConfig, plot: bool, export: bool):
