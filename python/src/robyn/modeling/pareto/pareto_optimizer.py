@@ -291,57 +291,51 @@ class ParetoOptimizer:
                                                 including 'nrmse' and 'decomp.rssd' columns.
             pareto_fronts (Union[str, int]): Number of Pareto fronts to calculate or "auto".
         """
-        # Ensure nrmse_values and decomp_rssd_values have the same length
-        nrmse_values = resultHypParamPareto["nrmse"]
-        decomp_rssd_values = resultHypParamPareto["decomp.rssd"]
+        # Extract vectors like in R
+        nrmse = resultHypParamPareto["nrmse"].values
+        decomp_rssd = resultHypParamPareto["decomp.rssd"].values
 
         # Ensure nrmse_values and decomp_rssd_values have the same length
-        if len(nrmse_values) != len(decomp_rssd_values):
-            raise ValueError(
-                "Length of nrmse_values must be equal to length of decomp_rssd_values"
-            )
+        if len(nrmse) != len(decomp_rssd):
+            raise ValueError("Length of nrmse_values must be equal to length of decomp_rssd")
 
-        # Create a DataFrame from nrmse and decomp_rssd
-        data = pd.DataFrame({"nrmse": nrmse_values, "decomp_rssd": decomp_rssd_values})
-
-        # Sort the DataFrame by nrmse and decomp_rssd
-        sorted_data = data.sort_values(by=["nrmse", "decomp_rssd"]).reset_index(
-            drop=True
+        # Create initial dataframe and sort (equivalent to R's order())
+        data = pd.DataFrame({"nrmse": nrmse, "decomp_rssd": decomp_rssd})
+        soreted_data = data.sort_values(["nrmse", "decomp_rssd"], ascending=[True, True]).copy()
+        
+        # Initialize empty dataframe for results
+        df = pd.DataFrame()
+        i = 1
+        
+        # Convert pareto_fronts to match R's logic
+        max_fronts = float('inf') if isinstance(pareto_fronts, str) and "auto" in pareto_fronts else pareto_fronts
+        
+        # Main loop matching R's while condition
+        while len(soreted_data) >= 1 and i <= max_fronts:
+            # Calculate cummin (matches R's behavior)
+            cummin_mask = ~soreted_data['decomp_rssd'].cummin().duplicated()
+            these = soreted_data[cummin_mask].copy()
+            these['pareto_front'] = i
+            
+            # Append to results (equivalent to R's rbind)
+            df = pd.concat([df, these], ignore_index=True)
+            
+            # Remove processed rows (equivalent to R's row.names logic)
+            soreted_data = soreted_data.loc[~soreted_data.index.isin(these.index)].copy()
+            i += 1
+        
+        # Merge results back with original data (equivalent to R's merge)
+        ret = pd.merge(
+            left=data,
+            right=df[['nrmse', 'decomp_rssd', 'pareto_front']],
+            on=['nrmse', 'decomp_rssd'],
+            how='left'
         )
-        pareto_fronts_df = pd.DataFrame()
-        front_number = 1
-
-        # Determine the maximum number of Pareto fronts
-        max_fronts = float("inf") if "auto" in pareto_fronts else pareto_fronts
-
-        # Loop to identify Pareto fronts
-        while len(sorted_data) > 0 and front_number <= max_fronts:
-            # Select non-duplicated cumulative minimums of decomp_rssd
-            pareto_candidates: pd.DataFrame = sorted_data[
-                sorted_data["decomp_rssd"] == sorted_data["decomp_rssd"].cummin()
-            ]
-            pareto_candidates = pareto_candidates.assign(pareto_front=front_number)
-
-            # Append to the result DataFrame
-            pareto_fronts_df = pd.concat(
-                [pareto_fronts_df, pareto_candidates], ignore_index=True
-            )
-
-            # Remove selected rows from sorted_data
-            sorted_data = sorted_data[~sorted_data.index.isin(pareto_candidates.index)]
-
-            # Increment the Pareto front counter
-            front_number += 1
-
-        # Merge the original DataFrame with the Pareto front DataFrame
-        result = pd.merge(
-            data,
-            pareto_fronts_df[["nrmse", "decomp_rssd", "pareto_front"]],
-            on=["nrmse", "decomp_rssd"],
-            how="left",
-        )
-        result.columns = ["x", "y", "pareto_front"]
-        return result.reset_index(drop=True)
+        
+        # Rename columns to match R output
+        ret.columns = ['x', 'y', 'pareto_front']
+        
+        return ret
 
     def prepare_pareto_data(
         self,
@@ -417,13 +411,11 @@ class ParetoOptimizer:
 
             # Filter where cumulative sum is greater than or equal to min_candidates
             auto_pareto = grouped_data[grouped_data["n_cum"] >= min_candidates].head(1)
-
             print(
                 f">> Automatically selected {auto_pareto['robynPareto'].values} Pareto-fronts ",
                 f"to contain at least {min_candidates} pareto-optimal models ({auto_pareto['n_cum'].values})",
             )
-
-            pareto_fronts = int(auto_pareto["robynPareto"])
+            pareto_fronts = auto_pareto["robynPareto"].iloc[0]
         # 5. Creating Pareto front vector
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
 
@@ -1180,7 +1172,7 @@ class ParetoOptimizer:
         df_caov_pct = df_caov.copy()
         df_caov_pct.loc[:, df_caov_pct.columns[1:]] = df_caov_pct.loc[
             :, df_caov_pct.columns[1:]
-        ].div(df_total.iloc[:, 1:].values)
+        ].div(df_total.iloc[:, 1:].values).astype('float64')
         df_caov_pct = df_caov_pct.melt(
             id_vars="solID", var_name="rn", value_name="carryover_pct"
         ).fillna(0)
