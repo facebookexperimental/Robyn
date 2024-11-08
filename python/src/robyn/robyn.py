@@ -83,7 +83,6 @@ class Robyn:
 
     def model_e2e_run(
         self,
-        feature_plots=True,
         trials_config=TrialsConfig(iterations=10, trials=5),
         ts_validation=False,
         add_penalty_factor=False,
@@ -97,7 +96,6 @@ class Robyn:
         export=True,
         run_calibration=False,
         calibration_input=None,
-        model_output_plot=True,
         pareto_fronts="auto",
         min_candidates=5,
         run_cluster=True,
@@ -107,8 +105,9 @@ class Robyn:
         Runs the model end-to-end with the specified configuration and parameters.
         """
         # Step 1: Feature Engineering
-        featurized_mmm_data = self.perform_feature_engineering(plot=feature_plots)
-        self.featurized_mmm_data = featurized_mmm_data  # Store for later use
+        featurized_mmm_data = self.feature_engineering(plot=plot)
+        self.featurized_mmm_data = featurized_mmm_data
+
         # Step 2: Build Models
         model_outputs = self.build_models(
             trials_config=trials_config,
@@ -132,10 +131,9 @@ class Robyn:
             min_candidates=min_candidates,
             run_cluster=run_cluster,
             cluster_config=cluster_config,
+            plot=plot,
+            export=export,
         )
-        if model_output_plot:
-            # Add logic to plot model outputs
-            pass
         print("Model training and evaluation complete.")
 
     def build_models(
@@ -193,20 +191,6 @@ class Robyn:
         pass
 
     def evaluate_models(
-        self, pareto_fronts="auto", min_candidates=100, run_cluster=True, cluster_config: ClusteringConfig = None
-    ) -> None:
-        """
-        Evaluates models using Pareto optimization and clustering.
-        """
-        # Perform Pareto optimization
-        pareto_result = self.pareto_optimization(pareto_fronts, min_candidates)
-        self.pareto_result = pareto_result  # Store for later use
-        if run_cluster:
-            # Perform clustering on the Pareto-optimized results
-            cluster_results = self.cluster_models(pareto_result, cluster_config)
-        print("Model evaluation complete.")
-
-    def evaluate_models(
         self,
         pareto_fronts="auto",
         min_candidates=100,
@@ -217,7 +201,7 @@ class Robyn:
     ) -> None:
         # Perform Pareto optimization
         pareto_result = self.pareto_optimization(pareto_fronts, min_candidates, plot, export)
-        self.pareto_result = pareto_result  # Store for later use
+        self.pareto_result = pareto_result
         if run_cluster:
             # Perform clustering on the Pareto-optimized results
             cluster_results = self.cluster_models(pareto_result, cluster_config, plot, export)
@@ -228,7 +212,7 @@ class Robyn:
         pareto_optimizer = ParetoOptimizer(
             mmm_data=self.mmm_data,
             model_outputs=self.model_outputs,
-            hyperparameters=self.hyperparameters,
+            hyperparameter=self.hyperparameters,  # Changed to match the expected parameter name
             featurized_mmm_data=self.featurized_mmm_data,
             holidays_data=self.holidays_data,
         )
