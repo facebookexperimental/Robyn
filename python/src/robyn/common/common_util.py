@@ -35,11 +35,11 @@ class CommonUtils:
             return available_cores
             
         # Validate requested cores
-        if requested_cores < CoreUtils.MIN_CORES:
-            requested_cores = CoreUtils.MIN_CORES
+        if requested_cores < CommonUtils.MIN_CORES:
+            requested_cores = CommonUtils.MIN_CORES
             logger.warning(
                 "Requested cores must be at least %d. Got: %d. Will use %d cores.",
-                CoreUtils.MIN_CORES, requested_cores, CoreUtils.MIN_CORES
+                CommonUtils.MIN_CORES, requested_cores, CommonUtils.MIN_CORES
             )
             
         # Log warning if requested cores exceed available cores
