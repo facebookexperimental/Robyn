@@ -24,6 +24,11 @@ from robyn.data.validation.hyperparameter_validation import HyperparametersValid
 from robyn.data.validation.mmmdata_validation import MMMDataValidation
 from robyn.visualization.feature_visualization import FeaturePlotter
 import matplotlib.pyplot as plt
+from robyn.modeling.pareto.pareto_optimizer import ParetoOptimizer
+from robyn.modeling.entities.pareto_result import ParetoResult
+from robyn.modeling.clustering.cluster_builder import ClusterBuilder
+from robyn.modeling.clustering.clustering_config import ClusteringConfig
+from robyn.allocator.budget_allocator import BudgetAllocator
 
 
 class Robyn:
@@ -49,16 +54,6 @@ class Robyn:
         holidays_data: HolidaysData,
         hyperparameters: Hyperparameters,
     ) -> None:
-        """
-        Loads input data for the first time and validates it.
-        Calls validate from MMMDataValidation, HolidaysDataValidation, HyperparametersValidation, and CalibrationInputValidation.
-
-        Args:
-            mmm_data (MMMData): The MMM data object.
-            holidays_data (HolidaysData): The holidays data object.
-            hyperparameters (HyperParametersConfig): The hyperparameters configuration object.
-            calibration_input (CalibrationInputConfig): The calibration input configuration object.
-        """
         mmm_data_validation = MMMDataValidation(mmm_data)
         holidays_data_validation = HolidaysDataValidation(holidays_data)
         hyperparameters_validation = HyperparametersValidation(hyperparameters)
@@ -74,19 +69,6 @@ class Robyn:
         print("Validation complete")
 
     def feature_engineering(self, plot=True) -> FeaturizedMMMData:
-        """
-        Perform feature engineering on the data.
-
-        This method processes the data to create new features that can be used in
-        the marketing mix model (MMM). The exact transformations and feature
-        creation steps are not specified in this placeholder method.
-
-        Args:
-            plot (bool): If True, generate and display plots for the engineered features.
-
-        Returns:
-            FeaturizedMMMData: The data with new features added, ready for use in the MMM.
-        """
         feature_engineering = FeatureEngineering(self.mmm_data, self.hyperparameters, self.holidays_data)
         featurized_mmm_data = feature_engineering.perform_feature_engineering()
         if plot:
@@ -99,14 +81,14 @@ class Robyn:
                     print(f"Skipping {channel}: {str(e)}")
         return featurized_mmm_data
 
-    def model_run(
+    def model_e2e_run(
         self,
         feature_plots=True,
-        trials_config=trials_config,
+        trials_config=TrialsConfig(iterations=10, trials=5),
         ts_validation=False,
         add_penalty_factor=False,
         rssd_zero_penalty=True,
-        cores=16,  # max of cores available or user provided
+        cores=16,
         nevergrad_algo=NevergradAlgorithm.TWO_POINTS_DE,
         intercept=True,
         intercept_sign="non_negative",
@@ -117,89 +99,52 @@ class Robyn:
         calibration_input=None,
         model_output_plot=True,
         pareto_fronts="auto",
-        min_candidates=100,
+        min_candidates=5,
         run_cluster=True,
         cluster_config: ClusteringConfig = None,
     ):
         """
-        Runs the model with the specified configuration and parameters.
-
-        Args:
-            feature_plots (bool): Whether to plot feature engineering results. Default is True.
-            trials_config (TrialsConfig): Configuration for the trials. Default is trials_config.
-            ts_validation (bool): Whether to perform time series validation. Default is False.
-            add_penalty_factor (bool): Whether to add a penalty factor. Default is False.
-            rssd_zero_penalty (bool): Whether to apply zero penalty for RSSD. Default is True.
-            cores (int): Number of cores to use. Default is 16.
-            nevergrad_algo (NevergradAlgorithm): Algorithm to use for optimization. Default is NevergradAlgorithm.TWO_POINTS_DE.
-            intercept (bool): Whether to include an intercept in the model. Default is True.
-            intercept_sign (str): Sign constraint for the intercept. Default is "non_negative".
-            model_name (Models): Name of the model to use. Default is Models.RIDGE.
-            plot (bool): Whether to plot the model results. Default is True.
-            export (bool): Whether to export the model results. Default is True.
-            run_calibration (bool): Whether to run calibration. Default is False.
-            calibration_input: Input data for calibration. Default is None.
-            model_output_plot (bool): Whether to plot the model output. Default is True.
-            pareto_fronts (str): Configuration for Pareto fronts. Default is "auto".
-            min_candidates (int): Minimum number of candidates. Default is 100.
-            run_cluster (bool): Whether to run clustering. Default is True.
-            cluster_config (ClusteringConfig): Configuration for clustering. Default is None.
-
-        Returns:
-            None
+        Runs the model end-to-end with the specified configuration and parameters.
         """
-        feature_engineering = FeatureEngineering(self.mmm_data, self.hyperparameters, self.holidays_data)
-        featurized_mmm_data = feature_engineering.perform_feature_engineering()
-
-        if feature_plots:
-            # Create a FeaturePlotter instance
-            feature_plotter = FeaturePlotter(self.mmm_data, self.hyperparameters)
-
-            # Plot spend-exposure relationship for each channel
-            for channel in self.mmm_data.mmmdata_spec.paid_media_spends:
-                try:
-                    fig = feature_plotter.plot_spend_exposure(featurized_mmm_data, channel)
-                    plt.show()
-                except ValueError as e:
-                    print(f"Skipping {channel}: {str(e)}")
-
-        # Setup ModelExecutor
-        model_executor = ModelExecutor(
-            mmmdata=self.mmm_data,
-            holidays_data=self.holidays_data,
-            hyperparameters=self.hyperparameters,
-            calibration_input=None,  # Add calibration input if available
-            featurized_mmm_data=featurized_mmm_data,
-        )
-
-        # Setup TrialsConfig
-        trials_config = TrialsConfig(iterations=2000, trials=5)  # Set to the number of cores you want to use
-
-        print(
-            f">>> Starting {trials_config.trials} trials with {trials_config.iterations} iterations each using {NevergradAlgorithm.TWO_POINTS_DE.value} nevergrad algorithm on x cores..."
-        )
-
-        # Run the model
-        model_outputs = model_executor.model_run(
+        # Step 1: Feature Engineering
+        featurized_mmm_data = self.perform_feature_engineering(plot=feature_plots)
+        self.featurized_mmm_data = featurized_mmm_data  # Store for later use
+        # Step 2: Build Models
+        model_outputs = self.build_models(
             trials_config=trials_config,
-            ts_validation=False,  # changed from True to False -> deactivate
-            add_penalty_factor=False,
-            rssd_zero_penalty=True,
-            cores=8,
-            nevergrad_algo=NevergradAlgorithm.TWO_POINTS_DE,
-            intercept=True,
-            intercept_sign="non_negative",
-            model_name=Models.RIDGE,
+            ts_validation=ts_validation,
+            add_penalty_factor=add_penalty_factor,
+            rssd_zero_penalty=rssd_zero_penalty,
+            cores=cores,
+            nevergrad_algo=nevergrad_algo,
+            intercept=intercept,
+            intercept_sign=intercept_sign,
+            model_name=model_name,
+            plot=plot,
+            export=export,
+            run_calibration=run_calibration,
+            calibration_input=calibration_input,
         )
-        print("Model training complete.")
+        self.model_outputs = model_outputs  # Store for later use
+        # Step 3: Evaluate Models
+        self.evaluate_models(
+            pareto_fronts=pareto_fronts,
+            min_candidates=min_candidates,
+            run_cluster=run_cluster,
+            cluster_config=cluster_config,
+        )
+        if model_output_plot:
+            # Add logic to plot model outputs
+            pass
+        print("Model training and evaluation complete.")
 
     def build_models(
         self,
-        trials_config: TrialsConfig = trials_config,
+        trials_config: TrialsConfig,
         ts_validation=False,
         add_penalty_factor=False,
         rssd_zero_penalty=True,
-        cores=16,  # max of cores available or user provided
+        cores=16,
         nevergrad_algo=NevergradAlgorithm.TWO_POINTS_DE,
         intercept=True,
         intercept_sign="non_negative",
@@ -209,19 +154,162 @@ class Robyn:
         run_calibration=False,
         calibration_input=None,
     ) -> ModelOutputs:
+        """
+        Builds models using the specified configuration and parameters.
+        """
+        # Initialize the ModelExecutor with necessary data
+        model_executor = ModelExecutor(
+            mmmdata=self.mmm_data,
+            holidays_data=self.holidays_data,
+            hyperparameters=self.hyperparameters,
+            calibration_input=calibration_input,
+            featurized_mmm_data=self.featurized_mmm_data,
+        )
+        # Run the model
+        model_outputs = model_executor.model_run(
+            trials_config=trials_config,
+            ts_validation=ts_validation,
+            add_penalty_factor=add_penalty_factor,
+            rssd_zero_penalty=rssd_zero_penalty,
+            cores=cores,
+            nevergrad_algo=nevergrad_algo,
+            intercept=intercept,
+            intercept_sign=intercept_sign,
+            model_name=model_name,
+        )
+
+        if plot:
+            self.visualize_outputs(plot=plot)
+        if export:
+            self.export_outputs(export=export)
+        return model_outputs
+
+    def visualize_outputs(self, plot=True):
+        # Add logic to visualize model outputs
+        pass
+
+    def export_outputs(self, export=True):
+        # Add logic to export model outputs
         pass
 
     def evaluate_models(
         self, pareto_fronts="auto", min_candidates=100, run_cluster=True, cluster_config: ClusteringConfig = None
     ) -> None:
-        pass
+        """
+        Evaluates models using Pareto optimization and clustering.
+        """
+        # Perform Pareto optimization
+        pareto_result = self.pareto_optimization(pareto_fronts, min_candidates)
+        self.pareto_result = pareto_result  # Store for later use
+        if run_cluster:
+            # Perform clustering on the Pareto-optimized results
+            cluster_results = self.cluster_models(pareto_result, cluster_config)
+        print("Model evaluation complete.")
+
+    def evaluate_models(
+        self,
+        pareto_fronts="auto",
+        min_candidates=100,
+        run_cluster=True,
+        cluster_config: ClusteringConfig = None,
+        plot=False,
+        export=False,
+    ) -> None:
+        # Perform Pareto optimization
+        pareto_result = self.pareto_optimization(pareto_fronts, min_candidates, plot, export)
+        self.pareto_result = pareto_result  # Store for later use
+        if run_cluster:
+            # Perform clustering on the Pareto-optimized results
+            cluster_results = self.cluster_models(pareto_result, cluster_config, plot, export)
+        print("Model evaluation complete.")
+
+    def pareto_optimization(self, pareto_fronts: str, min_candidates: int, plot: bool, export: bool) -> ParetoResult:
+        # Create ParetoOptimizer instance
+        pareto_optimizer = ParetoOptimizer(
+            mmm_data=self.mmm_data,
+            model_outputs=self.model_outputs,
+            hyperparameters=self.hyperparameters,
+            featurized_mmm_data=self.featurized_mmm_data,
+            holidays_data=self.holidays_data,
+        )
+        # Run optimize function
+        pareto_result = pareto_optimizer.optimize(pareto_fronts=pareto_fronts, min_candidates=min_candidates)
+        # Visualize and/or export Pareto results if required
+        if plot:
+            self.visualize_outputs(pareto_result, plot=plot)
+        if export:
+            self.export_outputs(pareto_result, export=export)
+        return pareto_result
+
+    def cluster_models(self, pareto_result: ParetoResult, cluster_config: ClusteringConfig, plot: bool, export: bool):
+        # Instantiate ClusterBuilder with the Pareto result
+        cluster_builder = ClusterBuilder(pareto_result=pareto_result)
+        # Use provided cluster_config or create a default one
+        if not cluster_config:
+            cluster_config = ClusteringConfig(
+                dep_var_type=DependentVarType(self.mmm_data.mmmdata_spec.dep_var_type),
+                cluster_by=ClusterBy.HYPERPARAMETERS,
+                max_clusters=30,
+                min_clusters=3,
+                weights=[1.0, 1.0, 1.0],
+            )
+        # Perform clustering
+        cluster_results = cluster_builder.cluster_models(cluster_config)
+        # Visualize and/or export clustering results if required
+        if plot:
+            self.visualize_outputs(cluster_results, plot=plot)
+        if export:
+            self.export_outputs(cluster_results, export=export)
+        return cluster_results
 
     def budget_allocator(
         self,
         select_model,
-        allocation_contstraints: AllocationConstraints,
+        allocation_constraints: AllocationConstraints,
         allocator_config: AllocationConfig,
         plot=True,
-        export_allocation_result=False,
+        export=False,
     ) -> AllocationResult:
-        pass
+
+        # Initialize budget allocator
+        allocator = BudgetAllocator(
+            mmm_data=self.mmm_data,
+            featurized_mmm_data=self.featurized_mmm_data,
+            model_outputs=self.model_outputs,
+            pareto_result=self.pareto_result,
+            select_model=select_model,
+        )
+        # Run optimization
+        result = allocator.allocate(allocator_config)
+        # Print results
+        print(
+            f"""
+            Model ID: {select_model}
+            Scenario: {allocator_config.scenario}
+            Use case: {result.metrics.get('use_case', '')}
+            Window: {result.metrics.get('date_range_start')}:{result.metrics.get('date_range_end')} ({result.metrics.get('n_periods')} {self.mmm_data.mmmdata_spec.interval_type})
+            Dep. Variable Type: {self.mmm_data.mmmdata_spec.dep_var_type}
+            Media Skipped: {result.metrics.get('skipped_channels', 'None')}
+            Relative Spend Increase: {result.metrics.get('spend_lift_pct', 0):.1f}% ({result.metrics.get('spend_lift_abs', 0):+.0f}K)
+            Total Response Increase (Optimized): {result.metrics.get('response_lift', 0)*100:.1f}%
+            Allocation Summary:
+            """
+        )
+        # Print channel-level results
+        for channel in self.mmm_data.mmmdata_spec.paid_media_spends:
+            current = result.optimal_allocations[result.optimal_allocations["channel"] == channel].iloc[0]
+            print(
+                f"""
+                - {channel}:
+                  Optimizable bound: [{(current['constr_low']-1)*100:.0f}%, {(current['constr_up']-1)*100:.0f}%],
+                  Initial spend share: {current['current_spend_share']*100:.2f}% -> Optimized bounded: {current['optimal_spend_share']*100:.2f}%
+                  Initial response share: {current['current_response_share']*100:.2f}% -> Optimized bounded: {current['optimal_response_share']*100:.2f}%
+                  Initial abs. mean spend: {current['current_spend']/1000:.3f}K -> Optimized: {current['optimal_spend']/1000:.3f}K [Delta = {(current['optimal_spend']/current['current_spend']-1)*100:.0f}%]
+                """
+            )
+        # Visualize and/or export allocation results if required
+        if plot:
+            self.visualize_allocation(result, plot=plot)
+        if export:
+            self.export_allocation(result, export=export)
+        return result
