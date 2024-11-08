@@ -29,7 +29,7 @@ class ModelExecutor(BaseModelExecutor):
         add_penalty_factor: bool = False,
         refresh: bool = False,
         seed: int = 123,
-        cores: int = 2,
+        cores: int = None,
         trials_config: Optional[TrialsConfig] = None,
         rssd_zero_penalty: bool = True,
         objective_weights: Optional[Dict[str, float]] = None,
