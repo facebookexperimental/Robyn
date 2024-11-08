@@ -36,12 +36,6 @@ class ParetoOptimizer:
     Performs Pareto optimization on marketing mix models.
     """
 
-
-class ParetoOptimizer:
-    """
-    Performs Pareto optimization on marketing mix models.
-    """
-
     def __init__(
         self,
         mmm_data: MMMData,
