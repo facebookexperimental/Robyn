@@ -22,11 +22,11 @@ from robyn.modeling.pareto.pareto_optimizer import (
 def pareto_data_data_factory():
     def _create_pareto_data(aggregated_data = None):
         decomp_spend_dist_df = pd.DataFrame({
-            'solID': ['test'],
+            'sol_id': ['test'],
             'rn': ['media'],
         })
         dt_hyppar = pd.DataFrame({
-            'solID': ['test'],
+            'sol_id': ['test'],
             'media_alphas': [1],
             'media_gammas': [2],
         })
@@ -47,7 +47,7 @@ def trial_mock_data_factory():
             "trial": [1, 2, 3],
             "iterNG": [1, 1, 1],
             "iterPar": [1, 2, 3],
-            "solID": ["sol1", "sol2", "sol3"]
+            "sol_id": ["test", "test2", "test3"]
         })
         return trial_mock
     return _create_trial_mock
@@ -63,12 +63,12 @@ def aggregated_data_factory():
                 "nrmse_train": [1, 2, 3],
                 "iterNG": [1, 2, 3],
                 "iterPar": [1, 2, 3],
-                "solID": ["sol1", "sol2", "sol3"],
+                "sol_id": ["test", "test2", "test3"],
                 "robynPareto": [1, 2, 3],
             }),
             "x_decomp_agg": pd.DataFrame({
                 "rn": ["media", "media", "media"],
-                "solID": ["test", "test2", "test3"],
+                "sol_id": ["test", "test2", "test3"],
                 "coef": [1, 0.5, 0.5]
             }),
             "result_calibration": None,
@@ -240,7 +240,7 @@ def test_prepare_pareto_data_hyper_fixed_false(setup_optimizer, aggregated_data_
 def test_run_dt_resp(mock_transform_adstock, setup_optimizer, aggregated_data_factory, pareto_data_data_factory):
     optimizer = setup_optimizer
     # Setup mock data
-    row = pd.Series({"solID": "test", "rn": "media", "mean_spend": 1})
+    row = pd.Series({"sol_id": "test", "rn": "media", "mean_spend": 1})
     aggregated_data = aggregated_data_factory()
     adstock_result = MagicMock(spec=AdstockResult)
     adstock_result.x = pd.Series([1, 2, 3]) 
@@ -250,15 +250,15 @@ def test_run_dt_resp(mock_transform_adstock, setup_optimizer, aggregated_data_fa
     # Run the run_dt_resp function
     result = optimizer.run_dt_resp(row=row, paretoData=pareto_data_data_factory(aggregated_data))
     # Assertions to check the return value
-    expected_result = pd.Series({
-        "mean_response": 0.333333,
-        "mean_spend_adstocked": 5.0,
-        "mean_carryover": 3.0,
+    expected_result = {
+        "mean_response": np.float64(0.3333333333333333),
+        "mean_spend_adstocked": np.float64(5.0),
+        "mean_carryover": np.float64(3.0),
         "rn": "media",
-        "solID": "test"
-    })
-    pd.testing.assert_series_equal(result, expected_result)
-    assert isinstance(result, pd.Series)
+        "sol_id": "test"
+    }
+    assert result == expected_result
+
 
 def test_generate_plot_data(setup_optimizer, aggregated_data_factory, pareto_data_data_factory):
     optimizer = setup_optimizer
@@ -291,7 +291,7 @@ def test_robyn_immcarr(setup_optimizer, aggregated_data_factory, pareto_data_dat
     })
     optimizer.hyper_parameter.adstock = AdstockType.GEOMETRIC
     result_hyp_param = pd.DataFrame({
-        'solID': ['test'],
+        'sol_id': ['test'],
         'media_alphas': [0.1],
         'media_gammas': [0.2],
         'media_thetas': [0.3]  # Include this if adstock is GEOMETRIC
@@ -303,7 +303,7 @@ def test_robyn_immcarr(setup_optimizer, aggregated_data_factory, pareto_data_dat
     # Assertions to check the return value
     assert isinstance(result, pd.DataFrame)
     expected_result = pd.DataFrame({
-        "solID": ["test", "test"],
+        "sol_id": ["test", "test"],
         "start_date": ["2023-01-01", "2023-01-01"],
         "end_date": ["2023-01-10", "2023-01-10"],
         "rn": ["media", "media"],

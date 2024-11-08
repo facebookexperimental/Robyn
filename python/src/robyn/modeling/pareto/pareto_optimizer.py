@@ -265,7 +265,7 @@ class ParetoOptimizer:
             for trial in chunk_trials:
                 if trial.decomp_spend_dist is not None:
                     # Select only necessary columns
-                    required_cols = ["trial", "iterNG", "iterPar", "rn", "mean_spend", "total_spend", "xDecompAgg"]
+                    required_cols = ["trial", "iterNG", "iterPar", "rn", "mean_spend", "total_spend", "xDecompAgg", "sol_id"]
                     trial_data = trial.decomp_spend_dist[
                         [col for col in required_cols if col in trial.decomp_spend_dist.columns]
                     ]
@@ -302,6 +302,7 @@ class ParetoOptimizer:
             self.logger.info("Using single Pareto front due to fixed hyperparameters or single model")
 
         # Automatic Pareto front selection with memory optimization
+        grouped_data = None
         if pareto_fronts == "auto":
             n_pareto = result_hyp_param["robynPareto"].notna().sum()
             self.logger.info(f"Number of Pareto-optimal solutions found: {n_pareto}")
@@ -319,7 +320,6 @@ class ParetoOptimizer:
                 .reset_index()
             )
             grouped_data["n_cum"] = grouped_data["n"].cumsum()
-
             auto_pareto = grouped_data[grouped_data["n_cum"] >= scaled_min_candidates]
 
             if len(auto_pareto) == 0:
@@ -369,13 +369,11 @@ class ParetoOptimizer:
             get_spendname = row["rn"]
             startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
             endRW = self.mmm_data.mmmdata_spec.rolling_window_end_which
-
             response_calculator = ResponseCurveCalculator(
                 mmm_data=self.mmm_data,
                 model_outputs=self.model_outputs,
                 hyperparameter=self.hyper_parameter,
             )
-
             response_output: ResponseOutput = response_calculator.calculate_response(
                 select_model=get_sol_id,
                 metric_name=get_spendname,
@@ -384,7 +382,6 @@ class ParetoOptimizer:
                 dt_coef=paretoData.x_decomp_agg,
                 quiet=True,
             )
-
             mean_spend_adstocked = np.mean(response_output.input_total[startRW:endRW])
             mean_carryover = np.mean(response_output.input_carryover[startRW:endRW])
 
@@ -393,7 +390,6 @@ class ParetoOptimizer:
             dt_coef = paretoData.x_decomp_agg[
                 (paretoData.x_decomp_agg["sol_id"] == get_sol_id) & (paretoData.x_decomp_agg["rn"] == get_spendname)
             ][["rn", "coef"]]
-
             hill_calculator = HillCalculator(
                 mmmdata=self.mmm_data,
                 model_outputs=self.model_outputs,
@@ -404,7 +400,6 @@ class ParetoOptimizer:
                 chn_adstocked=chn_adstocked,
             )
             hills = hill_calculator.get_hill_params()
-
             mean_response = ParetoUtils.calculate_fx_objective(
                 x=row["mean_spend"],
                 coeff=hills["coefs_sorted"][0],
@@ -747,7 +742,6 @@ class ParetoOptimizer:
             axis=1,
         )
         temp["sol_id"] = sol_id
-
         vec_collect = {
             "xDecompVec": temp.drop(
                 columns=temp.columns[temp.columns.str.endswith("_MDI") | temp.columns.str.endswith("_MDC")]
@@ -763,14 +757,12 @@ class ParetoOptimizer:
                 ]
             ),
         }
-
         this = vec_collect["xDecompVecImmediate"].columns.str.replace("_MDI", "", regex=False)
         vec_collect["xDecompVecImmediate"].columns = this
         vec_collect["xDecompVecCarryover"].columns = this
 
-        df_caov = (vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()).drop(columns="ds")
-        df_total = vec_collect["xDecompVec"].groupby("sol_id").sum().reset_index().drop(columns="ds")
-
+        df_caov = (vec_collect["xDecompVecCarryover"].drop(columns="ds").groupby("sol_id").sum().reset_index())
+        df_total = vec_collect["xDecompVec"].drop(columns="ds").groupby("sol_id").sum().reset_index()
         df_caov_pct = df_caov.copy()
         df_caov_pct.loc[:, df_caov_pct.columns[1:]] = df_caov_pct.loc[:, df_caov_pct.columns[1:]].div(
             df_total.iloc[:, 1:].values
@@ -805,7 +797,6 @@ class ParetoOptimizer:
             ["sol_id", "start_date", "end_date", "type"]
         )["response"].transform("sum")
         xDecompVecImmeCaov.fillna(0, inplace=True)
-
         xDecompVecImmeCaov = xDecompVecImmeCaov.merge(df_caov_pct, on=["sol_id", "rn"], how="left")
 
         return xDecompVecImmeCaov

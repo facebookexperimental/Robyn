@@ -72,6 +72,7 @@ class ResponseCurveCalculator:
         dt_hyppar: pd.DataFrame = pd.DataFrame(),
         dt_coef: pd.DataFrame = pd.DataFrame(),
     ) -> ResponseOutput:
+
         # Determine the use case based on input parameters
         usecase = self._which_usecase(metric_value, date_range)
 
@@ -88,7 +89,6 @@ class ResponseCurveCalculator:
         val_list = self._check_metric_value(
             metric_value, metric_name, all_values, ds_list.metric_loc
         )
-
         date_range_updated = ds_list.date_range_updated
         metric_value_updated = val_list.metric_value_updated
         all_values_updated = val_list.all_values_updated
@@ -129,14 +129,12 @@ class ResponseCurveCalculator:
             input_immediate = x_list_sim.x[ds_list.metric_loc]
         input_carryover = input_total - input_immediate
 
-
         # Get saturation parameters and apply saturation
         hill_params = self._get_saturation_params(select_model, hpm_name, dt_hyppar)
 
         m_adstockedRW = x_list.x_decayed[
             self.mmm_data.mmmdata_spec.rolling_window_start_which : self.mmm_data.mmmdata_spec.rolling_window_end_which
         ]
-
         if usecase == UseCase.ALL_HISTORICAL_VEC:
             metric_saturated_total = self.transformation.saturation_hill(
                 m_adstockedRW, hill_params.alphas[0], hill_params.gammas[0]
@@ -157,12 +155,11 @@ class ResponseCurveCalculator:
                 hill_params.gammas[0],
                 x_marginal=input_carryover,
             )
-
         metric_saturated_immediate = metric_saturated_total - metric_saturated_carryover
 
         # Calculate final response values
         coeff = dt_coef[
-            (dt_coef["solID"] == select_model) & (dt_coef["rn"] == hpm_name)
+            (dt_coef["sol_id"] == select_model) & (dt_coef["rn"] == hpm_name)
         ]["coef"].values[0]
         m_saturated = self.transformation.saturation_hill(
             m_adstockedRW, hill_params.alphas[0], hill_params.gammas[0]
@@ -319,7 +316,7 @@ class ResponseCurveCalculator:
         params = ChannelHyperparameters()
 
         if adstock_type == AdstockType.GEOMETRIC:
-            params.thetas = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.thetas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_thetas"
             ].values
         elif adstock_type in [
@@ -327,10 +324,10 @@ class ResponseCurveCalculator:
             AdstockType.WEIBULL_CDF,
             AdstockType.WEIBULL_PDF,
         ]:
-            params.shapes = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.shapes = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_shapes"
             ].values
-            params.scales = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.scales = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_scales"
             ].values
 
@@ -340,10 +337,10 @@ class ResponseCurveCalculator:
         self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame
     ) -> ChannelHyperparameters:
         params = ChannelHyperparameters()
-        params.alphas = dt_hyppar[dt_hyppar["solID"] == select_model][
+        params.alphas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
             f"{hpm_name}_alphas"
         ].values
-        params.gammas = dt_hyppar[dt_hyppar["solID"] == select_model][
+        params.gammas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
             f"{hpm_name}_gammas"
         ].values
         return params
