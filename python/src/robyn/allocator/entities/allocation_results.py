@@ -1,9 +1,9 @@
-#pyre-strict
+# pyre-strict
+"""Allocation results for budget allocation optimization."""
 
 from dataclasses import dataclass, field
 from typing import Dict, Any
 import pandas as pd
-import numpy as np
 
 
 @dataclass
@@ -17,6 +17,16 @@ class ChannelAllocation:
     response: float
     roi: float
     contribution_pct: float
+
+    def __str__(self) -> str:
+        return (
+            f"ChannelAllocation({self.channel}:\n"
+            f"  Current Spend: ${self.current_spend:,.2f}\n"
+            f"  Optimal Spend: ${self.optimal_spend:,.2f}\n"
+            f"  Change: {self.spend_change_pct:+.1f}%\n"
+            f"  ROI: {self.roi:.2f}\n"
+            f"  Contribution: {self.contribution_pct:.1f}%)"
+        )
 
 
 @dataclass
@@ -101,3 +111,12 @@ Allocation Summary:
             summaries.append(channel_summary)
 
         return "\n".join(summaries)
+
+    def __str__(self) -> str:
+        return (
+            f"AllocationResult(\n"
+            f"Total Current Spend: ${self.metrics['total_current_spend']:,.2f}\n"
+            f"Total Optimal Spend: ${self.metrics['total_optimal_spend']:,.2f}\n"
+            f"Spend Lift: {self.metrics['spend_lift_pct']:+.1f}%\n"
+            f"Response Lift: {self.metrics['response_lift']*100:+.1f}%)"
+        )

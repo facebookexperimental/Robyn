@@ -1,3 +1,6 @@
+#pyre-strict
+"""Optimization module for budget allocation."""
+
 from typing import Callable, List, Tuple, Dict
 import logging
 import numpy as np
@@ -10,7 +13,7 @@ class AllocationOptimizer:
     def __init__(self):
         """Initialize optimizer."""
         self.supported_methods = {
-            "SLSQP_AUGLAG": "SLSQP", 
+            "SLSQP_AUGLAG": "SLSQP", #TODO: both constant values are same. is this correct?
             "MMA_AUGLAG": "SLSQP",  
         }
         
@@ -29,11 +32,11 @@ class AllocationOptimizer:
     ) -> Dict:
         """Run optimization with given objective and constraints."""
         
-        self.logger.info(f"Starting optimization with method: {method}")
-        self.logger.debug(f"Optimization parameters: maxeval={maxeval}, constr_mode={constr_mode}")
-        self.logger.debug(f"Initial guess shape: {initial_guess.shape}")
-        self.logger.debug(f"Number of bounds: {len(bounds)}")
-        self.logger.debug(f"Number of constraints: {len(constraints)}")
+        self.logger.info("Starting optimization with method: %s", method)
+        self.logger.debug("Optimization parameters: maxeval=%d, constr_mode=%s", maxeval, constr_mode)
+        self.logger.debug("Initial guess shape: %s", initial_guess.shape)
+        self.logger.debug("Number of bounds: %d", len(bounds))
+        self.logger.debug("Number of constraints: %d", len(constraints))
 
         # Validate method
         if method not in self.supported_methods:
@@ -42,11 +45,11 @@ class AllocationOptimizer:
             raise ValueError(err_msg)
 
         scipy_method = self.supported_methods[method]
-        self.logger.debug(f"Using scipy solver: {scipy_method}")
+        self.logger.debug("Using scipy solver: %s", scipy_method)
 
         # Setup optimization options
         options = {"maxiter": maxeval, "ftol": 1e-10, "disp": False}
-        self.logger.debug(f"Optimization options: {options}")
+        self.logger.debug("Optimization options: %s", options)
 
         # Process constraints
         processed_constraints = []
@@ -63,9 +66,9 @@ class AllocationOptimizer:
                     "fun": c["fun"],
                     "jac": c.get("jac")
                 })
-                self.logger.debug(f"Processed constraint {i+1}: type={constraint_type}")
+                self.logger.debug("Processed constraint %d: type=%s", i+1, constraint_type)
             except KeyError as e:
-                self.logger.error(f"Error processing constraint {i+1}: {str(e)}")
+                self.logger.error("Error processing constraint %d: %s", i+1, str(e))
                 raise
 
         try:
@@ -80,12 +83,12 @@ class AllocationOptimizer:
             )
 
             if not result.success:
-                self.logger.warning(f"Optimization may not have converged. Message: {result.message}")
+                self.logger.warning("Optimization may not have converged. Message: %s", result.message)
             else:
                 self.logger.info("Optimization completed successfully")
-                self.logger.debug(f"Final objective value: {result.fun}")
-                self.logger.debug(f"Number of iterations: {result.nit}")
-                self.logger.debug(f"Number of function evaluations: {result.nfev}")
+                self.logger.debug("Final objective value: %s", result.fun)
+                self.logger.debug("Number of iterations: %d", result.nit)
+                self.logger.debug("Number of function evaluations: %d", result.nfev)
 
             optimization_result = {
                 "x": result.x,
@@ -96,9 +99,9 @@ class AllocationOptimizer:
                 "nit": result.nit if hasattr(result, "nit") else None,
             }
 
-            self.logger.debug(f"Optimization result shape: {result.x.shape}")
+            self.logger.debug("Optimization result shape: %s", result.x.shape)
             return optimization_result
 
         except Exception as e:
-            self.logger.error(f"Optimization failed: {str(e)}", exc_info=True)
-            raise ValueError(f"Optimization failed: {str(e)}")
+            self.logger.error("Optimization failed: %s", str(e), exc_info=True)
+            raise ValueError(f"Optimization failed: {str(e)}") from e

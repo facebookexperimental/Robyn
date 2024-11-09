@@ -1,8 +1,8 @@
 #pyre-strict
+"""Allocation constraints for channel allocations."""
 
 from dataclasses import dataclass
 from typing import Dict, List
-
 
 @dataclass
 class AllocationConstraints:
@@ -34,3 +34,16 @@ class AllocationConstraints:
             upper = initial_spend[channel] * self.channel_constr_up[channel]
             bounds.append((lower, upper))
         return bounds
+
+    def __str__(self) -> str:
+        constraints_str = []
+        for channel, low in self.channel_constr_low.items():
+            high = self.channel_constr_up[channel]
+            constraints_str.append(
+                f"{channel}: [{low:.2f}, {high:.2f}]"
+            )
+        return (
+            f"AllocationConstraints(multiplier={self.channel_constr_multiplier}, "
+            f"target_efficiency={self.is_target_efficiency},\n"
+            f"channel_constraints=\n  " + "\n  ".join(constraints_str) + ")"
+        )
