@@ -58,9 +58,9 @@ class BaseModelExecutor(ABC):
         self.transformation = Transformation(mmmdata)
         
         logger.debug("Initialized with %d paid media variables, %d context variables, %d organic variables",
-                    len(mmmdata.paid_media_vars),
-                    len(mmmdata.context_vars),
-                    len(mmmdata.organic_vars))
+                    len(mmmdata.mmmdata_spec.paid_media_vars),
+                    len(mmmdata.mmmdata_spec.context_vars),
+                    len(mmmdata.mmmdata_spec.organic_vars))
 
     @abstractmethod
     def model_run(

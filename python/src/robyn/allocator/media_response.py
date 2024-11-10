@@ -120,8 +120,6 @@ class MediaResponseParamsCalculator:
                 coef_data = self.pareto_result.x_decomp_agg[
                     (self.pareto_result.x_decomp_agg[model_key_decomp] == self.select_model)
                     & (self.pareto_result.x_decomp_agg["rn"] == channel)
-                    (self.pareto_result.x_decomp_agg[model_key_decomp] == self.select_model)
-                    & (self.pareto_result.x_decomp_agg["rn"] == channel)
                 ]
 
                 if coef_data.empty:
