@@ -222,6 +222,10 @@ class FeatureEngineering:
             
             return {"res": res, "plot": plot_data, "yhat": yhat_lm}
 
+    @staticmethod
+    def _hill_function(x, alpha, gamma):
+        return x**alpha / (x**alpha + gamma**alpha)
+
     def _prophet_decomposition(self, dt_mod: pd.DataFrame) -> pd.DataFrame:
         self.logger.info("Starting Prophet decomposition")
         prophet_vars = self.holidays_data.prophet_vars
