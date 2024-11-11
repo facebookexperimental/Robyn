@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 import os
 
+from robyn.common.common_util import CommonUtils
 from robyn.modeling.base_model_executor import BaseModelExecutor
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 from robyn.modeling.entities.enums import NevergradAlgorithm, Models
@@ -29,7 +30,7 @@ class ModelExecutor(BaseModelExecutor):
         add_penalty_factor: bool = False,
         refresh: bool = False,
         seed: int = 123,
-        cores: int = 2,
+        cores: int = None,
         trials_config: Optional[TrialsConfig] = None,
         rssd_zero_penalty: bool = True,
         objective_weights: Optional[Dict[str, float]] = None,
@@ -82,8 +83,7 @@ class ModelExecutor(BaseModelExecutor):
         """
         self._validate_input()
 
-        if cores is None:
-            cores = max(1, os.cpu_count() - 1) if os.cpu_count() is not None else 1
+        cores = CommonUtils.get_cores_available(cores)
 
         prepared_hyperparameters = self._prepare_hyperparameters(dt_hyper_fixed, add_penalty_factor, ts_validation)
 
