@@ -249,7 +249,7 @@ class ParetoOptimizer:
             )
         except Exception as e:
             self.logger.error(f"Error during Pareto optimization: {e}")
-            raise
+            # raise
 
     def prepare_pareto_data(
         self,
@@ -1025,7 +1025,7 @@ class ParetoOptimizer:
                     }
                 except Exception as e:
                     self.logger.error(f"Error processing solution {sid}: {str(e)}")
-                    raise e
+                    # raise e
 
         pareto_solutions = set()
         if "sol_id" in mediaVecCollect.columns:
