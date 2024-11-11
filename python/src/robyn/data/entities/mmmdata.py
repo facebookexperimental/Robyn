@@ -7,6 +7,7 @@ import pandas as pd
 from robyn.data.entities.enums import ContextSigns, DependentVarType, OrganicSigns, PaidMediaSigns
 
 
+@dataclass
 class MMMData:
     class MMMDataSpec:
         """
@@ -117,6 +118,41 @@ class MMMData:
         """
         self.data: pd.DataFrame = data
         self.mmmdata_spec: MMMData.MMMDataSpec = mmmdata_spec
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the MMMData object.
+
+        Returns:
+            str: A formatted string containing key information about the MMMData object.
+        """
+        data_info = (
+            f"MMMData:\n"
+            f"DataFrame Info:\n"
+            f"  Shape: {self.data.shape}\n"
+            f"  Columns: {', '.join(self.data.columns)}\n"
+            f"  Date Range: {self.data[self.mmmdata_spec.date_var].min()} to {self.data[self.mmmdata_spec.date_var].max()}\n"
+            f"\nDependent Variable:\n"
+            f"  Name: {self.mmmdata_spec.dep_var}\n"
+            f"  Type: {self.mmmdata_spec.dep_var_type}\n"
+            f"  Summary Stats:\n"
+            f"    Mean: {self.data[self.mmmdata_spec.dep_var].mean():.2f}\n"
+            f"    Min: {self.data[self.mmmdata_spec.dep_var].min():.2f}\n"
+            f"    Max: {self.data[self.mmmdata_spec.dep_var].max():.2f}\n"
+            f"\nMedia Variables:\n"
+            f"  Paid Media Spends: {self.mmmdata_spec.paid_media_spends}\n"
+            f"  Paid Media Variables: {self.mmmdata_spec.paid_media_vars}\n"
+            f"  Organic Variables: {self.mmmdata_spec.organic_vars}\n"
+            f"\nOther Variables:\n"
+            f"  Context Variables: {self.mmmdata_spec.context_vars}\n"
+            f"  Factor Variables: {self.mmmdata_spec.factor_vars}\n"
+            f"\nTime Window Info:\n"
+            f"  Window Start: {self.mmmdata_spec.window_start}\n"
+            f"  Window End: {self.mmmdata_spec.window_end}\n"
+            f"  Interval Type: {self.mmmdata_spec.interval_type}\n"
+            f"  Day Interval: {self.mmmdata_spec.day_interval}"
+        )
+        return data_info
 
     def display_data(self) -> None:
         """

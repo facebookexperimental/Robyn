@@ -1,4 +1,6 @@
-from enum import Enum, auto
+#pyre-strict
+
+from enum import Enum
 
 
 class OptimizationScenario(str, Enum):
