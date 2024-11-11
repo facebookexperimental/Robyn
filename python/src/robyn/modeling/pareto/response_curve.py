@@ -161,7 +161,7 @@ class ResponseCurveCalculator:
 
         # Calculate final response values
         coeff = dt_coef[
-            (dt_coef["solID"] == select_model) & (dt_coef["rn"] == hpm_name)
+            (dt_coef["sol_id"] == select_model) & (dt_coef["rn"] == hpm_name)
         ]["coef"].values[0]
         m_saturated = self.transformation.saturation_hill(
             m_adstockedRW, hill_params.alphas[0], hill_params.gammas[0]
@@ -318,7 +318,7 @@ class ResponseCurveCalculator:
         params = ChannelHyperparameters()
 
         if adstock_type == AdstockType.GEOMETRIC:
-            params.thetas = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.thetas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_thetas"
             ].values
         elif adstock_type in [
@@ -326,10 +326,10 @@ class ResponseCurveCalculator:
             AdstockType.WEIBULL_CDF,
             AdstockType.WEIBULL_PDF,
         ]:
-            params.shapes = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.shapes = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_shapes"
             ].values
-            params.scales = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.scales = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_scales"
             ].values
 
@@ -339,10 +339,10 @@ class ResponseCurveCalculator:
         self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame
     ) -> ChannelHyperparameters:
         params = ChannelHyperparameters()
-        params.alphas = dt_hyppar[dt_hyppar["solID"] == select_model][
+        params.alphas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
             f"{hpm_name}_alphas"
         ].values
-        params.gammas = dt_hyppar[dt_hyppar["solID"] == select_model][
+        params.gammas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
             f"{hpm_name}_gammas"
         ].values
         return params

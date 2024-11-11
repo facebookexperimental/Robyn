@@ -243,9 +243,12 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
         elif isinstance(trial_data, dict):
             result_collect = trial_data.get("resultCollect", {})
             result_hyp_param = pd.DataFrame(result_collect.get("resultHypParam", []))
+            result_hyp_param.rename(columns={"solID": "sol_id"}, inplace=True)
             x_decomp_agg = pd.DataFrame(result_collect.get("xDecompAgg", []))
+            x_decomp_agg.rename(columns={"solID": "sol_id"}, inplace=True)
             lift_calibration = pd.DataFrame(result_collect.get("liftCalibration", []))
             decomp_spend_dist = pd.DataFrame(result_collect.get("decompSpendDist", []))
+            decomp_spend_dist.rename(columns={"solID": "sol_id"}, inplace=True)
             hyper_bound_ng = pd.DataFrame(trial_data.get("hyperBoundNG", {}))
             hyper_bound_fixed = pd.DataFrame(trial_data.get("hyperBoundFixed", []))
             trial = Trial(
