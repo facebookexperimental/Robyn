@@ -440,7 +440,7 @@ class ResponseCurveCalculator:
 
             if adstock_type == AdstockType.GEOMETRIC:
                 logger.debug("Using geometric adstock type")
-                params.thetas = dt_hyppar[dt_hyppar["solID"] == select_model][
+                params.thetas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                     f"{hpm_name}_thetas"
                 ].values
             elif adstock_type in [
@@ -449,10 +449,10 @@ class ResponseCurveCalculator:
                 AdstockType.WEIBULL_PDF,
             ]:
                 logger.debug("Using Weibull adstock type: %s", adstock_type)
-                params.shapes = dt_hyppar[dt_hyppar["solID"] == select_model][
+                params.shapes = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                     f"{hpm_name}_shapes"
                 ].values
-                params.scales = dt_hyppar[dt_hyppar["solID"] == select_model][
+                params.scales = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                     f"{hpm_name}_scales"
                 ].values
 
@@ -471,10 +471,10 @@ class ResponseCurveCalculator:
         
         try:
             params = ChannelHyperparameters()
-            params.alphas = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.alphas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_alphas"
             ].values
-            params.gammas = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.gammas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_gammas"
             ].values
             
