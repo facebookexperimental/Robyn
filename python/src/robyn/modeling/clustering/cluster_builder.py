@@ -60,10 +60,10 @@ class ClusterBuilder:
         self.logger.debug("Processing %d Pareto solutions", len(allSolutions))
 
         x_decomp_agg = self.pareto_result.x_decomp_agg[
-            self.pareto_result.x_decomp_agg["solID"].isin(allSolutions)
+            self.pareto_result.x_decomp_agg["sol_id"].isin(allSolutions)
         ]
         result_hyp_param = self.pareto_result.result_hyp_param[
-            self.pareto_result.result_hyp_param["solID"].isin(allSolutions)
+            self.pareto_result.result_hyp_param["sol_id"].isin(allSolutions)
         ]
 
         if config.all_media is None:
@@ -84,8 +84,14 @@ class ClusterBuilder:
             raise ValueError("Invalid clustering method")
 
         ignored_columns = [
-            "solID", "mape", "decomp.rssd", "nrmse", "nrmse_test",
-            "nrmse_train", "nrmse_val", "pareto",
+            "sol_id",
+            "mape",
+            "decomp.rssd",
+            "nrmse",
+            "nrmse_test",
+            "nrmse_train",
+            "nrmse_val",
+            "pareto",
         ]
         limit_clusters = min(len(df) - 1, config.max_clusters)
         
@@ -160,7 +166,7 @@ class ClusterBuilder:
         self.logger.info("Clustering process completed successfully")
         return ClusteredResult(
             cluster_data=result.cluster_data.assign(
-                top_sol=result.cluster_data["solID"].isin(top_solutions["solID"]),
+                top_sol=result.cluster_data["sol_id"].isin(top_solutions["sol_id"]),
                 cluster=result.cluster_data["cluster"].astype(int),
             ),
             top_solutions=top_solutions,
@@ -190,8 +196,8 @@ class ClusterBuilder:
 
         self.logger.debug("Preparing cluster outcomes data")
         df_clusters_outcome = x_decomp_agg.dropna(subset=['total_spend']) \
-            .merge(clustered_data[['solID', 'cluster']], on='solID', how='left') \
-            [['solID', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']]
+            .merge(clustered_data[['sol_id', 'cluster']], on='sol_id', how='left') \
+            [['sol_id', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']]
 
         self.logger.debug("Grouping cluster outcomes")
         df_clusters_outcome = df_clusters_outcome\
@@ -210,9 +216,9 @@ class ClusterBuilder:
         self.logger.debug(f"Processing {config.k_clusters} clusters")
         for j in range(1, config.k_clusters + 1):
             df_outcome = df_clusters_outcome[df_clusters_outcome["cluster"] == j]
-            if len(df_outcome["solID"].unique()) < 3:
+            if len(df_outcome["sol_id"].unique()) < 3:
                 self.logger.warning(
-                    f"Cluster {j} has insufficient models ({len(df_outcome['solID'].unique())}) for CI calculation"
+                    f"Cluster {j} has insufficient models ({len(df_outcome['sol_id'].unique())}) for CI calculation"
                 )
                 continue
 
@@ -542,33 +548,33 @@ class ClusterBuilder:
         outcome: pd.DataFrame = pd.DataFrame()
         if config.dep_var_type == DependentVarType.REVENUE:
             self.logger.debug("Processing revenue-based metrics")
-            outcome = x_decomp_agg[["solID", "rn", "roi_total"]].pivot(
-                index="solID", columns="rn", values="roi_total"
+            outcome = x_decomp_agg[["sol_id", "rn", "roi_total"]].pivot(
+                index="sol_id", columns="rn", values="roi_total"
             )
             outcome = outcome.dropna(axis=1, how="all")
             outcome = outcome.reset_index()[
-                ["solID"] + [col for col in outcome.columns if col in config.all_media]
+                ["sol_id"] + [col for col in outcome.columns if col in config.all_media]
             ]
         elif config.dep_var_type == DependentVarType.CONVERSION:
             self.logger.debug("Processing conversion-based metrics")
-            outcome = x_decomp_agg[["solID", "rn", "cpa_total"]].dropna(
+            outcome = x_decomp_agg[["sol_id", "rn", "cpa_total"]].dropna(
                 subset=["cpa_total"]
             )
-            outcome = outcome.pivot(index="solID", columns="rn", values="cpa_total")
+            outcome = outcome.pivot(index="sol_id", columns="rn", values="cpa_total")
             outcome = outcome.dropna(axis=1, how="all")
             outcome = outcome.reset_index()[
-                ["solID"] + [col for col in outcome.columns if col in config.all_media]
+                ["sol_id"] + [col for col in outcome.columns if col in config.all_media]
             ]
 
         self.logger.debug("Selecting error metrics")
         errors = x_decomp_agg[
-            ["solID"]
+            ["sol_id"]
             + [col for col in x_decomp_agg.columns if col.startswith("nrmse")]
             + ["decomp.rssd", "mape"]
         ].drop_duplicates()
 
         self.logger.debug("Merging outcome with errors")
-        final_df = outcome.merge(errors, on="solID", how="left")
+        final_df = outcome.merge(errors, on="sol_id", how="left")
         self.logger.debug(f"Final dataset shape: {final_df.shape}")
         return final_df
 
@@ -580,7 +586,7 @@ class ClusterBuilder:
         
         # Select relevant columns
         selected_columns = (
-            ["solID"]
+            ["sol_id"]
             + [
                 col
                 for col in result_hyp_param.columns

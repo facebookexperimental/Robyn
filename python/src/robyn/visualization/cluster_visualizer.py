@@ -222,7 +222,7 @@ class ClusterVisualizer:
         balance = [b / sum(balance) for b in balance]
 
         # Merge the DataFrames
-        merged_df = pd.merge(df, top_sols.iloc[:, :3], on="solID", how='left')
+        merged_df = pd.merge(df, top_sols.iloc[:, :3], on="sol_id", how='left')
         merged_df["alpha"] = np.where(merged_df["cluster"].isna(), 0.6, 1)
         merged_df["label"] = merged_df.apply(
             lambda row: f"[{row['cluster']}:{row['rank']}]" if not pd.isna(row["cluster"]) else None,
@@ -274,10 +274,10 @@ class ClusterVisualizer:
         real_rois = df.drop(columns=["mape", "nrmse", "decomp.rssd"]).copy()
         real_rois.columns = ["real_" + col for col in real_rois.columns]
         # Merge DataFrames
-        merged_df = pd.merge(top_sols, real_rois, left_on="solID", right_on="real_solID", how="left")
+        merged_df = pd.merge(top_sols, real_rois, left_on="sol_id", right_on="real_sol_id", how="left")
         # Create a new column 'label'
         merged_df["label"] = merged_df.apply(
-            lambda row: f'[{row["cluster"]}:{row["rank"]}] {row["solID"]}', axis=1
+            lambda row: f'[{row["cluster"]}:{row["rank"]}] {row["sol_id"]}', axis=1
         )
         # Melt the DataFrame
         columns_to_melt = [col for col in merged_df.columns if any(media in col for media in all_media)]
