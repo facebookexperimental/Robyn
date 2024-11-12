@@ -40,6 +40,7 @@ class ResponseOutput:
     input_total: np.ndarray
     input_carryover: np.ndarray
     input_immediate: np.ndarray
+    response_data: np.ndarray
     response_total: np.ndarray
     response_carryover: np.ndarray
     response_immediate: np.ndarray
@@ -201,7 +202,7 @@ class ResponseCurveCalculator:
         logger.debug("Calculating final response values")
         try:
             coeff = dt_coef[
-                (dt_coef["solID"] == select_model) & (dt_coef["rn"] == hpm_name)
+                (dt_coef["sol_id"] == select_model) & (dt_coef["rn"] == hpm_name)
             ]["coef"].values[0]
             
             m_saturated = self.transformation.saturation_hill(
@@ -221,6 +222,7 @@ class ResponseCurveCalculator:
             input_total=input_total,
             input_carryover=input_carryover,
             input_immediate=input_immediate,
+            response_data=m_response,
             response_total=response_total,
             response_carryover=response_carryover,
             response_immediate=response_immediate,
@@ -438,7 +440,7 @@ class ResponseCurveCalculator:
 
             if adstock_type == AdstockType.GEOMETRIC:
                 logger.debug("Using geometric adstock type")
-                params.thetas = dt_hyppar[dt_hyppar["solID"] == select_model][
+                params.thetas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                     f"{hpm_name}_thetas"
                 ].values
             elif adstock_type in [
@@ -447,10 +449,10 @@ class ResponseCurveCalculator:
                 AdstockType.WEIBULL_PDF,
             ]:
                 logger.debug("Using Weibull adstock type: %s", adstock_type)
-                params.shapes = dt_hyppar[dt_hyppar["solID"] == select_model][
+                params.shapes = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                     f"{hpm_name}_shapes"
                 ].values
-                params.scales = dt_hyppar[dt_hyppar["solID"] == select_model][
+                params.scales = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                     f"{hpm_name}_scales"
                 ].values
 
@@ -469,10 +471,10 @@ class ResponseCurveCalculator:
         
         try:
             params = ChannelHyperparameters()
-            params.alphas = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.alphas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_alphas"
             ].values
-            params.gammas = dt_hyppar[dt_hyppar["solID"] == select_model][
+            params.gammas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
                 f"{hpm_name}_gammas"
             ].values
             
