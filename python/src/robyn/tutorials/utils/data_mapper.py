@@ -27,13 +27,13 @@ def import_input_collect(data: Dict[str, Any]) -> Dict[str, Any]:
     adstock_type = data.get("adstock", "geometric")
     if isinstance(adstock_type, list):
         adstock_type = adstock_type[0]
-    dep_var_type = data.get("dep_var_type")
+    dep_var_type = data.get("dep_var_type")[0]
     if isinstance(dep_var_type, list):
         dep_var_type = dep_var_type[0]
     mmm_data_spec_args = {
-        "dep_var": data.get("dep_var"),
+        "dep_var": data.get("dep_var")[0],
         "dep_var_type": DependentVarType(dep_var_type),
-        "date_var": data.get("date_var"),
+        "date_var": data.get("date_var")[0],
         "paid_media_spends": data.get("paid_media_spends", []),
         "paid_media_vars": data.get("paid_media_vars", []),
         "organic_vars": data.get("organic_vars", []),
@@ -243,9 +243,12 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
         elif isinstance(trial_data, dict):
             result_collect = trial_data.get("resultCollect", {})
             result_hyp_param = pd.DataFrame(result_collect.get("resultHypParam", []))
+            result_hyp_param.rename(columns={"solID": "sol_id"}, inplace=True)
             x_decomp_agg = pd.DataFrame(result_collect.get("xDecompAgg", []))
+            x_decomp_agg.rename(columns={"solID": "sol_id"}, inplace=True)
             lift_calibration = pd.DataFrame(result_collect.get("liftCalibration", []))
             decomp_spend_dist = pd.DataFrame(result_collect.get("decompSpendDist", []))
+            decomp_spend_dist.rename(columns={"solID": "sol_id"}, inplace=True)
             hyper_bound_ng = pd.DataFrame(trial_data.get("hyperBoundNG", {}))
             hyper_bound_fixed = pd.DataFrame(trial_data.get("hyperBoundFixed", []))
             trial = Trial(

@@ -49,12 +49,12 @@ class TestResponseCurveCalculator(unittest.TestCase):
         metric_value = [100, 200, 300, 400, 500]
         date_range = "all"
         dt_hyppar = pd.DataFrame({
-            "solID": ["model1"],
+            "sol_id": ["model1"],
             "spend_metric_alphas": [0.1],
             "spend_metric_gammas": [0.2]
         })
         dt_coef = pd.DataFrame({
-            "solID": ["model1"],
+            "sol_id": ["model1"],
             "rn": ["spend_metric"],
             "coef": [0.5]
         })
@@ -192,7 +192,7 @@ class TestResponseCurveCalculator(unittest.TestCase):
     def test__get_channel_hyperparams(self):
         dt_hyppar = pd.DataFrame(
             {
-                "solID": ["model1"],
+                "sol_id": ["model1"],
                 "spend_metric_thetas": [[0.1]],
                 "spend_metric_shapes": [[0.2]],
                 "spend_metric_scales": [[0.3]],
@@ -209,7 +209,7 @@ class TestResponseCurveCalculator(unittest.TestCase):
     def test__get_saturation_params(self):
         dt_hyppar = pd.DataFrame(
             {
-                "solID": ["model1"],
+                "sol_id": ["model1"],
                 "spend_metric_alphas": [[0.1]],
                 "spend_metric_gammas": [[0.2]],
             }

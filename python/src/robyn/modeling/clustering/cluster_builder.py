@@ -1,7 +1,6 @@
 # pyre-strict
 
 import logging
-from dataclasses import dataclass
 from sys import maxsize
 from typing import Dict, List, Optional
 
@@ -43,23 +42,23 @@ class ClusterBuilder:
             pareto_result (ParetoResult): The results of the Pareto optimization process.
         """
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed output
         self.logger.info("Initializing ClusterBuilder")
+        self.logger.debug("Received ParetoResult with %d solutions", len(pareto_result.pareto_solutions))
 
         self.pareto_result: ParetoResult = pareto_result
         self.cluster_visualizer = ClusterVisualizer(None, None)
+        self.logger.info("ClusterBuilder initialization complete")
 
     def cluster_models(self, config: ClusteringConfig) -> ClusteredResult:
         """
         Clusters models based on specified criteria.
-
-        Args:
-            config (ClusteringConfig): Configuration for the clustering process.
-
-        Returns:
-            ClusteredResult: The results of the clustering process, including cluster assignments and confidence intervals.
         """
+        self.logger.info("Starting model clustering process")
+        self.logger.debug("Clustering configuration: %s", config)
+
         allSolutions = self.pareto_result.pareto_solutions
+        self.logger.debug("Processing %d Pareto solutions", len(allSolutions))
+
         x_decomp_agg = self.pareto_result.x_decomp_agg[
             self.pareto_result.x_decomp_agg["sol_id"].isin(allSolutions)
         ]
@@ -70,16 +69,18 @@ class ClusterBuilder:
         if config.all_media is None:
             aux = self.pareto_result.media_vec_collect.columns
             type_index = aux.get_loc("type")
-            # Select all columns except the first one and those from 'type' to the end
             config.all_media = aux[1:type_index].tolist()
+            self.logger.debug("Auto-detected media channels: %s", config.all_media)
 
+        self.logger.info("Clustering by: %s", config.cluster_by)
         if config.cluster_by == ClusterBy.HYPERPARAMETERS:
-            # Prepare data for clustering
+            self.logger.debug("Preparing hyperparameter data for clustering")
             df = self._prepare_hyperparameter_data_for_clustering(result_hyp_param)
         elif config.cluster_by == ClusterBy.PERFORMANCE:
-            # Prepare data for clustering
+            self.logger.debug("Preparing performance data for clustering")
             df = self._prepare_performance_data_for_clustering(x_decomp_agg, config)
         else:
+            self.logger.error(f"Invalid clustering method: {config.cluster_by}")
             raise ValueError("Invalid clustering method")
 
         ignored_columns = [
@@ -93,19 +94,25 @@ class ClusterBuilder:
             "pareto",
         ]
         limit_clusters = min(len(df) - 1, config.max_clusters)
-        # Determine number of clusters if not specified
+        
+        self.logger.debug(f"Determining optimal number of clusters (limit: {limit_clusters})")
         config.k_clusters = self._select_optimal_clusters(
             df, config, limit_clusters, ignored_columns
         )
+        self.logger.info(f"Selected {config.k_clusters} clusters")
 
-        if (
-            config.k_clusters < config.min_clusters
-            or config.k_clusters > limit_clusters
-        ):
+        if (config.k_clusters < config.min_clusters or 
+            config.k_clusters > limit_clusters):
+            self.logger.error(
+                f"Invalid number of clusters: {config.k_clusters} "
+                f"(min: {config.min_clusters}, max: {limit_clusters})"
+            )
             raise ValueError(
-                f"Number of clusters {config.k_clusters} is outside the specified range {config.min_clusters} to {config.max_clusters}."
+                f"Number of clusters {config.k_clusters} is outside the specified range "
+                f"{config.min_clusters} to {config.max_clusters}."
             )
 
+        self.logger.debug("Performing KMeans clustering")
         result = self.clusterKmeans(
             df=df,
             config=config,
@@ -114,26 +121,27 @@ class ClusterBuilder:
             ignored_columns=ignored_columns,
         )
 
+        self.logger.debug("Processing cluster results")
         grouped = result.cluster_data.groupby("cluster", observed=False)
-        # Add a new column 'n' with the count of rows in each group
         result.cluster_data["n"] = grouped["cluster"].transform("size")
 
-        # Select top solutions
         all_paid = [
-            col
-            for col in result.cluster_data.columns
+            col for col in result.cluster_data.columns
             if col not in ignored_columns + ["cluster"]
         ]
+        
+        self.logger.debug("Selecting top solutions")
         top_solutions = self._select_top_solutions(result.cluster_data, config)
+        self.logger.info(f"Selected {len(top_solutions)} top solutions")
 
-        # Calculate confidence intervals
+        self.logger.debug("Calculating confidence intervals")
         ci_results: ConfidenceIntervalCollectionData = (
             self._calculate_confidence_intervals(
                 x_decomp_agg, result.cluster_data, config, all_paid
             )
         )
 
-        # Prepare plot data
+        self.logger.debug("Preparing plot results")
         plots = ClusterPlotResults(
             top_solutions_errors_plot=self.cluster_visualizer.plot_top_solutions_errors(
                 df, top_solutions, balance=config.weights
@@ -143,22 +151,19 @@ class ClusterBuilder:
             ),
         )
 
-        # Create confidence intervals object
-        
+        self.logger.debug("Creating confidence intervals object")
         cluster_ci = ClusterConfidenceIntervals(
             cluster_confidence_interval_df=ci_results.confidence_interval_df.reset_index(
                 drop=True
-            ).drop(
-                columns=["cluster_title"]
-            ),
+            ).drop(columns=["cluster_title"]),
             boot_n=ci_results.boot_n,
             sim_n=ci_results.sim_n,
             clusters_confidence_interval_plot=self.cluster_visualizer.plot_confidence_intervals(
-                    ci_results, config
-                ),
+                ci_results, config
+            ),
         )
 
-        # Return clustered results
+        self.logger.info("Clustering process completed successfully")
         return ClusteredResult(
             cluster_data=result.cluster_data.assign(
                 top_sol=result.cluster_data["sol_id"].isin(top_solutions["sol_id"]),
@@ -170,10 +175,10 @@ class ClusterBuilder:
             n_clusters=result.n_clusters,
             errors_weights=config.weights,
             clusters_means=result.clusters_means,
-            clusters_pca=None,  # result.cluster_pca (implementation should be in clusterKmeans)
-            clusters_tsne=None,  # result.cluster_tsne (implementation should be in clusterKmeans)
-            correlations=None,  # result.correlations (implementation should be in clusterKmeans)
-            plots= plots
+            clusters_pca=None,
+            clusters_tsne=None,
+            correlations=None,
+            plots=plots
         )
 
     def _calculate_confidence_intervals(
@@ -185,112 +190,131 @@ class ClusterBuilder:
         boot_n: int = 1000,
         sim_n: int = 10000,
     ) -> ConfidenceIntervalCollectionData:
-        """
-        Calculate confidence intervals for a given dataset using bootstrap resampling.
-        Args:
-            x_decomp_agg (DataFrame): The input dataset.
-            clustered_data: A dataframe containing the clustered data.
-            all_paid (list): A list of paid channels.
-            boot_n (int, optional): The number of bootstrap iterations. Defaults to 1000.
-            sim_n (int, optional): The number of simulations. Defaults to 10000.
-        Returns:
-            dict: A dictionary containing the confidence intervals, simulation results, and other metadata.
-        """
+        """Calculate confidence intervals for clustered data"""
+        self.logger.info("Starting confidence interval calculations")
+        self.logger.debug(f"Parameters: boot_n={boot_n}, sim_n={sim_n}")
+
+        self.logger.debug("Preparing cluster outcomes data")
         df_clusters_outcome = x_decomp_agg.dropna(subset=['total_spend']) \
             .merge(clustered_data[['sol_id', 'cluster']], on='sol_id', how='left') \
-            [['sol_id', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']] \
-            .groupby(['cluster', 'rn'], observed=False).apply(lambda x: x.assign(n=len(x))) \
-            .reset_index(drop=True)
+            [['sol_id', 'cluster', 'rn', 'roi_total', 'cpa_total', 'robynPareto']]
+
+        self.logger.debug("Grouping cluster outcomes")
         df_clusters_outcome = df_clusters_outcome\
-            .dropna(subset=['cluster']) \
+            .groupby(['cluster', 'rn'], observed=False)\
+            .apply(lambda x: x.assign(n=len(x)))\
+            .reset_index(drop=True)
+
+        df_clusters_outcome = df_clusters_outcome\
+            .dropna(subset=['cluster'])\
             .sort_values(by=['cluster', 'rn'])
 
-        # Initialize lists to store results
         cluster_collect = []
         chn_collect = []
         sim_collect = []
-        # Loop through each cluster
+
+        self.logger.debug(f"Processing {config.k_clusters} clusters")
         for j in range(1, config.k_clusters + 1):
             df_outcome = df_clusters_outcome[df_clusters_outcome["cluster"] == j]
             if len(df_outcome["sol_id"].unique()) < 3:
                 self.logger.warning(
-                    f"Warning: Cluster {j} does not contain enough models to calculate CI"
+                    f"Cluster {j} has insufficient models ({len(df_outcome['sol_id'].unique())}) for CI calculation"
                 )
-            else:
-                if config.cluster_by == ClusterBy.HYPERPARAMETERS:
-                    pattern = "|".join(["_" + name for name in HYPERPARAMETER_NAMES])
-                    replacement = ""
-                    all_paid = list(set([re.sub(pattern, replacement, str(x)) for x in all_paid]))
-                # Loop through each channel
-                for i in all_paid:
-                    # Bootstrap CI
-                    if config.dep_var_type == DependentVarType.CONVERSION:
-                        # Drop CPA == Inf
-                        df_chn = df_outcome[
-                            (df_outcome["rn"] == i)
-                            & (df_outcome["cpa_total"] != np.inf)
-                        ]
-                        v_samp = df_chn["cpa_total"]
-                    else:
-                        df_chn = df_outcome[df_outcome["rn"] == i]
-                        v_samp = df_chn["roi_total"]
-                    boot_res = self._bootstrap_sampling(v_samp, boot_n)
-                    boot_mean = np.mean(boot_res["boot_means"] if len(boot_res["boot_means"]) > 0 else [0.0])
-                    boot_se = boot_res["se"][0]
-                    ci_low = max(0, boot_res["ci"][0])
-                    ci_up = boot_res["ci"][1]
-                    # Collect loop results
-                    chn_collect.append(
-                        df_chn.assign(
-                            ci_low=ci_low,
-                            ci_up=ci_up,
-                            n=len(v_samp),
-                            boot_se=boot_se,
-                            boot_mean=boot_mean,
-                            cluster=j,
-                        ).reset_index(drop=True)
-                    )
-                    sim_collect.append(
-                        pd.DataFrame(
-                            {
-                                "cluster": j,
-                                "rn": i,
-                                "n": len(v_samp),
-                                "boot_mean": boot_mean,
-                                "x_sim": np.random.normal(
-                                    loc=boot_mean, scale=boot_se, size=sim_n
-                                ),
-                            }
-                        ).assign(
-                            y_sim=lambda x: stats.norm.pdf(
-                                x["x_sim"], loc=boot_mean, scale=boot_se
-                            )
-                        ).reset_index(drop=True)
-                    )
-                cluster_collect.append(
-                    {"chn_collect": chn_collect, "sim_collect": sim_collect}
+                continue
+
+            self.logger.debug(f"Processing cluster {j}")
+            if config.cluster_by == ClusterBy.HYPERPARAMETERS:
+                pattern = "|".join(["_" + name for name in HYPERPARAMETER_NAMES])
+                replacement = ""
+                all_paid = list(set([re.sub(pattern, replacement, str(x)) for x in all_paid]))
+
+            for i in all_paid:
+                self.logger.debug(f"Processing channel {i} for cluster {j}")
+                if config.dep_var_type == DependentVarType.CONVERSION:
+                    df_chn = df_outcome[
+                        (df_outcome["rn"] == i)
+                        & (df_outcome["cpa_total"] != np.inf)
+                    ]
+                    v_samp = df_chn["cpa_total"]
+                else:
+                    df_chn = df_outcome[df_outcome["rn"] == i]
+                    v_samp = df_chn["roi_total"]
+
+                boot_res = self._bootstrap_sampling(v_samp, boot_n)
+                boot_mean = np.mean(boot_res["boot_means"] if len(boot_res["boot_means"]) > 0 else [0.0])
+                boot_se = boot_res["se"][0]
+                ci_low = max(0, boot_res["ci"][0])
+                ci_up = boot_res["ci"][1]
+
+                self.logger.debug(
+                    f"Cluster {j}, Channel {i}: CI [{ci_low:.2f}, {ci_up:.2f}], "
+                    f"SE={boot_se:.4f}, n={len(v_samp)}"
                 )
-        # Bind rows and filter
+
+                chn_collect.append(
+                    df_chn.assign(
+                        ci_low=ci_low,
+                        ci_up=ci_up,
+                        n=len(v_samp),
+                        boot_se=boot_se,
+                        boot_mean=boot_mean,
+                        cluster=j,
+                    ).reset_index(drop=True)
+                )
+
+                sim_collect.append(
+                    pd.DataFrame({
+                        "cluster": j,
+                        "rn": i,
+                        "n": len(v_samp),
+                        "boot_mean": boot_mean,
+                        "x_sim": np.random.normal(
+                            loc=boot_mean, scale=boot_se, size=sim_n
+                        ),
+                    }).assign(
+                        y_sim=lambda x: stats.norm.pdf(
+                            x["x_sim"], loc=boot_mean, scale=boot_se
+                        )
+                    ).reset_index(drop=True)
+                )
+
+            cluster_collect.append(
+                {"chn_collect": chn_collect, "sim_collect": sim_collect}
+            )
+
+        self.logger.debug("Finalizing simulation results")
         sim_collect = pd.concat([pd.concat(x['sim_collect']) for x in cluster_collect])
         sim_collect = sim_collect[sim_collect['n'] > 0]
-        sim_collect['cluster_title'] = sim_collect.apply(lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1)
+        sim_collect['cluster_title'] = sim_collect.apply(
+            lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1
+        )
         sim_collect = sim_collect.reset_index(drop=True)
 
-        # Calculate CI
+        self.logger.debug("Calculating final confidence intervals")
         df_ci = pd.concat([pd.concat(x['chn_collect']) for x in cluster_collect])
-        df_ci['cluster_title'] = df_ci.apply(lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1)
-        df_ci = df_ci[['rn', 'cluster_title', 'n', 'cluster', 'boot_mean', 'boot_se', 'ci_low', 'ci_up']]
+        df_ci['cluster_title'] = df_ci.apply(
+            lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1
+        )
+        df_ci = df_ci[['rn', 'cluster_title', 'n', 'cluster', 'boot_mean', 
+                       'boot_se', 'ci_low', 'ci_up']]
         df_ci = df_ci.drop_duplicates()
-        df_ci = df_ci.groupby(['rn', 'cluster_title', 'cluster']).apply(lambda x: pd.Series({
-            'n': x['n'].iloc[0],
-            'boot_mean': x['boot_mean'].iloc[0],
-            'boot_se': x['boot_se'].iloc[0],
-            'boot_ci': f"[{round(x['ci_low'].iloc[0], 2)}, {round(x['ci_up'].iloc[0], 2)}]",
-            'ci_low': x['ci_low'].iloc[0],
-            'ci_up': x['ci_up'].iloc[0],
-            'sd': x['boot_se'].iloc[0] * ((x['n'].iloc[0] - 1) ** 0.5),
-            'dist100': (x['ci_up'].iloc[0] - x['ci_low'].iloc[0] + 2 * x['boot_se'].iloc[0] * ((x['n'].iloc[0] - 1) ** 0.5)) / 99
-        })).reset_index()
+
+        self.logger.debug("Computing final statistics")
+        df_ci = df_ci.groupby(['rn', 'cluster_title', 'cluster']).apply(
+            lambda x: pd.Series({
+                'n': x['n'].iloc[0],
+                'boot_mean': x['boot_mean'].iloc[0],
+                'boot_se': x['boot_se'].iloc[0],
+                'boot_ci': f"[{round(x['ci_low'].iloc[0], 2)}, {round(x['ci_up'].iloc[0], 2)}]",
+                'ci_low': x['ci_low'].iloc[0],
+                'ci_up': x['ci_up'].iloc[0],
+                'sd': x['boot_se'].iloc[0] * ((x['n'].iloc[0] - 1) ** 0.5),
+                'dist100': (x['ci_up'].iloc[0] - x['ci_low'].iloc[0] + 
+                           2 * x['boot_se'].iloc[0] * ((x['n'].iloc[0] - 1) ** 0.5)) / 99
+            })
+        ).reset_index()
+
+        self.logger.info("Confidence interval calculations completed")
         return ConfidenceIntervalCollectionData(
             confidence_interval_df=df_ci,
             sim_collect=sim_collect,
@@ -317,43 +341,58 @@ class ClusterBuilder:
         Returns:
         ClusteredResult: containing the results of the clustering.
         """
+        self.logger.debug(f"Starting clusterKmeans with input shape: {df.shape}")
+        self.logger.debug(f"Initial parameters - k: {k}, limit: {limit}, wss_var: {wss_var}")
+        
         np.random.seed(config.seed)
+        self.logger.debug(f"Random seed set to: {config.seed}")
 
         # Check if ignored_columns is not None and its first element is NA
         if ignored_columns is not None and pd.isna(ignored_columns[0]):
+            self.logger.debug("First element of ignored_columns is NA, setting to None")
             ignored_columns = None
 
         # Ensure ignored_columns is a list of unique values
         if ignored_columns is not None:
+            self.logger.debug(f"Processing ignored columns, initial count: {len(ignored_columns)}")
             ignored_columns = list(set(ignored_columns))
             order = df.columns.tolist()
             aux = df[[col for col in df.columns if col in ignored_columns]]
             df = df[[col for col in df.columns if col not in ignored_columns]]
             self.logger.info(f"Ignored features: {', '.join(ignored_columns)}")
+            self.logger.debug(f"DataFrame shape after removing ignored columns: {df.shape}")
 
+        self.logger.debug("Calculating initial WSS")
         wss = df.var(axis=0).sum() * (len(df) - 1)
         limit = min(len(df) - 1, limit)
         wss_values = [wss]
+        
+        self.logger.info(f"Starting WSS calculation for {limit} clusters")
         for i in range(2, limit + 1):
+            self.logger.debug(f"Calculating WSS for {i} clusters")
             kmeans = KMeans(n_clusters=i).fit(df)
             wss_values.append(kmeans.inertia_)
+        
+        self.logger.debug("Creating nclusters DataFrame")
         nclusters = pd.DataFrame({"n": range(1, limit + 1), "wss": wss_values})
 
         result = ClusteredResult()
         result.cluster_data = nclusters
         result.wss = self.cluster_visualizer.create_wss_plot(nclusters, k=None)
+        self.logger.debug("Initial WSS plot created")
 
         if wss_var > 0.0 and k is None:
+            self.logger.info(f"Attempting automatic cluster selection with WSS variance: {wss_var}")
             nclusters["pareto"] = nclusters["wss"] / nclusters["wss"].iloc[0]
             nclusters["dif"] = nclusters["pareto"].shift(1) - nclusters["pareto"]
             k_candidates = nclusters[nclusters["dif"] > wss_var]["n"]
             k = k_candidates.max() if not k_candidates.empty else None
-            self.logger.info(
-                f">> Auto selected k = {k} (clusters) based on minimum WSS variance of {wss_var * 100}%"
-            )
+            self.logger.info(f"Auto selected k = {k} (clusters) based on minimum WSS variance of {wss_var * 100}%")
 
         if k is not None:
+            self.logger.info(f"Proceeding with k={k} clusters")
             if ignored_columns is not None:
+                self.logger.debug("Reconstructing DataFrame with ignored columns")
                 result.cluster_data = pd.concat([df, aux], axis=1).reindex(
                     columns=order + [c for c in df.columns if c not in order]
                 )
@@ -362,49 +401,85 @@ class ClusterBuilder:
 
             result.wss = self.cluster_visualizer.create_wss_plot(nclusters, k=k)
             result.n_clusters = k
+            
+            self.logger.debug("Performing KMeans clustering")
             df_copy = df.copy()
-            kmeans = KMeans(n_clusters=k, algorithm="lloyd", max_iter=limit)
-            df_copy.loc[:, "cluster"] = pd.Categorical(kmeans.fit_predict(df_copy))
+            try:
+                kmeans = KMeans(n_clusters=k, algorithm="lloyd", max_iter=limit)
+                df_copy.loc[:, "cluster"] = pd.Categorical(kmeans.fit_predict(df_copy))
+                self.logger.debug("KMeans clustering completed successfully")
+            except Exception as e:
+                self.logger.error(f"KMeans clustering failed: {str(e)}")
+                raise
+
             result.cluster_data = pd.concat(
                 [result.cluster_data, df_copy["cluster"]], axis=1
             )
             df = df_copy
 
-            # Group by 'cluster' and calculate the mean for each group
-            cluster_means: pd.DataFrame = df.groupby("cluster", observed=False).mean()
-            # Calculate the count of each cluster
-            cluster_counts = df["cluster"].value_counts()
-            # Add the counts as a new column to the cluster_means DataFrame
-            cluster_means["n"] = cluster_counts
+            self.logger.debug("Calculating cluster means and counts")
+            try:
+                # Group by 'cluster' and calculate the mean for each group
+                cluster_means: pd.DataFrame = df.groupby("cluster", observed=False).mean()
+                # Calculate the count of each cluster
+                cluster_counts = df["cluster"].value_counts()
+                # Add the counts as a new column to the cluster_means DataFrame
+                cluster_means["n"] = cluster_counts
+                
+                self.logger.debug(f"Cluster sizes: {dict(cluster_counts)}")
+                
+                # Check for potentially problematic clusters
+                min_cluster_size = cluster_counts.min()
+                if min_cluster_size < 3:
+                    self.logger.warning(f"Some clusters have very few members. Minimum cluster size: {min_cluster_size}")
+            except Exception as e:
+                self.logger.error(f"Error calculating cluster statistics: {str(e)}")
+                raise
 
             result.clusters_means = cluster_means.reset_index()
             result.correlations = None
             result.clusters_pca = None
             result.clusters_tsne = None
-
-            #  TODO: Implement this logic if it is needed
-            # Assuming corr_cross is defined elsewhere
-            # result.correlations = corr_cross(
-            #     df, contains="cluster_", quiet=True, ignore=ignore
-            # )
-            # valid_reductions = ["PCA", "tSNE", "all", "none"]
-            # if config.dim_reduction not in valid_reductions:
-            #     raise ValueError(
-            #         f"Invalid option: {config.dim_reduction}. Valid options are {valid_reductions}."
-            #     )
-            # if "all" in config.dim_reduction:
-            #     dim_reduction = ["PCA", "tSNE"]
-            # else:
-            #     dim_reduction = config.dim_reduction
-            # Assuming reduce_pca is a function defined elsewhere
-            # if "PCA" in dim_reduction:
-            # plot PCA dimentionality reduction
-            # result.clusters_pca = self.cluster_visualizer.plot_dimensionality_reduction(pca_df)
-            # Assuming reduce_tsne is a function defined elsewhere
-            # if "tSNE" in dim_reduction:
-            # result.clusters_tsne = self.cluster_visualizer.plot_dimensionality_reduction(tsne_df)
+            
+            self.logger.info("Clustering process completed successfully")
+            self.logger.debug(f"Final result shape: {result.cluster_data.shape}")
 
         return result
+
+    def _bootstrap_sampling(
+            self, sample: pd.Series, boot_n: int
+        ) -> Dict[str, List[float]]:
+            """Calculate bootstrap confidence interval"""
+            self.logger.debug(f"Starting bootstrap sampling with n={boot_n}")
+            
+            if len(sample[~sample.isna()]) > 1:
+                sample_n = len(sample)
+                sample_mean = np.mean(sample)
+                
+                self.logger.debug(f"Performing bootstrap with sample size={sample_n}")
+                boot_sample = np.random.choice(
+                    sample, size=(boot_n, sample_n), replace=True
+                )
+                boot_means = np.mean(boot_sample, axis=1)
+                se = np.std(boot_means)
+                me = stats.t.ppf(0.975, sample_n - 1) * se
+                sample_me = np.sqrt(sample_n) * me
+                ci = [sample_mean - sample_me, sample_mean + sample_me]
+                
+                self.logger.debug(f"Bootstrap results: CI=[{ci[0]:.4f}, {ci[1]:.4f}], SE={se:.4f}")
+                return {
+                    "boot_means": boot_means,
+                    "ci": ci,
+                    "se": [float(se)],
+                }
+            else:
+                self.logger.warning("Insufficient non-NA samples for bootstrap analysis")
+                ci = [np.nan, np.nan] if sample.isna().all() else [sample.iloc[0], sample.iloc[0]]
+                return {
+                    "boot_means": sample.tolist(),
+                    "ci": ci,
+                    "se": [0.0],
+                }
 
     def _select_optimal_clusters(
         self,
@@ -414,18 +489,13 @@ class ClusterBuilder:
         ignored_columns: Optional[List[str]] = None,
         wss_var: float = 0.06,
     ) -> int:
-        """
-        Selects the optimal number of clusters based on WSS variance.
+        """Selects the optimal number of clusters based on WSS variance."""
+        self.logger.info("Starting optimal cluster selection")
+        self.logger.debug(f"Parameters: limit_clusters={limit_clusters}, wss_var={wss_var}")
 
-        Args:
-            df (pd.DataFrame): The prepared data for clustering.
-            config (ClusteringConfig): Configuration for the clustering process.
-
-        Returns:
-            int: The optimal number of clusters.
-        """
         if config.k_clusters == maxsize:
             try:
+                self.logger.debug("Attempting automatic cluster selection")
                 cls = self.clusterKmeans(
                     df,
                     config,
@@ -433,53 +503,51 @@ class ClusterBuilder:
                     limit=limit_clusters,
                     ignored_columns=ignored_columns,
                 )
+                
                 if cls.cluster_data is None or cls.cluster_data.empty:
+                    self.logger.error("Cluster data is None or empty")
                     raise ValueError("cls.cluster_data is None or empty")
+                    
                 nclusters = cls.cluster_data
-                # Step 1: Add 'pareto' and 'dif' columns
                 nclusters["pareto"] = nclusters["wss"] / nclusters["wss"].iloc[0]
                 nclusters["dif"] = nclusters["pareto"].shift(1) - nclusters["pareto"]
-                # Step 2: Filter rows where 'dif' is greater than 'wss_var'
+                
                 filtered_nclusters = nclusters[nclusters["dif"] > wss_var]
-                # Step 3: Extract the 'n' column
                 n_values = filtered_nclusters["n"]
-                # Step 4: Find the maximum value, ignoring NaNs
                 k = n_values.max(skipna=True)
 
+                self.logger.debug(f"Initial optimal k value: {k}")
+
                 if k < config.min_clusters:
-                    self.logger.info(
-                        f"Too few clusters: {k}. Setting to {config.min_clusters}"
+                    self.logger.warning(
+                        f"Adjusting cluster count up from {k} to minimum {config.min_clusters}"
                     )
                     k = config.min_clusters
                 if k > limit_clusters:
-                    self.logger.info(
-                        f"Too many clusters: {k}. Lowering to {limit_clusters} (max_clusters)"
+                    self.logger.warning(
+                        f"Adjusting cluster count down from {k} to maximum {limit_clusters}"
                     )
                     k = limit_clusters
-                self.logger.info(
-                    f">> Auto selected k = {k} (clusters) based on minimum WSS variance"
-                )
+                
+                self.logger.info(f"Selected optimal number of clusters: {k}")
                 return k
             except Exception as e:
-                self.logger.error(f"Couldn't automatically create clusters: {e}")
+                self.logger.error(f"Failed to automatically determine clusters: {str(e)}")
                 raise e
         else:
+            self.logger.info(f"Using pre-configured cluster count: {config.k_clusters}")
             return config.k_clusters
 
     def _prepare_performance_data_for_clustering(
         self, x_decomp_agg: pd.DataFrame, config: ClusteringConfig
     ) -> pd.DataFrame:
-        """
-        Prepares the data frame for clustering based on specified criteria.
+        """Prepares performance data for clustering"""
+        self.logger.debug("Preparing performance data for clustering")
+        self.logger.debug(f"Dependent variable type: {config.dep_var_type}")
 
-        Args:
-            config (ClusteringConfig): Configuration for the clustering process.
-
-        Returns:
-            pd.DataFrame: A DataFrame prepared for clustering.
-        """
         outcome: pd.DataFrame = pd.DataFrame()
         if config.dep_var_type == DependentVarType.REVENUE:
+            self.logger.debug("Processing revenue-based metrics")
             outcome = x_decomp_agg[["sol_id", "rn", "roi_total"]].pivot(
                 index="sol_id", columns="rn", values="roi_total"
             )
@@ -488,6 +556,7 @@ class ClusterBuilder:
                 ["sol_id"] + [col for col in outcome.columns if col in config.all_media]
             ]
         elif config.dep_var_type == DependentVarType.CONVERSION:
+            self.logger.debug("Processing conversion-based metrics")
             outcome = x_decomp_agg[["sol_id", "rn", "cpa_total"]].dropna(
                 subset=["cpa_total"]
             )
@@ -497,28 +566,25 @@ class ClusterBuilder:
                 ["sol_id"] + [col for col in outcome.columns if col in config.all_media]
             ]
 
-        # Select distinct errors
+        self.logger.debug("Selecting error metrics")
         errors = x_decomp_agg[
             ["sol_id"]
             + [col for col in x_decomp_agg.columns if col.startswith("nrmse")]
             + ["decomp.rssd", "mape"]
         ].drop_duplicates()
 
-        # Merge outcome with errors
-        return outcome.merge(errors, on="sol_id", how="left")
+        self.logger.debug("Merging outcome with errors")
+        final_df = outcome.merge(errors, on="sol_id", how="left")
+        self.logger.debug(f"Final dataset shape: {final_df.shape}")
+        return final_df
 
     def _prepare_hyperparameter_data_for_clustering(
         self, result_hyp_param: pd.DataFrame
     ) -> pd.DataFrame:
-        """
-        Prepares the data frame for clustering based on specified criteria.
-
-        Args:
-            result_hyp_param (pd.DataFrame): The data frame containing the hyperparameter results.
-        Returns:
-            pd.DataFrame: A DataFrame prepared for clustering.
-        """
-        # Select columns using list comprehension and set operations for efficiency
+        """Prepares hyperparameter data for clustering"""
+        self.logger.debug("Preparing hyperparameter data for clustering")
+        
+        # Select relevant columns
         selected_columns = (
             ["sol_id"]
             + [
@@ -532,12 +598,22 @@ class ClusterBuilder:
                 if any(metric in col for metric in ["nrmse", "decomp.rssd", "mape"])
             ]
         )
+        
+        self.logger.debug(f"Selected {len(selected_columns)} columns for clustering")
 
-        # Create a DataFrame with the selected columns
+        # Create DataFrame with selected columns
         outcome: pd.DataFrame = result_hyp_param[selected_columns]
-
+        
         # Remove columns with all NA values
-        return outcome.dropna(axis=1, how="all")
+        initial_cols = len(outcome.columns)
+        outcome = outcome.dropna(axis=1, how="all")
+        dropped_cols = initial_cols - len(outcome.columns)
+        
+        if dropped_cols > 0:
+            self.logger.warning(f"Dropped {dropped_cols} columns with all NA values")
+            
+        self.logger.debug(f"Final dataset shape: {outcome.shape}")
+        return outcome
 
     def _compute_error_scores(
         self,
@@ -545,119 +621,159 @@ class ClusterBuilder:
         weights: List[float] = [1, 1, 1],
         ts_validation: bool = True,
     ) -> pd.Series:
-        """
-        Calculate error scores for a given data frame.
-        Args:
-            df (pandas DataFrame): Input data frame.
-            balance (list, optional): Balance weights for error scores. Defaults to [1, 1, 1].
-            ts_validation (bool, optional): Whether to use time series validation. Defaults to True.
-        Returns:
-            pandas Series: Error scores for the input data frame.
-        """
-        assert len(weights) == 3
+        """Calculate error scores for models"""
+        self.logger.debug("Computing error scores")
+        self.logger.debug(f"Parameters: weights={weights}, ts_validation={ts_validation}")
+
+        assert len(weights) == 3, "Weights must have exactly 3 values"
+        
         error_cols = [
             "nrmse_test" if ts_validation else "nrmse_train",
             "decomp.rssd",
             "mape",
         ]
-        assert all(col in df.columns for col in error_cols)
+        
+        missing_cols = [col for col in error_cols if col not in df.columns]
+        if missing_cols:
+            self.logger.error(f"Missing required columns: {missing_cols}")
+            raise AssertionError(f"Missing columns: {missing_cols}")
 
         balance = np.array(weights) / sum(weights)
+        self.logger.debug(f"Normalized weights: {balance}")
 
         scores = df[error_cols].copy()
         scores = scores.rename(columns={error_cols[0]: "nrmse"})
 
-        scores["nrmse"] = np.where(
-            np.isinf(scores["nrmse"]),
-            np.max(scores["nrmse"][~np.isinf(scores["nrmse"])]),
-            scores["nrmse"],
-        )
-        scores["decomp.rssd"] = np.where(
-            np.isinf(scores["decomp.rssd"]),
-            np.max(scores["decomp.rssd"][~np.isinf(scores["decomp.rssd"])]),
-            scores["decomp.rssd"],
-        )
-        scores["mape"] = np.where(
-            np.isinf(scores["mape"]),
-            np.max(scores["mape"][~np.isinf(scores["mape"])]),
-            scores["mape"],
-        )
+        # Handle infinite values
+        for col in ["nrmse", "decomp.rssd", "mape"]:
+            inf_count = np.sum(np.isinf(scores[col]))
+            if inf_count > 0:
+                self.logger.warning(f"Found {inf_count} infinite values in {col}")
+                scores[col] = np.where(
+                    np.isinf(scores[col]),
+                    np.max(scores[col][~np.isinf(scores[col])]),
+                    scores[col]
+                )
 
+        # Normalize scores
         scores["nrmse_n"] = ParetoUtils.min_max_norm(scores["nrmse"])
         scores["decomp.rssd_n"] = ParetoUtils.min_max_norm(scores["decomp.rssd"])
         scores["mape_n"] = ParetoUtils.min_max_norm(scores["mape"])
 
         scores.fillna(0, inplace=True)
 
+        # Apply weights
         scores["nrmse_w"] = balance[0] * scores["nrmse_n"]
         scores["decomp.rssd_w"] = balance[1] * scores["decomp.rssd_n"]
         scores["mape_w"] = balance[2] * scores["mape_n"]
 
+        # Calculate final error score
         scores["error_score"] = np.sqrt(
             scores["nrmse_w"] ** 2
             + scores["decomp.rssd_w"] ** 2
             + scores["mape_w"] ** 2
         )
 
+        self.logger.debug(f"Error score statistics: min={scores['error_score'].min():.4f}, "
+                         f"max={scores['error_score'].max():.4f}, "
+                         f"mean={scores['error_score'].mean():.4f}")
+        
         return scores["error_score"]
+
     def _select_top_solutions(
         self, clustered_df: pd.DataFrame, config: ClusteringConfig, limit: int = 1
     ) -> pd.DataFrame:
-        """
-        Selects the top models based on their distance to the origin.
-        Generate a data frame with error scores and ranks for each cluster.
-        Args:
-            clustered_df (pd.DataFrame): Input data frame.
-            config (ClusteringConfig): Used to get Balance weights for error scores. Defaults to [1, 1, 1].
-            limit (int, optional): Number of rows to return per cluster. Defaults to 1.
-            ts_validation (bool, optional): Whether to use time series validation. Defaults to True.
-        Returns:
-            pandas DataFrame: Data frame with error scores and ranks for each cluster.
-        """
+        """Selects top solutions from each cluster"""
+        self.logger.info(f"Selecting top {limit} solutions per cluster")
+        self.logger.debug(f"Input dataset shape: {clustered_df.shape}")
+
         ts_validation: bool = "nrmse_test" in clustered_df.columns
         df = clustered_df.copy()
+        
+        self.logger.debug("Computing error scores")
         df["error_score"] = self._compute_error_scores(
             df, config.weights, ts_validation
         )
+        
         df.fillna(0, inplace=True)
+        
+        self.logger.debug("Sorting and ranking solutions")
         df = df.sort_values(by=["cluster", "error_score"])
+        initial_solutions = len(df)
         df = df.groupby("cluster", observed=False).head(limit)
         df["rank"] = df.groupby("cluster", observed=False)["error_score"].rank(method="dense")
 
+        self.logger.info(f"Selected {len(df)} solutions from {initial_solutions} total")
+        self.logger.debug(f"Final dataset shape: {df.shape}")
+        
         return df[
             ["cluster", "rank"]
             + [col for col in df.columns if col not in ["cluster", "rank"]]
         ]
-
+    
     def _bootstrap_sampling(
         self, sample: pd.Series, boot_n: int
     ) -> Dict[str, List[float]]:
-        """
-        Calculate the bootstrap confidence interval for a given sample.
-        Args:
-            sample (array-like): The input sample.
-            boot_n (int, optional): The number of bootstrap iterations. Defaults to 1000.
-        Returns:
-            dict: A dictionary containing the bootstrap means, confidence interval, and standard error.
-        """
-        if len(sample[~sample.isna()]) > 1:
-            sample_n = len(sample)
-            sample_mean = np.mean(sample)
-            boot_sample = np.random.choice(
-                sample, size=(boot_n, sample_n), replace=True
-            )
-            boot_means = np.mean(boot_sample, axis=1)
-            se = np.std(boot_means)
-            me = stats.t.ppf(0.975, sample_n - 1) * se
-            sample_me = np.sqrt(sample_n) * me
-            ci = [sample_mean - sample_me, sample_mean + sample_me]
-            return {
-                "boot_means": boot_means,
-                "ci": ci,
-                "se": [float(se)],
-            }
+        self.logger.debug(f"Starting bootstrap sampling with sample size: {len(sample)} and boot_n: {boot_n}")
+        
+        # Log sample statistics at debug level
+        self.logger.debug(
+            f"Sample statistics - Mean: {sample.mean():.4f}, "
+            f"Std: {sample.std():.4f}, "
+            f"Non-null count: {sample.count()}"
+        )
+        
+        valid_samples = sample[~sample.isna()]
+        if len(valid_samples) > 1:
+            self.logger.info("Performing bootstrap sampling with multiple valid samples")
+            try:
+                sample_n = len(sample)
+                sample_mean = np.mean(sample)
+                self.logger.debug(f"Initial sample mean: {sample_mean:.4f}")
+                
+                # Generate bootstrap samples
+                self.logger.debug("Generating bootstrap samples...")
+                boot_sample = np.random.choice(
+                    sample, size=(boot_n, sample_n), replace=True
+                )
+                
+                # Calculate bootstrap means
+                boot_means = np.mean(boot_sample, axis=1)
+                self.logger.debug(f"Bootstrap means range: [{np.min(boot_means):.4f}, {np.max(boot_means):.4f}]")
+                
+                # Calculate standard error
+                se = np.std(boot_means)
+                self.logger.debug(f"Standard error: {se:.4f}")
+                
+                # Calculate margin of error and confidence interval
+                me = stats.t.ppf(0.975, sample_n - 1) * se
+                sample_me = np.sqrt(sample_n) * me
+                ci = [sample_mean - sample_me, sample_mean + sample_me]
+                
+                self.logger.info(
+                    f"Bootstrap sampling completed successfully. "
+                    f"CI: [{ci[0]:.4f}, {ci[1]:.4f}]"
+                )
+                
+                return {
+                    "boot_means": boot_means,
+                    "ci": ci,
+                    "se": [float(se)],
+                }
+                
+            except Exception as e:
+                self.logger.error(f"Error during bootstrap sampling: {str(e)}", exc_info=True)
+                raise
+                
         else:
-            ci = [np.nan, np.nan] if sample.isna().all() else [sample.iloc[0], sample.iloc[0]]
+            if sample.isna().all():
+                self.logger.warning("All samples are NaN, returning NaN confidence interval")
+                ci = [np.nan, np.nan]
+            else:
+                self.logger.warning("Only one valid sample found, returning single value confidence interval")
+                ci = [sample.iloc[0], sample.iloc[0]]
+                
+            self.logger.debug(f"Returning simple result with CI: {ci}")
             return {
                 "boot_means": sample.tolist(),
                 "ci": ci,

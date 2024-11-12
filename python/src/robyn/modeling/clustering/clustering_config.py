@@ -40,3 +40,21 @@ class ClusteringConfig:
     export: bool = False
     seed: int = 123
     all_media: Optional[List[str]] = None
+
+    def __str__(self) -> str:
+        """Returns a human-readable string representation of the clustering configuration."""
+        return (
+            f"ClusteringConfig(\n"
+            f"  dep_var_type: {self.dep_var_type}\n"
+            f"  cluster_by: {self.cluster_by.value}\n"
+            f"  weights: {self.weights}\n"
+            f"  max_clusters: {self.max_clusters}\n"
+            f"  min_clusters: {self.min_clusters}\n"
+            f"  k_clusters: {self.k_clusters}\n"
+            f"  limit: {self.limit}\n"
+            f"  dim_reduction: {self.dim_reduction}\n"
+            f"  export: {self.export}\n"
+            f"  seed: {self.seed}\n"
+            f"  all_media: {self.all_media}\n"
+            ")"
+        )
