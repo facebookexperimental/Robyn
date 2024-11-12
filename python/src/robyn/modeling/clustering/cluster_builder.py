@@ -46,7 +46,7 @@ class ClusterBuilder:
         self.logger.debug("Received ParetoResult with %d solutions", len(pareto_result.pareto_solutions))
 
         self.pareto_result: ParetoResult = pareto_result
-        self.cluster_visualizer = ClusterVisualizer(None, None)
+        self.cluster_visualizer = ClusterVisualizer(None, None, None)
         self.logger.info("ClusterBuilder initialization complete")
 
     def cluster_models(self, config: ClusteringConfig) -> ClusteredResult:
