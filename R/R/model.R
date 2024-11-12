@@ -55,7 +55,9 @@
 #' \code{objective_weights} must be defined, i.e. set c(2, 1) to give double weight
 #' to the 1st (NRMSE). This is an experimental feature. There's no research on
 #' optimal weight setting. Subjective weights might strongly bias modeling results.
-#' @param seed Integer. For reproducible results when running nevergrad.
+#' @param seed Integer. For reproducible results when running nevergrad and
+#' clustering. Each trial will increase the seed by 1 unit (i.e. 10 trials with
+#' seed 1 will share 9 results with 10 trials with seed 2).
 #' @param lambda_control Deprecated in v3.6.0.
 #' @param outputs Boolean. If set to TRUE, will run \code{robyn_run()} and
 #' \code{robyn_outputs()}, returning a list with OutputModels and
