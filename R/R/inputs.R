@@ -805,7 +805,7 @@ exposure_handling <- function(dt_transform,
                                  exposure = unlist(temp_expo),
                                  media = paid_media_selected[i])
     dt_transform <- dt_transform %>%
-      dplyr::mutate_at(vars(paid_media_selected), function(x) unlist(spend_scaled_extrapolated))
+      dplyr::mutate_at(vars(paid_media_selected[i]), function(x) unlist(spend_scaled_extrapolated))
   }
   df_cpe <- bind_rows(df_cpe)
   df_expo_p <- bind_rows(df_expo_p)
@@ -878,4 +878,40 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   }
 
   return(holidays)
+}
+
+####################################################################
+#' Set default hyperparameters
+#'
+#' For quick setting of hyperparameter ranges.
+#'
+#' @param adstock Character. InputCollect$adstock
+#' @param all_media Character. Provide InputCollect$all_media.
+#' @param list_default A List. Default ranges for hyperparameters.
+#' @return List. Expanded range of hyperparameters for all media.
+#' @export
+set_default_hyppar <- function(
+    adstock = NULL,
+    all_media = NULL,
+    list_default = list(alpha = c(0.5, 3),
+                        gamma = c(0.01, 1),
+                        theta = c(0, 0.8),
+                        shape = c(0, 10),
+                        scale = c(0, 0,1),
+                        train_size = c(0.5, 0.9))
+
+) {
+  hpnames <- hyper_names(adstock = adstock, all_media = all_media)
+  hyperparameters <- list()
+  for (i in seq_along(hpnames)) {
+    hyperparameters[[i]] <- dplyr::case_when(
+      stringr::str_detect(hpnames[[i]], "_alphas") ~ list_default[["alpha"]],
+      stringr::str_detect(hpnames[[i]], "_gammas") ~ list_default[["gamma"]],
+      stringr::str_detect(hpnames[[i]], "_thetas") ~ list_default[["theta"]],
+      stringr::str_detect(hpnames[[i]], "_shapes") ~ list_default[["shape"]],
+      stringr::str_detect(hpnames[[i]], "_scales") ~ list_default[["scale"]])
+    names(hyperparameters)[[i]] <- hpnames[[i]]
+  }
+  hyperparameters[["train_size"]] <- list_default[["train_size"]]
+  return(hyperparameters)
 }
