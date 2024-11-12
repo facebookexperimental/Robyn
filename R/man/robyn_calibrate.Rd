@@ -7,7 +7,8 @@
 robyn_calibrate(
   df_curve_sot = NULL,
   curve_type = "saturation_reach",
-  hp_bounds = list(hill = list(alpha = c(0, 10), gamma = c(0, 1))),
+  force_shape = NULL,
+  hp_bounds = NULL,
   max_trials = 10,
   max_iters = 2500,
   loss_min_step_rel = 0.01,
@@ -27,8 +28,13 @@ Recommended sources of truth are Halo R&F or Meta conversion lift.}
 and only supports Hill function. Possible values are \code{c(
 "saturation_reach", "saturation_revenue", "saturation_conversion")}.}
 
+\item{force_shape}{Character. Allows c("c", "s") with default NULL that's no
+shape forcing. It's recommended for offline media to have "c" shape, while
+for online can be "s" or NULL. Shape forcing only works if hp_bounds is null.}
+
 \item{hp_bounds}{list. Currently only allows Hill for saturation. Ranges
-for alpha and gamma are provided as Hill parameters.}
+for alpha and gamma are provided as Hill parameters. If NULL, hp_bounds takes
+on default ranges.}
 
 \item{max_trials}{integer. Different trials have different starting point
 and provide diversified sampling paths.}
@@ -66,17 +72,31 @@ saturation or adstock curve estimation.
 \examples{
 # Dummy source of truth data
 df_curve_sot <- data.frame(
-  spend = c(0, 1933, 94574, 131815, 370320, 470523, 489839,
-            514386, 531668, 532889),
-  response = c(0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
-            1643194, 1677396, 1679811))
+  spend = c(
+    0, 1933, 94574, 131815, 370320, 470523, 489839,
+    514386, 531668, 532889
+  ),
+  response = c(
+    0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
+    1643194, 1677396, 1679811
+  )
+)
+# Using reach saturation as source of truth with S shape forcing
+curve_out <- robyn_calibrate(
+  df_curve_sot = df_curve_sot,
+  curve_type = "saturation_reach",
+  force_shape = "s",
+  max_trials = 5
+)
 
-# Default hyperparameter ranges for saturation hill function
-hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0,1)))
+# Alternatively, provide custom parameters
+hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
 
 curve_out <- robyn_calibrate(
   df_curve_sot = df_curve_sot,
+  curve_type = "saturation_reach",
   hp_bounds = hp_bounds,
   max_trials = 5
 )
+
 }

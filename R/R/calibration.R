@@ -15,8 +15,12 @@
 #' @param curve_type Character. Currently only allows saturation calibration
 #' and only supports Hill function. Possible values are \code{c(
 #' "saturation_reach", "saturation_revenue", "saturation_conversion")}.
+#' @param force_shape Character. Allows c("c", "s") with default NULL that's no
+#' shape forcing. It's recommended for offline media to have "c" shape, while
+#' for online can be "s" or NULL. Shape forcing only works if hp_bounds is null.
 #' @param hp_bounds list. Currently only allows Hill for saturation. Ranges
-#' for alpha and gamma are provided as Hill parameters.
+#' for alpha and gamma are provided as Hill parameters. If NULL, hp_bounds takes
+#' on default ranges.
 #' @param max_trials integer. Different trials have different starting point
 #' and provide diversified sampling paths.
 #' @param max_iters integer. Loss is minimized while iteration increases.
@@ -43,27 +47,32 @@
 #'     1643194, 1677396, 1679811
 #'   )
 #' )
+#' # Using reach saturation as source of truth with S shape forcing
+#' curve_out <- robyn_calibrate(
+#'   df_curve_sot = df_curve_sot,
+#'   curve_type = "saturation_reach",
+#'   force_shape = "s",
+#'   max_trials = 5
+#' )
 #'
-#' # Default hyperparameter ranges for saturation hill function
+#' # Alternatively, provide custom parameters
 #' hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
 #'
 #' curve_out <- robyn_calibrate(
 #'   df_curve_sot = df_curve_sot,
+#'   curve_type = "saturation_reach",
 #'   hp_bounds = hp_bounds,
 #'   max_trials = 5
 #' )
+#'
 #' @return List. Class: \code{curve_out}. Contains the results of all trials
 #' and iterations modeled.
 #' @export
 robyn_calibrate <- function(
     df_curve_sot = NULL,
     curve_type = "saturation_reach",
-    hp_bounds = list(
-      hill = list(
-        alpha = c(0, 10),
-        gamma = c(0, 1)
-      )
-    ),
+    force_shape = NULL,
+    hp_bounds = NULL,
     max_trials = 10,
     max_iters = 2500,
     loss_min_step_rel = 0.01,
@@ -80,14 +89,26 @@ robyn_calibrate <- function(
   # hp_interval
 
   if (grepl("saturation", curve_type)) {
-    response_sot <- df_curve_sot$response
-    spend_sot <- df_curve_sot$spend
+    spend_sot <- df_curve_sot[["spend"]]
+    response_sot <- df_curve_sot[["response"]]
+    # amend 0 if not available
+    if (!any(spend_sot == 0)) {
+      spend_sot <- c(0, spend_sot)
+      response_sot <- c(0, response_sot)
+    }
 
     ## get hyperparameter bounds
     if (is.null(hp_bounds)) {
       hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
+      hp_bounds_loop <- hp_bounds[["hill"]]
+      if (force_shape == "s") {
+        hp_bounds_loop[["alpha"]] <- c(1, 10)
+      } else if (force_shape == "c") {
+        hp_bounds_loop[["alpha"]] <- c(0, 1)
+      }
+    } else {
+      hp_bounds_loop <- hp_bounds[["hill"]]
     }
-    hp_bounds_loop <- hp_bounds[["hill"]]
 
     ## initiate Nevergrad
     if (reticulate::py_module_available("nevergrad")) {
@@ -194,15 +215,17 @@ robyn_calibrate <- function(
     ## saturation hill
 
     if (TRUE) {
-      best_alpha <- .dot_product(hp_bounds_loop[["alpha"]], best_hp[1])
-      best_gamma <- .dot_product(hp_bounds_loop[["gamma"]], best_hp[2])
+      hp_alpha <- hp_bounds_loop[["alpha"]]
+      hp_gamma <- hp_bounds_loop[["gamma"]]
+      best_alpha <- qunif(best_hp[1], min = min(hp_alpha), max = max(hp_alpha))
+      best_gamma <- qunif(best_hp[2], min = min(hp_gamma), max = max(hp_gamma))
       # best_response_pred <- saturation_hill(spend_sot, best_alpha, best_gamma)[["x_saturated"]]
       # best_inflexion <- saturation_hill(spend_sot, best_alpha, best_gamma)[["inflexion"]]
       alpha_collect <- lapply(ng_hp, FUN = function(x) {
-        sapply(x, FUN = function(y) .dot_product(hp_bounds_loop[["alpha"]], y$value[1]))
+        sapply(x, FUN = function(y) qunif(y$value[1], min = min(hp_alpha), max = max(hp_alpha)))
       })
       gamma_collect <- lapply(ng_hp, FUN = function(x) {
-        sapply(x, FUN = function(y) .dot_product(hp_bounds_loop[["gamma"]], y$value[2]))
+        sapply(x, FUN = function(y) qunif(y$value[2], min = min(hp_gamma), max = max(hp_gamma)))
       })
 
       ## slice by convergence

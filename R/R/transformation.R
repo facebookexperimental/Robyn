@@ -206,7 +206,8 @@ transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NU
 saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
   stopifnot(length(alpha) == 1)
   stopifnot(length(gamma) == 1)
-  inflexion <- .dot_product(range = range(x), proportion = gamma) # linear interpolation by dot product
+  inflexion <- sum(x) * gamma
+  # inflexion <- .dot_product(range = range(x), proportion = gamma) # linear interpolation by dot product
   if (is.null(x_marginal)) {
     x_saturated <- x**alpha / (x**alpha + inflexion**alpha) # plot(x_saturated) summary(x_saturated)
   } else {
