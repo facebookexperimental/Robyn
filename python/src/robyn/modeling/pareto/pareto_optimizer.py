@@ -1,6 +1,6 @@
 # pyre-strict
 
-from concurrent.futures import as_completed, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 from dataclasses import dataclass
 from functools import partial
 from typing import Dict, List, Optional
@@ -8,7 +8,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-from robyn.data.entities.enums import AdstockType
+from robyn.data.entities.enums import AdstockType, DependentVarType
 from robyn.data.entities.holidays_data import HolidaysData
 
 from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
@@ -72,7 +72,7 @@ class ParetoOptimizer:
         self.transformer = Transformation(mmm_data)
 
          # Setup logger with a single handler
-        self.logger = logging.getLogger("robyn.pareto_optimizer")
+        self.logger = logging.getLogger(__name__)
         # Remove any existing handlers to prevent duplicates
         if self.logger.handlers:
             for handler in self.logger.handlers:
@@ -479,31 +479,16 @@ class ParetoOptimizer:
             f"Calculating response curves for {len(pareto_data.decomp_spend_dist)} models' media variables..."
         )
         self.logger.debug(f"Available columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
-
-        # Parallel processing
-        batch_size = min(1000, len(pareto_data.decomp_spend_dist))
         resp_collect_list = []
-
         try:
-            for i in range(0, len(pareto_data.decomp_spend_dist), batch_size):
-                batch = pareto_data.decomp_spend_dist.iloc[i : i + batch_size]
-                self.logger.debug(f"Processing batch {i//batch_size + 1}, size: {len(batch)}, cores: {self.model_outputs.cores}")
+            try:
+                batch = pareto_data.decomp_spend_dist
+                if self.model_outputs.cores > 1:
+                    self.logger.debug(f"Calculating response curves with {self.model_outputs.cores} cores")
+                    run_dt_resp_partial = partial(self.run_dt_resp, paretoData=pareto_data)
 
-                if self.model_outputs.cores > 1 and len(batch) > 1:
-                    with ProcessPoolExecutor(max_workers=self.model_outputs.cores) as executor:
-                        run_dt_resp_partial = partial(self.run_dt_resp, paretoData=pareto_data)
-                        futures = []
-                        for _, row in batch.iterrows():
-                            try:
-                                futures.append(executor.submit(run_dt_resp_partial, row))
-                            except Exception as e:
-                                self.logger.error(f"Error submitting row to executor: {str(e)}")
-                                continue
-
-                        if not futures:
-                            self.logger.warning("No futures created for this batch")
-                            continue
-
+                    with ThreadPoolExecutor(max_workers=self.model_outputs.cores) as executor:
+                        futures = {executor.submit(run_dt_resp_partial, row): row for _, row in pareto_data.decomp_spend_dist.iterrows()}
                         results = []
                         for future in tqdm(as_completed(futures), total=len(futures), desc="Processing rows"):
                             try:
@@ -511,27 +496,27 @@ class ParetoOptimizer:
                                 if result is not None:
                                     results.append(result)
                             except Exception as e:
-                                self.logger.error(f"Error processing future: {str(e)}")
+                                self.logger.error(f"Error calculating response curves with multiple cores: {str(e)}")
                                 continue
-
                         if results:
                             resp_collect_batch = pd.DataFrame(results)
                             resp_collect_list.append(resp_collect_batch)
                 else:
+                    # Run sequentially
                     results = []
-                    for _, row in tqdm(batch.iterrows(), total=len(batch), desc="Processing rows"):
+                    for _, row in batch.iterrows():
                         try:
                             result = self.run_dt_resp(row, paretoData=pareto_data)
                             if result is not None:
                                 results.append(result)
                         except Exception as e:
-                            self.logger.error(f"Error processing row: {str(e)}")
+                            self.logger.error(f"Error processing row while calculating response curves: {str(e)}")
                             continue
-
                     if results:
                         resp_collect_batch = pd.DataFrame(results)
                         resp_collect_list.append(resp_collect_batch)
-
+            except Exception as e:
+                self.logger.error(f"Error processing batches: {str(e)}")
             if not resp_collect_list:
                 self.logger.warning("No response curves were calculated successfully")
                 return pareto_data
@@ -659,7 +644,7 @@ class ParetoOptimizer:
                         temp["variable"]
                         == (
                             "cpa_total"
-                            if self.mmm_data.mmmdata_spec.dep_var_type == "conversion"
+                            if self.mmm_data.mmmdata_spec.dep_var_type == DependentVarType.CONVERSION
                             else "roi_total"
                         )
                     ]

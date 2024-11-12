@@ -86,7 +86,7 @@ class Transformation:
         thetaVecCum = pd.Series(theta ** np.arange(len(x)), index=x.index)
         inflation_total = x_decayed.sum() / x.sum()
         
-        logger.info("Completed geometric adstock with inflation_total=%f", inflation_total)
+        logger.debug("Completed geometric adstock with inflation_total=%f", inflation_total)
         return AdstockResult(x, x_decayed, x, None, thetaVecCum, inflation_total)
 
     def adstock_weibull(
@@ -152,7 +152,7 @@ class Transformation:
             )
 
         inflation_total = x_decayed.sum() / x.sum()
-        logger.info(
+        logger.debug(
             "Completed Weibull adstock (type=%s) with inflation_total=%f",
             adstockType,
             inflation_total
@@ -174,7 +174,7 @@ class Transformation:
         windlen: Optional[int] = None,
     ) -> AdstockResult:
         """Apply adstock transformation based on the specified method."""
-        logger.info("Starting adstock transformation with type: %s", adstockType)
+        logger.debug("Starting adstock transformation with type: %s", adstockType)
         logger.debug("Input series length: %d", len(x))
         
         try:
@@ -224,7 +224,7 @@ class Transformation:
 
     def plot_adstock(self, plot: bool = True) -> Optional[plt.Figure]:
         """Generate adstock comparison plots."""
-        logger.info("Starting adstock comparison plot generation")
+        logger.debug("Starting adstock comparison plot generation")
         
         if plot:
             try:
@@ -286,7 +286,7 @@ class Transformation:
                 ax2.legend()
 
                 plt.tight_layout()
-                logger.info("Successfully generated adstock comparison plots")
+                logger.debug("Successfully generated adstock comparison plots")
                 return fig
             except Exception as e:
                 logger.error("Failed to generate adstock plots: %s", str(e))
@@ -297,7 +297,7 @@ class Transformation:
 
     def plot_saturation(plot: bool = True) -> Optional[List[plt.Figure]]:
         """Generate saturation comparison plots."""
-        logger.info("Starting saturation comparison plot generation")
+        logger.debug("Starting saturation comparison plot generation")
         
         figures = []
         if plot:
@@ -363,7 +363,7 @@ class Transformation:
                 figures.append(plt.gcf())
                 logger.debug("Successfully generated gamma variation plot")
 
-                logger.info("Successfully generated all saturation comparison plots")
+                logger.debug("Successfully generated all saturation comparison plots")
                 return figures
             except Exception as e:
                 logger.error("Failed to generate saturation plots: %s", str(e))
@@ -379,7 +379,7 @@ class Transformation:
         adstockType: AdstockType,
     ) -> TransformationResult:
         """Run media transformations including adstock and saturation."""
-        logger.info("Starting media transformations")
+        logger.debug("Starting media transformations")
         logger.debug("Input data shape: %s", featurized_data.dt_mod.shape)
 
         all_media = self.mmm_data.mmmdata_spec.all_media
@@ -432,7 +432,7 @@ class Transformation:
                 mediaSaturatedImmediate[media] = (
                     mediaSaturated[media] - mediaSaturatedCarryover[media]
                 )
-                logger.info("Completed transformations for media channel: %s", media)
+                logger.debug("Completed transformations for media channel: %s", media)
             except Exception as e:
                 logger.error("Error processing media channel %s: %s", media, str(e))
                 raise
@@ -461,6 +461,6 @@ class Transformation:
         result = TransformationResult(
             dt_modSaturated, dt_saturatedImmediate, dt_saturatedCarryover
         )
-        logger.info("Completed all transformations: %s", result)
+        logger.debug("Completed all transformations: %s", result)
         return result
     
