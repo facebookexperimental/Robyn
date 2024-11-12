@@ -24,7 +24,7 @@ class FeaturePlotter:
         """
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
-        logger.info("Initializing FeaturePlotter with %s data points", len(mmm_data))
+        logger.info("Initializing FeaturePlotter")
         logger.debug("MMM Data: %s", mmm_data)
         logger.debug("Hyperparameters: %s", hyperparameters)
 
