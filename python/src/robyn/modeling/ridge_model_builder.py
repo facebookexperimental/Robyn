@@ -47,7 +47,7 @@ class RidgeModelBuilder:
         dt_hyper_fixed: Optional[pd.DataFrame] = None,
         ts_validation: bool = False,
         add_penalty_factor: bool = False,
-        seed: int = 123,
+        seed: List[int] = [123],  # Ensure seed is a list
         rssd_zero_penalty: bool = True,
         objective_weights: Optional[List[float]] = None,
         nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
@@ -56,11 +56,12 @@ class RidgeModelBuilder:
         cores: Optional[int] = None,
     ) -> ModelOutputs:
         start_time = time.time()
-
-        # Initialize hyperparameters
+        # Initialize hyperparameters with flattened structure
         hyper_collect = self._hyper_collector(
             self.hyperparameters, ts_validation, add_penalty_factor, dt_hyper_fixed, cores
         )
+        # Convert datetime to string format matching R's format
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Set up objective weights including calibration if available
         if objective_weights is None:
@@ -68,7 +69,6 @@ class RidgeModelBuilder:
                 objective_weights = [1 / 3, 1 / 3, 1 / 3]  # NRMSE, RSSD, MAPE
             else:
                 objective_weights = [0.5, 0.5]  # NRMSE, RSSD only
-
         # Run trials
         trials = []
         for trial in range(1, trials_config.trials + 1):
@@ -85,26 +85,23 @@ class RidgeModelBuilder:
                 dt_hyper_fixed=dt_hyper_fixed,
                 rssd_zero_penalty=rssd_zero_penalty,
                 trial=trial,
-                seed=seed + trial,
+                seed=seed[0] + trial,  # Use the first element of the seed list
                 total_trials=trials_config.trials,
             )
             trials.append(trial_result)
-
         # Calculate convergence
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(trials)
-
         # Aggregate results
         all_result_hyp_param = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
         all_x_decomp_agg = pd.concat([trial.x_decomp_agg for trial in trials], ignore_index=True)
         all_decomp_spend_dist = pd.concat(
             [trial.decomp_spend_dist for trial in trials if trial.decomp_spend_dist is not None], ignore_index=True
         )
-
-        # Create ModelOutputs
+        # Create ModelOutputs with flattened hyperparameter structure
         model_outputs = ModelOutputs(
             trials=trials,
-            train_timestamp=datetime.now(),
+            train_timestamp=current_time,
             cores=cores,
             iterations=trials_config.iterations,
             intercept=intercept,
@@ -112,11 +109,11 @@ class RidgeModelBuilder:
             nevergrad_algo=nevergrad_algo,
             ts_validation=ts_validation,
             add_penalty_factor=add_penalty_factor,
-            hyper_updated=hyper_collect["hyper_list_all"],
+            hyper_updated=hyper_collect["hyper_list_all"],  # Using flattened structure
             hyper_fixed=hyper_collect["all_fixed"],
             convergence=convergence_results,
             select_id=self._select_best_model(trials),
-            seed=seed,
+            seed=seed,  # Store seed as a list
             hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],
             hyper_bound_fixed=hyper_collect["hyper_bound_list_fixed"],
             ts_validation_plot=None,
@@ -124,7 +121,6 @@ class RidgeModelBuilder:
             all_x_decomp_agg=all_x_decomp_agg,
             all_decomp_spend_dist=all_decomp_spend_dist,
         )
-
         return model_outputs
 
     def _select_best_model(self, output_models: List[Trial]) -> str:
@@ -201,35 +197,40 @@ class RidgeModelBuilder:
         seed: int,
         total_trials: int,
     ) -> Trial:
+        """Modified to handle multiple solutions per iteration"""
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
         np.random.seed(seed)
 
+        # Setup nevergrad instrumentation
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
         param_bounds = [hyper_collect["hyper_bound_list_updated"][name] for name in param_names]
 
         instrum_dict = {
             name: ng.p.Scalar(lower=bound[0], upper=bound[1]) for name, bound in zip(param_names, param_bounds)
         }
-
         instrum = ng.p.Instrumentation(**instrum_dict)
-
         optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
 
         all_results = []
         start_time = time.time()
+
+        # Calculate actual solutions per iteration based on R logic
+        solutions_per_iteration = 5  # Match R's default
+        total_solutions = iterations * solutions_per_iteration
+
         with tqdm(
             total=iterations,
-            desc=f"Running trial {trial} of total {total_trials} trials",
+            desc=f"Running trial {trial} of {total_trials} trials",
             bar_format="{l_bar}{bar}",
             ncols=75,
         ) as pbar:
             for iter_ng in range(iterations):
-                candidate = optimizer.ask()
-                params = candidate.kwargs
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
+                for sol_idx in range(solutions_per_iteration):
+                    candidate = optimizer.ask()
+                    params = candidate.kwargs
+
                     result = self._evaluate_model(
                         params,
                         ts_validation,
@@ -240,44 +241,45 @@ class RidgeModelBuilder:
                         iter_ng=iter_ng,
                         trial=trial,
                     )
-                optimizer.tell(candidate, result["loss"])
-                result["params"].update(
-                    {
-                        "solID": f"{trial}_{iter_ng + 1}_1",
-                        "ElapsedAccum": result["elapsed_accum"],
-                        "trial": trial,
-                        "nrmse": result["nrmse"],
-                        "decomp.rssd": result["decomp_rssd"],
-                        "mape": result["mape"],
-                    }
-                )
-                all_results.append(result)
+
+                    optimizer.tell(candidate, result["loss"])
+
+                    # Update solution ID with iteration and solution index
+                    result["params"].update(
+                        {
+                            "solID": f"{trial}_{iter_ng + 1}_{sol_idx + 1}",
+                            "ElapsedAccum": result["elapsed_accum"],
+                            "trial": trial,
+                            "nrmse": result["nrmse"],
+                            "decomp_rssd": result["decomp_rssd"],
+                            "mape": result["mape"],
+                        }
+                    )
+
+                    all_results.append(result)
+
                 pbar.update(1)
 
-        end_time = time.time()
-        self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
-
-        # Aggregate results from all iterations
+        # Aggregate results
         result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
-        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
         x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
+        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
 
-        # Find the best result for single-value metrics
+        # Select best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
 
         return Trial(
             result_hyp_param=result_hyp_param,
-            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),  # Use get() with default
+            x_decomp_agg=x_decomp_agg,
             decomp_spend_dist=decomp_spend_dist,
             nrmse=best_result["nrmse"],
             decomp_rssd=best_result["decomp_rssd"],
             mape=best_result["mape"],
-            x_decomp_agg=x_decomp_agg,
             rsq_train=best_result["rsq_train"],
             rsq_val=best_result["rsq_val"],
             rsq_test=best_result["rsq_test"],
             lambda_=best_result["lambda_"],
-            lambda_hp=best_result.get("lambda_hp", 0.0),
+            lambda_hp=best_result["lambda_hp"],
             lambda_max=best_result.get("lambda_max", 0.0),
             lambda_min_ratio=best_result.get("lambda_min_ratio", 0.0001),
             pos=best_result.get("pos", False),
@@ -627,44 +629,61 @@ class RidgeModelBuilder:
 
     @staticmethod
     def _hyper_collector(
-        hyperparameters_dict: Dict[str, Any],
+        hyperparameters: Dict[str, Any],
         ts_validation: bool,
         add_penalty_factor: bool,
         dt_hyper_fixed: Optional[pd.DataFrame],
-        cores: int,
+        cores: Optional[int],
     ) -> Dict[str, Any]:
+        """
+        Collect and organize hyperparameters to match R's structure
+        """
         logger = logging.getLogger(__name__)
-        logger.info(f"Collecting hyperparameters for optimization... {hyperparameters_dict}")
-
-        prepared_hyperparameters = hyperparameters_dict["prepared_hyperparameters"]
-        hyper_to_optimize = hyperparameters_dict["hyper_to_optimize"]
-
+        logger.info("Collecting hyperparameters for optimization...")
+        prepared_hyperparameters = hyperparameters["prepared_hyperparameters"]
         hyper_collect = {
-            "hyper_list_all": prepared_hyperparameters.hyperparameters,
-            "hyper_bound_list_updated": hyper_to_optimize,
+            "hyper_list_all": {},
+            "hyper_bound_list_updated": {},
             "hyper_bound_list_fixed": {},
-            "dt_hyper_fixed_mod": pd.DataFrame(),
             "all_fixed": False,
         }
 
-        # Collect fixed hyperparameters
+        # Adjust hyper_list_all to store lists
         for channel, channel_params in prepared_hyperparameters.hyperparameters.items():
-            for param_name in ["thetas", "shapes", "scales", "alphas", "gammas", "penalty"]:
-                param_value = getattr(channel_params, param_name)
-                if param_value is not None and f"{channel}_{param_name}" not in hyper_to_optimize:
-                    hyper_collect["hyper_bound_list_fixed"][f"{channel}_{param_name}"] = param_value
-
-        # Handle lambda_ and train_size
-        if isinstance(prepared_hyperparameters.lambda_, (int, float)) and "lambda" not in hyper_to_optimize:
+            for param in ["thetas", "alphas", "gammas"]:
+                param_value = getattr(channel_params, param, None)
+                if param_value is not None:
+                    if isinstance(param_value, list) and len(param_value) == 2:
+                        param_key = f"{channel}_{param}"
+                        hyper_collect["hyper_bound_list_updated"][param_key] = param_value
+                        hyper_collect["hyper_list_all"][f"{channel}_{param}"] = param_value  # Store as list
+                    elif not isinstance(param_value, list):
+                        hyper_collect["hyper_bound_list_fixed"][f"{channel}_{param}"] = param_value
+                        hyper_collect["hyper_list_all"][f"{channel}_{param}"] = [
+                            param_value,
+                            param_value,
+                        ]  # Store as list
+        # Handle lambda parameter similarly
+        if isinstance(prepared_hyperparameters.lambda_, list) and len(prepared_hyperparameters.lambda_) == 2:
+            hyper_collect["hyper_bound_list_updated"]["lambda"] = prepared_hyperparameters.lambda_
+            hyper_collect["hyper_list_all"]["lambda"] = prepared_hyperparameters.lambda_
+        else:
             hyper_collect["hyper_bound_list_fixed"]["lambda"] = prepared_hyperparameters.lambda_
-
-        if isinstance(prepared_hyperparameters.train_size, list) and "train_size" not in hyper_to_optimize:
-            hyper_collect["hyper_bound_list_fixed"]["train_size"] = prepared_hyperparameters.train_size
-
-        if dt_hyper_fixed is not None:
-            hyper_collect["dt_hyper_fixed_mod"] = dt_hyper_fixed
-            hyper_collect["all_fixed"] = True
-
+            hyper_collect["hyper_list_all"]["lambda"] = [
+                prepared_hyperparameters.lambda_,
+                prepared_hyperparameters.lambda_,
+            ]
+        # Handle train_size similarly
+        if ts_validation:
+            if isinstance(prepared_hyperparameters.train_size, list) and len(prepared_hyperparameters.train_size) == 2:
+                hyper_collect["hyper_bound_list_updated"]["train_size"] = prepared_hyperparameters.train_size
+                hyper_collect["hyper_list_all"]["train_size"] = prepared_hyperparameters.train_size
+            else:
+                train_size = [0.5, 0.8]
+                hyper_collect["hyper_bound_list_updated"]["train_size"] = train_size
+                hyper_collect["hyper_list_all"]["train_size"] = train_size
+        else:
+            hyper_collect["hyper_list_all"]["train_size"] = [1.0, 1.0]
         return hyper_collect
 
     @staticmethod
@@ -731,5 +750,6 @@ class RidgeModelBuilder:
         seq_len: int = 100,
         lambda_min_ratio: float = 0.0001,
     ) -> np.ndarray:
+        # R calculates lambda_max differently, need to match their scaling
         lambda_max = np.max(np.abs(np.sum(x * y, axis=0))) / (0.001 * x.shape[0])
         return np.logspace(np.log10(lambda_max * lambda_min_ratio), np.log10(lambda_max), num=seq_len)

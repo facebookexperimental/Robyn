@@ -11,7 +11,7 @@ from robyn.data.entities.enums import (
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.convergence import Convergence
+from robyn.modeling.entities.convergence_data import ConvergenceData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.entities.pareto_result import ParetoResult
@@ -219,7 +219,7 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
     hyper_updated = {}
     for trial_key, trial_data in data.items():
         if trial_key == "convergence":
-            convergence_data = Convergence.from_dict(trial_data)
+            convergence_data = ConvergenceData.from_dict(trial_data)
         elif trial_key == "hyper_updated":
             hyper_updated = trial_data
         elif trial_key == "hyper_fixed":

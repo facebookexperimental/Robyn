@@ -54,15 +54,11 @@ class Convergence:
             self.logger.debug("Generating convergence messages")
             conv_msg = self._generate_convergence_messages(errors)
 
-            # # Create visualization plots
-            # self.logger.info("Creating visualization plots")
-            # moo_distrb_plot = self.visualizer.create_moo_distrb_plot(dt_objfunc_cvg, conv_msg)
-            # moo_cloud_plot = self.visualizer.create_moo_cloud_plot(df, conv_msg, calibrated)
-            # ts_validation_plot = self.visualizer.create_ts_validation_plot(trials)
-
-            moo_distrb_plot = None
-            moo_cloud_plot = None
-            ts_validation_plot = None
+            # Create visualization plots
+            self.logger.info("Creating visualization plots")
+            moo_distrb_plot = self.visualizer.create_moo_distrb_plot(dt_objfunc_cvg, conv_msg)
+            moo_cloud_plot = self.visualizer.create_moo_cloud_plot(df, conv_msg, calibrated)
+            ts_validation_plot = self.visualizer.create_ts_validation_plot(trials)
 
             self.logger.info("Convergence calculation completed successfully")
             return {
