@@ -212,6 +212,21 @@ def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFr
 
 
 def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
+    # # Debugging: Print the keys and a brief summary of the data
+    # print("Debug: R output data keys:", data.keys())
+
+    # # Print the shape or length for each key
+    # for key in data.keys():
+    #     if isinstance(data[key], (int, float, str)):
+    #         print(f"Data for {key}: Type = {type(data[key])}, Value = {data[key]}")
+    #     elif isinstance(data[key], list):
+    #         print(f"Data for {key}: Length = {len(data[key])}, Sample = {data[key][:3]}")
+    #     elif isinstance(data[key], dict):
+    #         print(f"Data for {key}: Keys = {list(data[key].keys())[:3]}")
+    #     elif isinstance(data[key], pd.DataFrame):
+    #         print(f"Data for {key}: Shape = {data[key].shape}")
+    #     else:
+    #         print(f"Data for {key}: Type = {type(data[key])}")
     trials = []
     convergence_data = None
     hyper_bound_ng = pd.DataFrame()
