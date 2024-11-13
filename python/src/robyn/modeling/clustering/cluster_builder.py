@@ -2,7 +2,7 @@
 
 import logging
 from sys import maxsize
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import re
 import numpy as np
@@ -93,7 +93,7 @@ class ClusterBuilder:
             "nrmse_val",
             "pareto",
         ]
-        limit_clusters = min(len(df) - 1, config.max_clusters)
+        limit_clusters = min(len(df) - 1, 30)
         
         self.logger.debug(f"Determining optimal number of clusters (limit: {limit_clusters})")
         config.k_clusters = self._select_optimal_clusters(
@@ -203,15 +203,11 @@ class ClusterBuilder:
         df_clusters_outcome = df_clusters_outcome\
             .groupby(['cluster', 'rn'], observed=False)\
             .apply(lambda x: x.assign(n=len(x)))\
-            .reset_index(drop=True)
-
-        df_clusters_outcome = df_clusters_outcome\
+            .reset_index(drop=True)\
             .dropna(subset=['cluster'])\
             .sort_values(by=['cluster', 'rn'])
 
         cluster_collect = []
-        chn_collect = []
-        sim_collect = []
 
         self.logger.debug(f"Processing {config.k_clusters} clusters")
         for j in range(1, config.k_clusters + 1):
@@ -222,6 +218,8 @@ class ClusterBuilder:
                 )
                 continue
 
+            chn_collect = {}
+            sim_collect = {}
             self.logger.debug(f"Processing cluster {j}")
             if config.cluster_by == ClusterBy.HYPERPARAMETERS:
                 pattern = "|".join(["_" + name for name in HYPERPARAMETER_NAMES])
@@ -241,8 +239,8 @@ class ClusterBuilder:
                     v_samp = df_chn["roi_total"]
 
                 boot_res = self._bootstrap_sampling(v_samp, boot_n)
-                boot_mean = np.mean(boot_res["boot_means"] if len(boot_res["boot_means"]) > 0 else [0.0])
-                boot_se = boot_res["se"][0]
+                boot_mean = float(np.nanmean(boot_res["boot_means"]))
+                boot_se = boot_res["se"]
                 ci_low = max(0, boot_res["ci"][0])
                 ci_up = boot_res["ci"][1]
 
@@ -251,8 +249,7 @@ class ClusterBuilder:
                     f"SE={boot_se:.4f}, n={len(v_samp)}"
                 )
 
-                chn_collect.append(
-                    df_chn.assign(
+                chn_collect[i] = df_chn.assign(
                         ci_low=ci_low,
                         ci_up=ci_up,
                         n=len(v_samp),
@@ -260,10 +257,8 @@ class ClusterBuilder:
                         boot_mean=boot_mean,
                         cluster=j,
                     ).reset_index(drop=True)
-                )
 
-                sim_collect.append(
-                    pd.DataFrame({
+                sim_collect[i] = pd.DataFrame({
                         "cluster": j,
                         "rn": i,
                         "n": len(v_samp),
@@ -276,7 +271,6 @@ class ClusterBuilder:
                             x["x_sim"], loc=boot_mean, scale=boot_se
                         )
                     ).reset_index(drop=True)
-                )
 
             cluster_collect.append(
                 {"chn_collect": chn_collect, "sim_collect": sim_collect}
@@ -290,29 +284,35 @@ class ClusterBuilder:
         )
         sim_collect = sim_collect.reset_index(drop=True)
 
-        self.logger.debug("Calculating final confidence intervals")
-        df_ci = pd.concat([pd.concat(x['chn_collect']) for x in cluster_collect])
-        df_ci['cluster_title'] = df_ci.apply(
-            lambda row: f"Cl.{row['cluster']} (n={row['n']})", axis=1
+        self.logger.debug("Adding cluster_title to confidence intervals")
+        df_ci = pd.concat([
+            pd.concat(x["chn_collect"].values())
+            for x in cluster_collect
+            if x["chn_collect"]
+        ])
+        df_ci = (df_ci
+            .assign(cluster_title=lambda x: f"Cl.{x['cluster']} (n={x['n']})")
+            [["rn", "cluster_title", "n", "cluster", "boot_mean",
+            "boot_se", "ci_low", "ci_up"]]
+            .drop_duplicates()
         )
-        df_ci = df_ci[['rn', 'cluster_title', 'n', 'cluster', 'boot_mean', 
-                       'boot_se', 'ci_low', 'ci_up']]
-        df_ci = df_ci.drop_duplicates()
 
-        self.logger.debug("Computing final statistics")
-        df_ci = df_ci.groupby(['rn', 'cluster_title', 'cluster']).apply(
-            lambda x: pd.Series({
-                'n': x['n'].iloc[0],
-                'boot_mean': x['boot_mean'].iloc[0],
-                'boot_se': x['boot_se'].iloc[0],
-                'boot_ci': f"[{round(x['ci_low'].iloc[0], 2)}, {round(x['ci_up'].iloc[0], 2)}]",
-                'ci_low': x['ci_low'].iloc[0],
-                'ci_up': x['ci_up'].iloc[0],
-                'sd': x['boot_se'].iloc[0] * ((x['n'].iloc[0] - 1) ** 0.5),
-                'dist100': (x['ci_up'].iloc[0] - x['ci_low'].iloc[0] + 
-                           2 * x['boot_se'].iloc[0] * ((x['n'].iloc[0] - 1) ** 0.5)) / 99
-            })
-        ).reset_index()
+        self.logger.debug("Computing final confidence intervals")
+        df_ci = (df_ci
+            .groupby(["rn", "cluster_title", "cluster"])
+            .apply(lambda x: pd.Series({
+                "n": x["n"].iloc[0],
+                "boot_mean": x["boot_mean"].iloc[0],
+                "boot_se": x["boot_se"].iloc[0],
+                "boot_ci": f"[{x['ci_low'].iloc[0]:.2f}, {x['ci_up'].iloc[0]:.2f}]",
+                "ci_low": x["ci_low"].iloc[0],
+                "ci_up": x["ci_up"].iloc[0],
+                "sd": x["boot_se"].iloc[0] * np.sqrt(x["n"].iloc[0] - 1),
+                "dist100": (x["ci_up"].iloc[0] - x["ci_low"].iloc[0] +
+                        2 * x["boot_se"].iloc[0] * np.sqrt(x["n"].iloc[0] - 1)) / 99
+            }))
+            .reset_index()
+        )
 
         self.logger.info("Confidence interval calculations completed")
         return ConfidenceIntervalCollectionData(
@@ -327,7 +327,7 @@ class ClusterBuilder:
         df: pd.DataFrame,
         config: ClusteringConfig,
         k: Optional[int] = None,
-        limit=30,
+        limit=10,
         ignored_columns: Optional[List[str]] = None,
         wss_var: float = 0.0,
     ) -> ClusteredResult:
@@ -363,16 +363,13 @@ class ClusterBuilder:
             self.logger.debug(f"DataFrame shape after removing ignored columns: {df.shape}")
 
         self.logger.debug("Calculating initial WSS")
-        wss = df.var(axis=0).sum() * (len(df) - 1)
+        wss_values = [np.sum(np.var(df, axis=0)) * (len(df) - 1)]
         limit = min(len(df) - 1, limit)
-        wss_values = [wss]
-        
         self.logger.info(f"Starting WSS calculation for {limit} clusters")
         for i in range(2, limit + 1):
             self.logger.debug(f"Calculating WSS for {i} clusters")
             kmeans = KMeans(n_clusters=i).fit(df)
             wss_values.append(kmeans.inertia_)
-        
         self.logger.debug("Creating nclusters DataFrame")
         nclusters = pd.DataFrame({"n": range(1, limit + 1), "wss": wss_values})
 
@@ -507,14 +504,17 @@ class ClusterBuilder:
                 if cls.cluster_data is None or cls.cluster_data.empty:
                     self.logger.error("Cluster data is None or empty")
                     raise ValueError("cls.cluster_data is None or empty")
-                    
-                nclusters = cls.cluster_data
-                nclusters["pareto"] = nclusters["wss"] / nclusters["wss"].iloc[0]
-                nclusters["dif"] = nclusters["pareto"].shift(1) - nclusters["pareto"]
                 
-                filtered_nclusters = nclusters[nclusters["dif"] > wss_var]
-                n_values = filtered_nclusters["n"]
-                k = n_values.max(skipna=True)
+                k = (cls.cluster_data
+                    .assign(
+                        pareto=lambda x: x['wss'] / x['wss'].iloc[0]
+                    )
+                    .assign(
+                        dif=lambda x: x['pareto'].shift(1, fill_value=np.nan) - x['pareto']
+                    )
+                    .query(f'dif > {wss_var}')['n']
+                    .values)
+                k = np.max(k)
 
                 self.logger.debug(f"Initial optimal k value: {k}")
 
@@ -712,8 +712,8 @@ class ClusterBuilder:
         ]
     
     def _bootstrap_sampling(
-        self, sample: pd.Series, boot_n: int
-    ) -> Dict[str, List[float]]:
+        self, sample: pd.Series, boot_n: int, seed: int = 1
+    ) -> Dict[str, Union[np.ndarray, List[float]]]:
         self.logger.debug(f"Starting bootstrap sampling with sample size: {len(sample)} and boot_n: {boot_n}")
         
         # Log sample statistics at debug level
@@ -722,60 +722,46 @@ class ClusterBuilder:
             f"Std: {sample.std():.4f}, "
             f"Non-null count: {sample.count()}"
         )
+        np.random.seed(seed)
         
         valid_samples = sample[~sample.isna()]
         if len(valid_samples) > 1:
-            self.logger.info("Performing bootstrap sampling with multiple valid samples")
-            try:
-                sample_n = len(sample)
-                sample_mean = np.mean(sample)
-                self.logger.debug(f"Initial sample mean: {sample_mean:.4f}")
-                
-                # Generate bootstrap samples
-                self.logger.debug("Generating bootstrap samples...")
-                boot_sample = np.random.choice(
-                    sample, size=(boot_n, sample_n), replace=True
-                )
-                
-                # Calculate bootstrap means
-                boot_means = np.mean(boot_sample, axis=1)
-                self.logger.debug(f"Bootstrap means range: [{np.min(boot_means):.4f}, {np.max(boot_means):.4f}]")
-                
-                # Calculate standard error
-                se = np.std(boot_means)
-                self.logger.debug(f"Standard error: {se:.4f}")
-                
-                # Calculate margin of error and confidence interval
-                me = stats.t.ppf(0.975, sample_n - 1) * se
-                sample_me = np.sqrt(sample_n) * me
-                ci = [sample_mean - sample_me, sample_mean + sample_me]
-                
-                self.logger.info(
-                    f"Bootstrap sampling completed successfully. "
-                    f"CI: [{ci[0]:.4f}, {ci[1]:.4f}]"
-                )
-                
-                return {
-                    "boot_means": boot_means,
-                    "ci": ci,
-                    "se": [float(se)],
-                }
-                
-            except Exception as e:
-                self.logger.error(f"Error during bootstrap sampling: {str(e)}", exc_info=True)
-                raise
-                
-        else:
-            if sample.isna().all():
-                self.logger.warning("All samples are NaN, returning NaN confidence interval")
-                ci = [np.nan, np.nan]
-            else:
-                self.logger.warning("Only one valid sample found, returning single value confidence interval")
-                ci = [sample.iloc[0], sample.iloc[0]]
-                
-            self.logger.debug(f"Returning simple result with CI: {ci}")
+            # Calculate initial statistics
+            sample_n = len(sample)
+            sample_mean = float(np.nanmean(sample))  # Equivalent to mean(samp, na.rm=TRUE)
+            
+            # Generate bootstrap samples
+            boot_sample = np.random.choice(
+                valid_samples,  # Use only valid samples for bootstrapping
+                size=(boot_n, sample_n),
+                replace=True
+            )
+            
+            # Calculate bootstrap means
+            boot_means = np.mean(boot_sample, axis=1)
+            
+            # Calculate standard error
+            se = float(np.std(boot_means))
+            
+            # Calculate margin of error and confidence interval
+            me = stats.t.ppf(0.975, sample_n - 1) * se
+            sample_me = np.sqrt(sample_n) * me
+            ci = [sample_mean - sample_me, sample_mean + sample_me]
+            
             return {
-                "boot_means": sample.tolist(),
+                "boot_means": boot_means,
                 "ci": ci,
-                "se": [0.0],
+                "se": se,  # Return single value instead of list
+            }
+        else:
+            # Handle case with insufficient samples
+            if len(valid_samples) == 0:
+                single_value = np.nan
+            else:
+                single_value = valid_samples.iloc[0]
+                
+            return {
+                "boot_means": np.array([single_value]),
+                "ci": [single_value, single_value],
+                "se": 0.0,  # Return single value instead of list
             }
