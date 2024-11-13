@@ -111,10 +111,13 @@ class ClusterVisualizer:
             for i, rn_val in enumerate(unique_rns):
                 rn_data = cluster_data[cluster_data['rn'] == rn_val]['x_sim'].values
                 if len(rn_data) > 0:
-                    # Calculate KDE more efficiently
+                    # Calculate KDE with minimum density threshold (rel_min_height)
                     kde = stats.gaussian_kde(rn_data, bw_method=0.5)
                     x_range = np.linspace(x_min, x_max, 200)
                     density = kde(x_range)
+                    
+                    # Apply minimum density threshold (equivalent to rel_min_height = 0.01)
+                    density[density < np.max(density) * 0.01] = 0
                     
                     # Scale density for better visualization
                     density = density * 3  # Matches scale=3 in R code
@@ -144,9 +147,9 @@ class ClusterVisualizer:
             
             # Add CI text for each unique rn value
             for i, rn_val in enumerate(unique_rns):
-                # Get the corresponding CI for the current rn value
                 cluster_ci_rn = cluster_ci[cluster_ci['rn'] == rn_val]
                 if not cluster_ci_rn.empty:
+                    # Match R's position_nudge behavior
                     y_pos = y_positions[i] + 0.1
                     x_pos = cluster_ci_rn['boot_mean'].iloc[0] - 0.02
                     ax.text(
@@ -168,14 +171,17 @@ class ClusterVisualizer:
             
             # Add horizontal line for ROAS
             if temp == "ROAS":
-                ax.axhline(y=1, alpha=0.5, color='#808080', linestyle='--')
+                ax.axhline(y=1, alpha=0.5, color='#808080', linestyle='--')  # Equivalent to grey50
             
-            # Style the plot
+            # Style the plot to match theme_lares
             ax.set_title(f"Cluster {cluster}")
             ax.set_xlabel(temp)
             ax.set_ylabel("Density")
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
+            # Add visible bottom axis line
+            ax.spines['bottom'].set_visible(True)
+            ax.spines['bottom'].set_linewidth(0.5)
             ax.set_facecolor('white')
         
         # Hide empty subplots
@@ -193,14 +199,16 @@ class ClusterVisualizer:
         fig.text(
             0.5,
             0.02,
-            f"Based on {ci_results.boot_n} bootstrap results with {ci_results.sim_n} simulations",
+            f"Based on {ci_results.boot_n:,} bootstrap results with {ci_results.sim_n:,} simulations",
             ha='center'
         )
         
         plt.tight_layout(rect=(0, 0.05, 1, 0.92))
         
-        return fig
-
+        figs = plt.gcf()
+        plt.close(figs)
+        return figs
+    
     def plot_top_solutions_errors(
         self,
         df: pd.DataFrame,
@@ -234,17 +242,20 @@ class ClusterVisualizer:
 
         # Plot the data
         plt.figure(figsize=(10, 8))
+        palette = sns.color_palette("husl", n_colors=len(merged_df.loc[merged_df['highlight'], 'label'].unique()), as_cmap=False)
+
         sns.scatterplot(
             data=merged_df[~merged_df["highlight"]], x="nrmse", y="decomp.rssd", color="gray"
         )
         sns.scatterplot(
-            data=merged_df[merged_df["highlight"]], x="nrmse", y="decomp.rssd", hue="label", 
-            palette=sns.color_palette("husl", n_colors=len(merged_df.loc[merged_df['highlight'], 'label'].unique()), as_cmap=False)
+            data=merged_df[merged_df["highlight"]], x="nrmse", y="decomp.rssd", hue="label", palette=palette
         )
 
         for i, row in merged_df.iterrows():
             if row["highlight"]:
-                plt.scatter(row['nrmse'], row['decomp.rssd'], alpha=row['alpha'])
+                plt.scatter(row['nrmse'], row['decomp.rssd'], alpha=row['alpha'], color=palette[list(merged_df.loc[merged_df['highlight'], 'label'].unique()).index(row['label'])])
+                plt.annotate(row['label'], (row['nrmse'], row['decomp.rssd']), xytext=(0,10), textcoords="offset points", ha='center')
+
         plt.title(f"Selecting Top {limit} Performing Models by Cluster\nBased on minimum (weighted) distance to origin")
         plt.xlabel("NRMSE")
         plt.ylabel("DECOMP.RSSD")
@@ -252,7 +263,9 @@ class ClusterVisualizer:
         plt.figtext(0.5, 0.01, 
                     f"Weights: NRMSE {round(100 * balance[0])}%, DECOMP.RSSD {round(100 * balance[1])}%, MAPE {round(100 * balance[2])}%", 
                     ha="center", fontsize=10)
-        return plt.gcf()
+        figs = plt.gcf()  
+        plt.close(figs)
+        return figs # Return the current figure
 
     def plot_topsols_rois(
         self,
@@ -273,39 +286,63 @@ class ClusterVisualizer:
         # Select real columns from df
         real_rois = df.drop(columns=["mape", "nrmse", "decomp.rssd"]).copy()
         real_rois.columns = ["real_" + col for col in real_rois.columns]
+        
         # Merge DataFrames
-        merged_df = pd.merge(top_sols, real_rois, left_on="sol_id", right_on="real_sol_id", how="left")
-        # Create a new column 'label'
+        merged_df = pd.merge(top_sols, real_rois, 
+                            left_on="sol_id",  # Changed from sol_id to match R code
+                            right_on="real_sol_id", 
+                            how="left")
+        
+        # Create label column
         merged_df["label"] = merged_df.apply(
-            lambda row: f'[{row["cluster"]}:{row["rank"]}] {row["sol_id"]}', axis=1
+            lambda row: f'[{row["cluster"]}.{row["rank"]}]\n{row["sol_id"]}', 
+            axis=1
         )
-        # Melt the DataFrame
-        columns_to_melt = [col for col in merged_df.columns if any(media in col for media in all_media)]
+        
+        # Melt the DataFrame - only select columns containing media names
+        media_cols = [col for col in merged_df.columns if any(media in col for media in all_media)]
         melted_df = pd.melt(
             merged_df,
             id_vars=["label"],
-            value_vars=columns_to_melt,
+            value_vars=media_cols,
             var_name="media",
             value_name="perf"
         )
-        filtered_df = melted_df[melted_df["media"].str.contains("real_")]
-        filtered_df.loc[:, "media"] = filtered_df["media"].apply(lambda x: x.replace("real_", ""))
-
-        # Plot the data
-        # Facet grid
-        g = sns.FacetGrid(filtered_df, row="label", height=7, aspect=1)
-        g.map(sns.barplot, "perf", "media", order=filtered_df["media"].unique())
-        g.set_titles(col_template="{col_name}")
-        g.figure.suptitle("Top Performing Models by Media", ha='center', va='top', fontsize=20)
-        g.figure.tight_layout()
-        for ax in g.axes.flat:
-            ax.tick_params(axis='x', bottom=True, which='both')
-            ax.set_xlabel("Mean metric per media")
-            ax.set_ylabel("")
-            ax.set_title(ax.get_title(), rotation=270, ha='right', x=1, y=0.5)
         
-        g.figure.subplots_adjust(top=0.95, hspace=0.1)
-        return plt.gcf()
+        # Filter and clean media names
+        melted_df = melted_df[melted_df["media"].str.contains("real_")].copy()
+        melted_df["media"] = melted_df["media"].str.replace("real_", "")
+        media_order = melted_df.groupby("media")["perf"].mean().sort_values(ascending=False).index
+
+        # Create the plot
+        labels = melted_df["label"].unique()
+        n_labels = len(labels)
+        fig, axes = plt.subplots(n_labels, 1, 
+                                figsize=(10, n_labels * 2),
+                                squeeze=False)
+        
+        # Plot each subplot
+        for idx, (label, ax) in enumerate(zip(labels, axes.flatten())):
+            data = melted_df[melted_df["label"] == label]
+            
+            sns.barplot(data=data,
+                    x="perf",
+                    y="media",
+                    order=media_order,  # Use global media ordering
+                    ax=ax)
+            
+            ax.set_title(label, loc="right", y=0.5)
+            ax.set_xlabel("Mean metric per media" if idx == n_labels-1 else "")
+            ax.set_ylabel("")
+        
+        # Adjust layout
+        plt.suptitle("Top Performing Models", y=1.02)
+        plt.tight_layout()
+        
+        figs = plt.gcf()  
+        plt.close(figs)
+        return figs # Return the current figure
+
 
     def create_correlations_heatmap(self, correlations: pd.DataFrame) -> Figure:
         """

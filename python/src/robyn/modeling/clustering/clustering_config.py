@@ -32,7 +32,7 @@ class ClusteringConfig:
     weights: List[float]
     dep_var_type: DependentVarType
     cluster_by: ClusterBy = ClusterBy.HYPERPARAMETERS
-    max_clusters: int = 30
+    max_clusters: int = 10
     min_clusters: int = 3
     k_clusters: int = maxsize
     limit: int = 1

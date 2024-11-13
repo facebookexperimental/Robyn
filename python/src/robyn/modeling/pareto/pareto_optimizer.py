@@ -1013,9 +1013,9 @@ class ParetoOptimizer:
                     raise e
 
         pareto_solutions = set()
-        if "sol_id" in mediaVecCollect.columns:
+        if "sol_id" in xDecompVecCollect.columns:
             # Update the set with unique sol_id values from the DataFrame
-            pareto_solutions.update(mediaVecCollect["sol_id"].unique())
+            pareto_solutions.update(set(xDecompVecCollect["sol_id"].unique()))
 
         return {
             "pareto_solutions": pareto_solutions,

@@ -98,7 +98,7 @@ class ParetoUtils:
 
     @staticmethod
     def min_max_norm(x: pd.Series, min: float = 0, max: float = 1) -> pd.Series:
-        x = x[np.isfinite(x) & ~x.isna()]
+        x = x.replace([np.inf, -np.inf], np.max(np.isfinite(x)))
         if len(x) <= 1:
             return x
         a, b = x.min(), x.max()
