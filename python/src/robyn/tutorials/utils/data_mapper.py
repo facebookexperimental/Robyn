@@ -11,7 +11,7 @@ from robyn.data.entities.enums import (
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.convergence import Convergence
+from robyn.modeling.entities.convergence_data import ConvergenceData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.entities.pareto_result import ParetoResult
@@ -177,16 +177,16 @@ def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFr
         Dictionary of converted pandas DataFrames
     """
     converted_data = {}
-    
+
     for model_id, model_data in plot_data_collect.items():
         try:
             converted_data[model_id] = {}
 
             # Convert each plot type (plot1data, plot2data, etc)
             for plot_type, plot_content in model_data.items():
-                if plot_type == 'plot7data':
+                if plot_type == "plot7data":
                     converted_data[model_id][plot_type] = pd.DataFrame(plot_content)
-            
+
                 if not isinstance(plot_content, dict):
                     continue
 
@@ -212,6 +212,21 @@ def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFr
 
 
 def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
+    # # Debugging: Print the keys and a brief summary of the data
+    # print("Debug: R output data keys:", data.keys())
+
+    # # Print the shape or length for each key
+    # for key in data.keys():
+    #     if isinstance(data[key], (int, float, str)):
+    #         print(f"Data for {key}: Type = {type(data[key])}, Value = {data[key]}")
+    #     elif isinstance(data[key], list):
+    #         print(f"Data for {key}: Length = {len(data[key])}, Sample = {data[key][:3]}")
+    #     elif isinstance(data[key], dict):
+    #         print(f"Data for {key}: Keys = {list(data[key].keys())[:3]}")
+    #     elif isinstance(data[key], pd.DataFrame):
+    #         print(f"Data for {key}: Shape = {data[key].shape}")
+    #     else:
+    #         print(f"Data for {key}: Type = {type(data[key])}")
     trials = []
     convergence_data = None
     hyper_bound_ng = pd.DataFrame()
@@ -219,7 +234,7 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
     hyper_updated = {}
     for trial_key, trial_data in data.items():
         if trial_key == "convergence":
-            convergence_data = Convergence.from_dict(trial_data)
+            convergence_data = ConvergenceData.from_dict(trial_data)
         elif trial_key == "hyper_updated":
             hyper_updated = trial_data
         elif trial_key == "hyper_fixed":

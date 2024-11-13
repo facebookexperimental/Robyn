@@ -19,6 +19,7 @@ import nevergrad as ng
 
 logger = logging.getLogger(__name__)
 
+
 class BaseModelExecutor(ABC):
     """
     Abstract base class for executing marketing mix models.
@@ -46,21 +47,25 @@ class BaseModelExecutor(ABC):
             featurized_mmm_data (FeaturizedMMMData): Featurized MMM data.
         """
         logger.info("Initializing BaseModelExecutor")
-        logger.debug("Input data shapes - MMMData: %s, Holidays: %s", 
-                    mmmdata.data.shape if hasattr(mmmdata, 'data') else 'None',
-                    len(holidays_data.holidays) if hasattr(holidays_data, 'holidays') else 'None')
-        
+        logger.debug(
+            "Input data shapes - MMMData: %s, Holidays: %s",
+            mmmdata.data.shape if hasattr(mmmdata, "data") else "None",
+            len(holidays_data.holidays) if hasattr(holidays_data, "holidays") else "None",
+        )
+
         self.mmmdata = mmmdata
         self.holidays_data = holidays_data
         self.hyperparameters = hyperparameters
         self.calibration_input = calibration_input
         self.featurized_mmm_data = featurized_mmm_data
         self.transformation = Transformation(mmmdata)
-        
-        logger.debug("Initialized with %d paid media variables, %d context variables, %d organic variables",
-                    len(mmmdata.mmmdata_spec.paid_media_vars),
-                    len(mmmdata.mmmdata_spec.context_vars),
-                    len(mmmdata.mmmdata_spec.organic_vars))
+
+        logger.debug(
+            "Initialized with %d paid media variables, %d context variables, %d organic variables",
+            len(mmmdata.mmmdata_spec.paid_media_vars),
+            len(mmmdata.mmmdata_spec.context_vars),
+            len(mmmdata.mmmdata_spec.organic_vars),
+        )
 
     @abstractmethod
     def model_run(
@@ -69,7 +74,7 @@ class BaseModelExecutor(ABC):
         ts_validation: bool = False,
         add_penalty_factor: bool = False,
         refresh: bool = False,
-        seed: int = 123,
+        seed: List[int] = [123],
         cores: Optional[int] = None,
         trials_config: Optional[TrialsConfig] = None,
         rssd_zero_penalty: bool = True,
@@ -91,7 +96,7 @@ class BaseModelExecutor(ABC):
             ValueError: If any required data or parameter is missing or invalid.
         """
         logger.debug("Validating input parameters")
-        
+
         validation_errors = []
         if self.mmmdata is None:
             validation_errors.append("MMMData is required")
@@ -101,12 +106,12 @@ class BaseModelExecutor(ABC):
             validation_errors.append("Hyperparameters are required")
         if self.featurized_mmm_data is None:
             validation_errors.append("FeaturizedMMMData is required")
-            
+
         if validation_errors:
             error_msg = "; ".join(validation_errors)
             logger.error("Input validation failed: %s", error_msg)
             raise ValueError(error_msg)
-            
+
         logger.info("Input validation successful")
 
     def _prepare_hyperparameters(
@@ -116,9 +121,13 @@ class BaseModelExecutor(ABC):
         ts_validation: bool,
     ) -> Dict[str, Any]:
         logger.info("Preparing hyperparameters")
-        logger.debug("Initial hyperparameters config: fixed=%s, add_penalty=%s, ts_validation=%s",
-                    bool(dt_hyper_fixed), add_penalty_factor, ts_validation)
-        
+        logger.debug(
+            "Initial hyperparameters config: fixed=%s, add_penalty=%s, ts_validation=%s",
+            bool(dt_hyper_fixed),
+            add_penalty_factor,
+            ts_validation,
+        )
+
         prepared_hyperparameters = self.hyperparameters.copy()
 
         if dt_hyper_fixed:
@@ -152,18 +161,14 @@ class BaseModelExecutor(ABC):
         if isinstance(prepared_hyperparameters.lambda_, list) and len(prepared_hyperparameters.lambda_) == 2:
             hyper_to_optimize["lambda"] = prepared_hyperparameters.lambda_
             logger.debug("Added lambda to optimization parameters")
-            
+
         if isinstance(prepared_hyperparameters.train_size, list) and len(prepared_hyperparameters.train_size) == 2:
             hyper_to_optimize["train_size"] = prepared_hyperparameters.train_size
             logger.debug("Added train_size to optimization parameters")
 
-        logger.info("Completed hyperparameter preparation with %d parameters to optimize", 
-                   len(hyper_to_optimize))
-        
-        return {
-            "prepared_hyperparameters": prepared_hyperparameters,
-            "hyper_to_optimize": hyper_to_optimize
-        }
+        logger.info("Completed hyperparameter preparation with %d parameters to optimize", len(hyper_to_optimize))
+
+        return {"prepared_hyperparameters": prepared_hyperparameters, "hyper_to_optimize": hyper_to_optimize}
 
     def _setup_nevergrad_optimizer(
         self,
@@ -181,17 +186,13 @@ class BaseModelExecutor(ABC):
 
         logger.debug("Creating instrumentation with %d parameters", len(hyper_to_optimize))
         instrum_dict = {
-            name: ng.p.Scalar(lower=bounds[0], upper=bounds[1]) 
-            for name, bounds in hyper_to_optimize.items()
+            name: ng.p.Scalar(lower=bounds[0], upper=bounds[1]) for name, bounds in hyper_to_optimize.items()
         }
 
         instrum = ng.p.Instrumentation(**instrum_dict)
-        optimizer = ng.optimizers.registry[nevergrad_algo.value](
-            instrum, budget=iterations, num_workers=cores
-        )
-        
-        logger.info("Optimizer setup complete with %d iterations and %d cores", 
-                   iterations, cores)
+        optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
+
+        logger.info("Optimizer setup complete with %d iterations and %d cores", iterations, cores)
         return optimizer
 
     def _calculate_objective(
@@ -201,9 +202,13 @@ class BaseModelExecutor(ABC):
         rssd: float,
         objective_weights: Optional[Dict[str, float]],
     ) -> float:
-        logger.debug("Calculating objective with scores - Train: %.4f, Test: %.4f, RSSD: %.4f",
-                    train_score, test_score or 0, rssd)
-        
+        logger.debug(
+            "Calculating objective with scores - Train: %.4f, Test: %.4f, RSSD: %.4f",
+            train_score,
+            test_score or 0,
+            rssd,
+        )
+
         if objective_weights is None:
             logger.debug("Using default objective weights")
             objective_weights = {"train_score": 1.0, "test_score": 1.0, "rssd": 1.0}
@@ -213,27 +218,26 @@ class BaseModelExecutor(ABC):
             + objective_weights.get("test_score", 0) * (1 - (test_score or 0))
             + objective_weights["rssd"] * rssd
         )
-        
+
         logger.debug("Calculated objective value: %.4f", objective)
         return objective
 
     def _apply_transformations(self, channel: str, hyperparameters: Dict[str, Any]) -> np.ndarray:
         logger.debug("Applying transformations for channel: %s", channel)
-        
+
         adstock_type = self.mmmdata.adstock
         logger.debug("Using adstock type: %s", adstock_type)
-        
+
         try:
             if adstock_type == AdstockType.GEOMETRIC:
-                logger.debug("Applying geometric adstock with theta: %.4f", 
-                           hyperparameters[f"{channel}_theta"])
-                adstock_result = self.transformation.adstock_geometric(
-                    channel, hyperparameters[f"{channel}_theta"]
-                )
+                logger.debug("Applying geometric adstock with theta: %.4f", hyperparameters[f"{channel}_theta"])
+                adstock_result = self.transformation.adstock_geometric(channel, hyperparameters[f"{channel}_theta"])
             elif adstock_type in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
-                logger.debug("Applying Weibull adstock with shape: %.4f, scale: %.4f",
-                           hyperparameters[f"{channel}_shape"],
-                           hyperparameters[f"{channel}_scale"])
+                logger.debug(
+                    "Applying Weibull adstock with shape: %.4f, scale: %.4f",
+                    hyperparameters[f"{channel}_shape"],
+                    hyperparameters[f"{channel}_scale"],
+                )
                 adstock_result = self.transformation.adstock_weibull(
                     channel,
                     hyperparameters[f"{channel}_shape"],
@@ -245,21 +249,23 @@ class BaseModelExecutor(ABC):
                 raise ValueError(f"Unsupported adstock type: {adstock_type}")
 
             adstocked_data = adstock_result["adstocked"]
-            
-            logger.debug("Applying saturation transformation with alpha: %.4f, gamma: %.4f",
-                        hyperparameters[f"{channel}_alpha"],
-                        hyperparameters[f"{channel}_gamma"])
-            
+
+            logger.debug(
+                "Applying saturation transformation with alpha: %.4f, gamma: %.4f",
+                hyperparameters[f"{channel}_alpha"],
+                hyperparameters[f"{channel}_gamma"],
+            )
+
             saturated_data = self.transformation.saturation_hill(
                 channel,
                 hyperparameters[f"{channel}_alpha"],
                 hyperparameters[f"{channel}_gamma"],
                 marginal_input=adstocked_data,
             )
-            
+
             logger.debug("Transformations completed for channel %s", channel)
             return saturated_data
-            
+
         except Exception as e:
             logger.error("Error applying transformations for channel %s: %s", channel, str(e))
             raise
@@ -267,7 +273,7 @@ class BaseModelExecutor(ABC):
     def _prepare_model_data(self, hyperparameters: Dict[str, Any]) -> np.ndarray:
         logger.info("Preparing model data")
         transformed_data = {}
-        
+
         for channel in self.mmmdata.paid_media_vars:
             logger.debug("Processing channel: %s", channel)
             transformed_data[channel] = self._apply_transformations(channel, hyperparameters)
@@ -277,6 +283,6 @@ class BaseModelExecutor(ABC):
             [transformed_data[channel] for channel in self.mmmdata.paid_media_vars]
             + [self.mmmdata.data[var] for var in self.mmmdata.context_vars + self.mmmdata.organic_vars]
         )
-        
+
         logger.info("Model data preparation complete. Shape: %s", model_data.shape)
         return model_data

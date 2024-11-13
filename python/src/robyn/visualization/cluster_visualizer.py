@@ -6,24 +6,29 @@ from robyn.data.entities.enums import DependentVarType
 from scipy import stats
 import numpy as np
 import pandas as pd
+import logging
 import seaborn as sns
 from matplotlib.figure import Figure
+from robyn.modeling.clustering.clustering_config import (
+    ClusteringConfig,
+    DependentVarType,
+)
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.clustering.clustering_config import ClusteringConfig
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
 from robyn.modeling.entities.ci_collection_data import ConfidenceIntervalCollectionData
 
+logger = logging.getLogger(__name__)
 
 class ClusterVisualizer:
 
     def __init__(self, pareto_result: Optional[ParetoResult], clustered_result: Optional[ClusteredResult], mmm_data: Optional[MMMData]):
         if clustered_result is not None:
-            self.results = clustered_result
+            self.clustered_result = clustered_result
         if pareto_result is not None:
             self.pareto_result = pareto_result
         if mmm_data is not None:
-            self.mmm_data = mmm_data 
+            self.mmm_data = mmm_data
 
     def create_wss_plot(self, nclusters: pd.DataFrame, k: Optional[int]) -> Figure:
         """
@@ -360,12 +365,36 @@ class ClusterVisualizer:
         """
         Plot the results of dimensionality reduction (PCA or t-SNE).
         """
-        raise NotImplementedError
+        raise NotImplementedError        
 
-    def generate_bootstrap_confidence(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
-        """Generate error bar plot showing bootstrapped ROI/CPA confidence intervals."""
+    def generate_bootstrap_confidence(
+        self,
+        solution_id: str,
+        ax: Optional[plt.Axes] = None
+    ) -> Optional[plt.Figure]:
+        """
+        Generate error bar plot showing bootstrapped ROI/CPA confidence intervals.
+        
+        Args:
+            solution_id: ID of solution to visualize
+            ax: Optional matplotlib axes to plot on
+            
+        Returns:
+            Optional[plt.Figure]: Generated figure if ax is None, otherwise None
+        """
+        logger.debug("Starting generation of bootstrap confidence plot")
+        if not hasattr(self, 'pareto_result'):
+            raise ValueError("Pareto result not initialized")
+            
+        if solution_id not in self.pareto_result.plot_data_collect:
+            raise ValueError(f"Invalid solution ID: {solution_id}")
+        
+        # Get specific solution's data - Changed sol_id to solID
+        x_decomp_agg = self.pareto_result.x_decomp_agg[
+            self.pareto_result.x_decomp_agg['solID'] == solution_id
+        ]
+        
         # Check if we have confidence intervals
-        x_decomp_agg = self.pareto_result.x_decomp_agg
         if 'ci_low' not in x_decomp_agg.columns:
             if ax is None:
                 fig, ax = plt.subplots(figsize=(10, 6))
@@ -374,14 +403,11 @@ class ClusterVisualizer:
             else:
                 ax.text(0.5, 0.5, "No bootstrap results", ha='center', va='center')
                 return None
-                
-        # Get specific model ID (similar to sid in R code)
-        model_id = x_decomp_agg['solID'].iloc[0]
-
-        # Filter data for specific model
+        
+        # Filter data for specific model - Changed sol_id to solID
         bootstrap_data = (x_decomp_agg[
             (~x_decomp_agg['ci_low'].isna()) & 
-            (x_decomp_agg['solID'] == model_id)
+            (x_decomp_agg['solID'] == solution_id)
         ][['rn', 'solID', 'boot_mean', 'ci_low', 'ci_up']])
         
         # Create figure if no axes provided
@@ -449,8 +475,8 @@ class ClusterVisualizer:
         if metric_type == "ROI":
             ax.axvline(x=1, color='gray', linestyle='--', alpha=0.5, zorder=2)
         
-        # Set title
-        title = f"In-cluster bootstrapped {metric_type} with 95% CI & mean"
+        # Set title with solution ID
+        title = f"In-cluster bootstrapped {metric_type} with 95% CI & mean (Solution {solution_id})"
         if self.clustered_result is not None:
             cluster_info = self.clustered_result.cluster_data
             if not cluster_info.empty:
@@ -470,7 +496,8 @@ class ClusterVisualizer:
         ax.grid(True, axis='x', color='lightgray', linestyle='-', alpha=0.3, zorder=1)
         ax.set_axisbelow(True)
         
+        logger.debug("Successfully generated bootstrap confidence plot")
         if fig:
             plt.tight_layout()
-            return fig
-        return None
+        return fig
+    

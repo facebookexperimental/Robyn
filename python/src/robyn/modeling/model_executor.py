@@ -2,7 +2,7 @@
 # pyre-strict
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import os
 import logging
 
@@ -35,7 +35,7 @@ class ModelExecutor(BaseModelExecutor):
         ts_validation: bool = False,
         add_penalty_factor: bool = False,
         refresh: bool = False,
-        seed: int = 123,
+        seed: List[int] = [123],
         cores: int = None,
         trials_config: Optional[TrialsConfig] = None,
         rssd_zero_penalty: bool = True,
@@ -54,8 +54,13 @@ class ModelExecutor(BaseModelExecutor):
         self.logger.debug(
             "Model configuration - ts_validation=%s, add_penalty_factor=%s, seed=%d, "
             "cores=%s, rssd_zero_penalty=%s, intercept=%s, intercept_sign=%s",
-            ts_validation, add_penalty_factor, seed, cores, rssd_zero_penalty,
-            intercept, intercept_sign
+            ts_validation,
+            add_penalty_factor,
+            seed,
+            cores,
+            rssd_zero_penalty,
+            intercept,
+            intercept_sign,
         )
 
         try:
@@ -65,9 +70,7 @@ class ModelExecutor(BaseModelExecutor):
             cores = CommonUtils.get_cores_available(cores)
             self.logger.debug("Using %d cores for processing", cores)
 
-            prepared_hyperparameters = self._prepare_hyperparameters(
-                dt_hyper_fixed, add_penalty_factor, ts_validation
-            )
+            prepared_hyperparameters = self._prepare_hyperparameters(dt_hyper_fixed, add_penalty_factor, ts_validation)
             self.logger.debug("Hyperparameters prepared: %s", prepared_hyperparameters)
 
             if model_name == Models.RIDGE:
@@ -122,13 +125,8 @@ class ModelExecutor(BaseModelExecutor):
 
         try:
             if hasattr(model_outputs, "trials") and model_outputs.trials > 1:
-                self.logger.debug(
-                    "Calculating average performance across %d trials",
-                    model_outputs.trials
-                )
-                avg_performance = sum(
-                    trial.performance for trial in model_outputs.results
-                ) / model_outputs.trials
+                self.logger.debug("Calculating average performance across %d trials", model_outputs.trials)
+                avg_performance = sum(trial.performance for trial in model_outputs.results) / model_outputs.trials
                 additional_outputs["average_performance"] = avg_performance
                 self.logger.debug("Average performance calculated: %f", avg_performance)
 
@@ -136,9 +134,7 @@ class ModelExecutor(BaseModelExecutor):
             return additional_outputs
 
         except Exception as e:
-            self.logger.error(
-                "Error generating additional outputs: %s", str(e), exc_info=True
-            )
+            self.logger.error("Error generating additional outputs: %s", str(e), exc_info=True)
             raise
 
     def _validate_input(self):
@@ -149,10 +145,9 @@ class ModelExecutor(BaseModelExecutor):
         try:
             super()._validate_input()
             self.logger.debug(
-                "Input validation successful - MMM data shape: %s, "
-                "Holidays data shape: %s",
+                "Input validation successful - MMM data shape: %s, " "Holidays data shape: %s",
                 getattr(self.mmmdata, "shape", "N/A"),
-                getattr(self.holidays_data, "shape", "N/A")
+                getattr(self.holidays_data, "shape", "N/A"),
             )
         except Exception as e:
             self.logger.error("Input validation failed: %s", str(e), exc_info=True)
