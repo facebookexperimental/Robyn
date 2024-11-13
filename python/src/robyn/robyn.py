@@ -73,7 +73,7 @@ class Robyn:
         feature_engineering = FeatureEngineering(self.mmm_data, self.hyperparameters, self.holidays_data)
         featurized_mmm_data = feature_engineering.perform_feature_engineering()
         if plot:
-            feature_plotter = FeaturePlotter(self.mmm_data, self.hyperparameters)
+            _visualize_feature_plot()
             for channel in self.mmm_data.mmmdata_spec.paid_media_spends:
                 try:
                     fig = feature_plotter.plot_spend_exposure(featurized_mmm_data, channel)
@@ -178,13 +178,17 @@ class Robyn:
         )
 
         if plot:
-            self.visualize_outputs(plot=plot)
+            self._visualize_model_outputs(plot=plot)
         if export:
             self.export_outputs(export=export)
         return model_outputs
 
-    def visualize_outputs(self, plot=True):
-        # Add logic to visualize model outputs
+    def _visualize_feature_plot(self):
+        # FeaturePlotter()
+        pass
+
+    def _visualize_model_outputs(self):
+        # Model
         pass
 
     def export_outputs(self, export=True):

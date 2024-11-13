@@ -9,7 +9,7 @@ current_datetime = datetime.now()
 # Get the directory of the current module
 module_dir = os.path.dirname(robyn.__file__)
 
-log_directory = '/tmp/robynpy/logs'
+log_directory = "/tmp/robynpy/logs"
 if not os.path.exists(log_directory):
     os.makedirs(log_directory)
 
