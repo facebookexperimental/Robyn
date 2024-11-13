@@ -158,7 +158,7 @@ class TransformationVisualizer:
                     
                 logger.debug("Y-scale factor: %f", y_sec_scale)    
             except (KeyError, AttributeError, IndexError) as e:
-                print(f"Error accessing plot data for solution {solution_id}: {str(e)}")
+                logger.error(f"Error accessing plot data for solution {solution_id}: {str(e)}")
                 return None
             
             # Transform variable names safely

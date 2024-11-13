@@ -152,7 +152,7 @@ class OnePagerReporter:
             return metrics
             
         except Exception as e:
-            logger.debug(f"Error getting model info for solution {solution_id}: {str(e)}")
+            logger.error(f"Error getting model info for solution {solution_id}: {str(e)}")
             return {
                 'rsq_train': "0.0000",
                 'nrmse': "0.0000",
@@ -236,7 +236,7 @@ class OnePagerReporter:
                     config['func'](ax)
                     ax.set_title(config['title'])
                 except Exception as e:
-                    logger.debug(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
+                    logger.error(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
                     ax.text(0.5, 0.5, f"Error generating {plot_name}",
                         ha='center', va='center')
 
@@ -378,7 +378,7 @@ class OnePagerReporter:
                 figures.append(fig)
                 
         except Exception as e:
-            logger.debug(f"Error generating plots: {str(e)}")
+            logger.error(f"Error generating plots: {str(e)}")
             for fig in figures:
                 plt.close(fig)
             raise
