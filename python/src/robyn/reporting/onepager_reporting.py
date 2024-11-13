@@ -19,6 +19,36 @@ from robyn.visualization.transformation_visualizer import TransformationVisualiz
 
 logger = logging.getLogger(__name__)
 
+from enum import Enum, auto
+from typing import Dict, Optional, List, Tuple, Union, Set
+
+# Create the Enum class
+class PlotType(Enum):
+    SPEND_EFFECT = 'spend_effect'
+    WATERFALL = 'waterfall'
+    FITTED_VS_ACTUAL = 'fitted_vs_actual'
+    BOOTSTRAP = 'bootstrap'
+    ADSTOCK = 'adstock'
+    IMMEDIATE_CARRYOVER = 'immediate_carryover'
+    RESPONSE_CURVES = 'response_curves'
+    DIAGNOSTIC = 'diagnostic'
+
+    @classmethod
+    def get_all_plots(cls) -> List[str]:
+        """Get list of all plot type values."""
+        return [plot.value for plot in cls]
+
+    @classmethod
+    def validate_plot_types(cls, plots: List[str]) -> None:
+        """Validate that all plot types are valid enum values."""
+        valid_plots = set(cls.get_all_plots())
+        invalid_plots = set(plots) - valid_plots
+        if invalid_plots:
+            raise ValueError(
+                f"Invalid plot type(s): {invalid_plots}. "
+                f"Valid plot types are: {valid_plots}"
+            )
+
 class OnePagerReporter:
     def __init__(
         self,
@@ -32,15 +62,12 @@ class OnePagerReporter:
         self.adstock = adstock
         self.mmm_data = mmm_data
         
-        # Default plots to show
-        self.default_plots = [
-            'spend_effect', 'waterfall', 'fitted_vs_actual', 'bootstrap',
-            'adstock', 'immediate_carryover', 'response_curves', 'diagnostic'
-        ]
+        # Default plots to show using Enum values
+        self.default_plots = PlotType.get_all_plots()
 
         # Set up matplotlib style
         self._setup_plotting_style()
-    
+            
     def _setup_plotting_style(self):
         """Configure the plotting style for the one-pager."""
         plt.style.use('default')
@@ -172,54 +199,47 @@ class OnePagerReporter:
         response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
         transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
         
-        # Adjust GridSpec to have more space between plots
-        gs.update(
-            top=0.85,     # Space for main title
-            bottom=0.1,   # Space for x-labels
-            left=0.1,
-            right=0.9,
-            hspace=0.4,   # Increased vertical space between plots
-            wspace=0.3    # Increased horizontal space between plots
-        )
+        # Add space at top for title
+        gs.update(top=0.85)  # Leave space at top for titles
         
-        # Define plot positions and functions
+        # Define plot positions and functions using Enum values
         plot_config = {
-            'spend_effect': {
+            PlotType.SPEND_EFFECT.value: {
                 'position': gs[0, 0],
                 'title': 'Share of Total Spend, Effect & Performance',
                 'func': lambda ax: transfor_viz.generate_spend_effect_comparison(solution_id, ax)
             },
-            'waterfall': {
+            PlotType.WATERFALL.value: {
                 'position': gs[1, 0],
                 'title': 'Response Decomposition Waterfall',
                 'func': lambda ax: pareto_viz.generate_waterfall(solution_id, ax) if pareto_viz else None
             },
-            'fitted_vs_actual': {
+            PlotType.FITTED_VS_ACTUAL.value: {
                 'position': gs[0, 1],
                 'title': 'Actual vs. Predicted Response',
                 'func': lambda ax: pareto_viz.generate_fitted_vs_actual(solution_id, ax) if pareto_viz else None
             },
-            'diagnostic': {
+            PlotType.DIAGNOSTIC.value: {
                 'position': gs[1, 1],
                 'title': 'Fitted vs. Residual',
                 'func': lambda ax: pareto_viz.generate_diagnostic_plot(solution_id, ax) if pareto_viz else None
             },
-            'immediate_carryover': {
+            PlotType.IMMEDIATE_CARRYOVER.value: {
                 'position': gs[2, 0],
                 'title': 'Immediate vs. Carryover Response Percentage',
                 'func': lambda ax: pareto_viz.generate_immediate_vs_carryover(solution_id, ax) if pareto_viz else None
             },
-            'adstock': {
+            PlotType.ADSTOCK.value: {
                 'position': gs[2, 1],
                 'title': 'Adstock Rate Analysis',
                 'func': lambda ax: pareto_viz.generate_adstock_rate(solution_id, ax) if pareto_viz else None
             },
-            'bootstrap': {
+            PlotType.BOOTSTRAP.value: {
                 'position': gs[3, 0],
                 'title': 'Bootstrapped Performance Metrics',
                 'func': lambda ax: cluster_viz.generate_bootstrap_confidence(solution_id, ax) if cluster_viz else None
             },
-            'response_curves': {
+            PlotType.RESPONSE_CURVES.value: {
                 'position': gs[3, 1],
                 'title': 'Response Curves and Mean Spends by Channel',
                 'func': lambda ax: response_viz.generate_response_curves(solution_id, ax)
@@ -269,7 +289,7 @@ class OnePagerReporter:
         self,
         solution_ids: Union[str, List[str]] = 'all',
         plots: Optional[List[str]] = None,
-        figsize: tuple = (22, 17),  # Updated default figure size
+        figsize: tuple = (20, 15),
         save_path: Optional[str] = None,
         top_pareto: bool = False
     ) -> List[plt.Figure]:
@@ -278,15 +298,20 @@ class OnePagerReporter:
         
         Args:
             solution_ids: Single solution ID or list of solution IDs or 'all'
-            plots: Optional list of plot types to include
+            plots: Optional list of plot types from PlotType enum
             figsize: Figure size for each page
-            save_path: Optional path to save the figures.
-            top_pareto: If True, loads from clustered results.
+            save_path: Optional path to save the figures
+            top_pareto: If True, loads the one-page summaries for the top Pareto models
             
         Returns:
             List[plt.Figure]: List of generated figures, one per solution
+            
+        Raises:
+            ValueError: If invalid plot types are provided
         """
+        # Validate plot types
         plots = plots or self.default_plots
+        PlotType.validate_plot_types(plots)
         
         # Handle solution IDs based on top_pareto parameter
         if top_pareto:
