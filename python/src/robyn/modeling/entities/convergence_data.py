@@ -4,14 +4,14 @@ import pandas as pd
 
 
 @dataclass
-class Convergence:
+class ConvergenceData:
     moo_distrb_plot: Optional[str]  # Hexadecimal string of plot image data
     moo_cloud_plot: Optional[str]  # Hexadecimal string of plot image data
     errors: pd.DataFrame
     conv_msg: List[str]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, any]) -> "Convergence":
+    def from_dict(cls, data: Dict[str, any]) -> "ConvergenceData":
         return cls(
             moo_distrb_plot=data.get("moo_distrb_plot"),
             moo_cloud_plot=data.get("moo_cloud_plot"),
