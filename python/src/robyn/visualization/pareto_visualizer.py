@@ -3,15 +3,14 @@ from matplotlib import ticker, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
+import logging
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 
+logger = logging.getLogger(__name__)
+
 class ParetoVisualizer:
-    """
-    Class for visualizing pareto results.
-    """
     def __init__(self, pareto_result: ParetoResult, adstock: AdstockType, mmm_data: MMMData):
         self.pareto_result = pareto_result
         self.adstock = adstock
@@ -36,10 +35,15 @@ class ParetoVisualizer:
         else:
             return f"{x:.1f}"    
 
-    def generate_waterfall(self, ax: Optional[plt.Axes] = None, baseline_level: int = 0) -> Optional[plt.Figure]:
-        """Generate waterfall chart showing response decomposition by predictor."""
-        # Get data for first model ID
-        plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
+    def generate_waterfall(self, solution_id: str, ax: Optional[plt.Axes] = None, baseline_level: int = 0) -> Optional[plt.Figure]:
+        """Generate waterfall chart for specific solution."""
+        
+        logger.debug("Starting generation of waterfall plot")
+        if solution_id not in self.pareto_result.plot_data_collect:
+            raise ValueError(f"Invalid solution ID: {solution_id}")
+        
+        # Get data for specific solution
+        plot_data = self.pareto_result.plot_data_collect[solution_id]
         waterfall_data = plot_data['plot2data']['plotWaterfallLoop'].copy()
 
         # Get baseline variables
@@ -149,6 +153,7 @@ class ParetoVisualizer:
         ax.grid(True, axis='x', alpha=0.2)
         ax.set_axisbelow(True)
         
+        logger.debug("Successfully generated of waterfall plot")
         # Adjust layout
         if fig:
             plt.subplots_adjust(right=0.85, top=0.85)
@@ -156,7 +161,7 @@ class ParetoVisualizer:
             
         return None
 
-    def generate_fitted_vs_actual(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
+    def generate_fitted_vs_actual(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate time series plot comparing fitted vs actual values.
         
         Args:
@@ -165,8 +170,14 @@ class ParetoVisualizer:
         Returns:
             Optional[plt.Figure]: Generated matplotlib Figure object
         """
-        # Get the plot data
-        plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
+        
+        logger.debug("Starting generation of fitted vs actual plot")
+        
+        if solution_id not in self.pareto_result.plot_data_collect:
+            raise ValueError(f"Invalid solution ID: {solution_id}")
+        
+        # Get data for specific solution
+        plot_data = self.pareto_result.plot_data_collect[solution_id]
         ts_data = plot_data['plot5data']['xDecompVecPlotMelted'].copy()
         
         # Convert dates and format variables
@@ -247,12 +258,13 @@ class ParetoVisualizer:
         # Use white background
         ax.set_facecolor('white')
         
+        logger.debug("Successfully generated of fitted vs casual plot")
         if fig:
             plt.tight_layout()
             return fig
         return None
 
-    def generate_diagnostic_plot(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
+    def generate_diagnostic_plot(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate diagnostic scatter plot of fitted vs residual values.
         
         Args:
@@ -261,8 +273,14 @@ class ParetoVisualizer:
         Returns:
             Optional[plt.Figure]: Generated matplotlib Figure object
         """
-        # Get the plot data
-        plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
+
+        logger.debug("Starting generation of diagnostic plot")
+
+        if solution_id not in self.pareto_result.plot_data_collect:
+            raise ValueError(f"Invalid solution ID: {solution_id}")
+        
+        # Get data for specific solution
+        plot_data = self.pareto_result.plot_data_collect[solution_id]
         diag_data = plot_data['plot6data']['xDecompVecPlot'].copy()
         
         # Calculate residuals
@@ -319,22 +337,30 @@ class ParetoVisualizer:
         # Use white background
         ax.set_facecolor('white')
         
+        logger.debug("Successfully generated of diagnostic plot")
+
         if fig:
             plt.tight_layout()
             return fig
         return None
 
-    def generate_immediate_vs_carryover(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
+    def generate_immediate_vs_carryover(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate stacked bar chart comparing immediate vs carryover effects.
         
         Args:
             ax: Optional matplotlib axes to plot on. If None, creates new figure
             
         Returns:
-            Optional[plt.Figure]: Generated matplotlib Figure object
+            plt.Figure if ax is None, else None
         """
-        # Get the plot data
-        plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
+
+        logger.debug("Starting generation of immediate vs carryover plot")
+
+        if solution_id not in self.pareto_result.plot_data_collect:
+            raise ValueError(f"Invalid solution ID: {solution_id}")
+        
+        # Get data for specific solution
+        plot_data = self.pareto_result.plot_data_collect[solution_id]
         df_imme_caov = plot_data['plot7data'].copy()
         
         # Set up type factor levels
@@ -347,7 +373,6 @@ class ParetoVisualizer:
             fig, ax = plt.subplots(figsize=(10, 8))
         else:
             fig = None
-            return None
         
         # Define colors
         colors = {'Immediate': '#59B3D2', 'Carryover': 'coral'}
@@ -411,22 +436,28 @@ class ParetoVisualizer:
         # Use white background
         ax.set_facecolor('white')
         
+        logger.debug("Successfully generated of immediate vs carryover plot")
+
         if fig:
             plt.tight_layout()
             return fig
         return None
 
-    def generate_adstock_rate(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
+    def generate_adstock_rate(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate adstock rate visualization based on adstock type.
         
         Args:
+            solution_id: ID of solution to visualize
             ax: Optional matplotlib axes to plot on. If None, creates new figure
             
         Returns:
-            plt.Figure if ax is None, else None
+            Optional[plt.Figure]: Generated figure if ax is None, otherwise None
         """
-        # Get the plot data
-        plot_data = next(iter(self.pareto_result.plot_data_collect.values()))
+
+        logger.debug("Starting generation of adstock plot")
+
+        # Get the plot data for specific solution
+        plot_data = self.pareto_result.plot_data_collect[solution_id]
         adstock_data = plot_data['plot3data']
         
         # Create figure if no axes provided
@@ -447,7 +478,7 @@ class ParetoVisualizer:
                         color='coral')
             
             # Add percentage labels
-            for i, (theta) in enumerate(dt_geometric['thetas']):
+            for i, theta in enumerate(dt_geometric['thetas']):
                 ax.text(theta + 0.01, i,
                     f"{theta*100:.1f}%",
                     va='center',
@@ -463,7 +494,7 @@ class ParetoVisualizer:
             
             # Set title and labels
             interval_type = self.mmm_data.mmmdata_spec.interval_type if self.mmm_data else "day"
-            ax.set_title('Geometric Adstock: Fixed Rate Over Time')
+            ax.set_title(f'Geometric Adstock: Fixed Rate Over Time (Solution {solution_id})')
             ax.set_xlabel(f'Thetas [by {interval_type}]')
             ax.set_ylabel(None)
             
@@ -511,21 +542,6 @@ class ParetoVisualizer:
                 ax_sub.set_title(channel)
                 ax_sub.grid(True, alpha=0.2)
                 ax_sub.set_ylim(0, 1)
-                
-            # Remove empty subplots if any
-            for idx in range(len(channels), len(axes)):
-                if ax is None:
-                    fig.delaxes(axes[idx])
-                else:
-                    ax.figure.delaxes(axes[idx])
-            
-            # Set overall title and labels
-            interval_type = self.mmm_data.mmmdata_spec.intervalType if self.mmm_data else "day"
-            if ax is None:
-                fig.suptitle(f'Weibull {wb_type} Adstock: Flexible Rate Over Time',
-                            y=1.02)
-                fig.text(0.5, 0.02, f'Time unit [{interval_type}s]',
-                        ha='center')
         
         # Customize grid
         if self.adstock == AdstockType.GEOMETRIC:
@@ -536,6 +552,8 @@ class ParetoVisualizer:
         # Use white background
         ax.set_facecolor('white')
         
+        logger.debug("Successfully generated of adstock plot")
+
         if fig:
             plt.tight_layout()
             return fig

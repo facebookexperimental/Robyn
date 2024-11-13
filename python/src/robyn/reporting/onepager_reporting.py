@@ -1,8 +1,11 @@
-from typing import Dict, Optional, List, Tuple
+import os
+from typing import Dict, Optional, List, Tuple, Union
+import warnings
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
 import pandas as pd
+import logging
 
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
@@ -13,6 +16,8 @@ from robyn.visualization.pareto_visualizer import ParetoVisualizer
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.response_visualizer import ResponseVisualizer
 from robyn.visualization.transformation_visualizer import TransformationVisualizer
+
+logger = logging.getLogger(__name__)
 
 class OnePagerReporter:
     def __init__(
@@ -26,12 +31,6 @@ class OnePagerReporter:
         self.clustered_result = clustered_result
         self.adstock = adstock
         self.mmm_data = mmm_data
-        
-        # Initialize visualizers
-        self.pareto_viz = ParetoVisualizer(pareto_result, adstock, mmm_data) if adstock else None
-        self.cluster_viz = ClusterVisualizer(pareto_result, clustered_result, mmm_data) if clustered_result else None
-        self.response_viz = ResponseVisualizer(pareto_result, mmm_data)
-        self.transfor_viz = TransformationVisualizer(pareto_result, mmm_data)
         
         # Default plots to show
         self.default_plots = [
@@ -47,7 +46,7 @@ class OnePagerReporter:
         plt.style.use('default')
         sns.set_theme(style="whitegrid", context="paper")
         plt.rcParams.update({
-            'figure.figsize': (20, 15),
+            'figure.figsize': (22, 17),  # Increased figure size
             'figure.dpi': 100,
             'savefig.dpi': 300,
             'font.size': 10,
@@ -63,28 +62,64 @@ class OnePagerReporter:
             'axes.spines.right': False
         })
 
-    def _setup_grid(self, n_plots: int, figsize: tuple) -> Tuple[plt.Figure, GridSpec]:
-        """Set up the grid layout for the one pager."""
-        fig = plt.figure(figsize=figsize, constrained_layout=True)
-        gs = GridSpec(4, 2, figure=fig)
-        return fig, gs
+    def _setup_grid(self, n_plots: int, n_solutions: int, figsize: tuple) -> Tuple[plt.Figure, List[GridSpec]]:
+        """Set up the grid layout for multiple solutions.
         
-    def _safe_format(self, value, precision: int = 4) -> str:
-        """Safely format numeric values with specified precision."""
-        try:
-            if isinstance(value, (pd.DataFrame, pd.Series)):
-                value = value.iloc[0] if isinstance(value, pd.Series) else value.iloc[0, 0]
-            if pd.isna(value):
-                return "0.0000"
-            return f"{float(value):.{precision}f}"
-        except (TypeError, ValueError, IndexError):
-            return "0.0000"
+        Args:
+            n_plots: Number of plots per solution
+            n_solutions: Number of solutions to plot
+            figsize: Base figure size (width, height)
             
-    def _get_model_info(self) -> Dict[str, str]:
-        """Get model performance metrics and information."""
+        Returns:
+            Tuple containing:
+            - Main figure
+            - List of GridSpec objects for each solution
+        """
+        if n_solutions == 1:
+            # Single solution case
+            fig = plt.figure(figsize=figsize, constrained_layout=True)
+            gs = [GridSpec(4, 2, figure=fig)]
+        else:
+            # Calculate dimensions for multi-solution layout
+            n_cols = min(2, n_solutions)  # Maximum 2 columns
+            n_rows = (n_solutions + 1) // 2  # Round up division
+            
+            # Scale figsize based on number of solutions
+            scaled_figsize = (
+                figsize[0] * n_cols,  # Scale width by number of columns
+                figsize[1] * n_rows   # Scale height by number of rows
+            )
+            
+            # Create main figure
+            fig = plt.figure(figsize=scaled_figsize)
+            
+            # Create subfigures
+            subfigs = fig.subfigures(n_rows, n_cols, squeeze=False)
+            
+            # Create GridSpec for each solution
+            gs = []
+            for i in range(n_solutions):
+                row = i // n_cols
+                col = i % n_cols
+                subfig = subfigs[row, col]
+                gs.append(GridSpec(4, 2, figure=subfig))
+                
+                # Add padding between subfigures
+                subfig.set_facecolor('white')
+                subfig.supylabel(f'Solution {i+1}', fontsize=12)
+                
+            # Hide empty subfigures if any
+            for i in range(n_solutions, n_rows * n_cols):
+                row = i // n_cols
+                col = i % n_cols
+                subfigs[row, col].set_visible(False)
+                
+        return fig, gs
+    
+    def _get_model_info(self, solution_id: str) -> Dict[str, str]:
+        """Get model performance metrics for specific solution."""
         try:
-            # Get first model's data
-            model_data = next(iter(self.pareto_result.plot_data_collect.values()))
+            model_data = self.pareto_result.plot_data_collect[solution_id]
             
             # Extract RSQ from plot5data safely
             rsq = (
@@ -104,14 +139,12 @@ class OnePagerReporter:
             if isinstance(decomp_rssd, (pd.DataFrame, pd.Series)):
                 decomp_rssd = decomp_rssd.iloc[0] if isinstance(decomp_rssd, pd.Series) else decomp_rssd.iloc[0, 0]
             
-            # Format metrics
             metrics = {
                 'rsq_train': self._safe_format(rsq),
                 'nrmse': self._safe_format(nrmse),
                 'decomp_rssd': self._safe_format(decomp_rssd)
             }
             
-            # Add MAPE if available
             if hasattr(self.pareto_result, 'mape'):
                 mape_value = getattr(self.pareto_result, 'mape')
                 metrics['mape'] = self._safe_format(mape_value)
@@ -119,93 +152,96 @@ class OnePagerReporter:
             return metrics
             
         except Exception as e:
-            print(f"Error getting model info: {str(e)}")
+            logger.error(f"Error getting model info for solution {solution_id}: {str(e)}")
             return {
                 'rsq_train': "0.0000",
                 'nrmse': "0.0000",
                 'decomp_rssd': "0.0000"
             }
 
-    def generate_one_pager(
-    self,
-    plots: Optional[List[str]] = None,
-    figsize: tuple = (20, 15)
-) -> plt.Figure:
-        """Generate a one-page report with multiple visualization plots."""
-        plots = plots or self.default_plots
+    def _generate_solution_plots(
+        self,
+        solution_id: str,
+        plots: List[str],
+        gs: GridSpec
+    ) -> None:
+        """Generate plots for a single solution."""
+        # Initialize visualizers
+        pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data) if self.adstock else None
+        cluster_viz = ClusterVisualizer(self.pareto_result, self.clustered_result, self.mmm_data) if self.clustered_result else None
+        response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
+        transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
         
-        # Create figure and grid
-        fig, gs = self._setup_grid(len(plots), figsize)
-        
-        # Get model information
-        model_info = self._get_model_info()
+        # Adjust GridSpec to have more space between plots
+        gs.update(
+            top=0.85,     # Space for main title
+            bottom=0.1,   # Space for x-labels
+            left=0.1,
+            right=0.9,
+            hspace=0.4,   # Increased vertical space between plots
+            wspace=0.3    # Increased horizontal space between plots
+        )
         
         # Define plot positions and functions
         plot_config = {
             'spend_effect': {
                 'position': gs[0, 0],
-                'title': 'Share of Total Spend, Effect & Performance'
+                'title': 'Share of Total Spend, Effect & Performance',
+                'func': lambda ax: transfor_viz.generate_spend_effect_comparison(solution_id, ax)
             },
             'waterfall': {
                 'position': gs[1, 0],
-                'title': 'Response Decomposition Waterfall'
+                'title': 'Response Decomposition Waterfall',
+                'func': lambda ax: pareto_viz.generate_waterfall(solution_id, ax) if pareto_viz else None
             },
             'fitted_vs_actual': {
                 'position': gs[0, 1],
-                'title': 'Actual vs. Predicted Response'
+                'title': 'Actual vs. Predicted Response',
+                'func': lambda ax: pareto_viz.generate_fitted_vs_actual(solution_id, ax) if pareto_viz else None
             },
             'diagnostic': {
                 'position': gs[1, 1],
-                'title': 'Fitted vs. Residual'
+                'title': 'Fitted vs. Residual',
+                'func': lambda ax: pareto_viz.generate_diagnostic_plot(solution_id, ax) if pareto_viz else None
             },
             'immediate_carryover': {
                 'position': gs[2, 0],
-                'title': 'Immediate vs. Carryover Response Percentage'
+                'title': 'Immediate vs. Carryover Response Percentage',
+                'func': lambda ax: pareto_viz.generate_immediate_vs_carryover(solution_id, ax) if pareto_viz else None
             },
             'adstock': {
                 'position': gs[2, 1],
-                'title': 'Adstock Rate Analysis'
+                'title': 'Adstock Rate Analysis',
+                'func': lambda ax: pareto_viz.generate_adstock_rate(solution_id, ax) if pareto_viz else None
             },
             'bootstrap': {
                 'position': gs[3, 0],
-                'title': 'Bootstrapped Performance Metrics'
+                'title': 'Bootstrapped Performance Metrics',
+                'func': lambda ax: cluster_viz.generate_bootstrap_confidence(solution_id, ax) if cluster_viz else None
             },
             'response_curves': {
                 'position': gs[3, 1],
-                'title': 'Response Curves and Mean Spends by Channel'
+                'title': 'Response Curves and Mean Spends by Channel',
+                'func': lambda ax: response_viz.generate_response_curves(solution_id, ax)
             }
         }
-        
+
         # Generate each requested plot
         for plot_name in plots:
             if plot_name in plot_config:
                 config = plot_config[plot_name]
-                ax = fig.add_subplot(config['position'])
+                ax = plt.subplot(config['position'])
                 
                 try:
-                    if plot_name == 'spend_effect' and self.transfor_viz:
-                        self.transfor_viz.generate_spend_effect_comparison(ax=ax)
-                    elif plot_name == 'waterfall' and self.pareto_viz:
-                        self.pareto_viz.generate_waterfall(ax=ax)
-                    elif plot_name == 'fitted_vs_actual' and self.pareto_viz:
-                        self.pareto_viz.generate_fitted_vs_actual(ax=ax)
-                    elif plot_name == 'diagnostic' and self.pareto_viz:
-                        self.pareto_viz.generate_diagnostic_plot(ax=ax)
-                    elif plot_name == 'immediate_carryover' and self.pareto_viz:
-                        self.pareto_viz.generate_immediate_vs_carryover(ax=ax)
-                    elif plot_name == 'adstock' and self.pareto_viz:
-                        self.pareto_viz.generate_adstock_rate(ax=ax)
-                    elif plot_name == 'bootstrap' and self.cluster_viz:
-                        self.cluster_viz.generate_bootstrap_confidence(ax=ax)
-                    elif plot_name == 'response_curves' and self.response_viz:  # Changed from response to response_viz
-                        self.response_viz.generate_response_curves(ax=ax)
+                    config['func'](ax)
                     ax.set_title(config['title'])
                 except Exception as e:
-                    print(f"Error generating plot {plot_name}: {str(e)}")
-                    ax.text(0.5, 0.5, f"Error generating {plot_name}", 
+                    logger.error(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
+                    ax.text(0.5, 0.5, f"Error generating {plot_name}",
                         ha='center', va='center')
-        
-        # Add overall title with model metrics
+
+        # Get model info and add title
+        model_info = self._get_model_info(solution_id)
         metrics_text = (
             f"Model Performance Metrics - "
             f"R²: {model_info['rsq_train']} | "
@@ -215,22 +251,147 @@ class OnePagerReporter:
         if 'mape' in model_info:
             metrics_text += f" | MAPE: {model_info['mape']}"
             
+        # Add titles with proper spacing
+        fig = gs.figure
         fig.suptitle(
-            f"MMM Analysis One-Pager\n{metrics_text}",
+            f"MMM Analysis One-Pager (Solution {solution_id})",
             fontsize=14, y=0.98
         )
+        # Add metrics text below main title
+        fig.text(
+            0.5, 0.94,  # x, y position
+            metrics_text,
+            fontsize=12,
+            ha='center'
+        )
+
+    def generate_one_pager(
+        self,
+        solution_ids: Union[str, List[str]] = 'all',
+        plots: Optional[List[str]] = None,
+        figsize: tuple = (22, 17),  # Updated default figure size
+        save_path: Optional[str] = None,
+        top_pareto: bool = False
+    ) -> List[plt.Figure]:
+        """
+        Generate separate one-pager for each solution ID.
         
-        # Update default plots list 
-        self.default_plots = [
-            'spend_effect',
-            'waterfall',
-            'fitted_vs_actual',
-            'diagnostic',
-            'immediate_carryover',
-            'adstock',
-            'bootstrap',
-            'response_curves'
-        ]
+        Args:
+            solution_ids: Single solution ID or list of solution IDs or 'all'
+            plots: Optional list of plot types to include
+            figsize: Figure size for each page
+            save_path: Optional path to save the figures.
+            top_pareto: If True, loads from clustered results.
+            
+        Returns:
+            List[plt.Figure]: List of generated figures, one per solution
+        """
+        plots = plots or self.default_plots
         
-        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-        return fig
+        # Handle solution IDs based on top_pareto parameter
+        if top_pareto:
+            if self.clustered_result is None or not hasattr(self.clustered_result, 'top_solutions'):
+                raise ValueError("No clustered results or top solutions available")
+                
+            try:
+                # Try accessing 'solID' column if it's a DataFrame
+                if isinstance(self.clustered_result.top_solutions, pd.DataFrame):
+                    solution_ids = self.clustered_result.top_solutions['solID'].tolist()
+                elif isinstance(self.clustered_result.top_solutions, pd.Series):
+                    solution_ids = self.clustered_result.top_solutions.tolist()
+                elif isinstance(self.clustered_result.top_solutions, list):
+                    solution_ids = self.clustered_result.top_solutions
+                else:
+                    raise ValueError(f"Unexpected type for top_solutions: {type(self.clustered_result.top_solutions)}")
+                
+                solution_ids = [str(sid) for sid in solution_ids if sid is not None and pd.notna(sid)]
+                total_solutions = len(solution_ids)
+                
+                if not solution_ids:
+                    raise ValueError("No valid solution IDs found in top solutions")
+                    
+                logger.debug(f"Loading {total_solutions} top solutions")
+                
+            except Exception as e:
+                raise ValueError(f"Error processing top solutions: {str(e)}")
+        else:
+            if solution_ids == 'all':
+                solution_ids = list(self.pareto_result.plot_data_collect.keys())
+            elif isinstance(solution_ids, str):
+                solution_ids = [solution_ids]
+            elif isinstance(solution_ids, (list, tuple)):
+                solution_ids = list(solution_ids)
+            else:
+                raise ValueError(f"solution_ids must be string or list/tuple, got {type(solution_ids)}")
+            
+            if len(solution_ids) > 1 and not top_pareto:
+                warnings.warn(
+                    "Too many one pagers to load, please either select top_pareto=True "
+                    "or just specify a solution id. Plotting one pager for the first solution id"
+                )
+                solution_ids = [solution_ids[0]]
+                    
+        # Validate solution IDs
+        invalid_ids = [sid for sid in solution_ids if sid not in self.pareto_result.plot_data_collect]
+        if invalid_ids:
+            raise ValueError(f"Invalid solution IDs: {invalid_ids}")
+        
+        figures = []
+        
+        try:
+            if save_path:
+                os.makedirs(save_path, exist_ok=True)
+                    
+            for i, solution_id in enumerate(solution_ids):
+                logger.debug(f"Generating one-pager for solution {solution_id} ({i+1}/{len(solution_ids)})")
+                
+                # Create figure and grid for this solution
+                fig = plt.figure(figsize=figsize)
+                gs = GridSpec(4, 2, figure=fig)
+                
+                # Generate plots for this solution
+                self._generate_solution_plots(solution_id, plots, gs)
+                
+                # Adjust layout with improved spacing
+                fig.set_constrained_layout_pads(
+                    w_pad=0.15,    # Increased padding between plots horizontally
+                    h_pad=0.2,     # Increased padding between plots vertically
+                    hspace=0.4,    # Increased height space between subplots
+                    wspace=0.3     # Increased width space between subplots
+                )
+                
+                # Update layout to leave more space for titles and labels
+                plt.subplots_adjust(
+                    top=0.85,    # Space for main title
+                    bottom=0.1,  # Space for bottom x-labels
+                    left=0.1,    # Space for left y-labels
+                    right=0.9,   # Space for right margin
+                    hspace=0.4,  # Space between plots vertically
+                    wspace=0.3   # Space between plots horizontally
+                )
+                
+                if save_path:
+                    save_file = os.path.join(save_path, f'solution_{solution_id}.png')
+                    fig.savefig(save_file, dpi=300, bbox_inches='tight')
+                    logger.debug(f"Saved figure to {save_file}")
+                
+                figures.append(fig)
+                
+        except Exception as e:
+            logger.error(f"Error generating plots: {str(e)}")
+            for fig in figures:
+                plt.close(fig)
+            raise
+                
+        return figures
+    
+    def _safe_format(self, value, precision: int = 4) -> str:
+        """Safely format numeric values with specified precision."""
+        try:
+            if isinstance(value, (pd.DataFrame, pd.Series)):
+                value = value.iloc[0] if isinstance(value, pd.Series) else value.iloc[0, 0]
+            if pd.isna(value):
+                return "0.0000"
+            return f"{float(value):.{precision}f}"
+        except (TypeError, ValueError, IndexError):
+            return "0.0000"
