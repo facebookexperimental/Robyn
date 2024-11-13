@@ -834,23 +834,7 @@ check_class <- function(x, object) {
   if (any(!x %in% class(object))) stop(sprintf("Input object must be class %s", x))
 }
 
-check_allocator_constrains <- function(low, upr) {
-  if (all(is.na(low)) || all(is.na(upr))) {
-    stop("You must define lower (channel_constr_low) and upper (channel_constr_up) constraints")
-  }
-  max_length <- max(c(length(low), length(upr)))
-  if (any(low < 0)) {
-    stop("Inputs 'channel_constr_low' must be >= 0")
-  }
-  if (length(upr) != length(low)) {
-    stop("Inputs 'channel_constr_up' and 'channel_constr_low' must have the same length or length 1")
-  }
-  if (any(upr < low)) {
-    stop("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
-  }
-}
-
-check_allocator <- function(OutputCollect, select_model, paid_media_spends, scenario,
+check_allocator <- function(OutputCollect, select_model, paid_media_selected, scenario,
                             channel_constr_low, channel_constr_up, constr_mode) {
   if (!(select_model %in% OutputCollect$allSolutions)) {
     stop(
@@ -858,31 +842,32 @@ check_allocator <- function(OutputCollect, select_model, paid_media_spends, scen
       paste(OutputCollect$allSolutions, collapse = ", ")
     )
   }
-  if ("max_historical_response" %in% scenario) scenario <- "max_response"
+  if (length(paid_media_selected) <= 1) {
+    stop("Must have a valid model with at least two 'paid_media_selected'")
+  }
   opts <- c("max_response", "target_efficiency") # Deprecated: max_response_expected_spend
   if (!(scenario %in% opts)) {
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
-  check_allocator_constrains(channel_constr_low, channel_constr_up)
-  if (!(scenario == "target_efficiency" & is.null(channel_constr_low) & is.null(channel_constr_up))) {
-    if (length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_spends)) {
-      stop(paste(
-        "Input 'channel_constr_low' have to contain either only 1",
-        "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
-      ))
+  if ((is.null(channel_constr_low) & !is.null(channel_constr_up)) |
+      (!is.null(channel_constr_low) & is.null(channel_constr_up))) {
+    stop("channel_constr_low and channel_constr_up must be both provided or both NULL")
+  } else if (!is.null(channel_constr_low) & !is.null(channel_constr_up)) {
+    if (any(channel_constr_low < 0)) {
+      stop("Inputs 'channel_constr_low' must be >= 0")
     }
-    if (length(channel_constr_up) != 1 && length(channel_constr_up) != length(paid_media_spends)) {
-      stop(paste(
-        "Input 'channel_constr_up' have to contain either only 1",
-        "value or have same length as 'InputCollect$paid_media_spends':", length(paid_media_spends)
-      ))
+    if ((length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_selected)) |
+        (length(channel_constr_up) != 1 && length(channel_constr_up) != length(paid_media_selected))) {
+      stop("'channel_constr_low' and 'channel_constr_up' require either only 1 value or the same length as 'paid_media_selected'")
+    }
+    if (any(channel_constr_up < channel_constr_low)) {
+      stop("Inputs 'channel_constr_up' must be >= 'channel_constr_low'")
     }
   }
   opts <- c("eq", "ineq")
   if (!(constr_mode %in% opts)) {
     stop("Input 'constr_mode' must be one of: ", paste(opts, collapse = ", "))
   }
-  return(scenario)
 }
 
 check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars) {
