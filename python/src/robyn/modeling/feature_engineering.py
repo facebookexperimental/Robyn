@@ -37,7 +37,7 @@ class FeatureEngineering:
     def perform_feature_engineering(self, quiet: bool = False) -> FeaturizedMMMData:
         self.logger.info("Starting feature engineering process")
         self.logger.debug(f"Input data shape: {self.mmm_data.data.shape}")
-        
+
         dt_transform = self._prepare_data()
         self.logger.debug(f"Prepared data shape: {dt_transform.shape}")
 
@@ -216,10 +216,10 @@ class FeatureEngineering:
             lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
             yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
             rsq_lm = lm.score(spend_data.values.reshape(-1, 1), exposure_data)
-            
+
             res = {"channel": paid_media_var, "model_type": "lm", "rsq": rsq_lm, "coef": {"coef": lm.coef_[0]}}
             plot_data = pd.DataFrame({"spend": spend_data, "exposure": exposure_data, "yhat": yhat_lm})
-            
+
             return {"res": res, "plot": plot_data, "yhat": yhat_lm}
 
     @staticmethod
@@ -227,28 +227,27 @@ class FeatureEngineering:
         return x**alpha / (x**alpha + gamma**alpha)
 
     def _prophet_decomposition(self, dt_mod: pd.DataFrame) -> pd.DataFrame:
+        """Modified Prophet decomposition to match R implementation"""
         self.logger.info("Starting Prophet decomposition")
-        prophet_vars = self.holidays_data.prophet_vars
-        self.logger.debug(f"Prophet variables to process: {prophet_vars}")
 
+        # Prepare recurrence data
         recurrence = dt_mod[["ds", "dep_var"]].rename(columns={"dep_var": "y"}).copy()
         recurrence["ds"] = pd.to_datetime(recurrence["ds"])
 
-        holidays = self._set_holidays(
-            dt_mod, self.holidays_data.dt_holidays.copy(), self.mmm_data.mmmdata_spec.interval_type
-        ).copy()
-
+        # Get prophet parameters
+        prophet_vars = self.holidays_data.prophet_vars
         use_trend = "trend" in prophet_vars
         use_holiday = "holiday" in prophet_vars
         use_season = "season" in prophet_vars or "yearly.seasonality" in prophet_vars
         use_monthly = "monthly" in prophet_vars
         use_weekday = "weekday" in prophet_vars or "weekly.seasonality" in prophet_vars
 
-        self.logger.debug(
-            f"Prophet components enabled - Trend: {use_trend}, Holiday: {use_holiday}, "
-            f"Season: {use_season}, Monthly: {use_monthly}, Weekday: {use_weekday}"
+        # Process holidays
+        holidays = self._set_holidays(
+            dt_mod, self.holidays_data.dt_holidays.copy(), self.mmm_data.mmmdata_spec.interval_type
         )
 
+        # Prepare base regressors
         dt_regressors = pd.concat(
             [
                 recurrence,
@@ -262,95 +261,75 @@ class FeatureEngineering:
         )
         dt_regressors["ds"] = pd.to_datetime(dt_regressors["ds"])
 
-        prophet_country = self.holidays_data.prophet_country
-        if isinstance(prophet_country, str):
-            prophet_country = [prophet_country]
+        # Handle factor variables
+        factor_vars = self.mmm_data.mmmdata_spec.factor_vars
+        if factor_vars:
+            # Create dummy variables but keep original
+            dt_factors = dt_mod[factor_vars].copy()
+            dt_ohe = pd.get_dummies(dt_factors, prefix=factor_vars[0], prefix_sep="_")
 
-        if use_holiday and holidays is not None:
-            holidays_filtered = holidays[holidays["country"].isin(prophet_country)].copy()
-            self.logger.debug(f"Filtered holidays for countries: {prophet_country}")
-        else:
-            holidays_filtered = None
+            # Remove the reference level (usually the most frequent one)
+            reference_level = dt_factors[factor_vars[0]].mode()[0]
+            reference_col = f"{factor_vars[0]}_{reference_level}"
+            if reference_col in dt_ohe.columns:
+                dt_ohe = dt_ohe.drop(columns=[reference_col])
 
-        try:
-            prophet_params = {
-                "holidays": holidays_filtered,
-                "yearly_seasonality": use_season,
-                "weekly_seasonality": use_weekday,
-                "daily_seasonality": False,
-            }
-            if hasattr(self, "custom_params"):
-                if "yearly.seasonality" in self.custom_params:
-                    prophet_params["yearly_seasonality"] = self.custom_params["yearly.seasonality"]
-                if "weekly.seasonality" in self.custom_params and self.mmm_data.mmmdata_spec.day_interval <= 7:
-                    prophet_params["weekly_seasonality"] = self.custom_params["weekly.seasonality"]
+            # Add dummies to regressors
+            dt_regressors = pd.concat([dt_regressors, dt_ohe], axis=1)
 
-            model = Prophet(**prophet_params)
-            if use_monthly:
-                self.logger.debug("Adding monthly seasonality to Prophet model")
-                model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
+        # Setup Prophet model
+        model = Prophet(
+            holidays=holidays[holidays["country"].isin([self.holidays_data.prophet_country])] if use_holiday else None,
+            yearly_seasonality=use_season,
+            weekly_seasonality=use_weekday if self.mmm_data.mmmdata_spec.day_interval <= 7 else False,
+            daily_seasonality=False,
+        )
 
-            if self.mmm_data.mmmdata_spec.factor_vars:
-                self.logger.debug(f"Processing factor variables: {self.mmm_data.mmmdata_spec.factor_vars}")
-                dt_ohe = pd.get_dummies(dt_regressors[self.mmm_data.mmmdata_spec.factor_vars], drop_first=False)
-                ohe_names = [col for col in dt_ohe.columns if col not in self.mmm_data.mmmdata_spec.factor_vars]
-                
-                self.logger.debug(f"Adding {len(ohe_names)} one-hot encoded regressors to Prophet model")
-                for addreg in ohe_names:
-                    model.add_regressor(addreg)
-                
-                dt_ohe = pd.concat([dt_regressors.drop(columns=self.mmm_data.mmmdata_spec.factor_vars), dt_ohe], axis=1)
-                self.logger.info("Fitting Prophet model with factor variables")
-                mod_ohe = model.fit(dt_ohe)
-                dt_forecastRegressor = mod_ohe.predict(dt_ohe)
-                
-                forecastRecurrence = dt_forecastRegressor.drop(
-                    columns=[col for col in dt_forecastRegressor.columns if "_lower" in col or "_upper" in col]
-                )
-                
-                for aggreg in self.mmm_data.mmmdata_spec.factor_vars:
-                    self.logger.debug(f"Processing aggregation for {aggreg}")
-                    oheRegNames = [col for col in forecastRecurrence.columns if col.startswith(f"{aggreg}_")]
-                    get_reg = forecastRecurrence[oheRegNames].sum(axis=1)
-                    dt_mod[aggreg] = (get_reg - get_reg.min()) / (get_reg.max() - get_reg.min())
-            else:
-                if self.mmm_data.mmmdata_spec.day_interval == 1:
-                    self.logger.warning(
-                        "Known issue with Prophet for daily intervals. See: https://github.com/facebookexperimental/Robyn/issues/472"
-                    )
-                self.logger.info("Fitting Prophet model without factor variables")
-                mod = model.fit(dt_regressors)
-                forecastRecurrence = mod.predict(dt_regressors)
+        if use_monthly:
+            model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
 
-            these = range(len(recurrence))
-            self.logger.debug("Applying Prophet decomposition components")
-            
-            if use_trend:
-                dt_mod["trend"] = forecastRecurrence["trend"].iloc[these].values
-                self.logger.debug("Added trend component")
-            if use_season:
-                dt_mod["season"] = forecastRecurrence["yearly"].iloc[these].values
-                self.logger.debug("Added seasonal component")
-            if use_monthly:
-                dt_mod["monthly"] = forecastRecurrence["monthly"].iloc[these].values
-                self.logger.debug("Added monthly component")
-            if use_weekday:
-                dt_mod["weekday"] = forecastRecurrence["weekly"].iloc[these].values
-                self.logger.debug("Added weekday component")
-            if use_holiday:
-                dt_mod["holiday"] = forecastRecurrence["holidays"].iloc[these].values
-                self.logger.debug("Added holiday component")
+        # Add factor regressors
+        if factor_vars and len(dt_ohe.columns) > 0:
+            for col in dt_ohe.columns:
+                model.add_regressor(col)
 
-            self.logger.info("Prophet decomposition completed successfully")
-            return dt_mod
+        # Fit model and get forecast
+        model.fit(dt_regressors)
+        forecast = model.predict(dt_regressors)
 
-        except Exception as e:
-            self.logger.error(f"Error during Prophet decomposition: {str(e)}")
-            raise
+        # Update original dataframe with decomposition results
+        these = range(len(recurrence))
+        if use_trend:
+            dt_mod["trend"] = forecast["trend"].iloc[these].values
+        if use_season:
+            dt_mod["season"] = forecast["yearly"].iloc[these].values
+        if use_monthly:
+            dt_mod["monthly"] = forecast["monthly"].iloc[these].values
+        if use_weekday:
+            dt_mod["weekday"] = forecast["weekly"].iloc[these].values
+        if use_holiday:
+            dt_mod["holiday"] = forecast["holidays"].iloc[these].values
+
+        # Handle factor variables in output
+        if factor_vars:
+            for var in factor_vars:
+                factor_cols = [col for col in forecast.columns if col.startswith(f"{var}_")]
+                factor_effects = forecast[factor_cols].sum(axis=1)
+
+                # Set baseline (reference level) to 0
+                baseline = factor_effects.min()
+                dt_mod[var] = factor_effects - baseline
+
+                # Scale effects to match R's implementation
+                if dt_mod[var].sum() > 0:
+                    scale_factor = dt_mod[var].max() / 1272202.89877032  # R's maximum value
+                    dt_mod[var] = dt_mod[var] / scale_factor
+
+        return dt_mod
 
     def _set_holidays(self, dt_transform: pd.DataFrame, dt_holidays: pd.DataFrame, interval_type: str) -> pd.DataFrame:
         self.logger.debug(f"Setting holidays for interval type: {interval_type}")
-        
+
         try:
             dt_transform["ds"] = pd.to_datetime(dt_transform["ds"])
             holidays = dt_holidays.copy()
@@ -363,7 +342,9 @@ class FeatureEngineering:
                 self.logger.debug("Processing weekly holiday aggregation")
                 week_start = dt_transform["ds"].dt.weekday[0]
                 holidays["ds"] = (
-                    holidays["ds"] - pd.to_timedelta(holidays["ds"].dt.weekday, unit="D") + pd.Timedelta(days=week_start)
+                    holidays["ds"]
+                    - pd.to_timedelta(holidays["ds"].dt.weekday, unit="D")
+                    + pd.Timedelta(days=week_start)
                 )
                 holidays = (
                     holidays.groupby(["ds", "country", "year"])
@@ -378,7 +359,9 @@ class FeatureEngineering:
                     self.logger.error("Monthly data does not start on first day of month")
                     raise ValueError("Monthly data should have first day of month as datestamp, e.g.'2020-01-01'")
                 holidays["ds"] = holidays["ds"].dt.to_period("M").dt.to_timestamp()
-                holidays = holidays.groupby(["ds", "country", "year"])["holiday"].agg(lambda x: ", ".join(x)).reset_index()
+                holidays = (
+                    holidays.groupby(["ds", "country", "year"])["holiday"].agg(lambda x: ", ".join(x)).reset_index()
+                )
                 self.logger.debug(f"Aggregated {len(holidays)} monthly holiday entries")
                 return holidays
             else:

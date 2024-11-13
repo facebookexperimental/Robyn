@@ -177,16 +177,16 @@ def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFr
         Dictionary of converted pandas DataFrames
     """
     converted_data = {}
-    
+
     for model_id, model_data in plot_data_collect.items():
         try:
             converted_data[model_id] = {}
 
             # Convert each plot type (plot1data, plot2data, etc)
             for plot_type, plot_content in model_data.items():
-                if plot_type == 'plot7data':
+                if plot_type == "plot7data":
                     converted_data[model_id][plot_type] = pd.DataFrame(plot_content)
-            
+
                 if not isinstance(plot_content, dict):
                     continue
 
