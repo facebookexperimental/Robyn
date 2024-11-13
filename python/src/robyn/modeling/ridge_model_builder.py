@@ -197,40 +197,35 @@ class RidgeModelBuilder:
         seed: int,
         total_trials: int,
     ) -> Trial:
-        """Modified to handle multiple solutions per iteration"""
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
         np.random.seed(seed)
 
-        # Setup nevergrad instrumentation
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
         param_bounds = [hyper_collect["hyper_bound_list_updated"][name] for name in param_names]
 
         instrum_dict = {
             name: ng.p.Scalar(lower=bound[0], upper=bound[1]) for name, bound in zip(param_names, param_bounds)
         }
+
         instrum = ng.p.Instrumentation(**instrum_dict)
+
         optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
 
         all_results = []
         start_time = time.time()
-
-        # Calculate actual solutions per iteration based on R logic
-        solutions_per_iteration = 5  # Match R's default
-        total_solutions = iterations * solutions_per_iteration
-
         with tqdm(
             total=iterations,
-            desc=f"Running trial {trial} of {total_trials} trials",
+            desc=f"Running trial {trial} of total {total_trials} trials",
             bar_format="{l_bar}{bar}",
             ncols=75,
         ) as pbar:
             for iter_ng in range(iterations):
-                for sol_idx in range(solutions_per_iteration):
-                    candidate = optimizer.ask()
-                    params = candidate.kwargs
-
+                candidate = optimizer.ask()
+                params = candidate.kwargs
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
                     result = self._evaluate_model(
                         params,
                         ts_validation,
@@ -241,45 +236,44 @@ class RidgeModelBuilder:
                         iter_ng=iter_ng,
                         trial=trial,
                     )
-
-                    optimizer.tell(candidate, result["loss"])
-
-                    # Update solution ID with iteration and solution index
-                    result["params"].update(
-                        {
-                            "solID": f"{trial}_{iter_ng + 1}_{sol_idx + 1}",
-                            "ElapsedAccum": result["elapsed_accum"],
-                            "trial": trial,
-                            "nrmse": result["nrmse"],
-                            "decomp_rssd": result["decomp_rssd"],
-                            "mape": result["mape"],
-                        }
-                    )
-
-                    all_results.append(result)
-
+                optimizer.tell(candidate, result["loss"])
+                result["params"].update(
+                    {
+                        "solID": f"{trial}_{iter_ng + 1}_1",
+                        "ElapsedAccum": result["elapsed_accum"],
+                        "trial": trial,
+                        "nrmse": result["nrmse"],
+                        "decomp.rssd": result["decomp_rssd"],
+                        "mape": result["mape"],
+                    }
+                )
+                all_results.append(result)
                 pbar.update(1)
 
-        # Aggregate results
-        result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
-        x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
-        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
+        end_time = time.time()
+        self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
-        # Select best result based on loss
+        # Aggregate results from all iterations
+        result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
+        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
+        x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
+
+        # Find the best result for single-value metrics
         best_result = min(all_results, key=lambda x: x["loss"])
 
         return Trial(
             result_hyp_param=result_hyp_param,
-            x_decomp_agg=x_decomp_agg,
+            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),  # Use get() with default
             decomp_spend_dist=decomp_spend_dist,
             nrmse=best_result["nrmse"],
             decomp_rssd=best_result["decomp_rssd"],
             mape=best_result["mape"],
+            x_decomp_agg=x_decomp_agg,
             rsq_train=best_result["rsq_train"],
             rsq_val=best_result["rsq_val"],
             rsq_test=best_result["rsq_test"],
             lambda_=best_result["lambda_"],
-            lambda_hp=best_result["lambda_hp"],
+            lambda_hp=best_result.get("lambda_hp", 0.0),
             lambda_max=best_result.get("lambda_max", 0.0),
             lambda_min_ratio=best_result.get("lambda_min_ratio", 0.0001),
             pos=best_result.get("pos", False),
@@ -591,6 +585,12 @@ class RidgeModelBuilder:
             "trial": trial,
             "iterNG": iter_ng + 1,
             "iterPar": 1,
+            "coef_mean": np.mean(model.coef_),  # Mean of coefficients
+            "coef_median": np.median(model.coef_),  # Median of coefficients
+            "coef_min": np.min(model.coef_),  # Min coefficient
+            "coef_max": np.max(model.coef_),  # Max coefficient
+            "Elapsed": time.time() - start_time,
+            "ElapsedAccum": time.time() - start_time,
         }
 
         decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, result_params)
