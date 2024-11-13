@@ -125,102 +125,145 @@ class FeatureEngineering:
             self.logger.error(f"Error creating rolling window data: {str(e)}")
             raise
 
-    def _calculate_media_cost_factor(self, dt_input_roll_wind: pd.DataFrame) -> pd.Series:
-        self.logger.debug("Calculating media cost factors")
-        total_spend = dt_input_roll_wind[self.mmm_data.mmmdata_spec.paid_media_spends].sum().sum()
-        return dt_input_roll_wind[self.mmm_data.mmmdata_spec.paid_media_spends].sum() / total_spend
-
-    def _run_models(self, dt_modRollWind: pd.DataFrame, media_cost_factor: float) -> Dict[str, Dict[str, Any]]:
-        self.logger.info("Starting model runs for paid media variables")
-        modNLS = {"results": {}, "yhat": pd.DataFrame(), "plots": {}}
-
-        for paid_media_var in self.mmm_data.mmmdata_spec.paid_media_spends:
-            self.logger.debug(f"Processing model for {paid_media_var}")
-            result = self._fit_spend_exposure(dt_modRollWind, paid_media_var, media_cost_factor)
+    def _run_models(self, dt_modRollWind: pd.DataFrame, media_cost_factor: pd.Series) -> Dict[str, Any]:
+        """Run models only for channels where exposure metrics differ from spend metrics."""
+        self.logger.info("Starting model runs for paid media variables with different exposure metrics")
+        modNLS = {"results": [], "yhat": [], "plots": {}}
+        # Get indices where exposure differs from spend
+        exposure_selector = [
+            i
+            for i, (spend, exposure) in enumerate(
+                zip(self.mmm_data.mmmdata_spec.paid_media_spends, self.mmm_data.mmmdata_spec.paid_media_vars)
+            )
+            if spend != exposure
+        ]
+        for idx in exposure_selector:
+            paid_media_spend = self.mmm_data.mmmdata_spec.paid_media_spends[idx]
+            paid_media_var = self.mmm_data.mmmdata_spec.paid_media_vars[idx]
+            self.logger.debug(f"Processing model for {paid_media_var} (spend: {paid_media_spend})")
+            # Prepare data for modeling
+            dt_spend_mod_input = pd.DataFrame(
+                {"spend": dt_modRollWind[paid_media_spend], "exposure": dt_modRollWind[paid_media_var]}
+            )
+            result = self._fit_spend_exposure(dt_spend_mod_input, paid_media_var, media_cost_factor[paid_media_spend])
             if result is not None:
-                modNLS["results"][paid_media_var] = result["res"]
-                modNLS["yhat"] = pd.concat([modNLS["yhat"], result["plot"]], ignore_index=True)
+                modNLS["results"].append(result["res"])
+                # Store both NLS and LM predictions
+                for model_type in ["nls", "lm"]:
+                    yhat_data = result["plot"].copy()
+                    yhat_data["channel"] = paid_media_var
+                    yhat_data["models"] = model_type
+                    yhat_data["ds"] = dt_modRollWind["ds"]  # Add date column if needed
+                    yhat_data = yhat_data.rename(
+                        columns={"spend": "x", "exposure": "y"}
+                    )  # Rename columns to match R structure
+                    modNLS["yhat"].extend(yhat_data.to_dict(orient="records"))
                 modNLS["plots"][paid_media_var] = result["plot"]
                 self.logger.debug(f"Completed model fit for {paid_media_var} with R² = {result['res']['rsq']:.4f}")
             else:
                 self.logger.warning(f"Model fitting failed for {paid_media_var}")
-
         self.logger.info(f"Completed model runs for {len(modNLS['results'])} channels")
         return modNLS
 
     def _fit_spend_exposure(
-        self, dt_modRollWind: pd.DataFrame, paid_media_var: str, media_cost_factor: float
+        self, dt_spend_mod_input: pd.DataFrame, paid_media_var: str, media_cost_factor: float
     ) -> Dict[str, Any]:
+        """Fit spend-exposure models matching R implementation."""
         self.logger.info(f"Fitting spend-exposure model for {paid_media_var}")
 
         def michaelis_menten(x, Vmax, Km):
             return Vmax * x / (Km + x)
 
-        spend_var = paid_media_var
-        exposure_var = self.mmm_data.mmmdata_spec.paid_media_vars[
-            self.mmm_data.mmmdata_spec.paid_media_spends.index(paid_media_var)
-        ]
-
-        spend_data = dt_modRollWind[spend_var]
-        exposure_data = dt_modRollWind[exposure_var]
-
-        if exposure_data.empty:
-            self.logger.warning(f"Exposure data for {paid_media_var} is empty. Skipping model fitting.")
+        spend_data = dt_spend_mod_input["spend"]
+        exposure_data = dt_spend_mod_input["exposure"]
+        if exposure_data.empty or spend_data.empty:
+            self.logger.warning(f"Empty data for {paid_media_var}. Skipping model fitting.")
             return None
-
         try:
-            self.logger.debug(f"Fitting Michaelis-Menten model for {paid_media_var}")
+            # Initial parameters based on R implementation
+            p0 = [exposure_data.max(), exposure_data.max() / 2]
+            # Fit Michaelis-Menten (NLS) model
             popt_nls, _ = curve_fit(
-                michaelis_menten,
-                spend_data,
-                exposure_data,
-                p0=[max(exposure_data), np.median(spend_data)],
-                bounds=([0, 0], [np.inf, np.inf]),
-                maxfev=10000,
+                michaelis_menten, spend_data, exposure_data, p0=p0, bounds=([0, 0], [np.inf, np.inf]), maxfev=10000
             )
-
             yhat_nls = michaelis_menten(spend_data, *popt_nls)
-            rsq_nls = 1 - np.sum((exposure_data - yhat_nls) ** 2) / np.sum(
-                (exposure_data - np.mean(exposure_data)) ** 2
-            )
-            self.logger.debug(f"Michaelis-Menten model R² = {rsq_nls:.4f}")
-
-            self.logger.debug(f"Fitting linear model for {paid_media_var}")
+            rsq_nls = 1 - np.sum((exposure_data - yhat_nls) ** 2) / np.sum((exposure_data - exposure_data.mean()) ** 2)
+            # Calculate AIC and BIC for NLS
+            aic_nls = 2 * len(popt_nls) - 2 * np.log(np.sum((exposure_data - yhat_nls) ** 2))
+            bic_nls = len(popt_nls) * np.log(len(exposure_data)) - 2 * np.log(np.sum((exposure_data - yhat_nls) ** 2))
+            # Fit linear model
             lm = LinearRegression(fit_intercept=False)
             lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
             yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
-            rsq_lm = lm.score(spend_data.values.reshape(-1, 1), exposure_data)
-            self.logger.debug(f"Linear model R² = {rsq_lm:.4f}")
+            rsq_lm = 1 - np.sum((exposure_data - yhat_lm) ** 2) / np.sum((exposure_data - exposure_data.mean()) ** 2)
+            # Calculate AIC and BIC for LM
+            aic_lm = 2 * 1 - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
+            bic_lm = 1 * np.log(len(exposure_data)) - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
 
+            # Choose the better model based on R-squared
             if rsq_nls > rsq_lm:
-                self.logger.info(f"Selected Michaelis-Menten model for {paid_media_var} (R² = {rsq_nls:.4f})")
                 model_type = "nls"
-                yhat = yhat_nls
                 rsq = rsq_nls
-                coef = {"Vmax": popt_nls[0], "Km": popt_nls[1]}
+                yhat = yhat_nls
             else:
-                self.logger.info(f"Selected linear model for {paid_media_var} (R² = {rsq_lm:.4f})")
                 model_type = "lm"
-                yhat = yhat_lm
                 rsq = rsq_lm
-                coef = {"coef": lm.coef_[0]}
-
-            res = {"channel": paid_media_var, "model_type": model_type, "rsq": rsq, "coef": coef}
-            plot_data = pd.DataFrame({"spend": spend_data, "exposure": exposure_data, "yhat": yhat})
-
+                yhat = yhat_lm
+            # Prepare result dictionary
+            res = {
+                "channel": paid_media_var,
+                "model_type": "nls" if rsq_nls > rsq_lm else "lm",  # Set model_type based on the better model
+                "Vmax": float(popt_nls[0]) if rsq_nls > rsq_lm else None,
+                "Km": float(popt_nls[1]) if rsq_nls > rsq_lm else None,
+                "aic_nls": aic_nls if rsq_nls > rsq_lm else None,
+                "aic_lm": aic_lm,
+                "bic_nls": bic_nls if rsq_nls > rsq_lm else None,
+                "bic_lm": bic_lm,
+                "rsq_nls": rsq_nls if rsq_nls > rsq_lm else None,
+                "rsq_lm": rsq_lm,
+                "coef_lm": float(lm.coef_[0]),
+                "rsq": rsq,  # Add a combined rsq for easier access
+            }
+            plot_data = pd.DataFrame({"spend": spend_data.values, "exposure": exposure_data.values, "yhat": yhat})
             return {"res": res, "plot": plot_data, "yhat": yhat}
-
         except Exception as e:
             self.logger.warning(f"Error fitting models for {paid_media_var}: {str(e)}. Falling back to linear model.")
-            lm = LinearRegression(fit_intercept=False)
-            lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
-            yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
-            rsq_lm = lm.score(spend_data.values.reshape(-1, 1), exposure_data)
+            try:
+                lm = LinearRegression(fit_intercept=False)
+                lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
+                yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
+                rsq_lm = 1 - np.sum((exposure_data - yhat_lm) ** 2) / np.sum(
+                    (exposure_data - exposure_data.mean()) ** 2
+                )
+                # Calculate AIC and BIC for LM
+                aic_lm = 2 * 1 - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
+                bic_lm = 1 * np.log(len(exposure_data)) - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
+                res = {
+                    "channel": paid_media_var,
+                    "Vmax": None,  # Set to None if not applicable
+                    "Km": None,  # Set to None if not applicable
+                    "aic_nls": None,  # Set to None if not applicable
+                    "aic_lm": aic_lm,
+                    "bic_nls": None,  # Set to None if not applicable
+                    "bic_lm": bic_lm,
+                    "rsq_nls": None,  # Set to None if not applicable
+                    "rsq_lm": rsq_lm,
+                    "coef_lm": float(lm.coef_[0]),
+                    "rsq": rsq_lm,  # Use rsq_lm as the combined rsq
+                }
+                plot_data = pd.DataFrame(
+                    {"spend": spend_data.values, "exposure": exposure_data.values, "yhat": yhat_lm}
+                )
+                return {"res": res, "plot": plot_data, "yhat": yhat_lm}
+            except Exception as e2:
+                self.logger.error(f"Both NLS and linear model fitting failed for {paid_media_var}: {str(e2)}")
+                return None
 
-            res = {"channel": paid_media_var, "model_type": "lm", "rsq": rsq_lm, "coef": {"coef": lm.coef_[0]}}
-            plot_data = pd.DataFrame({"spend": spend_data, "exposure": exposure_data, "yhat": yhat_lm})
-
-            return {"res": res, "plot": plot_data, "yhat": yhat_lm}
+    def _calculate_media_cost_factor(self, dt_input_roll_wind: pd.DataFrame) -> pd.Series:
+        """Calculate media cost factors matching R implementation."""
+        spend_sums = dt_input_roll_wind[self.mmm_data.mmmdata_spec.paid_media_spends].sum()
+        exposure_sums = dt_input_roll_wind[self.mmm_data.mmmdata_spec.paid_media_vars].sum()
+        return spend_sums / exposure_sums
 
     @staticmethod
     def _hill_function(x, alpha, gamma):
