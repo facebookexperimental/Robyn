@@ -152,7 +152,7 @@ class OnePagerReporter:
             return metrics
             
         except Exception as e:
-            print(f"Error getting model info for solution {solution_id}: {str(e)}")
+            logger.debug(f"Error getting model info for solution {solution_id}: {str(e)}")
             return {
                 'rsq_train': "0.0000",
                 'nrmse': "0.0000",
@@ -234,9 +234,9 @@ class OnePagerReporter:
                 
                 try:
                     config['func'](ax)
-                    ax.set_title(config['title'])  # Removed solution ID from subplot titles
+                    ax.set_title(config['title'])
                 except Exception as e:
-                    print(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
+                    logger.debug(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
                     ax.text(0.5, 0.5, f"Error generating {plot_name}",
                         ha='center', va='center')
 
@@ -310,7 +310,7 @@ class OnePagerReporter:
                 if not solution_ids:
                     raise ValueError("No valid solution IDs found in top solutions")
                     
-                print(f"Loading {total_solutions} top solutions")
+                logger.debug(f"Loading {total_solutions} top solutions")
                 
             except Exception as e:
                 raise ValueError(f"Error processing top solutions: {str(e)}")
@@ -343,7 +343,7 @@ class OnePagerReporter:
                 os.makedirs(save_path, exist_ok=True)
                     
             for i, solution_id in enumerate(solution_ids):
-                print(f"Generating one-pager for solution {solution_id} ({i+1}/{len(solution_ids)})")
+                logger.debug(f"Generating one-pager for solution {solution_id} ({i+1}/{len(solution_ids)})")
                 
                 # Create figure and grid for this solution
                 fig = plt.figure(figsize=figsize)
@@ -373,12 +373,12 @@ class OnePagerReporter:
                 if save_path:
                     save_file = os.path.join(save_path, f'solution_{solution_id}.png')
                     fig.savefig(save_file, dpi=300, bbox_inches='tight')
-                    print(f"Saved figure to {save_file}")
+                    logger.debug(f"Saved figure to {save_file}")
                 
                 figures.append(fig)
                 
         except Exception as e:
-            print(f"Error generating plots: {str(e)}")
+            logger.debug(f"Error generating plots: {str(e)}")
             for fig in figures:
                 plt.close(fig)
             raise
