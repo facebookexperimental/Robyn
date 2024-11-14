@@ -320,7 +320,7 @@ class OnePager:
         Raises:
             ValueError: If invalid plot types are provided
         """
-            # Use default plots if none provided
+        # Use default plots if none provided
         plots = plots or [
             PlotType.SPEND_EFFECT,
             PlotType.WATERFALL,
