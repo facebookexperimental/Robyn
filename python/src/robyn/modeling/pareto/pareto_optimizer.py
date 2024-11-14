@@ -1115,16 +1115,12 @@ class ParetoOptimizer:
         vec_collect["xDecompVecImmediate"].columns = this
         vec_collect["xDecompVecCarryover"].columns = this
 
-        # Calculate carryover percentages
-        # Convert all relevant columns to numeric, coercing errors to NaN
-        vec_collect["xDecompVecCarryover"] = vec_collect["xDecompVecCarryover"].apply(pd.to_numeric, errors="coerce")
-        vec_collect["xDecompVec"] = vec_collect["xDecompVec"].apply(pd.to_numeric, errors="coerce")
-        # Fill NaN values with 0 to handle non-numeric entries
-        vec_collect["xDecompVecCarryover"].fillna(0, inplace=True)
-        vec_collect["xDecompVec"].fillna(0, inplace=True)
-        # Calculate carryover percentages
-        df_caov = vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()
-        df_total = vec_collect["xDecompVec"].groupby("sol_id").sum().reset_index()
+        # Convert datetime64[ns] to object: You can convert the ds column to a string format, which will change its type to object.
+        vec_collect["xDecompVecCarryover"]["ds"] = vec_collect["xDecompVecCarryover"]["ds"].astype(str)
+        vec_collect["xDecompVec"]["ds"] = vec_collect["xDecompVec"]["ds"].astype(str)
+        # print("Vec collect dtypes xDecompVecCarryover", vec_collect["xDecompVecCarryover"].dtypes)
+        # print("Vec collect dtypes xDecompVec", vec_collect["xDecompVec"].dtypes)
+        # Exclude datetime columns before performing groupby and sum
         # df_caov = (
         #     vec_collect["xDecompVecCarryover"]
         #     .select_dtypes(exclude=["datetime64[ns]"])  # Exclude datetime columns
@@ -1139,7 +1135,9 @@ class ParetoOptimizer:
         #     .sum()
         #     .reset_index()
         # )
-
+        # Calculate carryover percentages
+        df_caov = (vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()).drop(columns="ds")
+        df_total = vec_collect["xDecompVec"].groupby("sol_id").sum().reset_index().drop(columns="ds")
         df_caov_pct = df_caov.copy()
         df_caov_pct.loc[:, df_caov_pct.columns[1:]] = (
             df_caov_pct.loc[:, df_caov_pct.columns[1:]].div(df_total.iloc[:, 1:].values).astype("float64")
@@ -1236,24 +1234,24 @@ class ParetoOptimizer:
             x["events"] = pd.to_numeric(x["events"], errors="coerce")
             x["events"].fillna(0, inplace=True)  # Replace NaN values with 0
         intercept = coefs["coefficient"].iloc[0]
-        # Debugging: Print data types and shapes
-        print("--- Decomp ---")
-        print("Data types of x:")
-        print(x.dtypes)
-        print("Data types of coefs:")
-        print(coefs.dtypes)
-        print("Shape of x:", x.shape)
-        print("Shape of coefs:", coefs.shape)
-        # Check for NaN or non-numeric values
-        print("NaN values in x:")
-        print(x.isna().sum())
-        print("NaN values in coefs:")
-        print(coefs.isna().sum())
-        # Print the first few rows of the DataFrame
-        print("First few rows of x:")
-        print(x.head())
-        print("First few rows of coefs:")
-        print(coefs.head())
+        # # Debugging: Print data types and shapes
+        # print("--- Decomp ---")
+        # print("Data types of x:")
+        # print(x.dtypes)
+        # print("Data types of coefs:")
+        # print(coefs.dtypes)
+        # print("Shape of x:", x.shape)
+        # print("Shape of coefs:", coefs.shape)
+        # # Check for NaN or non-numeric values
+        # print("NaN values in x:")
+        # print(x.isna().sum())
+        # print("NaN values in coefs:")
+        # print(coefs.isna().sum())
+        # # Print the first few rows of the DataFrame
+        # print("First few rows of x:")
+        # print(x.head())
+        # print("First few rows of coefs:")
+        # print(coefs.head())
         # Decomp x
         # Create an empty DataFrame for xDecomp
         xDecomp = pd.DataFrame()
