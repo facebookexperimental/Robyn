@@ -3,6 +3,7 @@ from typing import Dict, Optional, List, Tuple, Union
 import warnings
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from robyn.data.entities.holidays_data import HolidaysData
 import seaborn as sns
 import pandas as pd
 import logging
@@ -25,12 +26,14 @@ class OnePagerReporter:
         pareto_result: ParetoResult,
         clustered_result: Optional[ClusteredResult] = None,
         adstock: Optional[AdstockType] = None,
-        mmm_data: Optional[MMMData] = None
+        mmm_data: Optional[MMMData] = None,
+        holidays_data: Optional[HolidaysData] = None
     ):
         self.pareto_result = pareto_result
         self.clustered_result = clustered_result
         self.adstock = adstock
         self.mmm_data = mmm_data
+        self.holidays_data = holidays_data
         
         # Default plots to show
         self.default_plots = [
@@ -167,7 +170,7 @@ class OnePagerReporter:
     ) -> None:
         """Generate plots for a single solution."""
         # Initialize visualizers
-        pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data) if self.adstock else None
+        pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data, self.holidays_data) if self.adstock and self.holidays_data else None
         cluster_viz = ClusterVisualizer(self.pareto_result, self.clustered_result, self.mmm_data) if self.clustered_result else None
         response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
         transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
@@ -239,6 +242,7 @@ class OnePagerReporter:
                     logger.error(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
                     ax.text(0.5, 0.5, f"Error generating {plot_name}",
                         ha='center', va='center')
+                    raise e
 
         # Get model info and add title
         model_info = self._get_model_info(solution_id)
@@ -294,9 +298,9 @@ class OnePagerReporter:
                 raise ValueError("No clustered results or top solutions available")
                 
             try:
-                # Try accessing 'solID' column if it's a DataFrame
+                # Try accessing 'sol_id' column if it's a DataFrame
                 if isinstance(self.clustered_result.top_solutions, pd.DataFrame):
-                    solution_ids = self.clustered_result.top_solutions['solID'].tolist()
+                    solution_ids = self.clustered_result.top_solutions['sol_id'].tolist()
                 elif isinstance(self.clustered_result.top_solutions, pd.Series):
                     solution_ids = self.clustered_result.top_solutions.tolist()
                 elif isinstance(self.clustered_result.top_solutions, list):
