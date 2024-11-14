@@ -1122,6 +1122,9 @@ class ParetoOptimizer:
         # Fill NaN values with 0 to handle non-numeric entries
         vec_collect["xDecompVecCarryover"].fillna(0, inplace=True)
         vec_collect["xDecompVec"].fillna(0, inplace=True)
+        # Calculate carryover percentages
+        df_caov = vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()
+        df_total = vec_collect["xDecompVec"].groupby("sol_id").sum().reset_index()
         # df_caov = (
         #     vec_collect["xDecompVecCarryover"]
         #     .select_dtypes(exclude=["datetime64[ns]"])  # Exclude datetime columns
