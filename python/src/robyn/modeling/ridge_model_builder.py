@@ -210,11 +210,11 @@ class RidgeModelBuilder:
         }
 
         instrum = ng.p.Instrumentation(**instrum_dict)
-
         optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
 
         all_results = []
         start_time = time.time()
+
         with tqdm(
             total=iterations,
             desc=f"Running trial {trial} of total {total_trials} trials",
@@ -224,6 +224,7 @@ class RidgeModelBuilder:
             for iter_ng in range(iterations):
                 candidate = optimizer.ask()
                 params = candidate.kwargs
+
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     result = self._evaluate_model(
@@ -236,47 +237,63 @@ class RidgeModelBuilder:
                         iter_ng=iter_ng,
                         trial=trial,
                     )
+
                 optimizer.tell(candidate, result["loss"])
+
+                # Update result params with all metrics
                 result["params"].update(
                     {
                         "solID": f"{trial}_{iter_ng + 1}_1",
                         "ElapsedAccum": result["elapsed_accum"],
                         "trial": trial,
+                        "rsq_train": result["rsq_train"],
+                        "rsq_val": result["rsq_val"],
+                        "rsq_test": result["rsq_test"],
                         "nrmse": result["nrmse"],
+                        "nrmse_train": result["nrmse_train"],
+                        "nrmse_val": result["nrmse_val"],
+                        "nrmse_test": result["nrmse_test"],
                         "decomp.rssd": result["decomp_rssd"],
                         "mape": result["mape"],
+                        "lambda": result["lambda_"],
+                        "lambda_hp": result["lambda_hp"],
+                        "lambda_max": result["lambda_max"],
+                        "lambda_min_ratio": result["lambda_min_ratio"],
+                        "iterNG": iter_ng + 1,
+                        "iterPar": 1,
                     }
                 )
+
                 all_results.append(result)
                 pbar.update(1)
 
         end_time = time.time()
         self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
-        # Aggregate results from all iterations
+        # Aggregate results
         result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
         decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
         x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
 
-        # Find the best result for single-value metrics
+        # Find best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
 
         return Trial(
             result_hyp_param=result_hyp_param,
-            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),  # Use get() with default
+            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),
             decomp_spend_dist=decomp_spend_dist,
+            x_decomp_agg=x_decomp_agg,
             nrmse=best_result["nrmse"],
             decomp_rssd=best_result["decomp_rssd"],
             mape=best_result["mape"],
-            x_decomp_agg=x_decomp_agg,
             rsq_train=best_result["rsq_train"],
             rsq_val=best_result["rsq_val"],
             rsq_test=best_result["rsq_test"],
             lambda_=best_result["lambda_"],
-            lambda_hp=best_result.get("lambda_hp", 0.0),
-            lambda_max=best_result.get("lambda_max", 0.0),
-            lambda_min_ratio=best_result.get("lambda_min_ratio", 0.0001),
-            pos=best_result.get("pos", False),
+            lambda_hp=best_result["lambda_hp"],
+            lambda_max=best_result["lambda_max"],
+            lambda_min_ratio=best_result["lambda_min_ratio"],
+            pos=best_result.get("pos", 0),
             elapsed=best_result["elapsed"],
             elapsed_accum=best_result["elapsed_accum"],
             trial=trial,
@@ -461,33 +478,42 @@ class RidgeModelBuilder:
         return output_models[best_index].sol_id
 
     def _calculate_mape(
-        self, model: Ridge, dt_raw: pd.DataFrame, hypParamSam: Dict[str, float], wind_start: int, wind_end: int
+        self,
+        model: Ridge,
+        dt_raw: pd.DataFrame,
+        hypParamSam: Dict[str, float],
+        wind_start: int,
+        wind_end: int,
     ) -> float:
         """
-        Calculate MAPE using calibration data, following Robyn's calibration logic
+        Calculate MAPE using calibration data
         """
         if self.calibration_input is None:
             return 0.0
 
-        # Initialize calibration engine
-        calibration_engine = MediaEffectCalibrator(
-            mmm_data=self.mmm_data, hyperparameters=self.hyperparameters, calibration_input=self.calibration_input
-        )
+        try:
+            # Use the MediaEffectCalibrator for MAPE calculation
+            calibration_engine = MediaEffectCalibrator(
+                mmm_data=self.mmm_data, hyperparameters=self.hyperparameters, calibration_input=self.calibration_input
+            )
 
-        # Calculate MAPE using calibration engine
-        lift_collect = calibration_engine.calibrate(
-            df_raw=dt_raw,
-            hypParamSam=hypParamSam,
-            wind_start=wind_start,
-            wind_end=wind_end,
-            dayInterval=self.mmm_data.mmmdata_spec.day_interval,
-            adstock=self.hyperparameters.adstock,
-        )
+            # Calculate MAPE using calibration engine
+            lift_collect = calibration_engine.calibrate(
+                df_raw=dt_raw,
+                hypParamSam=hypParamSam,
+                wind_start=wind_start,
+                wind_end=wind_end,
+                dayInterval=1,  # Default to 1 if not specified
+                adstock=self.hyperparameters.adstock,
+            )
 
-        # Return mean MAPE across all lift studies
-        if lift_collect is not None and not lift_collect.empty:
-            return float(lift_collect["mape_lift"].mean())
-        return 0.0
+            # Return mean MAPE across all lift studies
+            if lift_collect is not None and not lift_collect.empty:
+                return float(lift_collect["mape_lift"].mean())
+            return 0.0
+        except Exception as e:
+            self.logger.warning(f"Error calculating MAPE: {str(e)}")
+            return 0.0
 
     def _evaluate_model(
         self,
@@ -500,10 +526,11 @@ class RidgeModelBuilder:
         iter_ng: int,
         trial: int,
     ) -> Dict[str, Any]:
+        """Evaluate model with given parameters"""
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
         X, y = self._prepare_data(params)
 
-        # Split data for time series validation if enabled
+        # Split data
         if ts_validation:
             train_idx = int(len(X) * train_size)
             val_test_size = (len(X) - train_idx) // 2
@@ -518,113 +545,103 @@ class RidgeModelBuilder:
             X_train, y_train = X, y
             X_val = X_test = y_val = y_test = None
 
-        # Fit model
-        lambda_ = params.get("lambda", 1.0)
+        # Scale lambda similar to R's implementation
+        lambda_hp = params.get("lambda", 1.0)
+        lambda_seq = self._lambda_seq(X_train, y_train)
+        lambda_max = lambda_seq[0]
+        lambda_min = lambda_max * 0.0001  # Same as R's lambda_min_ratio
+        lambda_ = lambda_min + (lambda_max - lambda_min) * lambda_hp
+
+        # Fit model with scaled lambda
         model = Ridge(alpha=lambda_, fit_intercept=True)
         model.fit(X_train, y_train)
 
-        # Calculate all metrics (even if not in validation mode)
+        # Calculate metrics using R's approach
         y_train_pred = model.predict(X_train)
-        rsq_train = r2_score(y_train, y_train_pred)
         nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (y_train.max() - y_train.min())
+        rsq_train = r2_score(y_train, y_train_pred)
 
         if ts_validation and X_val is not None and X_test is not None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
-            rsq_val = r2_score(y_val, y_val_pred)
-            rsq_test = r2_score(y_test, y_test_pred)
+
             nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (y_val.max() - y_val.min())
             nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (y_test.max() - y_test.min())
-            nrmse = nrmse_val
+            nrmse = nrmse_val  # Use validation NRMSE when doing ts_validation
+
+            rsq_val = r2_score(y_val, y_val_pred)
+            rsq_test = r2_score(y_test, y_test_pred)
         else:
-            # Set default values for non-validation metrics
-            rsq_val = rsq_test = 0.0
             nrmse_val = nrmse_test = 0.0
+            rsq_val = rsq_test = 0.0
             nrmse = nrmse_train
 
-        # Calculate RSSD and MAPE
-        decomp_rssd = self._calculate_rssd(model.coef_, rssd_zero_penalty)
+        # Calculate RSSD following R's approach
+        paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
+        effect_shares = model.coef_[X.columns.get_indexer(paid_media_cols)]
+        spend_shares = X_train[paid_media_cols].sum() / X_train[paid_media_cols].sum().sum()
+        decomp_rssd = np.sqrt(np.mean((effect_shares - spend_shares) ** 2))
 
-        # Handle calibration
-        lift_calibration = None
+        if rssd_zero_penalty:
+            zero_coef_ratio = np.sum(np.abs(effect_shares) < 1e-10) / len(effect_shares)
+            decomp_rssd *= 1 + zero_coef_ratio
+
+        # Calculate MAPE if calibration is available
         mape = 0.0
         if self.calibration_input is not None:
-            if hasattr(self, "calibration_engine"):
-                calibration_engine = self.calibration_engine
-            else:
-                calibration_engine = MediaEffectCalibrator(
-                    mmm_data=self.mmm_data,
-                    hyperparameters=self.hyperparameters,
-                    calibration_input=self.calibration_input,
-                )
-                self.calibration_engine = calibration_engine
+            dt_raw = self.featurized_mmm_data.dt_mod.copy()
+            if "ds" in dt_raw.columns:
+                dt_raw["date"] = pd.to_datetime(dt_raw["ds"])
+            window_mask = (dt_raw["date"] >= pd.to_datetime(self.mmm_data.mmmdata_spec.window_start)) & (
+                dt_raw["date"] <= pd.to_datetime(self.mmm_data.mmmdata_spec.window_end)
+            )
+            window_data = dt_raw[window_mask]
 
-            lift_collect = calibration_engine.calibrate()
-            if lift_collect is not None:
-                lift_calibration = lift_collect
-                mape = float(lift_collect.get_mean_mape())
-                calibration_constraint = 0.1
-                if mape > calibration_constraint:
-                    decomp_rssd *= 1 + (mape - calibration_constraint)
+            mape = self._calculate_mape(
+                model=model,
+                dt_raw=window_data,
+                hypParamSam=params,
+                wind_start=0,  # Use full window since we've already filtered
+                wind_end=len(window_data),
+            )
 
-        # Create result parameters dictionary with all required metrics
-        result_params = {
-            **params,
-            "train_size": train_size,
-            "rsq_train": rsq_train,
-            "rsq_val": rsq_val,
-            "rsq_test": rsq_test,
-            "nrmse_train": nrmse_train,
-            "nrmse_val": nrmse_val,
-            "nrmse_test": nrmse_test,
+        # Combine all metrics in result_metrics
+        result_metrics = {
             "nrmse": nrmse,
-            "decomp.rssd": decomp_rssd,
-            "mape": mape,
-            "lambda": lambda_,
-            "solID": f"{trial}_{iter_ng + 1}_1",
-            "trial": trial,
-            "iterNG": iter_ng + 1,
-            "iterPar": 1,
-            "coef_mean": np.mean(model.coef_),  # Mean of coefficients
-            "coef_median": np.median(model.coef_),  # Median of coefficients
-            "coef_min": np.min(model.coef_),  # Min coefficient
-            "coef_max": np.max(model.coef_),  # Max coefficient
-            "Elapsed": time.time() - start_time,
-            "ElapsedAccum": time.time() - start_time,
-        }
-
-        decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, result_params)
-        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, result_params)
-
-        return {
-            "loss": (
-                objective_weights[0] * nrmse
-                + objective_weights[1] * decomp_rssd
-                + (objective_weights[2] * mape if self.calibration_input else 0)
-            ),
-            "params": result_params,
-            "nrmse": nrmse,
+            "nrmse_train": nrmse_train,  # Added this
+            "nrmse_val": nrmse_val,  # Added this
+            "nrmse_test": nrmse_test,  # Added this
             "decomp_rssd": decomp_rssd,
             "mape": mape,
-            "lift_calibration": lift_calibration,
-            "decomp_spend_dist": decomp_spend_dist,
-            "x_decomp_agg": x_decomp_agg,
             "rsq_train": rsq_train,
             "rsq_val": rsq_val,
             "rsq_test": rsq_test,
-            "nrmse_train": nrmse_train,
-            "nrmse_val": nrmse_val,
-            "nrmse_test": nrmse_test,
             "lambda_": lambda_,
-            "lambda_hp": params.get("lambda", 0.0),
-            "lambda_max": self._lambda_seq(X_train, y_train)[0],
+            "lambda_hp": lambda_hp,
+            "lambda_max": lambda_max,
             "lambda_min_ratio": 0.0001,
-            "pos": any(model.coef_ >= 0),
+        }
+
+        # Calculate loss
+        loss = (
+            objective_weights[0] * nrmse
+            + objective_weights[1] * decomp_rssd
+            + (objective_weights[2] * mape if len(objective_weights) > 2 and self.calibration_input else 0)
+        )
+
+        decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, result_metrics)
+        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, result_metrics)
+
+        return {
+            "loss": loss,
+            "params": params,
+            **result_metrics,
+            "decomp_spend_dist": decomp_spend_dist,
+            "x_decomp_agg": x_decomp_agg,
             "elapsed": time.time() - start_time,
             "elapsed_accum": time.time() - start_time,
             "iter_ng": iter_ng + 1,
             "iter_par": 1,
-            "train_size": train_size,
         }
 
     @staticmethod
@@ -744,12 +761,18 @@ class RidgeModelBuilder:
         )
 
     @staticmethod
-    def _lambda_seq(
-        x: np.ndarray,
-        y: np.ndarray,
-        seq_len: int = 100,
-        lambda_min_ratio: float = 0.0001,
-    ) -> np.ndarray:
-        # R calculates lambda_max differently, need to match their scaling
-        lambda_max = np.max(np.abs(np.sum(x * y, axis=0))) / (0.001 * x.shape[0])
-        return np.logspace(np.log10(lambda_max * lambda_min_ratio), np.log10(lambda_max), num=seq_len)
+    def _lambda_seq(x: np.ndarray, y: np.ndarray, seq_len: int = 100) -> np.ndarray:
+        """Calculate lambda sequence following R's approach"""
+        # Calculate standardized X and y
+        x_std = (x - x.mean(axis=0)) / x.std(axis=0)
+        y_std = (y - y.mean()) / y.std()
+
+        # R uses alpha=0 for ridge regression
+        alpha = 0.001  # Small value for ridge regression
+
+        # Calculate max lambda using R's formula
+        lambda_max = np.max(np.abs(x_std.T @ y_std)) / (alpha * x.shape[0])
+        lambda_min_ratio = 0.0001
+
+        # Generate sequence
+        return np.exp(np.linspace(np.log(lambda_max * lambda_min_ratio), np.log(lambda_max), seq_len))
