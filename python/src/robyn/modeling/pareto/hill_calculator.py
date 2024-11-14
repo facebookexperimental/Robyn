@@ -8,6 +8,7 @@ from robyn.modeling.entities.modeloutputs import ModelOutputs
 
 logger = logging.getLogger(__name__)
 
+
 class HillCalculator:
     def __init__(
         self,
@@ -19,10 +20,15 @@ class HillCalculator:
         select_model: str,
         chn_adstocked: pd.DataFrame = None,
     ):
-        logger.debug("Initializing HillCalculator with parameters: MMMData=%s, ModelOutputs=%s, "
-                    "media_spend_sorted=%s, select_model=%s",
-                    mmmdata, model_outputs, media_spend_sorted, select_model)
-        
+        logger.debug(
+            "Initializing HillCalculator with parameters: MMMData=%s, ModelOutputs=%s, "
+            "media_spend_sorted=%s, select_model=%s",
+            mmmdata,
+            model_outputs,
+            media_spend_sorted,
+            select_model,
+        )
+
         self.mmmdata = mmmdata
         self.model_outputs = model_outputs
         self.dt_hyppar = dt_hyppar
@@ -30,8 +36,8 @@ class HillCalculator:
         self.media_spend_sorted = media_spend_sorted
         self.select_model = select_model
         self.chn_adstocked = chn_adstocked
-        
-        logger.info("HillCalculator initialized successfully")
+
+        logger.debug("HillCalculator initialized successfully")
 
     def _get_chn_adstocked_from_output_collect(self) -> pd.DataFrame:
         logger.debug("Retrieving channel adstocked data from output collect")
@@ -55,12 +61,12 @@ class HillCalculator:
             start_index = self.mmmdata.mmmdata_spec.window_start
             end_index = self.mmmdata.mmmdata_spec.window_end
             logger.debug("Slicing DataFrame with window: start=%d, end=%d", start_index, end_index)
-            
+
             chn_adstocked = chn_adstocked.iloc[start_index : end_index + 1]
-            
-            logger.info("Successfully retrieved channel adstocked data with shape %s", chn_adstocked.shape)
+
+            logger.debug("Successfully retrieved channel adstocked data with shape %s", chn_adstocked.shape)
             return chn_adstocked
-            
+
         except Exception as e:
             logger.error("Error retrieving channel adstocked data: %s", str(e))
             raise
@@ -95,15 +101,11 @@ class HillCalculator:
             coefs = dict(zip(self.dt_coef["rn"], self.dt_coef["coef"]))
             coefs_sorted = [coefs[media] for media in self.media_spend_sorted]
 
-            result = {
-                "alphas": alphas.tolist(),
-                "inflexions": list(inflexions.values()),
-                "coefs_sorted": coefs_sorted
-            }
-            
-            logger.info("Successfully calculated Hill parameters")
+            result = {"alphas": alphas.tolist(), "inflexions": list(inflexions.values()), "coefs_sorted": coefs_sorted}
+
+            logger.debug("Successfully calculated Hill parameters")
             logger.debug("Final Hill parameters: %s", result)
-            
+
             return result
 
         except Exception as e:
