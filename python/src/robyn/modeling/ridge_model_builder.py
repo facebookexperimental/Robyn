@@ -306,58 +306,9 @@ class RidgeModelBuilder:
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
     ) -> pd.DataFrame:
-        """Calculate decomposition spend distribution matching R's implementation"""
-        paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
-
-        # Calculate base metrics
-        results = []
-        for col in paid_media_cols:
-            idx = list(X.columns).index(col)
-            coef = model.coef_[idx]
-            effect = coef * X[col].sum()
-            spend = X[col].sum()
-            non_zero_effect = X[col][X[col] > 0] * coef
-
-            result = {
-                "rn": col,
-                "coef": coef,
-                "xDecompAgg": effect,
-                "total_spend": spend,
-                "mean_spend": X[col].mean(),
-                "spend_share": spend / X[paid_media_cols].sum().sum(),  # Add spend_share
-                "effect_share": effect / sum([coef * X[c].sum() for c in paid_media_cols]),  # Add effect_share
-                "xDecompMeanNon0": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
-            }
-            results.append(result)
-
-        df = pd.DataFrame(results)
-
-        # Calculate response metrics
-        df["roi_total"] = df["xDecompAgg"] / df["total_spend"]  # Add roi_total
-        df["cpa_total"] = df["total_spend"] / df["xDecompAgg"]  # Add cpa_total
-
-        # Rename columns to match R's format
-        df = df.rename(columns={"xDecompMeanNon0": "mean_response"})
-
-        # Add metrics columns
-        for metric in ["nrmse", "decomp_rssd", "mape", "lambda_", "lambda_hp", "lambda_max", "lambda_min_ratio"]:
-            df[metric] = metrics.get(metric, 0)
-
-        # Add required indices and identifiers
-        df["solID"] = metrics.get("solID", "")
-        df["trial"] = metrics.get("trial", 0)
-        df["iterNG"] = metrics.get("iterNG", 0)
-        df["iterPar"] = metrics.get("iterPar", 0)
-
-        return df
-
-    def _calculate_decomp_spend_dist(
-        self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
-    ) -> pd.DataFrame:
         """Calculate decomposition spend distribution matching R's implementation exactly"""
         paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
 
-        # Calculate base metrics
         results = []
         for col in paid_media_cols:
             idx = list(X.columns).index(col)
@@ -374,13 +325,10 @@ class RidgeModelBuilder:
                 "mean_spend": X[col].mean(),
                 "spend_share": spend / X[paid_media_cols].sum().sum(),
                 "effect_share": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "mean_response": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
-                # Adding R-matching columns
                 "xDecompPerc": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
                 "xDecompMeanNon0": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
                 "xDecompMeanNon0Perc": (non_zero_effect.mean() if len(non_zero_effect) > 0 else 0)
                 / sum([coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0 for c in paid_media_cols]),
-                # RF (refresh) versions
                 "xDecompAggRF": effect,
                 "xDecompPercRF": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
                 "xDecompMeanNon0RF": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
@@ -389,13 +337,11 @@ class RidgeModelBuilder:
                 "pos": coef >= 0,
                 "spend_share_refresh": spend / X[paid_media_cols].sum().sum(),
                 "effect_share_refresh": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "roi_total": effect / spend if spend > 0 else 0,
+                "cpa_total": spend / effect if effect > 0 else 0,
             }
 
-            # Calculate ROI and CPA
-            result["roi_total"] = effect / spend if spend > 0 else 0
-            result["cpa_total"] = spend / effect if effect > 0 else 0
-
-            # Add metrics from model performance
+            # Add model performance metrics
             result.update(
                 {
                     "rsq_train": metrics.get("rsq_train", 0),
@@ -407,11 +353,11 @@ class RidgeModelBuilder:
                     "nrmse": metrics.get("nrmse", 0),
                     "decomp.rssd": metrics.get("decomp_rssd", 0),
                     "mape": metrics.get("mape", 0),
-                    "lambda": metrics.get("lambda_", 0),  # Note: Changed from lambda_ to lambda
+                    "lambda": metrics.get("lambda_", 0),
                     "lambda_hp": metrics.get("lambda_hp", 0),
                     "lambda_max": metrics.get("lambda_max", 0),
                     "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
-                    "sol_id": metrics.get("solID", ""),  # Note: Changed from solID to sol_id
+                    "sol_id": metrics.get("solID", ""),
                     "trial": metrics.get("trial", 0),
                     "iterNG": metrics.get("iterNG", 0),
                     "iterPar": metrics.get("iterPar", 0),
@@ -617,6 +563,22 @@ class RidgeModelBuilder:
 
         return pd.DataFrame(results)
 
+    def _format_hyperparameter_names(self, params: Dict[str, float]) -> Dict[str, float]:
+        """Format hyperparameter names to match R's naming convention."""
+        formatted = {}
+        for param_name, value in params.items():
+            if param_name == "lambda" or param_name == "train_size":
+                formatted[param_name] = value
+            else:
+                # Split parameter name into media and param type
+                # E.g., facebook_S_alphas -> (facebook_S, alphas)
+                media, param_type = param_name.rsplit("_", 1)
+                if param_type in ["alphas", "gammas", "thetas", "shapes", "scales"]:
+                    formatted[f"{media}_{param_type}"] = value
+                else:
+                    formatted[param_name] = value
+        return formatted
+
     def _evaluate_model(
         self,
         params: Dict[str, float],
@@ -732,6 +694,9 @@ class RidgeModelBuilder:
 
         elapsed_time = time.time() - start_time
 
+        # Format hyperparameter names to match R's format
+        params_formatted = self._format_hyperparameter_names(params)
+
         # Update metrics dictionary with R-matching names
         metrics.update(
             {
@@ -753,13 +718,15 @@ class RidgeModelBuilder:
         )
 
         # Update parameters with time info and metrics
-        params.update({"sol_id": sol_id, "Elapsed": elapsed_time, "ElapsedAccum": elapsed_time, "pos": pos})
+        params_formatted.update({"sol_id": sol_id, "Elapsed": elapsed_time, "ElapsedAccum": elapsed_time, "pos": pos})
 
         # Calculate x_decomp_agg with updated metrics
-        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, {**params, **metrics})
+        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, {**params_formatted, **metrics})
 
         # Calculate decomp_spend_dist with updated metrics
-        decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, {**metrics, "params": params})
+        decomp_spend_dist = self._calculate_decomp_spend_dist(
+            model, X_train, y_train, {**metrics, "params": params_formatted}
+        )
 
         # Calculate loss
         loss = (
@@ -770,7 +737,7 @@ class RidgeModelBuilder:
 
         return {
             "loss": loss,
-            "params": params,
+            "params": params_formatted,
             **metrics,
             "decomp_spend_dist": decomp_spend_dist,
             "x_decomp_agg": x_decomp_agg,
