@@ -174,16 +174,12 @@ class OnePager:
         gs: GridSpec
     ) -> None:
         """
-        Generate plots for a single solution.
+        Generate plots for a single solution with dynamic layout.
         
         Args:
             solution_id: Solution ID to generate plots for
             plots: List of PlotType enums specifying which plots to generate
             gs: GridSpec for plot layout
-            
-        Raises:
-            ValueError: If invalid PlotType is provided
-            TypeError: If plots argument contains non-PlotType elements
         """
         try:
             # Validate plot types
@@ -201,59 +197,60 @@ class OnePager:
             # Add space at top for title
             gs.update(top=0.85)
             
-            # Define plot positions and functions using PlotType enum directly
+            # Define plot configurations without positions
             plot_config = {
                 PlotType.SPEND_EFFECT: {
-                    'position': gs[0, 0],
                     'title': 'Share of Total Spend, Effect & Performance',
                     'func': lambda ax: transfor_viz.generate_spend_effect_comparison(solution_id, ax)
                 },
                 PlotType.WATERFALL: {
-                    'position': gs[1, 0],
                     'title': 'Response Decomposition Waterfall',
                     'func': lambda ax: pareto_viz.generate_waterfall(solution_id, ax) if pareto_viz else None
                 },
                 PlotType.FITTED_VS_ACTUAL: {
-                    'position': gs[0, 1],
                     'title': 'Actual vs. Predicted Response',
                     'func': lambda ax: pareto_viz.generate_fitted_vs_actual(solution_id, ax) if pareto_viz else None
                 },
                 PlotType.DIAGNOSTIC: {
-                    'position': gs[1, 1],
                     'title': 'Fitted vs. Residual',
                     'func': lambda ax: pareto_viz.generate_diagnostic_plot(solution_id, ax) if pareto_viz else None
                 },
                 PlotType.IMMEDIATE_CARRYOVER: {
-                    'position': gs[2, 0],
                     'title': 'Immediate vs. Carryover Response Percentage',
                     'func': lambda ax: pareto_viz.generate_immediate_vs_carryover(solution_id, ax) if pareto_viz else None
                 },
                 PlotType.ADSTOCK: {
-                    'position': gs[2, 1],
                     'title': 'Adstock Rate Analysis',
                     'func': lambda ax: pareto_viz.generate_adstock_rate(solution_id, ax) if pareto_viz else None
                 },
                 PlotType.BOOTSTRAP: {
-                    'position': gs[3, 0],
                     'title': 'Bootstrapped Performance Metrics',
                     'func': lambda ax: cluster_viz.generate_bootstrap_confidence(solution_id, ax) if cluster_viz else None
                 },
                 PlotType.RESPONSE_CURVES: {
-                    'position': gs[3, 1],
                     'title': 'Response Curves and Mean Spends by Channel',
                     'func': lambda ax: response_viz.generate_response_curves(solution_id, ax)
                 }
             }
 
-            # Validate and generate each requested plot
-            for plot_type in plots:
+            # Calculate grid dimensions based on number of plots
+            n_plots = len(plots)
+            n_rows = (n_plots + 1) // 2  # Ceiling division for number of rows
+            n_cols = min(2, n_plots)     # Use 2 columns unless only 1 plot
+
+            # Create plots with dynamic positioning
+            for i, plot_type in enumerate(plots):
                 if plot_type not in plot_config:
                     logger.error(f"Unsupported plot type: {plot_type}")
                     continue
                     
+                # Calculate position
+                row = i // 2
+                col = i % 2
+                
                 config = plot_config[plot_type]
                 try:
-                    ax = plt.subplot(config['position'])
+                    ax = plt.subplot(gs[row, col])
                     config['func'](ax)
                     ax.set_title(f"{config['title']} (Solution {solution_id})")
                 except Exception as e:
@@ -264,7 +261,7 @@ class OnePager:
                     ax.text(0.5, 0.5, f"Error generating {plot_type.name}",
                         ha='center', va='center')
 
-            # Get model info and add title
+            # Add model info and titles
             try:
                 model_info = self._get_model_info(solution_id)
                 metrics_text = (
@@ -276,27 +273,24 @@ class OnePager:
                 if 'mape' in model_info:
                     metrics_text += f" | MAPE: {model_info['mape']}"
                 
-                # Add titles with proper spacing
                 fig = gs.figure
                 fig.suptitle(
                     f"MMM Analysis One-Pager (Solution {solution_id})",
                     fontsize=14, y=0.98
                 )
-                # Add metrics text below main title
                 fig.text(
-                    0.5, 0.94,  # x, y position
+                    0.5, 0.94,
                     metrics_text,
                     fontsize=12,
                     ha='center'
                 )
             except Exception as e:
                 logger.error(f"Error adding title and metrics for solution {solution_id}: {str(e)}")
-                # Add basic title if metrics fail
                 gs.figure.suptitle(
                     f"MMM Analysis One-Pager (Solution {solution_id})",
                     fontsize=14, y=0.98
                 )
-                
+                    
         except Exception as e:
             logger.error(f"Fatal error generating plots for solution {solution_id}: {str(e)}", exc_info=True)
             raise
@@ -394,9 +388,12 @@ class OnePager:
             for i, solution_id in enumerate(solution_ids):
                 logger.debug(f"Generating one-pager for solution {solution_id} ({i+1}/{len(solution_ids)})")
                 
+                n_plots = len(plots)
+                n_rows = (n_plots + 1) // 2  # Ceiling division for number of rows
+
                 # Create figure and grid for this solution
                 fig = plt.figure(figsize=figsize)
-                gs = GridSpec(4, 2, figure=fig)
+                gs = GridSpec(n_rows, 2, figure=fig)  # Dynamic number of rows
                 
                 # Generate plots for this solution
                 self._generate_solution_plots(solution_id, plots, gs)
