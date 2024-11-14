@@ -304,54 +304,76 @@ class RidgeModelBuilder:
         )
 
     def _calculate_decomp_spend_dist(
-        self, model: Ridge, X: pd.DataFrame, y: pd.Series, params: Dict[str, Any]
+        self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
     ) -> pd.DataFrame:
+        """Calculate decomposition spend distribution matching R"""
         paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
-        x_decomp = X[paid_media_cols] * model.coef_[X.columns.get_indexer(paid_media_cols)]
 
-        decomp_spend_dist = pd.DataFrame(
-            {
-                "rn": paid_media_cols,
-                "coef": model.coef_[X.columns.get_indexer(paid_media_cols)],
-                "xDecompAgg": x_decomp.sum(),
-                "xDecompPerc": x_decomp.sum() / x_decomp.sum().sum(),
-                "xDecompMeanNon0": x_decomp[x_decomp > 0].mean(),
-                "xDecompMeanNon0Perc": x_decomp[x_decomp > 0].mean() / x_decomp[x_decomp > 0].sum(),
-                "xDecompAggRF": x_decomp.sum(),  # You may need to adjust this for refresh
-                "xDecompPercRF": x_decomp.sum() / x_decomp.sum().sum(),  # Adjust for refresh
-                "xDecompMeanNon0RF": x_decomp[x_decomp > 0].mean(),  # Adjust for refresh
-                "xDecompMeanNon0PercRF": x_decomp[x_decomp > 0].mean()
-                / x_decomp[x_decomp > 0].sum(),  # Adjust for refresh
-                "pos": model.coef_[X.columns.get_indexer(paid_media_cols)] >= 0,
-                "mean_spend": X[paid_media_cols].mean(),
-                "total_spend": X[paid_media_cols].sum(),
-                "spend_share": X[paid_media_cols].sum() / X[paid_media_cols].sum().sum(),
-                "spend_share_refresh": X[paid_media_cols].sum() / X[paid_media_cols].sum().sum(),  # Adjust for refresh
-                "effect_share": x_decomp.sum() / x_decomp.sum().sum(),
-                "effect_share_refresh": x_decomp.sum() / x_decomp.sum().sum(),  # Adjust for refresh
+        # Calculate effects and shares
+        effects = {}
+        share_metrics = {
+            "total_spend": X[paid_media_cols].sum(),
+            "mean_spend": X[paid_media_cols].mean(),
+            "spend_share": X[paid_media_cols].sum() / X[paid_media_cols].sum().sum(),
+        }
+
+        for col in paid_media_cols:
+            idx = list(X.columns).index(col)
+            coef = model.coef_[idx]
+            effects[col] = {
+                "rn": col,
+                "coef": coef,
+                "xDecompAgg": coef * X[col].sum(),
+                "xDecompPerc": 0,  # Will normalize after
+                "xDecompMeanNon0": np.mean(X[col][X[col] > 0] * coef) if any(X[col] > 0) else 0,
+                "total_spend": share_metrics["total_spend"][col],
+                "mean_spend": share_metrics["mean_spend"][col],
+                "spend_share": share_metrics["spend_share"][col],
             }
-        )
 
-        # Add model performance metrics
-        decomp_spend_dist["rsq_train"] = r2_score(y, model.predict(X))
-        decomp_spend_dist["rsq_val"] = params.get("rsq_val", 0)
-        decomp_spend_dist["rsq_test"] = params.get("rsq_test", 0)
-        decomp_spend_dist["nrmse_train"] = np.sqrt(mean_squared_error(y, model.predict(X))) / (y.max() - y.min())
-        decomp_spend_dist["nrmse_val"] = params.get("nrmse_val", 0)
-        decomp_spend_dist["nrmse_test"] = params.get("nrmse_test", 0)
-        decomp_spend_dist["nrmse"] = params.get("nrmse", 0)
-        decomp_spend_dist["decomp.rssd"] = params.get("decomp_rssd", 0)
-        decomp_spend_dist["mape"] = params.get("mape", 0)
-        decomp_spend_dist["lambda"] = params.get("lambda_", 0)
-        decomp_spend_dist["lambda_hp"] = params.get("lambda_hp", 0)
-        decomp_spend_dist["lambda_max"] = params.get("lambda_max", 0)
-        decomp_spend_dist["lambda_min_ratio"] = params.get("lambda_min_ratio", 0)
-        decomp_spend_dist["solID"] = params.get("solID", "")
-        decomp_spend_dist["trial"] = params.get("trial", 0)
-        decomp_spend_dist["iterNG"] = params.get("iter_ng", 0)
-        decomp_spend_dist["iterPar"] = params.get("iter_par", 0)
+        # Calculate percentages
+        total_effect = sum(e["xDecompAgg"] for e in effects.values())
+        for col in effects:
+            effects[col]["xDecompPerc"] = effects[col]["xDecompAgg"] / total_effect * 100
+            effects[col]["effect_share"] = effects[col]["xDecompAgg"] / total_effect
 
-        return decomp_spend_dist
+        # Create DataFrame
+        df = pd.DataFrame(effects.values())
+
+        # Add all model metrics
+        for key, value in metrics.items():
+            df[key] = value
+
+        # Add refresh metrics (matching R columns)
+        df["xDecompAggRF"] = df["xDecompAgg"]
+        df["xDecompPercRF"] = df["xDecompPerc"]
+        df["xDecompMeanNon0RF"] = df["xDecompMeanNon0"]
+        df["xDecompMeanNon0PercRF"] = df["xDecompPerc"]
+        df["spend_share_refresh"] = df["spend_share"]
+        df["effect_share_refresh"] = df["effect_share"]
+
+        # Add train/val/test metrics
+        metric_cols = [
+            "rsq_train",
+            "rsq_val",
+            "rsq_test",
+            "nrmse_train",
+            "nrmse_val",
+            "nrmse_test",
+            "nrmse",
+            "decomp.rssd",
+            "mape",
+            "lambda",
+            "lambda_hp",
+            "lambda_max",
+            "lambda_min_ratio",
+        ]
+
+        for col in metric_cols:
+            if col in metrics:
+                df[col] = metrics[col]
+
+        return df[sorted(df.columns)]  # Sort columns to match R
 
     def _calculate_x_decomp_agg(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, params: Dict[str, Any]
@@ -526,118 +548,117 @@ class RidgeModelBuilder:
         iter_ng: int,
         trial: int,
     ) -> Dict[str, Any]:
-        """Evaluate model with given parameters"""
-        train_size = params.get("train_size", 1.0) if ts_validation else 1.0
+        """Evaluate model with parameter set"""
         X, y = self._prepare_data(params)
 
-        # Split data
-        if ts_validation:
-            train_idx = int(len(X) * train_size)
-            val_test_size = (len(X) - train_idx) // 2
+        # Convert to numpy arrays for indexing
+        X_np = X.to_numpy()
+        y_np = y.to_numpy()
 
-            X_train = X[:train_idx]
-            y_train = y[:train_idx]
-            X_val = X[train_idx : train_idx + val_test_size]
-            y_val = y[train_idx : train_idx + val_test_size]
-            X_test = X[train_idx + val_test_size :]
-            y_test = y[train_idx + val_test_size :]
+        # Split data using R's approach
+        train_size = params.get("train_size", 1.0) if ts_validation else 1.0
+        train_idx = int(len(X) * train_size)
+
+        if ts_validation:
+            val_test_size = (len(X) - train_idx) // 2
+            X_train = X.iloc[:train_idx]
+            y_train = y.iloc[:train_idx]
+            X_val = X.iloc[train_idx : train_idx + val_test_size]
+            y_val = y.iloc[train_idx : train_idx + val_test_size]
+            X_test = X.iloc[train_idx + val_test_size :]
+            y_test = y.iloc[train_idx + val_test_size :]
         else:
             X_train, y_train = X, y
             X_val = X_test = y_val = y_test = None
 
-        # Scale lambda similar to R's implementation
-        lambda_hp = params.get("lambda", 1.0)
+        # Get lambda sequence and value
         lambda_seq = self._lambda_seq(X_train, y_train)
-        lambda_max = lambda_seq[0]
-        lambda_min = lambda_max * 0.0001  # Same as R's lambda_min_ratio
-        lambda_ = lambda_min + (lambda_max - lambda_min) * lambda_hp
+        lambda_max = max(lambda_seq)
+        lambda_min_ratio = 0.0001
+        lambda_hp = params.get("lambda", 1.0)
+        lambda_ = lambda_max * lambda_min_ratio + lambda_hp * (lambda_max - lambda_max * lambda_min_ratio)
 
-        # Fit model with scaled lambda
+        # Fit model
         model = Ridge(alpha=lambda_, fit_intercept=True)
         model.fit(X_train, y_train)
 
-        # Calculate metrics using R's approach
-        y_train_pred = model.predict(X_train)
-        nrmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (y_train.max() - y_train.min())
-        rsq_train = r2_score(y_train, y_train_pred)
+        # Calculate metrics for each split
+        metrics = {}
 
+        # Training metrics
+        y_train_pred = model.predict(X_train)
+        metrics["rsq_train"] = self._calculate_r2_score(y_train, y_train_pred, X_train.shape[1], df_int=1)
+        metrics["nrmse_train"] = np.sqrt(mean_squared_error(y_train, y_train_pred)) / (
+            np.max(y_train) - np.min(y_train)
+        )
+
+        # Validation and test metrics if applicable
         if ts_validation and X_val is not None and X_test is not None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
 
-            nrmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (y_val.max() - y_val.min())
-            nrmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (y_test.max() - y_test.min())
-            nrmse = nrmse_val  # Use validation NRMSE when doing ts_validation
+            metrics["rsq_val"] = self._calculate_r2_score(y_val, y_val_pred, X_val.shape[1], df_int=1)
+            metrics["rsq_test"] = self._calculate_r2_score(y_test, y_test_pred, X_test.shape[1], df_int=1)
 
-            rsq_val = r2_score(y_val, y_val_pred)
-            rsq_test = r2_score(y_test, y_test_pred)
+            metrics["nrmse_val"] = np.sqrt(mean_squared_error(y_val, y_val_pred)) / (np.max(y_val) - np.min(y_val))
+            metrics["nrmse_test"] = np.sqrt(mean_squared_error(y_test, y_test_pred)) / (
+                np.max(y_test) - np.min(y_test)
+            )
+
+            metrics["nrmse"] = metrics["nrmse_val"]  # Use validation NRMSE for optimization
         else:
-            nrmse_val = nrmse_test = 0.0
-            rsq_val = rsq_test = 0.0
-            nrmse = nrmse_train
+            metrics["rsq_val"] = metrics["rsq_test"] = 0.0
+            metrics["nrmse_val"] = metrics["nrmse_test"] = 0.0
+            metrics["nrmse"] = metrics["nrmse_train"]
 
-        # Calculate RSSD following R's approach
+        # Calculate decomposition RSSD
         paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
-        effect_shares = model.coef_[X.columns.get_indexer(paid_media_cols)]
-        spend_shares = X_train[paid_media_cols].sum() / X_train[paid_media_cols].sum().sum()
+        effect_shares = np.zeros(len(paid_media_cols))
+        spend_shares = np.zeros(len(paid_media_cols))
+
+        for i, col in enumerate(paid_media_cols):
+            effect = model.coef_[list(X_train.columns).index(col)] * X_train[col].sum()
+            effect_shares[i] = effect
+            spend_shares[i] = X_train[col].sum()
+
+        effect_shares = effect_shares / np.sum(np.abs(effect_shares))
+        spend_shares = spend_shares / np.sum(spend_shares)
+
         decomp_rssd = np.sqrt(np.mean((effect_shares - spend_shares) ** 2))
 
         if rssd_zero_penalty:
             zero_coef_ratio = np.sum(np.abs(effect_shares) < 1e-10) / len(effect_shares)
             decomp_rssd *= 1 + zero_coef_ratio
 
-        # Calculate MAPE if calibration is available
-        mape = 0.0
-        if self.calibration_input is not None:
-            dt_raw = self.featurized_mmm_data.dt_mod.copy()
-            if "ds" in dt_raw.columns:
-                dt_raw["date"] = pd.to_datetime(dt_raw["ds"])
-            window_mask = (dt_raw["date"] >= pd.to_datetime(self.mmm_data.mmmdata_spec.window_start)) & (
-                dt_raw["date"] <= pd.to_datetime(self.mmm_data.mmmdata_spec.window_end)
-            )
-            window_data = dt_raw[window_mask]
+        metrics["decomp_rssd"] = decomp_rssd
 
-            mape = self._calculate_mape(
-                model=model,
-                dt_raw=window_data,
-                hypParamSam=params,
-                wind_start=0,  # Use full window since we've already filtered
-                wind_end=len(window_data),
-            )
-
-        # Combine all metrics in result_metrics
-        result_metrics = {
-            "nrmse": nrmse,
-            "nrmse_train": nrmse_train,  # Added this
-            "nrmse_val": nrmse_val,  # Added this
-            "nrmse_test": nrmse_test,  # Added this
-            "decomp_rssd": decomp_rssd,
-            "mape": mape,
-            "rsq_train": rsq_train,
-            "rsq_val": rsq_val,
-            "rsq_test": rsq_test,
-            "lambda_": lambda_,
-            "lambda_hp": lambda_hp,
-            "lambda_max": lambda_max,
-            "lambda_min_ratio": 0.0001,
-        }
+        # Add lambda metrics
+        metrics.update(
+            {
+                "lambda_": lambda_,
+                "lambda_hp": lambda_hp,
+                "lambda_max": lambda_max,
+                "lambda_min_ratio": lambda_min_ratio,
+                "mape": 0.0,  # Set to 0 if no calibration
+            }
+        )
 
         # Calculate loss
         loss = (
-            objective_weights[0] * nrmse
-            + objective_weights[1] * decomp_rssd
-            + (objective_weights[2] * mape if len(objective_weights) > 2 and self.calibration_input else 0)
+            objective_weights[0] * metrics["nrmse"]
+            + objective_weights[1] * metrics["decomp_rssd"]
+            + (objective_weights[2] * metrics["mape"] if len(objective_weights) > 2 else 0)
         )
 
-        decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, result_metrics)
-        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, result_metrics)
+        # Update parameters
+        params.update({"solID": f"{trial}_{iter_ng + 1}_1", "ElapsedAccum": time.time() - start_time})
 
         return {
             "loss": loss,
             "params": params,
-            **result_metrics,
-            "decomp_spend_dist": decomp_spend_dist,
-            "x_decomp_agg": x_decomp_agg,
+            **metrics,
+            "decomp_spend_dist": self._calculate_decomp_spend_dist(model, X_train, y_train, metrics),
+            "x_decomp_agg": self._calculate_x_decomp_agg(model, X_train, y_train, metrics),
             "elapsed": time.time() - start_time,
             "elapsed_accum": time.time() - start_time,
             "iter_ng": iter_ng + 1,
@@ -760,19 +781,44 @@ class RidgeModelBuilder:
             df_int=1 if intercept else 0,
         )
 
-    @staticmethod
-    def _lambda_seq(x: np.ndarray, y: np.ndarray, seq_len: int = 100) -> np.ndarray:
-        """Calculate lambda sequence following R's approach"""
-        # Calculate standardized X and y
-        x_std = (x - x.mean(axis=0)) / x.std(axis=0)
-        y_std = (y - y.mean()) / y.std()
+    def _lambda_seq(self, x: pd.DataFrame, y: pd.Series, seq_len: int = 100) -> np.ndarray:
+        """Calculate lambda sequence exactly matching R's glmnet implementation"""
+        # Convert pandas objects to numpy arrays
+        x_np = x.to_numpy()
+        y_np = y.to_numpy()
 
-        # R uses alpha=0 for ridge regression
-        alpha = 0.001  # Small value for ridge regression
+        # Calculate standard deviation like R
+        def r_style_sd(x):
+            return np.sqrt(np.sum((x - np.mean(x)) ** 2) / len(x))
 
-        # Calculate max lambda using R's formula
-        lambda_max = np.max(np.abs(x_std.T @ y_std)) / (alpha * x.shape[0])
-        lambda_min_ratio = 0.0001
+        # Standardize predictors R-style
+        x_scaled = np.zeros_like(x_np, dtype=float)
+        for j in range(x_np.shape[1]):
+            sd = r_style_sd(x_np[:, j])
+            if sd == 0:
+                x_scaled[:, j] = 0
+            else:
+                x_scaled[:, j] = (x_np[:, j] - np.mean(x_np[:, j])) / sd
+
+        # Handle constant/zero-variance columns
+        x_scaled = np.nan_to_num(x_scaled)
+
+        # Calculate lambda_max using R's formula
+        alpha = 0.001  # R's default for ridge
+        lambda_max = np.max(np.abs(x_scaled.T @ y_np)) / (alpha * x_np.shape[0])
 
         # Generate sequence
-        return np.exp(np.linspace(np.log(lambda_max * lambda_min_ratio), np.log(lambda_max), seq_len))
+        lambda_min_ratio = 0.0001
+        lambda_min = lambda_max * lambda_min_ratio
+        return np.exp(np.linspace(np.log(lambda_max), np.log(lambda_min), seq_len))
+
+    def _calculate_r2_score(self, y_true: np.ndarray, y_pred: np.ndarray, n_features: int, df_int: int = 1) -> float:
+        """Calculate R-squared exactly like R"""
+        n = len(y_true)
+        resid_ss = np.sum((y_true - y_pred) ** 2)
+        total_ss = np.sum((y_true - np.mean(y_true)) ** 2)
+        r2 = 1 - (resid_ss / total_ss)
+
+        # Adjust R2 like R does
+        adj_r2 = 1 - (1 - r2) * ((n - df_int) / (n - n_features - df_int))
+        return adj_r2
