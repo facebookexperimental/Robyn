@@ -140,8 +140,8 @@ class RidgeModelBuilder:
         # Find the index of the best model (lowest combined score)
         best_index = np.argmin(combined_score)
 
-        # Return the solID of the best model
-        return output_models[best_index].result_hyp_param["solID"].values[0]
+        # Return the sol_id of the best model (changed from solID)
+        return output_models[best_index].result_hyp_param["sol_id"].values[0]
 
     def _model_train(
         self,
@@ -238,103 +238,70 @@ class RidgeModelBuilder:
                         trial=trial,
                     )
 
-                # Early filtering like R
-                if result["nrmse"] > 0.9 or result["decomp_rssd"] > 0.9:
-                    continue
-
-                # Skip if all media coefficients are 0
-                if rssd_zero_penalty and all(abs(coef) < 1e-10 for coef in result["decomp_spend_dist"]["coef"].values):
-                    continue
-
                 optimizer.tell(candidate, result["loss"])
 
-                # Map field names to match R's format
-                result_fields = {
-                    "rsq_train": "rsq_train",
-                    "rsq_val": "rsq_val",
-                    "rsq_test": "rsq_test",
-                    "nrmse": "nrmse",
-                    "nrmse_train": "nrmse_train",
-                    "nrmse_val": "nrmse_val",
-                    "nrmse_test": "nrmse_test",
-                    "decomp_rssd": "decomp.rssd",
-                    "mape": "mape",
-                    "lambda_": "lambda",
-                    "lambda_hp": "lambda_hp",
-                    "lambda_max": "lambda_max",
-                    "lambda_min_ratio": "lambda_min_ratio",
-                }
-
-                # Update result params with field mapping
-                for py_name, r_name in result_fields.items():
-                    result["params"][r_name] = result[py_name]
-
+                # Update result params with all metrics, using the new 'lambda' name
                 result["params"].update(
                     {
-                        "solID": f"{trial}_{iter_ng + 1}_1",
+                        "sol_id": f"{trial}_{iter_ng + 1}_1",  # Changed from solID to sol_id
+                        "ElapsedAccum": result["elapsed_accum"],
                         "trial": trial,
+                        "rsq_train": result["rsq_train"],
+                        "rsq_val": result["rsq_val"],
+                        "rsq_test": result["rsq_test"],
+                        "nrmse": result["nrmse"],
+                        "nrmse_train": result["nrmse_train"],
+                        "nrmse_val": result["nrmse_val"],
+                        "nrmse_test": result["nrmse_test"],
+                        "decomp.rssd": result["decomp_rssd"],
+                        "mape": result["mape"],
+                        "lambda": result["lambda"],  # Changed from lambda_ to lambda
+                        "lambda_hp": result["lambda_hp"],
+                        "lambda_max": result["lambda_max"],
+                        "lambda_min_ratio": result["lambda_min_ratio"],
                         "iterNG": iter_ng + 1,
                         "iterPar": 1,
-                        "ElapsedAccum": time.time() - start_time,
                     }
                 )
 
                 all_results.append(result)
                 pbar.update(1)
 
-            end_time = time.time()
-            self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
+        end_time = time.time()
+        self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
-            if not all_results:
-                raise ValueError("No valid models found after filtering")
+        # Aggregate results
+        result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
+        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
+        x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
 
-            # R-style sorting and filtering
-            all_results.sort(key=lambda x: x["loss"])
-            n_keep = min(len(all_results), int(iterations * 0.2))
-            all_results = all_results[:n_keep]
+        # Find best result based on loss
+        best_result = min(all_results, key=lambda x: x["loss"])
 
-            # Aggregate results
-            result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
-
-            # Ensure required columns exist with correct names
-            required_columns = ["trial", "nrmse", "decomp.rssd", "mape"]
-            for col in required_columns:
-                if col not in result_hyp_param.columns:
-                    if col == "decomp.rssd":
-                        result_hyp_param[col] = result_hyp_param["decomp_rssd"]
-                    else:
-                        result_hyp_param[col] = result_hyp_param[col.lower()]
-
-            decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
-            x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
-
-            # Get best result
-            best_result = min(all_results, key=lambda x: x["loss"])
-
-            return Trial(
-                result_hyp_param=result_hyp_param,
-                lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),
-                decomp_spend_dist=decomp_spend_dist,
-                x_decomp_agg=x_decomp_agg,
-                nrmse=best_result["nrmse"],
-                decomp_rssd=best_result["decomp_rssd"],
-                mape=best_result["mape"],
-                rsq_train=best_result["rsq_train"],
-                rsq_val=best_result["rsq_val"],
-                rsq_test=best_result["rsq_test"],
-                lambda_=best_result["lambda_"],
-                lambda_hp=best_result["lambda_hp"],
-                lambda_max=best_result["lambda_max"],
-                lambda_min_ratio=best_result["lambda_min_ratio"],
-                pos=best_result.get("pos", 0),
-                elapsed=best_result["elapsed"],
-                elapsed_accum=best_result["elapsed_accum"],
-                trial=trial,
-                iter_ng=best_result["iter_ng"],
-                iter_par=best_result["iter_par"],
-                train_size=best_result["params"].get("train_size", 1.0),
-                sol_id=best_result["params"]["solID"],
-            )
+        return Trial(
+            result_hyp_param=result_hyp_param,
+            lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),
+            decomp_spend_dist=decomp_spend_dist,
+            x_decomp_agg=x_decomp_agg,
+            nrmse=best_result["nrmse"],
+            decomp_rssd=best_result["decomp_rssd"],
+            mape=best_result["mape"],
+            rsq_train=best_result["rsq_train"],
+            rsq_val=best_result["rsq_val"],
+            rsq_test=best_result["rsq_test"],
+            lambda_=best_result["lambda"],  # Changed from lambda_ to lambda
+            lambda_hp=best_result["lambda_hp"],
+            lambda_max=best_result["lambda_max"],
+            lambda_min_ratio=best_result["lambda_min_ratio"],
+            pos=best_result.get("pos", 0),
+            elapsed=best_result["elapsed"],
+            elapsed_accum=best_result["elapsed_accum"],
+            trial=trial,
+            iter_ng=best_result["iter_ng"],
+            iter_par=best_result["iter_par"],
+            train_size=best_result["params"].get("train_size", 1.0),
+            sol_id=best_result["params"]["sol_id"],  # Changed from solID to sol_id
+        )
 
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
@@ -384,48 +351,77 @@ class RidgeModelBuilder:
 
         return df
 
-    def _calculate_x_decomp_agg(
-        self, model: Ridge, X: pd.DataFrame, y: pd.Series, params: Dict[str, Any]
+    def _calculate_decomp_spend_dist(
+        self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
     ) -> pd.DataFrame:
-        x_decomp = X * model.coef_
-        x_decomp_agg = pd.DataFrame(
-            {
-                "rn": X.columns,
-                "coef": model.coef_,
-                "xDecompAgg": x_decomp.sum(),
-                "xDecompPerc": x_decomp.sum() / x_decomp.sum().sum(),
-                "xDecompMeanNon0": x_decomp[x_decomp > 0].mean(),
-                "xDecompMeanNon0Perc": x_decomp[x_decomp > 0].mean() / x_decomp[x_decomp > 0].sum(),
-                "xDecompAggRF": x_decomp.sum(),  # You may need to adjust this for refresh
-                "xDecompPercRF": x_decomp.sum() / x_decomp.sum().sum(),  # Adjust for refresh
-                "xDecompMeanNon0RF": x_decomp[x_decomp > 0].mean(),  # Adjust for refresh
-                "xDecompMeanNon0PercRF": x_decomp[x_decomp > 0].mean()
-                / x_decomp[x_decomp > 0].sum(),  # Adjust for refresh
-                "pos": model.coef_ >= 0,
+        """Calculate decomposition spend distribution matching R's implementation exactly"""
+        paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
+
+        # Calculate base metrics
+        results = []
+        for col in paid_media_cols:
+            idx = list(X.columns).index(col)
+            coef = model.coef_[idx]
+            effect = coef * X[col].sum()
+            spend = X[col].sum()
+            non_zero_effect = X[col][X[col] > 0] * coef
+
+            result = {
+                "rn": col,
+                "coef": coef,
+                "xDecompAgg": effect,
+                "total_spend": spend,
+                "mean_spend": X[col].mean(),
+                "spend_share": spend / X[paid_media_cols].sum().sum(),
+                "effect_share": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "mean_response": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
+                # Adding R-matching columns
+                "xDecompPerc": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "xDecompMeanNon0": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
+                "xDecompMeanNon0Perc": (non_zero_effect.mean() if len(non_zero_effect) > 0 else 0)
+                / sum([coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0 for c in paid_media_cols]),
+                # RF (refresh) versions
+                "xDecompAggRF": effect,
+                "xDecompPercRF": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "xDecompMeanNon0RF": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
+                "xDecompMeanNon0PercRF": (non_zero_effect.mean() if len(non_zero_effect) > 0 else 0)
+                / sum([coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0 for c in paid_media_cols]),
+                "pos": coef >= 0,
+                "spend_share_refresh": spend / X[paid_media_cols].sum().sum(),
+                "effect_share_refresh": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
             }
-        )
 
-        # Add model performance metrics and parameters
-        x_decomp_agg["train_size"] = params.get("train_size", 1.0)
-        x_decomp_agg["rsq_train"] = r2_score(y, model.predict(X))
-        x_decomp_agg["rsq_val"] = params.get("rsq_val", 0)
-        x_decomp_agg["rsq_test"] = params.get("rsq_test", 0)
-        x_decomp_agg["nrmse_train"] = np.sqrt(mean_squared_error(y, model.predict(X))) / (y.max() - y.min())
-        x_decomp_agg["nrmse_val"] = params.get("nrmse_val", 0)
-        x_decomp_agg["nrmse_test"] = params.get("nrmse_test", 0)
-        x_decomp_agg["nrmse"] = params.get("nrmse", 0)
-        x_decomp_agg["decomp.rssd"] = params.get("decomp_rssd", 0)
-        x_decomp_agg["mape"] = params.get("mape", 0)
-        x_decomp_agg["lambda"] = params.get("lambda_", 0)
-        x_decomp_agg["lambda_hp"] = params.get("lambda_hp", 0)
-        x_decomp_agg["lambda_max"] = params.get("lambda_max", 0)
-        x_decomp_agg["lambda_min_ratio"] = params.get("lambda_min_ratio", 0)
-        x_decomp_agg["solID"] = params.get("solID", "")
-        x_decomp_agg["trial"] = params.get("trial", 0)
-        x_decomp_agg["iterNG"] = params.get("iter_ng", 0)
-        x_decomp_agg["iterPar"] = params.get("iter_par", 0)
+            # Calculate ROI and CPA
+            result["roi_total"] = effect / spend if spend > 0 else 0
+            result["cpa_total"] = spend / effect if effect > 0 else 0
 
-        return x_decomp_agg
+            # Add metrics from model performance
+            result.update(
+                {
+                    "rsq_train": metrics.get("rsq_train", 0),
+                    "rsq_val": metrics.get("rsq_val", 0),
+                    "rsq_test": metrics.get("rsq_test", 0),
+                    "nrmse_train": metrics.get("nrmse_train", 0),
+                    "nrmse_val": metrics.get("nrmse_val", 0),
+                    "nrmse_test": metrics.get("nrmse_test", 0),
+                    "nrmse": metrics.get("nrmse", 0),
+                    "decomp.rssd": metrics.get("decomp_rssd", 0),
+                    "mape": metrics.get("mape", 0),
+                    "lambda": metrics.get("lambda_", 0),  # Note: Changed from lambda_ to lambda
+                    "lambda_hp": metrics.get("lambda_hp", 0),
+                    "lambda_max": metrics.get("lambda_max", 0),
+                    "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
+                    "sol_id": metrics.get("solID", ""),  # Note: Changed from solID to sol_id
+                    "trial": metrics.get("trial", 0),
+                    "iterNG": metrics.get("iterNG", 0),
+                    "iterPar": metrics.get("iterPar", 0),
+                    "Elapsed": metrics.get("elapsed", 0),
+                }
+            )
+
+            results.append(result)
+
+        return pd.DataFrame(results)
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
         # Get the dependent variable
@@ -516,26 +512,6 @@ class RidgeModelBuilder:
 
         return rssd
 
-    def _select_best_model(self, output_models: List[Trial]) -> str:
-        # Extract relevant metrics
-        nrmse_values = np.array([trial.nrmse for trial in output_models])
-        decomp_rssd_values = np.array([trial.decomp_rssd for trial in output_models])
-
-        # Normalize the metrics
-        nrmse_norm = (nrmse_values - np.min(nrmse_values)) / (np.max(nrmse_values) - np.min(nrmse_values))
-        decomp_rssd_norm = (decomp_rssd_values - np.min(decomp_rssd_values)) / (
-            np.max(decomp_rssd_values) - np.min(decomp_rssd_values)
-        )
-
-        # Calculate the combined score (assuming equal weights)
-        combined_score = nrmse_norm + decomp_rssd_norm
-
-        # Find the index of the best model (lowest combined score)
-        best_index = np.argmin(combined_score)
-
-        # Return the solID of the best model
-        return output_models[best_index].sol_id
-
     def _calculate_mape(
         self,
         model: Ridge,
@@ -574,6 +550,73 @@ class RidgeModelBuilder:
             self.logger.warning(f"Error calculating MAPE: {str(e)}")
             return 0.0
 
+    def _calculate_x_decomp_agg(
+        self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, Any]
+    ) -> pd.DataFrame:
+        """Calculate x decomposition aggregates matching R's implementation exactly"""
+        # Calculate decomposition effects
+        x_decomp = X * model.coef_
+
+        results = []
+        for col in X.columns:
+            coef = model.coef_[list(X.columns).index(col)]
+            decomp_values = x_decomp[col]
+
+            # Calculate all required metrics
+            result = {
+                "rn": col,
+                "coef": coef,
+                "xDecompAgg": decomp_values.sum(),
+                "xDecompPerc": decomp_values.sum() / x_decomp.sum().sum() if x_decomp.sum().sum() != 0 else 0,
+                "xDecompMeanNon0": decomp_values[decomp_values > 0].mean() if any(decomp_values > 0) else 0,
+                "xDecompMeanNon0Perc": (
+                    decomp_values[decomp_values > 0].mean()
+                    / sum([x_decomp[c][x_decomp[c] > 0].mean() if any(x_decomp[c] > 0) else 0 for c in X.columns])
+                    if any(decomp_values > 0)
+                    else 0
+                ),
+                # RF (refresh) versions
+                "xDecompAggRF": decomp_values.sum(),
+                "xDecompPercRF": decomp_values.sum() / x_decomp.sum().sum() if x_decomp.sum().sum() != 0 else 0,
+                "xDecompMeanNon0RF": decomp_values[decomp_values > 0].mean() if any(decomp_values > 0) else 0,
+                "xDecompMeanNon0PercRF": (
+                    decomp_values[decomp_values > 0].mean()
+                    / sum([x_decomp[c][x_decomp[c] > 0].mean() if any(x_decomp[c] > 0) else 0 for c in X.columns])
+                    if any(decomp_values > 0)
+                    else 0
+                ),
+                "pos": coef >= 0,
+            }
+
+            # Add model performance metrics
+            result.update(
+                {
+                    "train_size": metrics.get("train_size", 1.0),
+                    "rsq_train": metrics.get("rsq_train", 0),
+                    "rsq_val": metrics.get("rsq_val", 0),
+                    "rsq_test": metrics.get("rsq_test", 0),
+                    "nrmse_train": metrics.get("nrmse_train", 0),
+                    "nrmse_val": metrics.get("nrmse_val", 0),
+                    "nrmse_test": metrics.get("nrmse_test", 0),
+                    "nrmse": metrics.get("nrmse", 0),
+                    "decomp.rssd": metrics.get("decomp_rssd", 0),
+                    "mape": metrics.get("mape", 0),
+                    "lambda": metrics.get("lambda", 0),  # Using lambda instead of lambda_
+                    "lambda_hp": metrics.get("lambda_hp", 0),
+                    "lambda_max": metrics.get("lambda_max", 0),
+                    "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
+                    "sol_id": metrics.get("sol_id", ""),  # Using sol_id instead of solID
+                    "trial": metrics.get("trial", 0),
+                    "iterNG": metrics.get("iterNG", 0),
+                    "iterPar": metrics.get("iterPar", 0),
+                    "Elapsed": metrics.get("Elapsed", 0),
+                }
+            )
+
+            results.append(result)
+
+        return pd.DataFrame(results)
+
     def _evaluate_model(
         self,
         params: Dict[str, float],
@@ -585,9 +628,9 @@ class RidgeModelBuilder:
         iter_ng: int,
         trial: int,
     ) -> Dict[str, Any]:
-        """Evaluate model with parameter set matching R's implementation"""
+        """Evaluate model with parameter set matching R's implementation exactly"""
         X, y = self._prepare_data(params)
-        solID = f"{trial}_{iter_ng + 1}_1"
+        sol_id = f"{trial}_{iter_ng + 1}_1"  # Using sol_id to match R
 
         # R-style data scaling
         def scale_data(X: pd.DataFrame) -> pd.DataFrame:
@@ -621,7 +664,7 @@ class RidgeModelBuilder:
         alpha = 0.001  # R's ridge regression default
         lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / (alpha * len(y_train))
         lambda_min_ratio = 0.0001
-        lambda_hp = params.get("lambda", 1.0)
+        lambda_hp = params.get("lambda", 1.0)  # Using lambda instead of lambda_
         lambda_ = lambda_max * lambda_min_ratio + lambda_hp * (lambda_max - lambda_max * lambda_min_ratio)
 
         # Fit model
@@ -661,6 +704,9 @@ class RidgeModelBuilder:
         media_effects = {}
         media_spends = {}
 
+        # Check positivity of coefficients
+        pos = all(model.coef_[list(X_train.columns).index(col)] >= 0 for col in paid_media_cols)
+
         for col in paid_media_cols:
             idx = list(X_train.columns).index(col)
             coef = model.coef_[idx]
@@ -684,48 +730,36 @@ class RidgeModelBuilder:
             zero_effects = sum(1 for e in media_effects.values() if abs(e) < 1e-10)
             decomp_rssd *= 1 + zero_effects / len(media_effects)
 
-        metrics["decomp_rssd"] = decomp_rssd
-        metrics["lambda_"] = lambda_
-        metrics["lambda_hp"] = lambda_hp
-        metrics["lambda_max"] = lambda_max
-        metrics["lambda_min_ratio"] = lambda_min_ratio
-        metrics["mape"] = 0.0  # Set to 0 if no calibration
-        metrics["solID"] = solID
-        metrics["trial"] = trial
-        metrics["iterNG"] = iter_ng + 1
-        metrics["iterPar"] = 1
+        elapsed_time = time.time() - start_time
 
-        # Create decomp_spend_dist DataFrame
-        decomp_spend_dist = []
-        for col in paid_media_cols:
-            idx = list(X_train.columns).index(col)
-            coef = model.coef_[idx]
-            effect = media_effects[col]
-            spend = media_spends[col]
-            mean_spend = X[col].mean()
-            non_zero_effect = X_train[col][X_train[col] > 0] * coef
-
-            row = {
-                "rn": col,
-                "coef": coef,
-                "xDecompAgg": effect,
-                "total_spend": spend,
-                "mean_spend": mean_spend,
-                "spend_share": spends_norm[col],
-                "effect_share": effects_norm[col],
-                "mean_response": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
-                "roi_total": effect / spend if spend > 0 else 0,
-                "cpa_total": spend / effect if effect > 0 else 0,
-                "solID": solID,
+        # Update metrics dictionary with R-matching names
+        metrics.update(
+            {
+                "decomp_rssd": decomp_rssd,
+                "lambda": lambda_,  # Using lambda instead of lambda_
+                "lambda_hp": lambda_hp,
+                "lambda_max": lambda_max,
+                "lambda_min_ratio": lambda_min_ratio,
+                "mape": 0.0,  # Set to 0 if no calibration
+                "sol_id": sol_id,  # Using sol_id instead of solID
                 "trial": trial,
                 "iterNG": iter_ng + 1,
                 "iterPar": 1,
+                "Elapsed": elapsed_time,
+                "elapsed": elapsed_time,
+                "elapsed_accum": elapsed_time,
+                "pos": pos,
             }
-            # Add all metrics
-            for metric in ["nrmse", "decomp_rssd", "mape", "lambda_", "lambda_hp", "lambda_max", "lambda_min_ratio"]:
-                row[metric] = metrics[metric]
+        )
 
-            decomp_spend_dist.append(row)
+        # Update parameters with time info and metrics
+        params.update({"sol_id": sol_id, "Elapsed": elapsed_time, "ElapsedAccum": elapsed_time, "pos": pos})
+
+        # Calculate x_decomp_agg with updated metrics
+        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, {**params, **metrics})
+
+        # Calculate decomp_spend_dist with updated metrics
+        decomp_spend_dist = self._calculate_decomp_spend_dist(model, X_train, y_train, {**metrics, "params": params})
 
         # Calculate loss
         loss = (
@@ -734,22 +768,14 @@ class RidgeModelBuilder:
             + (objective_weights[2] * metrics["mape"] if len(objective_weights) > 2 else 0)
         )
 
-        # Update parameters with time info
-        params.update(
-            {
-                "solID": solID,
-                "ElapsedAccum": time.time() - start_time,
-            }
-        )
-
         return {
             "loss": loss,
             "params": params,
             **metrics,
-            "decomp_spend_dist": pd.DataFrame(decomp_spend_dist),
-            "x_decomp_agg": self._calculate_x_decomp_agg(model, X_train, y_train, params),
-            "elapsed": time.time() - start_time,
-            "elapsed_accum": time.time() - start_time,
+            "decomp_spend_dist": decomp_spend_dist,
+            "x_decomp_agg": x_decomp_agg,
+            "elapsed": elapsed_time,
+            "elapsed_accum": elapsed_time,
             "iter_ng": iter_ng + 1,
             "iter_par": 1,
         }
