@@ -689,7 +689,7 @@ class ParetoOptimizer:
                             "end",
                             "sign",
                         ]
-                    ]
+                    ].reset_index()
 
                     plot2data = {"plotWaterfallLoop": plotWaterfallLoop}
                     self.logger.debug(f"Generated plot2data for sid: {sid}")
@@ -878,7 +878,7 @@ class ParetoOptimizer:
                         ]
                     ].rename(
                         columns={"rn": "channel"}
-                    )
+                    ).reset_index()
 
                     plot4data = {
                         "dt_scurvePlot": dt_scurvePlot,

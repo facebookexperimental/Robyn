@@ -1,9 +1,12 @@
 # pyre-strict
 
-from typing import List, Optional, Tuple
+from typing import List
 
+import logging
 import numpy as np
 import pandas as pd
+from robyn.modeling.entities.clustering_results import ClusteredResult
+from robyn.modeling.entities.pareto_result import ParetoResult
 
 
 class ParetoUtils:
@@ -14,32 +17,16 @@ class ParetoUtils:
     error scoring, and other helper functions used in the Pareto optimization process.
     It maintains state across operations, allowing for caching of intermediate results
     and configuration of optimization parameters.
-
-    Attributes:
-        reference_point (np.ndarray): Reference point for hypervolume calculations.
-        max_fronts (int): Maximum number of Pareto fronts to calculate.
-        normalization_range (Tuple[float, float]): Range for normalizing objectives.
-        cached_pareto_front (Optional[pd.DataFrame]): Cached result of the last Pareto front calculation.
     """
 
     def __init__(
-        self,
-        reference_point: np.ndarray = np.array([0, 0]),
-        max_fronts: int = 1,
-        normalization_range: Tuple[float, float] = (0, 1),
+        self
     ):
         """
         Initialize the ParetoUtils instance.
+        """       
+        self.logger = logging.getLogger(__name__)
 
-        Args:
-            reference_point (np.ndarray): Reference point for hypervolume calculations.
-            max_fronts (int): Maximum number of Pareto fronts to calculate.
-            normalization_range (Tuple[float, float]): Range for normalizing objectives.
-        """
-        self.reference_point = reference_point
-        self.max_fronts = max_fronts
-        self.normalization_range = normalization_range
-        self.cached_pareto_front: Optional[pd.DataFrame] = None
 
     @staticmethod
     def calculate_errors_scores(
@@ -92,7 +79,11 @@ class ParetoUtils:
         errors["mape_w"] = balance[2] * errors["mape_n"]
 
         # Calculate error score
-        errors["error_score"] = np.sqrt(errors["nrmse_w"] ** 2 + errors["decomp.rssd_w"] ** 2 + errors["mape_w"] ** 2)
+        errors["error_score"] = np.sqrt(
+            errors["nrmse_w"] ** 2
+            + errors["decomp.rssd_w"] ** 2
+            + errors["mape_w"] ** 2
+        )
 
         return errors["error_score"].values
 
@@ -168,96 +159,110 @@ class ParetoUtils:
         # Implementation here
         pass
 
-    def find_knee_point(self, x: np.ndarray, y: np.ndarray) -> Tuple[float, float]:
+    def process_pareto_clustered_results(
+        self,
+        pareto_results: ParetoResult,
+        clustered_result: ClusteredResult,
+        ran_cluster: bool = True,
+        ran_calibration: bool = False,
+    ) -> ParetoResult:
         """
-        Find the knee point in a Pareto front curve.
-
-        The knee point represents the point of diminishing returns in the trade-off
-        between two objectives.
+        Process Pareto optimization results and update the internal state.
 
         Args:
-            x (np.ndarray): x-coordinates of the Pareto front curve.
-            y (np.ndarray): y-coordinates of the Pareto front curve.
-
+            pareto_results (ParetoResult): Pareto optimization results.
+            clustered_result (ClusteredResult): Clustered results.
+            ran_cluster (bool): Whether to run clustering.
+            ran_calibration (bool): Whether calibration was run.
         Returns:
-            Tuple[float, float]: x and y coordinates of the identified knee point.
+            ParetoResult: Updated Pareto optimization results.
         """
-        # Implementation here
-        pass
+        all_solutions = pareto_results.pareto_solutions
 
-    def calculate_hypervolume(self, points: np.ndarray) -> float:
-        """
-        Calculate the hypervolume indicator for a set of Pareto-optimal points.
+        # Common logic for all cases
+        x_decomp_agg = pareto_results.x_decomp_agg[
+            pareto_results.x_decomp_agg["sol_id"].isin(all_solutions)
+        ]
+        result_hyp_param = pareto_results.result_hyp_param[
+            pareto_results.result_hyp_param["sol_id"].isin(all_solutions)
+        ]
+        result_calibration = (
+            pareto_results.result_calibration[
+                pareto_results.result_calibration["sol_id"].isin(all_solutions)
+            ]
+            if ran_calibration and pareto_results.result_calibration is not None
+            else None
+        )
 
-        The hypervolume indicator is a measure of the quality of a Pareto front.
-        This method uses the instance's reference_point.
+        if ran_cluster:
+            # Select common columns from cluster data
+            common_clustered_df = clustered_result.cluster_data[
+                ["sol_id", "cluster", "top_sol"]
+            ]
 
-        Args:
-            points (np.ndarray): 2D array of Pareto-optimal points.
+            result_hyp_param = pd.merge(
+                result_hyp_param, common_clustered_df, on="sol_id", how="left"
+            )
 
-        Returns:
-            float: Calculated hypervolume value.
-        """
-        # Implementation here
-        pass
+            x_decomp_agg = (
+                pd.merge(x_decomp_agg, common_clustered_df, on="sol_id", how="left")
+                .merge(
+                    clustered_result.cluster_ci.cluster_confidence_interval_df[
+                        ["rn", "cluster", "boot_mean", "boot_se", "ci_low", "ci_up"]
+                    ],
+                    on=["rn", "cluster"],
+                    how="left",
+                )
+                .merge(
+                    pareto_results.df_caov_pct_all[
+                        pareto_results.df_caov_pct_all["type"] == "Carryover"
+                    ][["sol_id", "rn", "carryover_pct"]],
+                    on=["sol_id", "rn"],
+                    how="left",
+                )
+            )
 
-    def normalize_objectives(self, objectives: np.ndarray) -> np.ndarray:
-        """
-        Normalize multiple objectives to a common scale.
+            media_vec_collect = pd.merge(
+                pareto_results.media_vec_collect,
+                common_clustered_df,
+                on="sol_id",
+                how="left",
+            )
 
-        This is useful when combining multiple objectives with different scales.
-        The method uses the instance's normalization_range.
+            # Join xDecompVecCollect
+            x_decomp_vec_collect = pd.merge(
+                pareto_results.x_decomp_vec_collect,
+                common_clustered_df,
+                on="sol_id",
+                how="left",
+            )
 
-        Args:
-            objectives (np.ndarray): 2D array of objective values, where each column
-                                     represents an objective.
+            if ran_calibration and pareto_results.result_calibration is not None:
+                result_calibration = pd.merge(
+                    result_calibration, common_clustered_df, on="sol_id", how="left"
+                )
+            
+            return ParetoResult(
+                pareto_solutions=all_solutions,
+                x_decomp_agg=x_decomp_agg,
+                result_hyp_param=result_hyp_param,
+                result_calibration=result_calibration,
+                media_vec_collect=media_vec_collect,
+                x_decomp_vec_collect=x_decomp_vec_collect,
+                pareto_fronts=pareto_results.pareto_fronts,
+                df_caov_pct_all=pareto_results.df_caov_pct_all,
+                plot_data_collect=pareto_results.plot_data_collect,
+            )
+        else:
+            return ParetoResult(
+                pareto_solutions=all_solutions,
+                x_decomp_agg=x_decomp_agg,
+                result_hyp_param=result_hyp_param,
+                result_calibration=result_calibration,
+                media_vec_collect=pareto_results.media_vec_collect,
+                x_decomp_vec_collect=pareto_results.x_decomp_vec_collect,
+                pareto_fronts=pareto_results.pareto_fronts,
+                df_caov_pct_all=pareto_results.df_caov_pct_all,
+                plot_data_collect=pareto_results.plot_data_collect,
+            )
 
-        Returns:
-            np.ndarray: Normalized objective values.
-        """
-        # Implementation here
-        pass
-
-    def calculate_crowding_distance(self, points: np.ndarray) -> np.ndarray:
-        """
-        Calculate crowding distance for a set of Pareto-optimal points.
-
-        Crowding distance is used in multi-objective optimization to maintain
-        diversity in the Pareto front.
-
-        Args:
-            points (np.ndarray): 2D array of Pareto-optimal points.
-
-        Returns:
-            np.ndarray: Array of crowding distances for each point.
-        """
-        # Implementation here
-        pass
-
-    def set_max_fronts(self, max_fronts: int) -> None:
-        """
-        Set the maximum number of Pareto fronts to calculate.
-
-        Args:
-            max_fronts (int): New maximum number of Pareto fronts.
-        """
-        self.max_fronts = max_fronts
-        self.cached_pareto_front = None  # Invalidate cache
-
-    def set_reference_point(self, reference_point: np.ndarray) -> None:
-        """
-        Set the reference point for hypervolume calculations.
-
-        Args:
-            reference_point (np.ndarray): New reference point.
-        """
-        self.reference_point = reference_point
-
-    def set_normalization_range(self, normalization_range: Tuple[float, float]) -> None:
-        """
-        Set the range for normalizing objectives.
-
-        Args:
-            normalization_range (Tuple[float, float]): New normalization range.
-        """
-        self.normalization_range = normalization_range
