@@ -1,9 +1,9 @@
 # pyre-strict
 
-from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Dict, List
 import logging
 
 import numpy as np
@@ -17,7 +17,6 @@ from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.pareto.hill_calculator import HillCalculator
-from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, ResponseOutput
 from robyn.modeling.transformations.transformations import Transformation
