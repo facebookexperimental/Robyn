@@ -207,9 +207,17 @@ class ParetoOptimizer:
                 # 4. Generate Plot Data and Final Results (25%)
                 plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
 
+                # Add required fields to plotting_data
+                plotting_data.update(
+                    {
+                        "result_hyp_param": aggregated_data["result_hyp_param"],
+                        "result_calibration": aggregated_data.get("result_calibration"),
+                        "x_decomp_agg": pareto_data.x_decomp_agg,
+                    }
+                )
+
                 # Clean up temporary data structures only
                 del pareto_data
-                del aggregated_data
                 pbar.update(25)
 
                 return ParetoResult(
@@ -413,13 +421,13 @@ class ParetoOptimizer:
         self.logger.info(
             f"Calculating response curves for {len(pareto_data.decomp_spend_dist)} models' media variables..."
         )
-        self.logger.debug(f"Available columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
+        # self.logger.debug(f"Available columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
         resp_collect_list = []
         try:
             try:
                 batch = pareto_data.decomp_spend_dist
                 if self.model_outputs.cores > 1:
-                    self.logger.debug(f"Calculating response curves with {self.model_outputs.cores} cores")
+                    # self.logger.debug(f"Calculating response curves with {self.model_outputs.cores} cores")
                     run_dt_resp_partial = partial(self.run_dt_resp, paretoData=pareto_data)
                     with ThreadPoolExecutor(max_workers=self.model_outputs.cores) as executor:
                         futures = {
@@ -502,9 +510,9 @@ class ParetoOptimizer:
             return pareto_data
         except Exception as e:
             self.logger.error(f"Error in response curves calculation: {str(e)}")
-            self.logger.debug(f"decomp_spend_dist shape: {pareto_data.decomp_spend_dist.shape}")
-            self.logger.debug(f"decomp_spend_dist columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
-            self.logger.debug(f"Number of response collect batches: {len(resp_collect_list)}")
+            # self.logger.debug(f"decomp_spend_dist shape: {pareto_data.decomp_spend_dist.shape}")
+            # self.logger.debug(f"decomp_spend_dist columns: {pareto_data.decomp_spend_dist.columns.tolist()}")
+            # self.logger.debug(f"Number of response collect batches: {len(resp_collect_list)}")
             raise
 
     def _generate_plot_data(
@@ -525,7 +533,7 @@ class ParetoOptimizer:
         rw_start_loc = self.mmm_data.mmmdata_spec.rolling_window_start_which
         rw_end_loc = self.mmm_data.mmmdata_spec.rolling_window_end_which
         self.logger.info("Starting plot data generation...")
-        self.logger.debug(f"Available columns in xDecompAgg: {xDecompAgg.columns.tolist()}")
+        # self.logger.debug(f"Available columns in xDecompAgg: {xDecompAgg.columns.tolist()}")
         pareto_fronts_vec = pareto_data.pareto_fronts
         for pf in pareto_fronts_vec:
             self.logger.info(f"Processing Pareto front {pf}")
@@ -533,7 +541,7 @@ class ParetoOptimizer:
                 (xDecompAgg["robynPareto"] == pf)
                 & (xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends))
             ]
-            self.logger.debug(f"Shape of plotMediaShare: {plotMediaShare.shape}")
+            # self.logger.debug(f"Shape of plotMediaShare: {plotMediaShare.shape}")
             uniqueSol = plotMediaShare["sol_id"].unique()
             plotWaterfall = xDecompAgg[xDecompAgg["robynPareto"] == pf]
             self.logger.info(f"Pareto-Front: {pf} [{len(uniqueSol)} models]")
@@ -574,7 +582,7 @@ class ParetoOptimizer:
                         "plotMediaShareLoopLine": plotMediaShareLoopLine,
                         "ySecScale": ySecScale,
                     }
-                    self.logger.debug(f"Generated plot1data for sid: {sid}")
+                    # self.logger.debug(f"Generated plot1data for sid: {sid}")
                     # 2. Waterfall
                     plotWaterfallLoop = plotWaterfall[plotWaterfall["sol_id"] == sid].sort_values("xDecompPerc")
                     plotWaterfallLoop["end"] = 1 - plotWaterfallLoop["xDecompPerc"].cumsum()
@@ -659,7 +667,7 @@ class ParetoOptimizer:
                         "weibullCollect": weibullCollect,
                         "wb_type": wb_type,
                     }
-                    self.logger.debug(f"Generated plot3data for sid: {sid}")
+                    # self.logger.debug(f"Generated plot3data for sid: {sid}")
                     # 4. Spend response curve
                     dt_transformPlot = dt_mod[["ds"] + self.mmm_data.mmmdata_spec.all_media]
                     dt_transformSpend = pd.concat(
@@ -743,7 +751,7 @@ class ParetoOptimizer:
                         "dt_scurvePlot": dt_scurvePlot,
                         "dt_scurvePlotMean": dt_scurvePlotMean,
                     }
-                    self.logger.debug(f"Generated plot4data for sid: {sid}")
+                    # self.logger.debug(f"Generated plot4data for sid: {sid}")
                     # 5. Fitted vs actual
                     col_order = (
                         ["ds", "dep_var"]
@@ -803,13 +811,13 @@ class ParetoOptimizer:
                     # Extract R-squared value
                     rsq = xDecompAgg[xDecompAgg["sol_id"] == sid]["rsq_train"].values[0]
                     plot5data = {"xDecompVecPlotMelted": xDecompVecPlotMelted, "rsq": rsq}
-                    self.logger.debug(f"Generated plot5data for sid: {sid}")
+                    # self.logger.debug(f"Generated plot5data for sid: {sid}")
                     # 6. Diagnostic: fitted vs residual
                     plot6data = {"xDecompVecPlot": xDecompVecPlot}
-                    self.logger.debug(f"Generated plot6data for sid: {sid}")
+                    # self.logger.debug(f"Generated plot6data for sid: {sid}")
                     # 7. Immediate vs carryover response
                     plot7data = self.robyn_immcarr(pareto_data, aggregated_data["result_hyp_param"], sid)
-                    self.logger.debug(f"Generated plot7data for sid: {sid}")
+                    # self.logger.debug(f"Generated plot7data for sid: {sid}")
                     df_caov_pct_all = pd.concat([df_caov_pct_all, plot7data])
                     # Gather all results
                     mediaVecCollect = pd.concat(
@@ -894,7 +902,7 @@ class ParetoOptimizer:
         coefs_names = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["sol_id"] == sol_id, "rn"].values
         # Create a DataFrame to hold coefficients and their names
         coefs_df = pd.DataFrame({"name": coefs_names, "coefficient": coefs})
-        self.logger.debug("Computing decomposition")
+        # self.logger.debug("Computing decomposition")
         decompCollect = self._model_decomp(
             inputs={
                 "coefs": coefs_df,
@@ -1079,7 +1087,7 @@ class ParetoOptimizer:
         resultHypParam = aggregated_data["result_hyp_param"]
         xDecompAgg = aggregated_data["x_decomp_agg"]
         if not self.model_outputs.hyper_fixed:
-            self.logger.debug("Processing non-fixed hyperparameters")
+            # self.logger.debug("Processing non-fixed hyperparameters")
             # Filter and group data to calculate coef0
             xDecompAggCoef0 = (
                 xDecompAgg[xDecompAgg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends)]
@@ -1090,9 +1098,9 @@ class ParetoOptimizer:
             mape_lift_quantile10 = resultHypParam["mape"].quantile(calibration_constraint)
             nrmse_quantile90 = resultHypParam["nrmse"].quantile(0.9)
             decomprssd_quantile90 = resultHypParam["decomp.rssd"].quantile(0.9)
-            self.logger.debug(f"MAPE lift quantile (10%): {mape_lift_quantile10}")
-            self.logger.debug(f"NRMSE quantile (90%): {nrmse_quantile90}")
-            self.logger.debug(f"DECOMP.RSSD quantile (90%): {decomprssd_quantile90}")
+            # self.logger.debug(f"MAPE lift quantile (10%): {mape_lift_quantile10}")
+            # self.logger.debug(f"NRMSE quantile (90%): {nrmse_quantile90}")
+            # self.logger.debug(f"DECOMP.RSSD quantile (90%): {decomprssd_quantile90}")
             # merge resultHypParam with xDecompAggCoef0
             resultHypParam = pd.merge(resultHypParam, xDecompAggCoef0, on="sol_id", how="left")
             # create a new column 'mape.qt10'
@@ -1103,9 +1111,9 @@ class ParetoOptimizer:
             )
             # filter resultHypParam
             resultHypParamPareto = resultHypParam[resultHypParam["mape.qt10"] == True]
-            self.logger.debug(f"Number of solutions passing constraints: {len(resultHypParamPareto)}")
+            # self.logger.debug(f"Number of solutions passing constraints: {len(resultHypParamPareto)}")
             # Calculate Pareto front
-            self.logger.debug("Calculating Pareto fronts")
+            # self.logger.debug("Calculating Pareto fronts")
             pareto_fronts_df = ParetoOptimizer._pareto_fronts(resultHypParamPareto, pareto_fronts=pareto_fronts)
             # Merge resultHypParamPareto with pareto_fronts_df
             resultHypParamPareto = pd.merge(
@@ -1124,7 +1132,7 @@ class ParetoOptimizer:
             self.logger.info("Using fixed hyperparameters")
             resultHypParam = resultHypParam.assign(mape_qt10=True, robynPareto=1, coef0=np.nan)
         # Calculate combined weighted error scores
-        self.logger.debug("Calculating error scores")
+        # self.logger.debug("Calculating error scores")
         resultHypParam["error_score"] = ParetoUtils.calculate_errors_scores(
             df=resultHypParam, ts_validation=self.model_outputs.ts_validation
         )
