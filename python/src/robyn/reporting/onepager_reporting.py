@@ -197,6 +197,8 @@ class OnePager:
             # Add space at top for title
             gs.update(top=0.85)
             
+            #TODO: Move the config out of the method to its own data class.
+            
             # Define plot configurations without positions
             plot_config = {
                 PlotType.SPEND_EFFECT: {
