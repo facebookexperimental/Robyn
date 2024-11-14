@@ -2,6 +2,7 @@
 # Enum classes for different types of variables, model parameters etc.
 
 from enum import Enum
+from typing import List
 
 class DependentVarType(str, Enum):
     """
@@ -119,3 +120,17 @@ class CalibrationScope(Enum):
     """
     IMMEDIATE = "immediate"
     TOTAL = "total"
+
+
+class PlotType(Enum):
+    """
+    Enumeration of available plot types for the OnePagerReporter.
+    """
+    SPEND_EFFECT = 'spend_effect'
+    WATERFALL = 'waterfall'
+    FITTED_VS_ACTUAL = 'fitted_vs_actual'
+    BOOTSTRAP = 'bootstrap'
+    ADSTOCK = 'adstock'
+    IMMEDIATE_CARRYOVER = 'immediate_carryover'
+    RESPONSE_CURVES = 'response_curves'
+    DIAGNOSTIC = 'diagnostic'

@@ -11,6 +11,7 @@ from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
+from robyn.data.entities.enums import PlotType
 
 from robyn.visualization.pareto_visualizer import ParetoVisualizer
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
@@ -19,7 +20,8 @@ from robyn.visualization.transformation_visualizer import TransformationVisualiz
 
 logger = logging.getLogger(__name__)
 
-class OnePagerReporter:
+class OnePager:
+    
     def __init__(
         self,
         pareto_result: ParetoResult,
@@ -32,15 +34,21 @@ class OnePagerReporter:
         self.adstock = adstock
         self.mmm_data = mmm_data
         
-        # Default plots to show
+        # Default plots using PlotType enum directly
         self.default_plots = [
-            'spend_effect', 'waterfall', 'fitted_vs_actual', 'bootstrap',
-            'adstock', 'immediate_carryover', 'response_curves', 'diagnostic'
+            PlotType.SPEND_EFFECT,
+            PlotType.WATERFALL,
+            PlotType.FITTED_VS_ACTUAL,
+            PlotType.BOOTSTRAP,
+            PlotType.ADSTOCK,
+            PlotType.IMMEDIATE_CARRYOVER,
+            PlotType.RESPONSE_CURVES,
+            PlotType.DIAGNOSTIC
         ]
 
         # Set up matplotlib style
         self._setup_plotting_style()
-    
+            
     def _setup_plotting_style(self):
         """Configure the plotting style for the one-pager."""
         plt.style.use('default')
@@ -162,114 +170,138 @@ class OnePagerReporter:
     def _generate_solution_plots(
         self,
         solution_id: str,
-        plots: List[str],
+        plots: List[PlotType],
         gs: GridSpec
     ) -> None:
-        """Generate plots for a single solution."""
-        # Initialize visualizers
-        pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data) if self.adstock else None
-        cluster_viz = ClusterVisualizer(self.pareto_result, self.clustered_result, self.mmm_data) if self.clustered_result else None
-        response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
-        transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
+        """
+        Generate plots for a single solution with dynamic layout.
         
-        # Adjust GridSpec to have more space between plots
-        gs.update(
-            top=0.85,     # Space for main title
-            bottom=0.1,   # Space for x-labels
-            left=0.1,
-            right=0.9,
-            hspace=0.4,   # Increased vertical space between plots
-            wspace=0.3    # Increased horizontal space between plots
-        )
-        
-        # Define plot positions and functions
-        plot_config = {
-            'spend_effect': {
-                'position': gs[0, 0],
-                'title': 'Share of Total Spend, Effect & Performance',
-                'func': lambda ax: transfor_viz.generate_spend_effect_comparison(solution_id, ax)
-            },
-            'waterfall': {
-                'position': gs[1, 0],
-                'title': 'Response Decomposition Waterfall',
-                'func': lambda ax: pareto_viz.generate_waterfall(solution_id, ax) if pareto_viz else None
-            },
-            'fitted_vs_actual': {
-                'position': gs[0, 1],
-                'title': 'Actual vs. Predicted Response',
-                'func': lambda ax: pareto_viz.generate_fitted_vs_actual(solution_id, ax) if pareto_viz else None
-            },
-            'diagnostic': {
-                'position': gs[1, 1],
-                'title': 'Fitted vs. Residual',
-                'func': lambda ax: pareto_viz.generate_diagnostic_plot(solution_id, ax) if pareto_viz else None
-            },
-            'immediate_carryover': {
-                'position': gs[2, 0],
-                'title': 'Immediate vs. Carryover Response Percentage',
-                'func': lambda ax: pareto_viz.generate_immediate_vs_carryover(solution_id, ax) if pareto_viz else None
-            },
-            'adstock': {
-                'position': gs[2, 1],
-                'title': 'Adstock Rate Analysis',
-                'func': lambda ax: pareto_viz.generate_adstock_rate(solution_id, ax) if pareto_viz else None
-            },
-            'bootstrap': {
-                'position': gs[3, 0],
-                'title': 'Bootstrapped Performance Metrics',
-                'func': lambda ax: cluster_viz.generate_bootstrap_confidence(solution_id, ax) if cluster_viz else None
-            },
-            'response_curves': {
-                'position': gs[3, 1],
-                'title': 'Response Curves and Mean Spends by Channel',
-                'func': lambda ax: response_viz.generate_response_curves(solution_id, ax)
+        Args:
+            solution_id: Solution ID to generate plots for
+            plots: List of PlotType enums specifying which plots to generate
+            gs: GridSpec for plot layout
+        """
+        try:
+            # Validate plot types
+            for plot in plots:
+                if not isinstance(plot, PlotType):
+                    logger.error(f"Invalid plot type provided: {plot}. Must be PlotType enum.")
+                    raise TypeError(f"Plot type must be PlotType enum, got {type(plot)}")
+            
+            # Initialize visualizers
+            pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data) if self.adstock else None
+            cluster_viz = ClusterVisualizer(self.pareto_result, self.clustered_result, self.mmm_data) if self.clustered_result else None
+            response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
+            transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
+            
+            # Add space at top for title
+            gs.update(top=0.85)
+            
+            #TODO: Move the config out of the method to its own data class.
+            
+            # Define plot configurations without positions
+            plot_config = {
+                PlotType.SPEND_EFFECT: {
+                    'title': 'Share of Total Spend, Effect & Performance',
+                    'func': lambda ax: transfor_viz.generate_spend_effect_comparison(solution_id, ax)
+                },
+                PlotType.WATERFALL: {
+                    'title': 'Response Decomposition Waterfall',
+                    'func': lambda ax: pareto_viz.generate_waterfall(solution_id, ax) if pareto_viz else None
+                },
+                PlotType.FITTED_VS_ACTUAL: {
+                    'title': 'Actual vs. Predicted Response',
+                    'func': lambda ax: pareto_viz.generate_fitted_vs_actual(solution_id, ax) if pareto_viz else None
+                },
+                PlotType.DIAGNOSTIC: {
+                    'title': 'Fitted vs. Residual',
+                    'func': lambda ax: pareto_viz.generate_diagnostic_plot(solution_id, ax) if pareto_viz else None
+                },
+                PlotType.IMMEDIATE_CARRYOVER: {
+                    'title': 'Immediate vs. Carryover Response Percentage',
+                    'func': lambda ax: pareto_viz.generate_immediate_vs_carryover(solution_id, ax) if pareto_viz else None
+                },
+                PlotType.ADSTOCK: {
+                    'title': 'Adstock Rate Analysis',
+                    'func': lambda ax: pareto_viz.generate_adstock_rate(solution_id, ax) if pareto_viz else None
+                },
+                PlotType.BOOTSTRAP: {
+                    'title': 'Bootstrapped Performance Metrics',
+                    'func': lambda ax: cluster_viz.generate_bootstrap_confidence(solution_id, ax) if cluster_viz else None
+                },
+                PlotType.RESPONSE_CURVES: {
+                    'title': 'Response Curves and Mean Spends by Channel',
+                    'func': lambda ax: response_viz.generate_response_curves(solution_id, ax)
+                }
             }
-        }
 
-        # Generate each requested plot
-        for plot_name in plots:
-            if plot_name in plot_config:
-                config = plot_config[plot_name]
-                ax = plt.subplot(config['position'])
+            # Calculate grid dimensions based on number of plots
+            n_plots = len(plots)
+            n_rows = (n_plots + 1) // 2  # Ceiling division for number of rows
+            n_cols = min(2, n_plots)     # Use 2 columns unless only 1 plot
+
+            # Create plots with dynamic positioning
+            for i, plot_type in enumerate(plots):
+                if plot_type not in plot_config:
+                    logger.error(f"Unsupported plot type: {plot_type}")
+                    continue
+                    
+                # Calculate position
+                row = i // 2
+                col = i % 2
                 
+                config = plot_config[plot_type]
                 try:
+                    ax = plt.subplot(gs[row, col])
                     config['func'](ax)
-                    ax.set_title(config['title'])
+                    ax.set_title(f"{config['title']} (Solution {solution_id})")
                 except Exception as e:
-                    logger.error(f"Error generating plot {plot_name} for solution {solution_id}: {str(e)}")
-                    ax.text(0.5, 0.5, f"Error generating {plot_name}",
+                    logger.error(
+                        f"Failed to generate plot {plot_type.name} for solution {solution_id}: {str(e)}",
+                        exc_info=True
+                    )
+                    ax.text(0.5, 0.5, f"Error generating {plot_type.name}",
                         ha='center', va='center')
 
-        # Get model info and add title
-        model_info = self._get_model_info(solution_id)
-        metrics_text = (
-            f"Model Performance Metrics - "
-            f"R²: {model_info['rsq_train']} | "
-            f"NRMSE: {model_info['nrmse']} | "
-            f"DECOMP.RSSD: {model_info['decomp_rssd']}"
-        )
-        if 'mape' in model_info:
-            metrics_text += f" | MAPE: {model_info['mape']}"
-            
-        # Add titles with proper spacing
-        fig = gs.figure
-        fig.suptitle(
-            f"MMM Analysis One-Pager (Solution {solution_id})",
-            fontsize=14, y=0.98
-        )
-        # Add metrics text below main title
-        fig.text(
-            0.5, 0.94,  # x, y position
-            metrics_text,
-            fontsize=12,
-            ha='center'
-        )
+            # Add model info and titles
+            try:
+                model_info = self._get_model_info(solution_id)
+                metrics_text = (
+                    f"Model Performance Metrics - "
+                    f"R²: {model_info['rsq_train']} | "
+                    f"NRMSE: {model_info['nrmse']} | "
+                    f"DECOMP.RSSD: {model_info['decomp_rssd']}"
+                )
+                if 'mape' in model_info:
+                    metrics_text += f" | MAPE: {model_info['mape']}"
+                
+                fig = gs.figure
+                fig.suptitle(
+                    f"MMM Analysis One-Pager (Solution {solution_id})",
+                    fontsize=14, y=0.98
+                )
+                fig.text(
+                    0.5, 0.94,
+                    metrics_text,
+                    fontsize=12,
+                    ha='center'
+                )
+            except Exception as e:
+                logger.error(f"Error adding title and metrics for solution {solution_id}: {str(e)}")
+                gs.figure.suptitle(
+                    f"MMM Analysis One-Pager (Solution {solution_id})",
+                    fontsize=14, y=0.98
+                )
+                    
+        except Exception as e:
+            logger.error(f"Fatal error generating plots for solution {solution_id}: {str(e)}", exc_info=True)
+            raise
 
     def generate_one_pager(
         self,
         solution_ids: Union[str, List[str]] = 'all',
         plots: Optional[List[str]] = None,
-        figsize: tuple = (22, 17),  # Updated default figure size
+        figsize: tuple = (20, 15),
         save_path: Optional[str] = None,
         top_pareto: bool = False
     ) -> List[plt.Figure]:
@@ -278,15 +310,28 @@ class OnePagerReporter:
         
         Args:
             solution_ids: Single solution ID or list of solution IDs or 'all'
-            plots: Optional list of plot types to include
+            plots: Optional list of plot types from PlotType enum
             figsize: Figure size for each page
-            save_path: Optional path to save the figures.
-            top_pareto: If True, loads from clustered results.
+            save_path: Optional path to save the figures
+            top_pareto: If True, loads the one-page summaries for the top Pareto models
             
         Returns:
             List[plt.Figure]: List of generated figures, one per solution
+            
+        Raises:
+            ValueError: If invalid plot types are provided
         """
-        plots = plots or self.default_plots
+            # Use default plots if none provided
+        plots = plots or [
+            PlotType.SPEND_EFFECT,
+            PlotType.WATERFALL,
+            PlotType.FITTED_VS_ACTUAL,
+            PlotType.BOOTSTRAP,
+            PlotType.ADSTOCK,
+            PlotType.IMMEDIATE_CARRYOVER,
+            PlotType.RESPONSE_CURVES,
+            PlotType.DIAGNOSTIC
+        ]
         
         # Handle solution IDs based on top_pareto parameter
         if top_pareto:
@@ -345,9 +390,12 @@ class OnePagerReporter:
             for i, solution_id in enumerate(solution_ids):
                 logger.debug(f"Generating one-pager for solution {solution_id} ({i+1}/{len(solution_ids)})")
                 
+                n_plots = len(plots)
+                n_rows = (n_plots + 1) // 2  # Ceiling division for number of rows
+
                 # Create figure and grid for this solution
                 fig = plt.figure(figsize=figsize)
-                gs = GridSpec(4, 2, figure=fig)
+                gs = GridSpec(n_rows, 2, figure=fig)  # Dynamic number of rows
                 
                 # Generate plots for this solution
                 self._generate_solution_plots(solution_id, plots, gs)
