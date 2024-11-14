@@ -3,6 +3,7 @@ from typing import Dict, Optional, List, Tuple, Union
 import warnings
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from robyn.data.entities.holidays_data import HolidaysData
 import seaborn as sns
 import pandas as pd
 import logging
@@ -27,12 +28,14 @@ class OnePager:
         pareto_result: ParetoResult,
         clustered_result: Optional[ClusteredResult] = None,
         adstock: Optional[AdstockType] = None,
-        mmm_data: Optional[MMMData] = None
+        mmm_data: Optional[MMMData] = None,
+        holidays_data: Optional[HolidaysData] = None
     ):
         self.pareto_result = pareto_result
         self.clustered_result = clustered_result
         self.adstock = adstock
         self.mmm_data = mmm_data
+        self.holidays_data = holidays_data
         
         # Default plots using PlotType enum directly
         self.default_plots = [
@@ -189,7 +192,7 @@ class OnePager:
                     raise TypeError(f"Plot type must be PlotType enum, got {type(plot)}")
             
             # Initialize visualizers
-            pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data) if self.adstock else None
+            pareto_viz = ParetoVisualizer(self.pareto_result, self.adstock, self.mmm_data, self.holidays_data) if self.adstock and self.holidays_data else None
             cluster_viz = ClusterVisualizer(self.pareto_result, self.clustered_result, self.mmm_data) if self.clustered_result else None
             response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
             transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
@@ -235,11 +238,6 @@ class OnePager:
                 }
             }
 
-            # Calculate grid dimensions based on number of plots
-            n_plots = len(plots)
-            n_rows = (n_plots + 1) // 2  # Ceiling division for number of rows
-            n_cols = min(2, n_plots)     # Use 2 columns unless only 1 plot
-
             # Create plots with dynamic positioning
             for i, plot_type in enumerate(plots):
                 if plot_type not in plot_config:
@@ -262,6 +260,7 @@ class OnePager:
                     )
                     ax.text(0.5, 0.5, f"Error generating {plot_type.name}",
                         ha='center', va='center')
+                    raise e
 
             # Add model info and titles
             try:
@@ -321,7 +320,7 @@ class OnePager:
         Raises:
             ValueError: If invalid plot types are provided
         """
-            # Use default plots if none provided
+        # Use default plots if none provided
         plots = plots or [
             PlotType.SPEND_EFFECT,
             PlotType.WATERFALL,
@@ -339,9 +338,9 @@ class OnePager:
                 raise ValueError("No clustered results or top solutions available")
                 
             try:
-                # Try accessing 'solID' column if it's a DataFrame
+                # Try accessing 'sol_id' column if it's a DataFrame
                 if isinstance(self.clustered_result.top_solutions, pd.DataFrame):
-                    solution_ids = self.clustered_result.top_solutions['solID'].tolist()
+                    solution_ids = self.clustered_result.top_solutions['sol_id'].tolist()
                 elif isinstance(self.clustered_result.top_solutions, pd.Series):
                     solution_ids = self.clustered_result.top_solutions.tolist()
                 elif isinstance(self.clustered_result.top_solutions, list):

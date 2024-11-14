@@ -1,9 +1,11 @@
-from typing import Optional
+from typing import List, Optional
 from matplotlib import ticker, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import logging
+from robyn.data.entities.enums import ProphetVariableType
+from robyn.data.entities.holidays_data import HolidaysData
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
@@ -11,11 +13,43 @@ from robyn.data.entities.mmmdata import MMMData
 logger = logging.getLogger(__name__)
 
 class ParetoVisualizer:
-    def __init__(self, pareto_result: ParetoResult, adstock: AdstockType, mmm_data: MMMData):
+    def __init__(self, pareto_result: ParetoResult, adstock: AdstockType, mmm_data: MMMData, holiday_data: Optional[HolidaysData] = None):
         self.pareto_result = pareto_result
         self.adstock = adstock
         self.mmm_data = mmm_data
+        self.holiday_data = holiday_data
 
+
+    def _baseline_vars(self, baseline_level, prophet_vars: List[ProphetVariableType] = []) -> list:
+        """
+        Returns a list of baseline variables based on the provided level.
+        Args:
+            InputCollect (dict): A dictionary containing various input data.
+            baseline_level (int): The level of baseline variables to include.
+        Returns:
+            list: A list of baseline variable names.
+        """
+        # Check if baseline_level is valid
+        if baseline_level < 0 or baseline_level > 5:
+            raise ValueError("baseline_level must be an integer between 0 and 5")
+        baseline_variables = []
+        # Level 1: Include intercept variables
+        if baseline_level >= 1:
+            baseline_variables.extend(["(Intercept)", "intercept"])
+        # Level 2: Include trend variables
+        if baseline_level >= 2:
+            baseline_variables.append("trend")
+        # Level 3: Include prophet variables
+        if baseline_level >= 3:
+            baseline_variables.extend(list(set(baseline_variables + prophet_vars)))
+        # Level 4: Include context variables
+        if baseline_level >= 4:
+            baseline_variables.extend(self.mmm_data.mmmdata_spec.context_vars)
+        # Level 5: Include organic variables
+        if baseline_level >= 5:
+            baseline_variables.extend(self.mmm_data.mmmdata_spec.organic_vars)
+        return list(set(baseline_variables))
+    
     def format_number(self, x: float, pos=None) -> str:
         """Format large numbers with K/M/B abbreviations.
         
@@ -47,19 +81,18 @@ class ParetoVisualizer:
         waterfall_data = plot_data['plot2data']['plotWaterfallLoop'].copy()
 
         # Get baseline variables
-        bvars = []
-        if self.mmm_data and hasattr(self.mmm_data.mmmdata_spec, 'prophet_vars'):
-            bvars = ['(Intercept)'] + self.mmm_data.mmmdata_spec.prophet_vars
+        prophet_vars = self.holiday_data.prophet_vars if self.holiday_data else []
+        baseline_vars = self._baseline_vars(baseline_level, prophet_vars)
 
         # Transform baseline variables
-        waterfall_data.loc[waterfall_data['rn'].isin(bvars), 'rn'] = f'Baseline_L{baseline_level}'
+        waterfall_data['rn'] = np.where(waterfall_data['rn'].isin(baseline_vars), f'Baseline_L{baseline_level}', waterfall_data['rn'])
 
         # Group and summarize
         waterfall_data = (waterfall_data.groupby('rn', as_index=False)
                         .agg({
                             'xDecompAgg': 'sum',
                             'xDecompPerc': 'sum'
-                        }))
+                        }).reset_index())
         
         # Sort by percentage contribution
         waterfall_data = waterfall_data.sort_values('xDecompPerc', ascending=True)
