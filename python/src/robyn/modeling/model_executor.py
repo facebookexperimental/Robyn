@@ -53,11 +53,10 @@ class ModelExecutor(BaseModelExecutor):
         self.logger.info("Starting model execution with model_name=%s", model_name)
         self.logger.debug(
             "Model configuration - ts_validation=%s, add_penalty_factor=%s, seed=%s, "
-            "cores=%s, rssd_zero_penalty=%s, intercept=%s, intercept_sign=%s",
+            "rssd_zero_penalty=%s, intercept=%s, intercept_sign=%s",
             ts_validation,
             add_penalty_factor,
-            seed,  # Change this to %s
-            cores,
+            seed,
             rssd_zero_penalty,
             intercept,
             intercept_sign,
