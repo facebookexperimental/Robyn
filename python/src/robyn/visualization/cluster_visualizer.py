@@ -389,11 +389,10 @@ class ClusterVisualizer:
         if solution_id not in self.pareto_result.plot_data_collect:
             raise ValueError(f"Invalid solution ID: {solution_id}")
         
-        # Get specific solution's data - Changed sol_id to solID
+        # Get specific solution's data - Changed sol_id to sol_id
         x_decomp_agg = self.pareto_result.x_decomp_agg[
-            self.pareto_result.x_decomp_agg['solID'] == solution_id
+            self.pareto_result.x_decomp_agg['sol_id'] == solution_id
         ]
-        
         # Check if we have confidence intervals
         if 'ci_low' not in x_decomp_agg.columns:
             if ax is None:
@@ -404,12 +403,25 @@ class ClusterVisualizer:
                 ax.text(0.5, 0.5, "No bootstrap results", ha='center', va='center')
                 return None
         
-        # Filter data for specific model - Changed sol_id to solID
-        bootstrap_data = (x_decomp_agg[
+        # Filter data for specific model - Changed sol_id to sol_id
+        bootstrap_data = x_decomp_agg[
             (~x_decomp_agg['ci_low'].isna()) & 
-            (x_decomp_agg['solID'] == solution_id)
-        ][['rn', 'solID', 'boot_mean', 'ci_low', 'ci_up']])
+            (~x_decomp_agg['ci_up'].isna()) &
+            (~x_decomp_agg['boot_mean'].isna()) &
+            (x_decomp_agg['sol_id'] == solution_id)
+        ][['rn', 'sol_id', 'boot_mean', 'ci_low', 'ci_up']]
         
+        
+        # Check if we have valid data after filtering
+        if bootstrap_data.empty:
+            if ax is None:
+                fig, ax = plt.subplots(figsize=(10, 6))
+                ax.text(0.5, 0.5, "No valid bootstrap results after filtering", ha='center', va='center')
+                return fig
+            else:
+                ax.text(0.5, 0.5, "No valid bootstrap results after filtering", ha='center', va='center')
+                return None
+            
         # Create figure if no axes provided
         if ax is None:
             fig, ax = plt.subplots(figsize=(12, min(8, 3 + len(bootstrap_data) * 0.3)))
@@ -420,7 +432,7 @@ class ClusterVisualizer:
         ax.set_facecolor('white')
         
         # Determine metric type
-        metric_type = "ROI" if (self.mmm_data and 
+        metric_type = "ROAS" if (self.mmm_data and 
                             hasattr(self.mmm_data.mmmdata_spec, 'dep_var_type') and 
                             self.mmm_data.mmmdata_spec.dep_var_type == DependentVarType.REVENUE) else "CPA"
         
@@ -472,18 +484,25 @@ class ClusterVisualizer:
         ax.spines['top'].set_visible(False)
         
         # Add ROAS reference line if applicable
-        if metric_type == "ROI":
+        if metric_type == "ROAS":
             ax.axvline(x=1, color='gray', linestyle='--', alpha=0.5, zorder=2)
         
+        cluster_txt = ""
         # Set title with solution ID
-        title = f"In-cluster bootstrapped {metric_type} with 95% CI & mean (Solution {solution_id})"
         if self.clustered_result is not None:
-            cluster_info = self.clustered_result.cluster_data
-            if not cluster_info.empty:
-                cluster_txt = f" {cluster_info['cluster'].iloc[0]}"
-                n_models = len(cluster_info)
-                if n_models > 1:
-                    title += f" ({n_models} IDs)"
+            temp2 = self.clustered_result.cluster_data
+            
+            # If 'n' column doesn't exist, add count by cluster 
+            if 'n' not in temp2.columns:
+                temp2 = temp2.groupby('cluster').apply(
+                    lambda x: x.assign(n=len(x))
+                ).reset_index(drop=True)
+            temp2 = temp2[temp2['sol_id'] == solution_id]
+            if not temp2.empty:
+                cluster_txt = f" {temp2['cluster'].iloc[0]} ({temp2['n'].iloc[0]} IDs)"
+
+        title = f"In-cluster{cluster_txt} bootstrapped {metric_type} [95% CI & mean]"
+            
         ax.set_title(title, pad=20, fontsize=11)
         
         # Set proper x limits
