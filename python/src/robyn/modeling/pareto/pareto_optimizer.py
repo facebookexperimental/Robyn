@@ -175,11 +175,13 @@ class ParetoOptimizer:
     ) -> ParetoResult:
         """
         Perform Pareto optimization on the model results.
+
         Args:
             pareto_fronts: Number of Pareto fronts to consider or "auto"
             min_candidates: Minimum number of candidates when using "auto" Pareto fronts
             calibration_constraint: Constraint for calibration
             calibrated: Whether models are calibrated
+
         Returns:
             ParetoResult: Results of Pareto optimization
         """
@@ -188,36 +190,40 @@ class ParetoOptimizer:
                 # 1. Data Aggregation (25%)
                 aggregated_data = self._aggregate_model_data(calibrated)
                 pbar.update(25)
+
                 # 2. Compute Pareto Fronts (25%)
                 aggregated_data["result_hyp_param"] = self._compute_pareto_fronts(
                     aggregated_data, pareto_fronts, calibration_constraint
                 )
                 pbar.update(25)
+
                 # 3. Prepare and Process Pareto Data (25%)
                 pareto_data = self.prepare_pareto_data(aggregated_data, pareto_fronts, min_candidates, calibrated)
+
                 # Compute response curves
                 pareto_data = self._compute_response_curves(pareto_data, aggregated_data)
                 pbar.update(25)
+
                 # 4. Generate Plot Data and Final Results (25%)
                 plotting_data = self._generate_plot_data(aggregated_data, pareto_data)
-                # Clean up large data structures after all computations
+
+                # Clean up temporary data structures only
                 del pareto_data
                 del aggregated_data
                 pbar.update(25)
-                result = ParetoResult(
+
+                return ParetoResult(
                     pareto_solutions=plotting_data["pareto_solutions"],
                     pareto_fronts=pareto_fronts,
-                    result_hyp_param=plotting_data.pop("result_hyp_param", None),
-                    result_calibration=plotting_data.pop("result_calibration", None),
-                    x_decomp_agg=plotting_data.pop("x_decomp_agg", None),
-                    media_vec_collect=plotting_data.pop("mediaVecCollect", None),
-                    x_decomp_vec_collect=plotting_data.pop("xDecompVecCollect", None),
-                    plot_data_collect=plotting_data.pop("plotDataCollect", None),
-                    df_caov_pct_all=plotting_data.pop("df_caov_pct_all", None),
+                    result_hyp_param=plotting_data["result_hyp_param"],
+                    result_calibration=plotting_data["result_calibration"],
+                    x_decomp_agg=plotting_data["x_decomp_agg"],
+                    media_vec_collect=plotting_data["mediaVecCollect"],
+                    x_decomp_vec_collect=plotting_data["xDecompVecCollect"],
+                    plot_data_collect=plotting_data["plotDataCollect"],
+                    df_caov_pct_all=plotting_data["df_caov_pct_all"],
                 )
-                # Clean up plotting data
-                del plotting_data
-                return result
+
         except Exception as e:
             self.logger.error(f"Optimization failed: {str(e)}")
             raise
