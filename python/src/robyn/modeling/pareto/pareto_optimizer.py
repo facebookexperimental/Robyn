@@ -22,8 +22,8 @@ from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, ResponseOutput
 from robyn.modeling.transformations.transformations import Transformation
 from tqdm import tqdm  # Import tqdm for progress bar
-
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 @dataclass
 class ParetoData:
     decomp_spend_dist: pd.DataFrame
@@ -1036,8 +1036,8 @@ class ParetoOptimizer:
         start_date = dt_modRollWind[start_idx]
         end_date = dt_modRollWind[end_idx]
 
-        print(f"Found start_date: {start_date}, end_date: {end_date}")
-        print(f"start_idx: {start_idx}, end_idx: {end_idx}")
+        # print(f"Found start_date: {start_date}, end_date: {end_date}")
+        # print(f"start_idx: {start_idx}, end_idx: {end_idx}")
 
         # Use boolean indexing instead of value matching
         rollingWindow = range(start_idx, end_idx + 1)
@@ -1064,9 +1064,10 @@ class ParetoOptimizer:
         if "revenue" in dt_saturated_dfs.dt_modSaturated.columns:
             # Rename 'revenue' to 'dep_var'
             dt_saturated_dfs.dt_modSaturated = dt_saturated_dfs.dt_modSaturated.rename(columns={"revenue": "dep_var"})
-            print("Column 'revenue' renamed to 'dep_var'.")
+            # print("Column 'revenue' renamed to 'dep_var'.")
         else:
-            print("Column 'revenue' does not exist.")
+            # print("Column 'revenue' does not exist.")
+            pass
         decompCollect = self._model_decomp(
             inputs={
                 "coefs": coefs_df,
@@ -1145,7 +1146,7 @@ class ParetoOptimizer:
         df_caov_pct = df_caov_pct.melt(id_vars="sol_id", var_name="rn", value_name="carryover_pct").fillna(0)
 
         # Gather everything in an aggregated format
-        self.logger.info("Aggregating final results from decomposition carryover and immediate parts")
+        self.logger.debug("Aggregating final results from decomposition carryover and immediate parts")
         xDecompVecImmeCaov = (
             pd.concat(
                 [
@@ -1232,7 +1233,8 @@ class ParetoOptimizer:
         # Convert 'events' column to numeric if it exists
         if "events" in x.columns:
             x["events"] = pd.to_numeric(x["events"], errors="coerce")
-            x["events"].fillna(0, inplace=True)  # Replace NaN values with 0
+            # x["events"].fillna(0, inplace=True)  # Replace NaN values with 0
+            x.loc[:, "events"] = x["events"].fillna(0)
         intercept = coefs["coefficient"].iloc[0]
         # # Debugging: Print data types and shapes
         # print("--- Decomp ---")
