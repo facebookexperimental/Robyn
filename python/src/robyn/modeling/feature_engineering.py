@@ -54,6 +54,7 @@ class FeatureEngineering:
             + self.mmm_data.mmmdata_spec.paid_media_spends
             + self.mmm_data.mmmdata_spec.organic_vars
         )
+        print("All ind vars", all_ind_vars)
         self.logger.debug(f"Processing {len(all_ind_vars)} independent variables")
 
         dt_mod = dt_transform

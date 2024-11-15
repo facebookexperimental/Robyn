@@ -22,7 +22,10 @@ from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, Respon
 from robyn.modeling.transformations.transformations import Transformation
 from tqdm import tqdm  # Import tqdm for progress bar
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
+
 @dataclass
 class ParetoData:
     decomp_spend_dist: pd.DataFrame
@@ -824,20 +827,20 @@ class ParetoOptimizer:
                     dt_scurvePlot = dt_scurvePlot[dt_scurvePlot["spend"] >= 0]
 
                     # Calculate dt_scurvePlotMean
-                    dt_scurvePlotMean = plotWaterfall[
-                        (plotWaterfall["sol_id"] == sid) & (~plotWaterfall["mean_spend"].isna())
-                    ][
-                        [
-                            "rn",
-                            "mean_spend",
-                            "mean_spend_adstocked",
-                            "mean_carryover",
-                            "mean_response",
-                            "sol_id",
+                    dt_scurvePlotMean = (
+                        plotWaterfall[(plotWaterfall["sol_id"] == sid) & (~plotWaterfall["mean_spend"].isna())][
+                            [
+                                "rn",
+                                "mean_spend",
+                                "mean_spend_adstocked",
+                                "mean_carryover",
+                                "mean_response",
+                                "sol_id",
+                            ]
                         ]
-                    ].rename(
-                        columns={"rn": "channel"}
-                    ).reset_index()
+                        .rename(columns={"rn": "channel"})
+                        .reset_index()
+                    )
 
                     plot4data = {
                         "dt_scurvePlot": dt_scurvePlot,
