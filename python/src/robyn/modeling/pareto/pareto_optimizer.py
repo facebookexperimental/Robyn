@@ -573,6 +573,17 @@ class ParetoOptimizer:
         """
         Prepare data for various plots used in the Pareto analysis.
         """
+        # Check if aggregated_data is a dict
+        if isinstance(aggregated_data, dict):
+            # Convert dictionaries within aggregated_data to DataFrames
+            for key, value in aggregated_data.items():
+                if isinstance(value, dict):
+                    aggregated_data[key] = pd.DataFrame.from_dict(value, orient="columns")
+
+        # Print the keys of the aggregated_data dictionary
+        print("Keys in aggregated_data:")
+        print(list(aggregated_data.keys()))
+
         mediaVecCollect = pd.DataFrame()
         xDecompVecCollect = pd.DataFrame()
         plotDataCollect = {}

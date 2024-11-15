@@ -123,12 +123,11 @@ class ModelConvergenceVisualizer:
 
     def create_ts_validation_plot(self, trials: List[Trial]) -> str:
         logger.debug("Starting time-series validation plot creation with %d trials", len(trials))
-
         try:
+            # Concatenate trial data
             result_hyp_param = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
             result_hyp_param["trial"] = result_hyp_param.groupby("sol_id").cumcount() + 1
             result_hyp_param["iteration"] = result_hyp_param.index + 1
-
             logger.debug("Processing metrics for validation plot")
             result_hyp_param_long = result_hyp_param.melt(
                 id_vars=["sol_id", "trial", "train_size", "iteration"],
@@ -143,10 +142,9 @@ class ModelConvergenceVisualizer:
                 var_name="metric",
                 value_name="value",
             )
-
+            # Extract dataset and metric type
             result_hyp_param_long["dataset"] = result_hyp_param_long["metric"].str.split("_").str[-1]
             result_hyp_param_long["metric_type"] = result_hyp_param_long["metric"].str.split("_").str[0]
-
             # Winsorize the data
             logger.debug("Winsorizing metric values")
             result_hyp_param_long["value"] = result_hyp_param_long.groupby("metric_type")["value"].transform(
@@ -156,50 +154,52 @@ class ModelConvergenceVisualizer:
                     np.percentile(x, self.nrmse_win[1] * 100),
                 )
             )
-
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[3, 1])
-
-            # NRMSE plot
-            sns.scatterplot(
-                data=result_hyp_param_long[result_hyp_param_long["metric_type"] == "nrmse"],
-                x="iteration",
-                y="value",
-                hue="dataset",
-                style="trial",
-                alpha=0.5,
-                ax=ax1,
+            # Set the style and color palette
+            sns.set_style("whitegrid")
+            sns.set_palette("Set2")
+            # Determine the number of trials
+            num_trials = result_hyp_param["trial"].nunique()
+            # Create subplots
+            fig, axes = plt.subplots(
+                num_trials + 1,
+                1,
+                figsize=(12, 5 * (num_trials + 1)),
+                gridspec_kw={"height_ratios": [3] * num_trials + [1]},
             )
-            sns.lineplot(
-                data=result_hyp_param_long[result_hyp_param_long["metric_type"] == "nrmse"],
-                x="iteration",
-                y="value",
-                hue="dataset",
-                ax=ax1,
-            )
-            ax1.set_ylabel("NRMSE [Winsorized]")
-            ax1.set_xlabel("Iteration")
-            ax1.legend(title="Dataset")
-
+            # NRMSE plots for each trial
+            for i, (trial, ax) in enumerate(zip(result_hyp_param["trial"].unique(), axes[:-1])):
+                nrmse_data = result_hyp_param_long[
+                    (result_hyp_param_long["metric_type"] == "nrmse") & (result_hyp_param_long["trial"] == trial)
+                ]
+                sns.scatterplot(
+                    data=nrmse_data,
+                    x="iteration",
+                    y="value",
+                    hue="dataset",
+                    style="dataset",
+                    markers=["o", "s", "D"],  # Different markers for train, val, test
+                    ax=ax,
+                    alpha=0.6,
+                )
+                sns.lineplot(
+                    data=nrmse_data, x="iteration", y="value", hue="dataset", ax=ax, legend=False, linewidth=1
+                )
+                ax.set_ylabel(f"NRMSE [Trial {trial}]", fontsize=12, fontweight="bold")
+                ax.set_xlabel("Iteration", fontsize=12, fontweight="bold")
+                ax.legend(title="Dataset", loc="upper right")
             # Train Size plot
             sns.scatterplot(
-                data=result_hyp_param,
-                x="iteration",
-                y="train_size",
-                hue="trial",
-                ax=ax2,
-                legend=False,
+                data=result_hyp_param, x="iteration", y="train_size", hue="trial", ax=axes[-1], legend=False
             )
-            ax2.set_ylabel("Train Size")
-            ax2.set_xlabel("Iteration")
-            ax2.set_ylim(0, 1)
-            ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: "{:.0%}".format(y)))
-
-            plt.suptitle("Time-series validation & Convergence")
+            axes[-1].set_ylabel("Train Size", fontsize=12, fontweight="bold")
+            axes[-1].set_xlabel("Iteration", fontsize=12, fontweight="bold")
+            axes[-1].set_ylim(0, 1)
+            axes[-1].yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: "{:.0%}".format(y)))
+            # Set the overall title
+            plt.suptitle("Time-series validation & Convergence", fontsize=14, fontweight="bold")
             plt.tight_layout()
-
             logger.info("Successfully created time-series validation plot")
             return self._convert_plot_to_base64(fig)
-
         except Exception as e:
             logger.error("Failed to create time-series validation plot: %s", str(e), exc_info=True)
             raise
