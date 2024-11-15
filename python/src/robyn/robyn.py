@@ -69,18 +69,56 @@ class Robyn:
 
         print("Validation complete")
 
-    def feature_engineering(self, plot=True) -> FeaturizedMMMData:
-        feature_engineering = FeatureEngineering(self.mmm_data, self.hyperparameters, self.holidays_data)
-        featurized_mmm_data = feature_engineering.perform_feature_engineering()
-        if plot:
-            feature_plotter = FeaturePlotter(self.mmm_data, self.hyperparameters)
-            for channel in self.mmm_data.mmmdata_spec.paid_media_spends:
-                try:
-                    fig = feature_plotter.plot_spend_exposure(featurized_mmm_data, channel)
-                    plt.show()
-                except ValueError as e:
-                    print(f"Skipping {channel}: {str(e)}")
-        return featurized_mmm_data
+    def feature_engineering(self, plot: bool = True, export: bool = False) -> FeaturizedMMMData:
+        if not all([self.mmm_data, self.hyperparameters, self.holidays_data]):
+            raise ValueError("Please initialize Robyn with mmm_data, hyperparameters, and holidays_data first")
+        
+        try:
+            # Initialize FeatureEngineering and process data
+            feature_engineering = FeatureEngineering(self.mmm_data, self.hyperparameters, self.holidays_data)
+            featurized_mmm_data = feature_engineering.perform_feature_engineering()
+            
+            # Plot if requested
+            if plot or export:
+                feature_plotter = FeaturePlotter(self.mmm_data, self.hyperparameters)
+                
+                # Get channels with spend-exposure data from featurized results
+                channels_with_data = []
+                if hasattr(featurized_mmm_data, 'modNLS') and 'results' in featurized_mmm_data.modNLS:
+                    channels_with_data = [result['channel'] for result in featurized_mmm_data.modNLS['results']]
+                
+                # Create plots directory if exporting
+                if export:
+                    import os
+                    plots_dir = os.path.join(self.working_dir, 'plots')
+                    if not os.path.exists(plots_dir):
+                        os.makedirs(plots_dir)
+                
+                for channel in channels_with_data:
+                    try:
+                        fig = feature_plotter.plot_spend_exposure(featurized_mmm_data, channel)
+                        
+                        # Save plot if export is True
+                        if export:
+                            plot_path = os.path.join(plots_dir, f'spend_exposure_{channel}.png')
+                            plt.savefig(plot_path)
+                        
+                        # Display plot if requested
+                        if plot:
+                            plt.show()
+                        else:
+                            plt.close()
+                            
+                    except ValueError as e:
+                        print(f"Skipping {channel}: {str(e)}")
+                    except Exception as e:
+                        print(f"Error plotting {channel}: {str(e)}")
+            
+            return featurized_mmm_data
+            
+        except Exception as e:
+            print(f"Error in feature engineering: {str(e)}")
+            raise
 
     def model_e2e_run(
         self,
@@ -177,10 +215,8 @@ class Robyn:
             model_name=model_name,
         )
 
-        if plot:
-            self.visualize_outputs(plot=plot)
-        if export:
-            self.export_outputs(export=export)
+        # if(plot)
+            #viz_build_models()
         return model_outputs
 
     def visualize_outputs(self, plot=True):
@@ -207,6 +243,8 @@ class Robyn:
             # Perform clustering on the Pareto-optimized results
             cluster_results = self.cluster_models(pareto_result, cluster_config, plot, export)
         print("Model evaluation complete.")
+        # if plot == True:
+            # instantiate pareto plotter and cluster plotter and plot the graphs
 
     def pareto_optimization(self, pareto_fronts: str, min_candidates: int, plot: bool, export: bool) -> ParetoResult:
         # Create ParetoOptimizer instance
