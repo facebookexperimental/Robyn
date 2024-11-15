@@ -110,14 +110,14 @@ class Robyn:
                             plt.close()
                             
                     except ValueError as e:
-                        print(f"Skipping {channel}: {str(e)}")
+                        logging.debug(f"Skipping {channel}: {str(e)}")
                     except Exception as e:
-                        print(f"Error plotting {channel}: {str(e)}")
+                        logging.error(f"Error plotting {channel}: {str(e)}")
             
             return featurized_mmm_data
             
         except Exception as e:
-            print(f"Error in feature engineering: {str(e)}")
+            logging.error(f"Error in feature engineering: {str(e)}")
             raise
 
     def model_e2e_run(
