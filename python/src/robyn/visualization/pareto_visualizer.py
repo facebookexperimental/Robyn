@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional
 from matplotlib import ticker, transforms
 import matplotlib.pyplot as plt
@@ -133,16 +134,21 @@ class ParetoVisualizer:
                 formatted_num = f"{row['xDecompAgg']/1e3:.1f}K"
             else:
                 formatted_num = f"{row['xDecompAgg']:.1f}"
-                
-            # Calculate x-position as the right edge of each positive bar
-            x_pos = max(row['start'], row['end'])
             
-            # Add label aligned at the end of the bar
-            ax.text(x_pos - 0.01, i,  # Small offset from bar end
+            # Calculate bar width and center position
+            bar_width = abs(row['start'] - row['end'])
+            bar_center = min(row['start'], row['end']) + bar_width/2
+            
+            # Add label centered on the bar
+            ax.text(bar_center, i,
                 f"{formatted_num}\n{row['xDecompPerc']*100:.1f}%",
-                ha='right', va='center',
+                ha='center', va='center',
                 fontsize=9,
-                linespacing=0.9)
+                linespacing=0.9,
+                color='white',  # White text for better contrast
+                fontweight='bold',  # Make text bold
+                bbox=dict(facecolor='black', alpha=0.2, pad=1, edgecolor='none')  # Semi-transparent background
+            )
         
         # Set y-ticks and labels
         ax.set_yticks(y_pos)
@@ -156,27 +162,20 @@ class ParetoVisualizer:
         ax.set_xlim(0, 1)
         ax.set_ylim(-0.5, len(waterfall_data) - 0.5)
         
-        # Add legend at top
+        # Add legend with proper positioning
         from matplotlib.patches import Patch
         legend_elements = [
             Patch(facecolor=colors['Positive'], label='Positive'),
             Patch(facecolor=colors['Negative'], label='Negative')
         ]
         
-        # Create legend with white background
-        legend = ax.legend(handles=legend_elements,
-                        title='Sign',
-                        loc='upper left',
-                        bbox_to_anchor=(0, 1.15),
-                        ncol=2,
-                        frameon=True,
-                        framealpha=1.0)
-        
-        # Set title
-        ax.set_title('Response Decomposition Waterfall', 
-                    pad=30,
-                    x=0.5,
-                    y=1.05)
+        ax.legend(handles=legend_elements,
+                title='Sign',
+                loc='upper left',
+                bbox_to_anchor=(0, 1.15),
+                ncol=2,
+                frameon=True,
+                framealpha=1.0)
         
         # Label axes
         ax.set_xlabel('Contribution')
@@ -186,12 +185,11 @@ class ParetoVisualizer:
         ax.grid(True, axis='x', alpha=0.2)
         ax.set_axisbelow(True)
         
-        logger.debug("Successfully generated of waterfall plot")
-        # Adjust layout
+        logger.debug("Successfully generated waterfall plot")
+        
         if fig:
-            plt.subplots_adjust(right=0.85, top=0.85)
+            plt.tight_layout()
             return fig
-            
         return None
 
     def generate_fitted_vs_actual(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
@@ -591,3 +589,149 @@ class ParetoVisualizer:
             plt.tight_layout()
             return fig
         return None
+    
+    def _create_diagnostic_figure(self, solution_id: str) -> tuple[plt.Figure, list[plt.Axes]]:
+        """
+        Create and populate a figure with all diagnostic plots.
+        
+        Args:
+            solution_id (str): The ID of the solution to visualize
+            
+        Returns:
+            tuple[plt.Figure, list[plt.Axes]]: The figure and list of axes objects
+        """
+        logger.debug(f"Creating diagnostic figure for solution {solution_id}")
+        
+        # Create figure with extra space for title and legends
+        fig = plt.figure(figsize=(20, 24))
+        
+        # Create gridspec with specific spacing and padding
+        gs = fig.add_gridspec(
+            3, 2,
+            height_ratios=[1, 1, 1],
+            width_ratios=[1, 1],
+            left=0.1,      # Left padding
+            right=0.9,     # Right padding
+            bottom=0.05,   # Bottom padding
+            top=0.90,      # Top padding (leave space for suptitle)
+            hspace=0.4,    # Height spacing between subplots
+            wspace=0.3     # Width spacing between subplots
+        )
+        
+        # Create axes for each plot
+        axes = [
+            fig.add_subplot(gs[0, 0]),  # Response Decomposition Waterfall
+            fig.add_subplot(gs[0, 1]),  # Fitted vs Actual
+            fig.add_subplot(gs[1, 0]),  # Diagnostic Plot
+            fig.add_subplot(gs[1, 1]),  # Immediate vs Carryover
+            fig.add_subplot(gs[2, 0]),  # Adstock Rate
+        ]
+        
+        # Generate each plot in its designated subplot
+        self.generate_waterfall(solution_id, axes[0])
+        self.generate_fitted_vs_actual(solution_id, axes[1])
+        self.generate_diagnostic_plot(solution_id, axes[2])
+        self.generate_immediate_vs_carryover(solution_id, axes[3])
+        self.generate_adstock_rate(solution_id, axes[4])
+        
+        # Add overall title with specific positioning
+        fig.suptitle(
+            f'Model Diagnostics for Solution {solution_id}', 
+            fontsize=16,
+            y=0.95  # Position above the plots
+        )
+        
+        # Label plots with adjusted padding
+        plot_titles = [
+            'Response Decomposition Waterfall',
+            'Actual vs. Predicted Response',
+            'Fitted vs. Residual',
+            'Immediate vs. Carryover Response Percentage',
+            'Geometric Adstock: Fixed Rate Over Time'
+        ]
+        
+        for ax, title in zip(axes, plot_titles):
+            ax.set_title(title, pad=15)
+            
+            # Only add legend if there are labeled artists
+            handles, labels = ax.get_legend_handles_labels()
+            if handles and labels:  # Check if there are any labeled artists
+                ax.legend(
+                    bbox_to_anchor=(1.05, 1),
+                    loc='upper left',
+                    borderaxespad=0.
+                )
+        
+        return fig, axes
+
+
+    def plot_all(self, solution_id: str) -> None:
+        """
+        Generate and display all visualization plots for a given solution.
+        
+        Args:
+            solution_id (str): The ID of the solution to visualize
+        """
+        logger.debug(f"Generating all plots for solution {solution_id}")
+        
+        # Create and display figure
+        fig, _ = self._create_diagnostic_figure(solution_id)
+        plt.show()
+        plt.close(fig)
+        
+        logger.debug(f"Successfully displayed all plots for solution {solution_id}")
+
+    def _save_individual_plots(self, solution_id: str, solution_dir: str) -> None:
+        """
+        Generate and save individual plots for a solution.
+        
+        Args:
+            solution_id (str): The ID of the solution to visualize
+            solution_dir (str): Directory to save plots
+        """
+        # Generate individual plots
+        plots = {
+            'waterfall': self.generate_waterfall(solution_id),
+            'fitted_vs_actual': self.generate_fitted_vs_actual(solution_id),
+            'diagnostic': self.generate_diagnostic_plot(solution_id),
+            'immediate_vs_carryover': self.generate_immediate_vs_carryover(solution_id),
+            'adstock_rate': self.generate_adstock_rate(solution_id)
+        }
+        
+        # Save each plot
+        for plot_name, fig in plots.items():
+            if fig is not None:
+                plot_path = os.path.join(solution_dir, f'{plot_name}_solution_{solution_id}.png')
+                fig.savefig(plot_path, bbox_inches='tight', dpi=300)
+                plt.close(fig)
+                logger.debug(f"Saved {plot_name} plot for solution {solution_id} to {plot_path}")
+
+    def export_all(self, solution_id: str, plots_dir: str) -> None:
+        """
+        Generate and export all visualization plots for a given solution.
+        
+        Args:
+            solution_id (str): The ID of the solution to visualize
+            plots_dir (str): Directory path where plots should be saved
+        """
+        logger.debug(f"Exporting all plots for solution {solution_id}")
+        
+        # Create solution-specific directory
+        solution_dir = os.path.join(plots_dir, f'solution_{solution_id}')
+        os.makedirs(solution_dir, exist_ok=True)
+        
+        # Create and save combined plot
+        fig, _ = self._create_diagnostic_figure(solution_id)
+        combined_plot_path = os.path.join(solution_dir, f'all_plots_solution_{solution_id}.png')
+        fig.savefig(
+            combined_plot_path, 
+            bbox_inches='tight',
+            dpi=300,
+            pad_inches=0.5  # Add padding around the figure
+        )
+        plt.close(fig)
+        
+        # Save individual plots
+        self._save_individual_plots(solution_id, solution_dir)
+        
+        logger.debug(f"Successfully exported all plots for solution {solution_id}")

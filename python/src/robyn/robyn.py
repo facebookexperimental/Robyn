@@ -4,6 +4,7 @@
 # TODO Add separate methods if state is loaded from robyn_object or json_file for each method
 
 import logging
+import os
 import pandas as pd
 from robyn.data.entities.enums import DependentVarType
 
@@ -24,6 +25,7 @@ from robyn.data.validation.holidays_data_validation import HolidaysDataValidatio
 from robyn.data.validation.hyperparameter_validation import HyperparametersValidation
 from robyn.data.validation.mmmdata_validation import MMMDataValidation
 from robyn.visualization.feature_visualization import FeaturePlotter
+from robyn.visualization.pareto_visualizer import ParetoVisualizer
 import matplotlib.pyplot as plt
 from robyn.modeling.pareto.pareto_optimizer import ParetoOptimizer
 from robyn.modeling.entities.pareto_result import ParetoResult
@@ -236,17 +238,60 @@ class Robyn:
         plot=False,
         export=False,
     ) -> None:
-        # Perform Pareto optimization
-        pareto_result = self.pareto_optimization(pareto_fronts, min_candidates, plot, export)
-        self.pareto_result = pareto_result
-        if run_cluster:
-            # Perform clustering on the Pareto-optimized results
-            cluster_results = self.cluster_models(pareto_result, cluster_config, plot, export)
-        print("Model evaluation complete.")
-        # if plot == True:
-            # instantiate pareto plotter and cluster plotter and plot the graphs
-
-    def pareto_optimization(self, pareto_fronts: str, min_candidates: int, plot: bool, export: bool) -> ParetoResult:
+        """
+        Evaluate models using Pareto optimization and optionally cluster the results.
+        
+        Args:
+            pareto_fronts (str, optional): Method for Pareto front calculation. Defaults to "auto".
+            min_candidates (int, optional): Minimum number of candidates. Defaults to 100.
+            run_cluster (bool, optional): Whether to perform clustering. Defaults to True.
+            cluster_config (ClusteringConfig, optional): Configuration for clustering.
+            plot (bool, optional): Whether to display plots. Defaults to False.
+            export (bool, optional): Whether to export plots. Defaults to False.
+        """
+        try:
+            # Perform Pareto optimization
+            pareto_result = self.pareto_optimization(pareto_fronts, min_candidates)
+            self.pareto_result = pareto_result
+            
+            # Initialize visualizer if plotting or exporting is requested
+            if plot or export:
+                visualizer = ParetoVisualizer(
+                    pareto_result=pareto_result,
+                    adstock=self.hyperparameters.adstock,
+                    mmm_data=self.mmm_data,
+                    holiday_data=self.holidays_data
+                )
+                
+                # Get all solution IDs from plot_data_collect
+                all_solution_ids = list(pareto_result.plot_data_collect.keys())
+                solution_ids = all_solution_ids[:3]
+                print(f"Generating plots for solutions: {solution_ids}")
+                
+                for solution_id in solution_ids:
+                    if export:
+                        plots_dir = os.path.join(self.working_dir, 'plots')
+                        visualizer.export_all(solution_id, plots_dir)
+                    
+                    if plot:
+                        visualizer.plot_all(solution_id)
+            
+            if run_cluster:
+                # Perform clustering on the Pareto-optimized results
+                cluster_results = self.cluster_models(pareto_result, cluster_config)
+                # Visualize and/or export clustering results if required
+                if plot:
+                    self.visualize_outputs(cluster_results)
+                if export:
+                    self.export_outputs(cluster_results)
+            
+            print("Model evaluation complete.")
+            
+        except Exception as e:
+            self.logger.error(f"Error in model evaluation: {str(e)}")
+            raise
+        
+    def pareto_optimization(self, pareto_fronts: str, min_candidates: int) -> ParetoResult:
         # Create ParetoOptimizer instance
         pareto_optimizer = ParetoOptimizer(
             mmm_data=self.mmm_data,
@@ -257,16 +302,9 @@ class Robyn:
         )
         # Run optimize function
         pareto_result = pareto_optimizer.optimize(pareto_fronts=pareto_fronts, min_candidates=min_candidates)
-
-        # Visualize and/or export results if required
-        if plot:
-            self.visualize_outputs(pareto_result)  # Remove plot=plot
-        if export:
-            self.export_outputs(pareto_result)  # Remove export=export
-
         return pareto_result
 
-    def cluster_models(self, pareto_result: ParetoResult, cluster_config: ClusteringConfig, plot: bool, export: bool):
+    def cluster_models(self, pareto_result: ParetoResult, cluster_config: ClusteringConfig):
         # Instantiate ClusterBuilder with the Pareto result
         cluster_builder = ClusterBuilder(pareto_result=pareto_result)
         # Use provided cluster_config or create a default one
@@ -280,11 +318,6 @@ class Robyn:
             )
         # Perform clustering
         cluster_results = cluster_builder.cluster_models(cluster_config)
-        # Visualize and/or export clustering results if required
-        if plot:
-            self.visualize_outputs(cluster_results, plot=plot)
-        if export:
-            self.export_outputs(cluster_results, export=export)
         return cluster_results
 
     def budget_allocator(
