@@ -24,18 +24,16 @@ class BudgetAllocator:
         self,
         mmm_data: MMMData,
         featurized_mmm_data: FeaturizedMMMData,
-        model_outputs: ModelOutputs,
         pareto_result: ParetoResult,
         select_model: str,
     ):
         """Initialize the BudgetAllocator."""
         logger.info("Initializing BudgetAllocator")
-        logger.debug("Input parameters: mmm_data=%s, model_outputs=%s, pareto_result=%s, select_model=%s",
-                    mmm_data, model_outputs, pareto_result, select_model)
+        logger.debug("Input parameters: mmm_data=%s, pareto_result=%s, select_model=%s",
+                    mmm_data, pareto_result, select_model)
 
         self.mmm_data = mmm_data
         self.featurized_mmm_data = featurized_mmm_data
-        self.model_outputs = model_outputs
         self.pareto_result = pareto_result
         self.select_model = select_model
 
@@ -138,8 +136,7 @@ class BudgetAllocator:
         logger.debug("Calculating initial metrics with date_range=%s, total_budget=%s", date_range, total_budget)
 
         try:
-            dt_mod = self.mmm_data.data
-            hist_spend = dt_mod.loc[date_range.start_index : date_range.end_index, media_spend_sorted]
+            hist_spend = self.featurized_mmm_data.dt_mod.loc[date_range.start_index : date_range.end_index, media_spend_sorted]
             
             logger.debug("Historical spend statistics: total=%s, mean=%s", 
                         hist_spend.sum(), hist_spend.mean())
