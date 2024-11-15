@@ -22,6 +22,9 @@ class Trial:
     lambda_max: float
     lambda_min_ratio: float
     pos: int
+    nrmse_train: float = 0.0
+    nrmse_val: float = 0.0
+    nrmse_test: float = 0.0
     elapsed: float = 0.0
     elapsed_accum: float = 0.0
     trial: int = 1

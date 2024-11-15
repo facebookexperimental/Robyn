@@ -17,6 +17,7 @@ from scipy import stats
 # Initialize logger
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class AdstockResult:
     x: pd.Series
@@ -58,9 +59,7 @@ class Transformation:
             return pd.Series([1] + [0] * (len(x) - 1), index=x.index)
         return (x - x.min()) / (x.max() - x.min())
 
-    def mic_men(
-        x: Union[float, pd.Series], Vmax: float, Km: float, reverse: bool = False
-    ) -> Union[float, pd.Series]:
+    def mic_men(x: Union[float, pd.Series], Vmax: float, Km: float, reverse: bool = False) -> Union[float, pd.Series]:
         """Apply Michaelis-Menten transformation."""
         logger.debug("Applying Michaelis-Menten transform (reverse=%s)", reverse)
         if not reverse:
@@ -71,21 +70,21 @@ class Transformation:
     def adstock_geometric(self, x: pd.Series, theta: float) -> AdstockResult:
         """Apply geometric adstock transformation."""
         logger.debug("Applying geometric adstock with theta=%f", theta)
-        
+
         if not np.isscalar(theta):
             logger.error("Invalid theta value: must be scalar")
             raise ValueError("theta must be a single value")
-            
+
         x_decayed = pd.Series(index=x.index, dtype=float)
         x_decayed.iloc[0] = x.iloc[0]
-        
+
         logger.debug("Computing geometric decay")
         for xi in range(1, len(x_decayed)):
             x_decayed.iloc[xi] = x.iloc[xi] + theta * x_decayed.iloc[xi - 1]
-            
+
         thetaVecCum = pd.Series(theta ** np.arange(len(x)), index=x.index)
         inflation_total = x_decayed.sum() / x.sum()
-        
+
         logger.debug("Completed geometric adstock with inflation_total=%f", inflation_total)
         return AdstockResult(x, x_decayed, x, None, thetaVecCum, inflation_total)
 
@@ -98,12 +97,7 @@ class Transformation:
         adstockType: AdstockType = AdstockType.WEIBULL_CDF,
     ) -> AdstockResult:
         """Apply Weibull adstock transformation."""
-        logger.debug(
-            "Applying Weibull adstock (type=%s, shape=%f, scale=%f)",
-            adstockType,
-            shape,
-            scale
-        )
+        logger.debug("Applying Weibull adstock (type=%s, shape=%f, scale=%f)", adstockType, shape, scale)
 
         if not (np.isscalar(shape) and np.isscalar(scale)):
             logger.error("Invalid shape or scale values: must be scalar")
@@ -152,11 +146,7 @@ class Transformation:
             )
 
         inflation_total = x_decayed.sum() / x.sum()
-        logger.debug(
-            "Completed Weibull adstock (type=%s) with inflation_total=%f",
-            adstockType,
-            inflation_total
-        )
+        logger.debug("Completed Weibull adstock (type=%s) with inflation_total=%f", adstockType, inflation_total)
         return AdstockResult(
             x,
             x_decayed,
@@ -176,7 +166,7 @@ class Transformation:
         """Apply adstock transformation based on the specified method."""
         logger.debug("Starting adstock transformation with type: %s", adstockType)
         logger.debug("Input series length: %d", len(x))
-        
+
         try:
             if adstockType == AdstockType.GEOMETRIC:
                 theta = channelHyperparameters.thetas[0]
@@ -200,10 +190,7 @@ class Transformation:
     ) -> pd.Series:
         """Apply Hill function for saturation."""
         logger.debug(
-            "Applying Hill saturation (alpha=%f, gamma=%f, with_marginal=%s)",
-            alpha,
-            gamma,
-            x_marginal is not None
+            "Applying Hill saturation (alpha=%f, gamma=%f, with_marginal=%s)", alpha, gamma, x_marginal is not None
         )
 
         if not (np.isscalar(alpha) and np.isscalar(gamma)):
@@ -218,23 +205,21 @@ class Transformation:
             if x_marginal is None
             else x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
         )
-        
+
         logger.debug("Completed Hill saturation")
         return result
 
     def plot_adstock(self, plot: bool = True) -> Optional[plt.Figure]:
         """Generate adstock comparison plots."""
         logger.debug("Starting adstock comparison plot generation")
-        
+
         if plot:
             try:
                 channelHyperparameters = ChannelHyperparameters(
-                    shapes=[0.5, 1, 2, 3, 5], 
-                    scales=[0.5], 
-                    thetas=[0.1, 0.3, 0.5, 0.7, 0.9]
+                    shapes=[0.5, 1, 2, 3, 5], scales=[0.5], thetas=[0.1, 0.3, 0.5, 0.7, 0.9]
                 )
                 logger.debug("Created channel hyperparameters for plotting")
-                
+
                 x = pd.Series(range(1, 101))
                 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
                 logger.debug("Initialized plot figures")
@@ -248,7 +233,7 @@ class Transformation:
                     except Exception as e:
                         logger.error("Error plotting geometric adstock for theta=%f: %s", theta, str(e))
                         continue
-                
+
                 ax1.set_title("Geometric Adstock\n(Fixed decay rate)")
                 ax1.set_xlabel("Time unit")
                 ax1.set_ylabel("Media decay")
@@ -265,7 +250,7 @@ class Transformation:
                             y_pdf = self.adstock_weibull(
                                 self, x, shape, scale, adstockType=AdstockType.WEIBULL_PDF
                             ).thetaVecCum
-                            
+
                             ax2.plot(x, y_cdf, label=f"CDF: shape={shape}, scale={scale}")
                             ax2.plot(
                                 x,
@@ -275,8 +260,7 @@ class Transformation:
                             )
                         except Exception as e:
                             logger.error(
-                                "Error plotting Weibull adstock for shape=%f, scale=%f: %s",
-                                shape, scale, str(e)
+                                "Error plotting Weibull adstock for shape=%f, scale=%f: %s", shape, scale, str(e)
                             )
                             continue
 
@@ -291,14 +275,14 @@ class Transformation:
             except Exception as e:
                 logger.error("Failed to generate adstock plots: %s", str(e))
                 raise
-        
+
         logger.debug("Skipping plot generation (plot=False)")
         return None
 
     def plot_saturation(plot: bool = True) -> Optional[List[plt.Figure]]:
         """Generate saturation comparison plots."""
         logger.debug("Starting saturation comparison plot generation")
-        
+
         figures = []
         if plot:
             try:
@@ -313,9 +297,7 @@ class Transformation:
                 for alpha in alpha_samp:
                     try:
                         y = x_sample**alpha / (x_sample**alpha + (0.5 * 100) ** alpha)
-                        hill_alpha_collect.append(
-                            pd.DataFrame({"x": x_sample, "y": y, "alpha": alpha})
-                        )
+                        hill_alpha_collect.append(pd.DataFrame({"x": x_sample, "y": y, "alpha": alpha}))
                     except Exception as e:
                         logger.error("Error calculating hill function for alpha=%f: %s", alpha, str(e))
                         continue
@@ -324,9 +306,7 @@ class Transformation:
                 hill_alpha_collect["alpha"] = hill_alpha_collect["alpha"].astype("category")
 
                 plt.figure(figsize=(10, 6))
-                sns.lineplot(
-                    data=hill_alpha_collect, x="x", y="y", hue="alpha", palette="Set2"
-                )
+                sns.lineplot(data=hill_alpha_collect, x="x", y="y", hue="alpha", palette="Set2")
                 plt.title("Cost response with hill function")
                 plt.suptitle("Alpha changes while gamma = 0.5", y=0.95)
                 plt.xlabel("x")
@@ -341,9 +321,7 @@ class Transformation:
                 for gamma in gamma_samp:
                     try:
                         y = x_sample**2 / (x_sample**2 + (gamma * 100) ** 2)
-                        hill_gamma_collect.append(
-                            pd.DataFrame({"x": x_sample, "y": y, "gamma": gamma})
-                        )
+                        hill_gamma_collect.append(pd.DataFrame({"x": x_sample, "y": y, "gamma": gamma}))
                     except Exception as e:
                         logger.error("Error calculating hill function for gamma=%f: %s", gamma, str(e))
                         continue
@@ -352,9 +330,7 @@ class Transformation:
                 hill_gamma_collect["gamma"] = hill_gamma_collect["gamma"].astype("category")
 
                 plt.figure(figsize=(10, 6))
-                sns.lineplot(
-                    data=hill_gamma_collect, x="x", y="y", hue="gamma", palette="Set2"
-                )
+                sns.lineplot(data=hill_gamma_collect, x="x", y="y", hue="gamma", palette="Set2")
                 plt.title("Cost response with hill function")
                 plt.suptitle("Gamma changes while alpha = 2", y=0.95)
                 plt.xlabel("x")
@@ -368,10 +344,10 @@ class Transformation:
             except Exception as e:
                 logger.error("Failed to generate saturation plots: %s", str(e))
                 raise
-        
+
         logger.debug("Skipping plot generation (plot=False)")
         return []
-    
+
     def run_transformations(
         self,
         featurized_data: FeaturizedMMMData,
@@ -386,6 +362,14 @@ class Transformation:
         rollingWindowStartWhich = self.mmm_data.mmmdata_spec.rolling_window_start_which
         rollingWindowEndWhich = self.mmm_data.mmmdata_spec.rolling_window_end_which
 
+        # print("Rolling window start which: ", rollingWindowStartWhich)
+        # print("Rolling window end which: ", rollingWindowEndWhich)
+
+        # if rollingWindowStartWhich is None or rollingWindowEndWhich is None:
+        #     # Use default values if not specified
+        #     rollingWindowStartWhich = 7
+        #     rollingWindowEndWhich = 163
+        #     # print("Set default values")
         dt_modAdstocked = featurized_data.dt_mod.copy()
         if "ds" in dt_modAdstocked.columns:
             logger.debug("Removing 'ds' column from data")
@@ -410,12 +394,8 @@ class Transformation:
                 mediaAdstocked[media] = m_adstocked
                 m_carryover = m_adstocked - m_imme
 
-                m_adstockedRollWind = m_adstocked.iloc[
-                    rollingWindowStartWhich : rollingWindowEndWhich + 1
-                ]
-                m_carryoverRollWind = m_carryover.iloc[
-                    rollingWindowStartWhich : rollingWindowEndWhich + 1
-                ]
+                m_adstockedRollWind = m_adstocked.iloc[rollingWindowStartWhich : rollingWindowEndWhich + 1]
+                m_carryoverRollWind = m_carryover.iloc[rollingWindowStartWhich : rollingWindowEndWhich + 1]
 
                 logger.debug("Applying saturation transformations for %s", media)
                 mediaSaturated[media] = self.saturation_hill(
@@ -429,9 +409,7 @@ class Transformation:
                     channelHyperparameters.gammas[0],
                     x_marginal=m_carryoverRollWind,
                 )
-                mediaSaturatedImmediate[media] = (
-                    mediaSaturated[media] - mediaSaturatedCarryover[media]
-                )
+                mediaSaturatedImmediate[media] = mediaSaturated[media] - mediaSaturatedCarryover[media]
                 logger.debug("Completed transformations for media channel: %s", media)
             except Exception as e:
                 logger.error("Error processing media channel %s: %s", media, str(e))
@@ -444,23 +422,14 @@ class Transformation:
         )
         dt_modSaturated = pd.concat(
             [
-                dt_modAdstocked.iloc[
-                    rollingWindowStartWhich : rollingWindowEndWhich + 1
-                ].drop(columns=all_media),
+                dt_modAdstocked.iloc[rollingWindowStartWhich : rollingWindowEndWhich + 1].drop(columns=all_media),
                 pd.DataFrame(mediaSaturated),
             ],
             axis=1,
         ).reset_index()
-        dt_saturatedImmediate = (
-            pd.DataFrame(mediaSaturatedImmediate).fillna(0).reset_index()
-        )
-        dt_saturatedCarryover = (
-            pd.DataFrame(mediaSaturatedCarryover).fillna(0).reset_index()
-        )
+        dt_saturatedImmediate = pd.DataFrame(mediaSaturatedImmediate).fillna(0).reset_index()
+        dt_saturatedCarryover = pd.DataFrame(mediaSaturatedCarryover).fillna(0).reset_index()
 
-        result = TransformationResult(
-            dt_modSaturated, dt_saturatedImmediate, dt_saturatedCarryover
-        )
+        result = TransformationResult(dt_modSaturated, dt_saturatedImmediate, dt_saturatedCarryover)
         logger.debug("Completed all transformations: %s", result)
         return result
-    

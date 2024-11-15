@@ -1,9 +1,9 @@
 # pyre-strict
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 from dataclasses import dataclass
 from functools import partial
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 
 import numpy as np
@@ -17,12 +17,13 @@ from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.modeling.pareto.hill_calculator import HillCalculator
+from robyn.modeling.pareto.immediate_carryover import ImmediateCarryoverCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, ResponseOutput
 from robyn.modeling.transformations.transformations import Transformation
 from tqdm import tqdm  # Import tqdm for progress bar
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+
 @dataclass
 class ParetoData:
     decomp_spend_dist: pd.DataFrame
@@ -353,13 +354,6 @@ class ParetoOptimizer:
             pareto_fronts=pareto_fronts_vec,
         )
 
-    def _get_prophet_var_values(self, var) -> str:
-        """Helper function to handle both string and enum prophet variables."""
-        try:
-            return var.value if hasattr(var, "value") else var
-        except AttributeError:
-            return var
-
     def run_dt_resp(self, row: pd.Series, paretoData: ParetoData) -> pd.Series:
         """
         Calculate response curves for a given row of Pareto data.
@@ -432,7 +426,7 @@ class ParetoOptimizer:
                 }
             )
         except Exception as e:
-            print(
+            self.logger.error(
                 f"Error processing row for sol_id {row.get('sol_id', 'unknown')}, "
                 f"rn {row.get('rn', 'unknown')}: {str(e)}"
             )
@@ -515,9 +509,6 @@ class ParetoOptimizer:
 
             # Calculate ROI and CPA metrics after merging
             self.logger.info("Calculating ROI and CPA metrics...")
-            # print("Pareto data decomp_spend_dist columns: ", pareto_data.decomp_spend_dist.columns)
-            # print("Pareto Data Mean Spend: ", pareto_data.decomp_spend_dist["mean_spend"])
-            # print("Pareto Data Mean Response: ", pareto_data.decomp_spend_dist["mean_response"])
             pareto_data.decomp_spend_dist["roi_mean"] = (
                 pareto_data.decomp_spend_dist["mean_response"] / pareto_data.decomp_spend_dist["mean_spend"]
             )
@@ -664,7 +655,7 @@ class ParetoOptimizer:
                             "end",
                             "sign",
                         ]
-                    ].reset_index()
+                    ]
 
                     plot2data = {"plotWaterfallLoop": plotWaterfallLoop}
                     self.logger.debug(f"Generated plot2data for sid: {sid}")
@@ -673,23 +664,9 @@ class ParetoOptimizer:
                     dt_geometric = None
                     weibullCollect = None
                     resultHypParamLoop = pareto_data.result_hyp_param[pareto_data.result_hyp_param["sol_id"] == sid]
-                    get_hp_names = []
-                    for media in self.mmm_data.mmmdata_spec.all_media:
-                        if self.hyperparameter.adstock == AdstockType.GEOMETRIC:
-                            get_hp_names.extend([f"{media}_alphas", f"{media}_gammas", f"{media}_thetas"])
-                        else:
-                            get_hp_names.extend(
-                                [f"{media}_alphas", f"{media}_gammas", f"{media}_shapes", f"{media}_scales"]
-                            )
-
-                    # print("get_hp_names: ", get_hp_names)
-                    # print("resultHypParamLoop columns:", resultHypParamLoop.columns.tolist())
-                    # print("resultHypParamLoop sample:\n", resultHypParamLoop.head())
-
-                    # missing_columns = [col for col in get_hp_names if col not in resultHypParamLoop.columns]
-                    # if missing_columns:
-                    #     print("Missing columns:", missing_columns)
-
+                    get_hp_names = [
+                        name for name in self.hyperparameter.hyperparameters.keys() if not name.endswith("_penalty")
+                    ]
                     hypParam = resultHypParamLoop[get_hp_names]
 
                     wb_type = self.hyperparameter.adstock
@@ -837,7 +814,7 @@ class ParetoOptimizer:
                         ]
                     ].rename(
                         columns={"rn": "channel"}
-                    ).reset_index()
+                    )
 
                     plot4data = {
                         "dt_scurvePlot": dt_scurvePlot,
@@ -847,18 +824,15 @@ class ParetoOptimizer:
                     self.logger.debug(f"Generated plot4data for sid: {sid}")
 
                     # 5. Fitted vs actual
-                    # Build column order
                     col_order = (
                         ["ds", "dep_var"]
                         + self.mmm_data.mmmdata_spec.all_media
-                        + [self._get_prophet_var_values(var) for var in self.holidays_data.prophet_vars]
+                        + [var.value for var in self.holidays_data.prophet_vars]
                         + self.mmm_data.mmmdata_spec.context_vars
                     )
-
-                    # Build selected columns
                     selected_columns = (
                         ["ds", "dep_var"]
-                        + [self._get_prophet_var_values(var) for var in self.holidays_data.prophet_vars]
+                        + [var.value for var in self.holidays_data.prophet_vars]
                         + self.mmm_data.mmmdata_spec.context_vars
                     )
 
@@ -892,32 +866,6 @@ class ParetoOptimizer:
                     # Multiply scurved and coefs
                     scurved = dt_transformDecomp.drop(columns=["ds", "dep_var"])
                     coefs = xDecompVec.drop(columns=["sol_id", "(Intercept)"])
-
-                    # # Check and print the data types of scurved and coefs
-                    # print("Data types of scurved:")
-                    # print(scurved.dtypes)
-                    # print("\nData types of coefs:")
-                    # print(coefs.dtypes)
-                    # # Check and print for NaN values
-                    # print("\nNaN values in scurved after conversion:")
-                    # print(scurved.isna().sum())
-                    # print("\nNaN values in coefs after conversion:")
-                    # print(coefs.isna().sum())
-                    # # Check and print the shapes of scurved and coefs
-                    # print("\nShape of scurved:")
-                    # print(scurved.shape)
-                    # print("\nShape of coefs:")
-                    # print(coefs.shape)
-                    # # Print the first few rows of scurved and coefs to inspect the data
-                    # print("\nFirst few rows of scurved:")
-                    # print(scurved.head())
-                    # print("\nFirst few rows of coefs:")
-                    # print(coefs.head())
-
-                    # Apply pd.to_numeric to convert the columns to numeric
-                    scurved = scurved.apply(pd.to_numeric, errors="coerce")
-                    coefs = coefs.apply(pd.to_numeric, errors="coerce")
-
                     xDecompVec = pd.DataFrame(
                         np.multiply(
                             scurved.values,
@@ -1006,7 +954,6 @@ class ParetoOptimizer:
         start_date=None,
         end_date=None,
     ):
-        """Calculate immediate and carryover effects."""
         # Define default values when not provided
         if sol_id is None:
             sol_id = result_hyp_param["sol_id"].iloc[0]
@@ -1015,33 +962,28 @@ class ParetoOptimizer:
         if end_date is None:
             end_date = self.mmm_data.mmmdata_spec.window_end
 
-        # Convert to datetime series and reset index
-        dt_modRollWind = pd.to_datetime(self.featurized_mmm_data.dt_modRollWind["ds"]).reset_index(drop=True)
+        dt_modRollWind = pd.to_datetime(self.featurized_mmm_data.dt_modRollWind["ds"])
         dt_modRollWind = dt_modRollWind.dropna()
 
-        # Convert inputs to datetime
+        # Check if start_date is a single value
         if isinstance(start_date, (list, pd.Series)):
             start_date = start_date[0]
-        start_date = pd.to_datetime(start_date)
 
+        # Find the closest start_date
+        start_date = dt_modRollWind.iloc[(dt_modRollWind - pd.to_datetime(start_date)).abs().idxmin()]
+
+        # Check if end_date is a single value
         if isinstance(end_date, (list, pd.Series)):
-            end_date = end_date[0]
-        end_date = pd.to_datetime(end_date)
+            end_date = end_date[0]  # Take the first element if it's a list or Series
 
-        # Find closest dates using absolute difference
-        start_idx = (dt_modRollWind - start_date).abs().argmin()
-        end_idx = (dt_modRollWind - end_date).abs().argmin()
+        # Find the closest end_date
+        end_date = dt_modRollWind.iloc[(dt_modRollWind - pd.to_datetime(end_date)).abs().idxmin()]
 
-        start_date = dt_modRollWind[start_idx]
-        end_date = dt_modRollWind[end_idx]
+        # Filter for custom window
+        rollingWindowStartWhich = dt_modRollWind[dt_modRollWind == start_date].index[0]
+        rollingWindowEndWhich = dt_modRollWind[dt_modRollWind == end_date].index[0]
+        rollingWindow = range(rollingWindowStartWhich, rollingWindowEndWhich + 1)
 
-        # print(f"Found start_date: {start_date}, end_date: {end_date}")
-        # print(f"start_idx: {start_idx}, end_idx: {end_idx}")
-
-        # Use boolean indexing instead of value matching
-        rollingWindow = range(start_idx, end_idx + 1)
-
-        # Rest of your function remains the same
         self.logger.info("Calculating saturated dataframes with carryover and immediate parts")
         hypParamSam = result_hyp_param[result_hyp_param["sol_id"] == sol_id]
         hyperparameter = self._extract_hyperparameter(hypParamSam)
@@ -1051,6 +993,7 @@ class ParetoOptimizer:
             hyperparameter,
             hyperparameter.adstock,
         )
+
         # Calculate decomposition
         coefs = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["sol_id"] == sol_id, "coef"].values
         coefs_names = pareto_data.x_decomp_agg.loc[pareto_data.x_decomp_agg["sol_id"] == sol_id, "rn"].values
@@ -1059,14 +1002,6 @@ class ParetoOptimizer:
         coefs_df = pd.DataFrame({"name": coefs_names, "coefficient": coefs})
 
         self.logger.debug("Computing decomposition")
-        # Check if 'revenue' exists in the columns
-        if "revenue" in dt_saturated_dfs.dt_modSaturated.columns:
-            # Rename 'revenue' to 'dep_var'
-            dt_saturated_dfs.dt_modSaturated = dt_saturated_dfs.dt_modSaturated.rename(columns={"revenue": "dep_var"})
-            # print("Column 'revenue' renamed to 'dep_var'.")
-        else:
-            # print("Column 'revenue' does not exist.")
-            pass
         decompCollect = self._model_decomp(
             inputs={
                 "coefs": coefs_df,
@@ -1115,29 +1050,10 @@ class ParetoOptimizer:
         vec_collect["xDecompVecImmediate"].columns = this
         vec_collect["xDecompVecCarryover"].columns = this
 
-        # Convert datetime64[ns] to object: You can convert the ds column to a string format, which will change its type to object.
-        vec_collect["xDecompVecCarryover"]["ds"] = vec_collect["xDecompVecCarryover"]["ds"].astype(str)
-        vec_collect["xDecompVec"]["ds"] = vec_collect["xDecompVec"]["ds"].astype(str)
-        # print("Vec collect dtypes xDecompVecCarryover", vec_collect["xDecompVecCarryover"].dtypes)
-        # print("Vec collect dtypes xDecompVec", vec_collect["xDecompVec"].dtypes)
-        # Exclude datetime columns before performing groupby and sum
-        # df_caov = (
-        #     vec_collect["xDecompVecCarryover"]
-        #     .select_dtypes(exclude=["datetime64[ns]"])  # Exclude datetime columns
-        #     .groupby("sol_id")
-        #     .sum()
-        #     .reset_index()
-        # )
-        # df_total = (
-        #     vec_collect["xDecompVec"]
-        #     .select_dtypes(exclude=["datetime64[ns]"])  # Exclude datetime columns
-        #     .groupby("sol_id")
-        #     .sum()
-        #     .reset_index()
-        # )
         # Calculate carryover percentages
         df_caov = (vec_collect["xDecompVecCarryover"].groupby("sol_id").sum().reset_index()).drop(columns="ds")
         df_total = vec_collect["xDecompVec"].groupby("sol_id").sum().reset_index().drop(columns="ds")
+
         df_caov_pct = df_caov.copy()
         df_caov_pct.loc[:, df_caov_pct.columns[1:]] = (
             df_caov_pct.loc[:, df_caov_pct.columns[1:]].div(df_total.iloc[:, 1:].values).astype("float64")
@@ -1145,7 +1061,7 @@ class ParetoOptimizer:
         df_caov_pct = df_caov_pct.melt(id_vars="sol_id", var_name="rn", value_name="carryover_pct").fillna(0)
 
         # Gather everything in an aggregated format
-        self.logger.debug("Aggregating final results from decomposition carryover and immediate parts")
+        self.logger.info("Aggregating final results from decomposition carryover and immediate parts")
         xDecompVecImmeCaov = (
             pd.concat(
                 [
@@ -1225,44 +1141,27 @@ class ParetoOptimizer:
         dt_saturatedCarryover = inputs["dt_saturatedCarryover"]
         dt_modRollWind = inputs["dt_modRollWind"]
         refreshAddedStart = inputs["refreshAddedStart"]
+
         # Input for decomp
         y = dt_modSaturated["dep_var"]
+
         # Select all columns except 'dep_var'
         x = dt_modSaturated.drop(columns=["dep_var"])
-        # Convert 'events' column to numeric if it exists
-        if "events" in x.columns:
-            x["events"] = pd.to_numeric(x["events"], errors="coerce")
-            # x["events"].fillna(0, inplace=True)  # Replace NaN values with 0
-            x.loc[:, "events"] = x["events"].fillna(0)
         intercept = coefs["coefficient"].iloc[0]
-        # # Debugging: Print data types and shapes
-        # print("--- Decomp ---")
-        # print("Data types of x:")
-        # print(x.dtypes)
-        # print("Data types of coefs:")
-        # print(coefs.dtypes)
-        # print("Shape of x:", x.shape)
-        # print("Shape of coefs:", coefs.shape)
-        # # Check for NaN or non-numeric values
-        # print("NaN values in x:")
-        # print(x.isna().sum())
-        # print("NaN values in coefs:")
-        # print(coefs.isna().sum())
-        # # Print the first few rows of the DataFrame
-        # print("First few rows of x:")
-        # print(x.head())
-        # print("First few rows of coefs:")
-        # print(coefs.head())
+
         # Decomp x
         # Create an empty DataFrame for xDecomp
         xDecomp = pd.DataFrame()
+
         # Multiply each regressor by its corresponding coefficient
         for name in x.columns:
             # Get the corresponding coefficient for the regressor
             coefficient_value = coefs.loc[coefs["name"] == name, "coefficient"].values
             xDecomp[name] = x[name] * (coefficient_value if len(coefficient_value) > 0 else 0)
+
         # Add intercept as the first column
         xDecomp.insert(0, "intercept", intercept)
+
         xDecompOut = pd.concat(
             [
                 pd.DataFrame({"ds": dt_modRollWind["ds"], "y": y, "y_pred": y_pred}),
@@ -1270,17 +1169,20 @@ class ParetoOptimizer:
             ],
             axis=1,
         )
+
         # Decomp immediate & carryover response
         sel_coef = coefs["name"].isin(
             dt_saturatedImmediate.columns
         )  # Check if coefficient names are in the immediate DataFrame
         coefs_media = coefs[sel_coef].set_index("name")["coefficient"]  # Set names for coefs_media
+
         mediaDecompImmediate = pd.DataFrame(
             {name: dt_saturatedImmediate[name] * coefs_media[name] for name in coefs_media.index}
         )
         mediaDecompCarryover = pd.DataFrame(
             {name: dt_saturatedCarryover[name] * coefs_media[name] for name in coefs_media.index}
         )
+
         return {
             "xDecompVec": xDecompOut,
             "mediaDecompImmediate": mediaDecompImmediate,
