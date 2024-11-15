@@ -107,12 +107,12 @@ class ModelConvergenceVisualizer:
 
         try:
             result_hyp_param = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
-            result_hyp_param["trial"] = result_hyp_param.groupby("solID").cumcount() + 1
+            result_hyp_param["trial"] = result_hyp_param.groupby("sol_id").cumcount() + 1
             result_hyp_param["iteration"] = result_hyp_param.index + 1
 
             logger.debug("Processing metrics for validation plot")
             result_hyp_param_long = result_hyp_param.melt(
-                id_vars=["solID", "trial", "train_size", "iteration"],
+                id_vars=["sol_id", "trial", "train_size", "iteration"],
                 value_vars=["rsq_train", "rsq_val", "rsq_test", "nrmse_train", "nrmse_val", "nrmse_test"],
                 var_name="metric",
                 value_name="value",

@@ -84,11 +84,11 @@ class Robyn:
 
     def model_e2e_run(
         self,
-        trials_config=TrialsConfig(iterations=10, trials=5),
-        ts_validation=False,
+        trials_config=TrialsConfig(iterations=54, trials=5),
+        ts_validation=True,
         add_penalty_factor=False,
         rssd_zero_penalty=True,
-        cores=16,
+        cores=8,
         nevergrad_algo=NevergradAlgorithm.TWO_POINTS_DE,
         intercept=True,
         intercept_sign="non_negative",
@@ -98,7 +98,7 @@ class Robyn:
         run_calibration=False,
         calibration_input=None,
         pareto_fronts="auto",
-        min_candidates=5,
+        min_candidates=100,
         run_cluster=False,
         cluster_config: ClusteringConfig = None,
     ):
@@ -140,7 +140,7 @@ class Robyn:
     def build_models(
         self,
         trials_config: TrialsConfig,
-        ts_validation=False,
+        ts_validation=True,
         add_penalty_factor=False,
         rssd_zero_penalty=True,
         cores=16,
@@ -213,7 +213,7 @@ class Robyn:
         pareto_optimizer = ParetoOptimizer(
             mmm_data=self.mmm_data,
             model_outputs=self.model_outputs,
-            hyper_parameter=self.hyperparameters,
+            hyperparameter=self.hyperparameters,
             featurized_mmm_data=self.featurized_mmm_data,
             holidays_data=self.holidays_data,
         )

@@ -1,4 +1,4 @@
-#pyre-strict
+# pyre-strict
 
 import logging
 from typing import Tuple
@@ -6,6 +6,7 @@ from typing import Tuple
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
 
 class ResponseCalculator:
     """Calculates response curves and related metrics."""
@@ -40,7 +41,12 @@ class ResponseCalculator:
         logger.debug(
             "Starting response calculation with parameters: spend=%.2f, coef=%.2f, alpha=%.2f, "
             "inflexion=%.2f, x_hist_carryover=%.2f, get_sum=%s",
-            spend, coef, alpha, inflexion, x_hist_carryover, get_sum
+            spend,
+            coef,
+            alpha,
+            inflexion,
+            x_hist_carryover,
+            get_sum,
         )
 
         eps = 1e-10  # Small epsilon to prevent division by zero
@@ -65,7 +71,7 @@ class ResponseCalculator:
         if x_out < 0:
             logger.warning("Negative response value calculated: %.4f", x_out)
 
-        logger.info("Successfully calculated response value: %.4f", x_out)
+        logger.debug("Successfully calculated response value: %.4f", x_out)
         return x_out
 
     def calculate_gradient(
@@ -75,7 +81,11 @@ class ResponseCalculator:
         logger.debug(
             "Starting gradient calculation with parameters: spend=%.2f, coef=%.2f, alpha=%.2f, "
             "inflexion=%.2f, x_hist_carryover=%.2f",
-            spend, coef, alpha, inflexion, x_hist_carryover
+            spend,
+            coef,
+            alpha,
+            inflexion,
+            x_hist_carryover,
         )
 
         eps = 1e-10
@@ -106,10 +116,14 @@ class ResponseCalculator:
         """Generate response curve over a range of spend values."""
         logger.info(
             "Generating response curve with parameters: coef=%.2f, alpha=%.2f, inflexion=%.2f, x_hist_carryover=%.2f",
-            coef, alpha, inflexion, x_hist_carryover
+            coef,
+            alpha,
+            inflexion,
+            x_hist_carryover,
         )
-        logger.debug("Spend range: min=%.2f, max=%.2f, size=%d", 
-                    np.min(spend_range), np.max(spend_range), len(spend_range))
+        logger.debug(
+            "Spend range: min=%.2f, max=%.2f, size=%d", np.min(spend_range), np.max(spend_range), len(spend_range)
+        )
 
         try:
             responses = np.array(
@@ -118,7 +132,7 @@ class ResponseCalculator:
                     for spend in spend_range
                 ]
             )
-            
+
             logger.debug("Response range: min=%.2f, max=%.2f", np.min(responses), np.max(responses))
 
             if np.any(np.isnan(responses)):

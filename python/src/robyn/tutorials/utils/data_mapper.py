@@ -212,21 +212,16 @@ def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFr
 
 
 def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
-    # # Debugging: Print the keys and a brief summary of the data
-    # print("Debug: R output data keys:", data.keys())
-
-    # # Print the shape or length for each key
-    # for key in data.keys():
-    #     if isinstance(data[key], (int, float, str)):
-    #         print(f"Data for {key}: Type = {type(data[key])}, Value = {data[key]}")
-    #     elif isinstance(data[key], list):
-    #         print(f"Data for {key}: Length = {len(data[key])}, Sample = {data[key][:3]}")
-    #     elif isinstance(data[key], dict):
-    #         print(f"Data for {key}: Keys = {list(data[key].keys())[:3]}")
-    #     elif isinstance(data[key], pd.DataFrame):
-    #         print(f"Data for {key}: Shape = {data[key].shape}")
-    #     else:
-    #         print(f"Data for {key}: Type = {type(data[key])}")
+    # Debug: Print the keys and a brief summary of the data
+    print("Debug: R output data keys:", list(data.keys())[:5])
+    # Print the shape or length for each key
+    for key in list(data.keys())[:5]:
+        if isinstance(data[key], dict):
+            print(f"Data for {key}: Keys = {list(data[key].keys())[:3]}")
+            # Check the content of resultCollect
+            result_collect = data[key].get("resultCollect", {})
+            print(f"Debug: resultCollect keys for {key}: {list(result_collect.keys())}")
+            print(f"Debug: Sample resultHypParam for {key}: {result_collect.get('resultHypParam', [])[:3]}")
     trials = []
     convergence_data = None
     hyper_bound_ng = pd.DataFrame()
@@ -258,8 +253,16 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
         elif isinstance(trial_data, dict):
             result_collect = trial_data.get("resultCollect", {})
             result_hyp_param = pd.DataFrame(result_collect.get("resultHypParam", []))
+            print("Shape of result_hyp_param:")
+            print(result_hyp_param.shape)
+            print(f"Debug: result_hyp_param DataFrame for {trial_key}:")
+            print(result_hyp_param.head())  # Print a few rows
+            print("Data types in result_hyp_param:")
+            print(result_hyp_param.dtypes)  # Check data types
+
             result_hyp_param.rename(columns={"solID": "sol_id"}, inplace=True)
             x_decomp_agg = pd.DataFrame(result_collect.get("xDecompAgg", []))
+            print(f"Debug: x_decomp_agg DataFrame shape: {x_decomp_agg.shape}")
             x_decomp_agg.rename(columns={"solID": "sol_id"}, inplace=True)
             lift_calibration = pd.DataFrame(result_collect.get("liftCalibration", []))
             decomp_spend_dist = pd.DataFrame(result_collect.get("decompSpendDist", []))

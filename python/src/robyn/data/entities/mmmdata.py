@@ -118,6 +118,7 @@ class MMMData:
         """
         self.data: pd.DataFrame = data
         self.mmmdata_spec: MMMData.MMMDataSpec = mmmdata_spec
+        self.calculate_rolling_window_indices()
 
     def __str__(self) -> str:
         """
@@ -184,3 +185,31 @@ class MMMData:
         :param column_name: The name of the column to remove.
         """
         self.data.drop(columns=[column_name], inplace=True)
+
+    def calculate_rolling_window_indices(self) -> None:
+        # Ensure the date column is in datetime format
+        self.data[self.mmmdata_spec.date_var] = pd.to_datetime(self.data[self.mmmdata_spec.date_var])
+        # Convert window_start and window_end to datetime if they are strings
+        window_start = (
+            pd.to_datetime(self.mmmdata_spec.window_start)
+            if isinstance(self.mmmdata_spec.window_start, str)
+            else self.mmmdata_spec.window_start
+        )
+        window_end = (
+            pd.to_datetime(self.mmmdata_spec.window_end)
+            if isinstance(self.mmmdata_spec.window_end, str)
+            else self.mmmdata_spec.window_end
+        )
+        # Calculate the index for the rolling window start
+        if window_start is not None:
+            self.mmmdata_spec.rolling_window_start_which = (
+                (self.data[self.mmmdata_spec.date_var] - window_start).abs().idxmin()
+            )
+        # Calculate the index for the rolling window end
+        if window_end is not None:
+            self.mmmdata_spec.rolling_window_end_which = (
+                (self.data[self.mmmdata_spec.date_var] - window_end).abs().idxmin()
+            )
+
+        print(f"Rolling Window Start Index: {self.mmmdata_spec.rolling_window_start_which}")
+        print(f"Rolling Window End Index: {self.mmmdata_spec.rolling_window_end_which}")
