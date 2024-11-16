@@ -265,7 +265,6 @@ class Robyn:
         allocator = BudgetAllocator(
             mmm_data=self.mmm_data,
             featurized_mmm_data=self.featurized_mmm_data,
-            model_outputs=self.model_outputs,
             pareto_result=self.pareto_result,
             select_model=select_model,
         )
