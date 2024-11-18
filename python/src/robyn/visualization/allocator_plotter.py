@@ -1,12 +1,17 @@
-from robyn.visualization.base_visualizer import BaseVisualizer
-from robyn.allocator.entities.allocation_results import AllocationResult
+# pyre-strict
+import logging
+from pathlib import Path
+from typing import Dict, Union
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Dict
-import logging
+
+from robyn.allocator.entities.allocation_results import AllocationResult
+from robyn.visualization.base_visualizer import BaseVisualizer
 
 logger = logging.getLogger(__name__)
+
 
 class AllocationPlotter(BaseVisualizer):
     """Plotter class for allocation results visualization."""
@@ -24,46 +29,14 @@ class AllocationPlotter(BaseVisualizer):
         if self.result is None:
             logger.error("AllocationResult cannot be None")
             raise ValueError("AllocationResult cannot be None")
-        logger.info("AllocationPlotter initialized successfully with result: %s", self.result)
-
-    def plot_all(self) -> Dict[str, plt.Figure]:
-        """
-        Generate all allocation plots.
-
-        Returns:
-            Dictionary of figures keyed by plot name
-        """
-        logger.info("Starting to generate all allocation plots")
-        figures = {}
-        try:
-            logger.debug("Generating spend allocation plot")
-            figures["spend_allocation"] = self.plot_spend_allocation()
-            
-            logger.debug("Generating response curves plot")
-            figures["response_curves"] = self.plot_response_curves()
-            
-            logger.debug("Generating efficiency frontier plot")
-            figures["efficiency_frontier"] = self.plot_efficiency_frontier()
-            
-            logger.debug("Generating spend vs response plot")
-            figures["spend_vs_response"] = self.plot_spend_vs_response()
-            
-            logger.debug("Generating summary metrics plot")
-            figures["summary_metrics"] = self.plot_summary_metrics()
-            
-            logger.info("Successfully generated all %d plots", len(figures))
-        except Exception as e:
-            logger.error("Failed to generate plots: %s", str(e))
-            raise
-        finally:
-            logger.debug("Cleaning up plot resources")
-            self.cleanup()
-        return figures
+        logger.info(
+            "AllocationPlotter initialized successfully with result: %s", self.result
+        )
 
     def plot_spend_allocation(self) -> plt.Figure:
         """Plot spend allocation comparison."""
         logger.debug("Starting spend allocation plot generation")
-        
+
         # Create figure
         fig, ax = self.create_figure()
         optimal_allocations = self.result.optimal_allocations
@@ -100,37 +73,47 @@ class AllocationPlotter(BaseVisualizer):
         # Add annotations
         logger.debug("Adding percentage change annotations")
         for i, (curr, opt) in enumerate(
-            zip(optimal_allocations["current_spend"].values, optimal_allocations["optimal_spend"].values)
+            zip(
+                optimal_allocations["current_spend"].values,
+                optimal_allocations["optimal_spend"].values,
+            )
         ):
             pct_change = ((opt / curr) - 1) * 100
             self.add_percentage_annotation(ax, x[i], max(curr, opt), pct_change)
 
         # Setup axis
         self.setup_axis(
-            ax, title="Media Spend Allocation", ylabel="Spend", xticks=x, xticklabels=channels, rotation=45
+            ax,
+            title="Media Spend Allocation",
+            ylabel="Spend",
+            xticks=x,
+            xticklabels=channels,
+            rotation=45,
         )
 
         self.add_legend(ax)
         self.finalize_figure()
-        
+
         logger.info("Spend allocation plot generated successfully")
         return fig
 
     def plot_response_curves(self) -> plt.Figure:
         """Plot response curves for each channel."""
         logger.debug("Starting response curves plot generation")
-        
+
         # Prepare data
         curves_df = self.result.response_curves
         channels = curves_df["channel"].unique()
         n_channels = len(channels)
         ncols = min(3, n_channels)
         nrows = (n_channels + ncols - 1) // ncols
-        
+
         logger.debug("Processing %d channels for response curves", n_channels)
 
         # Create figure
-        fig, axes = self.create_figure(nrows=nrows, ncols=ncols, figsize=(15, 5 * nrows))
+        fig, axes = self.create_figure(
+            nrows=nrows, ncols=ncols, figsize=(15, 5 * nrows)
+        )
 
         # Handle single subplot case
         if nrows == 1 and ncols == 1:
@@ -205,8 +188,13 @@ class AllocationPlotter(BaseVisualizer):
         optimal_total_spend = optimal_allocations["optimal_spend"].sum()
         optimal_total_response = optimal_allocations["optimal_response"].sum()
 
-        logger.debug("Calculated totals - Current spend: %f, Current response: %f, Optimal spend: %f, Optimal response: %f",
-                    current_total_spend, current_total_response, optimal_total_spend, optimal_total_response)
+        logger.debug(
+            "Calculated totals - Current spend: %f, Current response: %f, Optimal spend: %f, Optimal response: %f",
+            current_total_spend,
+            current_total_response,
+            optimal_total_spend,
+            optimal_total_response,
+        )
 
         # Plot points and connect them
         ax.scatter(
@@ -238,9 +226,15 @@ class AllocationPlotter(BaseVisualizer):
 
         # Calculate and add percentage changes
         pct_spend_change = ((optimal_total_spend / current_total_spend) - 1) * 100
-        pct_response_change = ((optimal_total_response / current_total_response) - 1) * 100
-        
-        logger.debug("Percentage changes - Spend: %f%%, Response: %f%%", pct_spend_change, pct_response_change)
+        pct_response_change = (
+            (optimal_total_response / current_total_response) - 1
+        ) * 100
+
+        logger.debug(
+            "Percentage changes - Spend: %f%%, Response: %f%%",
+            pct_spend_change,
+            pct_response_change,
+        )
 
         ax.annotate(
             f"Spend: {pct_spend_change:.1f}%\nResponse: {pct_response_change:.1f}%",
@@ -248,10 +242,19 @@ class AllocationPlotter(BaseVisualizer):
             xytext=(10, 10),
             textcoords="offset points",
             fontsize=self.font_sizes["annotation"],
-            bbox=dict(facecolor="white", edgecolor=self.colors["neutral"], alpha=self.alpha["annotation"]),
+            bbox=dict(
+                facecolor="white",
+                edgecolor=self.colors["neutral"],
+                alpha=self.alpha["annotation"],
+            ),
         )
 
-        self.setup_axis(ax, title="Efficiency Frontier", xlabel="Total Spend", ylabel="Total Response")
+        self.setup_axis(
+            ax,
+            title="Efficiency Frontier",
+            xlabel="Total Spend",
+            ylabel="Total Response",
+        )
         self.add_legend(ax)
         self.finalize_figure()
 
@@ -273,7 +276,10 @@ class AllocationPlotter(BaseVisualizer):
         logger.debug("Processing spend changes for %d channels", len(channels))
         # Plot spend changes
         spend_pct = ((df["optimal_spend"] / df["current_spend"]) - 1) * 100
-        colors = [self.colors["positive"] if pct >= 0 else self.colors["negative"] for pct in spend_pct]
+        colors = [
+            self.colors["positive"] if pct >= 0 else self.colors["negative"]
+            for pct in spend_pct
+        ]
 
         ax1.bar(x, spend_pct, color=colors, alpha=self.alpha["primary"])
         self._plot_change_axis(ax1, x, channels, spend_pct, "Spend Change %")
@@ -281,7 +287,10 @@ class AllocationPlotter(BaseVisualizer):
         logger.debug("Processing response changes")
         # Plot response changes
         response_pct = ((df["optimal_response"] / df["current_response"]) - 1) * 100
-        colors = [self.colors["positive"] if pct >= 0 else self.colors["negative"] for pct in response_pct]
+        colors = [
+            self.colors["positive"] if pct >= 0 else self.colors["negative"]
+            for pct in response_pct
+        ]
 
         ax2.bar(x, response_pct, color=colors, alpha=self.alpha["primary"])
         self._plot_change_axis(ax2, x, channels, response_pct, "Response Change %")
@@ -291,7 +300,12 @@ class AllocationPlotter(BaseVisualizer):
         return fig
 
     def _plot_change_axis(
-        self, ax: plt.Axes, x: np.ndarray, channels: np.ndarray, pct_values: np.ndarray, ylabel: str
+        self,
+        ax: plt.Axes,
+        x: np.ndarray,
+        channels: np.ndarray,
+        pct_values: np.ndarray,
+        ylabel: str,
     ) -> None:
         """Helper method to setup change plot axes."""
         logger.debug("Setting up change plot axis for %s", ylabel)
@@ -301,7 +315,11 @@ class AllocationPlotter(BaseVisualizer):
 
         for i, pct in enumerate(pct_values):
             self.add_percentage_annotation(
-                ax, i, pct + (2 if pct >= 0 else -5), pct, va="bottom" if pct >= 0 else "top"
+                ax,
+                i,
+                pct + (2 if pct >= 0 else -5),
+                pct,
+                va="bottom" if pct >= 0 else "top",
             )
 
     def plot_summary_metrics(self) -> plt.Figure:
@@ -315,20 +333,36 @@ class AllocationPlotter(BaseVisualizer):
         optimal_allocations = self.result.optimal_allocations
         channels = optimal_allocations["channel"].values
         dep_var_type = self.result.metrics.get("dep_var_type")
-        
-        logger.debug("Processing metrics for dependency variable type: %s", dep_var_type)
+
+        logger.debug(
+            "Processing metrics for dependency variable type: %s", dep_var_type
+        )
 
         # Calculate metrics
         if dep_var_type == "revenue":
-            current_metric = optimal_allocations["current_response"] / optimal_allocations["current_spend"]
-            optimal_metric = optimal_allocations["optimal_response"] / optimal_allocations["optimal_spend"]
+            current_metric = (
+                optimal_allocations["current_response"]
+                / optimal_allocations["current_spend"]
+            )
+            optimal_metric = (
+                optimal_allocations["optimal_response"]
+                / optimal_allocations["optimal_spend"]
+            )
             metric_name = "ROI"
         else:
-            current_metric = optimal_allocations["current_spend"] / optimal_allocations["current_response"]
-            optimal_metric = optimal_allocations["optimal_spend"] / optimal_allocations["optimal_response"]
+            current_metric = (
+                optimal_allocations["current_spend"]
+                / optimal_allocations["current_response"]
+            )
+            optimal_metric = (
+                optimal_allocations["optimal_spend"]
+                / optimal_allocations["optimal_response"]
+            )
             metric_name = "CPA"
 
-        logger.debug("Calculated %s metrics for %d channels", metric_name, len(channels))
+        logger.debug(
+            "Calculated %s metrics for %d channels", metric_name, len(channels)
+        )
 
         # Plot bars
         x = np.arange(len(channels))
@@ -378,3 +412,42 @@ class AllocationPlotter(BaseVisualizer):
         super().cleanup()
         plt.close("all")
         logger.debug("Cleanup completed")
+
+    def plot_all(
+        self, display_plots: bool = True, export_location: Union[str, Path] = None
+    ) -> None:
+        """
+        Generate all allocation plots.
+
+        Returns:
+            Dictionary of figures keyed by plot name
+        """
+        logger.info("Starting to generate all allocation plots")
+        figures = {}
+        try:
+            logger.debug("Generating spend allocation plot")
+            figures["spend_allocation"] = self.plot_spend_allocation()
+
+            logger.debug("Generating response curves plot")
+            figures["response_curves"] = self.plot_response_curves()
+
+            logger.debug("Generating efficiency frontier plot")
+            figures["efficiency_frontier"] = self.plot_efficiency_frontier()
+
+            logger.debug("Generating spend vs response plot")
+            figures["spend_vs_response"] = self.plot_spend_vs_response()
+
+            logger.debug("Generating summary metrics plot")
+            figures["summary_metrics"] = self.plot_summary_metrics()
+
+            logger.info("Successfully generated all %d plots", len(figures))
+
+            if display_plots:
+                super().display_plots(figures)
+        except Exception as e:
+            logger.error("Failed to generate plots: %s", str(e))
+            raise
+        finally:
+            logger.debug("Cleaning up plot resources")
+            self.cleanup()
+        return figures
