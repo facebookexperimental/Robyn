@@ -9,6 +9,7 @@ from robyn.data.entities.enums import CalibrationScope, DependentVarType
 
 logger = logging.getLogger(__name__)
 
+
 class CalibrationInputValidation(Validation):
     def __init__(
         self,
@@ -17,8 +18,7 @@ class CalibrationInputValidation(Validation):
         window_start: pd.Timestamp,
         window_end: pd.Timestamp,
     ) -> None:
-        logger.debug("Initializing CalibrationInputValidation with window: %s to %s", 
-                    window_start, window_end)
+        logger.debug("Initializing CalibrationInputValidation with window: %s to %s", window_start, window_end)
         self.mmmdata = mmmdata
         self.calibration_input = calibration_input
         self.window_start = window_start
@@ -29,7 +29,7 @@ class CalibrationInputValidation(Validation):
     def check_obj_weights(self, objective_weights: List[float], refresh: bool) -> ValidationResult:
         """Check the objective weights for validity."""
         logger.debug("Checking objective weights: %s (refresh=%s)", objective_weights, refresh)
-        
+
         if objective_weights is None:
             if refresh:
                 logger.info("Using default weights [0, 1, 1] for refresh mode")
@@ -54,9 +54,7 @@ class CalibrationInputValidation(Validation):
             error_messages.append("Objective weights out of valid range.")
 
         result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
         logger.debug("Objective weights validation result: %s", result)
         return result
@@ -64,7 +62,7 @@ class CalibrationInputValidation(Validation):
     def _validate_channel_exists(self, channel_key: Tuple[str, ...]) -> ValidationResult:
         """Validate that all channels in the key exist in the data."""
         logger.debug("Validating channel existence for: %s", channel_key)
-        
+
         if not isinstance(channel_key, tuple):
             msg = f"Invalid channel key format: {channel_key}. Must be a tuple."
             logger.error(msg)
@@ -75,7 +73,7 @@ class CalibrationInputValidation(Validation):
             msg = f"Channel(s) not found in data: {', '.join(missing_channels)}"
             logger.warning(msg)
             return ValidationResult(status=False, error_details={channel_key: msg}, error_message=msg.lower())
-        
+
         logger.debug("Channel validation successful for: %s", channel_key)
         return ValidationResult(status=True, error_details={}, error_message="")
 
@@ -85,20 +83,21 @@ class CalibrationInputValidation(Validation):
         error_messages: List[str] = []
 
         for channel_key, data in self.calibration_input.channel_data.items():
-            logger.debug("Checking date range for channel %s: %s to %s", 
-                        channel_key, data.lift_start_date, data.lift_end_date)
-            
+            logger.debug(
+                "Checking date range for channel %s: %s to %s", channel_key, data.lift_start_date, data.lift_end_date
+            )
+
             if data.lift_start_date < self.window_start or data.lift_end_date > self.window_end:
-                msg = (f"Date range {data.lift_start_date} to {data.lift_end_date} "
-                      f"is outside modeling window {self.window_start} to {self.window_end}")
+                msg = (
+                    f"Date range {data.lift_start_date} to {data.lift_end_date} "
+                    f"is outside modeling window {self.window_start} to {self.window_end}"
+                )
                 logger.warning("Channel %s: %s", channel_key, msg)
                 error_details[channel_key] = msg
                 error_messages.append(f"Date range for {'+'.join(channel_key)} is outside the modeling window.")
 
         result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
         logger.debug("Date range validation result: %s", result)
         return result
@@ -110,15 +109,16 @@ class CalibrationInputValidation(Validation):
 
         for channel_key, cal_data in self.calibration_input.channel_data.items():
             logger.debug("Validating spend for channel: %s", channel_key)
-            
+
             channel_validation = self._validate_channel_exists(channel_key)
             if not channel_validation.status:
                 logger.error("Channel validation failed for %s", channel_key)
                 return channel_validation
 
             actual_spend = self._get_channel_spend(channel_key, cal_data.lift_start_date, cal_data.lift_end_date)
-            logger.debug("Channel %s - Expected spend: %f, Actual spend: %f", 
-                        channel_key, cal_data.spend, actual_spend)
+            logger.debug(
+                "Channel %s - Expected spend: %f, Actual spend: %f", channel_key, cal_data.spend, actual_spend
+            )
 
             if abs(actual_spend - cal_data.spend) > 0.1 * cal_data.spend:
                 msg = f"Spend mismatch: expected {cal_data.spend}, got {actual_spend}"
@@ -129,9 +129,7 @@ class CalibrationInputValidation(Validation):
                 )
 
         result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
         logger.debug("Spend validation result: %s", result)
         return result
@@ -140,14 +138,13 @@ class CalibrationInputValidation(Validation):
         self, channel_key: Tuple[str, ...], start_date: pd.Timestamp, end_date: pd.Timestamp
     ) -> float:
         """Calculate total spend for channels in the given date range."""
-        logger.debug("Calculating spend for channel %s between %s and %s", 
-                    channel_key, start_date, end_date)
-        
+        logger.debug("Calculating spend for channel %s between %s and %s", channel_key, start_date, end_date)
+
         date_var = self.mmmdata.mmmdata_spec.date_var
         data = self.mmmdata.data
         date_mask = (data[date_var] >= start_date) & (data[date_var] <= end_date)
         total_spend = sum(data.loc[date_mask, channel].sum() for channel in channel_key)
-        
+
         logger.debug("Total spend calculated for %s: %f", channel_key, total_spend)
         return total_spend
 
@@ -160,9 +157,8 @@ class CalibrationInputValidation(Validation):
         dep_var = self.mmmdata.mmmdata_spec.dep_var
 
         for channel_key, data in self.calibration_input.channel_data.items():
-            logger.debug("Checking metric for channel %s: %s vs %s", 
-                        channel_key, data.metric, dep_var)
-            
+            logger.debug("Checking metric for channel %s: %s vs %s", channel_key, data.metric, dep_var)
+
             if data.metric != DependentVarType(dep_var):
                 msg = f"Metric mismatch: {data.metric} vs. {dep_var}"
                 logger.warning("Channel %s: %s", channel_key, msg)
@@ -172,9 +168,7 @@ class CalibrationInputValidation(Validation):
                 )
 
         result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
         logger.debug("Metric validation result: %s", result)
         return result
@@ -187,7 +181,7 @@ class CalibrationInputValidation(Validation):
 
         for channel_key, data in self.calibration_input.channel_data.items():
             logger.debug("Checking confidence for channel %s: %f", channel_key, data.confidence)
-            
+
             if data.confidence < 0.8:
                 msg = f"Low confidence: {data.confidence}"
                 logger.warning("Channel %s: %s", channel_key, msg)
@@ -198,9 +192,7 @@ class CalibrationInputValidation(Validation):
                 )
 
         result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
         logger.debug("Confidence validation result: %s", result)
         return result
@@ -213,7 +205,7 @@ class CalibrationInputValidation(Validation):
 
         for channel_key, data in self.calibration_input.channel_data.items():
             logger.debug("Checking lift value for channel %s: %s", channel_key, data.lift_abs)
-            
+
             if not isinstance(data.lift_abs, (int, float)) or pd.isna(data.lift_abs):
                 msg = f"Invalid lift value: {data.lift_abs}"
                 logger.warning("Channel %s: %s", channel_key, msg)
@@ -221,9 +213,7 @@ class CalibrationInputValidation(Validation):
                 error_messages.append(f"Lift value for {'+'.join(channel_key)} must be a valid number.")
 
         result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
         logger.debug("Lift validation result: %s", result)
         return result
@@ -241,7 +231,7 @@ class CalibrationInputValidation(Validation):
     def check_calibration(self) -> ValidationResult:
         """Check all calibration inputs for consistency and correctness."""
         logger.info("Starting comprehensive calibration check")
-        
+
         if self.calibration_input is None:
             logger.debug("No calibration input provided, skipping validation")
             return ValidationResult(status=True, error_details={}, error_message="")
@@ -265,11 +255,9 @@ class CalibrationInputValidation(Validation):
                 error_messages.append(result.error_message)
 
         final_result = ValidationResult(
-            status=len(error_details) == 0, 
-            error_details=error_details, 
-            error_message="\n".join(error_messages)
+            status=len(error_details) == 0, error_details=error_details, error_message="\n".join(error_messages)
         )
-        
+
         logger.info("Calibration check completed with status: %s", final_result.status)
         return final_result
 
@@ -279,13 +267,13 @@ class CalibrationInputValidation(Validation):
     ) -> CalibrationInput:
         """Create a modified version of a calibration input with updated values."""
         logger.debug("Creating modified calibration input for channel: %s", channel_name)
-        
+
         # Convert string to single-element tuple if needed
         if isinstance(channel_name, str):
             channel_tuple = (channel_name,)
         else:
             channel_tuple = channel_name
-        
+
         logger.debug("Processing modifications: %s", kwargs)
 
         # For test cases with non-existent channels
