@@ -367,7 +367,7 @@ class BaseVisualizer(ABC):
     def display_plots(plot_collect: Dict[str, plt.Figure]) -> None:
         """Display the plot."""
         for plot_name, fig in plot_collect.items():
-            plt.show()
+            display(fig)
 
     @staticmethod
     def _display_base64_image(base64_image: str):

@@ -653,7 +653,7 @@ class ParetoVisualizer(BaseVisualizer):
         self, display_plots: bool = True, export_location: Union[str, Path] = None
     ) -> None:
         # Generate all plots
-        solution_ids = self.pareto_result.plot_data_collect.keys()
+        solution_ids = self.pareto_result.pareto_solutions
         figures: Dict[str, plt.Figure] = {}
 
         for solution_id in solution_ids:

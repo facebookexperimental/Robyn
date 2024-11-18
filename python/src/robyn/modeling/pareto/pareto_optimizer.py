@@ -991,7 +991,7 @@ class ParetoOptimizer:
             pareto_solutions.update(set(xDecompVecCollect["sol_id"].unique()))
 
         return {
-            "pareto_solutions": pareto_solutions,
+            "pareto_solutions": list(pareto_solutions),
             "mediaVecCollect": mediaVecCollect,
             "xDecompVecCollect": xDecompVecCollect,
             "plotDataCollect": plotDataCollect,
