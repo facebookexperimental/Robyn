@@ -14,7 +14,7 @@ class Convergence:
         sd_qtref: int = 3,
         med_lowb: int = 2,
         nrmse_win: List[float] = [0, 0.998],
-    ):
+    ) -> None:
         self.n_cuts = n_cuts
         self.sd_qtref = sd_qtref
         self.med_lowb = med_lowb
@@ -29,9 +29,7 @@ class Convergence:
         try:
             # Concatenate trial results
             self.logger.debug("Concatenating trial results")
-            df = pd.concat(
-                [trial.result_hyp_param for trial in trials], ignore_index=True
-            )
+            df = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
             self.logger.debug(f"Combined dataframe shape: {df.shape}")
 
             # Validate required columns
@@ -45,9 +43,7 @@ class Convergence:
             # Check calibration status
             calibrated = "mape" in df.columns and df["mape"].sum() > 0
             if not calibrated:
-                self.logger.warning(
-                    "'mape' column not found or all zeros. Assuming model is not calibrated."
-                )
+                self.logger.warning("'mape' column not found or all zeros. Assuming model is not calibrated.")
             else:
                 self.logger.info("Model is calibrated")
 
@@ -58,9 +54,7 @@ class Convergence:
 
             self.logger.debug("Calculating convergence errors")
             errors = self._calculate_errors(dt_objfunc_cvg)
-            self.logger.debug(
-                f"Generated errors for {len(errors['error_type'].unique())} error types"
-            )
+            self.logger.debug(f"Generated errors for {len(errors['error_type'].unique())} error types")
 
             # Generate convergence messages
             self.logger.debug("Generating convergence messages")
@@ -68,13 +62,11 @@ class Convergence:
 
             # Create visualization plots
             self.logger.info("Creating visualization plots")
-            moo_distrb_plot = self.visualizer.create_moo_distrb_plot(
-                dt_objfunc_cvg, conv_msg
+            moo_distrb_plot = self.visualizer.create_moo_distrb_plot(dt_objfunc_cvg, conv_msg)
+            moo_cloud_plot = self.visualizer.create_moo_cloud_plot(df, conv_msg, calibrated)
+            ts_validation_plot = (
+                None  # self.visualizer.create_ts_validation_plot(trials) #Disabled for testing. #Sandeep
             )
-            moo_cloud_plot = self.visualizer.create_moo_cloud_plot(
-                df, conv_msg, calibrated
-            )
-            ts_validation_plot = None  # self.visualizer.create_ts_validation_plot(trials) #Disabled for testing. #Sandeep
 
             self.logger.info("Convergence calculation completed successfully")
             return {
@@ -86,9 +78,7 @@ class Convergence:
             }
 
         except Exception as e:
-            self.logger.error(
-                f"Error during convergence calculation: {str(e)}", exc_info=True
-            )
+            self.logger.error(f"Error during convergence calculation: {str(e)}", exc_info=True)
             raise
 
     def _prepare_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -113,26 +103,18 @@ class Convergence:
         dt_objfunc_cvg = dt_objfunc_cvg[dt_objfunc_cvg["value"] > 0]
         dt_objfunc_cvg = dt_objfunc_cvg[np.isfinite(dt_objfunc_cvg["value"])]
         filtered_rows = len(dt_objfunc_cvg)
-        self.logger.debug(
-            f"Filtered out {initial_rows - filtered_rows} rows with zero or non-finite values"
-        )
+        self.logger.debug(f"Filtered out {initial_rows - filtered_rows} rows with zero or non-finite values")
 
         # Process error types and iterations
         dt_objfunc_cvg["error_type"] = dt_objfunc_cvg["error_type"].str.upper()
         dt_objfunc_cvg = dt_objfunc_cvg.sort_values(["trial", "ElapsedAccum"])
-        dt_objfunc_cvg["iter"] = (
-            dt_objfunc_cvg.groupby(["error_type", "trial"]).cumcount() + 1
-        )
+        dt_objfunc_cvg["iter"] = dt_objfunc_cvg.groupby(["error_type", "trial"]).cumcount() + 1
 
         # Create cuts
         max_iter = dt_objfunc_cvg["iter"].max()
-        self.logger.debug(
-            f"Creating {self.n_cuts} cuts for maximum iteration {max_iter}"
-        )
+        self.logger.debug(f"Creating {self.n_cuts} cuts for maximum iteration {max_iter}")
         bins = np.linspace(0, max_iter, self.n_cuts + 1)
-        labels = np.round(
-            np.linspace(max_iter / self.n_cuts, max_iter, self.n_cuts)
-        ).astype(int)
+        labels = np.round(np.linspace(max_iter / self.n_cuts, max_iter, self.n_cuts)).astype(int)
 
         dt_objfunc_cvg["cuts"] = pd.cut(
             dt_objfunc_cvg["iter"],
@@ -161,17 +143,12 @@ class Convergence:
         # Calculate median variation percentage
         self.logger.debug("Calculating median variation percentage")
         errors["med_var_P"] = (
-            errors.groupby("error_type", observed=True)["median"]
-            .pct_change(fill_method=None)
-            .abs()
-            * 100
+            errors.groupby("error_type", observed=True)["median"].pct_change(fill_method=None).abs() * 100
         )
         errors["med_var_P"] = errors["med_var_P"].fillna(0)
 
         # Calculate aggregate statistics
-        self.logger.debug(
-            f"Calculating aggregate statistics with sd_qtref={self.sd_qtref}"
-        )
+        self.logger.debug(f"Calculating aggregate statistics with sd_qtref={self.sd_qtref}")
         agg_errors = errors.groupby("error_type").agg(
             {
                 "median": [
@@ -186,19 +163,13 @@ class Convergence:
                 ],
             }
         )
-        agg_errors.columns = [
-            "_".join(col).strip() for col in agg_errors.columns.values
-        ]
+        agg_errors.columns = ["_".join(col).strip() for col in agg_errors.columns.values]
         agg_errors = agg_errors.reset_index()
 
         # Merge and calculate flags
-        self.logger.debug(
-            "Merging aggregate statistics and calculating threshold flags"
-        )
+        self.logger.debug("Merging aggregate statistics and calculating threshold flags")
         errors = errors.merge(agg_errors, on="error_type", how="left")
-        errors["med_thres"] = (
-            errors["median_first_med"] - self.med_lowb * errors["std_first_sd_avg"]
-        )
+        errors["med_thres"] = errors["median_first_med"] - self.med_lowb * errors["std_first_sd_avg"]
         errors["flag_med"] = errors["median"].abs() < errors["med_thres"]
         errors["flag_sd"] = errors["std"] < errors["std_first_sd_avg"]
 
@@ -214,11 +185,7 @@ class Convergence:
             temp_df = errors[errors["error_type"] == obj_fun].copy()
             temp_df["median"] = temp_df["median"].round(2)
             last_qt = temp_df.iloc[-1]
-            did_converge = (
-                "converged"
-                if last_qt["flag_sd"] and last_qt["flag_med"]
-                else "NOT converged"
-            )
+            did_converge = "converged" if last_qt["flag_sd"] and last_qt["flag_med"] else "NOT converged"
             symb_sd = "<=" if last_qt["flag_sd"] else ">"
             symb_med = "<=" if last_qt["flag_med"] else ">"
             msg = (
@@ -230,9 +197,7 @@ class Convergence:
 
             # Log convergence status
             log_level = logging.INFO if did_converge == "converged" else logging.WARNING
-            self.logger.log(
-                log_level, f"Convergence status for {obj_fun}: {did_converge}"
-            )
+            self.logger.log(log_level, f"Convergence status for {obj_fun}: {did_converge}")
             self.logger.info(msg)  # Log the message as INFO
         self.logger.debug("Convergence message generation completed")
         return conv_msg
