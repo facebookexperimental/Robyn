@@ -22,10 +22,7 @@ from robyn.modeling.pareto.response_curve import ResponseCurveCalculator, Respon
 from robyn.modeling.transformations.transformations import Transformation
 from tqdm import tqdm  # Import tqdm for progress bar
 import warnings
-
-warnings.simplefilter(action="ignore", category=FutureWarning)
-
-
+warnings.simplefilter(action='ignore', category=FutureWarning)
 @dataclass
 class ParetoData:
     decomp_spend_dist: pd.DataFrame
@@ -266,6 +263,10 @@ class ParetoOptimizer:
         result_hyp_param = aggregated_data["result_hyp_param"]
 
         # 1. Binding Pareto results
+        print("==== Preparing Pareto Data Debug Outputs ====")
+        print("Result Hyp Param Columns: ", result_hyp_param.columns)
+        print("Result Hyp Param Shape: ", result_hyp_param.shape)
+        print("Result Hyp Param Sample: ", result_hyp_param.head())
         aggregated_data["x_decomp_agg"] = pd.merge(
             aggregated_data["x_decomp_agg"],
             result_hyp_param[["robynPareto", "sol_id"]],
@@ -837,20 +838,20 @@ class ParetoOptimizer:
                     dt_scurvePlot = dt_scurvePlot[dt_scurvePlot["spend"] >= 0]
 
                     # Calculate dt_scurvePlotMean
-                    dt_scurvePlotMean = (
-                        plotWaterfall[(plotWaterfall["sol_id"] == sid) & (~plotWaterfall["mean_spend"].isna())][
-                            [
-                                "rn",
-                                "mean_spend",
-                                "mean_spend_adstocked",
-                                "mean_carryover",
-                                "mean_response",
-                                "sol_id",
-                            ]
+                    dt_scurvePlotMean = plotWaterfall[
+                        (plotWaterfall["sol_id"] == sid) & (~plotWaterfall["mean_spend"].isna())
+                    ][
+                        [
+                            "rn",
+                            "mean_spend",
+                            "mean_spend_adstocked",
+                            "mean_carryover",
+                            "mean_response",
+                            "sol_id",
                         ]
-                        .rename(columns={"rn": "channel"})
-                        .reset_index()
-                    )
+                    ].rename(
+                        columns={"rn": "channel"}
+                    ).reset_index()
 
                     plot4data = {
                         "dt_scurvePlot": dt_scurvePlot,
