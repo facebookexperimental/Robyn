@@ -27,6 +27,7 @@ from robyn.allocator.budget_allocator import BudgetAllocator
 from robyn.allocator.entities.allocation_config import AllocationConfig
 from robyn.allocator.entities.allocation_results import AllocationResult
 
+from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.reporting.onepager_reporting import OnePager
 from robyn.visualization.allocator_plotter import AllocationPlotter
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
@@ -258,10 +259,13 @@ class Robyn:
             self.pareto_result = pareto_optimizer.optimize(**pareto_config)
 
             # Optional clustering
+            is_clustered = False
             if cluster_config:
                 cluster_builder = ClusterBuilder(self.pareto_result)
                 self.cluster_result = cluster_builder.cluster_models(cluster_config)
-
+                is_clustered = True
+            
+            self.pareto_result = ParetoUtils().process_pareto_clustered_results(self.pareto_result, self.cluster_result, is_clustered)
             if display_plots or export_plots:
                 pareto_visualizer = ParetoVisualizer(
                     self.pareto_result,
