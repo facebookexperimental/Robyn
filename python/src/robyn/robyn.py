@@ -351,7 +351,7 @@ class Robyn:
         try:
             logger.info("Optimizing budget allocation")
 
-            select_model = select_model or self.model_outputs.select_id
+            select_model = select_model or self.pareto_result.pareto_solutions[0]
 
             allocator = BudgetAllocator(
                 mmm_data=self.mmm_data,

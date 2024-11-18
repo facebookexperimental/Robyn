@@ -622,11 +622,6 @@ class ClusterVisualizer(BaseVisualizer):
             try:
                 wss_plot = self.clustered_result.wss
                 plots["wss_plot"] = wss_plot
-                if isinstance(wss_plot, plt.Figure):
-                    plots["wss_plot"] = wss_plot
-                else:
-                    logger.error("wss_plot is not a valid matplotlib figure")
-
             except Exception as e:
                 logger.error(f"Failed to create WSS plot: {e}")
 
@@ -647,10 +642,11 @@ class ClusterVisualizer(BaseVisualizer):
                 logger.error(f"Failed to create top solutions ROIs plot: {e}")
 
             try:
-                correlations_heatmap = self.clustered_result.correlations if self.clustered_result.correlations else NotImplementedError
-                plots["correlations_heatmap"] = correlations_heatmap
-            except NotImplementedError:
-                logger.warning("create_correlations_heatmap method is not implemented.")
+                correlations_heatmap = self.clustered_result.correlations 
+                if correlations_heatmap is None:
+                    logger.warning("create_correlations_heatmap method is not implemented.")
+                else:
+                    plots["correlations_heatmap"] = correlations_heatmap
             except Exception as e:
                 logger.error(f"Failed to create correlations heatmap: {e}")
 
