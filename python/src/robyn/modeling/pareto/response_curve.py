@@ -94,13 +94,6 @@ class ResponseCurveCalculator:
         logger.debug("Starting response calculation for metric: %s", metric_name)
         logger.debug("Input parameters - model: %s, date_range: %s", select_model, date_range)
 
-        print("===== ResponseCurveCalculator =====")
-        print("dt_hyppar columns", dt_hyppar.columns)
-        print("dt_coef columns", dt_coef.columns)
-        print("select_model", select_model)
-        print("metric_name", metric_name)
-        print("metric_value", metric_value)
-        print("date_range", date_range)
         # Determine the use case based on input parameters
         usecase = self._which_usecase(metric_value, date_range)
         logger.debug("Determined use case: %s", usecase)
