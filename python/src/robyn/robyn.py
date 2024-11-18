@@ -28,7 +28,11 @@ from robyn.allocator.entities.allocation_config import AllocationConfig
 from robyn.allocator.entities.allocation_results import AllocationResult
 
 from robyn.reporting.onepager_reporting import OnePager
+from robyn.visualization.allocator_plotter import AllocationPlotter
+from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
+from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
+from robyn.visualization.pareto_visualizer import ParetoVisualizer
 
 logger = logging.getLogger(__name__)
 
@@ -140,11 +144,11 @@ class Robyn:
             )
             self.featurized_mmm_data = feature_engineering.perform_feature_engineering()
 
-            # if display_plots or export_plots: #TODO
-            #     feature_plotter = FeaturePlotter(
-            #         self.mmm_data, self.hyperparameters, self.featurized_mmm_data
-            #     )
-            #     feature_plotter.plot_all(display_plots, self.working_dir)
+            if display_plots or export_plots:
+                feature_plotter = FeaturePlotter(
+                    self.mmm_data, self.hyperparameters, self.featurized_mmm_data
+                )
+                feature_plotter.plot_all(display_plots, self.working_dir)
 
             return self.featurized_mmm_data
 
@@ -209,8 +213,9 @@ class Robyn:
             logger.error("Training models failed: %s", str(e))
             raise
 
-        # if display_plots or export_plots: #TODO
-        #     # call plot_all from model convergence visualizer
+        if display_plots or export_plots:
+            visualizer = ModelConvergenceVisualizer(self.model_outputs)
+            visualizer.plot_all(display_plots, self.working_dir)
 
     def evaluate_models(
         self,
@@ -257,8 +262,21 @@ class Robyn:
                 cluster_builder = ClusterBuilder(self.pareto_result)
                 self.cluster_result = cluster_builder.cluster_models(cluster_config)
 
-            # if display_plots or export_plots: #TODO
-            #     # call plot_all from pareteo and cluster visualizer
+            if display_plots or export_plots:
+                pareto_visualizer = ParetoVisualizer(
+                    self.pareto_result,
+                    self.hyperparameters.adstock,
+                    self.mmm_data,
+                    self.holidays_data,
+                )
+                pareto_visualizer.plot_all(display_plots, self.working_dir)
+                if self.cluster_result:
+                    cluster_visualizer = ClusterVisualizer(
+                        self.pareto_result,
+                        self.cluster_result,
+                        self.mmm_data,
+                    )
+                    cluster_visualizer.plot_all(display_plots, self.working_dir)
             logger.info("Model evaluation complete")
 
         except Exception as e:
@@ -340,8 +358,9 @@ class Robyn:
 
             allocation_result = allocator.allocate(allocation_config)
 
-            # if display_plots or export_plots: #TODO
-            #     # call plot_all from allocator visualizer
+            if display_plots or export_plots:
+                allocator_visualizer = AllocationPlotter(allocation_result)
+                allocator_visualizer.plot_all(display_plots, self.working_dir)
 
             logger.info("Budget optimization complete")
             return allocation_result
@@ -387,7 +406,9 @@ class Robyn:
         console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
 
         # File handler
-        log_file = self.working_dir / "robyn.log"
+        #        log_file = self.working_dir / "logs/robynpy_%(asctime)s.log"
+        log_file = self.working_dir / "logs/robynpy.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = RotatingFileHandler(
             log_file, maxBytes=10 * 1024 * 1024, backupCount=5
         )
