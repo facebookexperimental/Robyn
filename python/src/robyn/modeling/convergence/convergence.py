@@ -8,7 +8,13 @@ from robyn.visualization.model_convergence_visualizer import ModelConvergenceVis
 
 
 class Convergence:
-    def __init__(self, n_cuts: int = 20, sd_qtref: int = 3, med_lowb: int = 2, nrmse_win: List[float] = [0, 0.998]):
+    def __init__(
+        self,
+        n_cuts: int = 20,
+        sd_qtref: int = 3,
+        med_lowb: int = 2,
+        nrmse_win: List[float] = [0, 0.998],
+    ) -> None:
         self.n_cuts = n_cuts
         self.sd_qtref = sd_qtref
         self.med_lowb = med_lowb
