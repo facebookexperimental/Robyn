@@ -143,9 +143,9 @@ class ParetoVisualizer(BaseVisualizer):
             height=0.6,
         )
 
-        # Add text labels
+        # Add text labels at the beginning of bars
         for i, row in waterfall_data.iterrows():
-            # Format label text
+            # Format the number
             if abs(row["xDecompAgg"]) >= 1e9:
                 formatted_num = f"{row['xDecompAgg']/1e9:.1f}B"
             elif abs(row["xDecompAgg"]) >= 1e6:
@@ -155,21 +155,34 @@ class ParetoVisualizer(BaseVisualizer):
             else:
                 formatted_num = f"{row['xDecompAgg']:.1f}"
 
-            # Calculate x-position as the right edge of each positive bar
-            x_pos = max(row["start"], row["end"])
+            # Calculate position
+            if row["xDecompPerc"] >= 0:
+                x_pos = row["end"]  # Start of positive bar
+            else:
+                x_pos = row["start"]  # Start of negative bar
 
-            # Add label aligned at the end of the bar
+            # Add text labels at start of bars
             ax.text(
-                x_pos - 0.01,
-                i,  # Small offset from bar end
+                0,  # x position at start of bar
+                i,      # y position
                 f"{formatted_num}\n{row['xDecompPerc']*100:.1f}%",
-                ha="right",
-                va="center",
+                ha='right' if row["xDecompPerc"] >= 0 else 'left',  # Align based on bar direction
+                va='center',
+                color='black',
                 fontsize=9,
+                fontweight='bold',
                 linespacing=0.9,
+                # Add small padding to avoid overlap with bars
+                clip_on=True,
+                bbox=dict(
+                    facecolor='white',
+                    edgecolor='none',
+                    alpha=0.7,
+                    pad=0.5
+                )
             )
 
-        # Set y-ticks and labels
+        # Basic plot setup
         ax.set_yticks(y_pos)
         ax.set_yticklabels(waterfall_data["rn"])
 
@@ -653,7 +666,7 @@ class ParetoVisualizer(BaseVisualizer):
         self, display_plots: bool = True, export_location: Union[str, Path] = None
     ) -> None:
         # Generate all plots
-        solution_ids = self.pareto_result.pareto_solutions
+        solution_ids = self.pareto_result.pareto_solutions[3:5]
         figures: Dict[str, plt.Figure] = {}
 
         for solution_id in solution_ids:
