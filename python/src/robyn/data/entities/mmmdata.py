@@ -74,7 +74,9 @@ class MMMData:
             self.context_vars: Optional[List[str]] = context_vars
             self.context_signs: Optional[List[str]] = context_signs
             self.factor_vars: Optional[List[str]] = factor_vars
-            self.all_media = all_media or paid_media_spends
+            self.all_media = all_media or (
+                paid_media_spends + organic_vars if organic_vars else paid_media_spends
+            )
             self.day_interval: Optional[int] = day_interval
             self.interval_type: Optional[str] = interval_type
 
@@ -209,18 +211,41 @@ class MMMData:
             if isinstance(self.mmmdata_spec.window_end, str)
             else self.mmmdata_spec.window_end
         )
+
         # Calculate the index for the rolling window start
         if window_start is not None:
-            self.mmmdata_spec.rolling_window_start_which = (
+            closest_start_idx = (
                 (self.data[self.mmmdata_spec.date_var] - window_start).abs().idxmin()
             )
-        # Calculate the index for the rolling window end
-        if window_end is not None:
-            self.mmmdata_spec.rolling_window_end_which = (
-                (self.data[self.mmmdata_spec.date_var] - window_end).abs().idxmin()
+            closest_start_date = self.data[self.mmmdata_spec.date_var].iloc[
+                closest_start_idx
+            ]
+            self.mmmdata_spec.rolling_window_start_which = closest_start_idx
+            # Adjust window_start to the closest date in the data
+            self.mmmdata_spec.window_start = closest_start_date
+            print(
+                f"Adjusted window_start to the closest date in the data: {closest_start_date}"
             )
 
-        print(
-            f"Rolling Window Start Index: {self.mmmdata_spec.rolling_window_start_which}"
-        )
-        print(f"Rolling Window End Index: {self.mmmdata_spec.rolling_window_end_which}")
+        # Calculate the index for the rolling window end
+        if window_end is not None:
+            closest_end_idx = (
+                (self.data[self.mmmdata_spec.date_var] - window_end).abs().idxmin()
+            )
+            closest_end_date = self.data[self.mmmdata_spec.date_var].iloc[
+                closest_end_idx
+            ]
+            self.mmmdata_spec.rolling_window_end_which = closest_end_idx
+            # Adjust window_end to the closest date in the data
+            self.mmmdata_spec.window_end = closest_end_date
+            print(
+                f"Adjusted window_end to the closest date in the data: {closest_end_date}"
+            )
+
+        # Calculate rolling window length
+        if window_start is not None and window_end is not None:
+            self.mmmdata_spec.rolling_window_length = (
+                self.mmmdata_spec.rolling_window_end_which
+                - self.mmmdata_spec.rolling_window_start_which
+                + 1
+            )

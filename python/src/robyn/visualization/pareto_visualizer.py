@@ -11,6 +11,7 @@ from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 from robyn.visualization.base_visualizer import BaseVisualizer
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -653,10 +654,18 @@ class ParetoVisualizer(BaseVisualizer):
         self, display_plots: bool = True, export_location: Union[str, Path] = None
     ) -> None:
         # Generate all plots
-        solution_ids = self.pareto_result.plot_data_collect.keys()
+        solution_ids = self.pareto_result.pareto_solutions
+        # Clean up nan values
+        cleaned_solution_ids = [
+            sid
+            for sid in solution_ids
+            if not (isinstance(sid, float) and math.isnan(sid))
+        ]
+        # Assign the cleaned list back to self.pareto_result.pareto_solutions
+        self.pareto_result.pareto_solutions = cleaned_solution_ids
         figures: Dict[str, plt.Figure] = {}
 
-        for solution_id in solution_ids:
+        for solution_id in cleaned_solution_ids:
             fig1 = self.generate_waterfall(solution_id)
             if fig1:
                 figures["waterfall_" + solution_id] = fig1
