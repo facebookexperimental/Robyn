@@ -11,6 +11,7 @@ from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 from robyn.visualization.base_visualizer import BaseVisualizer
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,7 @@ class ParetoVisualizer(BaseVisualizer):
         self.mmm_data = mmm_data
         self.holiday_data = holiday_data
 
-    def _baseline_vars(
-        self, baseline_level, prophet_vars: List[ProphetVariableType] = []
-    ) -> list:
+    def _baseline_vars(self, baseline_level, prophet_vars: List[ProphetVariableType] = []) -> list:
         """
         Returns a list of baseline variables based on the provided level.
         Args:
@@ -106,9 +105,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Group and summarize
         waterfall_data = (
-            waterfall_data.groupby("rn", as_index=False)
-            .agg({"xDecompAgg": "sum", "xDecompPerc": "sum"})
-            .reset_index()
+            waterfall_data.groupby("rn", as_index=False).agg({"xDecompAgg": "sum", "xDecompPerc": "sum"}).reset_index()
         )
 
         # Sort by percentage contribution
@@ -118,9 +115,7 @@ class ParetoVisualizer(BaseVisualizer):
         waterfall_data["end"] = 1 - waterfall_data["xDecompPerc"].cumsum()
         waterfall_data["start"] = waterfall_data["end"].shift(1)
         waterfall_data["start"] = waterfall_data["start"].fillna(1)
-        waterfall_data["sign"] = np.where(
-            waterfall_data["xDecompPerc"] >= 0, "Positive", "Negative"
-        )
+        waterfall_data["sign"] = np.where(waterfall_data["xDecompPerc"] >= 0, "Positive", "Negative")
 
         # Create figure if no axes provided
         if ax is None:
@@ -219,9 +214,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         return None
 
-    def generate_fitted_vs_actual(
-        self, solution_id: str, ax: Optional[plt.Axes] = None
-    ) -> Optional[plt.Figure]:
+    def generate_fitted_vs_actual(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate time series plot comparing fitted vs actual values.
 
         Args:
@@ -242,9 +235,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Convert dates and format variables
         ts_data["ds"] = pd.to_datetime(ts_data["ds"])
-        ts_data["linetype"] = np.where(
-            ts_data["variable"] == "predicted", "solid", "dotted"
-        )
+        ts_data["linetype"] = np.where(ts_data["variable"] == "predicted", "solid", "dotted")
         ts_data["variable"] = ts_data["variable"].str.title()
 
         # Create figure if no axes provided
@@ -331,9 +322,7 @@ class ParetoVisualizer(BaseVisualizer):
             return fig
         return None
 
-    def generate_diagnostic_plot(
-        self, solution_id: str, ax: Optional[plt.Axes] = None
-    ) -> Optional[plt.Figure]:
+    def generate_diagnostic_plot(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate diagnostic scatter plot of fitted vs residual values.
 
         Args:
@@ -362,9 +351,7 @@ class ParetoVisualizer(BaseVisualizer):
             fig = None
 
         # Create scatter plot
-        ax.scatter(
-            diag_data["predicted"], diag_data["residuals"], alpha=0.5, color="steelblue"
-        )
+        ax.scatter(diag_data["predicted"], diag_data["residuals"], alpha=0.5, color="steelblue")
 
         # Add horizontal line at y=0
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.8)
@@ -372,9 +359,7 @@ class ParetoVisualizer(BaseVisualizer):
         # Add smoothed line with confidence interval
         from scipy.stats import gaussian_kde
 
-        x_smooth = np.linspace(
-            diag_data["predicted"].min(), diag_data["predicted"].max(), 100
-        )
+        x_smooth = np.linspace(diag_data["predicted"].min(), diag_data["predicted"].max(), 100)
 
         # Fit LOWESS
         from statsmodels.nonparametric.smoothers_lowess import lowess
@@ -417,9 +402,7 @@ class ParetoVisualizer(BaseVisualizer):
             return fig
         return None
 
-    def generate_immediate_vs_carryover(
-        self, solution_id: str, ax: Optional[plt.Axes] = None
-    ) -> Optional[plt.Figure]:
+    def generate_immediate_vs_carryover(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate stacked bar chart comparing immediate vs carryover effects.
 
         Args:
@@ -521,9 +504,7 @@ class ParetoVisualizer(BaseVisualizer):
             return fig
         return None
 
-    def generate_adstock_rate(
-        self, solution_id: str, ax: Optional[plt.Axes] = None
-    ) -> Optional[plt.Figure]:
+    def generate_adstock_rate(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate adstock rate visualization based on adstock type.
 
         Args:
@@ -561,27 +542,19 @@ class ParetoVisualizer(BaseVisualizer):
 
             # Add percentage labels
             for i, theta in enumerate(dt_geometric["thetas"]):
-                ax.text(
-                    theta + 0.01, i, f"{theta*100:.1f}%", va="center", fontweight="bold"
-                )
+                ax.text(theta + 0.01, i, f"{theta*100:.1f}%", va="center", fontweight="bold")
 
             # Customize axes
             ax.set_yticks(range(len(dt_geometric)))
             ax.set_yticklabels(dt_geometric["channels"])
 
             # Format x-axis as percentage
-            ax.xaxis.set_major_formatter(
-                plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%")
-            )
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%"))
             ax.set_xlim(0, 1)
 
             # Set title and labels
-            interval_type = (
-                self.mmm_data.mmmdata_spec.interval_type if self.mmm_data else "day"
-            )
-            ax.set_title(
-                f"Geometric Adstock: Fixed Rate Over Time (Solution {solution_id})"
-            )
+            interval_type = self.mmm_data.mmmdata_spec.interval_type if self.mmm_data else "day"
+            ax.set_title(f"Geometric Adstock: Fixed Rate Over Time (Solution {solution_id})")
             ax.set_xlabel(f"Thetas [by {interval_type}]")
             ax.set_ylabel(None)
 
@@ -649,14 +622,16 @@ class ParetoVisualizer(BaseVisualizer):
             return fig
         return None
 
-    def plot_all(
-        self, display_plots: bool = True, export_location: Union[str, Path] = None
-    ) -> None:
+    def plot_all(self, display_plots: bool = True, export_location: Union[str, Path] = None) -> None:
         # Generate all plots
         solution_ids = self.pareto_result.pareto_solutions
+        # Clean up nan values
+        cleaned_solution_ids = [sid for sid in solution_ids if not (isinstance(sid, float) and math.isnan(sid))]
+        # Assign the cleaned list back to self.pareto_result.pareto_solutions
+        self.pareto_result.pareto_solutions = cleaned_solution_ids
         figures: Dict[str, plt.Figure] = {}
 
-        for solution_id in solution_ids:
+        for solution_id in cleaned_solution_ids:
             fig1 = self.generate_waterfall(solution_id)
             if fig1:
                 figures["waterfall_" + solution_id] = fig1
