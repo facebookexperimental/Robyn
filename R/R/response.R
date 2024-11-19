@@ -14,10 +14,10 @@
 #' @param metric_name A character. Selected media variable for the response.
 #' Must be one value from paid_media_spends, paid_media_vars or organic_vars
 #' @param metric_value Numeric. Desired metric value to return a response for.
-#' @param dt_hyppar A data.frame. When \code{robyn_object} is not provided, use
+#' @param dt_hyppar A data.frame. When \code{json_file} is not provided, use
 #' \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 #' \code{select_model}, \code{dt_coef} and \code{InputCollect}.
-#' @param dt_coef A data.frame. When \code{robyn_object} is not provided, use
+#' @param dt_coef A data.frame. When \code{json_file} is not provided, use
 #' \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 #' \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.
 #' @examples
@@ -106,7 +106,6 @@
 robyn_response <- function(InputCollect = NULL,
                            OutputCollect = NULL,
                            json_file = NULL,
-                           robyn_object = NULL,
                            select_build = NULL,
                            select_model = NULL,
                            metric_name = NULL,
@@ -133,40 +132,12 @@ robyn_response <- function(InputCollect = NULL,
     if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
     if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
   } else {
-    if (!is.null(robyn_object)) {
-      if (!file.exists(robyn_object)) {
-        stop("File does not exist or is somewhere else. Check: ", robyn_object)
-      } else {
-        Robyn <- readRDS(robyn_object)
-        objectPath <- dirname(robyn_object)
-        objectName <- sub("'\\..*$", "", basename(robyn_object))
-      }
-      select_build_all <- 0:(length(Robyn) - 1)
-      if (is.null(select_build)) {
-        select_build <- max(select_build_all)
-        if (!quiet && length(select_build_all) > 1) {
-          message(
-            "Using latest model: ", ifelse(select_build == 0, "initial model", paste0("refresh model #", select_build)),
-            " for the response function. Use parameter 'select_build' to specify which run to use"
-          )
-        }
-      }
-      if (!(select_build %in% select_build_all) || length(select_build) != 1) {
-        stop("'select_build' must be one value of ", paste(select_build_all, collapse = ", "))
-      }
-      listName <- ifelse(select_build == 0, "listInit", paste0("listRefresh", select_build))
-      InputCollect <- Robyn[[listName]][["InputCollect"]]
-      OutputCollect <- Robyn[[listName]][["OutputCollect"]]
-      dt_hyppar <- OutputCollect$resultHypParam
-      dt_coef <- OutputCollect$xDecompAgg
-    } else {
       # Get pre-filled values
       if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
       if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
       if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
-        stop("When 'robyn_object' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
+        stop("When 'json_file' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
       }
-    }
   }
 
   if ("selectID" %in% names(OutputCollect)) {
@@ -179,6 +150,7 @@ robyn_response <- function(InputCollect = NULL,
     dt_mod <- InputCollect$dt_mod
     window_start_loc <- InputCollect$rollingWindowStartWhich
     window_end_loc <- InputCollect$rollingWindowEndWhich
+    window_loc <- window_start_loc:window_end_loc
     adstock <- InputCollect$adstock
     # spendExpoMod <- InputCollect$ExposureCollect$df_cpe
     paid_media_vars <- InputCollect$paid_media_vars
@@ -200,107 +172,91 @@ robyn_response <- function(InputCollect = NULL,
   ## Get use case based on inputs
   usecase <- which_usecase(metric_value, date_range)
 
-  ## Check inputs with usecases
-  metric_type <- check_metric_type(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars)
-  all_dates <- pull(dt_input, InputCollect$date_var)
-  all_values <- pull(dt_mod, metric_name)
-
-  if (usecase == "all_historical_vec") {
-    ds_list <- check_metric_dates(date_range = "all", all_dates[1:window_end_loc], dayInterval, quiet, ...)
-    metric_value <- NULL
-    # val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
-  } else if (usecase == "unit_metric_default_last_n") {
-    ds_list <- check_metric_dates(date_range = paste0("last_", length(metric_value)), all_dates[1:window_end_loc], dayInterval, quiet, ...)
-    # val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
-  } else {
-    ds_list <- check_metric_dates(date_range, all_dates[1:window_end_loc], dayInterval, quiet, ...)
+  ## Check inputs
+  metric_type <- check_metric_type(metric_name, paid_media_spends, paid_media_vars, paid_media_selected, exposure_vars, organic_vars)
+  metric_name_updated <- metric_type$metric_name_updated
+  all_dates <- dt_input[[InputCollect$date_var]]
+  all_values <- dt_mod[[metric_name_updated]]
+  ds_list <- check_metric_dates(date_range = date_range, all_dates[1:window_end_loc], dayInterval, quiet, ...)
+  val_list <- check_metric_value(metric_value, metric_name_updated, all_values, ds_list$metric_loc)
+  if (!is.null(metric_value) & is.null(date_range)) {
+    stop("Must specify date_range when using metric_value")
   }
-  val_list <- check_metric_value(metric_value, metric_name, all_values, ds_list$metric_loc)
   date_range_updated <- ds_list$date_range_updated
-  # metric_value_updated <- val_list$metric_value_updated
   all_values_updated <- val_list$all_values_updated
 
-  ## Adstocking original
-  # media_vec_origin <- dt_input[, metric_name][[1]]
+  ## Get hyperparameters & beta coef
   theta <- scale <- shape <- NULL
   if (adstock == "geometric") {
-    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name, "_thetas")]][[1]]
+    theta <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name_updated, "_thetas")]][[1]]
   }
   if (grepl("weibull", adstock)) {
-    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name, "_shapes")]][[1]]
-    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name, "_scales")]][[1]]
+    shape <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name_updated, "_shapes")]][[1]]
+    scale <- dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name_updated, "_scales")]][[1]]
   }
-  x_list <- transform_adstock(all_values, adstock, theta = theta, shape = shape, scale = scale)
-  # m_adstocked <- x_list$x_decayed
-  # net_carryover_ref <- m_adstocked - all_values
+  alpha <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name_updated, "_alphas")]], 1)
+  gamma <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name_updated, "_gammas")]], 1)
+  coeff <- dt_coef[dt_coef$solID == select_model & dt_coef$rn == metric_name_updated, ][["coef"]]
 
-  ## Adstocking simulation
-  if (identical(all_values, all_values_updated)) {
-    input_total <- x_list$x_decayed[ds_list$metric_loc]
-    input_immediate <- if (adstock == "weibull_pdf") x_list$x_imme[ds_list$metric_loc] else x_list$x[ds_list$metric_loc]
-  } else {
-    x_list_sim <- transform_adstock(all_values_updated, adstock, theta = theta, shape = shape, scale = scale)
-    media_vec_sim <- x_list_sim$x_decayed
-    media_vec_sim_imme <- if (adstock == "weibull_pdf") x_list_sim$x_imme else x_list_sim$x
-    input_total <- media_vec_sim[ds_list$metric_loc]
-    input_immediate <- media_vec_sim_imme[ds_list$metric_loc]
+  ## Historical transformation
+  hist_transform <- transform_decomp(
+    all_values = all_values,
+    adstock, theta, shape, scale, alpha, gamma,
+    window_loc, coeff, metric_loc = ds_list$metric_loc)
+  dt_line <- data.frame(
+    metric = hist_transform$input_total[window_loc],
+    response = hist_transform$response_total,
+    channel = metric_name_updated)
+  dt_point <- data.frame(
+    mean_input_immediate = hist_transform$mean_input_immediate,
+    mean_input_carryover = hist_transform$mean_input_carryover,
+    mean_input_total = hist_transform$mean_input_immediate + hist_transform$mean_input_carryover,
+    mean_response_immediate = hist_transform$mean_response_total - hist_transform$mean_response_carryover,
+    mean_response_carryover = hist_transform$mean_response_carryover,
+    mean_response_total = hist_transform$mean_response_total
+    )
+  if (!is.null(date_range)) {
+    dt_point_sim <- data.frame(
+      input = hist_transform$sim_mean_spend + hist_transform$sim_mean_carryover,
+      output = hist_transform$sim_mean_response)
   }
-  input_carryover <- input_total - input_immediate
 
-  ## Saturation
-  input_total_rw <- input_total[window_start_loc:window_end_loc]
-  input_carryover_rw <- input_carryover[window_start_loc:window_end_loc]
-  alpha <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name, "_alphas")]], 1)
-  gamma <- head(dt_hyppar[dt_hyppar$solID == select_model, ][[paste0(metric_name, "_gammas")]], 1)
-
-  saturated_total <- saturation_hill(
-    x = input_total_rw,
-    alpha = alpha, gamma = gamma
-  )
-  saturated_carryover <- saturation_hill(
-    x = input_total_rw,
-    alpha = alpha, gamma = gamma, x_marginal = input_carryover_rw
-  )
-  ## Decomp
-  coeff <- dt_coef[dt_coef$solID == select_model & dt_coef$rn == metric_name, ][["coef"]]
-  response_total <- as.numeric(saturated_total[["x_saturated"]] * coeff)
-  response_carryover <- as.numeric(saturated_carryover[["x_saturated"]] * coeff)
-  response_immediate <- response_total - response_carryover
-
-  dt_line <- data.frame(metric = input_total_rw, response = response_total, channel = metric_name)
-  if (usecase == "all_historical_vec") {
-    dt_point <- data.frame(input = input_total[window_start_loc:window_end_loc], output = response_total, ds = date_range_updated[window_start_loc:window_end_loc])
-    dt_point_caov <- data.frame(input = input_carryover[window_start_loc:window_end_loc], output = response_carryover)
-    dt_point_imme <- data.frame(input = input_immediate[window_start_loc:window_end_loc], output = response_immediate)
-  } else {
-    dt_point <- data.frame(input = input_total, output = response_total, ds = date_range_updated)
-    dt_point_caov <- data.frame(input = input_carryover, output = response_carryover)
-    dt_point_imme <- data.frame(input = input_immediate, output = response_immediate)
+  ## Simulated transformation
+  if (!is.null(metric_value)) {
+    hist_transform_sim <- transform_decomp(
+      all_values = all_values_updated,
+      adstock, theta, shape, scale, alpha, gamma,
+      window_loc, coeff, metric_loc = ds_list$metric_loc,
+      calibrate_inflexion = hist_transform$inflexion)
+    dt_point_sim <- data.frame(
+      input = hist_transform_sim$sim_mean_spend + hist_transform_sim$sim_mean_carryover,
+      output = hist_transform_sim$sim_mean_response)
   }
 
   ## Plot optimal response
   p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
     geom_line(color = "steelblue") +
-    geom_point(data = dt_point, aes(x = .data$input, y = .data$output), size = 3) +
+    geom_point(
+      data = dt_point,
+      aes(x = .data$mean_input_total, y = .data$mean_response_total),
+      size = 3, color = "grey") +
     labs(
       title = paste(
-        "Saturation curve of",
-        ifelse(metric_type == "organic", "organic", "paid"),
-        "media:", metric_name,
-        ifelse(!is.null(date_range_updated), "adstocked", ""),
-        ifelse(metric_type == "spend", "spend metric", "exposure metric")
+        "Saturation curve of", metric_type$metric_type,
+        "media:", metric_type$metric_name_updated
       ),
-      subtitle = ifelse(length(unique(input_total)) == 1, sprintf(
-        paste(
-          "Carryover* Response: %s @ Input %s",
-          "Immediate Response: %s @ Input %s",
-          "Total (C+I) Response: %s @ Input %s",
-          sep = "\n"
-        ),
-        num_abbr(dt_point_caov$output), num_abbr(dt_point_caov$input),
-        num_abbr(dt_point_imme$output), num_abbr(dt_point_imme$input),
-        num_abbr(dt_point$output), num_abbr(dt_point$input)
-      ), ""),
+      subtitle = sprintf(paste(
+        "Response: %s @ mean input %s",
+        "Response: %s @ mean input carryover %s",
+        "Response: %s @ mean input immediate %s",
+        sep = "\n"),
+        num_abbr(dt_point$mean_response_total),
+        num_abbr(dt_point$mean_input_total),
+        num_abbr(dt_point$mean_response_carryover),
+        num_abbr(dt_point$mean_input_carryover),
+        num_abbr(dt_point$mean_response_immediate),
+        num_abbr(dt_point$mean_input_immediate)
+      ),
       x = "Input", y = "Response",
       caption = sprintf(
         "Response period: %s%s%s",
@@ -312,21 +268,35 @@ robyn_response <- function(InputCollect = NULL,
     theme_lares(background = "white") +
     scale_x_abbr() +
     scale_y_abbr()
-  if (length(unique(metric_value)) == 1) {
+  if (!is.null(metric_value) | !is.null(date_range)) {
     p_res <- p_res +
-      geom_point(data = dt_point_caov, aes(x = .data$input, y = .data$output), size = 3, shape = 8)
+      geom_point(data = dt_point_sim, aes(x = .data$input, y = .data$output), size = 3, color = "blue")
+  }
+  if (!is.null(metric_value)) {
+    sim_mean_spend <- hist_transform_sim$sim_mean_spend
+    sim_mean_carryover <- hist_transform_sim$sim_mean_carryover
+    sim_mean_response <- hist_transform_sim$sim_mean_response
+  } else {
+    sim_mean_spend <- sim_mean_carryover <- sim_mean_response <- NULL
   }
 
   ret <- list(
-    metric_name = metric_name,
+    metric_name = metric_name_updated,
     date = date_range_updated,
-    input_total = input_total,
-    input_carryover = input_carryover,
-    input_immediate = input_immediate,
-    response_total = response_total,
-    response_carryover = response_carryover,
-    response_immediate = response_immediate,
-    inflexion = saturated_total[["inflexion"]],
+    input_total = hist_transform$input_total,
+    input_carryover = hist_transform$input_carryover,
+    input_immediate = hist_transform$input_immediate,
+    response_total = hist_transform$response_total,
+    response_carryover = hist_transform$response_carryover,
+    response_immediate = hist_transform$response_immediate,
+    inflexion = hist_transform$inflexion,
+    mean_input_immediate = hist_transform$mean_input_immediate,
+    mean_input_carryover = hist_transform$mean_input_carryover,
+    mean_response_total = hist_transform$mean_response_total,
+    mean_response_carryover = hist_transform$mean_response_carryover,
+    sim_mean_spend = sim_mean_spend,
+    sim_mean_carryover = sim_mean_carryover,
+    sim_mean_response = sim_mean_response,
     usecase = usecase,
     plot = p_res
   )
@@ -356,6 +326,79 @@ which_usecase <- function(metric_value, date_range) {
   return(usecase)
 }
 
+transform_decomp <- function(all_values, adstock, theta, shape, scale, alpha, gamma,
+                              window_loc, coeff, metric_loc, calibrate_inflexion = NULL) {
+  ## adstock
+  x_list <- transform_adstock(x = all_values, adstock, theta, shape, scale)
+  input_total <- x_list$x_decayed
+  input_immediate <- if (adstock == "weibull_pdf") x_list$x_imme else x_list$x
+  input_carryover <- input_total - input_immediate
+  input_total_rw <- input_total[window_loc]
+  input_carryover_rw <- input_carryover[window_loc]
+  ## saturation
+  saturated_total <- saturation_hill(
+    x = input_total_rw,
+    alpha = alpha, gamma = gamma
+  )
+  saturated_carryover <- saturation_hill(
+    x = input_total_rw,
+    alpha = alpha, gamma = gamma, x_marginal = input_carryover_rw
+  )
+  saturated_immediate <- saturated_total$x_saturated - saturated_carryover$x_saturated
+  ## simulate mean response of all_values periods
+  mean_input_immediate <- mean(input_immediate[window_loc])
+  mean_input_carryover <- mean(input_carryover_rw)
+  mean_response_total <- fx_objective(
+    x = mean_input_immediate,
+    coeff = coeff,
+    alpha = alpha,
+    inflexion = saturated_total$inflexion,
+    x_hist_carryover = mean_input_carryover,
+    get_sum = FALSE
+  )
+  mean_response_carryover <- fx_objective(
+    x = 0,
+    coeff = coeff,
+    alpha = alpha,
+    inflexion = saturated_total$inflexion,
+    x_hist_carryover = mean_input_carryover,
+    get_sum = FALSE
+  )
+  ## simulate mean response of date_range periods
+  sim_mean_spend <- mean(input_immediate[metric_loc])
+  sim_mean_carryover <- mean(input_carryover[metric_loc])
+  if (is.null(calibrate_inflexion)) calibrate_inflexion <- saturated_total$inflexion
+  sim_mean_response <- fx_objective(
+    x = sim_mean_spend,
+    coeff = coeff,
+    alpha = alpha,
+    # use historical true inflexion when metric_value is provided
+    inflexion = calibrate_inflexion,
+    x_hist_carryover = sim_mean_carryover,
+    get_sum = FALSE
+  )
+
+  ret <- list(
+    input_total = input_total,
+    input_immediate = input_immediate,
+    input_carryover = input_carryover,
+    saturated_total = saturated_total$x_saturated,
+    saturated_carryover = saturated_carryover$x_saturated,
+    saturated_immediate = saturated_immediate,
+    response_total = saturated_total$x_saturated * coeff,
+    response_carryover = saturated_carryover$x_saturated * coeff,
+    response_immediate = saturated_immediate * coeff,
+    inflexion = saturated_total$inflexion,
+    mean_input_immediate = mean_input_immediate,
+    mean_input_carryover = mean_input_carryover,
+    mean_response_total = mean_response_total,
+    mean_response_carryover = mean_response_carryover,
+    sim_mean_spend = sim_mean_spend,
+    sim_mean_carryover = sim_mean_carryover,
+    sim_mean_response = sim_mean_response
+  )
+  return(ret)
+}
 # ####### SCENARIOS CHECK FOR date_range
 # metric_value <- 71427
 # all_dates <- dt_input$DATE

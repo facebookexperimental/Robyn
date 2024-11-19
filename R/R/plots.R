@@ -1590,7 +1590,7 @@ decomp_plot <- function(
   # Sort variables by baseline first & amount of absolute impact
   levs <- df %>%
     group_by(.data$variable) %>%
-    summarize(impact = sum(abs(.data$value))) %>%
+    summarise(impact = sum(abs(.data$value))) %>%
     mutate(is_baseline = grepl("Baseline_L", .data$variable)) %>%
     arrange(desc(.data$is_baseline), desc(.data$impact)) %>%
     filter(.data$impact > 0) %>%
@@ -1605,8 +1605,8 @@ decomp_plot <- function(
     filter(.data$variable %in% levs) %>%
     mutate(variable = factor(.data$variable, levels = rev(levs)))
 
-  p <- ggplot(df, aes(x = as.character(ds), y = value, fill = variable)) +
-    facet_grid(solID ~ .) +
+  p <- ggplot(df, aes(x = as.character(.data$ds), y = .data$value, fill = .data$variable)) +
+    facet_grid(.data$solID ~ .) +
     labs(
       title = paste(varType, "Decomposition by Variable"),
       x = NULL, y = paste(intType, varType), fill = NULL

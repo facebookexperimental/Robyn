@@ -870,24 +870,27 @@ check_allocator <- function(OutputCollect, select_model, paid_media_selected, sc
   }
 }
 
-check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars) {
-  if (metric_name %in% paid_media_spends && length(metric_name) == 1) {
-    metric_type <- "spend"
-  } else if (metric_name %in% exposure_vars && length(metric_name) == 1) {
-    metric_type <- "exposure"
-  } else if (metric_name %in% organic_vars && length(metric_name) == 1) {
+check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, paid_media_selected, exposure_vars, organic_vars) {
+  if (metric_name %in% organic_vars && length(metric_name) == 1) {
     metric_type <- "organic"
+    metric_name_updated <- metric_name
+  } else if ((metric_name %in% paid_media_spends && length(metric_name) == 1) |
+             (metric_name %in% paid_media_vars && length(metric_name) == 1)) {
+    metric_type <- "paid"
+    name_loc <- unique(c(which(metric_name == paid_media_spends),
+                         which(metric_name == paid_media_vars)))
+    metric_name_updated <- paid_media_selected[name_loc]
   } else {
     stop(paste(
       "Invalid 'metric_name' input:", metric_name,
-      "\nInput should be any media variable from paid_media_spends (spend),",
-      "paid_media_vars (exposure), or organic_vars (organic):",
-      paste("\n- paid_media_spends:", v2t(paid_media_spends, quotes = FALSE)),
-      paste("\n- paid_media_vars:", v2t(paid_media_vars, quotes = FALSE)),
+      "\nInput should be any media variable from paid_media_selected",
+      "or organic_vars:",
+      paste("\n- paid_media_spends:", v2t(paid_media_selected, quotes = FALSE)),
       paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
     ))
   }
-  return(metric_type)
+  return(list(metric_type = metric_type,
+              metric_name_updated = metric_name_updated))
 }
 
 check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL, quiet = FALSE, is_allocator = FALSE, ...) {
@@ -913,54 +916,18 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
     date_range <- tail(all_dates, get_n)
     date_range_loc <- which(all_dates %in% date_range)
     date_range_updated <- all_dates[date_range_loc]
-    rg <- v2t(range(date_range_updated), sep = ":", quotes = FALSE)
-  } else {
+  } else if (is.Date(as.Date(date_range[1]))) {
     ## Using dates as date_range range
-    if (all(is.Date(as.Date(date_range, origin = "1970-01-01")))) {
-      date_range <- as.Date(date_range, origin = "1970-01-01")
-      if (length(date_range) == 1) {
-        ## Using only 1 date
-        if (all(date_range %in% all_dates)) {
-          date_range_updated <- date_range
-          date_range_loc <- which(all_dates == date_range)
-          if (!quiet) message("Using ds '", date_range_updated, "' as the response period")
-        } else {
-          date_range_loc <- which.min(abs(date_range - all_dates))
-          date_range_updated <- all_dates[date_range_loc]
-          if (!quiet) warning("Input 'date_range' (", date_range, ") has no match. Picking closest date: ", date_range_updated)
-        }
-      } else if (length(date_range) == 2) {
-        ## Using two dates as "from-to" date range
-        date_range_loc <- unlist(lapply(date_range, function(x) which.min(abs(x - all_dates))))
-        date_range_loc <- date_range_loc[1]:date_range_loc[2]
-        date_range_updated <- all_dates[date_range_loc]
-        if (!quiet & !all(date_range %in% date_range_updated)) {
-          warning(paste(
-            "At least one date in 'date_range' input do not match any date.",
-            "Picking closest dates for range:", paste(range(date_range_updated), collapse = ":")
-          ))
-        }
-        rg <- v2t(range(date_range_updated), sep = ":", quotes = FALSE)
-        get_n <- length(date_range_loc)
-      } else {
-        ## Manually inputting each date
-        date_range_updated <- date_range
-        if (all(date_range %in% all_dates)) {
-          date_range_loc <- which(all_dates %in% date_range_updated)
-        } else {
-          date_range_loc <- unlist(lapply(date_range_updated, function(x) which.min(abs(x - all_dates))))
-          rg <- v2t(range(date_range_updated), sep = ":", quotes = FALSE)
-        }
-        if (all(na.omit(date_range_loc - lag(date_range_loc)) == 1)) {
-          date_range_updated <- all_dates[date_range_loc]
-          if (!quiet) warning("At least one date in 'date_range' do not match ds. Picking closest date: ", date_range_updated)
-        } else {
-          stop("Input 'date_range' needs to have sequential dates")
-        }
-      }
+    date_range_updated <- date_range <- as.Date(date_range, origin = "1970-01-01")
+    if (!all(date_range %in% all_dates)) {
+      date_range_loc <- range(sapply(date_range, FUN = function(x) which.min(abs(x - all_dates))))
+      date_range_loc <- seq(from = date_range_loc[1], to = date_range_loc[2], by = 1)
     } else {
-      stop("Input 'date_range' must have date format '2023-01-01' or use 'last_n'")
+      date_range_loc <- which(all_dates %in% date_range)
     }
+    date_range_updated <- all_dates[date_range_loc]
+  } else {
+    stop("Input 'date_range' must have date format '1970-01-01' or use 'last_n'")
   }
   return(list(
     date_range_updated = date_range_updated,
@@ -969,8 +936,9 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
 }
 
 check_metric_value <- function(metric_value, metric_name, all_values, metric_loc) {
-  get_n <- length(metric_loc)
   if (any(is.nan(metric_value))) metric_value <- NULL
+  get_n <- length(metric_loc)
+  metric_value_updated <- all_values[metric_loc]
   if (!is.null(metric_value)) {
     if (!is.numeric(metric_value)) {
       stop(sprintf(
@@ -983,17 +951,13 @@ check_metric_value <- function(metric_value, metric_name, all_values, metric_loc
       ))
     }
     if (get_n > 1 & length(metric_value) == 1) {
-      metric_value_updated <- rep(metric_value / get_n, get_n)
+      metric_value_updated <- metric_value * (metric_value_updated / sum(metric_value_updated))
       # message(paste0("'metric_value'", metric_value, " splitting into ", get_n, " periods evenly"))
-    } else {
-      if (length(metric_value) != get_n) {
-        stop("robyn_response metric_value & date_range must have same length\n")
-      }
+    } else if (get_n == 1 & length(metric_value) == 1) {
       metric_value_updated <- metric_value
+    } else {
+      stop("robyn_response metric_value & date_range must have same length\n")
     }
-  }
-  if (is.null(metric_value)) {
-    metric_value_updated <- all_values[metric_loc]
   }
   all_values_updated <- all_values
   all_values_updated[metric_loc] <- metric_value_updated

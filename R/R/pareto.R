@@ -157,8 +157,39 @@ robyn_pareto <- function(InputCollect, OutputModels,
       1:cnt_resp,
       function(respN) {
         setTxtProgressBar(pb_resp, respN)
-        response_wrapper(respN, InputCollect, OutputModels, xDecompAggMediaPar,
-                         resultHypParamPar, ...)
+        get_solID <- xDecompAggMediaPar$solID[respN]
+        get_media_name <- xDecompAggMediaPar$rn[respN]
+        window_start_loc <- InputCollect$rollingWindowStartWhich
+        window_end_loc <- InputCollect$rollingWindowEndWhich
+
+        get_resp <- robyn_response(
+          select_model = get_solID,
+          metric_name = get_media_name,
+          date_range = "all",
+          dt_hyppar = resultHypParamPar,
+          dt_coef = xDecompAggMediaPar,
+          InputCollect = InputCollect,
+          OutputCollect = OutputModels,
+          quiet = TRUE,
+          ...
+        )
+        list_response <- list(
+          dt_resp = data.frame(
+            mean_response = get_resp$mean_response_total,
+            mean_spend_adstocked = get_resp$mean_input_immediate + get_resp$mean_input_carryover,
+            mean_carryover = get_resp$mean_input_carryover,
+            rn = get_media_name,
+            solID = get_solID
+          ),
+          dt_resp_vec = data.frame(
+            channel = rep(get_media_name, length(get_resp$response_total)),
+            response = get_resp$response_total,
+            response_carryover = get_resp$response_carryover,
+            spend = get_resp$input_total[window_start_loc:window_end_loc],
+            solID = rep(get_solID, length(get_resp$response_total))
+          )
+        )
+        return(list_response)
         }
       )
     close(pb_resp)
@@ -524,69 +555,3 @@ robyn_immcarr <- function(
     left_join(df_caov_pct, c("solID", "rn"))
   return(xDecompVecImmeCaov)
 }
-
-
-response_wrapper <- function(respN, InputCollect, OutputModels, xDecompAggMediaPar, resultHypParamPar, ...) {
-  get_solID <- xDecompAggMediaPar$solID[respN]
-  get_media_name <- xDecompAggMediaPar$rn[respN]
-  window_start_loc <- InputCollect$rollingWindowStartWhich
-  window_end_loc <- InputCollect$rollingWindowEndWhich
-
-  get_resp <- robyn_response(
-    select_model = get_solID,
-    metric_name = get_media_name,
-    # metric_value = decompSpendDistPar$total_spend[respN],
-    # date_range = range(InputCollect$dt_modRollWind$ds),
-    date_range = "all",
-    dt_hyppar = resultHypParamPar,
-    dt_coef = xDecompAggMediaPar,
-    InputCollect = InputCollect,
-    OutputCollect = OutputModels,
-    quiet = TRUE,
-    ...
-  )
-  # Median value (but must be within the curve)
-  # med_in_curve <- sort(get_resp$response_total)[round(length(get_resp$response_total) / 2)]
-
-  ## simulate mean response adstock from get_resp$input_carryover
-  # mean_response <- mean(get_resp$response_total)
-  input_total_rw <- get_resp$input_total[window_start_loc:window_end_loc]
-  mean_spend_adstocked <- mean(input_total_rw)
-  input_carryover_rw <- get_resp$input_carryover[window_start_loc:window_end_loc]
-  mean_carryover <- mean(input_carryover_rw)
-  get_alpha <- resultHypParamPar %>%
-    filter(.data$solID == get_solID) %>%
-    pull(paste0(get_media_name, "_alphas"))
-  get_coef <- xDecompAggMediaPar %>%
-    filter(.data$solID == get_solID & .data$rn == get_media_name) %>%
-    pull("coef")
-  mean_val <- xDecompAggMediaPar$mean_spend[respN]
-  if (is.na(mean_val)) mean_val <- xDecompAggMediaPar$mean_exposure[respN]
-  mean_response <- fx_objective(
-    x = mean_val,
-    coeff = get_coef,
-    alpha = get_alpha,
-    inflexion = get_resp$inflexion,
-    x_hist_carryover = mean_carryover,
-    get_sum = FALSE
-  )
-  get_len <- length(input_total_rw)
-  list_response <- list(
-    dt_resp = data.frame(
-      mean_response = mean_response,
-      mean_spend_adstocked = mean_spend_adstocked,
-      mean_carryover = mean_carryover,
-      rn = get_media_name,
-      solID = get_solID
-    ),
-    dt_resp_vec = data.frame(
-      channel = rep(get_media_name, get_len),
-      response = get_resp$response_total,
-      response_carryover = get_resp$response_carryover,
-      spend = input_total_rw,
-      solID = rep(get_solID, get_len)
-    )
-    )
-  return(list_response)
-}
-
