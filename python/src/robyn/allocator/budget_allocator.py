@@ -17,6 +17,7 @@ from robyn.allocator.response_calculator import ResponseCalculator
 
 logger = logging.getLogger(__name__)
 
+
 class BudgetAllocator:
     """Main class for optimizing marketing budget allocations."""
 
@@ -29,8 +30,9 @@ class BudgetAllocator:
     ):
         """Initialize the BudgetAllocator."""
         logger.info("Initializing BudgetAllocator")
-        logger.debug("Input parameters: mmm_data=%s, pareto_result=%s, select_model=%s",
-                    mmm_data, pareto_result, select_model)
+        logger.debug(
+            "Input parameters: mmm_data=%s, pareto_result=%s, select_model=%s", mmm_data, pareto_result, select_model
+        )
 
         self.mmm_data = mmm_data
         self.featurized_mmm_data = featurized_mmm_data
@@ -62,11 +64,11 @@ class BudgetAllocator:
     def _process_date_range(self, date_range: Union[str, List[str], datetime]) -> DateRange:
         """Process and validate date range for allocation calculations."""
         logger.debug("Processing date range: %s", date_range)
-        
+
         try:
             date_col = self._get_date_column_name()
             raw_dates = self.mmm_data.data[date_col]
-            
+
             if not pd.api.types.is_datetime64_any_dtype(raw_dates):
                 logger.debug("Converting dates to datetime format")
                 dates = pd.to_datetime(raw_dates, format=None)
@@ -98,8 +100,13 @@ class BudgetAllocator:
                     start_date = end_date = pd.to_datetime(date_range)
 
             if start_date < dates.min() or end_date > dates.max():
-                logger.error("Date range %s to %s outside available data range %s to %s",
-                           start_date, end_date, dates.min(), dates.max())
+                logger.error(
+                    "Date range %s to %s outside available data range %s to %s",
+                    start_date,
+                    end_date,
+                    dates.min(),
+                    dates.max(),
+                )
                 raise ValueError(
                     f"Date range {start_date} to {end_date} outside available data range "
                     f"{dates.min()} to {dates.max()}"
@@ -121,7 +128,7 @@ class BudgetAllocator:
                 n_periods=n_periods,
                 interval_type=self.mmm_data.mmmdata_spec.interval_type,
             )
-            
+
             logger.debug("Successfully processed date range: %s", date_range_obj)
             return date_range_obj
 
@@ -136,18 +143,18 @@ class BudgetAllocator:
         logger.debug("Calculating initial metrics with date_range=%s, total_budget=%s", date_range, total_budget)
 
         try:
-            hist_spend = self.featurized_mmm_data.dt_mod.loc[date_range.start_index : date_range.end_index, media_spend_sorted]
-            
-            logger.debug("Historical spend statistics: total=%s, mean=%s", 
-                        hist_spend.sum(), hist_spend.mean())
+            hist_spend = self.featurized_mmm_data.dt_mod.loc[
+                date_range.start_index : date_range.end_index, media_spend_sorted
+            ]
+
+            logger.debug("Historical spend statistics: total=%s, mean=%s", hist_spend.sum(), hist_spend.mean())
 
             hist_spend_total = hist_spend.sum()
             hist_spend_mean = hist_spend.mean()
 
             zero_mask = hist_spend_mean == 0
             if zero_mask.any():
-                logger.warning("Found zero mean spend for channels: %s", 
-                             media_spend_sorted[zero_mask])
+                logger.warning("Found zero mean spend for channels: %s", media_spend_sorted[zero_mask])
                 min_nonzero = hist_spend_mean[hist_spend_mean > 0].min()
                 hist_spend_mean[zero_mask] = min_nonzero * 0.1
 
@@ -199,9 +206,13 @@ class BudgetAllocator:
             }
 
             logger.info("Initial metrics calculated successfully")
-            logger.debug("Initial metrics summary: total_spend=%.2f, total_response=%.2f, budget_unit=%.2f",
-                        init_spend_total, init_response_total, budget_unit)
-            
+            logger.debug(
+                "Initial metrics summary: total_spend=%.2f, total_response=%.2f, budget_unit=%.2f",
+                init_spend_total,
+                init_response_total,
+                budget_unit,
+            )
+
             return metrics
 
         except Exception as e:
@@ -216,7 +227,7 @@ class BudgetAllocator:
         try:
             x0 = initial_metrics["hist_spend_mean"].values
             bounds = config.constraints.get_bounds(initial_metrics["hist_spend_mean"])
-            
+
             logger.debug("Initial guess: %s", x0)
             logger.debug("Optimization bounds: %s", bounds)
 
@@ -286,8 +297,7 @@ class BudgetAllocator:
             )
 
             logger.info("Maximum response optimization completed successfully")
-            logger.debug("Optimization results: iterations=%d, success=%s", 
-                        result["nit"], result["success"])
+            logger.debug("Optimization results: iterations=%d, success=%s", result["nit"], result["success"])
 
             return AllocationResult(
                 optimal_allocations=optimal_allocations,
@@ -320,7 +330,6 @@ class BudgetAllocator:
             logger.error("Max response optimization failed: %s", str(e))
             raise ValueError(f"Max response optimization failed: {str(e)}")
 
-
     def _optimize_target_efficiency(
         self, initial_metrics: Dict[str, Any], config: AllocationConfig
     ) -> AllocationResult:
@@ -344,7 +353,7 @@ class BudgetAllocator:
 
             x0 = initial_metrics["hist_spend_mean"].values
             bounds = config.constraints.get_bounds(initial_metrics["hist_spend_mean"])
-            
+
             logger.debug("Initial guess: %s", x0)
             logger.debug("Optimization bounds: %s", bounds)
 
@@ -430,8 +439,7 @@ class BudgetAllocator:
             )
 
             logger.info("Target efficiency optimization completed successfully")
-            logger.debug("Optimization results: iterations=%d, success=%s", 
-                        result["nit"], result["success"])
+            logger.debug("Optimization results: iterations=%d, success=%s", result["nit"], result["success"])
 
             return AllocationResult(
                 optimal_allocations=optimal_allocations,
@@ -551,7 +559,7 @@ class BudgetAllocator:
             }
 
             logger.debug("Response curves summary stats: %s", summary_stats)
-            
+
             curve_df.attrs["metadata"] = metadata
             curve_df.attrs["summary_stats"] = summary_stats
 
@@ -576,9 +584,7 @@ class BudgetAllocator:
 
             logger.debug("Calculating initial metrics")
             initial_metrics = self._calculate_initial_metrics(
-                date_range=date_range,
-                media_spend_sorted=media_spend_sorted,
-                total_budget=config.total_budget
+                date_range=date_range, media_spend_sorted=media_spend_sorted, total_budget=config.total_budget
             )
 
             logger.info("Running optimization for scenario: %s", config.scenario)
@@ -602,30 +608,30 @@ class BudgetAllocator:
             raise
 
     def _validate_date_data(self) -> None:
-            """Validate date data during initialization."""
-            logger.debug("Validating date data")
-            
-            try:
-                date_col = self._get_date_column_name()
-                if date_col not in self.mmm_data.data.columns:
-                    logger.error("Date column '%s' not found in data", date_col)
-                    raise ValueError(f"Date column '{date_col}' not found in data")
+        """Validate date data during initialization."""
+        logger.debug("Validating date data")
 
-                dates = pd.to_datetime(self.mmm_data.data[date_col], format=None)
+        try:
+            date_col = self._get_date_column_name()
+            if date_col not in self.mmm_data.data.columns:
+                logger.error("Date column '%s' not found in data", date_col)
+                raise ValueError(f"Date column '{date_col}' not found in data")
 
-                if not dates.is_monotonic_increasing:
-                    logger.error("Dates are not in ascending order")
-                    raise ValueError("Dates must be in ascending order")
+            dates = pd.to_datetime(self.mmm_data.data[date_col], format=None)
 
-                if dates.isna().any():
-                    logger.error("Date column contains missing values")
-                    raise ValueError("Date column contains missing values")
+            if not dates.is_monotonic_increasing:
+                logger.error("Dates are not in ascending order")
+                raise ValueError("Dates must be in ascending order")
 
-                logger.debug("Date validation completed successfully")
+            if dates.isna().any():
+                logger.error("Date column contains missing values")
+                raise ValueError("Date column contains missing values")
 
-            except Exception as e:
-                logger.error("Date validation failed: %s", str(e))
-                raise ValueError(f"Invalid date data: {str(e)}")
+            logger.debug("Date validation completed successfully")
+
+        except Exception as e:
+            logger.error("Date validation failed: %s", str(e))
+            raise ValueError(f"Invalid date data: {str(e)}")
 
     def _get_date_column_name(self) -> str:
         """Get the date column name, handling cases where it might be a list."""
@@ -635,4 +641,4 @@ class BudgetAllocator:
             logger.debug("Date variable is a list, using first element: %s", date_var[0])
             return date_var[0]
         logger.debug("Using date variable: %s", date_var)
-        return date_var        
+        return date_var

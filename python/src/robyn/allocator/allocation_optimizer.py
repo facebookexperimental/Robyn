@@ -1,4 +1,4 @@
-#pyre-strict
+# pyre-strict
 """Optimization module for budget allocation."""
 
 from typing import Callable, List, Tuple, Dict
@@ -7,16 +7,17 @@ import numpy as np
 from scipy.optimize import minimize
 from robyn.allocator.entities.enums import ConstrMode
 
+
 class AllocationOptimizer:
     """Handles numerical optimization for budget allocation."""
 
     def __init__(self):
         """Initialize optimizer."""
         self.supported_methods = {
-            "SLSQP_AUGLAG": "SLSQP", #TODO: both constant values are same. is this correct?
-            "MMA_AUGLAG": "SLSQP",  
+            "SLSQP_AUGLAG": "SLSQP",  # TODO: both constant values are same. is this correct?
+            "MMA_AUGLAG": "SLSQP",
         }
-        
+
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing AllocationOptimizer")
 
@@ -31,7 +32,7 @@ class AllocationOptimizer:
         constr_mode: ConstrMode = ConstrMode.EQUALITY,
     ) -> Dict:
         """Run optimization with given objective and constraints."""
-        
+
         self.logger.info("Starting optimization with method: %s", method)
         self.logger.debug("Optimization parameters: maxeval=%d, constr_mode=%s", maxeval, constr_mode)
         self.logger.debug("Initial guess shape: %s", initial_guess.shape)
@@ -40,7 +41,9 @@ class AllocationOptimizer:
 
         # Validate method
         if method not in self.supported_methods:
-            err_msg = f"Unsupported optimization method: {method}. Supported methods: {list(self.supported_methods.keys())}"
+            err_msg = (
+                f"Unsupported optimization method: {method}. Supported methods: {list(self.supported_methods.keys())}"
+            )
             self.logger.error(err_msg)
             raise ValueError(err_msg)
 
@@ -61,14 +64,10 @@ class AllocationOptimizer:
                     self.logger.error(err_msg)
                     raise ValueError(err_msg)
 
-                processed_constraints.append({
-                    "type": constraint_type,
-                    "fun": c["fun"],
-                    "jac": c.get("jac")
-                })
-                self.logger.debug("Processed constraint %d: type=%s", i+1, constraint_type)
+                processed_constraints.append({"type": constraint_type, "fun": c["fun"], "jac": c.get("jac")})
+                self.logger.debug("Processed constraint %d: type=%s", i + 1, constraint_type)
             except KeyError as e:
-                self.logger.error("Error processing constraint %d: %s", i+1, str(e))
+                self.logger.error("Error processing constraint %d: %s", i + 1, str(e))
                 raise
 
         try:
