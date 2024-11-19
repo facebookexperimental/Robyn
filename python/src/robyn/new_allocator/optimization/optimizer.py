@@ -38,105 +38,129 @@ class Optimizer:
             if self.optimization_spec.total_budget is not None
             else np.sum(self.initial_spend)
         )
-        self.constraints = Constraints(
-            total_budget=self.total_budget,
-            target_response=self.optimization_spec.target_value,
+
+        print("\nOptimizer Initialization:")
+        print(f"Channel names: {self.channel_names}")
+        print(f"Initial spend: {self.initial_spend}")
+        print(f"Lower bounds: {self.lower_bounds}")
+        print(f"Upper bounds: {self.upper_bounds}")
+        print(f"Total budget: {self.total_budget}")
+
+    def _objective_wrapper(self, x: np.ndarray, scale: float = 1.0) -> Dict[str, np.ndarray]:
+        """Wraps objective function for optimizer."""
+        # Scale the input values back to original scale
+        x_scaled = x * scale
+        print(f"\nObjective evaluation:")
+        print(f"Input x: {x}")
+        print(f"Scaled x: {x_scaled}")
+
+        # Get response and gradients
+        total_response, channel_responses, gradients = self.objective_function.evaluate_total_response(
+            x_scaled, self.channel_names
         )
 
-        logger.debug(
-            "Initialized Optimizer with %d channels and %s scenario", len(channel_names), optimization_spec.scenario
-        )
-
-    def _objective_wrapper(
-        self,
-        x: np.ndarray,
-        sign: float = -1.0,
-    ) -> Dict[str, np.ndarray]:
-        """Wraps objective function for optimizer.
-
-        Args:
-            x: Spend values
-            sign: Direction of optimization (-1 for maximize, 1 for minimize)
-
-        Returns:
-            Dict with objective and gradient values
-        """
-        total_response, channel_responses, gradients = self.objective.evaluate_total_response(x, self.channel_names)
-
+        # We minimize negative response (maximizing response)
         return {
-            "objective": sign * total_response,
-            "gradient": sign * gradients,
+            "objective": -total_response,
+            "gradient": -gradients * scale,  # Scale gradients
             "objective_channel": channel_responses,
         }
 
+    def _check_constraint_bounds(self, x: np.ndarray) -> bool:
+        """Verifies if solution respects all constraints."""
+        total_spend = np.sum(x)
+        budget_ok = abs(total_spend - self.total_budget) < 1e-6
+        bounds_ok = np.all(x >= self.lower_bounds) and np.all(x <= self.upper_bounds)
+        return budget_ok and bounds_ok
+
     def optimize(self) -> Tuple[np.ndarray, Dict, np.ndarray]:
         """Runs optimization."""
-        logger.info("Starting optimization")
+        print("\nStarting optimization...")
 
-        # Use log scaling for better numerical stability
+        # Calculate scale factor for numerical stability
         scale = np.mean(np.abs(self.initial_spend))
+        if scale == 0:
+            scale = 1.0
+
+        # Scale values
         x0_scaled = self.initial_spend / scale
         lb_scaled = self.lower_bounds / scale
         ub_scaled = self.upper_bounds / scale
         budget_scaled = self.total_budget / scale
 
-        # Add constraint scaling factor
-        constraint_scale = self.total_budget
+        print(f"\nScaling parameters:")
+        print(f"Scale factor: {scale}")
+        print(f"Initial scaled: {x0_scaled}")
+        print(f"Bounds scaled: [{lb_scaled}, {ub_scaled}]")
+        print(f"Budget scaled: {budget_scaled}")
 
-        # Modified constraints with better scaling
-        constraints = [
-            {
-                "type": "eq" if self.optimization_spec.constr_mode == "eq" else "ineq",
-                "fun": lambda x: (np.sum(x * scale) - self.total_budget) / constraint_scale,
-                "jac": lambda x: np.ones_like(x) * scale / constraint_scale,
-            }
-        ]
+        # Store best result
+        best_result = None
+        best_value = float("inf")
 
-        # Modified optimization parameters
-        options = {
-            "maxiter": 1000,
-            "ftol": 1e-8,
-            "disp": True,
-            "iprint": 2,
-            "eps": 1e-4,  # Larger step size for finite differences
-        }
+        # Multiple optimization attempts with different starting points
+        for i in range(4):
+            print(f"\nOptimization attempt {i+1}:")
 
-        # Run optimization with better initial point perturbation
-        x0_perturbed = x0_scaled * (1 + np.random.uniform(-0.1, 0.1, len(x0_scaled)))
+            # Perturb initial point while respecting constraints
+            x0_perturbed = np.clip(
+                x0_scaled * (1 + np.random.uniform(-0.2, 0.2, len(x0_scaled))), lb_scaled, ub_scaled
+            )
+            # Normalize to match budget constraint
+            x0_perturbed = x0_perturbed * (budget_scaled / np.sum(x0_perturbed))
+            print(f"Starting point: {x0_perturbed}")
 
-        result = optimize.minimize(
-            fun=lambda x: -self.objective_function.evaluate_total_response(x * scale, self.channel_names)[0],
-            x0=x0_perturbed,
-            method="SLSQP",
-            jac=lambda x: -self.objective_function.evaluate_total_response(x * scale, self.channel_names)[2] * scale,
-            bounds=optimize.Bounds(lb_scaled, ub_scaled),
-            constraints=constraints,
-            options=options,
-        )
+            result = optimize.minimize(
+                fun=lambda x: self._objective_wrapper(x, scale)["objective"],
+                x0=x0_perturbed,
+                method="SLSQP",
+                jac=lambda x: self._objective_wrapper(x, scale)["gradient"],
+                bounds=optimize.Bounds(lb_scaled, ub_scaled),
+                constraints=[
+                    {
+                        "type": "eq" if self.optimization_spec.constr_mode == "eq" else "ineq",
+                        "fun": lambda x: (np.sum(x * scale) - self.total_budget) / self.total_budget,
+                        "jac": lambda x: np.ones_like(x) * scale / self.total_budget,
+                    }
+                ],
+                options={
+                    "maxiter": 1000,
+                    "ftol": 1e-8,
+                    "disp": True,
+                    "iprint": 2,
+                },
+            )
 
-        # If first attempt doesn't improve, try with different initial points
-        if result.fun >= -self.objective_function.evaluate_total_response(self.initial_spend, self.channel_names)[0]:
-            best_result = result
-            for _ in range(3):
-                x0_new = x0_scaled * (1 + np.random.uniform(-0.2, 0.2, len(x0_scaled)))
-                temp_result = optimize.minimize(
-                    fun=lambda x: -self.objective_function.evaluate_total_response(x * scale, self.channel_names)[0],
-                    x0=x0_new,
-                    method="SLSQP",
-                    jac=lambda x: -self.objective_function.evaluate_total_response(x * scale, self.channel_names)[2]
-                    * scale,
-                    bounds=optimize.Bounds(lb_scaled, ub_scaled),
-                    constraints=constraints,
-                    options=options,
-                )
-                if temp_result.fun < best_result.fun:
-                    best_result = temp_result
-            result = best_result
+            print(f"Attempt {i+1} results:")
+            print(f"Success: {result.success}")
+            print(f"Message: {result.message}")
+            print(f"Function value: {result.fun}")
+            print(f"Solution: {result.x * scale}")
+
+            if result.success and result.fun < best_value:
+                if self._check_constraint_bounds(result.x * scale):
+                    best_value = result.fun
+                    best_result = result
+
+        if best_result is None:
+            raise RuntimeError("Optimization failed to produce valid results")
 
         # Unscale the solution
-        optimal_spend = result.x * scale
+        optimal_spend = best_result.x * scale
 
-        return optimal_spend, vars(result), self._calculate_responses(optimal_spend)
+        # Calculate final responses
+        final_responses = self._calculate_responses(optimal_spend)
+
+        print("\nOptimization complete:")
+        print(f"Initial spend: {self.initial_spend}")
+        print(f"Optimal spend: {optimal_spend}")
+        print(f"Initial objective: {self._objective_wrapper(x0_scaled, scale)['objective']}")
+        print(f"Final objective: {best_result.fun}")
+        print(
+            f"Improvement: {(self._objective_wrapper(x0_scaled, scale)['objective'] - best_result.fun)/abs(self._objective_wrapper(x0_scaled, scale)['objective']):.2%}"
+        )
+
+        return optimal_spend, vars(best_result), final_responses
 
     def _get_constraints(self, budget_scaled: float) -> List[Dict]:
         """Gets optimization constraints."""
@@ -153,13 +177,11 @@ class Optimizer:
         return constraints
 
     def _calculate_responses(self, spend_values: np.ndarray) -> np.ndarray:
-        """Calculates responses for given spend values.
+        """Calculates responses for given spend values."""
+        print("\nCalculating final responses:")
+        print(f"Input spend values: {spend_values}")
 
-        Args:
-            spend_values: Array of spend values
-
-        Returns:
-            Array of response values per channel
-        """
         _, channel_responses, _ = self.objective_function.evaluate_total_response(spend_values, self.channel_names)
+
+        print(f"Channel responses: {channel_responses}")
         return channel_responses

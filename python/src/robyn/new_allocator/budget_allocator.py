@@ -236,22 +236,7 @@ class BudgetAllocator:
         constr_mode: str = "eq",
         target_value: Optional[float] = None,
     ) -> OptimizationResult:
-        """Runs budget allocation optimization.
-
-        Args:
-            scenario: Optimization scenario ("max_response" or "target_efficiency")
-            total_budget: Total marketing budget (optional)
-            date_range: Date range for allocation
-            channel_constraints_low: Lower bounds for channel constraints
-            channel_constraints_up: Upper bounds for channel constraints
-            channel_constraint_multiplier: Multiplier for constraint ranges
-            max_eval: Maximum optimization iterations
-            constr_mode: Constraint mode ("eq" or "ineq")
-            target_value: Target value for efficiency scenario
-
-        Returns:
-            OptimizationResult object containing allocation results
-        """
+        """Runs budget allocation optimization."""
         logger.info(f"Starting budget allocation with scenario: {scenario}")
 
         print("\nRunning budget allocation")
@@ -316,7 +301,6 @@ class BudgetAllocator:
 
         # Validate optimization results
         final_response = self.objective_function.evaluate_total_response(optimal_spend, self.paid_media_vars)[0]
-
         improvement = (final_response - initial_response) / abs(initial_response)
 
         if improvement < 0.001:  # Less than 0.1% improvement
@@ -349,15 +333,38 @@ class BudgetAllocator:
             dt_optim_out["optmResponseUnitTotal"] / dt_optim_out["initResponseUnitTotal"] - 1
         )
 
-        # Calculate ROI metrics
-        if self.input_collect.dep_var_type == "revenue":
+        # Calculate ROI/CPA metrics
+        dep_var_type = self.input_collect.mmmdata_spec.dep_var_type
+        if dep_var_type == "revenue":
             dt_optim_out["optmRoiUnit"] = dt_optim_out["optmResponseUnit"] / dt_optim_out["optmSpendUnit"]
             dt_optim_out["initRoiUnit"] = dt_optim_out["initResponseUnit"] / dt_optim_out["initSpendUnit"]
         else:  # conversion/CPA case
             dt_optim_out["optmCpaUnit"] = dt_optim_out["optmSpendUnit"] / dt_optim_out["optmResponseUnit"]
             dt_optim_out["initCpaUnit"] = dt_optim_out["initSpendUnit"] / dt_optim_out["initResponseUnit"]
 
-        # Create result object
+        # Print optimization results
+        print("\nOptimization Results:")
+        print(f"Initial total spend: {optim_inputs['initial_spend'].sum():.2f}")
+        print(f"Optimal total spend: {optimal_spend.sum():.2f}")
+        print(f"Initial total response: {initial_response:.2f}")
+        print(f"Final total response: {final_response:.2f}")
+        print(f"Improvement: {improvement:.2%}")
+
+        # Calculate final budget value properly handling pandas DataFrame
+        if total_budget is None:
+            # Sum each row, then sum all rows to get total spend
+            row_sums = optim_inputs["hist_spend"].sum(axis=1)  # Sum across columns for each row
+            final_budget = float(row_sums.sum())  # Sum all row totals
+            print(f"\nCalculated budget from historical spend: {final_budget}")
+        else:
+            # Handle the case where total_budget might be a pandas Series
+            if isinstance(total_budget, pd.Series):
+                final_budget = float(total_budget.iloc[0])
+            else:
+                final_budget = float(total_budget)
+            print(f"\nUsing provided budget: {final_budget}")
+
+        # Create result object with properly typed budget value
         result = OptimizationResult(
             dt_optim_out=dt_optim_out,
             main_points={},  # Can be expanded if needed
@@ -365,7 +372,7 @@ class BudgetAllocator:
             plots=AllocationPlots(),
             scenario=scenario,
             usecase=self._determine_usecase(date_range),
-            total_budget=total_budget,
+            total_budget=final_budget,  # Use the properly typed value
             skipped_coef0=[],  # Add if implementing coefficient filtering
             skipped_constr=[],  # Add if implementing constraint filtering
             no_spend=[],  # Add if implementing zero spend detection
@@ -373,8 +380,6 @@ class BudgetAllocator:
 
         logger.info("Budget allocation completed successfully")
         return result
-
-    # Example usage in budget_allocator.py
 
     def _create_allocation_plots(
         self,
@@ -456,57 +461,64 @@ class BudgetAllocator:
         channel_responses: np.ndarray,
         hist_spend: pd.DataFrame,
     ) -> Dict:
-        """Calculates metrics for optimization results.
+        """Calculates metrics for optimization results."""
+        # Get date range info
+        date_range = pd.date_range(
+            hist_spend.index.min(), hist_spend.index.max(), freq=self.input_collect.mmmdata_spec.date_frequency
+        )
+        periods = len(date_range)
 
-        Args:
-            optimal_spend: Optimized spend values
-            initial_spend: Initial spend values
-            channel_responses: Channel response values
-            hist_spend: Historical spend data
+        # Calculate historical metrics
+        hist_spend_means = hist_spend[self.paid_media_vars].mean()
+        hist_spend_total = hist_spend_means.sum()
 
-        Returns:
-            Dictionary of calculated metrics
-        """
-        # Identify channels to skip
-        coef_dict = self._get_response_coefficients()
-        skipped_coef0 = [channel for channel, coef in coef_dict.items() if coef == 0]
-
-        skipped_constr = [
-            channel
-            for channel, spend in zip(self.paid_media_vars, optimal_spend)
-            if spend == 0 and channel not in skipped_coef0
-        ]
-
-        no_spend = [channel for channel in self.paid_media_vars if hist_spend[channel].sum() == 0]
-
-        # Calculate allocation metrics
+        # Calculate allocation metrics matching R output
         allocation_df = pd.DataFrame(
             {
-                "channel": self.paid_media_vars,
-                "optimal_spend": optimal_spend,
-                "initial_spend": initial_spend,
-                "response": channel_responses,
-                "spend_share": optimal_spend / optimal_spend.sum(),
-                "response_share": channel_responses / channel_responses.sum(),
-                "roi": MathUtils.calculate_roi(channel_responses, optimal_spend),
+                "channels": self.paid_media_vars,
+                "solID": [self.select_model] * len(self.paid_media_vars),
+                "dep_var_type": [self.input_collect.mmmdata_spec.dep_var_type] * len(self.paid_media_vars),
+                "date_min": [hist_spend.index.min()] * len(self.paid_media_vars),
+                "date_max": [hist_spend.index.max()] * len(self.paid_media_vars),
+                "periods": [f"{periods} {self.input_collect.mmmdata_spec.date_frequency}s"]
+                * len(self.paid_media_vars),
+                # Historical spend metrics
+                "histSpendAll": hist_spend_means * periods,
+                "histSpendAllTotal": hist_spend_total * periods,
+                "histSpendAllUnit": hist_spend_means,
+                "histSpendAllUnitTotal": hist_spend_total,
+                "histSpendAllShare": hist_spend_means / hist_spend_total,
+                # Current metrics
+                "initSpendUnit": initial_spend,
+                "initSpendUnitTotal": initial_spend.sum(),
+                "initSpendShare": initial_spend / initial_spend.sum(),
+                "initSpendTotal": initial_spend.sum() * periods,
+                # Response metrics
+                "initResponseUnit": channel_responses,
+                "initResponseUnitTotal": channel_responses.sum(),
+                "initResponseTotal": channel_responses.sum() * periods,
+                # Optimized metrics
+                "optmSpendUnit": optimal_spend,
+                "optmSpendUnitTotal": optimal_spend.sum(),
+                "optmSpendShareUnit": optimal_spend / optimal_spend.sum(),
+                "optmSpendTotal": optimal_spend.sum() * periods,
+                "optmResponseUnit": channel_responses,
+                "optmResponseUnitTotal": channel_responses.sum(),
+                "optmResponseTotal": channel_responses.sum() * periods,
             }
         )
 
-        # Calculate main points for response curves
-        main_points = {
-            "initial": {"spend": initial_spend, "response": channel_responses},
-            "optimal": {"spend": optimal_spend, "response": channel_responses},
-        }
+        # Calculate ROI/CPA metrics
+        if self.input_collect.mmmdata_spec.dep_var_type == "revenue":
+            allocation_df["optmRoiUnit"] = allocation_df["optmResponseUnit"] / allocation_df["optmSpendUnit"]
+            allocation_df["initRoiUnit"] = allocation_df["initResponseUnit"] / allocation_df["initSpendUnit"]
+        else:
+            allocation_df["optmCpaUnit"] = allocation_df["optmSpendUnit"] / allocation_df["optmResponseUnit"]
+            allocation_df["initCpaUnit"] = allocation_df["initSpendUnit"] / allocation_df["initResponseUnit"]
 
-        return {
-            "allocation_df": allocation_df,
-            "main_points": main_points,
-            "total_spend": optimal_spend.sum(),
-            "total_response": channel_responses.sum(),
-            "skipped_coef0": skipped_coef0,
-            "skipped_constr": skipped_constr,
-            "no_spend": no_spend,
-        }
+        print("\nAllocation DataFrame:")
+        print(allocation_df.head())
+        return allocation_df
 
     def _determine_usecase(self, date_range: str) -> str:
         """Determines optimization use case based on date range.

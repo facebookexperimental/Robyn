@@ -49,11 +49,13 @@ class OptimizationResult:
         if self.dt_optim_out.empty:
             logger.warning("Optimization output DataFrame is empty")
 
-        if not isinstance(self.total_budget, (int, float)) or self.total_budget < 0:
-            raise ValueError("Total budget must be a non-negative number")
+        # Total budget can be None in R implementation
+        if self.total_budget is not None:
+            if not isinstance(self.total_budget, (int, float)) or self.total_budget < 0:
+                raise ValueError("Total budget when provided must be a non-negative number")
 
         if self.scenario not in ["max_response", "target_efficiency"]:
-            raise ValueError(f"Invalid scenario '{self.scenario}'. " "Must be 'max_response' or 'target_efficiency'")
+            raise ValueError(f"Invalid scenario '{self.scenario}'. Must be 'max_response' or 'target_efficiency'")
 
     def _standardize_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
         """Standardizes column names to match R implementation."""
@@ -77,13 +79,13 @@ class OptimizationResult:
             if old_name in df.columns:
                 df = df.rename(columns={old_name: new_name})
 
-        # Calculate additional metrics if needed
+        # Calculate total metrics if needed
         if "optmSpendUnitTotal" not in df.columns:
             df["optmSpendUnitTotal"] = df["optmSpendUnit"].sum()
         if "optmResponseUnitTotal" not in df.columns:
             df["optmResponseUnitTotal"] = df["optmResponseUnit"].sum()
-        if "optmResponseUnitTotalLift" not in df.columns:
-            df["optmResponseUnitTotalLift"] = df["optmResponseUnit"].sum() / df["initSpendUnit"].sum() - 1
+        if "optmResponseUnitTotalLift" not in df.columns and "initResponseUnit" in df.columns:
+            df["optmResponseUnitTotalLift"] = df["optmResponseUnit"].sum() / df["initResponseUnit"].sum() - 1
 
         return df
 

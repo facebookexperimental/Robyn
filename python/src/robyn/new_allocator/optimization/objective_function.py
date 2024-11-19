@@ -19,14 +19,7 @@ class ObjectiveFunction:
         gammas_dict: Dict[str, float],
         hist_carryover_dict: Dict[str, np.ndarray],
     ) -> None:
-        """Initialize objective function calculator.
-
-        Args:
-            coef_dict: Channel coefficients from MMM
-            alphas_dict: Alpha parameters for hill function
-            gammas_dict: Gamma parameters for hill function
-            hist_carryover_dict: Historical carryover effect per channel
-        """
+        """Initialize objective function calculator."""
         self.coef_dict = coef_dict
         self.alphas_dict = alphas_dict
         self.gammas_dict = gammas_dict
@@ -43,17 +36,17 @@ class ObjectiveFunction:
         alpha = self.alphas_dict[f"{channel_name}_alphas"]
         gamma = self.gammas_dict[f"{channel_name}_gammas"]
 
-        # Add debugging
         print(f"Parameters: coef={coef}, alpha={alpha}, gamma={gamma}")
 
-        # Calculate response
-        x_adstocked = x + np.mean(self.hist_carryover_dict[channel_name])
-        x_scaled = x_adstocked / gamma
-        hill_response = 1 / (1 + (1 / x_scaled) ** alpha)
-        response = coef * hill_response
+        # Add historical carryover effect
+        x_hist_carryover = np.mean(self.hist_carryover_dict[channel_name])
+        x_adstocked = x + x_hist_carryover
+
+        # Hill transformation exactly matching R implementation
+        hill_term = (gamma / x_adstocked) ** alpha
+        response = coef / (1 + hill_term)
 
         print(f"Response: {response}")
-
         return float(np.sum(response)) if get_sum else response
 
     def calculate_gradient(
@@ -105,26 +98,27 @@ class ObjectiveFunction:
         x: np.ndarray,
         channel_names: List[str],
     ) -> Tuple[float, np.ndarray, np.ndarray]:
-        """Evaluates total response across all channels.
+        """Evaluates total response across all channels."""
+        print(f"\nTotal response evaluation:")
+        print(f"Spend values: {x}")
 
-        Args:
-            x: Array of spend values
-            channel_names: List of channel names
-
-        Returns:
-            Tuple of (total_response, channel_responses, gradients)
-        """
         channel_responses = np.zeros(len(channel_names))
         gradients = np.zeros(len(channel_names))
 
         for i, channel in enumerate(channel_names):
             channel_responses[i] = self.calculate_response(x=np.array([x[i]]), channel_name=channel)
-            gradients[i] = self.calculate_gradient(x=np.array([x[i]]), channel_name=channel)
+            # Calculate gradient analytically
+            coef = self.coef_dict[channel]
+            alpha = self.alphas_dict[f"{channel}_alphas"]
+            gamma = self.gammas_dict[f"{channel}_gammas"]
+            x_hist_carryover = np.mean(self.hist_carryover_dict[channel])
+            x_adstocked = x[i] + x_hist_carryover
+
+            hill_term = (gamma / x_adstocked) ** alpha
+            gradients[i] = coef * alpha * hill_term / (x_adstocked * (1 + hill_term) ** 2)
 
         total_response = np.sum(channel_responses)
 
-        print(f"\nTotal response evaluation:")
-        print(f"Spend values: {x}")
         print(f"Channel responses: {channel_responses}")
         print(f"Total response: {total_response}")
         print(f"Gradients: {gradients}")
