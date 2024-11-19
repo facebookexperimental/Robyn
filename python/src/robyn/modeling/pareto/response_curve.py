@@ -92,7 +92,9 @@ class ResponseCurveCalculator:
         dt_coef: pd.DataFrame = pd.DataFrame(),
     ) -> ResponseOutput:
         logger.debug("Starting response calculation for metric: %s", metric_name)
-        logger.debug("Input parameters - model: %s, date_range: %s", select_model, date_range)
+        logger.debug(
+            "Input parameters - model: %s, date_range: %s", select_model, date_range
+        )
 
         # Determine the use case based on input parameters
         usecase = self._which_usecase(metric_value, date_range)
@@ -110,7 +112,9 @@ class ResponseCurveCalculator:
             ds_list = self._check_metric_dates(date_range, all_dates, quiet)
             logger.debug("Date range processed: %s", ds_list)
 
-            val_list = self._check_metric_value(metric_value, metric_name, all_values, ds_list.metric_loc)
+            val_list = self._check_metric_value(
+                metric_value, metric_name, all_values, ds_list.metric_loc
+            )
             logger.debug("Metric values processed: %s", val_list)
         except ValueError as e:
             logger.error("Error processing dates or values: %s", e)
@@ -138,12 +142,18 @@ class ResponseCurveCalculator:
 
         # Apply adstock transformation
         adstockType = self.hyperparameter.adstock
-        channel_hyperparams = self._get_channel_hyperparams(select_model, hpm_name, dt_hyppar)
+        channel_hyperparams = self._get_channel_hyperparams(
+            select_model, hpm_name, dt_hyppar
+        )
         logger.debug("Applying adstock transformation with type: %s", adstockType)
 
         try:
-            x_list = self.transformation.transform_adstock(media_vec_origin, adstockType, channel_hyperparams)
-            x_list_sim = self.transformation.transform_adstock(all_values_updated, adstockType, channel_hyperparams)
+            x_list = self.transformation.transform_adstock(
+                media_vec_origin, adstockType, channel_hyperparams
+            )
+            x_list_sim = self.transformation.transform_adstock(
+                all_values_updated, adstockType, channel_hyperparams
+            )
         except Exception as e:
             logger.error("Error in adstock transformation: %s", e)
             raise
@@ -198,7 +208,9 @@ class ResponseCurveCalculator:
         # Calculate final response values
         logger.debug("Calculating final response values")
         try:
-            coeff = dt_coef[(dt_coef["sol_id"] == select_model) & (dt_coef["rn"] == hpm_name)]["coef"].values[0]
+            coeff = dt_coef[
+                (dt_coef["sol_id"] == select_model) & (dt_coef["rn"] == hpm_name)
+            ]["coef"].values[0]
 
             m_saturated = self.transformation.saturation_hill(
                 m_adstockedRW, hill_params.alphas[0], hill_params.gammas[0]
@@ -248,11 +260,15 @@ class ResponseCurveCalculator:
                 )
             elif isinstance(metric_value, (int, float)):
                 usecase = (
-                    UseCase.TOTAL_METRIC_DEFAULT_RANGE if date_range is None else UseCase.TOTAL_METRIC_SELECTED_RANGE
+                    UseCase.TOTAL_METRIC_DEFAULT_RANGE
+                    if date_range is None
+                    else UseCase.TOTAL_METRIC_SELECTED_RANGE
                 )
             elif isinstance(metric_value, (list, np.ndarray)):
                 usecase = (
-                    UseCase.UNIT_METRIC_DEFAULT_LAST_N if date_range is None else UseCase.UNIT_METRIC_SELECTED_DATES
+                    UseCase.UNIT_METRIC_DEFAULT_LAST_N
+                    if date_range is None
+                    else UseCase.UNIT_METRIC_SELECTED_DATES
                 )
             else:
                 raise ValueError(f"Invalid metric_value type: {type(metric_value)}")
@@ -263,7 +279,9 @@ class ResponseCurveCalculator:
             logger.error("Error determining use case: %s", e)
             raise
 
-    def _check_metric_type(self, metric_name: str) -> Literal["spend", "exposure", "organic"]:
+    def _check_metric_type(
+        self, metric_name: str
+    ) -> Literal["spend", "exposure", "organic"]:
         logger.debug("Checking metric type for: %s", metric_name)
 
         try:
@@ -285,7 +303,9 @@ class ResponseCurveCalculator:
 
     # [Previous code remains the same until _check_metric_type...]
 
-    def _check_metric_dates(self, date_range: Optional[str], all_dates: pd.Series, quiet: bool) -> MetricDateInfo:
+    def _check_metric_dates(
+        self, date_range: Optional[str], all_dates: pd.Series, quiet: bool
+    ) -> MetricDateInfo:
         logger.debug("Checking metric dates - date_range: %s", date_range)
 
         try:
@@ -311,9 +331,15 @@ class ResponseCurveCalculator:
                 raise ValueError(f"Invalid date_range: {date_range}")
 
             if not quiet:
-                logger.debug("Date range selected: %s to %s", date_range_updated.iloc[0], date_range_updated.iloc[-1])
+                logger.debug(
+                    "Date range selected: %s to %s",
+                    date_range_updated.iloc[0],
+                    date_range_updated.iloc[-1],
+                )
 
-            result = MetricDateInfo(metric_loc=metric_loc, date_range_updated=date_range_updated)
+            result = MetricDateInfo(
+                metric_loc=metric_loc, date_range_updated=date_range_updated
+            )
             logger.debug("Metric dates processed: %s", result)
             return result
 
@@ -340,9 +366,13 @@ class ResponseCurveCalculator:
                 metric_value_updated = all_values[metric_loc]
             elif isinstance(metric_value, (int, float)):
                 logger.debug("Using constant value: %f", metric_value)
-                metric_value_updated = np.full(len(all_values[metric_loc]), metric_value)
+                metric_value_updated = np.full(
+                    len(all_values[metric_loc]), metric_value
+                )
             else:
-                logger.debug("Using provided value array of length %d", len(metric_value))
+                logger.debug(
+                    "Using provided value array of length %d", len(metric_value)
+                )
                 metric_value_updated = np.array(metric_value)
                 if len(metric_value_updated) != len(all_values[metric_loc]):
                     logger.error(
@@ -358,7 +388,10 @@ class ResponseCurveCalculator:
             all_values_updated = all_values.copy()
             all_values_updated[metric_loc] = metric_value_updated
 
-            result = MetricValueInfo(metric_value_updated=metric_value_updated, all_values_updated=all_values_updated)
+            result = MetricValueInfo(
+                metric_value_updated=metric_value_updated,
+                all_values_updated=all_values_updated,
+            )
             logger.debug("Metric value processing complete: %s", result)
             return result
 
@@ -381,14 +414,18 @@ class ResponseCurveCalculator:
             temp = spend_expo_mod[spend_expo_mod["channel"] == metric_name]
 
             logger.debug(
-                "Found model parameters - rsq_nls: %f, rsq_lm: %f", temp["rsq_nls"].values[0], temp["rsq_lm"].values[0]
+                "Found model parameters - rsq_nls: %f, rsq_lm: %f",
+                temp["rsq_nls"].values[0],
+                temp["rsq_lm"].values[0],
             )
 
             if temp["rsq_nls"].values[0] > temp["rsq_lm"].values[0]:
                 logger.debug("Using non-linear least squares model")
                 Vmax = temp["Vmax"].values[0]
                 Km = temp["Km"].values[0]
-                input_immediate = Km * metric_value_updated / (Vmax - metric_value_updated)
+                input_immediate = (
+                    Km * metric_value_updated / (Vmax - metric_value_updated)
+                )
             else:
                 logger.debug("Using linear model")
                 coef_lm = temp["coef_lm"].values[0]
@@ -417,7 +454,11 @@ class ResponseCurveCalculator:
     def _get_channel_hyperparams(
         self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame
     ) -> ChannelHyperparameters:
-        logger.debug("Getting channel hyperparameters for model: %s, metric: %s", select_model, hpm_name)
+        logger.debug(
+            "Getting channel hyperparameters for model: %s, metric: %s",
+            select_model,
+            hpm_name,
+        )
 
         try:
             adstock_type = self.hyperparameter.adstock
@@ -425,15 +466,21 @@ class ResponseCurveCalculator:
 
             if adstock_type == AdstockType.GEOMETRIC:
                 logger.debug("Using geometric adstock type")
-                params.thetas = dt_hyppar[dt_hyppar["sol_id"] == select_model][f"{hpm_name}_thetas"].values
+                params.thetas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
+                    f"{hpm_name}_thetas"
+                ].values
             elif adstock_type in [
                 AdstockType.WEIBULL,
                 AdstockType.WEIBULL_CDF,
                 AdstockType.WEIBULL_PDF,
             ]:
                 logger.debug("Using Weibull adstock type: %s", adstock_type)
-                params.shapes = dt_hyppar[dt_hyppar["sol_id"] == select_model][f"{hpm_name}_shapes"].values
-                params.scales = dt_hyppar[dt_hyppar["sol_id"] == select_model][f"{hpm_name}_scales"].values
+                params.shapes = dt_hyppar[dt_hyppar["sol_id"] == select_model][
+                    f"{hpm_name}_shapes"
+                ].values
+                params.scales = dt_hyppar[dt_hyppar["sol_id"] == select_model][
+                    f"{hpm_name}_scales"
+                ].values
 
             logger.debug("Channel hyperparameters retrieved successfully")
             return params
@@ -445,14 +492,26 @@ class ResponseCurveCalculator:
     def _get_saturation_params(
         self, select_model: str, hpm_name: str, dt_hyppar: pd.DataFrame
     ) -> ChannelHyperparameters:
-        logger.debug("Getting saturation parameters for model: %s, metric: %s", select_model, hpm_name)
+        logger.debug(
+            "Getting saturation parameters for model: %s, metric: %s",
+            select_model,
+            hpm_name,
+        )
 
         try:
             params = ChannelHyperparameters()
-            params.alphas = dt_hyppar[dt_hyppar["sol_id"] == select_model][f"{hpm_name}_alphas"].values
-            params.gammas = dt_hyppar[dt_hyppar["sol_id"] == select_model][f"{hpm_name}_gammas"].values
+            params.alphas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
+                f"{hpm_name}_alphas"
+            ].values
+            params.gammas = dt_hyppar[dt_hyppar["sol_id"] == select_model][
+                f"{hpm_name}_gammas"
+            ].values
 
-            logger.debug("Saturation parameters - alphas: %s, gammas: %s", params.alphas, params.gammas)
+            logger.debug(
+                "Saturation parameters - alphas: %s, gammas: %s",
+                params.alphas,
+                params.gammas,
+            )
             return params
 
         except Exception as e:
@@ -478,8 +537,12 @@ class ResponseCurveCalculator:
         try:
             fig, ax = plt.subplots(figsize=(10, 6))
 
-            ax.plot(m_adstockedRW, m_response, color="steelblue", label="Response curve")
-            ax.scatter(input_total, response_total, color="red", s=50, label="Total response")
+            ax.plot(
+                m_adstockedRW, m_response, color="steelblue", label="Response curve"
+            )
+            ax.scatter(
+                input_total, response_total, color="red", s=50, label="Total response"
+            )
 
             if len(np.unique(input_total)) == 1:
                 logger.debug("Adding single-point response details to plot")

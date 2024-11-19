@@ -1,4 +1,4 @@
-#pyre-strict
+# pyre-strict
 """Allocation configuration entities."""
 from dataclasses import dataclass
 from typing import Optional, Union, List

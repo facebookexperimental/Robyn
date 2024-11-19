@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Any
 import pandas as pd
-from robyn.data.entities.enums import ContextSigns, DependentVarType, OrganicSigns, PaidMediaSigns
+from robyn.data.entities.enums import (
+    ContextSigns,
+    DependentVarType,
+    OrganicSigns,
+    PaidMediaSigns,
+)
 
 
 @dataclass
@@ -107,7 +112,9 @@ class MMMData:
                 if hasattr(self, key):
                     setattr(self, key, value)
                 else:
-                    raise AttributeError(f"{key} is not a valid attribute of MMMDataSpec")
+                    raise AttributeError(
+                        f"{key} is not a valid attribute of MMMDataSpec"
+                    )
 
     def __init__(self, data: pd.DataFrame, mmmdata_spec: MMMDataSpec) -> None:
         """
@@ -188,7 +195,9 @@ class MMMData:
 
     def calculate_rolling_window_indices(self) -> None:
         # Ensure the date column is in datetime format
-        self.data[self.mmmdata_spec.date_var] = pd.to_datetime(self.data[self.mmmdata_spec.date_var])
+        self.data[self.mmmdata_spec.date_var] = pd.to_datetime(
+            self.data[self.mmmdata_spec.date_var]
+        )
         # Convert window_start and window_end to datetime if they are strings
         window_start = (
             pd.to_datetime(self.mmmdata_spec.window_start)
@@ -211,5 +220,7 @@ class MMMData:
                 (self.data[self.mmmdata_spec.date_var] - window_end).abs().idxmin()
             )
 
-        print(f"Rolling Window Start Index: {self.mmmdata_spec.rolling_window_start_which}")
+        print(
+            f"Rolling Window Start Index: {self.mmmdata_spec.rolling_window_start_which}"
+        )
         print(f"Rolling Window End Index: {self.mmmdata_spec.rolling_window_end_which}")

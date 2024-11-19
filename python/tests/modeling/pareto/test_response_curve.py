@@ -34,30 +34,32 @@ class TestResponseCurveCalculator(unittest.TestCase):
 
     def test_calculate_response(self):
         # Mock data setup
-        self.mock_mmm_data.data = pd.DataFrame({
-            "spend_metric": [1, 2, 3, 4, 5],
-            "date_var": pd.date_range("2020-01-01", periods=5),
-        })
+        self.mock_mmm_data.data = pd.DataFrame(
+            {
+                "spend_metric": [1, 2, 3, 4, 5],
+                "date_var": pd.date_range("2020-01-01", periods=5),
+            }
+        )
         self.mock_mmm_data.mmmdata_spec.date_var = "date_var"
         self.mock_mmm_data.mmmdata_spec.paid_media_spends = ["spend_metric"]
         self.mock_mmm_data.mmmdata_spec.paid_media_vars = ["exposure_metric"]
         self.mock_mmm_data.mmmdata_spec.organic_vars = ["organic_metric"]
-        self.mock_mmm_data.mmmdata_spec.rolling_window_start_which = 0 
-        self.mock_mmm_data.mmmdata_spec.rolling_window_end_which = 5 
+        self.mock_mmm_data.mmmdata_spec.rolling_window_start_which = 0
+        self.mock_mmm_data.mmmdata_spec.rolling_window_end_which = 5
         select_model = "model1"
         metric_name = "spend_metric"
         metric_value = [100, 200, 300, 400, 500]
         date_range = "all"
-        dt_hyppar = pd.DataFrame({
-            "sol_id": ["model1"],
-            "spend_metric_alphas": [0.1],
-            "spend_metric_gammas": [0.2]
-        })
-        dt_coef = pd.DataFrame({
-            "sol_id": ["model1"],
-            "rn": ["spend_metric"],
-            "coef": [0.5]
-        })
+        dt_hyppar = pd.DataFrame(
+            {
+                "sol_id": ["model1"],
+                "spend_metric_alphas": [0.1],
+                "spend_metric_gammas": [0.2],
+            }
+        )
+        dt_coef = pd.DataFrame(
+            {"sol_id": ["model1"], "rn": ["spend_metric"], "coef": [0.5]}
+        )
         # Mock the transformation methods
         self.calculator.transformation = MagicMock()  # Ensure transformation is a mock
         self.calculator.transformation.transform_adstock.return_value = MagicMock(
