@@ -100,62 +100,49 @@ class AllocatorPlotter:
     def _plot_budget_comparison(
         self, dt_optimOut: "OptimOutData", config: PlotConfig
     ) -> plt.Figure:
-        """Plot budget comparison with total values scaled by periods."""
+        """Plot budget comparison with raw values and summary stats."""
         fig, ax = plt.subplots(figsize=(12, 6))
-
-        # Get number of periods to scale up
-        n_periods = int(dt_optimOut.periods.split()[0])
 
         # Calculate totals and metrics for each scenario
         scenarios = {
             "Initial": {
-                "spend": dt_optimOut.init_spend_unit.sum() * n_periods,
-                "response": dt_optimOut.init_response_unit.sum() * n_periods,
+                "spend": dt_optimOut.init_spend_unit.sum(),
+                "response": dt_optimOut.init_response_unit.sum(),
             },
             "Bounded": {
-                "spend": dt_optimOut.optm_spend_unit.sum() * n_periods,
-                "response": dt_optimOut.optm_response_unit.sum() * n_periods,
+                "spend": dt_optimOut.optm_spend_unit.sum(),
+                "response": dt_optimOut.optm_response_unit.sum(),
             },
             "Bounded x3": {
-                "spend": dt_optimOut.optm_spend_unit_unbound.sum() * n_periods,
-                "response": dt_optimOut.optm_response_unit_unbound.sum() * n_periods,
+                "spend": dt_optimOut.optm_spend_unit_unbound.sum(),
+                "response": dt_optimOut.optm_response_unit_unbound.sum(),
             },
         }
 
         # Calculate summary metrics
         for scenario in scenarios:
-            if scenario == "Initial":
-                scenarios[scenario].update(
-                    {
-                        "spend_pct_change": 0,
-                        "response_pct_change": 0,
-                    }
-                )
-            else:
-                scenarios[scenario].update(
-                    {
-                        "spend_pct_change": (
-                            scenarios[scenario]["spend"] / scenarios["Initial"]["spend"]
-                            - 1
-                        )
-                        * 100,
-                        "response_pct_change": (
-                            scenarios[scenario]["response"]
-                            / scenarios["Initial"]["response"]
-                            - 1
-                        )
-                        * 100,
-                    }
-                )
-            scenarios[scenario]["roas"] = (
-                scenarios[scenario]["response"] / scenarios[scenario]["spend"]
+            scenarios[scenario].update(
+                {
+                    "spend_pct_change": (
+                        scenarios[scenario]["spend"] / scenarios["Initial"]["spend"] - 1
+                    )
+                    * 100,
+                    "response_pct_change": (
+                        scenarios[scenario]["response"]
+                        / scenarios["Initial"]["response"]
+                        - 1
+                    )
+                    * 100,
+                    "roas": scenarios[scenario]["response"]
+                    / scenarios[scenario]["spend"],
+                }
             )
 
         # Create bar plot
         x = np.arange(len(scenarios))
         width = 0.35
 
-        # Plot values scaled up by periods
+        # Plot raw values
         spend_bars = ax.bar(
             x - width / 2,
             [d["spend"] for d in scenarios.values()],
@@ -179,7 +166,7 @@ class AllocatorPlotter:
                 ax.text(
                     rect.get_x() + rect.get_width() / 2.0,
                     height,
-                    f"${height:,.0f}",
+                    f"{height:,.0f}",
                     ha="center",
                     va="bottom",
                 )
