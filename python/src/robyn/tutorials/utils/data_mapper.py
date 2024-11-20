@@ -9,7 +9,7 @@ from robyn.data.entities.enums import (
     ProphetSigns,
 )
 from robyn.data.entities.holidays_data import HolidaysData
-from robyn.data.entities.hyperparameters import Hyperparameters
+from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.convergence_data import ConvergenceData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
@@ -56,11 +56,31 @@ def import_input_collect(data: Dict[str, Any]) -> Dict[str, Any]:
         prophet_country=data.get("prophet_country"),
         prophet_signs=[ProphetSigns(s) for s in data.get("prophet_signs", [])],
     )
+    # Group parameters by channel
+    channel_params: Dict[str, Dict[str, list]] = {}
+    for key, value in data["hyperparameters"].items():
+        channel, param_type = key.rsplit("_", 1)
+        if channel not in channel_params:
+            channel_params[channel] = {}
+        channel_params[channel][param_type] = value
+
+    # Convert grouped parameters to ChannelHyperparameters objects
+    hyperparameters_dict: Dict[str, ChannelHyperparameters] = {
+        channel: ChannelHyperparameters(
+            thetas=params.get("thetas"),
+            alphas=params.get("alphas"),
+            gammas=params.get("gammas"),
+            # Add other parameters as needed
+        )
+        for channel, params in channel_params.items()
+    }
+
+    # Initialize the Hyperparameters instance
     hyperparameters = Hyperparameters(
-        hyperparameters=data.get("hyperparameters", {}),
-        adstock=AdstockType(adstock_type),
+        hyperparameters=hyperparameters_dict,
+        adstock=AdstockType(adstock_type),  # Ensure adstock_type is defined
         lambda_=data.get("lambda_", 0.0),
-        train_size=data.get("train_size", (0.5, 0.8)),
+        train_size=data.get("train_size", [0.5, 0.8]),
     )
     featurized_mmm_data = FeaturizedMMMData(
         dt_mod=pd.DataFrame(data.get("dt_mod", {})),
