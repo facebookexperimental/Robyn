@@ -270,14 +270,14 @@ class TransformationVisualizer(BaseVisualizer):
             # Add line value labels
             for i, value in enumerate(line_values):
                 ax.text(
-                    line_x[i],
+                    line_x[i] + 0.02,  # Added offset to move labels right of dots
                     y_pos[i],
                     f"{value:.2f}",
                     color=type_colour,
-                    fontweight="bold",
-                    ha='left',
+                    fontweight='bold',
+                    ha='left',  # Left align since we're positioning to the right of dots
                     va='center',
-                    zorder=4,
+                    zorder=4
                 )
 
             # Set channel labels
