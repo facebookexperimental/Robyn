@@ -517,6 +517,10 @@ class BudgetAllocator:
             optm_response_unit=bounded_response,
             optm_spend_unit_unbound=unbounded_result.solution,
             optm_response_unit_unbound=unbounded_response,
+            date_min=str(self.date_min),  # Added
+            date_max=str(self.date_max),  # Added
+            metric="ROAS" if self.dep_var_type == "revenue" else "CPA",  # Added
+            periods=f"{len(self.hist_filtered)} {self.mmm_data.mmmdata_spec.interval_type}s",  # Added
         )
 
         # Create MainPoints

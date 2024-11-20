@@ -26,6 +26,10 @@ class OptimOutData:
     optm_response_unit: np.ndarray
     optm_spend_unit_unbound: np.ndarray
     optm_response_unit_unbound: np.ndarray
+    date_min: str  # Added
+    date_max: str  # Added
+    metric: str
+    periods: str  # Added if needed
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convert optimization results to a DataFrame."""
@@ -39,6 +43,58 @@ class OptimOutData:
                 "optm_spend_unbound": self.optm_spend_unit_unbound,
                 "optm_response_unbound": self.optm_response_unit_unbound,
             }
+        )
+
+    # Share calculations
+    @property
+    def init_spend_share(self) -> np.ndarray:
+        """Calculate initial spend shares."""
+        return self.init_spend_unit / np.sum(self.init_spend_unit)
+
+    @property
+    def init_response_share(self) -> np.ndarray:
+        """Calculate initial response shares."""
+        return self.init_response_unit / np.sum(self.init_response_unit)
+
+    @property
+    def optm_spend_share_unit(self) -> np.ndarray:
+        """Calculate optimized spend shares."""
+        return self.optm_spend_unit / np.sum(self.optm_spend_unit)
+
+    @property
+    def optm_response_share_unit(self) -> np.ndarray:
+        """Calculate optimized response shares."""
+        return self.optm_response_unit / np.sum(self.optm_response_unit)
+
+    @property
+    def optm_spend_share_unit_unbound(self) -> np.ndarray:
+        """Calculate unbounded optimized spend shares."""
+        return self.optm_spend_unit_unbound / np.sum(self.optm_spend_unit_unbound)
+
+    @property
+    def optm_response_share_unit_unbound(self) -> np.ndarray:
+        """Calculate unbounded optimized response shares."""
+        return self.optm_response_unit_unbound / np.sum(self.optm_response_unit_unbound)
+
+    @property
+    def init_roi(self) -> np.ndarray:
+        """Calculate initial ROI."""
+        return self.init_response_unit / np.where(
+            self.init_spend_unit > 0, self.init_spend_unit, np.inf
+        )
+
+    @property
+    def optm_roi(self) -> np.ndarray:
+        """Calculate optimized ROI."""
+        return self.optm_response_unit / np.where(
+            self.optm_spend_unit > 0, self.optm_spend_unit, np.inf
+        )
+
+    @property
+    def optm_roi_unbound(self) -> np.ndarray:
+        """Calculate unbounded optimized ROI."""
+        return self.optm_response_unit_unbound / np.where(
+            self.optm_spend_unit_unbound > 0, self.optm_spend_unit_unbound, np.inf
         )
 
 

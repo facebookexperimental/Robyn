@@ -56,9 +56,13 @@ def import_input_collect(data: Dict[str, Any]) -> Dict[str, Any]:
         prophet_country=data.get("prophet_country"),
         prophet_signs=[ProphetSigns(s) for s in data.get("prophet_signs", [])],
     )
+
+    print("Raw hyperparameters data:", data["hyperparameters"])
     # Group parameters by channel
     channel_params: Dict[str, Dict[str, list]] = {}
     for key, value in data["hyperparameters"].items():
+        if key == "train_size":
+            continue  # Skip train_size as it's not a channel parameter
         channel, param_type = key.rsplit("_", 1)
         if channel not in channel_params:
             channel_params[channel] = {}
