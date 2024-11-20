@@ -151,11 +151,11 @@ class ParetoVisualizer(BaseVisualizer):
                 formatted_num = f"{row['xDecompAgg']:.1f}"
 
             # Calculate x-position as the right edge of each positive bar
-            x_pos = max(row["start"], row["end"])
+            x_pos = (row["start"] + row["end"])/2
 
             # Add label aligned at the end of the bar
             ax.text(
-                x_pos - 0.01,
+                x_pos, # - 0.01,
                 i,  # Small offset from bar end
                 f"{formatted_num}\n{row['xDecompPerc']*100:.1f}%",
                 ha="right",
@@ -215,17 +215,10 @@ class ParetoVisualizer(BaseVisualizer):
         return None
 
     def generate_fitted_vs_actual(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
-        """Generate time series plot comparing fitted vs actual values.
-
-        Args:
-            ax: Optional matplotlib axes to plot on. If None, creates new figure
-
-        Returns:
-            Optional[plt.Figure]: Generated matplotlib Figure object
-        """
-
+        """Generate time series plot comparing fitted vs actual values."""
+        
         logger.debug("Starting generation of fitted vs actual plot")
-
+        
         if solution_id not in self.pareto_result.plot_data_collect:
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
@@ -240,7 +233,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Create figure if no axes provided
         if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 6))
+            fig, ax = plt.subplots(figsize=(16, 10))
         else:
             fig = None
 
@@ -269,44 +262,60 @@ class ParetoVisualizer(BaseVisualizer):
             train_cut = round(ndays * train_size)
             val_cut = train_cut + round(ndays * (1 - train_size) / 2)
 
-            # Add vertical lines and labels for splits
-            splits = [
-                (train_cut, f"Train: {train_size*100:.1f}%"),
-                (val_cut, f"Validation: {((1-train_size)/2)*100:.1f}%"),
-                (ndays - 1, f"Test: {((1-train_size)/2)*100:.1f}%"),
-            ]
+            # Train line and label
+            ax.axvline(x=days[train_cut], color="#39638b", alpha=0.8)
+            ax.text(
+                days[train_cut], ax.get_ylim()[1],
+                f"Train: {train_size*100:.1f}%",
+                rotation=270,
+                va='bottom',
+                ha='right',
+                color="#39638b",
+                alpha=0.5,
+                fontsize=9
+            )
 
-            for idx, (cut, label) in enumerate(splits):
-                # Add vertical line
-                ax.axvline(x=days[cut], color="#39638b", alpha=0.8, linestyle="-")
+            # Validation line and label
+            ax.axvline(x=days[val_cut], color="#39638b", alpha=0.8)
+            ax.text(
+                days[val_cut], ax.get_ylim()[1],
+                f"Validation: {((1-train_size)/2)*100:.1f}%",
+                rotation=270,
+                va='bottom',
+                ha='right',
+                color="#39638b",
+                alpha=0.5,
+                fontsize=9
+            )
 
-                # Add rotated text label
-                trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
-                ax.text(
-                    days[cut],
-                    1.02,
-                    label,
-                    rotation=270,
-                    verticalalignment="bottom",
-                    horizontalalignment="left",
-                    transform=trans,
-                    color="#39638b",
-                    alpha=0.5,
-                    fontsize=8,
-                )
+            # Test line and label
+            ax.axvline(x=days[ndays-1], color="#39638b", alpha=0.8)
+            ax.text(
+                days[ndays-1], ax.get_ylim()[1],
+                f"Test: {((1-train_size)/2)*100:.1f}%",
+                rotation=270,
+                va='bottom',
+                ha='right',
+                color="#39638b",
+                alpha=0.5,
+                fontsize=9
+            )
 
-        # Customize plot
-        ax.set_title("Actual vs. Predicted Response")
+        # Set title with increased y position
+        ax.set_title("Actual vs. Predicted Response", pad=50, y=1.20)
+
         ax.set_xlabel("Date")
         ax.set_ylabel("Response")
 
-        # Move legend to top
+        # Move legend to top-left with smaller size
         ax.legend(
-            bbox_to_anchor=(0, 1.02, 1, 0.2),
+            bbox_to_anchor=(0, 1.02, 0.15, 0.1),
             loc="lower left",
             ncol=2,
             mode="expand",
             borderaxespad=0,
+            frameon=False,
+            fontsize=8  # Reduced font size from 9 to 8
         )
 
         # Grid styling
@@ -316,9 +325,10 @@ class ParetoVisualizer(BaseVisualizer):
         # Use white background
         ax.set_facecolor("white")
 
-        logger.debug("Successfully generated of fitted vs casual plot")
+        logger.debug("Successfully generated fitted vs actual plot")
         if fig:
             plt.tight_layout()
+            plt.subplots_adjust(top=0.85)
             return fig
         return None
 
@@ -346,7 +356,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Create figure if no axes provided
         if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 6))
+            fig, ax = plt.subplots(figsize=(16, 10))
         else:
             fig = None
 
@@ -428,7 +438,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Create figure if no axes provided
         if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 8))
+            fig, ax = plt.subplots(figsize=(16, 10))
         else:
             fig = None
 
@@ -523,7 +533,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Create figure if no axes provided
         if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 8))
+            fig, ax = plt.subplots(figsize=(16, 10))
         else:
             fig = None
 

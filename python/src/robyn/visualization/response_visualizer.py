@@ -79,7 +79,7 @@ class ResponseVisualizer(BaseVisualizer):
             # Create figure if no axes provided
             if ax is None:
                 logger.debug("Creating new figure with axes")
-                fig, ax = plt.subplots(figsize=(12, 8))
+                fig, ax = plt.subplots(figsize=(16, 10))
             else:
                 logger.debug("Using provided axes")
                 fig = None

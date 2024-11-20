@@ -462,7 +462,7 @@ class ClusterVisualizer(BaseVisualizer):
         # Check if we have valid data after filtering
         if bootstrap_data.empty:
             if ax is None:
-                fig, ax = plt.subplots(figsize=(10, 6))
+                fig, ax = plt.subplots(figsize=(16, 10))
                 ax.text(
                     0.5,
                     0.5,

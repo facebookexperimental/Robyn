@@ -57,16 +57,16 @@ class OnePager:
         plt.style.use('default')
         sns.set_theme(style="whitegrid", context="paper")
         plt.rcParams.update({
-            'figure.figsize': (22, 17),  # Increased figure size
+            'figure.figsize': (32, 24),  # Increased from (22, 17)
             'figure.dpi': 100,
             'savefig.dpi': 300,
-            'font.size': 10,
-            'axes.titlesize': 12,
-            'axes.labelsize': 10,
-            'xtick.labelsize': 9,
-            'ytick.labelsize': 9,
-            'legend.fontsize': 9,
-            'figure.titlesize': 14,
+            'font.size': 12,            # Increased from 10
+            'axes.titlesize': 14,       # Increased from 12
+            'axes.labelsize': 12,       # Increased from 10
+            'xtick.labelsize': 11,      # Increased from 9
+            'ytick.labelsize': 11,      # Increased from 9
+            'legend.fontsize': 11,      # Increased from 9
+            'figure.titlesize': 16,     # Increased from 14
             'axes.grid': True,
             'grid.alpha': 0.3,
             'axes.spines.top': False,
@@ -300,7 +300,7 @@ class OnePager:
         self,
         solution_ids: Union[str, List[str]] = 'all',
         plots: Optional[List[str]] = None,
-        figsize: tuple = (20, 15),
+        figsize: tuple = (32, 24),
         save_path: Optional[str] = None,
         top_pareto: bool = False
     ) -> List[plt.Figure]:
@@ -409,12 +409,12 @@ class OnePager:
                 
                 # Update layout to leave more space for titles and labels
                 plt.subplots_adjust(
-                    top=0.85,    # Space for main title
-                    bottom=0.1,  # Space for bottom x-labels
-                    left=0.1,    # Space for left y-labels
-                    right=0.9,   # Space for right margin
-                    hspace=0.4,  # Space between plots vertically
-                    wspace=0.3   # Space between plots horizontally
+                    top=0.88,      # Increased from 0.85
+                    bottom=0.08,   # Decreased from 0.1
+                    left=0.08,     # Decreased from 0.1
+                    right=0.92,    # Increased from 0.9
+                    hspace=0.35,   # Decreased from 0.4 for better spacing
+                    wspace=0.25    # Decreased from 0.3 for better spacing
                 )
                 
                 if save_path:

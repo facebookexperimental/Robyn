@@ -186,7 +186,7 @@ class TransformationVisualizer(BaseVisualizer):
             # Create figure if no axes provided
             if ax is None:
                 logger.debug("Creating new figure and axes")
-                fig, ax = plt.subplots(figsize=(12, 8))
+                fig, ax = plt.subplots(figsize=(16, 10))
                 plt.subplots_adjust(top=0.80, left=0.15, bottom=0.1, right=0.95)
             else:
                 logger.debug("Using provided axes for plotting")
