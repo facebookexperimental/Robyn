@@ -187,6 +187,7 @@ class TransformationVisualizer(BaseVisualizer):
             if ax is None:
                 logger.debug("Creating new figure and axes")
                 fig, ax = plt.subplots(figsize=(12, 8))
+                plt.subplots_adjust(top=0.80, left=0.15, bottom=0.1, right=0.95)
             else:
                 logger.debug("Using provided axes for plotting")
                 fig = None
@@ -197,9 +198,10 @@ class TransformationVisualizer(BaseVisualizer):
             # Set up colors
             type_colour = "#03396C"  # Dark blue for line
             bar_colors = ["#A4C2F4", "#FFB7B2"]  # Light blue and light coral for bars
+            bar_colors = bar_colors[::-1]  # Reverse colors
 
             # Set up dimensions
-            channels = line_data["rn"].unique()  # Use line_data for consistent ordering
+            channels = sorted(line_data["rn"].unique())  # Use line_data for consistent ordering
             y_pos = np.arange(len(channels))
 
             logger.debug("Processing %d channels for visualization", len(channels))
@@ -207,7 +209,7 @@ class TransformationVisualizer(BaseVisualizer):
             # Plot bars for each variable type
             bar_width = 0.35
             for i, (var, color) in enumerate(
-                zip(bar_data["variable"].unique(), bar_colors)
+                zip(reversed(bar_data["variable"].unique()), bar_colors)
             ):
                 var_data = bar_data[bar_data["variable"] == var]
                 # Ensure alignment with channels - safely get values
@@ -230,6 +232,22 @@ class TransformationVisualizer(BaseVisualizer):
                     color=color,
                     alpha=0.5,
                 )
+                
+                # Add percentage labels to right of y-axis
+                for idx, value in enumerate(values):
+                    y_position = y_pos[idx] + (i - 0.5) * bar_width
+                    percentage = f"{value * 100:.1f}%"
+                    
+                    ax.text(
+                        s=percentage,
+                        x=0.02,
+                        y=y_position,
+                        ha='left',
+                        va='center',
+                        fontweight='bold',
+                        fontsize=9,
+                        transform=ax.get_yaxis_transform()
+                    )
 
             # Safely get line values
             line_values = []
@@ -244,7 +262,7 @@ class TransformationVisualizer(BaseVisualizer):
             line_x = line_values / y_sec_scale
 
             logger.debug("Plotting line with %d points", len(line_x))
-            # Plot line
+            # Plot line without label
             ax.plot(
                 line_x, y_pos, color=type_colour, marker="o", markersize=8, zorder=3
             )
@@ -257,20 +275,24 @@ class TransformationVisualizer(BaseVisualizer):
                     f"{value:.2f}",
                     color=type_colour,
                     fontweight="bold",
-                    ha="left",
-                    va="center",
+                    ha='left',
+                    va='center',
                     zorder=4,
                 )
 
             # Set channel labels
             ax.set_yticks(y_pos)
             ax.set_yticklabels(channels)
+            ax.tick_params(axis='y', pad=5)
 
-            # Format x-axis as percentage
+            # Format x-axis as percentage and show labels up to 70%
             ax.xaxis.set_major_formatter(
                 plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%")
             )
-            ax.set_xlim(0, max(1, np.max(line_x) * 1.2))
+            ax.set_xlim(0, 0.7)  # Set x-axis limit to 70%
+            xticks = np.arange(0, 0.8, 0.1)  # Create ticks from 0 to 70% in 10% increments
+            ax.set_xticks(xticks)
+            ax.tick_params(axis='x', labelbottom=True)
 
             # Add grid
             ax.grid(True, axis="x", alpha=0.2, linestyle="-")
@@ -280,9 +302,9 @@ class TransformationVisualizer(BaseVisualizer):
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
 
-            # Set title
+            # Set title at top position
             metric_type = (
-                "ROI"
+                "ROAS"
                 if (
                     self.mmm_data
                     and hasattr(self.mmm_data.mmmdata_spec, "dep_var_type")
@@ -294,24 +316,47 @@ class TransformationVisualizer(BaseVisualizer):
 
             logger.debug("Setting plot title with metric type: %s", metric_type)
 
+            # Set title at top
             ax.set_title(
-                f"Total Spend% VS Effect% with total {metric_type} (Solution {solution_id})"
+                f"Share of Total Spend, Effect & {metric_type} in Modeling Window*",
+                pad=20,
+                y=1.45
             )
 
-            # Add legend
+            # Create legend with single ROAS entry
+            bars_legend = ax.get_legend_handles_labels()
+            line_legend = [plt.Line2D([0], [0], color=type_colour, marker='o', linestyle='-', 
+                                    markersize=8, label='ROAS')]
+            
+            # Combine legend elements in reverse order
+            handles = line_legend + list(reversed(bars_legend[0]))
+            labels = ['ROAS'] + list(reversed(bars_legend[1]))
+            
+            # Create legend below title
             ax.legend(
-                bbox_to_anchor=(0, 1.02, 1, 0.2),
+                handles=handles,
+                labels=labels,
+                bbox_to_anchor=(0, 1.15, 1, 0.1),
                 loc="lower left",
                 mode="expand",
-                ncol=2,
+                ncol=3,
+                frameon=False,
+                borderaxespad=0
             )
 
             # Add axis labels
             ax.set_xlabel("Total Share by Channel")
             ax.set_ylabel(None)
+            
             logger.debug("Successfully generated spend effect comparison plot")
             if fig:
                 plt.tight_layout()
+                plt.subplots_adjust(
+                    top=0.80,
+                    left=0.15,
+                    bottom=0.1,
+                    right=0.95
+                )
                 return fig
             return None
 
@@ -330,7 +375,7 @@ class TransformationVisualizer(BaseVisualizer):
                     va="center",
                 )
             return None
-
+                        
     def plot_all(
         self, display_plots: bool = True, export_location: Union[str, Path] = None
     ) -> None:
