@@ -515,34 +515,24 @@ class ParetoVisualizer(BaseVisualizer):
         return None
 
     def generate_adstock_rate(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
-        """Generate adstock rate visualization based on adstock type.
-
-        Args:
-            solution_id: ID of solution to visualize
-            ax: Optional matplotlib axes to plot on. If None, creates new figure
-
-        Returns:
-            Optional[plt.Figure]: Generated figure if ax is None, otherwise None
-        """
-
+        """Generate adstock rate visualization based on adstock type."""
+        
         logger.debug("Starting generation of adstock plot")
 
-        # Get the plot data for specific solution
         plot_data = self.pareto_result.plot_data_collect[solution_id]
         adstock_data = plot_data["plot3data"]
 
-        # Create figure if no axes provided
         if ax is None:
             fig, ax = plt.subplots(figsize=(16, 10))
         else:
             fig = None
 
-        # Handle different adstock types
         if self.adstock == AdstockType.GEOMETRIC:
-            # Get geometric adstock data
             dt_geometric = adstock_data["dt_geometric"].copy()
-
-            # Create bar chart
+            
+            # Sort data alphabetically by channel
+            dt_geometric = dt_geometric.sort_values('channels', ascending=True)
+            
             bars = ax.barh(
                 y=range(len(dt_geometric)),
                 width=dt_geometric["thetas"],
@@ -550,57 +540,49 @@ class ParetoVisualizer(BaseVisualizer):
                 color="coral",
             )
 
-            # Add percentage labels
             for i, theta in enumerate(dt_geometric["thetas"]):
                 ax.text(theta + 0.01, i, f"{theta*100:.1f}%", va="center", fontweight="bold")
 
-            # Customize axes
             ax.set_yticks(range(len(dt_geometric)))
             ax.set_yticklabels(dt_geometric["channels"])
 
-            # Format x-axis as percentage
+            # Format x-axis with 25% increments
             ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%"))
             ax.set_xlim(0, 1)
+            ax.set_xticks(np.arange(0, 1.25, 0.25))  # Changed to 0.25 increments
 
-            # Set title and labels
             interval_type = self.mmm_data.mmmdata_spec.interval_type if self.mmm_data else "day"
             ax.set_title(f"Geometric Adstock: Fixed Rate Over Time (Solution {solution_id})")
             ax.set_xlabel(f"Thetas [by {interval_type}]")
             ax.set_ylabel(None)
 
         elif self.adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
-            # Get Weibull data
+            # [Weibull code remains the same]
             weibull_data = adstock_data["weibullCollect"]
             wb_type = adstock_data["wb_type"]
 
-            # Get unique channels for subplots
-            channels = weibull_data["channel"].unique()
-            rows = (len(channels) + 2) // 3  # 3 columns
+            channels = sorted(weibull_data["channel"].unique())  # Sort channels alphabetically
+            rows = (len(channels) + 2) // 3
 
             if ax is None:
-                # Create new figure with subplots
                 fig, axes = plt.subplots(rows, 3, figsize=(15, 4 * rows), squeeze=False)
                 axes = axes.flatten()
             else:
-                # Create subplot grid within provided axis
                 gs = ax.get_gridspec()
                 subfigs = ax.figure.subfigures(rows, 3)
                 axes = [subfig.subplots() for subfig in subfigs]
-                axes = [ax for sublist in axes for ax in sublist]  # flatten
+                axes = [ax for sublist in axes for ax in sublist]
 
-            # Plot each channel
             for idx, channel in enumerate(channels):
                 ax_sub = axes[idx]
                 channel_data = weibull_data[weibull_data["channel"] == channel]
 
-                # Plot decay curve
                 ax_sub.plot(
                     channel_data["x"],
                     channel_data["decay_accumulated"],
                     color="steelblue",
                 )
 
-                # Add halflife line
                 ax_sub.axhline(y=0.5, color="gray", linestyle="--", alpha=0.5)
                 ax_sub.text(
                     max(channel_data["x"]),
@@ -611,21 +593,18 @@ class ParetoVisualizer(BaseVisualizer):
                     ha="right",
                 )
 
-                # Customize subplot
                 ax_sub.set_title(channel)
                 ax_sub.grid(True, alpha=0.2)
                 ax_sub.set_ylim(0, 1)
 
-        # Customize grid
         if self.adstock == AdstockType.GEOMETRIC:
             ax.grid(True, axis="x", alpha=0.2)
             ax.grid(False, axis="y")
         ax.set_axisbelow(True)
 
-        # Use white background
         ax.set_facecolor("white")
 
-        logger.debug("Successfully generated of adstock plot")
+        logger.debug("Successfully generated adstock plot")
 
         if fig:
             plt.tight_layout()
