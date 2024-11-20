@@ -19,14 +19,11 @@ class ParetoUtils:
     and configuration of optimization parameters.
     """
 
-    def __init__(
-        self
-    ):
+    def __init__(self):
         """
         Initialize the ParetoUtils instance.
-        """       
+        """
         self.logger = logging.getLogger(__name__)
-
 
     @staticmethod
     def calculate_errors_scores(
@@ -241,7 +238,7 @@ class ParetoUtils:
                 result_calibration = pd.merge(
                     result_calibration, common_clustered_df, on="sol_id", how="left"
                 )
-            
+
             return ParetoResult(
                 pareto_solutions=all_solutions,
                 x_decomp_agg=x_decomp_agg,
@@ -265,4 +262,3 @@ class ParetoUtils:
                 df_caov_pct_all=pareto_results.df_caov_pct_all,
                 plot_data_collect=pareto_results.plot_data_collect,
             )
-

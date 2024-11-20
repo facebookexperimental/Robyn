@@ -1,4 +1,4 @@
-#pyre-strict
+# pyre-strict
 
 from enum import Enum
 

@@ -58,7 +58,11 @@ class RidgeModelBuilder:
         start_time = time.time()
         # Initialize hyperparameters with flattened structure
         hyper_collect = self._hyper_collector(
-            self.hyperparameters, ts_validation, add_penalty_factor, dt_hyper_fixed, cores
+            self.hyperparameters,
+            ts_validation,
+            add_penalty_factor,
+            dt_hyper_fixed,
+            cores,
         )
         # Convert datetime to string format matching R's format
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -93,10 +97,19 @@ class RidgeModelBuilder:
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(trials)
         # Aggregate results
-        all_result_hyp_param = pd.concat([trial.result_hyp_param for trial in trials], ignore_index=True)
-        all_x_decomp_agg = pd.concat([trial.x_decomp_agg for trial in trials], ignore_index=True)
+        all_result_hyp_param = pd.concat(
+            [trial.result_hyp_param for trial in trials], ignore_index=True
+        )
+        all_x_decomp_agg = pd.concat(
+            [trial.x_decomp_agg for trial in trials], ignore_index=True
+        )
         all_decomp_spend_dist = pd.concat(
-            [trial.decomp_spend_dist for trial in trials if trial.decomp_spend_dist is not None], ignore_index=True
+            [
+                trial.decomp_spend_dist
+                for trial in trials
+                if trial.decomp_spend_dist is not None
+            ],
+            ignore_index=True,
         )
         # Create ModelOutputs with flattened hyperparameter structure
         model_outputs = ModelOutputs(
@@ -129,7 +142,9 @@ class RidgeModelBuilder:
         decomp_rssd_values = np.array([trial.decomp_rssd for trial in output_models])
 
         # Normalize the metrics
-        nrmse_norm = (nrmse_values - np.min(nrmse_values)) / (np.max(nrmse_values) - np.min(nrmse_values))
+        nrmse_norm = (nrmse_values - np.min(nrmse_values)) / (
+            np.max(nrmse_values) - np.min(nrmse_values)
+        )
         decomp_rssd_norm = (decomp_rssd_values - np.min(decomp_rssd_values)) / (
             np.max(decomp_rssd_values) - np.min(decomp_rssd_values)
         )
@@ -203,14 +218,19 @@ class RidgeModelBuilder:
         np.random.seed(seed)
 
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
-        param_bounds = [hyper_collect["hyper_bound_list_updated"][name] for name in param_names]
+        param_bounds = [
+            hyper_collect["hyper_bound_list_updated"][name] for name in param_names
+        ]
 
         instrum_dict = {
-            name: ng.p.Scalar(lower=bound[0], upper=bound[1]) for name, bound in zip(param_names, param_bounds)
+            name: ng.p.Scalar(lower=bound[0], upper=bound[1])
+            for name, bound in zip(param_names, param_bounds)
         }
 
         instrum = ng.p.Instrumentation(**instrum_dict)
-        optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
+        optimizer = ng.optimizers.registry[nevergrad_algo.value](
+            instrum, budget=iterations, num_workers=cores
+        )
 
         all_results = []
         start_time = time.time()
@@ -272,8 +292,12 @@ class RidgeModelBuilder:
 
         # Aggregate results
         result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
-        decomp_spend_dist = pd.concat([r["decomp_spend_dist"] for r in all_results], ignore_index=True)
-        x_decomp_agg = pd.concat([r["x_decomp_agg"] for r in all_results], ignore_index=True)
+        decomp_spend_dist = pd.concat(
+            [r["decomp_spend_dist"] for r in all_results], ignore_index=True
+        )
+        x_decomp_agg = pd.concat(
+            [r["x_decomp_agg"] for r in all_results], ignore_index=True
+        )
 
         # Find best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
@@ -307,7 +331,11 @@ class RidgeModelBuilder:
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
     ) -> pd.DataFrame:
         """Calculate decomposition spend distribution matching R's implementation exactly"""
-        paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
+        paid_media_cols = [
+            col
+            for col in X.columns
+            if col in self.mmm_data.mmmdata_spec.paid_media_spends
+        ]
 
         results = []
         for col in paid_media_cols:
@@ -324,19 +352,41 @@ class RidgeModelBuilder:
                 "total_spend": spend,
                 "mean_spend": X[col].mean(),
                 "spend_share": spend / X[paid_media_cols].sum().sum(),
-                "effect_share": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "xDecompPerc": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "xDecompMeanNon0": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
-                "xDecompMeanNon0Perc": (non_zero_effect.mean() if len(non_zero_effect) > 0 else 0)
-                / sum([coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0 for c in paid_media_cols]),
+                "effect_share": effect
+                / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "xDecompPerc": effect
+                / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "xDecompMeanNon0": (
+                    non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
+                ),
+                "xDecompMeanNon0Perc": (
+                    non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
+                )
+                / sum(
+                    [
+                        coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0
+                        for c in paid_media_cols
+                    ]
+                ),
                 "xDecompAggRF": effect,
-                "xDecompPercRF": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "xDecompMeanNon0RF": non_zero_effect.mean() if len(non_zero_effect) > 0 else 0,
-                "xDecompMeanNon0PercRF": (non_zero_effect.mean() if len(non_zero_effect) > 0 else 0)
-                / sum([coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0 for c in paid_media_cols]),
+                "xDecompPercRF": effect
+                / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "xDecompMeanNon0RF": (
+                    non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
+                ),
+                "xDecompMeanNon0PercRF": (
+                    non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
+                )
+                / sum(
+                    [
+                        coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0
+                        for c in paid_media_cols
+                    ]
+                ),
                 "pos": coef >= 0,
                 "spend_share_refresh": spend / X[paid_media_cols].sum().sum(),
-                "effect_share_refresh": effect / sum([coef * X[c].sum() for c in paid_media_cols]),
+                "effect_share_refresh": effect
+                / sum([coef * X[c].sum() for c in paid_media_cols]),
                 "roi_total": effect / spend if spend > 0 else 0,
                 "cpa_total": spend / effect if effect > 0 else 0,
             }
@@ -380,7 +430,9 @@ class RidgeModelBuilder:
         y = self.featurized_mmm_data.dt_mod[self.mmm_data.mmmdata_spec.dep_var]
 
         # Select all columns except the dependent variable
-        X = self.featurized_mmm_data.dt_mod.drop(columns=[self.mmm_data.mmmdata_spec.dep_var])
+        X = self.featurized_mmm_data.dt_mod.drop(
+            columns=[self.mmm_data.mmmdata_spec.dep_var]
+        )
 
         # Convert date columns to numeric (number of days since the earliest date)
         date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
@@ -390,7 +442,9 @@ class RidgeModelBuilder:
             min_date = X[col].min()
             X[col] = X[col].fillna(min_date)
             # Convert to days since minimum date, handling potential NaT values
-            X[col] = (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
+            X[col] = (
+                (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
+            )
 
         # One-hot encode categorical variables
         categorical_columns = X.select_dtypes(include=["object", "category"]).columns
@@ -404,7 +458,9 @@ class RidgeModelBuilder:
             if f"{media}_thetas" in params:
                 X[media] = self._geometric_adstock(X[media], params[f"{media}_thetas"])
             if f"{media}_alphas" in params and f"{media}_gammas" in params:
-                X[media] = self._hill_transformation(X[media], params[f"{media}_alphas"], params[f"{media}_gammas"])
+                X[media] = self._hill_transformation(
+                    X[media], params[f"{media}_alphas"], params[f"{media}_gammas"]
+                )
 
         # Handle any remaining NaN or infinite values
         X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
@@ -419,12 +475,18 @@ class RidgeModelBuilder:
             y.iloc[i] += theta * y.iloc[i - 1]
         return y
 
-    def _hill_transformation(self, x: pd.Series, alpha: float, gamma: float) -> pd.Series:
+    def _hill_transformation(
+        self, x: pd.Series, alpha: float, gamma: float
+    ) -> pd.Series:
         x_scaled = (x - x.min()) / (x.max() - x.min())
         return x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
 
     def _calculate_rssd(
-        self, model: Ridge, X: pd.DataFrame, paid_media_cols: List[str], rssd_zero_penalty: bool
+        self,
+        model: Ridge,
+        X: pd.DataFrame,
+        paid_media_cols: List[str],
+        rssd_zero_penalty: bool,
     ) -> float:
         """Calculate RSSD exactly like R's glmnet implementation"""
 
@@ -475,7 +537,9 @@ class RidgeModelBuilder:
         try:
             # Use the MediaEffectCalibrator for MAPE calculation
             calibration_engine = MediaEffectCalibrator(
-                mmm_data=self.mmm_data, hyperparameters=self.hyperparameters, calibration_input=self.calibration_input
+                mmm_data=self.mmm_data,
+                hyperparameters=self.hyperparameters,
+                calibration_input=self.calibration_input,
             )
 
             # Calculate MAPE using calibration engine
@@ -513,21 +577,55 @@ class RidgeModelBuilder:
                 "rn": col,
                 "coef": coef,
                 "xDecompAgg": decomp_values.sum(),
-                "xDecompPerc": decomp_values.sum() / x_decomp.sum().sum() if x_decomp.sum().sum() != 0 else 0,
-                "xDecompMeanNon0": decomp_values[decomp_values > 0].mean() if any(decomp_values > 0) else 0,
+                "xDecompPerc": (
+                    decomp_values.sum() / x_decomp.sum().sum()
+                    if x_decomp.sum().sum() != 0
+                    else 0
+                ),
+                "xDecompMeanNon0": (
+                    decomp_values[decomp_values > 0].mean()
+                    if any(decomp_values > 0)
+                    else 0
+                ),
                 "xDecompMeanNon0Perc": (
                     decomp_values[decomp_values > 0].mean()
-                    / sum([x_decomp[c][x_decomp[c] > 0].mean() if any(x_decomp[c] > 0) else 0 for c in X.columns])
+                    / sum(
+                        [
+                            (
+                                x_decomp[c][x_decomp[c] > 0].mean()
+                                if any(x_decomp[c] > 0)
+                                else 0
+                            )
+                            for c in X.columns
+                        ]
+                    )
                     if any(decomp_values > 0)
                     else 0
                 ),
                 # RF (refresh) versions
                 "xDecompAggRF": decomp_values.sum(),
-                "xDecompPercRF": decomp_values.sum() / x_decomp.sum().sum() if x_decomp.sum().sum() != 0 else 0,
-                "xDecompMeanNon0RF": decomp_values[decomp_values > 0].mean() if any(decomp_values > 0) else 0,
+                "xDecompPercRF": (
+                    decomp_values.sum() / x_decomp.sum().sum()
+                    if x_decomp.sum().sum() != 0
+                    else 0
+                ),
+                "xDecompMeanNon0RF": (
+                    decomp_values[decomp_values > 0].mean()
+                    if any(decomp_values > 0)
+                    else 0
+                ),
                 "xDecompMeanNon0PercRF": (
                     decomp_values[decomp_values > 0].mean()
-                    / sum([x_decomp[c][x_decomp[c] > 0].mean() if any(x_decomp[c] > 0) else 0 for c in X.columns])
+                    / sum(
+                        [
+                            (
+                                x_decomp[c][x_decomp[c] > 0].mean()
+                                if any(x_decomp[c] > 0)
+                                else 0
+                            )
+                            for c in X.columns
+                        ]
+                    )
                     if any(decomp_values > 0)
                     else 0
                 ),
@@ -547,11 +645,15 @@ class RidgeModelBuilder:
                     "nrmse": metrics.get("nrmse", 0),
                     "decomp.rssd": metrics.get("decomp_rssd", 0),
                     "mape": metrics.get("mape", 0),
-                    "lambda": metrics.get("lambda", 0),  # Using lambda instead of lambda_
+                    "lambda": metrics.get(
+                        "lambda", 0
+                    ),  # Using lambda instead of lambda_
                     "lambda_hp": metrics.get("lambda_hp", 0),
                     "lambda_max": metrics.get("lambda_max", 0),
                     "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
-                    "sol_id": metrics.get("sol_id", ""),  # Using sol_id instead of solID
+                    "sol_id": metrics.get(
+                        "sol_id", ""
+                    ),  # Using sol_id instead of solID
                     "trial": metrics.get("trial", 0),
                     "iterNG": metrics.get("iterNG", 0),
                     "iterPar": metrics.get("iterPar", 0),
@@ -563,7 +665,9 @@ class RidgeModelBuilder:
 
         return pd.DataFrame(results)
 
-    def _format_hyperparameter_names(self, params: Dict[str, float]) -> Dict[str, float]:
+    def _format_hyperparameter_names(
+        self, params: Dict[str, float]
+    ) -> Dict[str, float]:
         """Format hyperparameter names to match R's naming convention."""
         formatted = {}
         for param_name, value in params.items():
@@ -624,10 +728,14 @@ class RidgeModelBuilder:
 
         # Calculate lambda parameters like glmnet
         alpha = 0.001  # R's ridge regression default
-        lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / (alpha * len(y_train))
+        lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / (
+            alpha * len(y_train)
+        )
         lambda_min_ratio = 0.0001
         lambda_hp = params.get("lambda", 1.0)  # Using lambda instead of lambda_
-        lambda_ = lambda_max * lambda_min_ratio + lambda_hp * (lambda_max - lambda_max * lambda_min_ratio)
+        lambda_ = lambda_max * lambda_min_ratio + lambda_hp * (
+            lambda_max - lambda_max * lambda_min_ratio
+        )
 
         # Fit model
         model = Ridge(alpha=lambda_, fit_intercept=True)
@@ -638,7 +746,9 @@ class RidgeModelBuilder:
         rss_train = np.sum((y_train - y_train_pred) ** 2)
         tss_train = np.sum((y_train - np.mean(y_train)) ** 2)
         metrics["rsq_train"] = 1 - rss_train / tss_train
-        metrics["nrmse_train"] = np.sqrt(rss_train / len(y_train)) / (y_train.max() - y_train.min())
+        metrics["nrmse_train"] = np.sqrt(rss_train / len(y_train)) / (
+            y_train.max() - y_train.min()
+        )
 
         # Validation and test metrics
         if ts_validation and X_val is not None and X_test is not None:
@@ -648,12 +758,16 @@ class RidgeModelBuilder:
             rss_val = np.sum((y_val - y_val_pred) ** 2)
             tss_val = np.sum((y_val - np.mean(y_val)) ** 2)
             metrics["rsq_val"] = 1 - rss_val / tss_val
-            metrics["nrmse_val"] = np.sqrt(rss_val / len(y_val)) / (y_val.max() - y_val.min())
+            metrics["nrmse_val"] = np.sqrt(rss_val / len(y_val)) / (
+                y_val.max() - y_val.min()
+            )
 
             rss_test = np.sum((y_test - y_test_pred) ** 2)
             tss_test = np.sum((y_test - np.mean(y_test)) ** 2)
             metrics["rsq_test"] = 1 - rss_test / tss_test
-            metrics["nrmse_test"] = np.sqrt(rss_test / len(y_test)) / (y_test.max() - y_test.min())
+            metrics["nrmse_test"] = np.sqrt(rss_test / len(y_test)) / (
+                y_test.max() - y_test.min()
+            )
 
             metrics["nrmse"] = metrics["nrmse_val"]
         else:
@@ -662,12 +776,19 @@ class RidgeModelBuilder:
             metrics["nrmse"] = metrics["nrmse_train"]
 
         # Calculate effects and spends for each media variable
-        paid_media_cols = [col for col in X.columns if col in self.mmm_data.mmmdata_spec.paid_media_spends]
+        paid_media_cols = [
+            col
+            for col in X.columns
+            if col in self.mmm_data.mmmdata_spec.paid_media_spends
+        ]
         media_effects = {}
         media_spends = {}
 
         # Check positivity of coefficients
-        pos = all(model.coef_[list(X_train.columns).index(col)] >= 0 for col in paid_media_cols)
+        pos = all(
+            model.coef_[list(X_train.columns).index(col)] >= 0
+            for col in paid_media_cols
+        )
 
         for col in paid_media_cols:
             idx = list(X_train.columns).index(col)
@@ -684,7 +805,9 @@ class RidgeModelBuilder:
         spends_norm = {k: v / total_spend for k, v in media_spends.items()}
 
         # Calculate RSSD
-        effect_spend_diff = [effects_norm[col] - spends_norm[col] for col in paid_media_cols]
+        effect_spend_diff = [
+            effects_norm[col] - spends_norm[col] for col in paid_media_cols
+        ]
         decomp_rssd = np.sqrt(np.mean(np.array(effect_spend_diff) ** 2))
 
         # Apply zero penalty like R
@@ -718,10 +841,19 @@ class RidgeModelBuilder:
         )
 
         # Update parameters with time info and metrics
-        params_formatted.update({"sol_id": sol_id, "Elapsed": elapsed_time, "ElapsedAccum": elapsed_time, "pos": pos})
+        params_formatted.update(
+            {
+                "sol_id": sol_id,
+                "Elapsed": elapsed_time,
+                "ElapsedAccum": elapsed_time,
+                "pos": pos,
+            }
+        )
 
         # Calculate x_decomp_agg with updated metrics
-        x_decomp_agg = self._calculate_x_decomp_agg(model, X_train, y_train, {**params_formatted, **metrics})
+        x_decomp_agg = self._calculate_x_decomp_agg(
+            model, X_train, y_train, {**params_formatted, **metrics}
+        )
 
         # Calculate decomp_spend_dist with updated metrics
         decomp_spend_dist = self._calculate_decomp_spend_dist(
@@ -732,7 +864,11 @@ class RidgeModelBuilder:
         loss = (
             objective_weights[0] * metrics["nrmse"]
             + objective_weights[1] * metrics["decomp_rssd"]
-            + (objective_weights[2] * metrics["mape"] if len(objective_weights) > 2 else 0)
+            + (
+                objective_weights[2] * metrics["mape"]
+                if len(objective_weights) > 2
+                else 0
+            )
         )
 
         return {
@@ -775,29 +911,49 @@ class RidgeModelBuilder:
                 if param_value is not None:
                     if isinstance(param_value, list) and len(param_value) == 2:
                         param_key = f"{channel}_{param}"
-                        hyper_collect["hyper_bound_list_updated"][param_key] = param_value
-                        hyper_collect["hyper_list_all"][f"{channel}_{param}"] = param_value  # Store as list
+                        hyper_collect["hyper_bound_list_updated"][
+                            param_key
+                        ] = param_value
+                        hyper_collect["hyper_list_all"][
+                            f"{channel}_{param}"
+                        ] = param_value  # Store as list
                     elif not isinstance(param_value, list):
-                        hyper_collect["hyper_bound_list_fixed"][f"{channel}_{param}"] = param_value
+                        hyper_collect["hyper_bound_list_fixed"][
+                            f"{channel}_{param}"
+                        ] = param_value
                         hyper_collect["hyper_list_all"][f"{channel}_{param}"] = [
                             param_value,
                             param_value,
                         ]  # Store as list
         # Handle lambda parameter similarly
-        if isinstance(prepared_hyperparameters.lambda_, list) and len(prepared_hyperparameters.lambda_) == 2:
-            hyper_collect["hyper_bound_list_updated"]["lambda"] = prepared_hyperparameters.lambda_
+        if (
+            isinstance(prepared_hyperparameters.lambda_, list)
+            and len(prepared_hyperparameters.lambda_) == 2
+        ):
+            hyper_collect["hyper_bound_list_updated"][
+                "lambda"
+            ] = prepared_hyperparameters.lambda_
             hyper_collect["hyper_list_all"]["lambda"] = prepared_hyperparameters.lambda_
         else:
-            hyper_collect["hyper_bound_list_fixed"]["lambda"] = prepared_hyperparameters.lambda_
+            hyper_collect["hyper_bound_list_fixed"][
+                "lambda"
+            ] = prepared_hyperparameters.lambda_
             hyper_collect["hyper_list_all"]["lambda"] = [
                 prepared_hyperparameters.lambda_,
                 prepared_hyperparameters.lambda_,
             ]
         # Handle train_size similarly
         if ts_validation:
-            if isinstance(prepared_hyperparameters.train_size, list) and len(prepared_hyperparameters.train_size) == 2:
-                hyper_collect["hyper_bound_list_updated"]["train_size"] = prepared_hyperparameters.train_size
-                hyper_collect["hyper_list_all"]["train_size"] = prepared_hyperparameters.train_size
+            if (
+                isinstance(prepared_hyperparameters.train_size, list)
+                and len(prepared_hyperparameters.train_size) == 2
+            ):
+                hyper_collect["hyper_bound_list_updated"][
+                    "train_size"
+                ] = prepared_hyperparameters.train_size
+                hyper_collect["hyper_list_all"][
+                    "train_size"
+                ] = prepared_hyperparameters.train_size
             else:
                 train_size = [0.5, 0.8]
                 hyper_collect["hyper_bound_list_updated"]["train_size"] = train_size
@@ -831,14 +987,18 @@ class RidgeModelBuilder:
         rsq_val = r2_score(y_val, y_val_pred) if y_val is not None else None
         rsq_test = r2_score(y_test, y_test_pred) if y_test is not None else None
 
-        nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (np.max(y_train) - np.min(y_train))
+        nrmse_train = np.sqrt(np.mean((y_train - y_train_pred) ** 2)) / (
+            np.max(y_train) - np.min(y_train)
+        )
         nrmse_val = (
-            np.sqrt(np.mean((y_val - y_val_pred) ** 2)) / (np.max(y_val) - np.min(y_val))
+            np.sqrt(np.mean((y_val - y_val_pred) ** 2))
+            / (np.max(y_val) - np.min(y_val))
             if y_val is not None
             else None
         )
         nrmse_test = (
-            np.sqrt(np.mean((y_test - y_test_pred) ** 2)) / (np.max(y_test) - np.min(y_test))
+            np.sqrt(np.mean((y_test - y_test_pred) ** 2))
+            / (np.max(y_test) - np.min(y_test))
             if y_test is not None
             else None
         )
@@ -863,7 +1023,9 @@ class RidgeModelBuilder:
             df_int=1 if intercept else 0,
         )
 
-    def _lambda_seq(self, x: pd.DataFrame, y: pd.Series, seq_len: int = 100) -> np.ndarray:
+    def _lambda_seq(
+        self, x: pd.DataFrame, y: pd.Series, seq_len: int = 100
+    ) -> np.ndarray:
         """Calculate lambda sequence exactly matching R's glmnet implementation"""
         x_np = x.to_numpy()
         y_np = y.to_numpy()
@@ -886,10 +1048,14 @@ class RidgeModelBuilder:
         lambda_min_ratio = 0.0001
 
         # Generate sequence with exact R spacing
-        log_lambda = np.linspace(np.log(lambda_max), np.log(lambda_max * lambda_min_ratio), seq_len)
+        log_lambda = np.linspace(
+            np.log(lambda_max), np.log(lambda_max * lambda_min_ratio), seq_len
+        )
         return np.exp(log_lambda)
 
-    def _calculate_r2_score(self, y_true: np.ndarray, y_pred: np.ndarray, n_features: int, df_int: int = 1) -> float:
+    def _calculate_r2_score(
+        self, y_true: np.ndarray, y_pred: np.ndarray, n_features: int, df_int: int = 1
+    ) -> float:
         """Calculate R-squared exactly matching R's implementation"""
         n = len(y_true)
         resid_ss = np.sum((y_true - y_pred) ** 2)

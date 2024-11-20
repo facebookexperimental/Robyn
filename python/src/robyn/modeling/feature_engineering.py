@@ -26,13 +26,18 @@ class FeatureEngineering:
     """
 
     def __init__(
-        self, mmm_data: MMMData, hyperparameters: Hyperparameters, holidays_data: Optional[HolidaysData] = None
+        self,
+        mmm_data: MMMData,
+        hyperparameters: Hyperparameters,
+        holidays_data: Optional[HolidaysData] = None,
     ):
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.holidays_data = holidays_data
         self.logger = logging.getLogger(__name__)
-        self.logger.debug("Initializing FeatureEngineering with MMM data and hyperparameters")
+        self.logger.debug(
+            "Initializing FeatureEngineering with MMM data and hyperparameters"
+        )
 
     def perform_feature_engineering(self, quiet: bool = False) -> FeaturizedMMMData:
         self.logger.info("Starting feature engineering process")
@@ -41,7 +46,10 @@ class FeatureEngineering:
         dt_transform = self._prepare_data()
         self.logger.debug(f"Prepared data shape: {dt_transform.shape}")
 
-        if any(var in self.holidays_data.prophet_vars for var in ["trend", "season", "holiday", "monthly", "weekday"]):
+        if any(
+            var in self.holidays_data.prophet_vars
+            for var in ["trend", "season", "holiday", "monthly", "weekday"]
+        ):
             self.logger.info("Starting Prophet decomposition")
             dt_transform = self._prophet_decomposition(dt_transform)
             if not quiet:
@@ -68,7 +76,11 @@ class FeatureEngineering:
 
         columns_to_keep = ["ds", "dep_var"] + all_ind_vars
         # Only keep columns that exist in both dataframes
-        columns_to_keep = [col for col in columns_to_keep if col in dt_mod.columns and col in dt_modRollWind.columns]
+        columns_to_keep = [
+            col
+            for col in columns_to_keep
+            if col in dt_mod.columns and col in dt_modRollWind.columns
+        ]
         self.logger.debug(f"Keeping {len(columns_to_keep)} columns in final dataset")
 
         dt_mod = dt_transform[columns_to_keep]
@@ -83,14 +95,20 @@ class FeatureEngineering:
         missing_after = dt_mod.isnull().sum().sum()
         self.logger.info(f"Filled {missing_before - missing_after} missing values")
 
-        return FeaturizedMMMData(dt_mod=dt_mod, dt_modRollWind=dt_modRollWind, modNLS=modNLS)
+        return FeaturizedMMMData(
+            dt_mod=dt_mod, dt_modRollWind=dt_modRollWind, modNLS=modNLS
+        )
 
     def _prepare_data(self) -> pd.DataFrame:
         self.logger.debug("Starting data preparation")
         dt_transform = self.mmm_data.data.copy()
-        dt_transform["ds"] = pd.to_datetime(dt_transform[self.mmm_data.mmmdata_spec.date_var]).dt.strftime("%Y-%m-%d")
+        dt_transform["ds"] = pd.to_datetime(
+            dt_transform[self.mmm_data.mmmdata_spec.date_var]
+        ).dt.strftime("%Y-%m-%d")
         dt_transform["dep_var"] = dt_transform[self.mmm_data.mmmdata_spec.dep_var]
-        dt_transform["competitor_sales_B"] = dt_transform["competitor_sales_B"].astype("int64")
+        dt_transform["competitor_sales_B"] = dt_transform["competitor_sales_B"].astype(
+            "int64"
+        )
         self.logger.debug("Data preparation complete")
         return dt_transform
 
@@ -117,35 +135,56 @@ class FeatureEngineering:
                 return dt_transform[dt_transform["ds"] >= window_start]
             else:
                 if window_start > window_end:
-                    self.logger.error(f"Invalid window range: {window_start} to {window_end}")
+                    self.logger.error(
+                        f"Invalid window range: {window_start} to {window_end}"
+                    )
                     raise ValueError("window_start is after window_end")
-                self.logger.debug(f"Filtering data between {window_start} and {window_end}")
-                return dt_transform[(dt_transform["ds"] >= window_start) & (dt_transform["ds"] <= window_end)]
+                self.logger.debug(
+                    f"Filtering data between {window_start} and {window_end}"
+                )
+                return dt_transform[
+                    (dt_transform["ds"] >= window_start)
+                    & (dt_transform["ds"] <= window_end)
+                ]
         except Exception as e:
             self.logger.error(f"Error creating rolling window data: {str(e)}")
             raise
 
-    def _run_models(self, dt_modRollWind: pd.DataFrame, media_cost_factor: pd.Series) -> Dict[str, Any]:
+    def _run_models(
+        self, dt_modRollWind: pd.DataFrame, media_cost_factor: pd.Series
+    ) -> Dict[str, Any]:
         """Run models only for channels where exposure metrics differ from spend metrics."""
-        self.logger.info("Starting model runs for paid media variables with different exposure metrics")
+        self.logger.info(
+            "Starting model runs for paid media variables with different exposure metrics"
+        )
         modNLS = {"results": [], "yhat": [], "plots": {}}
         # Get indices where exposure differs from spend
         exposure_selector = [
             i
             for i, (spend, exposure) in enumerate(
-                zip(self.mmm_data.mmmdata_spec.paid_media_spends, self.mmm_data.mmmdata_spec.paid_media_vars)
+                zip(
+                    self.mmm_data.mmmdata_spec.paid_media_spends,
+                    self.mmm_data.mmmdata_spec.paid_media_vars,
+                )
             )
             if spend != exposure
         ]
         for idx in exposure_selector:
             paid_media_spend = self.mmm_data.mmmdata_spec.paid_media_spends[idx]
             paid_media_var = self.mmm_data.mmmdata_spec.paid_media_vars[idx]
-            self.logger.debug(f"Processing model for {paid_media_var} (spend: {paid_media_spend})")
+            self.logger.debug(
+                f"Processing model for {paid_media_var} (spend: {paid_media_spend})"
+            )
             # Prepare data for modeling
             dt_spend_mod_input = pd.DataFrame(
-                {"spend": dt_modRollWind[paid_media_spend], "exposure": dt_modRollWind[paid_media_var]}
+                {
+                    "spend": dt_modRollWind[paid_media_spend],
+                    "exposure": dt_modRollWind[paid_media_var],
+                }
             )
-            result = self._fit_spend_exposure(dt_spend_mod_input, paid_media_var, media_cost_factor[paid_media_spend])
+            result = self._fit_spend_exposure(
+                dt_spend_mod_input, paid_media_var, media_cost_factor[paid_media_spend]
+            )
             if result is not None:
                 modNLS["results"].append(result["res"])
                 # Store both NLS and LM predictions
@@ -159,14 +198,19 @@ class FeatureEngineering:
                     )  # Rename columns to match R structure
                     modNLS["yhat"].extend(yhat_data.to_dict(orient="records"))
                 modNLS["plots"][paid_media_var] = result["plot"]
-                self.logger.debug(f"Completed model fit for {paid_media_var} with R² = {result['res']['rsq']:.4f}")
+                self.logger.debug(
+                    f"Completed model fit for {paid_media_var} with R² = {result['res']['rsq']:.4f}"
+                )
             else:
                 self.logger.warning(f"Model fitting failed for {paid_media_var}")
         self.logger.info(f"Completed model runs for {len(modNLS['results'])} channels")
         return modNLS
 
     def _fit_spend_exposure(
-        self, dt_spend_mod_input: pd.DataFrame, paid_media_var: str, media_cost_factor: float
+        self,
+        dt_spend_mod_input: pd.DataFrame,
+        paid_media_var: str,
+        media_cost_factor: float,
     ) -> Dict[str, Any]:
         """Fit spend-exposure models matching R implementation."""
         self.logger.info(f"Fitting spend-exposure model for {paid_media_var}")
@@ -177,28 +221,45 @@ class FeatureEngineering:
         spend_data = dt_spend_mod_input["spend"]
         exposure_data = dt_spend_mod_input["exposure"]
         if exposure_data.empty or spend_data.empty:
-            self.logger.warning(f"Empty data for {paid_media_var}. Skipping model fitting.")
+            self.logger.warning(
+                f"Empty data for {paid_media_var}. Skipping model fitting."
+            )
             return None
         try:
             # Initial parameters based on R implementation
             p0 = [exposure_data.max(), exposure_data.max() / 2]
             # Fit Michaelis-Menten (NLS) model
             popt_nls, _ = curve_fit(
-                michaelis_menten, spend_data, exposure_data, p0=p0, bounds=([0, 0], [np.inf, np.inf]), maxfev=10000
+                michaelis_menten,
+                spend_data,
+                exposure_data,
+                p0=p0,
+                bounds=([0, 0], [np.inf, np.inf]),
+                maxfev=10000,
             )
             yhat_nls = michaelis_menten(spend_data, *popt_nls)
-            rsq_nls = 1 - np.sum((exposure_data - yhat_nls) ** 2) / np.sum((exposure_data - exposure_data.mean()) ** 2)
+            rsq_nls = 1 - np.sum((exposure_data - yhat_nls) ** 2) / np.sum(
+                (exposure_data - exposure_data.mean()) ** 2
+            )
             # Calculate AIC and BIC for NLS
-            aic_nls = 2 * len(popt_nls) - 2 * np.log(np.sum((exposure_data - yhat_nls) ** 2))
-            bic_nls = len(popt_nls) * np.log(len(exposure_data)) - 2 * np.log(np.sum((exposure_data - yhat_nls) ** 2))
+            aic_nls = 2 * len(popt_nls) - 2 * np.log(
+                np.sum((exposure_data - yhat_nls) ** 2)
+            )
+            bic_nls = len(popt_nls) * np.log(len(exposure_data)) - 2 * np.log(
+                np.sum((exposure_data - yhat_nls) ** 2)
+            )
             # Fit linear model
             lm = LinearRegression(fit_intercept=False)
             lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
             yhat_lm = lm.predict(spend_data.values.reshape(-1, 1))
-            rsq_lm = 1 - np.sum((exposure_data - yhat_lm) ** 2) / np.sum((exposure_data - exposure_data.mean()) ** 2)
+            rsq_lm = 1 - np.sum((exposure_data - yhat_lm) ** 2) / np.sum(
+                (exposure_data - exposure_data.mean()) ** 2
+            )
             # Calculate AIC and BIC for LM
             aic_lm = 2 * 1 - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
-            bic_lm = 1 * np.log(len(exposure_data)) - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
+            bic_lm = 1 * np.log(len(exposure_data)) - 2 * np.log(
+                np.sum((exposure_data - yhat_lm) ** 2)
+            )
 
             # Choose the better model based on R-squared
             if rsq_nls > rsq_lm:
@@ -212,7 +273,9 @@ class FeatureEngineering:
             # Prepare result dictionary
             res = {
                 "channel": paid_media_var,
-                "model_type": "nls" if rsq_nls > rsq_lm else "lm",  # Set model_type based on the better model
+                "model_type": (
+                    "nls" if rsq_nls > rsq_lm else "lm"
+                ),  # Set model_type based on the better model
                 "Vmax": float(popt_nls[0]) if rsq_nls > rsq_lm else None,
                 "Km": float(popt_nls[1]) if rsq_nls > rsq_lm else None,
                 "aic_nls": aic_nls if rsq_nls > rsq_lm else None,
@@ -224,10 +287,18 @@ class FeatureEngineering:
                 "coef_lm": float(lm.coef_[0]),
                 "rsq": rsq,  # Add a combined rsq for easier access
             }
-            plot_data = pd.DataFrame({"spend": spend_data.values, "exposure": exposure_data.values, "yhat": yhat})
+            plot_data = pd.DataFrame(
+                {
+                    "spend": spend_data.values,
+                    "exposure": exposure_data.values,
+                    "yhat": yhat,
+                }
+            )
             return {"res": res, "plot": plot_data, "yhat": yhat}
         except Exception as e:
-            self.logger.warning(f"Error fitting models for {paid_media_var}: {str(e)}. Falling back to linear model.")
+            self.logger.warning(
+                f"Error fitting models for {paid_media_var}: {str(e)}. Falling back to linear model."
+            )
             try:
                 lm = LinearRegression(fit_intercept=False)
                 lm.fit(spend_data.values.reshape(-1, 1), exposure_data)
@@ -237,7 +308,9 @@ class FeatureEngineering:
                 )
                 # Calculate AIC and BIC for LM
                 aic_lm = 2 * 1 - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
-                bic_lm = 1 * np.log(len(exposure_data)) - 2 * np.log(np.sum((exposure_data - yhat_lm) ** 2))
+                bic_lm = 1 * np.log(len(exposure_data)) - 2 * np.log(
+                    np.sum((exposure_data - yhat_lm) ** 2)
+                )
                 res = {
                     "channel": paid_media_var,
                     "Vmax": None,  # Set to None if not applicable
@@ -252,17 +325,29 @@ class FeatureEngineering:
                     "rsq": rsq_lm,  # Use rsq_lm as the combined rsq
                 }
                 plot_data = pd.DataFrame(
-                    {"spend": spend_data.values, "exposure": exposure_data.values, "yhat": yhat_lm}
+                    {
+                        "spend": spend_data.values,
+                        "exposure": exposure_data.values,
+                        "yhat": yhat_lm,
+                    }
                 )
                 return {"res": res, "plot": plot_data, "yhat": yhat_lm}
             except Exception as e2:
-                self.logger.error(f"Both NLS and linear model fitting failed for {paid_media_var}: {str(e2)}")
+                self.logger.error(
+                    f"Both NLS and linear model fitting failed for {paid_media_var}: {str(e2)}"
+                )
                 return None
 
-    def _calculate_media_cost_factor(self, dt_input_roll_wind: pd.DataFrame) -> pd.Series:
+    def _calculate_media_cost_factor(
+        self, dt_input_roll_wind: pd.DataFrame
+    ) -> pd.Series:
         """Calculate media cost factors matching R implementation."""
-        spend_sums = dt_input_roll_wind[self.mmm_data.mmmdata_spec.paid_media_spends].sum()
-        exposure_sums = dt_input_roll_wind[self.mmm_data.mmmdata_spec.paid_media_vars].sum()
+        spend_sums = dt_input_roll_wind[
+            self.mmm_data.mmmdata_spec.paid_media_spends
+        ].sum()
+        exposure_sums = dt_input_roll_wind[
+            self.mmm_data.mmmdata_spec.paid_media_vars
+        ].sum()
         return spend_sums / exposure_sums
 
     @staticmethod
@@ -287,7 +372,9 @@ class FeatureEngineering:
 
         # Process holidays
         holidays = self._set_holidays(
-            dt_mod, self.holidays_data.dt_holidays.copy(), self.mmm_data.mmmdata_spec.interval_type
+            dt_mod,
+            self.holidays_data.dt_holidays.copy(),
+            self.mmm_data.mmmdata_spec.interval_type,
         )
 
         # Prepare base regressors
@@ -322,9 +409,15 @@ class FeatureEngineering:
 
         # Setup Prophet model
         model = Prophet(
-            holidays=holidays[holidays["country"].isin([self.holidays_data.prophet_country])] if use_holiday else None,
+            holidays=(
+                holidays[holidays["country"].isin([self.holidays_data.prophet_country])]
+                if use_holiday
+                else None
+            ),
             yearly_seasonality=use_season,
-            weekly_seasonality=use_weekday if self.mmm_data.mmmdata_spec.day_interval <= 7 else False,
+            weekly_seasonality=(
+                use_weekday if self.mmm_data.mmmdata_spec.day_interval <= 7 else False
+            ),
             daily_seasonality=False,
         )
 
@@ -356,7 +449,9 @@ class FeatureEngineering:
         # Handle factor variables in output
         if factor_vars:
             for var in factor_vars:
-                factor_cols = [col for col in forecast.columns if col.startswith(f"{var}_")]
+                factor_cols = [
+                    col for col in forecast.columns if col.startswith(f"{var}_")
+                ]
                 factor_effects = forecast[factor_cols].sum(axis=1)
 
                 # Set baseline (reference level) to 0
@@ -365,12 +460,16 @@ class FeatureEngineering:
 
                 # Scale effects to match R's implementation
                 if dt_mod[var].sum() > 0:
-                    scale_factor = dt_mod[var].max() / 1272202.89877032  # R's maximum value
+                    scale_factor = (
+                        dt_mod[var].max() / 1272202.89877032
+                    )  # R's maximum value
                     dt_mod[var] = dt_mod[var] / scale_factor
 
         return dt_mod
 
-    def _set_holidays(self, dt_transform: pd.DataFrame, dt_holidays: pd.DataFrame, interval_type: str) -> pd.DataFrame:
+    def _set_holidays(
+        self, dt_transform: pd.DataFrame, dt_holidays: pd.DataFrame, interval_type: str
+    ) -> pd.DataFrame:
         self.logger.debug(f"Setting holidays for interval type: {interval_type}")
 
         try:
@@ -391,7 +490,10 @@ class FeatureEngineering:
                 )
                 holidays = (
                     holidays.groupby(["ds", "country", "year"])
-                    .agg(holiday=("holiday", lambda x: ", ".join(x)), n=("holiday", "count"))
+                    .agg(
+                        holiday=("holiday", lambda x: ", ".join(x)),
+                        n=("holiday", "count"),
+                    )
                     .reset_index()
                 )
                 self.logger.debug(f"Aggregated {len(holidays)} weekly holiday entries")
@@ -399,38 +501,57 @@ class FeatureEngineering:
             elif interval_type == "month":
                 self.logger.debug("Processing monthly holiday aggregation")
                 if not all(dt_transform["ds"].dt.day == 1):
-                    self.logger.error("Monthly data does not start on first day of month")
-                    raise ValueError("Monthly data should have first day of month as datestamp, e.g.'2020-01-01'")
+                    self.logger.error(
+                        "Monthly data does not start on first day of month"
+                    )
+                    raise ValueError(
+                        "Monthly data should have first day of month as datestamp, e.g.'2020-01-01'"
+                    )
                 holidays["ds"] = holidays["ds"].dt.to_period("M").dt.to_timestamp()
                 holidays = (
-                    holidays.groupby(["ds", "country", "year"])["holiday"].agg(lambda x: ", ".join(x)).reset_index()
+                    holidays.groupby(["ds", "country", "year"])["holiday"]
+                    .agg(lambda x: ", ".join(x))
+                    .reset_index()
                 )
                 self.logger.debug(f"Aggregated {len(holidays)} monthly holiday entries")
                 return holidays
             else:
                 self.logger.error(f"Invalid interval_type: {interval_type}")
-                raise ValueError("Invalid interval_type. Must be 'day', 'week', or 'month'.")
+                raise ValueError(
+                    "Invalid interval_type. Must be 'day', 'week', or 'month'."
+                )
 
         except Exception as e:
             self.logger.error(f"Error setting holidays: {str(e)}")
             raise
 
-    def _apply_transformations(self, x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
+    def _apply_transformations(
+        self, x: pd.Series, params: ChannelHyperparameters
+    ) -> pd.Series:
         self.logger.debug("Applying transformations to series")
         x_adstock = self._apply_adstock(x, params)
         x_saturated = self._apply_saturation(x_adstock, params)
         return x_saturated
 
     def _apply_adstock(self, x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
-        self.logger.debug(f"Applying {self.hyperparameters.adstock} adstock transformation")
+        self.logger.debug(
+            f"Applying {self.hyperparameters.adstock} adstock transformation"
+        )
         try:
             if self.hyperparameters.adstock == AdstockType.GEOMETRIC:
                 return self._geometric_adstock(x, params.thetas[0])
-            elif self.hyperparameters.adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
+            elif self.hyperparameters.adstock in [
+                AdstockType.WEIBULL_CDF,
+                AdstockType.WEIBULL_PDF,
+            ]:
                 return self._weibull_adstock(x, params.shapes[0], params.scales[0])
             else:
-                self.logger.error(f"Unsupported adstock type: {self.hyperparameters.adstock}")
-                raise ValueError(f"Unsupported adstock type: {self.hyperparameters.adstock}")
+                self.logger.error(
+                    f"Unsupported adstock type: {self.hyperparameters.adstock}"
+                )
+                raise ValueError(
+                    f"Unsupported adstock type: {self.hyperparameters.adstock}"
+                )
         except Exception as e:
             self.logger.error(f"Error applying adstock transformation: {str(e)}")
             raise
@@ -442,13 +563,19 @@ class FeatureEngineering:
     @staticmethod
     def _weibull_adstock(x: pd.Series, shape: float, scale: float) -> pd.Series:
         def weibull_pdf(t):
-            return (shape / scale) * ((t / scale) ** (shape - 1)) * np.exp(-((t / scale) ** shape))
+            return (
+                (shape / scale)
+                * ((t / scale) ** (shape - 1))
+                * np.exp(-((t / scale) ** shape))
+            )
 
         weights = [weibull_pdf(t) for t in range(1, len(x) + 1)]
         weights = weights / np.sum(weights)
         return np.convolve(x, weights[::-1], mode="full")[: len(x)]
 
-    def _apply_saturation(self, x: pd.Series, params: ChannelHyperparameters) -> pd.Series:
+    def _apply_saturation(
+        self, x: pd.Series, params: ChannelHyperparameters
+    ) -> pd.Series:
         self.logger.debug("Applying saturation transformation")
         try:
             alpha, gamma = params.alphas[0], params.gammas[0]

@@ -50,7 +50,11 @@ class BaseModelExecutor(ABC):
         logger.debug(
             "Input data shapes - MMMData: %s, Holidays: %s",
             mmmdata.data.shape if hasattr(mmmdata, "data") else "None",
-            len(holidays_data.holidays) if hasattr(holidays_data, "holidays") else "None",
+            (
+                len(holidays_data.holidays)
+                if hasattr(holidays_data, "holidays")
+                else "None"
+            ),
         )
 
         self.mmmdata = mmmdata
@@ -131,11 +135,20 @@ class BaseModelExecutor(ABC):
         prepared_hyperparameters = self.hyperparameters.copy()
 
         if dt_hyper_fixed:
-            logger.debug("Updating with fixed hyperparameters: %s", dt_hyper_fixed.keys())
+            logger.debug(
+                "Updating with fixed hyperparameters: %s", dt_hyper_fixed.keys()
+            )
             for key, value in dt_hyper_fixed.items():
                 if prepared_hyperparameters.has_channel(key):
                     channel_params = prepared_hyperparameters.get_hyperparameter(key)
-                    for param in ["thetas", "shapes", "scales", "alphas", "gammas", "penalty"]:
+                    for param in [
+                        "thetas",
+                        "shapes",
+                        "scales",
+                        "alphas",
+                        "gammas",
+                        "penalty",
+                    ]:
                         if param in value:
                             logger.debug("Setting %s.%s = %s", key, param, value[param])
                             setattr(channel_params, param, value[param])
@@ -156,19 +169,33 @@ class BaseModelExecutor(ABC):
                 values = getattr(channel_params, param)
                 if isinstance(values, list) and len(values) == 2:
                     hyper_to_optimize[f"{channel}_{param}"] = values
-                    logger.debug("Added %s_%s to optimization parameters", channel, param)
+                    logger.debug(
+                        "Added %s_%s to optimization parameters", channel, param
+                    )
 
-        if isinstance(prepared_hyperparameters.lambda_, list) and len(prepared_hyperparameters.lambda_) == 2:
+        if (
+            isinstance(prepared_hyperparameters.lambda_, list)
+            and len(prepared_hyperparameters.lambda_) == 2
+        ):
             hyper_to_optimize["lambda"] = prepared_hyperparameters.lambda_
             logger.debug("Added lambda to optimization parameters")
 
-        if isinstance(prepared_hyperparameters.train_size, list) and len(prepared_hyperparameters.train_size) == 2:
+        if (
+            isinstance(prepared_hyperparameters.train_size, list)
+            and len(prepared_hyperparameters.train_size) == 2
+        ):
             hyper_to_optimize["train_size"] = prepared_hyperparameters.train_size
             logger.debug("Added train_size to optimization parameters")
 
-        logger.info("Completed hyperparameter preparation with %d parameters to optimize", len(hyper_to_optimize))
+        logger.info(
+            "Completed hyperparameter preparation with %d parameters to optimize",
+            len(hyper_to_optimize),
+        )
 
-        return {"prepared_hyperparameters": prepared_hyperparameters, "hyper_to_optimize": hyper_to_optimize}
+        return {
+            "prepared_hyperparameters": prepared_hyperparameters,
+            "hyper_to_optimize": hyper_to_optimize,
+        }
 
     def _setup_nevergrad_optimizer(
         self,
@@ -177,22 +204,35 @@ class BaseModelExecutor(ABC):
         cores: int,
         nevergrad_algo: NevergradAlgorithm,
     ) -> ng.optimizers.base.Optimizer:
-        logger.info("Setting up Nevergrad optimizer with algorithm: %s", nevergrad_algo.value)
+        logger.info(
+            "Setting up Nevergrad optimizer with algorithm: %s", nevergrad_algo.value
+        )
         hyper_to_optimize = hyperparameters["hyper_to_optimize"]
 
         if not hyper_to_optimize:
             logger.error("No hyperparameters found for optimization")
-            raise ValueError("No hyperparameters to optimize. Please check your hyperparameter configuration.")
+            raise ValueError(
+                "No hyperparameters to optimize. Please check your hyperparameter configuration."
+            )
 
-        logger.debug("Creating instrumentation with %d parameters", len(hyper_to_optimize))
+        logger.debug(
+            "Creating instrumentation with %d parameters", len(hyper_to_optimize)
+        )
         instrum_dict = {
-            name: ng.p.Scalar(lower=bounds[0], upper=bounds[1]) for name, bounds in hyper_to_optimize.items()
+            name: ng.p.Scalar(lower=bounds[0], upper=bounds[1])
+            for name, bounds in hyper_to_optimize.items()
         }
 
         instrum = ng.p.Instrumentation(**instrum_dict)
-        optimizer = ng.optimizers.registry[nevergrad_algo.value](instrum, budget=iterations, num_workers=cores)
+        optimizer = ng.optimizers.registry[nevergrad_algo.value](
+            instrum, budget=iterations, num_workers=cores
+        )
 
-        logger.info("Optimizer setup complete with %d iterations and %d cores", iterations, cores)
+        logger.info(
+            "Optimizer setup complete with %d iterations and %d cores",
+            iterations,
+            cores,
+        )
         return optimizer
 
     def _calculate_objective(
@@ -222,7 +262,9 @@ class BaseModelExecutor(ABC):
         logger.debug("Calculated objective value: %.4f", objective)
         return objective
 
-    def _apply_transformations(self, channel: str, hyperparameters: Dict[str, Any]) -> np.ndarray:
+    def _apply_transformations(
+        self, channel: str, hyperparameters: Dict[str, Any]
+    ) -> np.ndarray:
         logger.debug("Applying transformations for channel: %s", channel)
 
         adstock_type = self.mmmdata.adstock
@@ -230,8 +272,13 @@ class BaseModelExecutor(ABC):
 
         try:
             if adstock_type == AdstockType.GEOMETRIC:
-                logger.debug("Applying geometric adstock with theta: %.4f", hyperparameters[f"{channel}_theta"])
-                adstock_result = self.transformation.adstock_geometric(channel, hyperparameters[f"{channel}_theta"])
+                logger.debug(
+                    "Applying geometric adstock with theta: %.4f",
+                    hyperparameters[f"{channel}_theta"],
+                )
+                adstock_result = self.transformation.adstock_geometric(
+                    channel, hyperparameters[f"{channel}_theta"]
+                )
             elif adstock_type in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
                 logger.debug(
                     "Applying Weibull adstock with shape: %.4f, scale: %.4f",
@@ -267,7 +314,9 @@ class BaseModelExecutor(ABC):
             return saturated_data
 
         except Exception as e:
-            logger.error("Error applying transformations for channel %s: %s", channel, str(e))
+            logger.error(
+                "Error applying transformations for channel %s: %s", channel, str(e)
+            )
             raise
 
     def _prepare_model_data(self, hyperparameters: Dict[str, Any]) -> np.ndarray:
@@ -276,12 +325,17 @@ class BaseModelExecutor(ABC):
 
         for channel in self.mmmdata.paid_media_vars:
             logger.debug("Processing channel: %s", channel)
-            transformed_data[channel] = self._apply_transformations(channel, hyperparameters)
+            transformed_data[channel] = self._apply_transformations(
+                channel, hyperparameters
+            )
 
         logger.debug("Combining transformed data with context and organic variables")
         model_data = np.column_stack(
             [transformed_data[channel] for channel in self.mmmdata.paid_media_vars]
-            + [self.mmmdata.data[var] for var in self.mmmdata.context_vars + self.mmmdata.organic_vars]
+            + [
+                self.mmmdata.data[var]
+                for var in self.mmmdata.context_vars + self.mmmdata.organic_vars
+            ]
         )
 
         logger.info("Model data preparation complete. Shape: %s", model_data.shape)

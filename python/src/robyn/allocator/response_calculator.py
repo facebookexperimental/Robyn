@@ -58,10 +58,14 @@ class ResponseCalculator:
         try:
             # Hill transformation
             if get_sum:
-                x_out = coef * np.sum((1 + (inflexion + eps) ** alpha / (x_adstocked) ** alpha) ** -1)
+                x_out = coef * np.sum(
+                    (1 + (inflexion + eps) ** alpha / (x_adstocked) ** alpha) ** -1
+                )
                 logger.debug("Calculated summed response: %.4f", x_out)
             else:
-                x_out = coef * ((1 + (inflexion + eps) ** alpha / (x_adstocked) ** alpha) ** -1)
+                x_out = coef * (
+                    (1 + (inflexion + eps) ** alpha / (x_adstocked) ** alpha) ** -1
+                )
                 logger.debug("Calculated individual response: %.4f", x_out)
 
         except Exception as e:
@@ -75,7 +79,12 @@ class ResponseCalculator:
         return x_out
 
     def calculate_gradient(
-        self, spend: float, coef: float, alpha: float, inflexion: float, x_hist_carryover: float = 0
+        self,
+        spend: float,
+        coef: float,
+        alpha: float,
+        inflexion: float,
+        x_hist_carryover: float = 0,
     ) -> float:
         """Calculate gradient for optimization."""
         logger.debug(
@@ -111,7 +120,12 @@ class ResponseCalculator:
         return x_out
 
     def get_response_curve(
-        self, spend_range: np.ndarray, coef: float, alpha: float, inflexion: float, x_hist_carryover: float = 0
+        self,
+        spend_range: np.ndarray,
+        coef: float,
+        alpha: float,
+        inflexion: float,
+        x_hist_carryover: float = 0,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Generate response curve over a range of spend values."""
         logger.info(
@@ -122,28 +136,41 @@ class ResponseCalculator:
             x_hist_carryover,
         )
         logger.debug(
-            "Spend range: min=%.2f, max=%.2f, size=%d", np.min(spend_range), np.max(spend_range), len(spend_range)
+            "Spend range: min=%.2f, max=%.2f, size=%d",
+            np.min(spend_range),
+            np.max(spend_range),
+            len(spend_range),
         )
 
         try:
             responses = np.array(
                 [
-                    self.calculate_response(spend, coef, alpha, inflexion, x_hist_carryover, get_sum=False)
+                    self.calculate_response(
+                        spend, coef, alpha, inflexion, x_hist_carryover, get_sum=False
+                    )
                     for spend in spend_range
                 ]
             )
 
-            logger.debug("Response range: min=%.2f, max=%.2f", np.min(responses), np.max(responses))
+            logger.debug(
+                "Response range: min=%.2f, max=%.2f",
+                np.min(responses),
+                np.max(responses),
+            )
 
             if np.any(np.isnan(responses)):
                 logger.warning("NaN values detected in response curve calculations")
 
             if np.any(responses < 0):
-                logger.warning("Negative values detected in response curve calculations")
+                logger.warning(
+                    "Negative values detected in response curve calculations"
+                )
 
         except Exception as e:
             logger.error("Error generating response curve: %s", str(e))
             raise
 
-        logger.info("Successfully generated response curve with %d points", len(responses))
+        logger.info(
+            "Successfully generated response curve with %d points", len(responses)
+        )
         return spend_range, responses

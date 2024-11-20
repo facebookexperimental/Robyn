@@ -69,7 +69,10 @@ class ImmediateCarryoverCalculator:
         self.model_outputs = model_outputs
 
     def calculate(
-        self, sol_id: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None
+        self,
+        sol_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
     ) -> List[EffectDecomposition]:
         """
         Calculate immediate and carryover effects for media channels.
@@ -99,7 +102,9 @@ class ImmediateCarryoverCalculator:
         """
         pass
 
-    def _get_date_range(self, start_date: Optional[str], end_date: Optional[str]) -> DateRange:
+    def _get_date_range(
+        self, start_date: Optional[str], end_date: Optional[str]
+    ) -> DateRange:
         """
         Get the date range for the calculation.
 

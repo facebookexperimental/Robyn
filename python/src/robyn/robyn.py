@@ -264,8 +264,10 @@ class Robyn:
                 cluster_builder = ClusterBuilder(self.pareto_result)
                 self.cluster_result = cluster_builder.cluster_models(cluster_config)
                 is_clustered = True
-            
-            self.pareto_result = ParetoUtils().process_pareto_clustered_results(self.pareto_result, self.cluster_result, is_clustered)
+
+            self.pareto_result = ParetoUtils().process_pareto_clustered_results(
+                self.pareto_result, self.cluster_result, is_clustered
+            )
             if display_plots or export_plots:
                 pareto_visualizer = ParetoVisualizer(
                     self.pareto_result,

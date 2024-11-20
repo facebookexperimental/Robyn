@@ -69,7 +69,9 @@ class ModelExecutor(BaseModelExecutor):
             cores = CommonUtils.get_cores_available(cores)
             self.logger.debug("Using %d cores for processing", cores)
 
-            prepared_hyperparameters = self._prepare_hyperparameters(dt_hyper_fixed, add_penalty_factor, ts_validation)
+            prepared_hyperparameters = self._prepare_hyperparameters(
+                dt_hyper_fixed, add_penalty_factor, ts_validation
+            )
             self.logger.debug("Hyperparameters prepared: %s", prepared_hyperparameters)
 
             if model_name == Models.RIDGE:
@@ -100,9 +102,13 @@ class ModelExecutor(BaseModelExecutor):
 
                 if outputs:
                     self.logger.debug("Generating additional outputs")
-                    additional_outputs = self._generate_additional_outputs(model_outputs)
+                    additional_outputs = self._generate_additional_outputs(
+                        model_outputs
+                    )
                     model_outputs.update(additional_outputs)
-                    self.logger.debug("Additional outputs generated: %s", additional_outputs)
+                    self.logger.debug(
+                        "Additional outputs generated: %s", additional_outputs
+                    )
 
                 self.logger.info("Model execution completed successfully")
                 return model_outputs
@@ -115,7 +121,9 @@ class ModelExecutor(BaseModelExecutor):
             self.logger.error("Error during model execution: %s", str(e), exc_info=True)
             raise
 
-    def _generate_additional_outputs(self, model_outputs: ModelOutputs) -> Dict[str, Any]:
+    def _generate_additional_outputs(
+        self, model_outputs: ModelOutputs
+    ) -> Dict[str, Any]:
         """
         Generate additional outputs based on the model results.
         """
@@ -124,16 +132,26 @@ class ModelExecutor(BaseModelExecutor):
 
         try:
             if hasattr(model_outputs, "trials") and model_outputs.trials > 1:
-                self.logger.debug("Calculating average performance across %d trials", model_outputs.trials)
-                avg_performance = sum(trial.performance for trial in model_outputs.results) / model_outputs.trials
+                self.logger.debug(
+                    "Calculating average performance across %d trials",
+                    model_outputs.trials,
+                )
+                avg_performance = (
+                    sum(trial.performance for trial in model_outputs.results)
+                    / model_outputs.trials
+                )
                 additional_outputs["average_performance"] = avg_performance
                 self.logger.debug("Average performance calculated: %f", avg_performance)
 
-            self.logger.debug("Additional outputs generated successfully: %s", additional_outputs)
+            self.logger.debug(
+                "Additional outputs generated successfully: %s", additional_outputs
+            )
             return additional_outputs
 
         except Exception as e:
-            self.logger.error("Error generating additional outputs: %s", str(e), exc_info=True)
+            self.logger.error(
+                "Error generating additional outputs: %s", str(e), exc_info=True
+            )
             raise
 
     def _validate_input(self):
@@ -144,7 +162,8 @@ class ModelExecutor(BaseModelExecutor):
         try:
             super()._validate_input()
             self.logger.debug(
-                "Input validation successful - MMM data shape: %s, " "Holidays data shape: %s",
+                "Input validation successful - MMM data shape: %s, "
+                "Holidays data shape: %s",
                 getattr(self.mmmdata, "shape", "N/A"),
                 getattr(self.holidays_data, "shape", "N/A"),
             )

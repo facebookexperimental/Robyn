@@ -45,7 +45,9 @@ class CalibrationInput:
             Keys must be tuples of strings for both single and combined channels.
     """
 
-    channel_data: Dict[Tuple[str, ...], ChannelCalibrationData] = field(default_factory=dict)
+    channel_data: Dict[Tuple[str, ...], ChannelCalibrationData] = field(
+        default_factory=dict
+    )
 
     def __post_init__(self):
         """
@@ -57,12 +59,16 @@ class CalibrationInput:
             if isinstance(key, str):
                 new_key = (key,)
             elif not isinstance(key, tuple):
-                raise ValueError(f"Channel key must be a tuple or string, got {type(key)}")
+                raise ValueError(
+                    f"Channel key must be a tuple or string, got {type(key)}"
+                )
             else:
                 new_key = key
 
             if not all(isinstance(ch, str) for ch in new_key):
-                raise ValueError(f"All channel names in tuple must be strings: {new_key}")
+                raise ValueError(
+                    f"All channel names in tuple must be strings: {new_key}"
+                )
 
             new_channel_data[new_key] = value
 

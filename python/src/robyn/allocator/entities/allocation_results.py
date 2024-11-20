@@ -75,8 +75,10 @@ class AllocationResult:
             {
                 "total_current_spend": total_current_spend,
                 "total_optimal_spend": total_optimal_spend,
-                "spend_lift_abs": (total_optimal_spend - total_current_spend) / 1000,  # In thousands
-                "spend_lift_pct": ((total_optimal_spend / total_current_spend) - 1) * 100,
+                "spend_lift_abs": (total_optimal_spend - total_current_spend)
+                / 1000,  # In thousands
+                "spend_lift_pct": ((total_optimal_spend / total_current_spend) - 1)
+                * 100,
                 "response_lift": (total_optimal_response / total_current_response) - 1,
             }
         )
