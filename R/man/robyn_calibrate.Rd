@@ -14,7 +14,7 @@ robyn_calibrate(
   loss_min_step_rel = 0.01,
   loss_stop_rel = 0.05,
   burn_in_rel = 0.1,
-  sim_n = 50,
+  sim_n = 100,
   hp_interval = 0.95,
   quiet = FALSE,
   ...
@@ -70,13 +70,14 @@ and iterations modeled.
 saturation or adstock curve estimation.
 }
 \examples{
+\dontrun{
 # Dummy source of truth data
 df_curve_sot <- data.frame(
-  spend = c(
+  spend_cumulated = c(
     0, 1933, 94574, 131815, 370320, 470523, 489839,
     514386, 531668, 532889
   ),
-  response = c(
+  response_cumulated = c(
     0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
     1643194, 1677396, 1679811
   )
@@ -88,15 +89,5 @@ curve_out <- robyn_calibrate(
   force_shape = "s",
   max_trials = 5
 )
-
-# Alternatively, provide custom parameters
-hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
-
-curve_out <- robyn_calibrate(
-  df_curve_sot = df_curve_sot,
-  curve_type = "saturation_reach",
-  hp_bounds = hp_bounds,
-  max_trials = 5
-)
-
+}
 }

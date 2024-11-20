@@ -36,13 +36,14 @@
 #' @param hp_interval numeric. Default to 0.95 and is between 0.8-1. 0.95 means
 #' 2.5 - 97.5 percent percentile are used as parameter range for output.
 #' @examples
+#' \dontrun{
 #' # Dummy source of truth data
 #' df_curve_sot <- data.frame(
-#'   spend = c(
+#'   spend_cumulated = c(
 #'     0, 1933, 94574, 131815, 370320, 470523, 489839,
 #'     514386, 531668, 532889
 #'   ),
-#'   response = c(
+#'   response_cumulated = c(
 #'     0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
 #'     1643194, 1677396, 1679811
 #'   )
@@ -54,17 +55,7 @@
 #'   force_shape = "s",
 #'   max_trials = 5
 #' )
-#'
-#' # Alternatively, provide custom parameters
-#' hp_bounds <- list(hill = list(alpha = c(0, 10), gamma = c(0, 1)))
-#'
-#' curve_out <- robyn_calibrate(
-#'   df_curve_sot = df_curve_sot,
-#'   curve_type = "saturation_reach",
-#'   hp_bounds = hp_bounds,
-#'   max_trials = 5
-#' )
-#'
+#' }
 #' @return List. Class: \code{curve_out}. Contains the results of all trials
 #' and iterations modeled.
 #' @export
@@ -78,7 +69,7 @@ robyn_calibrate <- function(
     loss_min_step_rel = 0.01,
     loss_stop_rel = 0.05,
     burn_in_rel = 0.1,
-    sim_n = 50,
+    sim_n = 100,
     hp_interval = 0.95,
     quiet = FALSE,
     ...) {
@@ -89,12 +80,12 @@ robyn_calibrate <- function(
   # hp_interval
 
   if (grepl("saturation", curve_type)) {
-    spend_sot <- df_curve_sot[["spend"]]
-    response_sot <- df_curve_sot[["response"]]
+    spend_cum_sot <- df_curve_sot[["spend_cumulated"]]
+    response_cum_sot <- df_curve_sot[["response_cumulated"]]
     # amend 0 if not available
-    if (!any(spend_sot == 0)) {
-      spend_sot <- c(0, spend_sot)
-      response_sot <- c(0, response_sot)
+    if (!any(spend_cum_sot == 0)) {
+      spend_cum_sot <- c(0, spend_cum_sot)
+      response_cum_sot <- c(0, response_cum_sot)
     }
 
     ## get hyperparameter bounds
@@ -153,8 +144,9 @@ robyn_calibrate <- function(
         gamma <- ng_hp_val_scaled["gamma"]
 
         ## predict saturation vector
-        response_pred <- saturation_hill(spend_sot, alpha, gamma)[["x_saturated"]]
-        response_sot_scaled <- .min_max_norm(response_sot)
+        sim_temp <- max(spend_cum_sot)
+        response_pred <- saturation_hill(x = sim_temp, alpha, gamma, x_marginal = spend_cum_sot)[["x_saturated"]]
+        response_sot_scaled <- .min_max_norm(response_cum_sot)
 
         ## get loss
         loss_iter <- .mse_loss(y = response_sot_scaled, y_hat = response_pred)
@@ -213,43 +205,40 @@ robyn_calibrate <- function(
     best_hp <- ng_hp[[best_loss_trial]][[best_loss_iter]]$value
 
     ## saturation hill
+    hp_alpha <- hp_bounds_loop[["alpha"]]
+    hp_gamma <- hp_bounds_loop[["gamma"]]
+    best_alpha <- qunif(best_hp[1], min = min(hp_alpha), max = max(hp_alpha))
+    best_gamma <- qunif(best_hp[2], min = min(hp_gamma), max = max(hp_gamma))
+    # best_response_pred <- saturation_hill(spend_cum_sot, best_alpha, best_gamma)[["x_saturated"]]
+    # best_inflexion <- saturation_hill(spend_cum_sot, best_alpha, best_gamma)[["inflexion"]]
+    alpha_collect <- lapply(ng_hp, FUN = function(x) {
+      sapply(x, FUN = function(y) qunif(y$value[1], min = min(hp_alpha), max = max(hp_alpha)))
+    })
+    gamma_collect <- lapply(ng_hp, FUN = function(x) {
+      sapply(x, FUN = function(y) qunif(y$value[2], min = min(hp_gamma), max = max(hp_gamma)))
+    })
 
-    if (TRUE) {
-      hp_alpha <- hp_bounds_loop[["alpha"]]
-      hp_gamma <- hp_bounds_loop[["gamma"]]
-      best_alpha <- qunif(best_hp[1], min = min(hp_alpha), max = max(hp_alpha))
-      best_gamma <- qunif(best_hp[2], min = min(hp_gamma), max = max(hp_gamma))
-      # best_response_pred <- saturation_hill(spend_sot, best_alpha, best_gamma)[["x_saturated"]]
-      # best_inflexion <- saturation_hill(spend_sot, best_alpha, best_gamma)[["inflexion"]]
-      alpha_collect <- lapply(ng_hp, FUN = function(x) {
-        sapply(x, FUN = function(y) qunif(y$value[1], min = min(hp_alpha), max = max(hp_alpha)))
-      })
-      gamma_collect <- lapply(ng_hp, FUN = function(x) {
-        sapply(x, FUN = function(y) qunif(y$value[2], min = min(hp_gamma), max = max(hp_gamma)))
-      })
+    ## slice by convergence
+    burn_in_abs <- rep(max_iters * burn_in_rel, max_trials)
+    alpha_collect_converged <- unlist(mapply(
+      function(x, start, end) x[start:end],
+      x = alpha_collect, start = burn_in_abs,
+      end = max_iters_vec, SIMPLIFY = FALSE
+    ))
+    gamma_collect_converged <- unlist(mapply(
+      function(x, start, end) x[start:end],
+      x = gamma_collect, start = burn_in_abs,
+      end = max_iters_vec, SIMPLIFY = FALSE
+    ))
 
-      ## slice by convergence
-      burn_in_abs <- rep(max_iters * burn_in_rel, max_trials)
-      alpha_collect_converged <- unlist(mapply(
-        function(x, start, end) x[start:end],
-        x = alpha_collect, start = burn_in_abs,
-        end = max_iters_vec, SIMPLIFY = FALSE
-      ))
-      gamma_collect_converged <- unlist(mapply(
-        function(x, start, end) x[start:end],
-        x = gamma_collect, start = burn_in_abs,
-        end = max_iters_vec, SIMPLIFY = FALSE
-      ))
-
-      ## get calibration range for hyparameters
-      qt_alpha_out <- .qti(x = alpha_collect_converged, interval = hp_interval)
-      qt_gamma_out <- .qti(x = gamma_collect_converged, interval = hp_interval)
-    }
+    ## get calibration range for hyparameters
+    qt_alpha_out <- .qti(x = alpha_collect_converged, interval = hp_interval)
+    qt_gamma_out <- .qti(x = gamma_collect_converged, interval = hp_interval)
 
     ## plotting & prompting
-    df_sot_plot <- data.frame(spend = spend_sot, response = response_sot_scaled)
-    temp_spend <- seq(0, max(spend_sot), by = sim_n)
-    temp_sat <- saturation_hill(temp_spend, best_alpha, best_gamma)[["x_saturated"]]
+    df_sot_plot <- data.frame(spend = spend_cum_sot, response = response_sot_scaled)
+    temp_spend <- seq(0, max(spend_cum_sot), length.out = sim_n)
+    temp_sat <- saturation_hill(x = sim_temp, alpha = best_alpha, gamma = best_gamma, x_marginal = temp_spend)[["x_saturated"]]
     df_pred_plot <- data.frame(spend = temp_spend, response = temp_sat)
 
     sim_alphas <- alpha_collect_converged[
@@ -266,7 +255,7 @@ robyn_calibrate <- function(
     # simulation for plotting
     sim_collect <- list()
     for (i in 1:sim_n) {
-      sim_collect[[i]] <- saturation_hill(temp_spend, sim_alphas[i], sim_gammas[i])[["x_saturated"]]
+      sim_collect[[i]] <- saturation_hill(x = sim_temp, alpha = sim_alphas[i], gamma = sim_gammas[i], x_marginal = temp_spend)[["x_saturated"]]
     }
     sim_collect <- data.frame(
       sim = as.character(c(sapply(1:sim_n, function(x) rep(x, length(temp_spend))))),
@@ -351,7 +340,7 @@ robyn_calibrate <- function(
           paste0(round(qt_alpha_out, 4), collapse = "-"), ")",
           ", Best gamma: ", round(best_gamma, 4), " (",
           paste0(round(qt_gamma_out, 4), collapse = "-"), ")",
-          ", Max spend: ", max(spend_sot)
+          ", Total spend: ", max(spend_cum_sot)
         )
       )
     }
