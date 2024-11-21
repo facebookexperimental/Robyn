@@ -29,7 +29,7 @@ from robyn.allocator.entities.allocation_result import AllocationResult
 
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.reporting.onepager_reporting import OnePager
-from robyn.visualization.allocator_plotter import AllocatorPlotter
+from robyn.visualization.allocator_visualizer import AllocatorPlotter
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
