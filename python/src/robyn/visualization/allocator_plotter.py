@@ -193,7 +193,8 @@ class AllocatorPlotter(BaseVisualizer):
 
         logger.info("Creating allocation matrix plot")
         try:
-            fig, axes = plt.subplots(1, 3, figsize=(15, 8))
+            # Adjust the figsize to make the plots smaller
+            fig, axes = plt.subplots(1, 3, figsize=(10, 6))  # Reduced from (15, 10)
 
             scenarios = ["Initial", "Bounded", "Bounded x3"]
             metrics = [
@@ -217,11 +218,11 @@ class AllocatorPlotter(BaseVisualizer):
                 # Format data for heatmap
                 plot_data = data.copy()
                 plot_data["abs.mean\nspend"] = plot_data["abs.mean\nspend"].apply(
-                    lambda x: f"{x:,.0f}"
+                    lambda x: f"{x/1000:.0f}K"
                 )
                 for col in metrics[1:]:
                     plot_data[col] = plot_data[col].apply(
-                        lambda x: f"{x*100:.1f}%" if col.endswith("%") else f"{x:.2f}"
+                        lambda x: (f"{x*100:.1f}%" if col.endswith("%") else f"{x:.2f}")
                     )
 
                 # Normalize each column independently
@@ -246,17 +247,20 @@ class AllocatorPlotter(BaseVisualizer):
                     annot=plot_data[metrics].values,
                     fmt="",
                     cbar=False,
+                    annot_kws={"fontsize": 8},  # Set the font size for annotations
                 )
 
-                axes[i].set_title(scenario)
-                axes[i].set_xlabel("Metric")
-                axes[i].set_ylabel("Channel" if i == 0 else "")
+                axes[i].set_title(scenario, fontsize=8)
+                axes[i].set_ylabel("Paid Media" if i == 0 else "", fontsize=8)
+
+                # Set the font size for xticks and yticks
+                axes[i].tick_params(axis="x", labelsize=8)  # Adjust xtick label size
+                axes[i].tick_params(axis="y", labelsize=8)  # Adjust ytick label size
 
             plt.suptitle(
-                f"Budget Allocation per Paid Media Variable per {self.interval_type}\n"
-                f"Period: {self.dt_optimOut.date_min} to {self.dt_optimOut.date_max}"
+                f"Budget Allocation per Paid Media Variable per {self.interval_type}",
             )
-            plt.tight_layout()
+            plt.tight_layout(pad=2.0)
 
             return fig
 

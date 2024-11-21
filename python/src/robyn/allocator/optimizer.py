@@ -97,6 +97,24 @@ class BudgetAllocator:
 
         # Get model parameters
         self.dep_var_type = self.mmm_data.mmmdata_spec.dep_var_type
+        # Check and rename 'sol_id' to 'solID' in result_hyp_param
+        if "sol_id" in self.pareto_result.result_hyp_param.columns:
+            self.pareto_result.result_hyp_param = (
+                self.pareto_result.result_hyp_param.rename(columns={"sol_id": "solID"})
+            )
+        # Check and rename 'sol_id' to 'solID' in x_decomp_agg
+        if "sol_id" in self.pareto_result.x_decomp_agg.columns:
+            self.pareto_result.x_decomp_agg = self.pareto_result.x_decomp_agg.rename(
+                columns={"sol_id": "solID"}
+            )
+        # Now proceed with your existing code
+        self.dt_hyppar = self.pareto_result.result_hyp_param[
+            self.pareto_result.result_hyp_param["solID"] == self.select_model
+        ]
+        self.dt_best_coef = self.pareto_result.x_decomp_agg[
+            (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
+            & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
+        ]
         self.dt_hyppar = self.pareto_result.result_hyp_param[
             self.pareto_result.result_hyp_param["solID"] == self.select_model
         ]

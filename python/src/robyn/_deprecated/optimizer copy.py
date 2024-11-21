@@ -11,11 +11,15 @@ from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.enums import DependentVarType, AdstockType
 from robyn.modeling.entities.featurized_mmm_data import FeaturizedMMMData
 
-from .entities.allocation_params import AllocatorParams
-from .entities.allocation_result import AllocationResult, OptimOutData, MainPoints
-from .entities.optimization_result import OptimizationResult
-from .entities.constraints import Constraints
-from .constants import (
+from robyn.allocator.entities.allocation_params import AllocatorParams
+from robyn.allocator.entities.allocation_result import (
+    AllocationResult,
+    OptimOutData,
+    MainPoints,
+)
+from robyn.allocator.entities.optimization_result import OptimizationResult
+from robyn.allocator.entities.constraints import Constraints
+from robyn.allocator.constants import (
     SCENARIO_MAX_RESPONSE,
     SCENARIO_TARGET_EFFICIENCY,
     ALGO_SLSQP_AUGLAG,
