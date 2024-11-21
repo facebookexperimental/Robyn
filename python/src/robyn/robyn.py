@@ -372,6 +372,8 @@ class Robyn:
                 ):
                     select_model = pareto_solutions[1]
 
+            logger.info("Selected model for budget optimization: %s", select_model)
+
             allocator = BudgetAllocator(
                 mmm_data=self.mmm_data,
                 featurized_mmm_data=self.featurized_mmm_data,

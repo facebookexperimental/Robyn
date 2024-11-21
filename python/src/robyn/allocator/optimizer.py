@@ -55,19 +55,21 @@ class BudgetAllocator:
         self._initialize_data()
 
         # Log initial model parameters
-        print("\nInitial model metrics:")
-        print(f"Total initial spend: {self.init_spend_total:,.2f}")
-        print(f"Total initial response: {np.sum(self.init_response):,.2f}")
-        print(f"Overall ROI: {np.sum(self.init_response)/self.init_spend_total:.4f}")
+        logger.debug("\nInitial model metrics:")
+        logger.debug(f"Total initial spend: {self.init_spend_total:,.2f}")
+        logger.debug(f"Total initial response: {np.sum(self.init_response):,.2f}")
+        logger.debug(
+            f"Overall ROI: {np.sum(self.init_response)/self.init_spend_total:.4f}"
+        )
 
-        print("\nPareto to Allocator transfer:")
-        print(f"Selected model: {select_model}")
-        print("Media coefficients from Pareto:")
+        logger.debug("\nPareto to Allocator transfer:")
+        logger.debug(f"Selected model: {select_model}")
+        logger.debug("Media coefficients from Pareto:")
         for channel in self.media_spend_sorted:
             coef = self.dt_best_coef[self.dt_best_coef["rn"] == channel]["coef"].values[
                 0
             ]
-            print(f"{channel}: {coef}")
+            logger.debug(f"{channel}: {coef}")
 
     def _validate_inputs(self) -> None:
         """Validate input data and parameters."""
@@ -109,8 +111,8 @@ class BudgetAllocator:
             (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
             & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
         ]
-        print("Model Coefficients:")
-        print(self.dt_best_coef)
+        logger.debug("Model Coefficients:")
+        logger.debug(self.dt_best_coef)
 
         # Initialize hill parameters
         self.hill_params = get_hill_params(
@@ -121,12 +123,12 @@ class BudgetAllocator:
             self.media_spend_sorted,
             self.select_model,
         )
-        # Add debug prints after getting hill params:
-        print("Hill Parameters:")
-        print(f"Alphas: {self.hill_params.alphas}")
-        print(f"Gammas: {self.hill_params.gammas}")
-        print(f"Coefficients: {self.hill_params.coefs}")
-        print(f"Carryover: {self.hill_params.carryover}")
+        # Add debug logger.debugs after getting hill params:
+        logger.debug("Hill Parameters:")
+        logger.debug(f"Alphas: {self.hill_params.alphas}")
+        logger.debug(f"Gammas: {self.hill_params.gammas}")
+        logger.debug(f"Coefficients: {self.hill_params.coefs}")
+        logger.debug(f"Carryover: {self.hill_params.carryover}")
 
         # Handle zero coefficients like R
         self.exclude = np.array([coef == 0 for coef in self.hill_params.coefs])
@@ -241,9 +243,9 @@ class BudgetAllocator:
         upper_bounds = self.init_spend_unit * self.params.channel_constr_up
         budget_constraint = self.init_spend_total
 
-        print("\nOptimization constraints:")
-        print(f"Total budget: {budget_constraint:,.2f}")
-        print(f"Bounds multiplier: {self.params.channel_constr_multiplier}")
+        logger.debug("\nOptimization constraints:")
+        logger.debug(f"Total budget: {budget_constraint:,.2f}")
+        logger.debug(f"Bounds multiplier: {self.params.channel_constr_multiplier}")
 
         return Constraints(
             lower_bounds=lower_bounds,
@@ -261,18 +263,18 @@ class BudgetAllocator:
             if self.dep_var_type == "revenue":
                 initial_roas = np.sum(self.init_response) / np.sum(self.init_spend_unit)
                 target_value = initial_roas * 0.8  # Target 80% of initial ROAS
-                print(
+                logger.debug(
                     f"Target ROAS: {target_value:.4f} (80% of initial {initial_roas:.4f})"
                 )
             else:
                 initial_cpa = np.sum(self.init_spend_unit) / np.sum(self.init_response)
                 target_value = initial_cpa * 1.2  # Target 120% of initial CPA
-                print(
+                logger.debug(
                     f"Target CPA: {target_value:.4f} (120% of initial {initial_cpa:.4f})"
                 )
         else:
             target_value = self.params.target_value
-            print(f"Using provided target value: {target_value:.4f}")
+            logger.debug(f"Using provided target value: {target_value:.4f}")
 
         return Constraints(
             lower_bounds=lower_bounds,
@@ -283,7 +285,7 @@ class BudgetAllocator:
 
     def optimize(self) -> AllocationResult:
         """Run the budget allocation optimization."""
-        print(f"\nStarting optimization for scenario: {self.params.scenario}")
+        logger.debug(f"\nStarting optimization for scenario: {self.params.scenario}")
 
         # Initialize constraints based on scenario
         if self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
@@ -298,7 +300,7 @@ class BudgetAllocator:
 
     def _run_optimization(self, bounded: bool = True) -> OptimizationResult:
         """Run optimization while respecting excluded channels."""
-        print(f"\nOptimization run (Bounded: {bounded})")
+        logger.debug(f"\nOptimization run (Bounded: {bounded})")
 
         # Calculate bounds
         if bounded:
@@ -398,16 +400,16 @@ class BudgetAllocator:
                     final_solution = result.x.copy()
                     final_solution[self.exclude] = self.init_spend_unit[self.exclude]
 
-                    print(f"\nNew best solution (attempt {i+1}):")
-                    print(f"Objective value: {result.fun:,.2f}")
+                    logger.debug(f"\nNew best solution (attempt {i+1}):")
+                    logger.debug(f"Objective value: {result.fun:,.2f}")
                     total_response = np.sum(
                         [
                             self.calculate_response(spend, i)
                             for i, spend in enumerate(final_solution)
                         ]
                     )
-                    print(f"Total spend: {np.sum(final_solution):,.2f}")
-                    print(f"Total response: {total_response:,.2f}")
+                    logger.debug(f"Total spend: {np.sum(final_solution):,.2f}")
+                    logger.debug(f"Total response: {total_response:,.2f}")
 
                     best_objective = result.fun
                     best_result = OptimizationResult(
@@ -475,20 +477,20 @@ class BudgetAllocator:
         x_saturated = (x_adstocked**alpha) / (x_adstocked**alpha + inflexion**alpha)
         response = coef * x_saturated
 
-        print(f"\n{channel} Response Calculation:")
-        print(f"Input spend: {spend:,.2f}")
-        print(f"Adstocked value: {x_adstocked:,.2f}")
-        print(f"Saturated value: {x_saturated:.4f}")
-        print(f"Final response: {response:.4f}")
+        logger.debug(f"\n{channel} Response Calculation:")
+        logger.debug(f"Input spend: {spend:,.2f}")
+        logger.debug(f"Adstocked value: {x_adstocked:,.2f}")
+        logger.debug(f"Saturated value: {x_saturated:.4f}")
+        logger.debug(f"Final response: {response:.4f}")
         # In calculate_response method
-        print(f"Raw spend: {spend}")
-        print(f"After adstock: {x_adstocked}")
-        print(f"After hill transform: {x_saturated}")
+        logger.debug(f"Raw spend: {spend}")
+        logger.debug(f"After adstock: {x_adstocked}")
+        logger.debug(f"After hill transform: {x_saturated}")
 
-        print("\nResponse calculation components:")
-        print(f"Alpha: {self.hill_params.alphas[channel_index]}")
-        print(f"Gamma: {self.hill_params.gammas[channel_index]}")
-        print(f"Coefficient: {self.hill_params.coefs[channel_index]}")
+        logger.debug("\nResponse calculation components:")
+        logger.debug(f"Alpha: {self.hill_params.alphas[channel_index]}")
+        logger.debug(f"Gamma: {self.hill_params.gammas[channel_index]}")
+        logger.debug(f"Coefficient: {self.hill_params.coefs[channel_index]}")
         return response
 
     def _process_optimization_results(
@@ -541,10 +543,10 @@ class BudgetAllocator:
         )
 
         # Log final results summary
-        print("\nOptimization Results Summary:")
-        print(f"Initial total response: {np.sum(self.init_response):,.2f}")
-        print(f"Optimized total response: {np.sum(bounded_response):,.2f}")
-        print(
+        logger.debug("\nOptimization Results Summary:")
+        logger.debug(f"Initial total response: {np.sum(self.init_response):,.2f}")
+        logger.debug(f"Optimized total response: {np.sum(bounded_response):,.2f}")
+        logger.debug(
             f"Response lift: {((np.sum(bounded_response)/np.sum(self.init_response))-1)*100:,.2f}%"
         )
 
