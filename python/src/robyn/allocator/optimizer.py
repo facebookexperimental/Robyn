@@ -32,9 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class BudgetAllocator:
-    """
-    Budget Allocator for marketing mix modeling optimization.
-    """
+    """Budget Allocator for marketing mix modeling optimization."""
 
     def __init__(
         self,
@@ -56,19 +54,20 @@ class BudgetAllocator:
         self._validate_inputs()
         self._initialize_data()
 
-        # After loading data
-        logger.debug("\nInitial model parameters:")
-        for i, channel in enumerate(self.paid_media_spends):
-            logger.debug(f"\n{channel}:")
-            logger.debug(f"Initial spend: {self.init_spend_unit[i]:,.2f}")
-            logger.debug(f"Coefficient: {self.hill_params.coefs[i]:,.2f}")
-            logger.debug(f"Alpha: {self.hill_params.alphas[i]:.4f}")
-            logger.debug(f"Gamma: {self.hill_params.gammas[i]:.4f}")
-            logger.debug(f"Carryover: {self.hill_params.carryover[i]:.4f}")
+        # Log initial model parameters
+        print("\nInitial model metrics:")
+        print(f"Total initial spend: {self.init_spend_total:,.2f}")
+        print(f"Total initial response: {np.sum(self.init_response):,.2f}")
+        print(f"Overall ROI: {np.sum(self.init_response)/self.init_spend_total:.4f}")
 
-            # Calculate initial response for validation
-            response = self.calculate_response(self.init_spend_unit[i], i)
-            logger.debug(f"Initial response: {response:,.2f}")
+        print("\nPareto to Allocator transfer:")
+        print(f"Selected model: {select_model}")
+        print("Media coefficients from Pareto:")
+        for channel in self.media_spend_sorted:
+            coef = self.dt_best_coef[self.dt_best_coef["rn"] == channel]["coef"].values[
+                0
+            ]
+            print(f"{channel}: {coef}")
 
     def _validate_inputs(self) -> None:
         """Validate input data and parameters."""
@@ -89,41 +88,31 @@ class BudgetAllocator:
         """Initialize and prepare data for optimization."""
         # Extract paid media data
         self.paid_media_spends = np.array(self.mmm_data.mmmdata_spec.paid_media_spends)
-
-        # Remove the sorting since we want to keep original order
-        # self.media_order = np.argsort(self.paid_media_spends)
-        # self.media_spend_sorted = self.paid_media_spends[self.media_order]
         self.media_spend_sorted = self.paid_media_spends  # Keep original order
 
         # Get model parameters
         self.dep_var_type = self.mmm_data.mmmdata_spec.dep_var_type
-        # Check and rename 'sol_id' to 'solID' in result_hyp_param
-        if "sol_id" in self.pareto_result.result_hyp_param.columns:
-            self.pareto_result.result_hyp_param = (
-                self.pareto_result.result_hyp_param.rename(columns={"sol_id": "solID"})
-            )
-        # Check and rename 'sol_id' to 'solID' in x_decomp_agg
-        if "sol_id" in self.pareto_result.x_decomp_agg.columns:
-            self.pareto_result.x_decomp_agg = self.pareto_result.x_decomp_agg.rename(
-                columns={"sol_id": "solID"}
-            )
-        # Now proceed with your existing code
-        self.dt_hyppar = self.pareto_result.result_hyp_param[
-            self.pareto_result.result_hyp_param["solID"] == self.select_model
-        ]
-        self.dt_best_coef = self.pareto_result.x_decomp_agg[
-            (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
-            & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
-        ]
-        self.dt_hyppar = self.pareto_result.result_hyp_param[
-            self.pareto_result.result_hyp_param["solID"] == self.select_model
-        ]
-        self.dt_best_coef = self.pareto_result.x_decomp_agg[
-            (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
-            & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
-        ]
 
-        # Initialize hill parameters before using them
+        # Handle column renames if needed
+        for df_name in ["result_hyp_param", "x_decomp_agg"]:
+            df = getattr(self.pareto_result, df_name)
+            if "sol_id" in df.columns:
+                setattr(
+                    self.pareto_result, df_name, df.rename(columns={"sol_id": "solID"})
+                )
+
+        # Filter for selected model
+        self.dt_hyppar = self.pareto_result.result_hyp_param[
+            self.pareto_result.result_hyp_param["solID"] == self.select_model
+        ]
+        self.dt_best_coef = self.pareto_result.x_decomp_agg[
+            (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
+            & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
+        ]
+        print("Model Coefficients:")
+        print(self.dt_best_coef)
+
+        # Initialize hill parameters
         self.hill_params = get_hill_params(
             self.mmm_data,
             self.hyperparameters,
@@ -132,10 +121,30 @@ class BudgetAllocator:
             self.media_spend_sorted,
             self.select_model,
         )
-        # Pre-calculate adstocked data and inflexion points for all channels
+        # Add debug prints after getting hill params:
+        print("Hill Parameters:")
+        print(f"Alphas: {self.hill_params.alphas}")
+        print(f"Gammas: {self.hill_params.gammas}")
+        print(f"Coefficients: {self.hill_params.coefs}")
+        print(f"Carryover: {self.hill_params.carryover}")
+
+        # Handle zero coefficients like R
+        self.exclude = np.array([coef == 0 for coef in self.hill_params.coefs])
+
+        if np.any(self.exclude):
+            excluded_channels = [
+                channel
+                for channel, is_excluded in zip(self.media_spend_sorted, self.exclude)
+                if is_excluded
+            ]
+            logger.warning(
+                f"The following media channels have zero coefficients and will be excluded: "
+                f"{', '.join(excluded_channels)}"
+            )
+
+        # Pre-calculate adstocked data and inflexion points
         self.adstocked_ranges = {}
         self.inflexions = {}
-
         adstocked_data = self.pareto_result.media_vec_collect[
             self.pareto_result.media_vec_collect["type"] == "adstockedMedia"
         ]
@@ -145,9 +154,9 @@ class BudgetAllocator:
             x_range = [min(model_data), max(model_data)]
             gamma = self.hill_params.gammas[i]
             inflexion = x_range[0] * (1 - gamma) + x_range[1] * gamma
-
             self.adstocked_ranges[channel] = x_range
             self.inflexions[channel] = inflexion
+
         self._setup_date_ranges()
         self._initialize_optimization_params()
 
@@ -177,93 +186,40 @@ class BudgetAllocator:
     def _calculate_historical_spend(self) -> Dict[str, np.ndarray]:
         """Calculate historical spend metrics."""
         media_cols = self.media_spend_sorted
-
-        # Ensure we maintain column order
-        hist_spend_all = np.array([self.dt_optim_cost[col].sum() for col in media_cols])
-        hist_spend_all_unit = np.array(
-            [self.dt_optim_cost[col].mean() for col in media_cols]
-        )
-        hist_spend_window = np.array(
-            [self.hist_filtered[col].sum() for col in media_cols]
-        )
-        hist_spend_window_unit = np.array(
-            [self.hist_filtered[col].mean() for col in media_cols]
-        )
-
         return {
-            "histSpendAll": hist_spend_all,
-            "histSpendAllUnit": hist_spend_all_unit,
-            "histSpendWindow": hist_spend_window,
-            "histSpendWindowUnit": hist_spend_window_unit,
+            "histSpendAll": np.array(
+                [self.dt_optim_cost[col].sum() for col in media_cols]
+            ),
+            "histSpendAllUnit": np.array(
+                [self.dt_optim_cost[col].mean() for col in media_cols]
+            ),
+            "histSpendWindow": np.array(
+                [self.hist_filtered[col].sum() for col in media_cols]
+            ),
+            "histSpendWindowUnit": np.array(
+                [self.hist_filtered[col].mean() for col in media_cols]
+            ),
         }
 
     def _initialize_optimization_params(self) -> None:
         """Initialize optimization parameters"""
-        logger.debug("\nInitializing optimization parameters...")
-
         # Calculate historical spend metrics
         self.hist_spend = self._calculate_historical_spend()
-
-        # Get mean spends
         self.init_spend_unit = self.hist_spend["histSpendWindowUnit"]
         self.init_spend_total = np.sum(self.init_spend_unit)
 
-        # logger.debug channel order verification
-        logger.debug("\nChannel order verification:")
-        for i, channel in enumerate(self.media_spend_sorted):
-            logger.debug(f"{i}. {channel}")
-
-        logger.debug("\nInitial spend values:")
-        for channel, spend in zip(self.media_spend_sorted, self.init_spend_unit):
-            logger.debug(f"{channel}: {spend:,.2f}")
-
         # Calculate initial responses
-        self.init_response = np.zeros(len(self.media_spend_sorted))
-        logger.debug("\nCalculating initial responses:")
-        for i, (channel, spend) in enumerate(
-            zip(self.media_spend_sorted, self.init_spend_unit)
-        ):
-            # Calculate response
-            response = self.calculate_response(spend, i)
-            self.init_response[i] = response
-
-            # Calculate ROI
-            roi = response / spend if spend > 0 else 0
-
-            # logger.debug detailed information
-            logger.debug(f"{channel}:")
-            logger.debug(f"  Spend: {spend:,.2f}")
-            logger.debug(f"  Response: {response:,.2f}")
-            logger.debug(f"  ROI: {roi:.4f}")
-
-        # logger.debug model parameters for validation
-        logger.debug("\nInitial model parameters:")
-        for i, channel in enumerate(self.media_spend_sorted):
-            logger.debug(f"\n{channel}:")
-            logger.debug(f"Initial spend: {self.init_spend_unit[i]:,.2f}")
-            logger.debug(f"Coefficient: {self.hill_params.coefs[i]:,.4f}")
-            logger.debug(f"Alpha: {self.hill_params.alphas[i]:.4f}")
-            logger.debug(f"Gamma: {self.hill_params.gammas[i]:.4f}")
-            logger.debug(f"Carryover: {self.hill_params.carryover[i]:.4f}")
-            logger.debug(f"Initial response: {self.init_response[i]:,.2f}")
-
-        # Validate total budget
-        logger.debug(f"\nTotal budget validation:")
-        logger.debug(f"Total initial spend: {self.init_spend_total:,.2f}")
-        logger.debug(f"Total initial response: {np.sum(self.init_response):,.2f}")
-        logger.debug(
-            f"Overall ROI: {np.sum(self.init_response)/self.init_spend_total:.4f}"
+        self.init_response = np.array(
+            [
+                self.calculate_response(spend, i)
+                for i, spend in enumerate(self.init_spend_unit)
+            ]
         )
 
-        # Set up total budget constraint based on initial spend
-        if self.params.total_budget is None:
-            self.total_budget = self.init_spend_total
-        else:
-            self.total_budget = self.params.total_budget
+        # Set total budget
+        self.total_budget = self.params.total_budget or self.init_spend_total
 
-        logger.debug(f"\nBudget constraint: {self.total_budget:,.2f}")
-
-        # Calculate and store initial metrics for later comparison
+        # Store initial metrics
         self.initial_metrics = {
             "total_spend": self.init_spend_total,
             "total_response": np.sum(self.init_response),
@@ -276,67 +232,18 @@ class BudgetAllocator:
             },
         }
 
-        # Validate all parameters are properly initialized
         self._validate_initialization()
-
-    def _validate_initialization(self) -> None:
-        """Validate that all necessary parameters are properly initialized."""
-        required_attrs = [
-            "init_spend_unit",
-            "init_spend_total",
-            "init_response",
-            "hill_params",
-            "total_budget",
-            "initial_metrics",
-        ]
-
-        for attr in required_attrs:
-            if not hasattr(self, attr):
-                raise ValueError(f"Missing required attribute: {attr}")
-
-            value = getattr(self, attr)
-            if value is None:
-                raise ValueError(f"Required attribute is None: {attr}")
-
-            if isinstance(value, (np.ndarray, list)):
-                if len(value) != len(self.media_spend_sorted):
-                    raise ValueError(
-                        f"Length mismatch for {attr}: "
-                        f"got {len(value)}, expected {len(self.media_spend_sorted)}"
-                    )
-
-        # Validate there are no NaN or inf values in critical arrays
-        for attr in ["init_spend_unit", "init_response"]:
-            value = getattr(self, attr)
-            if np.any(~np.isfinite(value)):
-                raise ValueError(f"Found non-finite values in {attr}")
-
-        logger.debug(
-            "\nInitialization validation complete - all parameters properly set"
-        )
-
-    def _calculate_initial_response(self) -> np.ndarray:
-        """Calculate initial response for each channel."""
-        responses = np.zeros(len(self.media_spend_sorted))
-        for i, spend in enumerate(self.init_spend_unit):
-            responses[i] = self.calculate_response(spend, i)
-        return responses
 
     def _setup_constraints(self) -> Constraints:
         """Setup optimization constraints matching R implementation"""
-        logger.debug("\nSetting up optimization constraints...")
-
         # Calculate bounds exactly as R does
         lower_bounds = self.init_spend_unit * self.params.channel_constr_low
         upper_bounds = self.init_spend_unit * self.params.channel_constr_up
         budget_constraint = self.init_spend_total
 
-        logger.debug(f"\nTotal budget constraint: {budget_constraint:,.2f}")
-        logger.debug("\nConstraints per channel:")
-        for channel, lb, ub in zip(self.paid_media_spends, lower_bounds, upper_bounds):
-            logger.debug(f"{channel}:")
-            logger.debug(f"  Lower bound: {lb:,.2f}")
-            logger.debug(f"  Upper bound: {ub:,.2f}")
+        print("\nOptimization constraints:")
+        print(f"Total budget: {budget_constraint:,.2f}")
+        print(f"Bounds multiplier: {self.params.channel_constr_multiplier}")
 
         return Constraints(
             lower_bounds=lower_bounds,
@@ -344,34 +251,54 @@ class BudgetAllocator:
             budget_constraint=budget_constraint,
         )
 
+    def _setup_target_efficiency_constraints(self) -> Constraints:
+        """Setup constraints specifically for target efficiency scenario."""
+        lower_bounds = self.init_spend_unit * self.params.channel_constr_low[0]
+        upper_bounds = self.init_spend_unit * self.params.channel_constr_up[0]
+
+        # Calculate target value
+        if self.params.target_value is None:
+            if self.dep_var_type == "revenue":
+                initial_roas = np.sum(self.init_response) / np.sum(self.init_spend_unit)
+                target_value = initial_roas * 0.8  # Target 80% of initial ROAS
+                print(
+                    f"Target ROAS: {target_value:.4f} (80% of initial {initial_roas:.4f})"
+                )
+            else:
+                initial_cpa = np.sum(self.init_spend_unit) / np.sum(self.init_response)
+                target_value = initial_cpa * 1.2  # Target 120% of initial CPA
+                print(
+                    f"Target CPA: {target_value:.4f} (120% of initial {initial_cpa:.4f})"
+                )
+        else:
+            target_value = self.params.target_value
+            print(f"Using provided target value: {target_value:.4f}")
+
+        return Constraints(
+            lower_bounds=lower_bounds,
+            upper_bounds=upper_bounds,
+            budget_constraint=None,  # No fixed budget for target efficiency
+            target_constraint=target_value,
+        )
+
     def optimize(self) -> AllocationResult:
         """Run the budget allocation optimization."""
-        # Initialize constraints before optimization
-        self.constraints = self._setup_constraints()  # Add this line
+        print(f"\nStarting optimization for scenario: {self.params.scenario}")
+
+        # Initialize constraints based on scenario
+        if self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
+            self.constraints = self._setup_target_efficiency_constraints()
+        else:
+            self.constraints = self._setup_constraints()
 
         bounded_result = self._run_optimization(bounded=True)
         unbounded_result = self._run_optimization(bounded=False)
 
-        allocation_result = self._process_optimization_results(
-            bounded_result, unbounded_result
-        )
+        return self._process_optimization_results(bounded_result, unbounded_result)
 
-        return allocation_result
-
-    def _run_optimization(
-        self, bounded: bool = True, debug: bool = False
-    ) -> OptimizationResult:
-        """
-        Enhanced optimization process with multiple starting points and improved validation.
-        """
-        logger.debug("\nStarting optimization run")
-        logger.debug(f"Bounded: {bounded}")
-
-        """Enhanced optimization process with multiple starting points and improved validation."""
-        if debug:
-            logger.debug("\nDEBUG: Starting optimization run")
-            logger.debug(f"Bounded: {bounded}")
-            self._validate_hill_params()
+    def _run_optimization(self, bounded: bool = True) -> OptimizationResult:
+        """Run optimization while respecting excluded channels."""
+        print(f"\nOptimization run (Bounded: {bounded})")
 
         # Calculate bounds
         if bounded:
@@ -388,43 +315,71 @@ class BudgetAllocator:
                 1 + (self.params.channel_constr_up - 1) * multiplier
             )
 
+        # For excluded channels, set bounds to initial spend
+        if np.any(self.exclude):
+            lower_bounds[self.exclude] = self.init_spend_unit[self.exclude]
+            upper_bounds[self.exclude] = self.init_spend_unit[self.exclude]
+
         bounds = list(zip(lower_bounds, upper_bounds))
 
-        logger.debug("\nOptimization bounds:")
-        for channel, bound in zip(self.media_spend_sorted, bounds):
-            logger.debug(f"{channel}: [{bound[0]:,.2f}, {bound[1]:,.2f}]")
-
-        # Generate multiple starting points
+        # Generate starting points
         starting_points = [
-            self.init_spend_unit,  # Current allocation
-            lower_bounds,  # Lower bounds
-            upper_bounds,  # Upper bounds
-            (lower_bounds + upper_bounds) / 2,  # Midpoint
-            np.random.uniform(lower_bounds, upper_bounds),  # Random point
+            self.init_spend_unit,
+            lower_bounds,
+            upper_bounds,
+            (lower_bounds + upper_bounds) / 2,
+            np.random.uniform(lower_bounds, upper_bounds),
         ]
 
-        # Budget constraint
-        constraints = [
-            {
-                "type": "eq" if self.params.constr_mode == "eq" else "ineq",
-                "fun": lambda x: np.sum(x) - self.constraints.budget_constraint,
-                "jac": lambda x: np.ones_like(x),
-            }
-        ]
+        # Setup constraints based on scenario
+        constraints = []
+        if self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
+            if self.dep_var_type == "revenue":
+                constraints.append(
+                    {
+                        "type": "ineq",
+                        "fun": lambda x: (
+                            np.sum(
+                                [
+                                    self.calculate_response(spend, i)
+                                    for i, spend in enumerate(x)
+                                ]
+                            )
+                            / np.sum(x)
+                            - self.constraints.target_constraint
+                        ),
+                    }
+                )
+            else:  # CPA
+                constraints.append(
+                    {
+                        "type": "ineq",
+                        "fun": lambda x: (
+                            self.constraints.target_constraint
+                            - np.sum(x)
+                            / np.sum(
+                                [
+                                    self.calculate_response(spend, i)
+                                    for i, spend in enumerate(x)
+                                ]
+                            )
+                        ),
+                    }
+                )
+        else:
+            constraints.append(
+                {
+                    "type": "eq" if self.params.constr_mode == "eq" else "ineq",
+                    "fun": lambda x: np.sum(x) - self.constraints.budget_constraint,
+                    "jac": lambda x: np.ones_like(x),
+                }
+            )
 
         best_result = None
         best_objective = float("inf")
-        no_improvement_count = 0
-        tolerance = 1e-6
 
         for i, x0 in enumerate(starting_points):
-            logger.debug(f"\nOptimization attempt {i+1}")
-            logger.debug("Starting point:")
-            for channel, spend in zip(self.media_spend_sorted, x0):
-                logger.debug(f"{channel}: {spend:,.2f}")
-
             try:
-                # Run optimization
                 result = minimize(
                     fun=self._objective_function,
                     x0=x0,
@@ -438,250 +393,108 @@ class BudgetAllocator:
                     },
                 )
 
-                # Validate result
-                if not result.success:
-                    logger.debug(f"Optimization attempt {i+1} failed: {result.message}")
-                    continue
-
-                # Calculate responses for current solution
-                current_responses = np.array(
-                    [
-                        self.calculate_response(spend, i)
-                        for i, spend in enumerate(result.x)
-                    ]
-                )
-
-                # Check if this is the best solution so far
                 if result.success and result.fun < best_objective:
-                    logger.debug(
-                        f"New best solution found! Objective: {result.fun:,.2f}"
+                    # Ensure excluded channels maintain initial spend
+                    final_solution = result.x.copy()
+                    final_solution[self.exclude] = self.init_spend_unit[self.exclude]
+
+                    print(f"\nNew best solution (attempt {i+1}):")
+                    print(f"Objective value: {result.fun:,.2f}")
+                    total_response = np.sum(
+                        [
+                            self.calculate_response(spend, i)
+                            for i, spend in enumerate(final_solution)
+                        ]
                     )
+                    print(f"Total spend: {np.sum(final_solution):,.2f}")
+                    print(f"Total response: {total_response:,.2f}")
+
                     best_objective = result.fun
-                    best_result = result
-                    best_solution_debug = {
-                        "responses": current_responses,
-                        "total_spend": np.sum(result.x),
-                        "total_response": -result.fun,
-                    }
-
-                    logger.debug("\nBest allocation so far:")
-                    for channel, init, opt in zip(
-                        self.media_spend_sorted, self.init_spend_unit, result.x
-                    ):
-                        change = (opt / init - 1) * 100
-                        logger.debug(f"{channel}:")
-                        logger.debug(f"  Initial: {init:,.2f}")
-                        logger.debug(f"  Optimized: {opt:,.2f}")
-                        logger.debug(f"  Change: {change:+.1f}%")
-
-                    # logger.debug response details
-                    logger.debug("\nResponse details:")
-                    for channel, init_resp, opt_resp in zip(
-                        self.media_spend_sorted, self.init_response, current_responses
-                    ):
-                        resp_change = (
-                            ((opt_resp / init_resp) - 1) * 100
-                            if init_resp > 0
-                            else float("nan")
-                        )
-                        logger.debug(f"{channel}:")
-                        logger.debug(f"  Initial response: {init_resp:,.2f}")
-                        logger.debug(f"  Optimized response: {opt_resp:,.2f}")
-                        logger.debug(f"  Change: {resp_change:+.1f}%")
+                    best_result = OptimizationResult(
+                        solution=final_solution,
+                        objective=result.fun,
+                        gradient=result.jac if hasattr(result, "jac") else None,
+                        constraints={},
+                    )
 
             except Exception as e:
-                logger.debug(f"Optimization attempt {i+1} failed with error: {str(e)}")
+                logger.error(f"Optimization attempt {i+1} failed: {str(e)}")
                 continue
 
         if best_result is None:
             raise ValueError("All optimization attempts failed")
 
-        # Final validation
-        final_spend = best_result.x
-        budget_violation = abs(np.sum(final_spend) - self.constraints.budget_constraint)
-        bounds_violation = np.sum(
-            np.maximum(0, lower_bounds - final_spend)
-            + np.maximum(0, final_spend - upper_bounds)
-        )
-
-        logger.debug("\nFinal solution validation:")
-        logger.debug(f"Budget violation: {budget_violation:,.2f}")
-        logger.debug(f"Bounds violation: {bounds_violation:,.2f}")
-
-        if best_solution_debug:
-            logger.debug("\nOptimization metrics:")
-            logger.debug(f"Total initial response: {np.sum(self.init_response):,.2f}")
-            logger.debug(
-                f"Total new response: {best_solution_debug['total_response']:,.2f}"
-            )
-            logger.debug(
-                f"Response change: {((best_solution_debug['total_response']/np.sum(self.init_response))-1)*100:+.1f}%"
-            )
-            logger.debug(
-                f"Initial ROI: {np.sum(self.init_response)/np.sum(self.init_spend_unit):.4f}"
-            )
-            logger.debug(
-                f"New ROI: {best_solution_debug['total_response']/best_solution_debug['total_spend']:.4f}"
-            )
-
-        # Calculate gradient if available
-        gradient = best_result.jac if hasattr(best_result, "jac") else None
-
-        return OptimizationResult(
-            solution=best_result.x,
-            objective=best_result.fun,
-            gradient=gradient,
-            constraints={
-                "budget_violation": budget_violation,
-                "bounds_violation": bounds_violation,
-            },
-        )
+        return best_result
 
     def _objective_function(self, x: np.ndarray) -> float:
-        """Modified objective function with proper handling of zero cases."""
-        debug_output = True  # Set to True temporarily for debugging
-
-        if debug_output:
-            logger.debug("\nDEBUG: Starting objective function calculation")
-            logger.debug("Input spend vector:", x)
-
-        responses = np.zeros(len(self.media_spend_sorted))
-
-        if debug_output:
-            logger.debug("\nDEBUG: Optimization step")
-            logger.debug("Current allocation:")
-            for i, (channel, spend) in enumerate(zip(self.media_spend_sorted, x)):
-                logger.debug(f"  {channel}: {spend:,.2f}")
-        # Calculate responses
-        for i, (spend, channel) in enumerate(zip(x, self.media_spend_sorted)):
-            response = self.calculate_response(spend, i)
-            responses[i] = response
-
-            if debug_output:
-                init_spend = self.init_spend_unit[i]
-                init_response = self.calculate_response(init_spend, i)
-
-                # Safe division for ROI calculation
-                if spend > 0:
-                    roi = response / spend
-                else:
-                    roi = 0
-
-                logger.debug(f"\nDEBUG: Channel {channel} metrics:")
-                logger.debug(f"  Initial spend: {init_spend:,.2f}")
-                logger.debug(f"  Initial response: {init_response:,.2f}")
-                logger.debug(f"  Proposed spend: {spend:,.2f}")
-                if init_spend > 0:
-                    logger.debug(f"  Spend change: {((spend/init_spend)-1)*100:+.1f}%")
-                logger.debug(f"  New response: {response:,.2f}")
-                logger.debug(f"  ROI: {roi:,.4f}")
+        """Objective function with target efficiency handling."""
+        responses = np.array(
+            [self.calculate_response(spend, i) for i, spend in enumerate(x)]
+        )
 
         total_response = np.sum(responses)
         total_spend = np.sum(x)
 
-        # Calculate penalties
-        budget_violation = abs(total_spend - self.constraints.budget_constraint)
-        bounds_violation = np.sum(
-            np.maximum(0, self.constraints.lower_bounds - x)
-            + np.maximum(0, x - self.constraints.upper_bounds)
-        )
+        if self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
+            if self.dep_var_type == "revenue":
+                actual_roas = total_response / total_spend if total_spend > 0 else 0
+                roas_violation = max(
+                    0, self.constraints.target_constraint - actual_roas
+                )
+                return -total_response + 1e6 * roas_violation
+            else:
+                actual_cpa = (
+                    total_spend / total_response if total_response > 0 else float("inf")
+                )
+                cpa_violation = max(0, actual_cpa - self.constraints.target_constraint)
+                return total_spend + 1e6 * cpa_violation
+        else:
+            budget_violation = abs(total_spend - self.constraints.budget_constraint)
+            bounds_violation = np.sum(
+                np.maximum(0, self.constraints.lower_bounds - x)
+                + np.maximum(0, x - self.constraints.upper_bounds)
+            )
+            return -total_response + 1e6 * (budget_violation + bounds_violation)
 
-        penalty = 1e6 * (budget_violation + bounds_violation)
-
-        if debug_output:
-            logger.debug("\nDEBUG: Optimization metrics:")
-            logger.debug(f"  Total response: {total_response:,.2f}")
-            logger.debug(f"  Total spend: {total_spend:,.2f}")
-            logger.debug(f"  Budget violation: {budget_violation:,.2f}")
-            logger.debug(f"  Bounds violation: {bounds_violation:,.2f}")
-            logger.debug(f"  Total penalty: {penalty:,.2f}")
-
-        return -total_response + penalty
-
-    def _calculate_total_response(self, spends: np.ndarray) -> float:
-        """Calculate total response across all channels."""
-        return sum(self.calculate_response(spend, i) for i, spend in enumerate(spends))
-
-    def calculate_response(
-        self, spend: float, channel_index: int, debug: bool = False
-    ) -> float:
+    def calculate_response(self, spend: float, channel_index: int) -> float:
         """Calculate response using pre-calculated ranges and inflexions."""
-        channel = self.media_spend_sorted[channel_index]
+        # Return 0 response for excluded channels
+        if self.exclude[channel_index]:
+            return 0.0
 
-        if debug:
-            logger.debug(f"\nCalculating response for {channel}")
+        channel = self.media_spend_sorted[channel_index]
 
         # Get parameters
         alpha = self.hill_params.alphas[channel_index]
         coef = self.hill_params.coefs[channel_index]
         carryover = self.hill_params.carryover[channel_index]
-
-        # Get pre-calculated values
-        x_range = self.adstocked_ranges[channel]
         inflexion = self.inflexions[channel]
 
-        # Step 1: Adstock transformation
+        # Calculate response
         x_adstocked = spend + carryover
-
-        # Step 2: Hill transformation
         x_saturated = (x_adstocked**alpha) / (x_adstocked**alpha + inflexion**alpha)
-
-        # Step 3: Apply coefficient
         response = coef * x_saturated
 
-        if debug:
-            logger.debug(f"Parameters:")
-            logger.debug(f"  spend: {spend:.4f}")
-            logger.debug(f"  alpha: {alpha:.4f}")
-            logger.debug(f"  coef: {coef:.4f}")
-            logger.debug(f"  carryover: {carryover:.4f}")
-            logger.debug(f"Steps:")
-            logger.debug(f"  1a. x_range: [{x_range[0]:.4f}, {x_range[1]:.4f}]")
-            logger.debug(f"  1b. x_adstocked: {x_adstocked:.4f}")
-            logger.debug(f"  2. inflexion: {inflexion:.4f}")
-            logger.debug(f"  3. x_saturated: {x_saturated:.4f}")
-            logger.debug(f"  4. final_response: {response:.4f}")
+        print(f"\n{channel} Response Calculation:")
+        print(f"Input spend: {spend:,.2f}")
+        print(f"Adstocked value: {x_adstocked:,.2f}")
+        print(f"Saturated value: {x_saturated:.4f}")
+        print(f"Final response: {response:.4f}")
+        # In calculate_response method
+        print(f"Raw spend: {spend}")
+        print(f"After adstock: {x_adstocked}")
+        print(f"After hill transform: {x_saturated}")
 
+        print("\nResponse calculation components:")
+        print(f"Alpha: {self.hill_params.alphas[channel_index]}")
+        print(f"Gamma: {self.hill_params.gammas[channel_index]}")
+        print(f"Coefficient: {self.hill_params.coefs[channel_index]}")
         return response
-
-    def _calculate_lower_bounds(self) -> np.ndarray:
-        """Calculate lower bounds for optimization."""
-        channel_constr_low = np.array(self.params.channel_constr_low)
-        if len(channel_constr_low) == 1:
-            channel_constr_low = np.repeat(
-                channel_constr_low, len(self.media_spend_sorted)
-            )
-        return self.init_spend_unit * channel_constr_low
-
-    def _calculate_upper_bounds(self) -> np.ndarray:
-        """Calculate upper bounds for optimization."""
-        channel_constr_up = np.array(self.params.channel_constr_up)
-        if len(channel_constr_up) == 1:
-            channel_constr_up = np.repeat(
-                channel_constr_up, len(self.media_spend_sorted)
-            )
-        return self.init_spend_unit * channel_constr_up
-
-    def _calculate_budget_constraint(self) -> float:
-        """Calculate budget constraint for optimization."""
-        return self.params.total_budget or self.init_spend_total
-
-    def _calculate_target_constraint(self) -> Optional[float]:
-        """Calculate target constraint for efficiency optimization."""
-        if self.params.scenario != SCENARIO_TARGET_EFFICIENCY:
-            return None
-
-        if self.params.target_value is not None:
-            return self.params.target_value
-
-        if self.dep_var_type == DependentVarType.CONVERSION:
-            return self.init_spend_total / np.sum(self.init_response) * 1.2
-        return np.sum(self.init_response) / self.init_spend_total * 0.8
 
     def _process_optimization_results(
         self, bounded_result: OptimizationResult, unbounded_result: OptimizationResult
     ) -> AllocationResult:
-        """Process optimization results with proper handling of zero/nan cases."""
+        """Process optimization results."""
         # Calculate responses
         bounded_response = np.array(
             [
@@ -712,7 +525,7 @@ class BudgetAllocator:
             periods=f"{len(self.hist_filtered)} {self.mmm_data.mmmdata_spec.interval_type}s",
         )
 
-        # Create MainPoints with proper handling of zero responses
+        # Create MainPoints
         response_points = np.vstack(
             [self.init_response, bounded_response, unbounded_response]
         )
@@ -725,6 +538,14 @@ class BudgetAllocator:
             response_points=response_points,
             spend_points=spend_points,
             channels=self.media_spend_sorted,
+        )
+
+        # Log final results summary
+        print("\nOptimization Results Summary:")
+        print(f"Initial total response: {np.sum(self.init_response):,.2f}")
+        print(f"Optimized total response: {np.sum(bounded_response):,.2f}")
+        print(
+            f"Response lift: {((np.sum(bounded_response)/np.sum(self.init_response))-1)*100:,.2f}%"
         )
 
         return AllocationResult(
@@ -778,6 +599,55 @@ class BudgetAllocator:
 
         return f"{base_case} + {'defined' if self.params.total_budget else 'historical'}_budget"
 
+    def _validate_initialization(self) -> None:
+        """Validate that all necessary parameters are properly initialized."""
+        required_attrs = [
+            "init_spend_unit",
+            "init_spend_total",
+            "init_response",
+            "hill_params",
+            "total_budget",
+            "initial_metrics",
+        ]
+
+        for attr in required_attrs:
+            if not hasattr(self, attr):
+                raise ValueError(f"Missing required attribute: {attr}")
+
+            value = getattr(self, attr)
+            if value is None:
+                raise ValueError(f"Required attribute is None: {attr}")
+
+            if isinstance(value, (np.ndarray, list)):
+                if len(value) != len(self.media_spend_sorted):
+                    raise ValueError(
+                        f"Length mismatch for {attr}: "
+                        f"got {len(value)}, expected {len(self.media_spend_sorted)}"
+                    )
+
+        # Validate there are no NaN or inf values in critical arrays
+        for attr in ["init_spend_unit", "init_response"]:
+            value = getattr(self, attr)
+            if np.any(~np.isfinite(value)):
+                raise ValueError(f"Found non-finite values in {attr}")
+
+    def _validate_hill_params(self) -> None:
+        """Validate Hill transformation parameters."""
+        invalid_params = []
+        for i, channel in enumerate(self.media_spend_sorted):
+            params = {
+                "alpha": self.hill_params.alphas[i],
+                "gamma": self.hill_params.gammas[i],
+                "coef": self.hill_params.coefs[i],
+                "carryover": self.hill_params.carryover[i],
+            }
+            for param, value in params.items():
+                if not np.isfinite(value):
+                    invalid_params.append(f"{channel} {param}: {value}")
+
+        if invalid_params:
+            raise ValueError("Invalid Hill parameters:\n" + "\n".join(invalid_params))
+
     @property
     def total_response_lift(self) -> float:
         """Calculate total response lift from optimization."""
@@ -786,7 +656,6 @@ class BudgetAllocator:
 
         initial_total_response = np.sum(self.init_response)
         optimized_total_response = -self._optimization_result.objective
-
         return (optimized_total_response / initial_total_response) - 1
 
     @property
@@ -795,98 +664,13 @@ class BudgetAllocator:
         if not hasattr(self, "_optimization_result"):
             raise ValueError("Optimization hasn't been run yet")
 
+        optimized_efficiency = -self._optimization_result.objective / np.sum(
+            self._optimization_result.solution
+        )
+        initial_efficiency = np.sum(self.init_response) / self.init_spend_total
+
         return {
-            "initial_efficiency": np.sum(self.init_response) / self.init_spend_total,
-            "optimized_efficiency": -self._optimization_result.objective
-            / np.sum(self._optimization_result.solution),
-            "efficiency_improvement": (
-                (
-                    -self._optimization_result.objective
-                    / np.sum(self._optimization_result.solution)
-                )
-                / (np.sum(self.init_response) / self.init_spend_total)
-                - 1
-            ),
+            "initial_efficiency": initial_efficiency,
+            "optimized_efficiency": optimized_efficiency,
+            "efficiency_improvement": (optimized_efficiency / initial_efficiency) - 1,
         }
-
-    def _get_efficiency_based_allocation(self) -> np.ndarray:
-        """Generate a starting point based on channel efficiencies."""
-        initial_responses = np.array(
-            [
-                self.calculate_response(spend, i)
-                for i, spend in enumerate(self.init_spend_unit)
-            ]
-        )
-
-        efficiencies = np.where(
-            self.init_spend_unit > 0, initial_responses / self.init_spend_unit, 0
-        )
-
-        # Normalize and scale to total budget
-        weights = (
-            efficiencies / np.sum(efficiencies)
-            if np.sum(efficiencies) > 0
-            else np.ones_like(efficiencies) / len(efficiencies)
-        )
-        allocation = self.init_spend_total * weights
-
-        # Handle any invalid values
-        allocation = np.where(
-            np.isfinite(allocation),
-            allocation,
-            self.init_spend_total / len(self.init_spend_unit),
-        )
-
-        return allocation
-
-    def print_allocation_summary(
-        self, initial: np.ndarray, optimized: np.ndarray
-    ) -> None:
-        """logger.debug a summary of allocation changes."""
-        logger.debug("\nAllocation Summary:")
-        for i, (channel, init, opt) in enumerate(
-            zip(self.media_spend_sorted, initial, optimized)
-        ):
-            change = (opt / init - 1) * 100
-            logger.debug(f"{channel}:")
-            logger.debug(f"  Initial: {init:,.2f}")
-            logger.debug(f"  Optimized: {opt:,.2f}")
-            logger.debug(f"  Change: {change:+.1f}%")
-
-    def _validate_hill_params(self) -> None:
-        """Validate Hill transformation parameters."""
-        logger.debug("\nValidating Hill parameters:")
-        for i, channel in enumerate(self.media_spend_sorted):
-            params = {
-                "alpha": self.hill_params.alphas[i],
-                "gamma": self.hill_params.gammas[i],
-                "coef": self.hill_params.coefs[i],
-                "carryover": self.hill_params.carryover[i],
-            }
-            logger.debug(f"\nChannel: {channel}")
-            for param, value in params.items():
-                logger.debug(f"  {param}: {value}")
-                if not np.isfinite(value):
-                    raise ValueError(f"Invalid {param} for {channel}: {value}")
-
-    def _validate_results(self, result: OptimizationResult) -> None:
-        """Validate optimization results with detailed output"""
-        logger.debug("\nValidating optimization results:")
-
-        # Check budget constraint
-        total_spend = np.sum(result.solution)
-        budget_violation = abs(total_spend - self.constraints.budget_constraint)
-        logger.debug(f"Budget constraint check:")
-        logger.debug(f"  Total spend: {total_spend:,.2f}")
-        logger.debug(f"  Budget constraint: {self.constraints.budget_constraint:,.2f}")
-        logger.debug(f"  Violation: {budget_violation:,.2f}")
-
-        # Check bounds
-        for i, channel in enumerate(self.paid_media_spends):
-            spend = result.solution[i]
-            lb = self.constraints.lower_bounds[i]
-            ub = self.constraints.upper_bounds[i]
-            logger.debug(f"\n{channel} bounds check:")
-            logger.debug(f"  Spend: {spend:,.2f}")
-            logger.debug(f"  Lower bound: {lb:,.2f}")
-            logger.debug(f"  Upper bound: {ub:,.2f}")

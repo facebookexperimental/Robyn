@@ -12,13 +12,13 @@ class Constraints:
     Attributes:
         lower_bounds: Lower bounds for each channel's spend
         upper_bounds: Upper bounds for each channel's spend
-        budget_constraint: Total budget constraint
+        budget_constraint: Total budget constraint (can be None for target efficiency)
         target_constraint: Target efficiency constraint (optional)
     """
 
     lower_bounds: np.ndarray
     upper_bounds: np.ndarray
-    budget_constraint: float
+    budget_constraint: Optional[float]
     target_constraint: Optional[float] = None
 
     def __post_init__(self):
@@ -35,7 +35,9 @@ class Constraints:
             raise ValueError("Upper bounds must be positive")
         if np.any(self.upper_bounds < self.lower_bounds):
             raise ValueError("Upper bounds must be greater than lower bounds")
-        if self.budget_constraint <= 0:
+
+        # Only validate budget_constraint if it's not None
+        if self.budget_constraint is not None and self.budget_constraint <= 0:
             raise ValueError("Budget constraint must be positive")
 
     def get_bounds(self) -> List[Tuple[float, float]]:
@@ -50,9 +52,10 @@ class Constraints:
         ):
             return False
 
-        # Check budget constraint
-        if abs(np.sum(x) - self.budget_constraint) > tolerance:
-            return False
+        # Check budget constraint only if it exists
+        if self.budget_constraint is not None:
+            if abs(np.sum(x) - self.budget_constraint) > tolerance:
+                return False
 
         # Check target constraint if applicable
         if self.target_constraint is not None:
@@ -67,6 +70,10 @@ class Constraints:
         return Constraints(
             lower_bounds=self.lower_bounds * factor,
             upper_bounds=self.upper_bounds * factor,
-            budget_constraint=self.budget_constraint * factor,
+            budget_constraint=(
+                self.budget_constraint * factor
+                if self.budget_constraint is not None
+                else None
+            ),
             target_constraint=self.target_constraint,
         )
