@@ -4,7 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, List
-
+import numpy as np
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
@@ -354,7 +354,11 @@ class Robyn:
             logger.info("Optimizing budget allocation")
 
             if select_model is None:
-                select_model = self.pareto_result.pareto_solutions[0]
+                pareto_solutions = self.pareto_result.pareto_solutions
+                if pareto_solutions and not np.isnan(pareto_solutions[0]):
+                    select_model = pareto_solutions[0]
+                elif len(pareto_solutions) > 1 and not np.isnan(pareto_solutions[1]):
+                    select_model = pareto_solutions[1]
 
             allocator = BudgetAllocator(
                 mmm_data=self.mmm_data,
