@@ -23,13 +23,13 @@ from robyn.modeling.clustering.cluster_builder import ClusterBuilder
 from robyn.modeling.clustering.clustering_config import ClusteringConfig
 from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
 
-from robyn.allocator.budget_allocator import BudgetAllocator
-from robyn.allocator.entities.allocation_config import AllocationConfig
-from robyn.allocator.entities.allocation_results import AllocationResult
+from robyn.allocator.optimizer import BudgetAllocator
+from robyn.allocator.entities.allocation_params import AllocatorParams
+from robyn.allocator.entities.allocation_result import AllocationResult
 
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.reporting.onepager_reporting import OnePager
-from robyn.visualization.allocator_plotter import AllocationPlotter
+from robyn.visualization.allocator_plotter import AllocatorPlotter
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
@@ -328,7 +328,7 @@ class Robyn:
 
     def optimize_budget(
         self,
-        allocation_config: AllocationConfig,
+        allocator_params: AllocatorParams,
         select_model: Optional[str] = None,
         display_plots: bool = True,
         export_plots: bool = False,
@@ -353,19 +353,24 @@ class Robyn:
         try:
             logger.info("Optimizing budget allocation")
 
-            select_model = select_model or self.pareto_result.pareto_solutions[0]
+            if select_model is None:
+                select_model = self.pareto_result.pareto_solutions[0]
 
             allocator = BudgetAllocator(
                 mmm_data=self.mmm_data,
                 featurized_mmm_data=self.featurized_mmm_data,
+                hyperparameters=self.hyperparameters,
                 pareto_result=self.pareto_result,
                 select_model=select_model,
+                params=allocator_params,
             )
 
-            allocation_result = allocator.allocate(allocation_config)
+            allocation_result = allocator.optimize()
 
             if display_plots or export_plots:
-                allocator_visualizer = AllocationPlotter(allocation_result)
+                allocator_visualizer = AllocatorPlotter(
+                    allocation_result=allocation_result, budget_allocator=allocator
+                )
                 allocator_visualizer.plot_all(display_plots, self.working_dir)
 
             logger.info("Budget optimization complete")
