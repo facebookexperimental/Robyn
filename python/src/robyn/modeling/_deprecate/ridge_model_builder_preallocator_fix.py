@@ -420,9 +420,10 @@ class RidgeModelBuilder:
         return pd.DataFrame(results)
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
-        """Prepare data with R-style scaling"""
         # Get the dependent variable
+        # Check if 'dep_var' is in columns
         if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
+            # Rename 'dep_var' to the specified value
             self.featurized_mmm_data.dt_mod = self.featurized_mmm_data.dt_mod.rename(
                 columns={"dep_var": self.mmm_data.mmmdata_spec.dep_var}
             )
@@ -433,17 +434,14 @@ class RidgeModelBuilder:
             columns=[self.mmm_data.mmmdata_spec.dep_var]
         )
 
-        # Add debug self.logger.debugs
-        self.logger.debug("Before scaling:")
-        self.logger.debug("X head 5:", X.head())
-        self.logger.debug("y head 5:", y.head())
-
-        # Convert date columns to numeric
+        # Convert date columns to numeric (number of days since the earliest date)
         date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
         for col in date_columns:
             X[col] = pd.to_datetime(X[col], errors="coerce", format="%Y-%m-%d")
+            # Fill NaT (Not a Time) values with a default date (e.g., the minimum date in the column)
             min_date = X[col].min()
             X[col] = X[col].fillna(min_date)
+            # Convert to days since minimum date, handling potential NaT values
             X[col] = (
                 (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
             )
@@ -467,29 +465,27 @@ class RidgeModelBuilder:
         # Handle any remaining NaN or infinite values
         X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
-
-        # Add small random noise to prevent perfect collinearity
         X = X + 1e-8 * np.random.randn(*X.shape)
 
         return X, y
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
-        # Add debug self.logger.debugs
-        self.logger.debug(f"Before adstock: {x.head()}")
+        # Add debug prints
+        print(f"Before adstock: {x.head()}")
         y = x.copy()
         for i in range(1, len(x)):
             y.iloc[i] += theta * y.iloc[i - 1]
-        self.logger.debug(f"After adstock: {y.head()}")
+        print(f"After adstock: {y.head()}")
         return y
 
     def _hill_transformation(
         self, x: pd.Series, alpha: float, gamma: float
     ) -> pd.Series:
-        # Add debug self.logger.debugs
-        self.logger.debug(f"Before hill: {x.head()}")
+        # Add debug prints
+        print(f"Before hill: {x.head()}")
         x_scaled = (x - x.min()) / (x.max() - x.min())
         result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
-        self.logger.debug(f"After hill: {result.head()}")
+        print(f"After hill: {result.head()}")
         return result
 
     def _calculate_rssd(
@@ -707,22 +703,18 @@ class RidgeModelBuilder:
     ) -> Dict[str, Any]:
         """Evaluate model with parameter set matching R's implementation exactly"""
         X, y = self._prepare_data(params)
-        sol_id = f"{trial}_{iter_ng + 1}_1"
+        sol_id = f"{trial}_{iter_ng + 1}_1"  # Using sol_id to match R
 
-        # R-style standardization function
-        def r_style_standardize(x):
-            if isinstance(x, pd.Series):
-                mean = x.mean()
-                sd = np.sqrt(np.sum((x - mean) ** 2) / len(x))
-                return (x - mean) / (sd if sd > 0 else 1)
-            else:  # For numpy arrays
-                mean = np.mean(x)
-                sd = np.sqrt(np.sum((x - mean) ** 2) / len(x))
-                return (x - mean) / (sd if sd > 0 else 1)
+        # R-style data scaling
+        def scale_data(X: pd.DataFrame) -> pd.DataFrame:
+            X_scaled = X.copy()
+            for col in X.columns:
+                sd = np.sqrt(np.sum((X[col] - X[col].mean()) ** 2) / len(X[col]))
+                if sd > 0:
+                    X_scaled[col] = (X[col] - X[col].mean()) / sd
+            return X_scaled
 
-        # Scale features R-style
-        X_scaled = X.apply(r_style_standardize)
-        y_scaled = r_style_standardize(y)
+        X_scaled = scale_data(X)
 
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
@@ -732,39 +724,29 @@ class RidgeModelBuilder:
         if ts_validation:
             val_test_size = (len(X) - train_idx) // 2
             X_train = X_scaled.iloc[:train_idx]
-            y_train = y_scaled.iloc[:train_idx]
+            y_train = y.iloc[:train_idx]
             X_val = X_scaled.iloc[train_idx : train_idx + val_test_size]
-            y_val = y_scaled.iloc[train_idx : train_idx + val_test_size]
+            y_val = y.iloc[train_idx : train_idx + val_test_size]
             X_test = X_scaled.iloc[train_idx + val_test_size :]
-            y_test = y_scaled.iloc[train_idx + val_test_size :]
+            y_test = y.iloc[train_idx + val_test_size :]
         else:
-            X_train, y_train = X_scaled, y_scaled
+            X_train, y_train = X_scaled, y
             X_val = X_test = y_val = y_test = None
 
-        # Calculate lambda parameters matching R's glmnet
-        lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / len(
-            y_train
+        # Calculate lambda parameters like glmnet
+        alpha = 0.001  # R's ridge regression default
+        lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / (
+            alpha * len(y_train)
         )
         lambda_min_ratio = 0.0001
-        lambda_hp = params.get("lambda", 1.0)
+        lambda_hp = params.get("lambda", 1.0)  # Using lambda instead of lambda_
         lambda_ = lambda_max * lambda_min_ratio + lambda_hp * (
             lambda_max - lambda_max * lambda_min_ratio
         )
 
-        # Add debug self.logger.debugs
-        self.logger.debug(f"lambda_max calculation: {lambda_max}")
-        self.logger.debug(f"lambda_min_ratio: {lambda_min_ratio}")
-        self.logger.debug(f"lambda_hp: {params['lambda']}")
-        self.logger.debug(f"final lambda_: {lambda_}")
-
         # Fit model
         model = Ridge(alpha=lambda_, fit_intercept=True)
         model.fit(X_train, y_train)
-
-        # Scale coefficients back to original scale
-        y_std = np.sqrt(np.sum((y - y.mean()) ** 2) / len(y))
-        X_std = np.sqrt(np.sum((X - X.mean()) ** 2) / len(X))
-        model.coef_ = model.coef_ * (y_std / X_std)
 
         # Training metrics
         y_train_pred = model.predict(X_train)
@@ -818,40 +800,43 @@ class RidgeModelBuilder:
         for col in paid_media_cols:
             idx = list(X_train.columns).index(col)
             coef = model.coef_[idx]
-            effect = coef * X[col].sum()  # Use unscaled X for effect calculation
+            effect = coef * X_train[col].sum()
             spend = X[col].sum()
             media_effects[col] = effect
             media_spends[col] = spend
 
-        # Calculate RSSD
+        # Normalize effects and spends like R
         total_effect = sum(abs(e) for e in media_effects.values())
         total_spend = sum(media_spends.values())
-
         effects_norm = {k: v / total_effect for k, v in media_effects.items()}
         spends_norm = {k: v / total_spend for k, v in media_spends.items()}
 
+        # Calculate RSSD
         effect_spend_diff = [
             effects_norm[col] - spends_norm[col] for col in paid_media_cols
         ]
         decomp_rssd = np.sqrt(np.mean(np.array(effect_spend_diff) ** 2))
 
+        # Apply zero penalty like R
         if rssd_zero_penalty:
             zero_effects = sum(1 for e in media_effects.values() if abs(e) < 1e-10)
             decomp_rssd *= 1 + zero_effects / len(media_effects)
 
         elapsed_time = time.time() - start_time
 
-        # Format hyperparameter names and update metrics
+        # Format hyperparameter names to match R's format
         params_formatted = self._format_hyperparameter_names(params)
+
+        # Update metrics dictionary with R-matching names
         metrics.update(
             {
                 "decomp_rssd": decomp_rssd,
-                "lambda": lambda_,
+                "lambda": lambda_,  # Using lambda instead of lambda_
                 "lambda_hp": lambda_hp,
                 "lambda_max": lambda_max,
                 "lambda_min_ratio": lambda_min_ratio,
-                "mape": 0.0,
-                "sol_id": sol_id,
+                "mape": 0.0,  # Set to 0 if no calibration
+                "sol_id": sol_id,  # Using sol_id instead of solID
                 "trial": trial,
                 "iterNG": iter_ng + 1,
                 "iterPar": 1,
@@ -862,6 +847,7 @@ class RidgeModelBuilder:
             }
         )
 
+        # Update parameters with time info and metrics
         params_formatted.update(
             {
                 "sol_id": sol_id,
@@ -871,17 +857,15 @@ class RidgeModelBuilder:
             }
         )
 
-        # Calculate decompositions
+        # Calculate x_decomp_agg with updated metrics
         x_decomp_agg = self._calculate_x_decomp_agg(
-            model, X, y, {**params_formatted, **metrics}
-        )
-        decomp_spend_dist = self._calculate_decomp_spend_dist(
-            model, X, y, {**metrics, "params": params_formatted}
+            model, X_train, y_train, {**params_formatted, **metrics}
         )
 
-        # self.logger.debug coefficients for debugging
-        self.logger.debug("Model coefficients:")
-        self.logger.debug(model.coef_)
+        # Calculate decomp_spend_dist with updated metrics
+        decomp_spend_dist = self._calculate_decomp_spend_dist(
+            model, X_train, y_train, {**metrics, "params": params_formatted}
+        )
 
         # Calculate loss
         loss = (
@@ -893,7 +877,8 @@ class RidgeModelBuilder:
                 else 0
             )
         )
-
+        print("Model coefficients:")
+        print(model.coef_)
         return {
             "loss": loss,
             "params": params_formatted,
