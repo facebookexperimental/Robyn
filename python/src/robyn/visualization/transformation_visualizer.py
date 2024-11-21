@@ -201,7 +201,9 @@ class TransformationVisualizer(BaseVisualizer):
             bar_colors = bar_colors[::-1]  # Reverse colors
 
             # Set up dimensions
-            channels = sorted(line_data["rn"].unique())  # Use line_data for consistent ordering
+            channels = sorted(
+                line_data["rn"].unique()
+            )  # Use line_data for consistent ordering
             y_pos = np.arange(len(channels))
 
             logger.debug("Processing %d channels for visualization", len(channels))
@@ -232,21 +234,21 @@ class TransformationVisualizer(BaseVisualizer):
                     color=color,
                     alpha=0.5,
                 )
-                
+
                 # Add percentage labels to right of y-axis
                 for idx, value in enumerate(values):
                     y_position = y_pos[idx] + (i - 0.5) * bar_width
                     percentage = f"{value * 100:.1f}%"
-                    
+
                     ax.text(
                         s=percentage,
                         x=0.02,
                         y=y_position,
-                        ha='left',
-                        va='center',
-                        fontweight='bold',
+                        ha="left",
+                        va="center",
+                        fontweight="bold",
                         fontsize=9,
-                        transform=ax.get_yaxis_transform()
+                        transform=ax.get_yaxis_transform(),
                     )
 
             # Safely get line values
@@ -274,25 +276,27 @@ class TransformationVisualizer(BaseVisualizer):
                     y_pos[i],
                     f"{value:.2f}",
                     color=type_colour,
-                    fontweight='bold',
-                    ha='left',  # Left align since we're positioning to the right of dots
-                    va='center',
-                    zorder=4
+                    fontweight="bold",
+                    ha="left",  # Left align since we're positioning to the right of dots
+                    va="center",
+                    zorder=4,
                 )
 
             # Set channel labels
             ax.set_yticks(y_pos)
             ax.set_yticklabels(channels)
-            ax.tick_params(axis='y', pad=5)
+            ax.tick_params(axis="y", pad=5)
 
             # Format x-axis as percentage and show labels up to 70%
             ax.xaxis.set_major_formatter(
                 plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%")
             )
             ax.set_xlim(0, 0.7)  # Set x-axis limit to 70%
-            xticks = np.arange(0, 0.8, 0.1)  # Create ticks from 0 to 70% in 10% increments
+            xticks = np.arange(
+                0, 0.8, 0.1
+            )  # Create ticks from 0 to 70% in 10% increments
             ax.set_xticks(xticks)
-            ax.tick_params(axis='x', labelbottom=True)
+            ax.tick_params(axis="x", labelbottom=True)
 
             # Add grid
             ax.grid(True, axis="x", alpha=0.2, linestyle="-")
@@ -320,43 +324,47 @@ class TransformationVisualizer(BaseVisualizer):
             ax.set_title(
                 f"Share of Total Spend, Effect & {metric_type} in Modeling Window*",
                 pad=20,
-                y=1.45
+                y=1.45,
             )
 
             # Create legend with single ROAS entry
             bars_legend = ax.get_legend_handles_labels()
-            line_legend = [plt.Line2D([0], [0], color=type_colour, marker='o', linestyle='-', 
-                                    markersize=8, label='ROAS')]
-            
+            line_legend = [
+                plt.Line2D(
+                    [0],
+                    [0],
+                    color=type_colour,
+                    marker="o",
+                    linestyle="-",
+                    markersize=8,
+                    label="ROAS",
+                )
+            ]
+
             # Combine legend elements in reverse order
             handles = line_legend + list(reversed(bars_legend[0]))
-            labels = ['ROAS'] + list(reversed(bars_legend[1]))
-            
+            labels = ["ROAS"] + list(reversed(bars_legend[1]))
+
             # Create legend below title
             ax.legend(
                 handles=handles,
                 labels=labels,
-                bbox_to_anchor=(0, 1.15, 1, 0.1),
+                bbox_to_anchor=(0, 1.05, 0.4, 0.1),
                 loc="lower left",
                 mode="expand",
                 ncol=3,
                 frameon=False,
-                borderaxespad=0
+                borderaxespad=0,
             )
 
             # Add axis labels
             ax.set_xlabel("Total Share by Channel")
             ax.set_ylabel(None)
-            
+
             logger.debug("Successfully generated spend effect comparison plot")
             if fig:
                 plt.tight_layout()
-                plt.subplots_adjust(
-                    top=0.80,
-                    left=0.15,
-                    bottom=0.1,
-                    right=0.95
-                )
+                plt.subplots_adjust(top=0.80, left=0.15, bottom=0.1, right=0.95)
                 return fig
             return None
 
@@ -375,7 +383,7 @@ class TransformationVisualizer(BaseVisualizer):
                     va="center",
                 )
             return None
-                        
+
     def plot_all(
         self, display_plots: bool = True, export_location: Union[str, Path] = None
     ) -> None:

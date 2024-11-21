@@ -159,7 +159,7 @@ class ParetoVisualizer(BaseVisualizer):
 
             # Calculate x-position as the middle of the bar
             x_pos = (row.start + row.end) / 2
-            
+
             # Use y_pos[idx] to ensure alignment with bars
             ax.text(
                 x_pos,
@@ -234,18 +234,18 @@ class ParetoVisualizer(BaseVisualizer):
         """
 
         logger.debug("Starting generation of fitted vs actual plot")
-        
+
         if solution_id not in self.pareto_result.plot_data_collect:
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
-        # Get data for specific solution 
+        # Get data for specific solution
         plot_data = self.pareto_result.plot_data_collect[solution_id]
         ts_data = plot_data["plot5data"]["xDecompVecPlotMelted"].copy()
 
         # Ensure ds column is datetime and remove any NaT values
         ts_data["ds"] = pd.to_datetime(ts_data["ds"])
         ts_data = ts_data.dropna(subset=["ds"])  # Remove rows with NaT dates
-        
+
         if ts_data.empty:
             logger.warning(f"No valid date data found for solution {solution_id}")
             return None
@@ -259,7 +259,7 @@ class ParetoVisualizer(BaseVisualizer):
         train_size_series = self.pareto_result.x_decomp_agg[
             self.pareto_result.x_decomp_agg["sol_id"] == solution_id
         ]["train_size"]
-        
+
         if not train_size_series.empty:
             train_size = float(train_size_series.iloc[0])
         else:
@@ -270,6 +270,11 @@ class ParetoVisualizer(BaseVisualizer):
         else:
             fig = None
 
+        colors = {
+            "Actual": "#FF6B00",  # Darker orange
+            "Predicted": "#0066CC",  # Darker blue
+        }
+
         # Plot lines with different styles for predicted vs actual
         for var in ts_data["variable"].unique():
             var_data = ts_data[ts_data["variable"] == var]
@@ -279,13 +284,13 @@ class ParetoVisualizer(BaseVisualizer):
                 var_data["value"],
                 label=var,
                 linestyle=linestyle,
-                linewidth=0.6,
-                color='orange' if var == 'Actual' else 'lightblue'
+                linewidth=1,
+                color=colors[var],
             )
 
         # Format y-axis with abbreviations
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(self.format_number))
-        
+
         # Set y-axis limits with some padding
         y_min, y_max = ax.get_ylim()
         ax.set_ylim(y_min, y_max * 1.2)  # Add 20% padding at the top
@@ -296,40 +301,43 @@ class ParetoVisualizer(BaseVisualizer):
                 # Get unique sorted dates, excluding NaT
                 unique_dates = sorted(ts_data["ds"].dropna().unique())
                 total_days = len(unique_dates)
-                
+
                 if total_days > 0:
                     # Calculate split points
                     train_cut = int(total_days * train_size)
                     val_cut = train_cut + int(total_days * (1 - train_size) / 2)
-                    
+
                     # Get dates for splits
                     splits = [
                         (train_cut, "Train", train_size),
                         (val_cut, "Validation", (1 - train_size) / 2),
-                        (total_days - 1, "Test", (1 - train_size) / 2)
+                        (total_days - 1, "Test", (1 - train_size) / 2),
                     ]
-                    
+
                     # Get y-axis limits for text placement
                     y_min, y_max = ax.get_ylim()
-                    
+
                     # Add vertical lines and labels
                     for idx, label, size in splits:
                         if 0 <= idx < len(unique_dates):  # Ensure index is valid
                             date = unique_dates[idx]
                             if pd.notna(date):  # Check if date is valid
                                 # Add vertical line - extend beyond the top of the plot
-                                ax.axvline(date, color="#39638b", alpha=0.8, ymin=0, ymax=1.1)
-                                
+                                ax.axvline(
+                                    date, color="#39638b", alpha=0.8, ymin=0, ymax=1.1
+                                )
+
                                 # Add rotated text label
                                 ax.text(
-                                    date, y_max,
+                                    date,
+                                    y_max,
                                     f"{label}: {size*100:.1f}%",
                                     rotation=270,
                                     color="#39638b",
                                     alpha=0.5,
                                     size=9,
-                                    ha='left',
-                                    va='top'
+                                    ha="left",
+                                    va="top",
                                 )
             except Exception as e:
                 logger.warning(f"Error adding split lines: {str(e)}")
@@ -342,13 +350,15 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Configure legend
         ax.legend(
-            bbox_to_anchor=(0, 1.02, 1, 0.1),
+            bbox_to_anchor=(0.01, 1.02),  # Position at top-left
             loc="lower left",
-            ncol=2,
-            mode="expand",
+            ncol=2,  # Two columns side by side
             borderaxespad=0,
             frameon=False,
-            fontsize=7
+            fontsize=7,
+            handlelength=2,  # Length of the legend lines
+            handletextpad=0.5,  # Space between line and text
+            columnspacing=1.0,  # Space between columns
         )
 
         # Grid styling
@@ -358,7 +368,7 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Format dates on x-axis using datetime locator and formatter
         years = mdates.YearLocator()
-        years_fmt = mdates.DateFormatter('%Y')
+        years_fmt = mdates.DateFormatter("%Y")
         ax.xaxis.set_major_locator(years)
         ax.xaxis.set_major_formatter(years_fmt)
 
@@ -474,13 +484,15 @@ class ParetoVisualizer(BaseVisualizer):
 
         plot_data = self.pareto_result.plot_data_collect[solution_id]
         df_imme_caov = plot_data["plot7data"].copy()
-        
-        # Ensure percentage is numeric
-        df_imme_caov['percentage'] = pd.to_numeric(df_imme_caov['percentage'], errors='coerce')
 
-        # Sort channels alphabetically 
-        df_imme_caov = df_imme_caov.sort_values('rn', ascending=True)
-        
+        # Ensure percentage is numeric
+        df_imme_caov["percentage"] = pd.to_numeric(
+            df_imme_caov["percentage"], errors="coerce"
+        )
+
+        # Sort channels alphabetically
+        df_imme_caov = df_imme_caov.sort_values("rn", ascending=True)
+
         # Set up type factor levels matching R plot order
         df_imme_caov["type"] = pd.Categorical(
             df_imme_caov["type"], categories=["Immediate", "Carryover"], ordered=True
@@ -500,10 +512,12 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Normalize percentages to sum to 100% for each channel
         for channel in channels:
-            mask = df_imme_caov['rn'] == channel
-            total = df_imme_caov.loc[mask, 'percentage'].sum()
+            mask = df_imme_caov["rn"] == channel
+            total = df_imme_caov.loc[mask, "percentage"].sum()
             if total > 0:  # Avoid division by zero
-                df_imme_caov.loc[mask, 'percentage'] = df_imme_caov.loc[mask, 'percentage'] / total
+                df_imme_caov.loc[mask, "percentage"] = (
+                    df_imme_caov.loc[mask, "percentage"] / total
+                )
 
         for type_name in types:
             type_data = df_imme_caov[df_imme_caov["type"] == type_name]
@@ -539,12 +553,12 @@ class ParetoVisualizer(BaseVisualizer):
         ax.legend(
             title=None,
             bbox_to_anchor=(0, 1.02, 0.15, 0.1),  # Reduced width from 0.3 to 0.2
-            loc="lower left", 
+            loc="lower left",
             ncol=2,
             mode="expand",
             borderaxespad=0,
             frameon=False,
-            fontsize=7  # Reduced from 8 to 7
+            fontsize=7,  # Reduced from 8 to 7
         )
 
         ax.set_xlabel("% Response")
@@ -587,10 +601,10 @@ class ParetoVisualizer(BaseVisualizer):
 
         if self.adstock == AdstockType.GEOMETRIC:
             dt_geometric = adstock_data["dt_geometric"].copy()
-            
+
             # Sort data alphabetically by channel
-            dt_geometric = dt_geometric.sort_values('channels', ascending=True)
-            
+            dt_geometric = dt_geometric.sort_values("channels", ascending=True)
+
             bars = ax.barh(
                 y=range(len(dt_geometric)),
                 width=dt_geometric["thetas"],
@@ -607,13 +621,19 @@ class ParetoVisualizer(BaseVisualizer):
             ax.set_yticklabels(dt_geometric["channels"])
 
             # Format x-axis with 25% increments
-            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%"))
+            ax.xaxis.set_major_formatter(
+                plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%")
+            )
             ax.set_xlim(0, 1)
             ax.set_xticks(np.arange(0, 1.25, 0.25))  # Changed to 0.25 increments
 
             # Set title and labels
-            interval_type = self.mmm_data.mmmdata_spec.interval_type if self.mmm_data else "day"
-            ax.set_title(f"Geometric Adstock: Fixed Rate Over Time (Solution {solution_id})")
+            interval_type = (
+                self.mmm_data.mmmdata_spec.interval_type if self.mmm_data else "day"
+            )
+            ax.set_title(
+                f"Geometric Adstock: Fixed Rate Over Time (Solution {solution_id})"
+            )
             ax.set_xlabel(f"Thetas [by {interval_type}]")
             ax.set_ylabel(None)
 
@@ -622,7 +642,9 @@ class ParetoVisualizer(BaseVisualizer):
             weibull_data = adstock_data["weibullCollect"]
             wb_type = adstock_data["wb_type"]
 
-            channels = sorted(weibull_data["channel"].unique())  # Sort channels alphabetically
+            channels = sorted(
+                weibull_data["channel"].unique()
+            )  # Sort channels alphabetically
             rows = (len(channels) + 2) // 3
 
             if ax is None:

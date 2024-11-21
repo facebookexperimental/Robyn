@@ -137,7 +137,6 @@ class OnePager:
         try:
             # Get media share data similar to R code
             x_decomp_agg = self.pareto_result.x_decomp_agg
-            print(f"x_decomp_agg= {x_decomp_agg}")
             plot_media_share = x_decomp_agg[
                 (x_decomp_agg["sol_id"] == solution_id)
                 & (
@@ -146,7 +145,6 @@ class OnePager:
                     )
                 )
             ]
-            print(f"plot_media_share= {plot_media_share}")
             if plot_media_share.empty:
                 raise ValueError(
                     f"No media share data found for solution {solution_id}"
@@ -162,7 +160,6 @@ class OnePager:
             metrics["nrmse_train"] = self._safe_format(
                 plot_media_share["nrmse_train"].iloc[0]
             )
-            print(f"metrics= {metrics}")
 
             # Get validation metrics if available
             if "rsq_val" in plot_media_share.columns:
@@ -172,7 +169,6 @@ class OnePager:
                 metrics["nrmse_val"] = self._safe_format(
                     plot_media_share["nrmse_val"].iloc[0]
                 )
-            print(f"metrics with rsq_val= {metrics}")
 
             # Get test metrics if available
             if "rsq_test" in plot_media_share.columns:
@@ -182,24 +178,20 @@ class OnePager:
                 metrics["nrmse_test"] = self._safe_format(
                     plot_media_share["nrmse_test"].iloc[0]
                 )
-            print(f"metrics with rsq_test= {metrics}")
 
             # Get decomp.rssd
             metrics["decomp_rssd"] = self._safe_format(
                 plot_media_share["decomp.rssd"].iloc[0]
             )
-            print(f"metrics with decomp_rssd= {metrics}")
 
             # Get MAPE if available
             if "mape" in plot_media_share.columns:
                 metrics["mape"] = self._safe_format(plot_media_share["mape"].iloc[0])
-            print(f"metrics with mape= {metrics}")
 
             # Get train size
             metrics["train_size"] = self._safe_format(
                 plot_media_share["train_size"].iloc[0]
             )
-            print(f"metrics with train_size= {metrics}")
 
             # Calculate performance (ROAS/CPA)
             dep_var_type = self.mmm_data.mmmdata_spec.dep_var_type
@@ -217,8 +209,6 @@ class OnePager:
                 .groupby("sol_id")
                 .agg({"xDecompAgg": "sum", "total_spend": "sum"})
             )
-
-            print(f"perf = {perf}")
 
             if not perf.empty:
                 if type_metric == "ROAS":
@@ -257,7 +247,6 @@ class OnePager:
                 metrics_text += f" | {metrics['performance']}"
 
             metrics["formatted_text"] = metrics_text
-            print(f"metrics = {metrics}")
             return metrics
 
         except Exception as e:
