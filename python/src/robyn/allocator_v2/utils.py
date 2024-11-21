@@ -26,49 +26,67 @@ def get_hill_params(
     dt_coef: pd.DataFrame,
     media_sorted: np.ndarray,
     select_model: str,
-    media_vec_collect: pd.DataFrame,
+    media_vec_collect: pd.DataFrame = None,
 ) -> HillParameters:
-    """
-    Get Hill transformation parameters for each channel.
+    """Get Hill transformation parameters with proper coefficient mapping."""
+    print("\nExtracting Hill parameters...")
 
-    Args:
-        mmm_data: Marketing Mix Model data
-        hyperparameters: Model hyperparameters
-        dt_hyppar: Hyperparameters for selected model
-        dt_coef: Coefficients for selected model
-        media_sorted: Sorted media channel names
-        select_model: Selected model ID
-        media_vec_collect: Collected media vectors
+    dt_coef_filtered = dt_coef[dt_coef["solID"] == select_model].set_index("rn")
 
-    Returns:
-        HillParameters object containing transformation parameters
-    """
-    # Extract hill parameters from hyperparameters
+    coefs = []
     alphas = []
     gammas = []
+    carryover = []
+
     for channel in media_sorted:
+        print(f"\nProcessing channel: {channel}")
+
+        # Get alpha parameter
         alpha_col = f"{channel}_alphas"
-        gamma_col = f"{channel}_gammas"
-
-        alpha = dt_hyppar[alpha_col].iloc[0] if alpha_col in dt_hyppar else 1.0
-        gamma = dt_hyppar[gamma_col].iloc[0] if gamma_col in dt_hyppar else 0.5
-
+        alpha = dt_hyppar[alpha_col].iloc[0]
         alphas.append(alpha)
+        print(f"Alpha: {alpha}")
+
+        # Get gamma parameter
+        gamma_col = f"{channel}_gammas"
+        gamma = dt_hyppar[gamma_col].iloc[0]
         gammas.append(gamma)
+        print(f"Gamma: {gamma}")
 
-    # Get coefficients for each channel
-    coefs = dt_coef[dt_coef["rn"].isin(media_sorted)]["coef"].values
+        # Get coefficient
+        try:
+            coef = float(dt_coef_filtered.loc[channel, "coef"])
+        except KeyError:
+            print(f"Warning: No coefficient found for {channel}, using 0.0")
+            coef = 0.0
+        coefs.append(coef)
+        print(f"Coefficient: {coef}")
 
-    # Calculate carryover effects
-    carryover = calculate_carryover(
-        mmm_data, hyperparameters, media_vec_collect, media_sorted, select_model
-    )
+        # Calculate carryover to match R implementation
+        if hyperparameters.adstock == "geometric":
+            channel_params = hyperparameters.hyperparameters[channel]
+            # Use mean instead of sum/2
+            theta = np.mean(channel_params.thetas)
+            carryover_val = geometric_adstock(theta)
+        else:
+            shape = np.mean(hyperparameters.hyperparameters[channel].shapes)
+            scale = np.mean(hyperparameters.hyperparameters[channel].scales)
+            carryover_val = weibull_adstock(shape, scale)
+
+        carryover.append(carryover_val)
+        print(f"Carryover: {carryover_val}")
+
+        print(f"Final parameter set for {channel}:")
+        print(f"  Alpha: {alpha}")
+        print(f"  Gamma: {gamma}")
+        print(f"  Coefficient: {coef}")
+        print(f"  Carryover: {carryover_val}")
 
     return HillParameters(
         alphas=np.array(alphas),
         gammas=np.array(gammas),
         coefs=np.array(coefs),
-        carryover=carryover,
+        carryover=np.array(carryover),
     )
 
 
@@ -145,40 +163,9 @@ def calculate_carryover(
 
 
 def geometric_adstock(theta: float) -> float:
-    """
-    Calculate geometric adstock effect with improved calculation.
-
-    Args:
-        theta: Decay parameter (between 0 and 1)
-
-    Returns:
-        Adstock effect value
-    """
-    if theta >= 1:
-        return 0
-    if theta <= 0:
+    if theta >= 1 or theta <= 0:
         return 0
     return theta / (1 - theta)
-
-
-def calculate_response(
-    spend: float, alpha: float, gamma: float, coef: float, carryover: float
-) -> float:
-    """
-    Calculate response with debug output.
-    """
-    x_adstocked = spend + carryover
-    response = coef * (1 / (1 + (gamma**alpha / x_adstocked**alpha)))
-    print(f"\nResponse calculation debug:")
-    print(f"  Input spend: {spend:.2f}")
-    print(f"  Carryover effect: {carryover:.4f}")
-    print(f"  Total adstocked value: {x_adstocked:.2f}")
-    print(f"  Alpha: {alpha:.4f}")
-    print(f"  Gamma: {gamma:.4f}")
-    print(f"  Coefficient: {coef:.4f}")
-    print(f"  Calculated response: {response:.4f}")
-    print(f"  Response per spend unit: {response/spend if spend > 0 else 0:.4f}")
-    return response
 
 
 def weibull_adstock(shape: float, scale: float) -> float:

@@ -9,6 +9,7 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.data.entities.enums import DependentVarType, AdstockType
+from robyn.modeling.entities.featurized_mmm_data import FeaturizedMMMData
 
 from .entities.allocation_params import AllocatorParams
 from .entities.allocation_result import AllocationResult, OptimOutData, MainPoints
@@ -24,12 +25,8 @@ from .constants import (
     DEP_VAR_TYPE_REVENUE,
     DEP_VAR_TYPE_CONVERSION,
 )
-from .utils import (
-    get_hill_params,
-    check_allocator_constraints,
-    check_metric_dates,
-    calculate_response,
-)
+
+from .utils import check_allocator_constraints, check_metric_dates, get_hill_params
 
 
 class BudgetAllocator:
@@ -40,6 +37,7 @@ class BudgetAllocator:
     def __init__(
         self,
         mmm_data: MMMData,
+        featurized_mmm_data: FeaturizedMMMData,
         hyperparameters: Hyperparameters,
         pareto_result: ParetoResult,
         select_model: str,
@@ -48,12 +46,27 @@ class BudgetAllocator:
         """Initialize the Budget Allocator."""
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
+        self.featurized_mmm_data = featurized_mmm_data
         self.pareto_result = pareto_result
         self.select_model = select_model
         self.params = params
 
         self._validate_inputs()
         self._initialize_data()
+
+        # After loading data
+        print("\nInitial model parameters:")
+        for i, channel in enumerate(self.paid_media_spends):
+            print(f"\n{channel}:")
+            print(f"Initial spend: {self.init_spend_unit[i]:,.2f}")
+            print(f"Coefficient: {self.hill_params.coefs[i]:,.2f}")
+            print(f"Alpha: {self.hill_params.alphas[i]:.4f}")
+            print(f"Gamma: {self.hill_params.gammas[i]:.4f}")
+            print(f"Carryover: {self.hill_params.carryover[i]:.4f}")
+
+            # Calculate initial response for validation
+            response = self.calculate_response(self.init_spend_unit[i], i)
+            print(f"Initial response: {response:,.2f}")
 
     def _validate_inputs(self) -> None:
         """Validate input data and parameters."""
@@ -74,8 +87,11 @@ class BudgetAllocator:
         """Initialize and prepare data for optimization."""
         # Extract paid media data
         self.paid_media_spends = np.array(self.mmm_data.mmmdata_spec.paid_media_spends)
-        self.media_order = np.argsort(self.paid_media_spends)
-        self.media_spend_sorted = self.paid_media_spends[self.media_order]
+
+        # Remove the sorting since we want to keep original order
+        # self.media_order = np.argsort(self.paid_media_spends)
+        # self.media_spend_sorted = self.paid_media_spends[self.media_order]
+        self.media_spend_sorted = self.paid_media_spends  # Keep original order
 
         # Get model parameters
         self.dep_var_type = self.mmm_data.mmmdata_spec.dep_var_type
@@ -86,6 +102,16 @@ class BudgetAllocator:
             (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
             & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
         ]
+
+        # Initialize hill parameters before using them
+        self.hill_params = get_hill_params(
+            self.mmm_data,
+            self.hyperparameters,
+            self.dt_hyppar,
+            self.dt_best_coef,
+            self.media_spend_sorted,
+            self.select_model,
+        )
 
         self._setup_date_ranges()
         self._initialize_optimization_params()
@@ -116,10 +142,18 @@ class BudgetAllocator:
     def _calculate_historical_spend(self) -> Dict[str, np.ndarray]:
         """Calculate historical spend metrics."""
         media_cols = self.media_spend_sorted
-        hist_spend_all = self.dt_optim_cost[media_cols].sum().values
-        hist_spend_all_unit = self.dt_optim_cost[media_cols].mean().values
-        hist_spend_window = self.hist_filtered[media_cols].sum().values
-        hist_spend_window_unit = self.hist_filtered[media_cols].mean().values
+
+        # Ensure we maintain column order
+        hist_spend_all = np.array([self.dt_optim_cost[col].sum() for col in media_cols])
+        hist_spend_all_unit = np.array(
+            [self.dt_optim_cost[col].mean() for col in media_cols]
+        )
+        hist_spend_window = np.array(
+            [self.hist_filtered[col].sum() for col in media_cols]
+        )
+        hist_spend_window_unit = np.array(
+            [self.hist_filtered[col].mean() for col in media_cols]
+        )
 
         return {
             "histSpendAll": hist_spend_all,
@@ -129,47 +163,153 @@ class BudgetAllocator:
         }
 
     def _initialize_optimization_params(self) -> None:
-        """Initialize parameters for optimization."""
+        """Initialize optimization parameters"""
+        print("\nInitializing optimization parameters...")
+
+        # Calculate historical spend metrics
         self.hist_spend = self._calculate_historical_spend()
+
+        # Get mean spends
         self.init_spend_unit = self.hist_spend["histSpendWindowUnit"]
         self.init_spend_total = np.sum(self.init_spend_unit)
 
-        self.hill_params = get_hill_params(
-            self.mmm_data,
-            self.hyperparameters,
-            self.dt_hyppar,
-            self.dt_best_coef,
-            self.media_spend_sorted,
-            self.select_model,
-            self.pareto_result.media_vec_collect,
-        )
+        # Print channel order verification
+        print("\nChannel order verification:")
+        for i, channel in enumerate(self.media_spend_sorted):
+            print(f"{i}. {channel}")
 
-        self.init_response = self._calculate_initial_response()
-        self.constraints = self._setup_constraints()
+        print("\nInitial spend values:")
+        for channel, spend in zip(self.media_spend_sorted, self.init_spend_unit):
+            print(f"{channel}: {spend:,.2f}")
+
+        # Calculate initial responses
+        self.init_response = np.zeros(len(self.media_spend_sorted))
+        print("\nCalculating initial responses:")
+        for i, (channel, spend) in enumerate(
+            zip(self.media_spend_sorted, self.init_spend_unit)
+        ):
+            # Calculate response
+            response = self.calculate_response(spend, i)
+            self.init_response[i] = response
+
+            # Calculate ROI
+            roi = response / spend if spend > 0 else 0
+
+            # Print detailed information
+            print(f"{channel}:")
+            print(f"  Spend: {spend:,.2f}")
+            print(f"  Response: {response:,.2f}")
+            print(f"  ROI: {roi:.4f}")
+
+        # Print model parameters for validation
+        print("\nInitial model parameters:")
+        for i, channel in enumerate(self.media_spend_sorted):
+            print(f"\n{channel}:")
+            print(f"Initial spend: {self.init_spend_unit[i]:,.2f}")
+            print(f"Coefficient: {self.hill_params.coefs[i]:,.4f}")
+            print(f"Alpha: {self.hill_params.alphas[i]:.4f}")
+            print(f"Gamma: {self.hill_params.gammas[i]:.4f}")
+            print(f"Carryover: {self.hill_params.carryover[i]:.4f}")
+            print(f"Initial response: {self.init_response[i]:,.2f}")
+
+        # Validate total budget
+        print(f"\nTotal budget validation:")
+        print(f"Total initial spend: {self.init_spend_total:,.2f}")
+        print(f"Total initial response: {np.sum(self.init_response):,.2f}")
+        print(f"Overall ROI: {np.sum(self.init_response)/self.init_spend_total:.4f}")
+
+        # Set up total budget constraint based on initial spend
+        if self.params.total_budget is None:
+            self.total_budget = self.init_spend_total
+        else:
+            self.total_budget = self.params.total_budget
+
+        print(f"\nBudget constraint: {self.total_budget:,.2f}")
+
+        # Calculate and store initial metrics for later comparison
+        self.initial_metrics = {
+            "total_spend": self.init_spend_total,
+            "total_response": np.sum(self.init_response),
+            "overall_roi": np.sum(self.init_response) / self.init_spend_total,
+            "channel_roi": {
+                channel: (resp / spend if spend > 0 else 0)
+                for channel, resp, spend in zip(
+                    self.media_spend_sorted, self.init_response, self.init_spend_unit
+                )
+            },
+        }
+
+        # Validate all parameters are properly initialized
+        self._validate_initialization()
+
+    def _validate_initialization(self) -> None:
+        """Validate that all necessary parameters are properly initialized."""
+        required_attrs = [
+            "init_spend_unit",
+            "init_spend_total",
+            "init_response",
+            "hill_params",
+            "total_budget",
+            "initial_metrics",
+        ]
+
+        for attr in required_attrs:
+            if not hasattr(self, attr):
+                raise ValueError(f"Missing required attribute: {attr}")
+
+            value = getattr(self, attr)
+            if value is None:
+                raise ValueError(f"Required attribute is None: {attr}")
+
+            if isinstance(value, (np.ndarray, list)):
+                if len(value) != len(self.media_spend_sorted):
+                    raise ValueError(
+                        f"Length mismatch for {attr}: "
+                        f"got {len(value)}, expected {len(self.media_spend_sorted)}"
+                    )
+
+        # Validate there are no NaN or inf values in critical arrays
+        for attr in ["init_spend_unit", "init_response"]:
+            value = getattr(self, attr)
+            if np.any(~np.isfinite(value)):
+                raise ValueError(f"Found non-finite values in {attr}")
+
+        print("\nInitialization validation complete - all parameters properly set")
 
     def _calculate_initial_response(self) -> np.ndarray:
         """Calculate initial response for each channel."""
         responses = np.zeros(len(self.media_spend_sorted))
         for i, spend in enumerate(self.init_spend_unit):
-            responses[i] = self._calculate_response(spend, i)
+            responses[i] = self.calculate_response(spend, i)
         return responses
 
     def _setup_constraints(self) -> Constraints:
-        """Setup optimization constraints."""
-        lower_bounds = self._calculate_lower_bounds()
-        upper_bounds = self._calculate_upper_bounds()
-        budget_constraint = self._calculate_budget_constraint()
-        target_constraint = self._calculate_target_constraint()
+        """Setup optimization constraints matching R implementation"""
+        print("\nSetting up optimization constraints...")
+
+        # Calculate bounds exactly as R does
+        lower_bounds = self.init_spend_unit * self.params.channel_constr_low
+        upper_bounds = self.init_spend_unit * self.params.channel_constr_up
+        budget_constraint = self.init_spend_total
+
+        print(f"\nTotal budget constraint: {budget_constraint:,.2f}")
+        print("\nConstraints per channel:")
+        for channel, lb, ub in zip(self.paid_media_spends, lower_bounds, upper_bounds):
+            print(f"{channel}:")
+            print(f"  Lower bound: {lb:,.2f}")
+            print(f"  Upper bound: {ub:,.2f}")
 
         return Constraints(
             lower_bounds=lower_bounds,
             upper_bounds=upper_bounds,
             budget_constraint=budget_constraint,
-            target_constraint=target_constraint,
         )
 
     def optimize(self) -> AllocationResult:
         """Run the budget allocation optimization."""
+        # Initialize constraints before optimization
+        self.constraints = self._setup_constraints()  # Add this line
+
         bounded_result = self._run_optimization(bounded=True)
         unbounded_result = self._run_optimization(bounded=False)
 
@@ -179,15 +319,20 @@ class BudgetAllocator:
 
         return allocation_result
 
-    def _run_optimization(self, bounded: bool = True) -> OptimizationResult:
+    def _run_optimization(
+        self, bounded: bool = True, debug: bool = True
+    ) -> OptimizationResult:
         """
         Enhanced optimization process with multiple starting points and improved validation.
         """
         print("\nStarting optimization run")
         print(f"Bounded: {bounded}")
 
-        # Validate Hill parameters before optimization
-        self._validate_hill_params()
+        """Enhanced optimization process with multiple starting points and improved validation."""
+        if debug:
+            print("\nDEBUG: Starting optimization run")
+            print(f"Bounded: {bounded}")
+            self._validate_hill_params()
 
         # Calculate bounds
         if bounded:
@@ -261,7 +406,7 @@ class BudgetAllocator:
                 # Calculate responses for current solution
                 current_responses = np.array(
                     [
-                        self._calculate_response(spend, i)
+                        self.calculate_response(spend, i)
                         for i, spend in enumerate(result.x)
                     ]
                 )
@@ -349,72 +494,78 @@ class BudgetAllocator:
         )
 
     def _objective_function(self, x: np.ndarray) -> float:
-        """Modified objective function with stronger response optimization."""
-        responses = np.zeros(len(self.media_spend_sorted))
-        debug_output = np.random.random() < 0.01
+        """Modified objective function with proper handling of zero cases."""
+        debug_output = True  # Set to True temporarily for debugging
 
+        if debug_output:
+            print("\nDEBUG: Starting objective function calculation")
+            print("Input spend vector:", x)
+
+        responses = np.zeros(len(self.media_spend_sorted))
+
+        if debug_output:
+            print("\nDEBUG: Optimization step")
+            print("Current allocation:")
+            for i, (channel, spend) in enumerate(zip(self.media_spend_sorted, x)):
+                print(f"  {channel}: {spend:,.2f}")
         # Calculate responses
         for i, (spend, channel) in enumerate(zip(x, self.media_spend_sorted)):
-            response = self._calculate_response(spend, i)
+            response = self.calculate_response(spend, i)
             responses[i] = response
 
             if debug_output:
                 init_spend = self.init_spend_unit[i]
-                init_response = self._calculate_response(init_spend, i)
-                print(f"\n{channel}:")
+                init_response = self.calculate_response(init_spend, i)
+
+                # Safe division for ROI calculation
+                if spend > 0:
+                    roi = response / spend
+                else:
+                    roi = 0
+
+                print(f"\nDEBUG: Channel {channel} metrics:")
                 print(f"  Initial spend: {init_spend:,.2f}")
                 print(f"  Initial response: {init_response:,.2f}")
-                print(
-                    f"  Proposed spend: {spend:,.2f} ({((spend/init_spend)-1)*100:+.1f}%)"
-                )
-                print(
-                    f"  New response: {response:,.2f} ({((response/init_response)-1)*100:+.1f}%)"
-                )
-                print(f"  ROI: {response/spend if spend > 0 else 0:,.4f}")
+                print(f"  Proposed spend: {spend:,.2f}")
+                if init_spend > 0:
+                    print(f"  Spend change: {((spend/init_spend)-1)*100:+.1f}%")
+                print(f"  New response: {response:,.2f}")
+                print(f"  ROI: {roi:,.4f}")
 
         total_response = np.sum(responses)
         total_spend = np.sum(x)
 
         # Calculate penalties
         budget_violation = abs(total_spend - self.constraints.budget_constraint)
-        penalty = 1e6 * budget_violation
-
-        # Add bounds violation penalty
         bounds_violation = np.sum(
             np.maximum(0, self.constraints.lower_bounds - x)
             + np.maximum(0, x - self.constraints.upper_bounds)
         )
-        penalty += 1e6 * bounds_violation
 
-        # Add ROI improvement incentive
-        init_roi = np.sum(self.init_response) / np.sum(self.init_spend_unit)
-        new_roi = total_response / total_spend if total_spend > 0 else 0
-        roi_penalty = max(0, init_roi - new_roi) * 1e4
-        penalty += roi_penalty
+        penalty = 1e6 * (budget_violation + bounds_violation)
 
         if debug_output:
-            print(f"\nOptimization metrics:")
-            print(f"Total initial response: {np.sum(self.init_response):,.2f}")
-            print(f"Total new response: {total_response:,.2f}")
-            print(
-                f"Response change: {((total_response/np.sum(self.init_response))-1)*100:+.1f}%"
-            )
-            print(f"Initial ROI: {init_roi:.4f}")
-            print(f"New ROI: {new_roi:.4f}")
-            print(f"Budget violation: {budget_violation:,.2f}")
-            print(f"Bounds violation: {bounds_violation:,.2f}")
-            print(f"Total penalty: {penalty:,.2f}")
+            print("\nDEBUG: Optimization metrics:")
+            print(f"  Total response: {total_response:,.2f}")
+            print(f"  Total spend: {total_spend:,.2f}")
+            print(f"  Budget violation: {budget_violation:,.2f}")
+            print(f"  Bounds violation: {bounds_violation:,.2f}")
+            print(f"  Total penalty: {penalty:,.2f}")
 
         return -total_response + penalty
 
     def _calculate_total_response(self, spends: np.ndarray) -> float:
         """Calculate total response across all channels."""
-        return sum(self._calculate_response(spend, i) for i, spend in enumerate(spends))
+        return sum(self.calculate_response(spend, i) for i, spend in enumerate(spends))
 
-    def _calculate_response(self, spend_value: float, channel_index: int) -> float:
-        """Calculate response with improved debugging and validation."""
-        if spend_value <= 0:
-            return 0.0
+    def calculate_response(
+        self, spend: float, channel_index: int, debug: bool = True
+    ) -> float:
+        """Calculate response matching R's transformation chain."""
+        channel = self.media_spend_sorted[channel_index]
+
+        if debug:
+            print(f"\nCalculating response for {channel}")
 
         # Get parameters
         alpha = self.hill_params.alphas[channel_index]
@@ -422,36 +573,40 @@ class BudgetAllocator:
         coef = self.hill_params.coefs[channel_index]
         carryover = self.hill_params.carryover[channel_index]
 
-        # Validate inputs
-        if any(not np.isfinite(x) for x in [alpha, gamma, coef, carryover]):
-            print(
-                f"Warning: Invalid parameters for {self.media_spend_sorted[channel_index]}"
-            )
-            return 0.0
+        # Get adstocked data for range calculation
+        adstocked_data = self.mmm_data.mediaVecCollect[
+            self.mmm_data.mediaVecCollect["type"] == "adstockedMedia"
+        ]
+        model_data = adstocked_data[channel].values
 
-        # Adstock transformation
-        x_adstocked = spend_value + carryover
+        # Calculate range using adstocked data
+        x_range = [min(model_data), max(model_data)]
 
-        # Hill transformation with numerical stability
-        try:
-            hill_expr = np.power(gamma / x_adstocked, alpha, where=(x_adstocked > 0))
-            response = coef / (1 + hill_expr)
-        except Exception as e:
-            print(f"Error in response calculation: {str(e)}")
-            print(f"Parameters: alpha={alpha}, gamma={gamma}, coef={coef}")
-            print(f"Spend: {spend_value}, Adstocked: {x_adstocked}")
-            return 0.0
+        # Calculate inflexion using adstocked data range
+        inflexion = x_range[0] * (1 - gamma) + x_range[1] * gamma
 
-        # Debug output for validation
-        if np.random.random() < 0.01:  # Reduce frequency of prints
-            print(f"\nResponse calculation for spend {spend_value:,.2f}:")
-            print(f"Alpha: {alpha}")
-            print(f"Gamma: {gamma}")
-            print(f"Coefficient: {coef}")
-            print(f"Carryover: {carryover}")
-            print(f"Adstocked value: {x_adstocked:,.2f}")
-            print(f"Hill expression: {hill_expr}")
-            print(f"Final response: {response:,.2f}")
+        # Step 1: Adstock transformation
+        x_adstocked = spend + carryover
+
+        # Step 2: Hill transformation
+        x_saturated = (x_adstocked**alpha) / (x_adstocked**alpha + inflexion**alpha)
+
+        # Step 3: Apply coefficient
+        response = coef * x_saturated
+
+        if debug:
+            print(f"Parameters:")
+            print(f"  spend: {spend:.4f}")
+            print(f"  alpha: {alpha:.4f}")
+            print(f"  gamma: {gamma:.4f}")
+            print(f"  coef: {coef:.4f}")
+            print(f"  carryover: {carryover:.4f}")
+            print(f"Steps:")
+            print(f"  1a. x_range: [{x_range[0]:.4f}, {x_range[1]:.4f}]")
+            print(f"  1b. x_adstocked: {x_adstocked:.4f}")
+            print(f"  2. inflexion: {inflexion:.4f}")
+            print(f"  3. x_saturated: {x_saturated:.4f}")
+            print(f"  4. final_response: {response:.4f}")
 
         return response
 
@@ -492,18 +647,18 @@ class BudgetAllocator:
     def _process_optimization_results(
         self, bounded_result: OptimizationResult, unbounded_result: OptimizationResult
     ) -> AllocationResult:
-        """Process optimization results into final allocation results."""
-        # Calculate responses for optimized allocations
+        """Process optimization results with proper handling of zero/nan cases."""
+        # Calculate responses
         bounded_response = np.array(
             [
-                self._calculate_response(spend, i)
+                self.calculate_response(spend, i)
                 for i, spend in enumerate(bounded_result.solution)
             ]
         )
 
         unbounded_response = np.array(
             [
-                self._calculate_response(spend, i)
+                self.calculate_response(spend, i)
                 for i, spend in enumerate(unbounded_result.solution)
             ]
         )
@@ -517,24 +672,24 @@ class BudgetAllocator:
             optm_response_unit=bounded_response,
             optm_spend_unit_unbound=unbounded_result.solution,
             optm_response_unit_unbound=unbounded_response,
-            date_min=str(self.date_min),  # Added
-            date_max=str(self.date_max),  # Added
-            metric="ROAS" if self.dep_var_type == "revenue" else "CPA",  # Added
-            periods=f"{len(self.hist_filtered)} {self.mmm_data.mmmdata_spec.interval_type}s",  # Added
+            date_min=str(self.date_min),
+            date_max=str(self.date_max),
+            metric="ROAS" if self.dep_var_type == "revenue" else "CPA",
+            periods=f"{len(self.hist_filtered)} {self.mmm_data.mmmdata_spec.interval_type}s",
         )
 
-        # Create MainPoints
+        # Create MainPoints with proper handling of zero responses
+        response_points = np.vstack(
+            [self.init_response, bounded_response, unbounded_response]
+        )
+
+        spend_points = np.vstack(
+            [self.init_spend_unit, bounded_result.solution, unbounded_result.solution]
+        )
+
         main_points = MainPoints(
-            response_points=np.vstack(
-                [self.init_response, bounded_response, unbounded_response]
-            ),
-            spend_points=np.vstack(
-                [
-                    self.init_spend_unit,
-                    bounded_result.solution,
-                    unbounded_result.solution,
-                ]
-            ),
+            response_points=response_points,
+            spend_points=spend_points,
             channels=self.media_spend_sorted,
         )
 
@@ -624,7 +779,7 @@ class BudgetAllocator:
         """Generate a starting point based on channel efficiencies."""
         initial_responses = np.array(
             [
-                self._calculate_response(spend, i)
+                self.calculate_response(spend, i)
                 for i, spend in enumerate(self.init_spend_unit)
             ]
         )
@@ -681,39 +836,23 @@ class BudgetAllocator:
                     raise ValueError(f"Invalid {param} for {channel}: {value}")
 
     def _validate_results(self, result: OptimizationResult) -> None:
-        """Validate optimization results."""
+        """Validate optimization results with detailed output"""
         print("\nValidating optimization results:")
 
         # Check budget constraint
         total_spend = np.sum(result.solution)
         budget_violation = abs(total_spend - self.constraints.budget_constraint)
-        print(f"Budget violation: {budget_violation:,.2f}")
+        print(f"Budget constraint check:")
+        print(f"  Total spend: {total_spend:,.2f}")
+        print(f"  Budget constraint: {self.constraints.budget_constraint:,.2f}")
+        print(f"  Violation: {budget_violation:,.2f}")
 
         # Check bounds
-        lb_violation = np.sum(
-            np.maximum(0, self.constraints.lower_bounds - result.solution)
-        )
-        ub_violation = np.sum(
-            np.maximum(0, result.solution - self.constraints.upper_bounds)
-        )
-        print(f"Bounds violation: {lb_violation:,.2f}")
-        print(f"Upper bound violation: {ub_violation:,.2f}")
-
-        # Check responses
-        final_responses = np.array(
-            [
-                self._calculate_response(spend, i)
-                for i, spend in enumerate(result.solution)
-            ]
-        )
-
-        print("\nFinal channel responses:")
-        for channel, response, init_response in zip(
-            self.media_spend_sorted, final_responses, self.init_response
-        ):
-            change = (
-                ((response / init_response) - 1) * 100
-                if init_response > 0
-                else float("nan")
-            )
-            print(f"{channel}: {response:,.2f} ({change:+.1f}% change)")
+        for i, channel in enumerate(self.paid_media_spends):
+            spend = result.solution[i]
+            lb = self.constraints.lower_bounds[i]
+            ub = self.constraints.upper_bounds[i]
+            print(f"\n{channel} bounds check:")
+            print(f"  Spend: {spend:,.2f}")
+            print(f"  Lower bound: {lb:,.2f}")
+            print(f"  Upper bound: {ub:,.2f}")
