@@ -57,11 +57,11 @@ class OnePager:
         plt.style.use('default')
         sns.set_theme(style="whitegrid", context="paper")
         plt.rcParams.update({
-            'figure.figsize': (32, 24),  # Increased from (22, 17)
+            'figure.figsize': (30, 34),  # Increased from (22, 17)
             'figure.dpi': 100,
             'savefig.dpi': 300,
-            'font.size': 12,            # Increased from 10
-            'axes.titlesize': 14,       # Increased from 12
+            'font.size': 16,            # Increased from 10
+            'axes.titlesize': 22,       # Increased from 12
             'axes.labelsize': 12,       # Increased from 10
             'xtick.labelsize': 11,      # Increased from 9
             'ytick.labelsize': 11,      # Increased from 9
@@ -150,6 +150,8 @@ class OnePager:
             if isinstance(decomp_rssd, (pd.DataFrame, pd.Series)):
                 decomp_rssd = decomp_rssd.iloc[0] if isinstance(decomp_rssd, pd.Series) else decomp_rssd.iloc[0, 0]
             
+            #calc nrmse and decomp
+            
             metrics = {
                 'rsq_train': self._safe_format(rsq),
                 'nrmse': self._safe_format(nrmse),
@@ -176,8 +178,7 @@ class OnePager:
         plots: List[PlotType],
         gs: GridSpec
     ) -> None:
-        """
-        Generate plots for a single solution with dynamic layout.
+        """Generate plots for a single solution with dynamic layout.
         
         Args:
             solution_id: Solution ID to generate plots for
@@ -198,7 +199,7 @@ class OnePager:
             transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
             
             # Add space at top for title
-            gs.update(top=0.85)
+            gs.update(top=0.92)
             
             #TODO: Move the config out of the method to its own data class.
             
@@ -262,7 +263,7 @@ class OnePager:
                         ha='center', va='center')
                     raise e
 
-            # Add model info and titles
+            # Add model info and titles with adjusted positioning
             try:
                 model_info = self._get_model_info(solution_id)
                 metrics_text = (
@@ -276,20 +277,23 @@ class OnePager:
                 
                 fig = gs.figure
                 fig.suptitle(
-                    f"MMM Analysis One-Pager (Solution {solution_id})",
-                    fontsize=14, y=0.98
+                    f"MMM Analysis One-Pager for Model: {solution_id})",
+                    fontsize=18, 
+                    y=0.98
                 )
                 fig.text(
-                    0.5, 0.94,
+                    0.5, 
+                    0.96,
                     metrics_text,
-                    fontsize=12,
+                    fontsize=18,
                     ha='center'
                 )
             except Exception as e:
                 logger.error(f"Error adding title and metrics for solution {solution_id}: {str(e)}")
                 gs.figure.suptitle(
-                    f"MMM Analysis One-Pager (Solution {solution_id})",
-                    fontsize=14, y=0.98
+                    f"MMM Analysis One-Pager for Model: {solution_id})",
+                    fontsize=18,
+                    y=0.98
                 )
                     
         except Exception as e:
@@ -300,12 +304,11 @@ class OnePager:
         self,
         solution_ids: Union[str, List[str]] = 'all',
         plots: Optional[List[str]] = None,
-        figsize: tuple = (32, 24),
+        figsize: tuple = (30, 34),  # Reduced height from 36 to 32
         save_path: Optional[str] = None,
         top_pareto: bool = False
     ) -> List[plt.Figure]:
-        """
-        Generate separate one-pager for each solution ID.
+        """Generate separate one-pager for each solution ID.
         
         Args:
             solution_ids: Single solution ID or list of solution IDs or 'all'
@@ -381,7 +384,6 @@ class OnePager:
             raise ValueError(f"Invalid solution IDs: {invalid_ids}")
         
         figures = []
-        
         try:
             if save_path:
                 os.makedirs(save_path, exist_ok=True)
@@ -401,20 +403,20 @@ class OnePager:
                 
                 # Adjust layout with improved spacing
                 fig.set_constrained_layout_pads(
-                    w_pad=0.15,    # Increased padding between plots horizontally
-                    h_pad=0.2,     # Increased padding between plots vertically
-                    hspace=0.4,    # Increased height space between subplots
-                    wspace=0.3     # Increased width space between subplots
+                    w_pad=0.15,    # Padding between plots horizontally
+                    h_pad=0.2,     # Padding between plots vertically
+                    hspace=0.4,    # Height space between subplots
+                    wspace=0.3     # Width space between subplots
                 )
                 
-                # Update layout to leave more space for titles and labels
+                # Update layout with reduced top spacing
                 plt.subplots_adjust(
-                    top=0.88,      # Increased from 0.85
-                    bottom=0.08,   # Decreased from 0.1
-                    left=0.08,     # Decreased from 0.1
-                    right=0.92,    # Increased from 0.9
-                    hspace=0.35,   # Decreased from 0.4 for better spacing
-                    wspace=0.25    # Decreased from 0.3 for better spacing
+                    top=0.92,      # Increased from 0.88 to reduce top space
+                    bottom=0.08,   # Keep the same
+                    left=0.08,     # Keep the same
+                    right=0.92,    # Keep the same
+                    hspace=0.35,   # Keep the same
+                    wspace=0.25    # Keep the same
                 )
                 
                 if save_path:

@@ -106,7 +106,9 @@ class ParetoVisualizer(BaseVisualizer):
 
         # Group and summarize
         waterfall_data = (
-            waterfall_data.groupby("rn", as_index=False).agg({"xDecompAgg": "sum", "xDecompPerc": "sum"}).reset_index()
+            waterfall_data.groupby("rn", as_index=False)
+            .agg({"xDecompAgg": "sum", "xDecompPerc": "sum"})
+            .reset_index()
         )
 
         # Sort by percentage contribution
@@ -127,8 +129,8 @@ class ParetoVisualizer(BaseVisualizer):
         # Define colors
         colors = {"Positive": "#59B3D2", "Negative": "#E5586E"}
 
-        # Create categorical y-axis
-        y_pos = range(len(waterfall_data))
+        # Create categorical y-axis positions
+        y_pos = np.arange(len(waterfall_data))
 
         # Create horizontal bars
         bars = ax.barh(
@@ -140,27 +142,27 @@ class ParetoVisualizer(BaseVisualizer):
         )
 
         # Add text labels
-        for i, row in waterfall_data.iterrows():
+        for idx, row in enumerate(waterfall_data.itertuples()):
             # Format label text
-            if abs(row["xDecompAgg"]) >= 1e9:
-                formatted_num = f"{row['xDecompAgg']/1e9:.1f}B"
-            elif abs(row["xDecompAgg"]) >= 1e6:
-                formatted_num = f"{row['xDecompAgg']/1e6:.1f}M"
-            elif abs(row["xDecompAgg"]) >= 1e3:
-                formatted_num = f"{row['xDecompAgg']/1e3:.1f}K"
+            if abs(row.xDecompAgg) >= 1e9:
+                formatted_num = f"{row.xDecompAgg/1e9:.1f}B"
+            elif abs(row.xDecompAgg) >= 1e6:
+                formatted_num = f"{row.xDecompAgg/1e6:.1f}M"
+            elif abs(row.xDecompAgg) >= 1e3:
+                formatted_num = f"{row.xDecompAgg/1e3:.1f}K"
             else:
-                formatted_num = f"{row['xDecompAgg']:.1f}"
+                formatted_num = f"{row.xDecompAgg:.1f}"
 
-            # Calculate x-position as the right edge of each positive bar
-            x_pos = (row["start"] + row["end"])/2
-
-            # Add label aligned at the end of the bar
+            # Calculate x-position as the middle of the bar
+            x_pos = (row.start + row.end) / 2
+            
+            # Use y_pos[idx] to ensure alignment with bars
             ax.text(
-                x_pos, # - 0.01,
-                i,  # Small offset from bar end
-                f"{formatted_num}\n{row['xDecompPerc']*100:.1f}%",
-                ha="right",
-                va="center",
+                x_pos,
+                y_pos[idx],  # Use the same y-position as the corresponding bar
+                f"{formatted_num}\n{row.xDecompPerc*100:.1f}%",
+                ha="center",  # Center align horizontally
+                va="center",  # Center align vertically
                 fontsize=9,
                 linespacing=0.9,
             )
@@ -207,7 +209,7 @@ class ParetoVisualizer(BaseVisualizer):
         ax.grid(True, axis="x", alpha=0.2)
         ax.set_axisbelow(True)
 
-        logger.debug("Successfully generated of waterfall plot")
+        logger.debug("Successfully generated waterfall plot")
         # Adjust layout
         if fig:
             plt.subplots_adjust(right=0.85, top=0.85)
