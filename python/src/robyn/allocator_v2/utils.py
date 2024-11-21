@@ -3,10 +3,13 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-
+import logging
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.modeling.entities.pareto_result import ParetoResult
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,7 +32,7 @@ def get_hill_params(
     media_vec_collect: pd.DataFrame = None,
 ) -> HillParameters:
     """Get Hill transformation parameters with proper coefficient mapping."""
-    print("\nExtracting Hill parameters...")
+    logger.debug("\nExtracting Hill parameters...")
 
     dt_coef_filtered = dt_coef[dt_coef["solID"] == select_model].set_index("rn")
 
@@ -39,28 +42,28 @@ def get_hill_params(
     carryover = []
 
     for channel in media_sorted:
-        print(f"\nProcessing channel: {channel}")
+        logger.debug(f"\nProcessing channel: {channel}")
 
         # Get alpha parameter
         alpha_col = f"{channel}_alphas"
         alpha = dt_hyppar[alpha_col].iloc[0]
         alphas.append(alpha)
-        print(f"Alpha: {alpha}")
+        logger.debug(f"Alpha: {alpha}")
 
         # Get gamma parameter
         gamma_col = f"{channel}_gammas"
         gamma = dt_hyppar[gamma_col].iloc[0]
         gammas.append(gamma)
-        print(f"Gamma: {gamma}")
+        logger.debug(f"Gamma: {gamma}")
 
         # Get coefficient
         try:
             coef = float(dt_coef_filtered.loc[channel, "coef"])
         except KeyError:
-            print(f"Warning: No coefficient found for {channel}, using 0.0")
+            logger.debug(f"Warning: No coefficient found for {channel}, using 0.0")
             coef = 0.0
         coefs.append(coef)
-        print(f"Coefficient: {coef}")
+        logger.debug(f"Coefficient: {coef}")
 
         # Calculate carryover to match R implementation
         if hyperparameters.adstock == "geometric":
@@ -74,13 +77,13 @@ def get_hill_params(
             carryover_val = weibull_adstock(shape, scale)
 
         carryover.append(carryover_val)
-        print(f"Carryover: {carryover_val}")
+        logger.debug(f"Carryover: {carryover_val}")
 
-        print(f"Final parameter set for {channel}:")
-        print(f"  Alpha: {alpha}")
-        print(f"  Gamma: {gamma}")
-        print(f"  Coefficient: {coef}")
-        print(f"  Carryover: {carryover_val}")
+        logger.debug(f"Final parameter set for {channel}:")
+        logger.debug(f"  Alpha: {alpha}")
+        logger.debug(f"  Gamma: {gamma}")
+        logger.debug(f"  Coefficient: {coef}")
+        logger.debug(f"  Carryover: {carryover_val}")
 
     return HillParameters(
         alphas=np.array(alphas),
@@ -102,62 +105,62 @@ def calculate_carryover(
     """
     carryover = np.zeros(len(media_sorted))
 
-    print(f"\nCalculating carryover effects for channels: {media_sorted}")
-    print(f"Adstock type: {hyperparameters.adstock}")
+    logger.debug(f"\nCalculating carryover effects for channels: {media_sorted}")
+    logger.debug(f"Adstock type: {hyperparameters.adstock}")
 
-    # Print available channels in hyperparameters
-    print("\nAvailable channels in hyperparameters:")
+    # logger.debug available channels in hyperparameters
+    logger.debug("\nAvailable channels in hyperparameters:")
     for channel, params in hyperparameters.hyperparameters.items():
-        print(f"  {channel}:")
-        print(f"    thetas: {params.thetas}")
-        print(f"    alphas: {params.alphas}")
-        print(f"    gammas: {params.gammas}")
+        logger.debug(f"  {channel}:")
+        logger.debug(f"    thetas: {params.thetas}")
+        logger.debug(f"    alphas: {params.alphas}")
+        logger.debug(f"    gammas: {params.gammas}")
 
     for i, channel in enumerate(media_sorted):
-        print(f"\nProcessing channel: {channel}")
+        logger.debug(f"\nProcessing channel: {channel}")
         try:
             if hyperparameters.adstock == "geometric":
                 # Get channel parameters from hyperparameters dictionary
                 channel_params = hyperparameters.hyperparameters[channel]
                 if channel_params.thetas:
                     theta = sum(channel_params.thetas) / 2  # Use mean of min and max
-                    print(
+                    logger.debug(
                         f"Found theta range: {channel_params.thetas}, using mean value: {theta}"
                     )
                     carryover[i] = geometric_adstock(theta)
                 else:
-                    print(f"No theta values found for {channel}")
-                    print("Using default carryover effect of 0.1")
+                    logger.debug(f"No theta values found for {channel}")
+                    logger.debug("Using default carryover effect of 0.1")
                     carryover[i] = 0.1
             else:  # weibull
                 channel_params = hyperparameters.hyperparameters[channel]
                 if channel_params.shapes and channel_params.scales:
                     shape = sum(channel_params.shapes) / 2
                     scale = sum(channel_params.scales) / 2
-                    print(
+                    logger.debug(
                         f"Shape range: {channel_params.shapes}, Scale range: {channel_params.scales}"
                     )
-                    print(f"Using mean values - Shape: {shape}, Scale: {scale}")
+                    logger.debug(f"Using mean values - Shape: {shape}, Scale: {scale}")
                     carryover[i] = weibull_adstock(shape, scale)
                 else:
-                    print(f"Missing shape/scale values for {channel}")
-                    print("Using default carryover effect of 0.1")
+                    logger.debug(f"Missing shape/scale values for {channel}")
+                    logger.debug("Using default carryover effect of 0.1")
                     carryover[i] = 0.1
 
-            print(f"Calculated carryover effect: {carryover[i]}")
+            logger.debug(f"Calculated carryover effect: {carryover[i]}")
 
         except KeyError as e:
-            print(f"Error: Channel {channel} not found in hyperparameters")
-            print("Using default carryover effect of 0.1")
+            logger.debug(f"Error: Channel {channel} not found in hyperparameters")
+            logger.debug("Using default carryover effect of 0.1")
             carryover[i] = 0.1
         except Exception as e:
-            print(f"Error processing channel {channel}: {str(e)}")
-            print("Using default carryover effect of 0.1")
+            logger.debug(f"Error processing channel {channel}: {str(e)}")
+            logger.debug("Using default carryover effect of 0.1")
             carryover[i] = 0.1
 
-    print("\nFinal carryover effects:")
+    logger.debug("\nFinal carryover effects:")
     for ch, effect in zip(media_sorted, carryover):
-        print(f"{ch}: {effect}")
+        logger.debug(f"{ch}: {effect}")
 
     return carryover
 
