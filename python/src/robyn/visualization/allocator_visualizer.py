@@ -272,11 +272,7 @@ class AllocatorPlotter(BaseVisualizer):
         """Plot response curves with optimization points."""
         if any(
             attr is None
-            for attr in [
-                self.dt_optimOut,
-                self.mainPoints,
-                self.budget_allocator,
-            ]
+            for attr in [self.dt_optimOut, self.mainPoints, self.budget_allocator]
         ):
             raise ValueError("All data attributes must be provided")
 
@@ -284,29 +280,57 @@ class AllocatorPlotter(BaseVisualizer):
         try:
             n_channels = len(self.dt_optimOut.channels)
             n_rows = (n_channels + 2) // 3  # 3 columns
-
-            # Create figure with subplots
             fig, axes = plt.subplots(n_rows, 3, figsize=(15, 5 * n_rows), squeeze=False)
             axes = axes.flatten()
 
             scenarios = ["Initial", "Bounded", "Bounded x3"]
-            scenario_colors = ["gray", "#4682B4", "#DAA520"]  # Using web colors
+            scenario_colors = ["gray", "#4682B4", "#DAA520"]
 
             # Plot for each channel
             for i, channel in enumerate(self.dt_optimOut.channels):
                 ax = axes[i]
 
+                # Get channel parameters
+                carryover = self.budget_allocator.hill_params.carryover[i]
+
                 # Generate response curve
                 max_spend = np.max(self.mainPoints.spend_points[:, i]) * 1.5
                 spend_range = np.linspace(0, max_spend, 100)
-
-                # Calculate response using Hill transformation
                 response = self._calculate_response_curve_hill(spend_range, i)
+
+                # Plot grey area for historical carryover
+                carryover_mask = spend_range <= carryover
+                if any(carryover_mask):
+                    ax.fill_between(
+                        spend_range[carryover_mask],
+                        response[carryover_mask],
+                        color="grey",
+                        alpha=0.4,
+                        label="Historical Carryover",
+                    )
 
                 # Plot main curve
                 ax.plot(
                     spend_range, response, label=channel, color="#1f77b4", alpha=0.7
                 )
+
+                # Add constraint lines
+                lower_bound = self.dt_optimOut.init_spend_unit[i] * 0.7
+                upper_bound = self.dt_optimOut.init_spend_unit[i] * 1.2
+
+                # Add constraint lines for bounded scenario
+                ax.axvline(x=lower_bound, color="gray", linestyle="--", alpha=0.3)
+                ax.axvline(x=upper_bound, color="gray", linestyle="--", alpha=0.3)
+
+                # Add extended constraint lines for unbounded scenario
+                lower_bound_ext = (
+                    self.dt_optimOut.init_spend_unit[i] * 0.1
+                )  # Using 0.1 as in R
+                upper_bound_ext = (
+                    self.dt_optimOut.init_spend_unit[i] * 1.6
+                )  # Using 1.6 as in R
+                ax.axvline(x=lower_bound_ext, color="gray", linestyle=":", alpha=0.2)
+                ax.axvline(x=upper_bound_ext, color="gray", linestyle=":", alpha=0.2)
 
                 # Plot points for each scenario
                 for scenario_idx in range(len(scenarios)):
@@ -317,6 +341,7 @@ class AllocatorPlotter(BaseVisualizer):
                         marker="o",
                         s=100,
                         label=scenarios[scenario_idx],
+                        zorder=5,
                     )
 
                     # Add spend amount annotation
@@ -331,24 +356,22 @@ class AllocatorPlotter(BaseVisualizer):
                         fontsize=8,
                     )
 
-                # Add constraint lines
-                if hasattr(self.dt_optimOut, "constr_low") and hasattr(
-                    self.dt_optimOut, "constr_up"
-                ):
-                    lower = self.dt_optimOut.init_spend_unit[i] * 0.7
-                    upper = self.dt_optimOut.init_spend_unit[i] * 1.2
-                    ax.axvline(x=lower, color="gray", linestyle="--", alpha=0.3)
-                    ax.axvline(x=upper, color="gray", linestyle="--", alpha=0.3)
-
                 # Customize subplot
-                self.setup_axis(ax, title=channel, xlabel="Spend", ylabel="Response")
+                ax.set_title(channel, fontsize=10)
+                ax.set_xlabel("Spend")
+                ax.set_ylabel("Response")
+
+                # Format axis labels
+                ax.yaxis.set_major_formatter(
+                    plt.FuncFormatter(lambda x, p: format(int(x), ","))
+                )
+                ax.xaxis.set_major_formatter(
+                    plt.FuncFormatter(lambda x, p: format(int(x), ","))
+                )
 
                 # Add legend to first plot only
                 if i == 0:
-                    # Change this line
-                    ax.legend(
-                        bbox_to_anchor=(1.05, 1), loc="upper left"
-                    )  # Use matplotlib's legend directly instead
+                    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
             # Remove empty subplots
             for j in range(i + 1, len(axes)):
@@ -487,6 +510,66 @@ class AllocatorPlotter(BaseVisualizer):
             fig, ax = plt.subplots(figsize=(12, 8))
             ax.grid(True, axis="y", linestyle="--", alpha=0.7, zorder=0)
 
+            # Get number of periods
+            n_periods = int(
+                self.dt_optimOut.periods.split()[0]
+            )  # e.g., "156 weeks" -> 156
+
+            # Calculate scenarios with total values (not unit values)
+            self.scenarios = {
+                "Initial": {
+                    "spend": np.sum(self.dt_optimOut.init_spend_unit) * n_periods,
+                    "response": np.sum(self.dt_optimOut.init_response_unit) * n_periods,
+                },
+                "Bounded": {
+                    "spend": np.sum(self.dt_optimOut.optm_spend_unit) * n_periods,
+                    "response": np.sum(self.dt_optimOut.optm_response_unit) * n_periods,
+                },
+                "Bounded x3": {
+                    "spend": np.sum(self.dt_optimOut.optm_spend_unit_unbound)
+                    * n_periods,
+                    "response": np.sum(self.dt_optimOut.optm_response_unit_unbound)
+                    * n_periods,
+                },
+            }
+
+            # Print debugging information
+            logger.debug("Budget comparison values:")
+            for scenario, values in self.scenarios.items():
+                logger.debug(
+                    f"{scenario}: Spend = {values['spend']:,.2f}, Response = {values['response']:,.2f}"
+                )
+
+            # Calculate percentage changes and metrics
+            for scenario in self.scenarios:
+                if scenario != "Initial":
+                    self.scenarios[scenario].update(
+                        {
+                            "spend_pct_change": (
+                                self.scenarios[scenario]["spend"]
+                                / self.scenarios["Initial"]["spend"]
+                                - 1
+                            )
+                            * 100,
+                            "response_pct_change": (
+                                self.scenarios[scenario]["response"]
+                                / self.scenarios["Initial"]["response"]
+                                - 1
+                            )
+                            * 100,
+                        }
+                    )
+                    if self.metric == "ROAS":
+                        self.scenarios[scenario]["metric_value"] = (
+                            self.scenarios[scenario]["response"]
+                            / self.scenarios[scenario]["spend"]
+                        )
+                    else:  # CPA
+                        self.scenarios[scenario]["metric_value"] = (
+                            self.scenarios[scenario]["spend"]
+                            / self.scenarios[scenario]["response"]
+                        )
+
             # Define colors for each scenario
             scenario_colors = {
                 "Initial": "#C0C0C0",  # Silver
@@ -495,10 +578,10 @@ class AllocatorPlotter(BaseVisualizer):
             }
 
             # Define spacing parameters
-            group_width = 1.2  # Width for each scenario group
-            group_spacing = 2.0  # Space between scenario groups
-            bar_spacing = 0.4  # Space between bars within a group
-            bar_width = 0.3  # Width of individual bars
+            group_width = 1.2
+            group_spacing = 2.0
+            bar_spacing = 0.4
+            bar_width = 0.3
 
             x_base = np.arange(
                 0,
@@ -508,12 +591,10 @@ class AllocatorPlotter(BaseVisualizer):
 
             # Plot bars for each scenario
             for i, (scenario, data) in enumerate(self.scenarios.items()):
-                # Calculate bar positions
                 x_group = x_base[i]
                 x_spend = x_group + (group_width - bar_spacing) / 2
                 x_response = x_group + (group_width + bar_spacing) / 2
 
-                # Plot spend and response bars
                 spend_bar = ax.bar(
                     x_spend,
                     data["spend"],
@@ -543,7 +624,7 @@ class AllocatorPlotter(BaseVisualizer):
                         zorder=4,
                     )
 
-                # Add "total spend" and "total response" labels under bars
+                # Add "total spend" and "total response" labels
                 for x_pos, label in [
                     (x_spend, "total spend"),
                     (x_response, "total response"),
@@ -559,9 +640,12 @@ class AllocatorPlotter(BaseVisualizer):
                         zorder=4,
                     )
 
-                # Add metrics text above the group
+                # Add metrics text
                 if scenario == "Initial":
-                    metrics_text = f"Spend\nResp\n{self.metric}: {data['response']/data['spend']:.2f}"
+                    metrics_text = (
+                        f"Spend\nResp\n{self.metric}: "
+                        f"{data['response']/data['spend']:.2f}"
+                    )
                 else:
                     metrics_text = (
                         f"Spend: {data['spend_pct_change']:+.1f}%\n"
@@ -569,7 +653,6 @@ class AllocatorPlotter(BaseVisualizer):
                         f"{self.metric}: {data['metric_value']:.2f}"
                     )
 
-                # Position metrics text above the bars
                 ax.text(
                     x_group + group_width / 2,
                     ax.get_ylim()[1],
@@ -586,7 +669,7 @@ class AllocatorPlotter(BaseVisualizer):
                 f"Total Budget Optimization Result (scaled up to {self.dt_optimOut.periods})",
                 pad=20,
                 fontsize=10,
-                loc="left",  # Align title to the left
+                loc="left",
             )
 
             # Remove axis ticks and labels
@@ -596,11 +679,9 @@ class AllocatorPlotter(BaseVisualizer):
                 plt.FuncFormatter(lambda x, p: format(int(x), ","))
             )
             ax.tick_params(axis="y", labelsize=8)
-
-            # Angle x-tick labels at 45 degrees
             ax.set_xticklabels(ax.get_xticks(), rotation=45, ha="right", fontsize=8)
 
-            # Customize legend with smaller font
+            # Customize legend
             ax.legend(
                 title=None,
                 loc="upper right",
@@ -614,12 +695,10 @@ class AllocatorPlotter(BaseVisualizer):
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.spines["bottom"].set_visible(False)
-            # # Set x limits to show all groups
-            # ax.set_xlim(-bar_width)
-            # Adjust layout to reduce extra space
+
             plt.tight_layout(pad=2.0)
-            # fig.subplots_adjust(top=0.2, bottom=0.1, left=0.1, right=0.9)
             return fig
+
         except Exception as e:
             logger.error("Failed to create budget comparison plot: %s", str(e))
             raise

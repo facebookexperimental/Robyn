@@ -4,7 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, List
-
+import numpy as np
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
@@ -29,7 +29,7 @@ from robyn.allocator.entities.allocation_result import AllocationResult
 
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.reporting.onepager_reporting import OnePager
-from robyn.visualization.allocator_plotter import AllocatorPlotter
+from robyn.visualization.allocator_visualizer import AllocatorPlotter
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
@@ -162,6 +162,7 @@ class Robyn:
         trials_config: Optional[TrialsConfig] = None,
         ts_validation: Optional[bool] = False,
         add_penalty_factor: Optional[bool] = False,
+        rssd_zero_penalty: Optional[bool] = True,
         nevergrad_algo: Optional[str] = NevergradAlgorithm.TWO_POINTS_DE,
         model_name: Optional[str] = Models.RIDGE,
         cores: Optional[int] = 16,
@@ -206,6 +207,7 @@ class Robyn:
                 trials_config=trials_config,
                 ts_validation=ts_validation,
                 add_penalty_factor=add_penalty_factor,
+                rssd_zero_penalty=rssd_zero_penalty,
                 nevergrad_algo=nevergrad_algo,
                 model_name=model_name,
                 cores=cores,
@@ -294,6 +296,7 @@ class Robyn:
         trials_config: Optional[TrialsConfig] = None,
         ts_validation: Optional[bool] = False,
         add_penalty_factor: Optional[bool] = False,
+        rssd_zero_penalty: Optional[bool] = True,
         nevergrad_algo: Optional[str] = NevergradAlgorithm.TWO_POINTS_DE,
         model_name: Optional[str] = Models.RIDGE,
         cores: Optional[int] = 16,
@@ -318,6 +321,7 @@ class Robyn:
             trials_config,
             ts_validation,
             add_penalty_factor,
+            rssd_zero_penalty,
             nevergrad_algo,
             model_name,
             cores,
@@ -354,7 +358,21 @@ class Robyn:
             logger.info("Optimizing budget allocation")
 
             if select_model is None:
-                select_model = self.pareto_result.pareto_solutions[0]
+                pareto_solutions = self.pareto_result.pareto_solutions
+                if (
+                    pareto_solutions
+                    and pareto_solutions[0] is not None
+                    and pareto_solutions[0] != ""
+                ):
+                    select_model = pareto_solutions[0]
+                elif (
+                    len(pareto_solutions) > 1
+                    and pareto_solutions[1] is not None
+                    and pareto_solutions[1] != ""
+                ):
+                    select_model = pareto_solutions[1]
+
+            logger.info("Selected model for budget optimization: %s", select_model)
 
             allocator = BudgetAllocator(
                 mmm_data=self.mmm_data,
