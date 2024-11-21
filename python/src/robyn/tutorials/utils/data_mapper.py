@@ -9,7 +9,7 @@ from robyn.data.entities.enums import (
     ProphetSigns,
 )
 from robyn.data.entities.holidays_data import HolidaysData
-from robyn.data.entities.hyperparameters import Hyperparameters
+from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.convergence_data import ConvergenceData
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
@@ -56,11 +56,35 @@ def import_input_collect(data: Dict[str, Any]) -> Dict[str, Any]:
         prophet_country=data.get("prophet_country"),
         prophet_signs=[ProphetSigns(s) for s in data.get("prophet_signs", [])],
     )
+
+    print("Raw hyperparameters data:", data["hyperparameters"])
+    # Group parameters by channel
+    channel_params: Dict[str, Dict[str, list]] = {}
+    for key, value in data["hyperparameters"].items():
+        if key == "train_size":
+            continue  # Skip train_size as it's not a channel parameter
+        channel, param_type = key.rsplit("_", 1)
+        if channel not in channel_params:
+            channel_params[channel] = {}
+        channel_params[channel][param_type] = value
+
+    # Convert grouped parameters to ChannelHyperparameters objects
+    hyperparameters_dict: Dict[str, ChannelHyperparameters] = {
+        channel: ChannelHyperparameters(
+            thetas=params.get("thetas"),
+            alphas=params.get("alphas"),
+            gammas=params.get("gammas"),
+            # Add other parameters as needed
+        )
+        for channel, params in channel_params.items()
+    }
+
+    # Initialize the Hyperparameters instance
     hyperparameters = Hyperparameters(
-        hyperparameters=data.get("hyperparameters", {}),
-        adstock=AdstockType(adstock_type),
+        hyperparameters=hyperparameters_dict,
+        adstock=AdstockType(adstock_type),  # Ensure adstock_type is defined
         lambda_=data.get("lambda_", 0.0),
-        train_size=data.get("train_size", (0.5, 0.8)),
+        train_size=data.get("train_size", [0.5, 0.8]),
     )
     featurized_mmm_data = FeaturizedMMMData(
         dt_mod=pd.DataFrame(data.get("dt_mod", {})),
@@ -98,9 +122,15 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
                 else None
             ),
             media_vec_collect=pd.DataFrame(output_collect.get("mediaVecCollect", {})),
-            x_decomp_vec_collect=pd.DataFrame(output_collect.get("xDecompVecCollect", {})),
-            plot_data_collect=_convert_plot_data(output_collect.get("allPareto", {}).get("plotDataCollect", {})),
-            df_caov_pct_all=pd.DataFrame(output_collect.get("allPareto", {}).get("df_caov_pct", {})),
+            x_decomp_vec_collect=pd.DataFrame(
+                output_collect.get("xDecompVecCollect", {})
+            ),
+            plot_data_collect=_convert_plot_data(
+                output_collect.get("allPareto", {}).get("plotDataCollect", {})
+            ),
+            df_caov_pct_all=pd.DataFrame(
+                output_collect.get("allPareto", {}).get("df_caov_pct", {})
+            ),
         )
     except Exception as e:
         print(f"Warning: Error creating ParetoResult: {str(e)}")
@@ -120,23 +150,33 @@ def import_output_collect(output_collect: Dict[str, Any]) -> Dict[str, Any]:
                     explained_variance=pd.Series(pca_data.get("pca_explained", [])),
                     df=pd.DataFrame(pca_data.get("pcadf", [])),
                     plot_explained=(
-                        pd.DataFrame(pca_data.get("plot_explained", [])) if pca_data.get("plot_explained") else None
+                        pd.DataFrame(pca_data.get("plot_explained", []))
+                        if pca_data.get("plot_explained")
+                        else None
                     ),
                     plot=pca_data.get("plot"),
                 )
 
             # Create plot results
             plot_results = ClusterPlotResults(
-                top_solutions_errors_plot=pd.DataFrame(clusters_dict.get("plot_models_errors", [])),
-                top_solutions_rois_plot=pd.DataFrame(clusters_dict.get("plot_models_rois", [])),
+                top_solutions_errors_plot=pd.DataFrame(
+                    clusters_dict.get("plot_models_errors", [])
+                ),
+                top_solutions_rois_plot=pd.DataFrame(
+                    clusters_dict.get("plot_models_rois", [])
+                ),
             )
 
             # Create confidence intervals
             cluster_ci = ClusterConfidenceIntervals(
-                cluster_confidence_interval_df=pd.DataFrame(clusters_dict.get("df_cluster_ci", [])),
+                cluster_confidence_interval_df=pd.DataFrame(
+                    clusters_dict.get("df_cluster_ci", [])
+                ),
                 boot_n=clusters_dict.get("boot_n", [0])[0],
                 sim_n=clusters_dict.get("sim_n", [0])[0],
-                clusters_confidence_interval_plot=pd.DataFrame(clusters_dict.get("plot_clusters_ci", [])),
+                clusters_confidence_interval_plot=pd.DataFrame(
+                    clusters_dict.get("plot_clusters_ci", [])
+                ),
             )
 
             # Create final clustered result
@@ -196,14 +236,22 @@ def _convert_plot_data(plot_data_collect: Dict[str, Any]) -> Dict[str, pd.DataFr
                 for component_name, component_data in plot_content.items():
                     try:
                         if isinstance(component_data, pd.DataFrame):
-                            converted_data[model_id][plot_type][component_name] = component_data
+                            converted_data[model_id][plot_type][
+                                component_name
+                            ] = component_data
                         elif isinstance(component_data, (list, dict)):
-                            converted_data[model_id][plot_type][component_name] = pd.DataFrame(component_data)
+                            converted_data[model_id][plot_type][component_name] = (
+                                pd.DataFrame(component_data)
+                            )
                         else:
                             # For scalar values, store as is
-                            converted_data[model_id][plot_type][component_name] = component_data
+                            converted_data[model_id][plot_type][
+                                component_name
+                            ] = component_data
                     except Exception as e:
-                        print(f"Warning: Error converting {component_name} in {plot_type} for {model_id}: {str(e)}")
+                        print(
+                            f"Warning: Error converting {component_name} in {plot_type} for {model_id}: {str(e)}"
+                        )
 
         except Exception as e:
             print(f"Warning: Error converting plot data for {model_id}: {str(e)}")
@@ -221,7 +269,9 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
             # Check the content of resultCollect
             result_collect = data[key].get("resultCollect", {})
             print(f"Debug: resultCollect keys for {key}: {list(result_collect.keys())}")
-            print(f"Debug: Sample resultHypParam for {key}: {result_collect.get('resultHypParam', [])[:3]}")
+            print(
+                f"Debug: Sample resultHypParam for {key}: {result_collect.get('resultHypParam', [])[:3]}"
+            )
     trials = []
     convergence_data = None
     hyper_bound_ng = pd.DataFrame()
@@ -283,7 +333,9 @@ def import_output_models(data: Dict[str, Any]) -> ModelOutputs:
                 lambda_=result_hyp_param.get("lambda", 0),  # Newly added
                 lambda_hp=result_hyp_param.get("lambda_hp", 0),  # Newly added
                 lambda_max=result_hyp_param.get("lambda_max", 0),  # Newly added
-                lambda_min_ratio=result_hyp_param.get("lambda_min_ratio", 0),  # Newly added
+                lambda_min_ratio=result_hyp_param.get(
+                    "lambda_min_ratio", 0
+                ),  # Newly added
                 pos=result_hyp_param.get("pos", 0),  # Newly added
                 elapsed=result_hyp_param.get("Elapsed", 0),  # Newly added
                 elapsed_accum=result_hyp_param.get("ElapsedAccum", 0),  # Newly added

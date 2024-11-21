@@ -8,7 +8,6 @@ from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.enums import AdstockType
 
 
-
 class MediaTransformation:
     """
     Handles media transformations including adstock and saturation effects.
@@ -26,48 +25,63 @@ class MediaTransformation:
         Applies geometric adstock transformation.
         x[t] = x[t] + θ * x[t-1]
         """
-        self.logger.debug("Starting geometric adstock transformation with theta=%f", theta)
+        self.logger.debug(
+            "Starting geometric adstock transformation with theta=%f", theta
+        )
         self.logger.debug("Input series shape: %s", values.shape)
-        
+
         result = values.copy()
         for t in range(1, len(values)):
             result.iloc[t] += theta * result.iloc[t - 1]
-            
+
         self.logger.debug("Completed geometric adstock transformation")
         return result
 
-    def apply_weibull_adstock(self, values: pd.Series, shape: float, scale: float) -> pd.Series:
+    def apply_weibull_adstock(
+        self, values: pd.Series, shape: float, scale: float
+    ) -> pd.Series:
         """
         Applies Weibull adstock transformation.
         Uses shape and scale parameters to create decay curve.
         """
-        self.logger.debug("Starting Weibull adstock transformation with shape=%f, scale=%f", 
-                         shape, scale)
+        self.logger.debug(
+            "Starting Weibull adstock transformation with shape=%f, scale=%f",
+            shape,
+            scale,
+        )
         self.logger.debug("Input series shape: %s", values.shape)
-        
+
         max_lag = len(values)
         times = np.arange(max_lag)
-        weights = (shape / scale) * (times / scale) ** (shape - 1) * np.exp(-((times / scale) ** shape))
+        weights = (
+            (shape / scale)
+            * (times / scale) ** (shape - 1)
+            * np.exp(-((times / scale) ** shape))
+        )
         weights = weights / weights.sum()  # Normalize
-        
+
         self.logger.debug("Calculated Weibull weights, proceeding with convolution")
-        result = pd.Series(np.convolve(values, weights, mode="full")[: len(values)], 
-                          index=values.index)
-        
+        result = pd.Series(
+            np.convolve(values, weights, mode="full")[: len(values)], index=values.index
+        )
+
         self.logger.debug("Completed Weibull adstock transformation")
         return result
 
-    def apply_saturation(self, values: pd.Series, alpha: float, gamma: float) -> pd.Series:
+    def apply_saturation(
+        self, values: pd.Series, alpha: float, gamma: float
+    ) -> pd.Series:
         """
         Applies Hill function saturation transformation.
         S(x) = (x^alpha) / (x^alpha + gamma^alpha)
         """
-        self.logger.debug("Starting saturation transformation with alpha=%f, gamma=%f", 
-                         alpha, gamma)
+        self.logger.debug(
+            "Starting saturation transformation with alpha=%f, gamma=%f", alpha, gamma
+        )
         self.logger.debug("Input series shape: %s", values.shape)
-        
+
         result = (values**alpha) / (values**alpha + gamma**alpha)
-        
+
         self.logger.debug("Completed saturation transformation")
         return result
 
@@ -84,18 +98,21 @@ class MediaTransformation:
         """
         self.logger.info("Starting media transformation for channel: %s", channel)
         self.logger.debug("Input values shape: %s", values.shape)
-        
+
         try:
             channel_params = self.hyperparameters.get_hyperparameter(channel)
-            self.logger.debug("Retrieved hyperparameters for channel %s: %s", 
-                            channel, channel_params)
+            self.logger.debug(
+                "Retrieved hyperparameters for channel %s: %s", channel, channel_params
+            )
 
             if self.hyperparameters.adstock == AdstockType.GEOMETRIC:
                 if not channel_params.thetas:
-                    error_msg = f"Geometric adstock requires theta values for channel {channel}"
+                    error_msg = (
+                        f"Geometric adstock requires theta values for channel {channel}"
+                    )
                     self.logger.error(error_msg)
                     raise ValueError(error_msg)
-                    
+
                 theta = channel_params.thetas[0]  # Use first theta value
                 self.logger.info("Applying geometric adstock transformation")
                 transformed = self._apply_geometric_adstock(values, theta)
@@ -104,20 +121,22 @@ class MediaTransformation:
                     error_msg = f"Weibull adstock requires shape and scale values for channel {channel}"
                     self.logger.error(error_msg)
                     raise ValueError(error_msg)
-                    
+
                 shape = channel_params.shapes[0]  # Use first shape value
                 scale = channel_params.scales[0]  # Use first scale value
                 self.logger.info("Applying Weibull adstock transformation")
                 transformed = self._apply_weibull_adstock(values, shape, scale)
 
             if not (channel_params.alphas and channel_params.gammas):
-                error_msg = f"Saturation requires alpha and gamma values for channel {channel}"
+                error_msg = (
+                    f"Saturation requires alpha and gamma values for channel {channel}"
+                )
                 self.logger.error(error_msg)
                 raise ValueError(error_msg)
-                
+
             alpha = channel_params.alphas[0]  # Use first alpha value
             gamma = channel_params.gammas[0]  # Use first gamma value
-            
+
             self.logger.info("Applying saturation transformation")
             result = self._apply_saturation(transformed, alpha, gamma)
 
@@ -147,10 +166,14 @@ class MediaTransformation:
             float: Total effect value
         """
         self.logger.debug("Calculating carryover effect")
-        self.logger.debug("Input values shape: %s", values.shape if isinstance(values, pd.Series) 
-                         else np.array(values).shape)
-        
-        result = float(values.sum() if isinstance(values, pd.Series) else np.sum(values))
-        
+        self.logger.debug(
+            "Input values shape: %s",
+            values.shape if isinstance(values, pd.Series) else np.array(values).shape,
+        )
+
+        result = float(
+            values.sum() if isinstance(values, pd.Series) else np.sum(values)
+        )
+
         self.logger.debug("Calculated carryover effect: %f", result)
         return result

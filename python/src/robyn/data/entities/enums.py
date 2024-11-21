@@ -1,8 +1,9 @@
-#pyre-strict
+# pyre-strict
 # Enum classes for different types of variables, model parameters etc.
 
 from enum import Enum
 from typing import List
+
 
 class DependentVarType(str, Enum):
     """
@@ -12,8 +13,10 @@ class DependentVarType(str, Enum):
     REVENUE (str): Revenue type.
     CONVERSION (str): Conversion type.
     """
+
     REVENUE = "revenue"
     CONVERSION = "conversion"
+
 
 class AdstockType(str, Enum):
     """
@@ -30,6 +33,7 @@ class AdstockType(str, Enum):
     WEIBULL_CDF = "weibull_cdf"
     WEIBULL_PDF = "weibull_pdf"
 
+
 class SaturationType(str, Enum):
     """
     Enum class for saturation types.
@@ -38,8 +42,10 @@ class SaturationType(str, Enum):
     MICHAELIS_MENTEN (str): Michaelis-Menten saturation type.
     LOGISTIC (str): Logistic saturation type.
     """
+
     MICHAELIS_MENTEN = "michaelis_menten"
     LOGISTIC = "logistic"
+
 
 class ProphetVariableType(str, Enum):
     """
@@ -52,11 +58,13 @@ class ProphetVariableType(str, Enum):
     WEEKDAY (str): Weekday variable type.
     HOLIDAY (str): Holiday variable type.
     """
+
     TREND = "trend"
     SEASON = "season"
     MONTHLY = "monthly"
     WEEKDAY = "weekday"
     HOLIDAY = "holiday"
+
 
 class PaidMediaSigns(Enum):
     """
@@ -67,9 +75,11 @@ class PaidMediaSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
+
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
+
 
 class OrganicSigns(Enum):
     """
@@ -80,9 +90,11 @@ class OrganicSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
+
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
+
 
 class ContextSigns(Enum):
     """
@@ -93,9 +105,11 @@ class ContextSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
+
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
+
 
 class ProphetSigns(Enum):
     """
@@ -106,9 +120,11 @@ class ProphetSigns(Enum):
     NEGATIVE (str): Negative sign.
     DEFAULT (str): Default sign.
     """
+
     POSITIVE = "positive"
     NEGATIVE = "negative"
     DEFAULT = "default"
+
 
 class CalibrationScope(Enum):
     """
@@ -118,6 +134,7 @@ class CalibrationScope(Enum):
         IMMEDIATE (str): Represents the immediate calibration scope.
         TOTAL (str): Represents the total calibration scope.
     """
+
     IMMEDIATE = "immediate"
     TOTAL = "total"
 
@@ -126,11 +143,12 @@ class PlotType(Enum):
     """
     Enumeration of available plot types for the OnePagerReporter.
     """
-    SPEND_EFFECT = 'spend_effect'
-    WATERFALL = 'waterfall'
-    FITTED_VS_ACTUAL = 'fitted_vs_actual'
-    BOOTSTRAP = 'bootstrap'
-    ADSTOCK = 'adstock'
-    IMMEDIATE_CARRYOVER = 'immediate_carryover'
-    RESPONSE_CURVES = 'response_curves'
-    DIAGNOSTIC = 'diagnostic'
+
+    SPEND_EFFECT = "spend_effect"
+    WATERFALL = "waterfall"
+    FITTED_VS_ACTUAL = "fitted_vs_actual"
+    BOOTSTRAP = "bootstrap"
+    ADSTOCK = "adstock"
+    IMMEDIATE_CARRYOVER = "immediate_carryover"
+    RESPONSE_CURVES = "response_curves"
+    DIAGNOSTIC = "diagnostic"

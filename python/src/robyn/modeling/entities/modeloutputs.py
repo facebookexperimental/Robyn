@@ -81,7 +81,9 @@ class ModelOutputs:
     hyper_bound_fixed: Dict[str, Any]
     seed: List[int] = field(default_factory=lambda: [123])  # Ensure seed is a list
     convergence: Dict[str, Any] = field(default_factory=dict)  # Default argument
-    ts_validation_plot: List[Optional[str]] = field(default_factory=list)  # Ensure ts_validation_plot is a list
+    ts_validation_plot: List[Optional[str]] = field(
+        default_factory=list
+    )  # Ensure ts_validation_plot is a list
     all_result_hyp_param: pd.DataFrame = field(default_factory=pd.DataFrame)
     all_x_decomp_agg: pd.DataFrame = field(default_factory=pd.DataFrame)
     all_decomp_spend_dist: pd.DataFrame = field(default_factory=pd.DataFrame)

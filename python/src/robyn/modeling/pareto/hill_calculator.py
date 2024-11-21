@@ -43,14 +43,19 @@ class HillCalculator:
         logger.debug("Retrieving channel adstocked data from output collect")
         try:
             # Filter the media_vec_collect DataFrame
-            logger.debug("Filtering media_vec_collect for adstockedMedia and solID=%s", self.select_model)
+            logger.debug(
+                "Filtering media_vec_collect for adstockedMedia and solID=%s",
+                self.select_model,
+            )
             chn_adstocked = self.model_outputs.media_vec_collect[
                 (self.model_outputs.media_vec_collect["type"] == "adstockedMedia")
                 & (self.model_outputs.media_vec_collect["solID"] == self.select_model)
             ]
 
             if chn_adstocked.empty:
-                logger.warning("No adstocked media data found for solID=%s", self.select_model)
+                logger.warning(
+                    "No adstocked media data found for solID=%s", self.select_model
+                )
                 return pd.DataFrame()
 
             # Select only the required media columns
@@ -60,11 +65,18 @@ class HillCalculator:
             # Slice the DataFrame based on the rolling window
             start_index = self.mmmdata.mmmdata_spec.window_start
             end_index = self.mmmdata.mmmdata_spec.window_end
-            logger.debug("Slicing DataFrame with window: start=%d, end=%d", start_index, end_index)
+            logger.debug(
+                "Slicing DataFrame with window: start=%d, end=%d",
+                start_index,
+                end_index,
+            )
 
             chn_adstocked = chn_adstocked.iloc[start_index : end_index + 1]
 
-            logger.debug("Successfully retrieved channel adstocked data with shape %s", chn_adstocked.shape)
+            logger.debug(
+                "Successfully retrieved channel adstocked data with shape %s",
+                chn_adstocked.shape,
+            )
             return chn_adstocked
 
         except Exception as e:
@@ -76,15 +88,27 @@ class HillCalculator:
         try:
             # Extract alphas and gammas from dt_hyppar
             logger.debug("Extracting alphas and gammas from hyperparameters")
-            hill_hyp_par_vec = self.dt_hyppar.filter(regex=".*_alphas|.*_gammas").iloc[0]
-            alphas = hill_hyp_par_vec[[f"{media}_alphas" for media in self.media_spend_sorted]]
-            gammas = hill_hyp_par_vec[[f"{media}_gammas" for media in self.media_spend_sorted]]
+            hill_hyp_par_vec = self.dt_hyppar.filter(regex=".*_alphas|.*_gammas").iloc[
+                0
+            ]
+            alphas = hill_hyp_par_vec[
+                [f"{media}_alphas" for media in self.media_spend_sorted]
+            ]
+            gammas = hill_hyp_par_vec[
+                [f"{media}_gammas" for media in self.media_spend_sorted]
+            ]
 
-            logger.debug("Extracted parameters - alphas: %s, gammas: %s", alphas.to_dict(), gammas.to_dict())
+            logger.debug(
+                "Extracted parameters - alphas: %s, gammas: %s",
+                alphas.to_dict(),
+                gammas.to_dict(),
+            )
 
             # Handle chn_adstocked
             if self.chn_adstocked is None:
-                logger.debug("No pre-calculated channel adstocked data found, retrieving from output collect")
+                logger.debug(
+                    "No pre-calculated channel adstocked data found, retrieving from output collect"
+                )
                 self.chn_adstocked = self._get_chn_adstocked_from_output_collect()
 
             # Calculate inflexions
@@ -101,7 +125,11 @@ class HillCalculator:
             coefs = dict(zip(self.dt_coef["rn"], self.dt_coef["coef"]))
             coefs_sorted = [coefs[media] for media in self.media_spend_sorted]
 
-            result = {"alphas": alphas.tolist(), "inflexions": list(inflexions.values()), "coefs_sorted": coefs_sorted}
+            result = {
+                "alphas": alphas.tolist(),
+                "inflexions": list(inflexions.values()),
+                "coefs_sorted": coefs_sorted,
+            }
 
             logger.debug("Successfully calculated Hill parameters")
             logger.debug("Final Hill parameters: %s", result)

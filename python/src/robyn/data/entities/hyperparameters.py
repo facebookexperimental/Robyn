@@ -60,7 +60,10 @@ class Hyperparameters:
     def __str__(self) -> str:
         return (
             f"Hyperparameters(\n"
-            + "\n".join(f"  {channel}={hyperparameter}" for channel, hyperparameter in self.hyperparameters.items())
+            + "\n".join(
+                f"  {channel}={hyperparameter}"
+                for channel, hyperparameter in self.hyperparameters.items()
+            )
             + "\n)"
         )
 
@@ -128,7 +131,11 @@ class Hyperparameters:
 
     @property
     def hyper_list_all(self):
-        return {**self.hyperparameters, "lambda": self.lambda_, "train_size": self.train_size}
+        return {
+            **self.hyperparameters,
+            "lambda": self.lambda_,
+            "train_size": self.train_size,
+        }
 
     @property
     def all_fixed(self):

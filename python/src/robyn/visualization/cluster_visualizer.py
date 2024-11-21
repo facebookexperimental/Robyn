@@ -602,25 +602,33 @@ class ClusterVisualizer(BaseVisualizer):
                 logger.error(f"Failed to create WSS plot: {e}")
 
             try:
-                ci_plot = self.clustered_result.cluster_ci.clusters_confidence_interval_plot
+                ci_plot = (
+                    self.clustered_result.cluster_ci.clusters_confidence_interval_plot
+                )
                 plots["ci_plot"] = ci_plot
             except Exception as e:
                 logger.error(f"Failed to create confidence intervals plot: {e}")
 
             try:
-                plots["top_solutions_errors_plot"] = self.clustered_result.plots.top_solutions_errors_plot
+                plots["top_solutions_errors_plot"] = (
+                    self.clustered_result.plots.top_solutions_errors_plot
+                )
             except Exception as e:
                 logger.error(f"Failed to create top solutions errors plot: {e}")
 
             try:
-                plots["topsols_rois_plot"] = self.clustered_result.plots.top_solutions_rois_plot
+                plots["topsols_rois_plot"] = (
+                    self.clustered_result.plots.top_solutions_rois_plot
+                )
             except Exception as e:
                 logger.error(f"Failed to create top solutions ROIs plot: {e}")
 
             try:
-                correlations_heatmap = self.clustered_result.correlations 
+                correlations_heatmap = self.clustered_result.correlations
                 if correlations_heatmap is None:
-                    logger.warning("create_correlations_heatmap method is not implemented.")
+                    logger.warning(
+                        "create_correlations_heatmap method is not implemented."
+                    )
                 else:
                     plots["correlations_heatmap"] = correlations_heatmap
             except Exception as e:
@@ -629,11 +637,15 @@ class ClusterVisualizer(BaseVisualizer):
             try:
                 solution_ids = self.pareto_result.plot_data_collect.keys()
                 for solution_id in solution_ids:
-                    bootstrap_confidence_plot = self.generate_bootstrap_confidence(solution_id)
+                    bootstrap_confidence_plot = self.generate_bootstrap_confidence(
+                        solution_id
+                    )
                     if bootstrap_confidence_plot:
-                        plots[f"bootstrap_confidence_plot_{solution_id}"] = bootstrap_confidence_plot
-                    
-                    break # This will generate too many plots. Only generate plots for the first solution. we can export all plots to a folder if too many to display
+                        plots[f"bootstrap_confidence_plot_{solution_id}"] = (
+                            bootstrap_confidence_plot
+                        )
+
+                    break  # This will generate too many plots. Only generate plots for the first solution. we can export all plots to a folder if too many to display
             except Exception as e:
                 logger.error(f"Failed to create bootstrap confidence plot: {e}")
 

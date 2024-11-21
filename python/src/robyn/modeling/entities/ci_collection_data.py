@@ -1,6 +1,7 @@
 import pandas as pd
 from dataclasses import dataclass
 
+
 @dataclass
 class ConfidenceIntervalCollectionData:
     confidence_interval_df: pd.DataFrame

@@ -32,7 +32,10 @@ def load_data() -> Dict[str, pd.DataFrame]:
     result_holidays = pyreadr.read_r(prophet_holidays_path)
     dt_prophet_holidays = result_holidays["dt_prophet_holidays"]
 
-    return {"dt_simulated_weekly": dt_simulated_weekly, "dt_prophet_holidays": dt_prophet_holidays}
+    return {
+        "dt_simulated_weekly": dt_simulated_weekly,
+        "dt_prophet_holidays": dt_prophet_holidays,
+    }
 
 
 data = load_data()
@@ -117,7 +120,9 @@ model_executor = ModelExecutor(
 )
 
 # Setup TrialsConfig
-trials_config = TrialsConfig(iterations=2000, trials=5)  # Set to the number of cores you want to use
+trials_config = TrialsConfig(
+    iterations=2000, trials=5
+)  # Set to the number of cores you want to use
 
 print(
     f">>> Starting {trials_config.trials} trials with {trials_config.iterations} iterations each using {NevergradAlgorithm.TWO_POINTS_DE.value} nevergrad algorithm on x cores..."

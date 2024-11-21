@@ -59,7 +59,9 @@ class Transformation:
             return pd.Series([1] + [0] * (len(x) - 1), index=x.index)
         return (x - x.min()) / (x.max() - x.min())
 
-    def mic_men(x: Union[float, pd.Series], Vmax: float, Km: float, reverse: bool = False) -> Union[float, pd.Series]:
+    def mic_men(
+        x: Union[float, pd.Series], Vmax: float, Km: float, reverse: bool = False
+    ) -> Union[float, pd.Series]:
         """Apply Michaelis-Menten transformation."""
         logger.debug("Applying Michaelis-Menten transform (reverse=%s)", reverse)
         if not reverse:
@@ -85,7 +87,9 @@ class Transformation:
         thetaVecCum = pd.Series(theta ** np.arange(len(x)), index=x.index)
         inflation_total = x_decayed.sum() / x.sum()
 
-        logger.debug("Completed geometric adstock with inflation_total=%f", inflation_total)
+        logger.debug(
+            "Completed geometric adstock with inflation_total=%f", inflation_total
+        )
         return AdstockResult(x, x_decayed, x, None, thetaVecCum, inflation_total)
 
     def adstock_weibull(
@@ -97,7 +101,12 @@ class Transformation:
         adstockType: AdstockType = AdstockType.WEIBULL_CDF,
     ) -> AdstockResult:
         """Apply Weibull adstock transformation."""
-        logger.debug("Applying Weibull adstock (type=%s, shape=%f, scale=%f)", adstockType, shape, scale)
+        logger.debug(
+            "Applying Weibull adstock (type=%s, shape=%f, scale=%f)",
+            adstockType,
+            shape,
+            scale,
+        )
 
         if not (np.isscalar(shape) and np.isscalar(scale)):
             logger.error("Invalid shape or scale values: must be scalar")
@@ -116,7 +125,10 @@ class Transformation:
             logger.debug("Computing Weibull transformation")
             if adstockType == AdstockType.WEIBULL_CDF:
                 thetaVec = pd.Series(
-                    [1] + list(1 - stats.weibull_min.cdf(x_bin[:-1], shape, scale=scaleTrans)),
+                    [1]
+                    + list(
+                        1 - stats.weibull_min.cdf(x_bin[:-1], shape, scale=scaleTrans)
+                    ),
                     index=x_bin,
                 )
                 thetaVecCum = thetaVec.cumprod()
@@ -146,7 +158,11 @@ class Transformation:
             )
 
         inflation_total = x_decayed.sum() / x.sum()
-        logger.debug("Completed Weibull adstock (type=%s) with inflation_total=%f", adstockType, inflation_total)
+        logger.debug(
+            "Completed Weibull adstock (type=%s) with inflation_total=%f",
+            adstockType,
+            inflation_total,
+        )
         return AdstockResult(
             x,
             x_decayed,
@@ -175,7 +191,9 @@ class Transformation:
             elif adstockType in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
                 shape = channelHyperparameters.shapes[0]
                 scale = channelHyperparameters.scales[0]
-                logger.debug("Using Weibull adstock with shape=%f, scale=%f", shape, scale)
+                logger.debug(
+                    "Using Weibull adstock with shape=%f, scale=%f", shape, scale
+                )
                 return self.adstock_weibull(self, x, shape, scale, windlen, adstockType)
         except Exception as e:
             logger.error("Error in adstock transformation: %s", str(e))
@@ -190,7 +208,10 @@ class Transformation:
     ) -> pd.Series:
         """Apply Hill function for saturation."""
         logger.debug(
-            "Applying Hill saturation (alpha=%f, gamma=%f, with_marginal=%s)", alpha, gamma, x_marginal is not None
+            "Applying Hill saturation (alpha=%f, gamma=%f, with_marginal=%s)",
+            alpha,
+            gamma,
+            x_marginal is not None,
         )
 
         if not (np.isscalar(alpha) and np.isscalar(gamma)):
@@ -216,7 +237,9 @@ class Transformation:
         if plot:
             try:
                 channelHyperparameters = ChannelHyperparameters(
-                    shapes=[0.5, 1, 2, 3, 5], scales=[0.5], thetas=[0.1, 0.3, 0.5, 0.7, 0.9]
+                    shapes=[0.5, 1, 2, 3, 5],
+                    scales=[0.5],
+                    thetas=[0.1, 0.3, 0.5, 0.7, 0.9],
                 )
                 logger.debug("Created channel hyperparameters for plotting")
 
@@ -231,7 +254,11 @@ class Transformation:
                         y = self.adstock_geometric(x, theta).thetaVecCum
                         ax1.plot(x, y, label=f"theta = {theta}")
                     except Exception as e:
-                        logger.error("Error plotting geometric adstock for theta=%f: %s", theta, str(e))
+                        logger.error(
+                            "Error plotting geometric adstock for theta=%f: %s",
+                            theta,
+                            str(e),
+                        )
                         continue
 
                 ax1.set_title("Geometric Adstock\n(Fixed decay rate)")
@@ -245,13 +272,23 @@ class Transformation:
                     for scale in channelHyperparameters.scales:
                         try:
                             y_cdf = self.adstock_weibull(
-                                self, x, shape, scale, adstockType=AdstockType.WEIBULL_CDF
+                                self,
+                                x,
+                                shape,
+                                scale,
+                                adstockType=AdstockType.WEIBULL_CDF,
                             ).thetaVecCum
                             y_pdf = self.adstock_weibull(
-                                self, x, shape, scale, adstockType=AdstockType.WEIBULL_PDF
+                                self,
+                                x,
+                                shape,
+                                scale,
+                                adstockType=AdstockType.WEIBULL_PDF,
                             ).thetaVecCum
 
-                            ax2.plot(x, y_cdf, label=f"CDF: shape={shape}, scale={scale}")
+                            ax2.plot(
+                                x, y_cdf, label=f"CDF: shape={shape}, scale={scale}"
+                            )
                             ax2.plot(
                                 x,
                                 y_pdf,
@@ -260,7 +297,10 @@ class Transformation:
                             )
                         except Exception as e:
                             logger.error(
-                                "Error plotting Weibull adstock for shape=%f, scale=%f: %s", shape, scale, str(e)
+                                "Error plotting Weibull adstock for shape=%f, scale=%f: %s",
+                                shape,
+                                scale,
+                                str(e),
                             )
                             continue
 
@@ -297,16 +337,26 @@ class Transformation:
                 for alpha in alpha_samp:
                     try:
                         y = x_sample**alpha / (x_sample**alpha + (0.5 * 100) ** alpha)
-                        hill_alpha_collect.append(pd.DataFrame({"x": x_sample, "y": y, "alpha": alpha}))
+                        hill_alpha_collect.append(
+                            pd.DataFrame({"x": x_sample, "y": y, "alpha": alpha})
+                        )
                     except Exception as e:
-                        logger.error("Error calculating hill function for alpha=%f: %s", alpha, str(e))
+                        logger.error(
+                            "Error calculating hill function for alpha=%f: %s",
+                            alpha,
+                            str(e),
+                        )
                         continue
 
                 hill_alpha_collect = pd.concat(hill_alpha_collect)
-                hill_alpha_collect["alpha"] = hill_alpha_collect["alpha"].astype("category")
+                hill_alpha_collect["alpha"] = hill_alpha_collect["alpha"].astype(
+                    "category"
+                )
 
                 plt.figure(figsize=(10, 6))
-                sns.lineplot(data=hill_alpha_collect, x="x", y="y", hue="alpha", palette="Set2")
+                sns.lineplot(
+                    data=hill_alpha_collect, x="x", y="y", hue="alpha", palette="Set2"
+                )
                 plt.title("Cost response with hill function")
                 plt.suptitle("Alpha changes while gamma = 0.5", y=0.95)
                 plt.xlabel("x")
@@ -321,16 +371,26 @@ class Transformation:
                 for gamma in gamma_samp:
                     try:
                         y = x_sample**2 / (x_sample**2 + (gamma * 100) ** 2)
-                        hill_gamma_collect.append(pd.DataFrame({"x": x_sample, "y": y, "gamma": gamma}))
+                        hill_gamma_collect.append(
+                            pd.DataFrame({"x": x_sample, "y": y, "gamma": gamma})
+                        )
                     except Exception as e:
-                        logger.error("Error calculating hill function for gamma=%f: %s", gamma, str(e))
+                        logger.error(
+                            "Error calculating hill function for gamma=%f: %s",
+                            gamma,
+                            str(e),
+                        )
                         continue
 
                 hill_gamma_collect = pd.concat(hill_gamma_collect)
-                hill_gamma_collect["gamma"] = hill_gamma_collect["gamma"].astype("category")
+                hill_gamma_collect["gamma"] = hill_gamma_collect["gamma"].astype(
+                    "category"
+                )
 
                 plt.figure(figsize=(10, 6))
-                sns.lineplot(data=hill_gamma_collect, x="x", y="y", hue="gamma", palette="Set2")
+                sns.lineplot(
+                    data=hill_gamma_collect, x="x", y="y", hue="gamma", palette="Set2"
+                )
                 plt.title("Cost response with hill function")
                 plt.suptitle("Gamma changes while alpha = 2", y=0.95)
                 plt.xlabel("x")
@@ -394,8 +454,12 @@ class Transformation:
                 mediaAdstocked[media] = m_adstocked
                 m_carryover = m_adstocked - m_imme
 
-                m_adstockedRollWind = m_adstocked.iloc[rollingWindowStartWhich : rollingWindowEndWhich + 1]
-                m_carryoverRollWind = m_carryover.iloc[rollingWindowStartWhich : rollingWindowEndWhich + 1]
+                m_adstockedRollWind = m_adstocked.iloc[
+                    rollingWindowStartWhich : rollingWindowEndWhich + 1
+                ]
+                m_carryoverRollWind = m_carryover.iloc[
+                    rollingWindowStartWhich : rollingWindowEndWhich + 1
+                ]
 
                 logger.debug("Applying saturation transformations for %s", media)
                 mediaSaturated[media] = self.saturation_hill(
@@ -409,7 +473,9 @@ class Transformation:
                     channelHyperparameters.gammas[0],
                     x_marginal=m_carryoverRollWind,
                 )
-                mediaSaturatedImmediate[media] = mediaSaturated[media] - mediaSaturatedCarryover[media]
+                mediaSaturatedImmediate[media] = (
+                    mediaSaturated[media] - mediaSaturatedCarryover[media]
+                )
                 logger.debug("Completed transformations for media channel: %s", media)
             except Exception as e:
                 logger.error("Error processing media channel %s: %s", media, str(e))
@@ -422,14 +488,22 @@ class Transformation:
         )
         dt_modSaturated = pd.concat(
             [
-                dt_modAdstocked.iloc[rollingWindowStartWhich : rollingWindowEndWhich + 1].drop(columns=all_media),
+                dt_modAdstocked.iloc[
+                    rollingWindowStartWhich : rollingWindowEndWhich + 1
+                ].drop(columns=all_media),
                 pd.DataFrame(mediaSaturated),
             ],
             axis=1,
         ).reset_index()
-        dt_saturatedImmediate = pd.DataFrame(mediaSaturatedImmediate).fillna(0).reset_index()
-        dt_saturatedCarryover = pd.DataFrame(mediaSaturatedCarryover).fillna(0).reset_index()
+        dt_saturatedImmediate = (
+            pd.DataFrame(mediaSaturatedImmediate).fillna(0).reset_index()
+        )
+        dt_saturatedCarryover = (
+            pd.DataFrame(mediaSaturatedCarryover).fillna(0).reset_index()
+        )
 
-        result = TransformationResult(dt_modSaturated, dt_saturatedImmediate, dt_saturatedCarryover)
+        result = TransformationResult(
+            dt_modSaturated, dt_saturatedImmediate, dt_saturatedCarryover
+        )
         logger.debug("Completed all transformations: %s", result)
         return result

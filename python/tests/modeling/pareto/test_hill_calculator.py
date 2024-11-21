@@ -11,7 +11,7 @@ from robyn.modeling.pareto.hill_calculator import HillCalculator
 class TestHillCalculator(unittest.TestCase):
 
     def test_empty_media_vec_collect(self):
-        mock_media_vec_collect = pd.DataFrame(columns=['type', 'solID'])
+        mock_media_vec_collect = pd.DataFrame(columns=["type", "solID"])
         mock_mmmdata_spec = type(
             "MockMMMDataSpec", (object,), {"window_start": 1, "window_end": 2}
         )()
@@ -226,16 +226,20 @@ class TestHillCalculator(unittest.TestCase):
 
     def test_get_hill_params_with_empty_media_spend_sorted(self):
         mock_mmmdata = Mock()
-        mock_model_outputs = Mock() 
-        dt_hyppar = pd.DataFrame({
-            'media1_alphas': [0.1],
-            'media1_gammas': [0.2],
-        })
-        dt_coef = pd.DataFrame({
-            'rn': ['media1'],
-            'coef': [1.0],
-        })
-        chn_adstocked = pd.DataFrame() 
+        mock_model_outputs = Mock()
+        dt_hyppar = pd.DataFrame(
+            {
+                "media1_alphas": [0.1],
+                "media1_gammas": [0.2],
+            }
+        )
+        dt_coef = pd.DataFrame(
+            {
+                "rn": ["media1"],
+                "coef": [1.0],
+            }
+        )
+        chn_adstocked = pd.DataFrame()
 
         hill_calculator = HillCalculator(
             mmmdata=mock_mmmdata,
