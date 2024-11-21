@@ -12,6 +12,7 @@ from robyn.data.entities.hyperparameters import AdstockType
 from robyn.data.entities.mmmdata import MMMData
 from robyn.visualization.base_visualizer import BaseVisualizer
 import math
+import matplotlib.dates as mdates
 
 logger = logging.getLogger(__name__)
 
@@ -222,18 +223,33 @@ class ParetoVisualizer(BaseVisualizer):
         if solution_id not in self.pareto_result.plot_data_collect:
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
-        # Get data for specific solution
+        # Get data for specific solution 
         plot_data = self.pareto_result.plot_data_collect[solution_id]
         ts_data = plot_data["plot5data"]["xDecompVecPlotMelted"].copy()
 
-        # Convert dates and format variables
+        # Ensure ds column is datetime and remove any NaT values
         ts_data["ds"] = pd.to_datetime(ts_data["ds"])
+        ts_data = ts_data.dropna(subset=["ds"])  # Remove rows with NaT dates
+        
+        if ts_data.empty:
+            logger.warning(f"No valid date data found for solution {solution_id}")
+            return None
+
         ts_data["linetype"] = np.where(ts_data["variable"] == "predicted", "solid", "dotted")
         ts_data["variable"] = ts_data["variable"].str.title()
 
-        # Create figure if no axes provided
+        # Get train_size from x_decomp_agg
+        train_size_series = self.pareto_result.x_decomp_agg[
+            self.pareto_result.x_decomp_agg["sol_id"] == solution_id
+        ]["train_size"]
+        
+        if not train_size_series.empty:
+            train_size = float(train_size_series.iloc[0])
+        else:
+            train_size = 0
+
         if ax is None:
-            fig, ax = plt.subplots(figsize=(16, 10))
+            fig, ax = plt.subplots(figsize=(20, 10))
         else:
             fig = None
 
@@ -247,83 +263,87 @@ class ParetoVisualizer(BaseVisualizer):
                 label=var,
                 linestyle=linestyle,
                 linewidth=0.6,
+                color='orange' if var == 'Actual' else 'lightblue'
             )
 
         # Format y-axis with abbreviations
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(self.format_number))
+        
+        # Set y-axis limits with some padding
+        y_min, y_max = ax.get_ylim()
+        ax.set_ylim(y_min, y_max * 1.2)  # Add 20% padding at the top
 
-        # Add training/validation/test splits if validation is enabled
-        if hasattr(self.pareto_result, "train_size"):
-            train_size = self.pareto_result.train_size
+        # Add training/validation/test splits if train_size exists and is valid
+        if train_size > 0:
+            try:
+                # Get unique sorted dates, excluding NaT
+                unique_dates = sorted(ts_data["ds"].dropna().unique())
+                total_days = len(unique_dates)
+                
+                if total_days > 0:
+                    # Calculate split points
+                    train_cut = int(total_days * train_size)
+                    val_cut = train_cut + int(total_days * (1 - train_size) / 2)
+                    
+                    # Get dates for splits
+                    splits = [
+                        (train_cut, "Train", train_size),
+                        (val_cut, "Validation", (1 - train_size) / 2),
+                        (total_days - 1, "Test", (1 - train_size) / 2)
+                    ]
+                    
+                    # Get y-axis limits for text placement
+                    y_min, y_max = ax.get_ylim()
+                    
+                    # Add vertical lines and labels
+                    for idx, label, size in splits:
+                        if 0 <= idx < len(unique_dates):  # Ensure index is valid
+                            date = unique_dates[idx]
+                            if pd.notna(date):  # Check if date is valid
+                                # Add vertical line - extend beyond the top of the plot
+                                ax.axvline(date, color="#39638b", alpha=0.8, ymin=0, ymax=1.1)
+                                
+                                # Add rotated text label
+                                ax.text(
+                                    date, y_max,
+                                    f"{label}: {size*100:.1f}%",
+                                    rotation=270,
+                                    color="#39638b",
+                                    alpha=0.5,
+                                    size=9,
+                                    ha='left',
+                                    va='top'
+                                )
+            except Exception as e:
+                logger.warning(f"Error adding split lines: {str(e)}")
+                # Continue with the rest of the plot even if split lines fail
 
-            # Calculate split points
-            days = sorted(ts_data["ds"].unique())
-            ndays = len(days)
-            train_cut = round(ndays * train_size)
-            val_cut = train_cut + round(ndays * (1 - train_size) / 2)
-
-            # Train line and label
-            ax.axvline(x=days[train_cut], color="#39638b", alpha=0.8)
-            ax.text(
-                days[train_cut], ax.get_ylim()[1],
-                f"Train: {train_size*100:.1f}%",
-                rotation=270,
-                va='bottom',
-                ha='right',
-                color="#39638b",
-                alpha=0.5,
-                fontsize=9
-            )
-
-            # Validation line and label
-            ax.axvline(x=days[val_cut], color="#39638b", alpha=0.8)
-            ax.text(
-                days[val_cut], ax.get_ylim()[1],
-                f"Validation: {((1-train_size)/2)*100:.1f}%",
-                rotation=270,
-                va='bottom',
-                ha='right',
-                color="#39638b",
-                alpha=0.5,
-                fontsize=9
-            )
-
-            # Test line and label
-            ax.axvline(x=days[ndays-1], color="#39638b", alpha=0.8)
-            ax.text(
-                days[ndays-1], ax.get_ylim()[1],
-                f"Test: {((1-train_size)/2)*100:.1f}%",
-                rotation=270,
-                va='bottom',
-                ha='right',
-                color="#39638b",
-                alpha=0.5,
-                fontsize=9
-            )
-
-        # Set title with increased y position
-        ax.set_title("Actual vs. Predicted Response", pad=50, y=1.20)
-
+        # Set title and labels
+        ax.set_title("Actual vs. Predicted Response", pad=20)
         ax.set_xlabel("Date")
         ax.set_ylabel("Response")
 
-        # Move legend to top-left with smaller size
+        # Configure legend
         ax.legend(
-            bbox_to_anchor=(0, 1.02, 0.15, 0.1),
+            bbox_to_anchor=(0, 1.02, 1, 0.1),
             loc="lower left",
             ncol=2,
             mode="expand",
             borderaxespad=0,
             frameon=False,
-            fontsize=8  # Reduced font size from 9 to 8
+            fontsize=7
         )
 
         # Grid styling
         ax.grid(True, alpha=0.2)
         ax.set_axisbelow(True)
-
-        # Use white background
         ax.set_facecolor("white")
+
+        # Format dates on x-axis using datetime locator and formatter
+        years = mdates.YearLocator()
+        years_fmt = mdates.DateFormatter('%Y')
+        ax.xaxis.set_major_locator(years)
+        ax.xaxis.set_major_formatter(years_fmt)
 
         logger.debug("Successfully generated fitted vs actual plot")
         if fig:
@@ -413,52 +433,48 @@ class ParetoVisualizer(BaseVisualizer):
         return None
 
     def generate_immediate_vs_carryover(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
-        """Generate stacked bar chart comparing immediate vs carryover effects.
-
-        Args:
-            ax: Optional matplotlib axes to plot on. If None, creates new figure
-
-        Returns:
-            plt.Figure if ax is None, else None
-        """
-
         logger.debug("Starting generation of immediate vs carryover plot")
 
         if solution_id not in self.pareto_result.plot_data_collect:
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
-        # Get data for specific solution
         plot_data = self.pareto_result.plot_data_collect[solution_id]
         df_imme_caov = plot_data["plot7data"].copy()
+        
+        # Ensure percentage is numeric
+        df_imme_caov['percentage'] = pd.to_numeric(df_imme_caov['percentage'], errors='coerce')
 
-        # Set up type factor levels
+        # Sort channels alphabetically 
+        df_imme_caov = df_imme_caov.sort_values('rn', ascending=True)
+        
+        # Set up type factor levels matching R plot order
         df_imme_caov["type"] = pd.Categorical(
             df_imme_caov["type"], categories=["Immediate", "Carryover"], ordered=True
         )
 
-        # Create figure if no axes provided
         if ax is None:
             fig, ax = plt.subplots(figsize=(16, 10))
         else:
             fig = None
 
-        # Define colors
         colors = {"Immediate": "#59B3D2", "Carryover": "coral"}
 
-        # Create stacked bar chart
         bottom = np.zeros(len(df_imme_caov["rn"].unique()))
         y_pos = range(len(df_imme_caov["rn"].unique()))
-
-        # Get unique channel names and types
         channels = df_imme_caov["rn"].unique()
-        types = ["Immediate", "Carryover"]
+        types = ["Immediate", "Carryover"]  # Order changed to Immediate first
 
-        # Create bar chart with labels
+        # Normalize percentages to sum to 100% for each channel
+        for channel in channels:
+            mask = df_imme_caov['rn'] == channel
+            total = df_imme_caov.loc[mask, 'percentage'].sum()
+            if total > 0:  # Avoid division by zero
+                df_imme_caov.loc[mask, 'percentage'] = df_imme_caov.loc[mask, 'percentage'] / total
+
         for type_name in types:
             type_data = df_imme_caov[df_imme_caov["type"] == type_name]
             percentages = type_data["percentage"].values
 
-            # Create bars
             bars = ax.barh(
                 y_pos,
                 percentages,
@@ -468,52 +484,50 @@ class ParetoVisualizer(BaseVisualizer):
                 color=colors[type_name],
             )
 
-            # Add text labels in center of bars
             for i, (rect, percentage) in enumerate(zip(bars, percentages)):
                 width = rect.get_width()
                 x_pos = bottom[i] + width / 2
-                ax.text(x_pos, i, f"{percentage*100:.0f}%", ha="center", va="center")
+                try:
+                    percentage_text = f"{round(float(percentage) * 100)}%"
+                except (ValueError, TypeError):
+                    percentage_text = "0%"
+                ax.text(x_pos, i, percentage_text, ha="center", va="center")
 
             bottom += percentages
 
-        # Customize plot
         ax.set_yticks(y_pos)
         ax.set_yticklabels(channels)
 
-        # Format x-axis as percentage
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{x*100:.0f}%"))
         ax.set_xlim(0, 1)
 
-        # Add legend at top
+        # Reduced legend size
         ax.legend(
             title=None,
-            bbox_to_anchor=(0, 1.02, 1, 0.2),
-            loc="lower left",
+            bbox_to_anchor=(0, 1.02, 0.15, 0.1),  # Reduced width from 0.3 to 0.2
+            loc="lower left", 
             ncol=2,
             mode="expand",
             borderaxespad=0,
+            frameon=False,
+            fontsize=7  # Reduced from 8 to 7
         )
 
-        # Add labels and title
         ax.set_xlabel("% Response")
         ax.set_ylabel(None)
-        ax.set_title("Immediate vs. Carryover Response Percentage")
+        ax.set_title("Immediate vs. Carryover Response Percentage", pad=50, y=1.2)
 
-        # Grid customization
         ax.grid(True, axis="x", alpha=0.2)
         ax.grid(False, axis="y")
         ax.set_axisbelow(True)
-
-        # Use white background
         ax.set_facecolor("white")
-
-        logger.debug("Successfully generated of immediate vs carryover plot")
 
         if fig:
             plt.tight_layout()
+            plt.subplots_adjust(top=0.85)
             return fig
         return None
-
+    
     def generate_adstock_rate(self, solution_id: str, ax: Optional[plt.Axes] = None) -> Optional[plt.Figure]:
         """Generate adstock rate visualization based on adstock type."""
         
