@@ -1,453 +1,621 @@
-# pyre-strict
-import logging
-from pathlib import Path
-from typing import Dict, Union
+# robyn/allocator_v2/visualization/allocator_plotter.py
 
 import matplotlib.pyplot as plt
-import numpy as np
+import seaborn as sns
 import pandas as pd
+import numpy as np
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Any, Union
+from pathlib import Path
+import logging
+from robyn.data.entities.mmmdata import MMMData
 
-from robyn.allocator.entities.allocation_results import AllocationResult
+from robyn.allocator.entities.allocation_result import (
+    OptimOutData,
+    MainPoints,
+    AllocationResult,
+)
+from robyn.allocator.optimizer import BudgetAllocator
 from robyn.visualization.base_visualizer import BaseVisualizer
 
 logger = logging.getLogger(__name__)
 
 
-class AllocationPlotter(BaseVisualizer):
-    """Plotter class for allocation results visualization."""
+class AllocatorPlotter(BaseVisualizer):
+    """Generates plots for Robyn allocator results."""
 
-    def __init__(self, result: AllocationResult):
+    def __init__(
+        self,
+        allocation_result: AllocationResult,
+        budget_allocator: BudgetAllocator,
+    ):
         """
-        Initialize plotter with allocation results.
+        Initialize AllocatorPlotter with all necessary data.
 
         Args:
-            result: Allocation results to plot
+            allocation_result: Results from budget allocation
+            budget_allocator: Budget allocator instance with model parameters
         """
-        logger.debug("Initializing AllocationPlotter")
-        super().__init__(style="bmh")
-        self.result = result
-        if self.result is None:
-            logger.error("AllocationResult cannot be None")
-            raise ValueError("AllocationResult cannot be None")
-        logger.info(
-            "AllocationPlotter initialized successfully with result: %s", self.result
+        super().__init__()
+        logger.info("Initializing AllocatorPlotter")
+
+        # Store provided data
+        self.allocation_result = allocation_result
+        self.budget_allocator = budget_allocator
+
+        # Store commonly used data
+        self.dt_optimOut = allocation_result.dt_optimOut
+        self.mainPoints = allocation_result.mainPoints
+
+        # Infer plotting configurations
+        self.metric = (
+            "ROAS"
+            if self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type == "revenue"
+            else "CPA"
         )
+        self.interval_type = self.budget_allocator.mmm_data.mmmdata_spec.interval_type
+        self.model_id = budget_allocator.select_model
+        self.scenario = allocation_result.scenario
 
-    def plot_spend_allocation(self) -> plt.Figure:
-        """Plot spend allocation comparison."""
-        logger.debug("Starting spend allocation plot generation")
+        # Pre-calculate scenario metrics
+        self.scenarios = {
+            "Initial": {
+                "spend": self.dt_optimOut.init_spend_unit.sum(),
+                "response": self.dt_optimOut.init_response_unit.sum(),
+            },
+            "Bounded": {
+                "spend": self.dt_optimOut.optm_spend_unit.sum(),
+                "response": self.dt_optimOut.optm_response_unit.sum(),
+            },
+            "Bounded x3": {
+                "spend": self.dt_optimOut.optm_spend_unit_unbound.sum(),
+                "response": self.dt_optimOut.optm_response_unit_unbound.sum(),
+            },
+        }
 
-        # Create figure
-        fig, ax = self.create_figure()
-        optimal_allocations = self.result.optimal_allocations
-        logger.debug("Processing optimal allocations data: %s", optimal_allocations)
-
-        # Prepare data
-        channels = optimal_allocations["channel"].values
-        x = np.arange(len(channels))
-        width = 0.35
-
-        logger.debug("Plotting current spend bars for %d channels", len(channels))
-        # Plot bars
-        ax.bar(
-            x - width / 2,
-            optimal_allocations["current_spend"].values,
-            width,
-            label="Current",
-            color=self.colors["current"],
-            edgecolor="gray",
-            alpha=self.alpha["primary"],
-        )
-
-        logger.debug("Plotting optimal spend bars")
-        ax.bar(
-            x + width / 2,
-            optimal_allocations["optimal_spend"].values,
-            width,
-            label="Optimized",
-            color=self.colors["optimal"],
-            edgecolor="gray",
-            alpha=self.alpha["primary"],
-        )
-
-        # Add annotations
-        logger.debug("Adding percentage change annotations")
-        for i, (curr, opt) in enumerate(
-            zip(
-                optimal_allocations["current_spend"].values,
-                optimal_allocations["optimal_spend"].values,
-            )
-        ):
-            pct_change = ((opt / curr) - 1) * 100
-            self.add_percentage_annotation(ax, x[i], max(curr, opt), pct_change)
-
-        # Setup axis
-        self.setup_axis(
-            ax,
-            title="Media Spend Allocation",
-            ylabel="Spend",
-            xticks=x,
-            xticklabels=channels,
-            rotation=45,
-        )
-
-        self.add_legend(ax)
-        self.finalize_figure()
-
-        logger.info("Spend allocation plot generated successfully")
-        return fig
-
-    def plot_response_curves(self) -> plt.Figure:
-        """Plot response curves for each channel."""
-        logger.debug("Starting response curves plot generation")
-
-        # Prepare data
-        curves_df = self.result.response_curves
-        channels = curves_df["channel"].unique()
-        n_channels = len(channels)
-        ncols = min(3, n_channels)
-        nrows = (n_channels + ncols - 1) // ncols
-
-        logger.debug("Processing %d channels for response curves", n_channels)
-
-        # Create figure
-        fig, axes = self.create_figure(
-            nrows=nrows, ncols=ncols, figsize=(15, 5 * nrows)
-        )
-
-        # Handle single subplot case
-        if nrows == 1 and ncols == 1:
-            axes = np.array([[axes]])
-        elif nrows == 1 or ncols == 1:
-            axes = axes.reshape(-1, 1)
-
-        # Plot each channel
-        for idx, channel in enumerate(channels):
-            logger.debug("Plotting response curve for channel: %s", channel)
-            row = idx // ncols
-            col = idx % ncols
-            ax = axes[row, col]
-
-            channel_data = curves_df[curves_df["channel"] == channel]
-
-            # Plot response curve
-            ax.plot(
-                channel_data["spend"],
-                channel_data["response"],
-                color=self.colors["optimal"],
-                alpha=self.alpha["primary"],
-            )
-
-            # Plot current point
-            current_data = channel_data[channel_data["is_current"]]
-            if not current_data.empty:
-                logger.debug("Plotting current point for channel %s", channel)
-                ax.scatter(
-                    current_data["spend"].iloc[0],
-                    current_data["response"].iloc[0],
-                    color=self.colors["negative"],
-                    label="Current",
-                    s=100,
+        # Calculate percentage changes and metrics for each scenario
+        for scenario in self.scenarios:
+            if scenario != "Initial":
+                self.scenarios[scenario].update(
+                    {
+                        "spend_pct_change": (
+                            self.scenarios[scenario]["spend"]
+                            / self.scenarios["Initial"]["spend"]
+                            - 1
+                        )
+                        * 100,
+                        "response_pct_change": (
+                            self.scenarios[scenario]["response"]
+                            / self.scenarios["Initial"]["response"]
+                            - 1
+                        )
+                        * 100,
+                    }
                 )
+                if self.metric == "ROAS":
+                    self.scenarios[scenario]["metric_value"] = (
+                        self.scenarios[scenario]["response"]
+                        / self.scenarios[scenario]["spend"]
+                    )
+                else:  # CPA
+                    self.scenarios[scenario]["metric_value"] = (
+                        self.scenarios[scenario]["spend"]
+                        / self.scenarios[scenario]["response"]
+                    )
 
-            # Plot optimal point
-            optimal_data = channel_data[channel_data["is_optimal"]]
-            if not optimal_data.empty:
-                logger.debug("Plotting optimal point for channel %s", channel)
-                ax.scatter(
-                    optimal_data["spend"].iloc[0],
-                    optimal_data["response"].iloc[0],
-                    color=self.colors["positive"],
-                    label="Optimal",
-                    s=100,
-                )
+        logger.debug("AllocatorPlotter initialized with data")
 
-            self.setup_axis(ax, title=f"{channel} Response Curve")
-            self.add_legend(ax)
-
-        # Remove empty subplots
-        for idx in range(n_channels, nrows * ncols):
-            logger.debug("Removing empty subplot at index %d", idx)
-            fig.delaxes(axes[idx // ncols, idx % ncols])
-
-        self.finalize_figure()
-        logger.info("Response curves plot generated successfully")
-        return fig
-
-    def plot_efficiency_frontier(self) -> plt.Figure:
-        """Plot efficiency frontier."""
-        logger.debug("Starting efficiency frontier plot generation")
-
-        # Create figure
-        fig, ax = self.create_figure()
-
-        # Calculate totals
-        optimal_allocations = self.result.optimal_allocations
-        current_total_spend = optimal_allocations["current_spend"].sum()
-        current_total_response = optimal_allocations["current_response"].sum()
-        optimal_total_spend = optimal_allocations["optimal_spend"].sum()
-        optimal_total_response = optimal_allocations["optimal_response"].sum()
-
-        logger.debug(
-            "Calculated totals - Current spend: %f, Current response: %f, Optimal spend: %f, Optimal response: %f",
-            current_total_spend,
-            current_total_response,
-            optimal_total_spend,
-            optimal_total_response,
-        )
-
-        # Plot points and connect them
-        ax.scatter(
-            current_total_spend,
-            current_total_response,
-            color=self.colors["negative"],
-            s=100,
-            label="Current",
-            zorder=2,
-        )
-
-        ax.scatter(
-            optimal_total_spend,
-            optimal_total_response,
-            color=self.colors["positive"],
-            s=100,
-            label="Optimal",
-            zorder=2,
-        )
-
-        ax.plot(
-            [current_total_spend, optimal_total_spend],
-            [current_total_response, optimal_total_response],
-            "--",
-            color=self.colors["neutral"],
-            alpha=self.alpha["secondary"],
-            zorder=1,
-        )
-
-        # Calculate and add percentage changes
-        pct_spend_change = ((optimal_total_spend / current_total_spend) - 1) * 100
-        pct_response_change = (
-            (optimal_total_response / current_total_response) - 1
-        ) * 100
-
-        logger.debug(
-            "Percentage changes - Spend: %f%%, Response: %f%%",
-            pct_spend_change,
-            pct_response_change,
-        )
-
-        ax.annotate(
-            f"Spend: {pct_spend_change:.1f}%\nResponse: {pct_response_change:.1f}%",
-            xy=(optimal_total_spend, optimal_total_response),
-            xytext=(10, 10),
-            textcoords="offset points",
-            fontsize=self.font_sizes["annotation"],
-            bbox=dict(
-                facecolor="white",
-                edgecolor=self.colors["neutral"],
-                alpha=self.alpha["annotation"],
-            ),
-        )
-
-        self.setup_axis(
-            ax,
-            title="Efficiency Frontier",
-            xlabel="Total Spend",
-            ylabel="Total Response",
-        )
-        self.add_legend(ax)
-        self.finalize_figure()
-
-        logger.info("Efficiency frontier plot generated successfully")
-        return fig
-
-    def plot_spend_vs_response(self) -> plt.Figure:
-        """Plot spend vs response changes."""
-        logger.debug("Starting spend vs response plot generation")
-
-        # Create figure
-        fig, (ax1, ax2) = self.create_figure(nrows=2, ncols=1, figsize=(12, 10))
-
-        # Get data
-        df = self.result.optimal_allocations
-        channels = df["channel"].values
-        x = np.arange(len(channels))
-
-        logger.debug("Processing spend changes for %d channels", len(channels))
-        # Plot spend changes
-        spend_pct = ((df["optimal_spend"] / df["current_spend"]) - 1) * 100
-        colors = [
-            self.colors["positive"] if pct >= 0 else self.colors["negative"]
-            for pct in spend_pct
-        ]
-
-        ax1.bar(x, spend_pct, color=colors, alpha=self.alpha["primary"])
-        self._plot_change_axis(ax1, x, channels, spend_pct, "Spend Change %")
-
-        logger.debug("Processing response changes")
-        # Plot response changes
-        response_pct = ((df["optimal_response"] / df["current_response"]) - 1) * 100
-        colors = [
-            self.colors["positive"] if pct >= 0 else self.colors["negative"]
-            for pct in response_pct
-        ]
-
-        ax2.bar(x, response_pct, color=colors, alpha=self.alpha["primary"])
-        self._plot_change_axis(ax2, x, channels, response_pct, "Response Change %")
-
-        self.finalize_figure(adjust_spacing=True)
-        logger.info("Spend vs response plot generated successfully")
-        return fig
-
-    def _plot_change_axis(
+    def __init__(
         self,
-        ax: plt.Axes,
-        x: np.ndarray,
-        channels: np.ndarray,
-        pct_values: np.ndarray,
-        ylabel: str,
-    ) -> None:
-        """Helper method to setup change plot axes."""
-        logger.debug("Setting up change plot axis for %s", ylabel)
-        self.setup_axis(ax, ylabel=ylabel, xticks=x, xticklabels=channels, rotation=45)
+        allocation_result: AllocationResult,
+        budget_allocator: BudgetAllocator,
+    ):
+        """
+        Initialize AllocatorPlotter with all necessary data.
 
-        ax.axhline(y=0, color="black", linestyle="-", alpha=0.2)
+        Args:
+            allocation_result: Results from budget allocation
+            budget_allocator: Budget allocator instance with model parameters
+        """
+        super().__init__()
+        logger.info("Initializing AllocatorPlotter")
 
-        for i, pct in enumerate(pct_values):
-            self.add_percentage_annotation(
-                ax,
-                i,
-                pct + (2 if pct >= 0 else -5),
-                pct,
-                va="bottom" if pct >= 0 else "top",
+        # Store provided data
+        self.allocation_result = allocation_result
+        self.budget_allocator = budget_allocator
+
+        # Store commonly used data
+        self.dt_optimOut = allocation_result.dt_optimOut
+        self.mainPoints = allocation_result.mainPoints
+
+        # Infer plotting configurations
+        self.metric = (
+            "ROAS"
+            if budget_allocator.mmm_data.mmmdata_spec.dep_var_type == "revenue"
+            else "CPA"
+        )
+        self.interval_type = budget_allocator.mmm_data.mmmdata_spec.interval_type
+        self.model_id = budget_allocator.select_model
+        self.scenario = allocation_result.scenario
+
+        # Pre-calculate scenario metrics
+        self.scenarios = {
+            "Initial": {
+                "spend": self.dt_optimOut.init_spend_unit.sum(),
+                "response": self.dt_optimOut.init_response_unit.sum(),
+            },
+            "Bounded": {
+                "spend": self.dt_optimOut.optm_spend_unit.sum(),
+                "response": self.dt_optimOut.optm_response_unit.sum(),
+            },
+            "Bounded x3": {
+                "spend": self.dt_optimOut.optm_spend_unit_unbound.sum(),
+                "response": self.dt_optimOut.optm_response_unit_unbound.sum(),
+            },
+        }
+
+        # Calculate percentage changes and metrics for each scenario
+        for scenario in self.scenarios:
+            if scenario != "Initial":
+                self.scenarios[scenario].update(
+                    {
+                        "spend_pct_change": (
+                            self.scenarios[scenario]["spend"]
+                            / self.scenarios["Initial"]["spend"]
+                            - 1
+                        )
+                        * 100,
+                        "response_pct_change": (
+                            self.scenarios[scenario]["response"]
+                            / self.scenarios["Initial"]["response"]
+                            - 1
+                        )
+                        * 100,
+                    }
+                )
+                if self.metric == "ROAS":
+                    self.scenarios[scenario]["metric_value"] = (
+                        self.scenarios[scenario]["response"]
+                        / self.scenarios[scenario]["spend"]
+                    )
+                else:  # CPA
+                    self.scenarios[scenario]["metric_value"] = (
+                        self.scenarios[scenario]["spend"]
+                        / self.scenarios[scenario]["response"]
+                    )
+
+        logger.debug("AllocatorPlotter initialized with data")
+
+    def _plot_allocation_matrix(self) -> plt.Figure:
+        """Plot allocation matrix matching R format."""
+        if self.dt_optimOut is None:
+            raise ValueError("dt_optimOut must be provided")
+
+        logger.info("Creating allocation matrix plot")
+        try:
+            fig, axes = plt.subplots(1, 3, figsize=(15, 8))
+
+            scenarios = ["Initial", "Bounded", "Bounded x3"]
+            metrics = [
+                "abs.mean\nspend",
+                "mean\nspend%",
+                "mean\nresponse%",
+                f"mean\n{self.metric}",
+                f"m{self.metric}",
+            ]
+
+            # Define color schemes for each scenario
+            color_schemes = {
+                "Initial": sns.light_palette("#C0C0C0", as_cmap=True),
+                "Bounded": sns.light_palette("#6495ED", as_cmap=True),
+                "Bounded x3": sns.light_palette("#efb400", as_cmap=True),
+            }
+
+            for i, scenario in enumerate(scenarios):
+                data = self._get_allocation_data(scenario)
+
+                # Format data for heatmap
+                plot_data = data.copy()
+                plot_data["abs.mean\nspend"] = plot_data["abs.mean\nspend"].apply(
+                    lambda x: f"{x:,.0f}"
+                )
+                for col in metrics[1:]:
+                    plot_data[col] = plot_data[col].apply(
+                        lambda x: f"{x*100:.1f}%" if col.endswith("%") else f"{x:.2f}"
+                    )
+
+                # Normalize each column independently
+                norm_data = data.copy()
+                for col in metrics:
+                    col_values = norm_data[col].values
+                    if col_values.any():
+                        min_val = col_values.min()
+                        max_val = col_values.max()
+                        if max_val > min_val:
+                            norm_data[col] = (col_values - min_val) / (
+                                max_val - min_val
+                            )
+                        else:
+                            norm_data[col] = 0
+
+                # Create heatmap
+                sns.heatmap(
+                    norm_data[metrics],
+                    ax=axes[i],
+                    cmap=color_schemes[scenario],
+                    annot=plot_data[metrics].values,
+                    fmt="",
+                    cbar=False,
+                )
+
+                axes[i].set_title(scenario)
+                axes[i].set_xlabel("Metric")
+                axes[i].set_ylabel("Channel" if i == 0 else "")
+
+            plt.suptitle(
+                f"Budget Allocation per Paid Media Variable per {self.interval_type}\n"
+                f"Period: {self.dt_optimOut.date_min} to {self.dt_optimOut.date_max}"
+            )
+            plt.tight_layout()
+
+            return fig
+
+        except Exception as e:
+            logger.error("Failed to create allocation matrix plot: %s", str(e))
+            raise
+
+    def _plot_response_curves(self) -> plt.Figure:
+        """Plot response curves with optimization points."""
+        if any(
+            attr is None
+            for attr in [
+                self.dt_optimOut,
+                self.mainPoints,
+                self.budget_allocator,
+            ]
+        ):
+            raise ValueError("All data attributes must be provided")
+
+        logger.info("Creating response curves plot")
+        try:
+            n_channels = len(self.dt_optimOut.channels)
+            n_rows = (n_channels + 2) // 3  # 3 columns
+
+            # Create figure with subplots
+            fig, axes = plt.subplots(n_rows, 3, figsize=(15, 5 * n_rows), squeeze=False)
+            axes = axes.flatten()
+
+            scenarios = ["Initial", "Bounded", "Bounded x3"]
+            scenario_colors = ["gray", "#4682B4", "#DAA520"]  # Using web colors
+
+            # Plot for each channel
+            for i, channel in enumerate(self.dt_optimOut.channels):
+                ax = axes[i]
+
+                # Generate response curve
+                max_spend = np.max(self.mainPoints.spend_points[:, i]) * 1.5
+                spend_range = np.linspace(0, max_spend, 100)
+
+                # Calculate response using Hill transformation
+                response = self._calculate_response_curve_hill(spend_range, i)
+
+                # Plot main curve
+                ax.plot(
+                    spend_range, response, label=channel, color="#1f77b4", alpha=0.7
+                )
+
+                # Plot points for each scenario
+                for scenario_idx in range(len(scenarios)):
+                    ax.scatter(
+                        self.mainPoints.spend_points[scenario_idx, i],
+                        self.mainPoints.response_points[scenario_idx, i],
+                        color=scenario_colors[scenario_idx],
+                        marker="o",
+                        s=100,
+                        label=scenarios[scenario_idx],
+                    )
+
+                    # Add spend amount annotation
+                    ax.annotate(
+                        f"{self.mainPoints.spend_points[scenario_idx, i]:,.0f}",
+                        (
+                            self.mainPoints.spend_points[scenario_idx, i],
+                            self.mainPoints.response_points[scenario_idx, i],
+                        ),
+                        xytext=(10, 5),
+                        textcoords="offset points",
+                        fontsize=8,
+                    )
+
+                # Add constraint lines
+                if hasattr(self.dt_optimOut, "constr_low") and hasattr(
+                    self.dt_optimOut, "constr_up"
+                ):
+                    lower = self.dt_optimOut.init_spend_unit[i] * 0.7
+                    upper = self.dt_optimOut.init_spend_unit[i] * 1.2
+                    ax.axvline(x=lower, color="gray", linestyle="--", alpha=0.3)
+                    ax.axvline(x=upper, color="gray", linestyle="--", alpha=0.3)
+
+                # Customize subplot
+                self.setup_axis(ax, title=channel, xlabel="Spend", ylabel="Response")
+
+                # Add legend to first plot only
+                if i == 0:
+                    # Change this line
+                    ax.legend(
+                        bbox_to_anchor=(1.05, 1), loc="upper left"
+                    )  # Use matplotlib's legend directly instead
+
+            # Remove empty subplots
+            for j in range(i + 1, len(axes)):
+                fig.delaxes(axes[j])
+
+            # Main title
+            plt.suptitle(
+                f"Simulated Response Curve per {self.interval_type}\n"
+                f"Spend per {self.interval_type} (grey area: mean historical carryover)",
+                y=1.02,
             )
 
-    def plot_summary_metrics(self) -> plt.Figure:
-        """Plot summary metrics."""
-        logger.debug("Starting summary metrics plot generation")
+            plt.tight_layout()
+            return fig
 
-        # Create figure
-        fig, ax = self.create_figure()
+        except Exception as e:
+            logger.error("Failed to create response curves plot: %s", str(e))
+            raise
 
-        # Get data
-        optimal_allocations = self.result.optimal_allocations
-        channels = optimal_allocations["channel"].values
-        dep_var_type = self.result.metrics.get("dep_var_type")
+    def _calculate_response_curve_hill(
+        self, spend_range: np.ndarray, channel_idx: int
+    ) -> np.ndarray:
+        """Calculate response values using Hill transformation."""
+        try:
+            # Get parameters from budget allocator
+            alpha = self.budget_allocator.hill_params.alphas[channel_idx]
+            coef = self.budget_allocator.hill_params.coefs[channel_idx]
+            carryover = self.budget_allocator.hill_params.carryover[channel_idx]
+            gamma = self.budget_allocator.hill_params.gammas[channel_idx]
 
-        logger.debug(
-            "Processing metrics for dependency variable type: %s", dep_var_type
-        )
+            # Get range values
+            channel = self.budget_allocator.media_spend_sorted[channel_idx]
+            x_range = self.budget_allocator.adstocked_ranges[channel]
+            inflexion = self.budget_allocator.inflexions[channel]
 
-        # Calculate metrics
-        if dep_var_type == "revenue":
-            current_metric = (
-                optimal_allocations["current_response"]
-                / optimal_allocations["current_spend"]
+            # Step 1: Adstock transformation
+            x_adstocked = spend_range + carryover
+
+            # Step 2: Hill transformation
+            x_hill = np.power(x_adstocked, alpha)
+            gamma_hill = np.power(inflexion, alpha)
+
+            # Step 3: Response calculation with saturation
+            response = coef * (x_hill / (x_hill + gamma_hill))
+
+            return response
+
+        except Exception as e:
+            logger.error(
+                "Failed to calculate response curve for channel %d: %s",
+                channel_idx,
+                str(e),
             )
-            optimal_metric = (
-                optimal_allocations["optimal_response"]
-                / optimal_allocations["optimal_spend"]
+            raise
+
+    def _get_allocation_data(self, scenario: str) -> pd.DataFrame:
+        """Prepare data for allocation matrix plot."""
+        try:
+            if scenario == "Initial":
+                data = {
+                    "abs.mean\nspend": self.dt_optimOut.init_spend_unit,
+                    "mean\nspend%": self.dt_optimOut.init_spend_unit
+                    / self.dt_optimOut.init_spend_unit.sum(),
+                    "mean\nresponse%": self.dt_optimOut.init_response_unit
+                    / self.dt_optimOut.init_response_unit.sum(),
+                    f"mean\n{self.dt_optimOut.metric}": self.dt_optimOut.init_response_unit
+                    / self.dt_optimOut.init_spend_unit,
+                }
+            elif scenario == "Bounded":
+                data = {
+                    "abs.mean\nspend": self.dt_optimOut.optm_spend_unit,
+                    "mean\nspend%": self.dt_optimOut.optm_spend_unit
+                    / self.dt_optimOut.optm_spend_unit.sum(),
+                    "mean\nresponse%": self.dt_optimOut.optm_response_unit
+                    / self.dt_optimOut.optm_response_unit.sum(),
+                    f"mean\n{self.dt_optimOut.metric}": self.dt_optimOut.optm_response_unit
+                    / self.dt_optimOut.optm_spend_unit,
+                }
+            else:  # "Bounded x3"
+                data = {
+                    "abs.mean\nspend": self.dt_optimOut.optm_spend_unit_unbound,
+                    "mean\nspend%": self.dt_optimOut.optm_spend_unit_unbound
+                    / self.dt_optimOut.optm_spend_unit_unbound.sum(),
+                    "mean\nresponse%": self.dt_optimOut.optm_response_unit_unbound
+                    / self.dt_optimOut.optm_response_unit_unbound.sum(),
+                    f"mean\n{self.dt_optimOut.metric}": self.dt_optimOut.optm_response_unit_unbound
+                    / self.dt_optimOut.optm_spend_unit_unbound,
+                }
+
+            # Calculate marginal metrics
+            spend = data["abs.mean\nspend"]
+            response = data[f"mean\n{self.dt_optimOut.metric}"] * spend
+            marginal_roi = np.gradient(response) / np.gradient(spend)
+            data[f"m{self.dt_optimOut.metric}"] = marginal_roi
+
+            return pd.DataFrame(data, index=self.dt_optimOut.channels)
+
+        except Exception as e:
+            logger.error(
+                "Failed to get allocation data for scenario %s: %s", scenario, str(e)
             )
-            metric_name = "ROI"
-        else:
-            current_metric = (
-                optimal_allocations["current_spend"]
-                / optimal_allocations["current_response"]
-            )
-            optimal_metric = (
-                optimal_allocations["optimal_spend"]
-                / optimal_allocations["optimal_response"]
-            )
-            metric_name = "CPA"
-
-        logger.debug(
-            "Calculated %s metrics for %d channels", metric_name, len(channels)
-        )
-
-        # Plot bars
-        x = np.arange(len(channels))
-        width = 0.35
-
-        ax.bar(
-            x - width / 2,
-            current_metric,
-            width,
-            label=f"Current {metric_name}",
-            color=self.colors["current"],
-            alpha=self.alpha["primary"],
-        )
-
-        ax.bar(
-            x + width / 2,
-            optimal_metric,
-            width,
-            label=f"Optimal {metric_name}",
-            color=self.colors["optimal"],
-            alpha=self.alpha["primary"],
-        )
-
-        # Add annotations
-        for i, (curr, opt) in enumerate(zip(current_metric, optimal_metric)):
-            pct_change = ((opt / curr) - 1) * 100
-            self.add_percentage_annotation(ax, i, max(curr, opt), pct_change)
-
-        self.setup_axis(
-            ax,
-            title=f"Channel {metric_name} Comparison",
-            ylabel=metric_name,
-            xticks=x,
-            xticklabels=channels,
-            rotation=45,
-        )
-
-        self.add_legend(ax)
-        self.finalize_figure()
-
-        logger.info("Summary metrics plot generated successfully")
-        return fig
-
-    def cleanup(self) -> None:
-        """Clean up all plots."""
-        logger.debug("Starting cleanup of plot resources")
-        super().cleanup()
-        plt.close("all")
-        logger.debug("Cleanup completed")
+            raise
 
     def plot_all(
         self, display_plots: bool = True, export_location: Union[str, Path] = None
-    ) -> None:
+    ) -> Dict[str, plt.Figure]:
         """
-        Generate all allocation plots.
+        Create all allocator plots.
+        """
+        logger.info(f"Creating all plots for model {self.model_id}")
 
-        Returns:
-            Dictionary of figures keyed by plot name
-        """
-        logger.info("Starting to generate all allocation plots")
-        figures = {}
         try:
-            logger.debug("Generating spend allocation plot")
-            figures["spend_allocation"] = self.plot_spend_allocation()
-
-            logger.debug("Generating response curves plot")
-            figures["response_curves"] = self.plot_response_curves()
-
-            logger.debug("Generating efficiency frontier plot")
-            figures["efficiency_frontier"] = self.plot_efficiency_frontier()
-
-            logger.debug("Generating spend vs response plot")
-            figures["spend_vs_response"] = self.plot_spend_vs_response()
-
-            logger.debug("Generating summary metrics plot")
-            figures["summary_metrics"] = self.plot_summary_metrics()
-
-            logger.info("Successfully generated all %d plots", len(figures))
+            plots = {
+                "budget_opt": self._plot_budget_comparison(),
+                "allocation": self._plot_allocation_matrix(),
+                "response": self._plot_response_curves(),
+            }
 
             if display_plots:
-                super().display_plots(figures)
+                self.display_plots(plots)
+
+            if export_location is not None:
+                self.export_plots_fig(export_location, plots)
+
+            return plots
+
         except Exception as e:
-            logger.error("Failed to generate plots: %s", str(e))
+            logger.error("Failed to generate all plots: %s", str(e))
             raise
-        finally:
-            logger.debug("Cleaning up plot resources")
-            self.cleanup()
-        return figures
+
+    def _plot_budget_comparison(self) -> plt.Figure:
+        """Plot budget comparison with raw values and summary stats, matching R version."""
+        logger.info("Creating budget comparison plot")
+        try:
+            # Create figure with grid
+            fig, ax = plt.subplots(figsize=(12, 8))
+            ax.grid(True, axis="y", linestyle="--", alpha=0.7, zorder=0)
+
+            # Define colors for each scenario
+            scenario_colors = {
+                "Initial": "#C0C0C0",  # Silver
+                "Bounded": "#4682B4",  # Steel Blue
+                "Bounded x3": "#DAA520",  # Golden Rod
+            }
+
+            # Define spacing parameters
+            group_width = 1.2  # Width for each scenario group
+            group_spacing = 2.0  # Space between scenario groups
+            bar_spacing = 0.4  # Space between bars within a group
+            bar_width = 0.3  # Width of individual bars
+
+            x_base = np.arange(
+                0,
+                len(self.scenarios) * (group_spacing + group_width),
+                group_spacing + group_width,
+            )
+
+            # Plot bars for each scenario
+            for i, (scenario, data) in enumerate(self.scenarios.items()):
+                # Calculate bar positions
+                x_group = x_base[i]
+                x_spend = x_group + (group_width - bar_spacing) / 2
+                x_response = x_group + (group_width + bar_spacing) / 2
+
+                # Plot spend and response bars
+                spend_bar = ax.bar(
+                    x_spend,
+                    data["spend"],
+                    bar_width,
+                    label=scenario,
+                    color=scenario_colors[scenario],
+                    zorder=3,
+                )
+                response_bar = ax.bar(
+                    x_response,
+                    data["response"],
+                    bar_width,
+                    color=scenario_colors[scenario],
+                    zorder=3,
+                )
+
+                # Add value labels
+                for bar in [spend_bar, response_bar]:
+                    height = bar[0].get_height()
+                    ax.text(
+                        bar[0].get_x() + bar[0].get_width() / 2.0,
+                        height,
+                        f"{height:,.0f}",
+                        ha="center",
+                        va="bottom",
+                        fontsize=8,
+                        zorder=4,
+                    )
+
+                # Add "total spend" and "total response" labels under bars
+                for x_pos, label in [
+                    (x_spend, "total spend"),
+                    (x_response, "total response"),
+                ]:
+                    ax.text(
+                        x_pos - 0.25,
+                        ax.get_ylim()[0] * 0.02,
+                        label,
+                        ha="center",
+                        va="top",
+                        rotation=45,
+                        fontsize=8,
+                        zorder=4,
+                    )
+
+                # Add metrics text above the group
+                if scenario == "Initial":
+                    metrics_text = f"Spend\nResp\n{self.metric}: {data['response']/data['spend']:.2f}"
+                else:
+                    metrics_text = (
+                        f"Spend: {data['spend_pct_change']:+.1f}%\n"
+                        f"Resp: {data['response_pct_change']:+.1f}%\n"
+                        f"{self.metric}: {data['metric_value']:.2f}"
+                    )
+
+                # Position metrics text above the bars
+                ax.text(
+                    x_group + group_width / 2,
+                    ax.get_ylim()[1],
+                    metrics_text,
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    fontweight="bold",
+                    zorder=4,
+                )
+
+            # Customize plot
+            ax.set_title(
+                f"Total Budget Optimization Result (scaled up to {self.dt_optimOut.periods})",
+                pad=20,
+                fontsize=10,
+                loc="left",  # Align title to the left
+            )
+
+            # Remove axis ticks and labels
+            ax.set_xticks([])
+            ax.set_ylabel("")
+            ax.yaxis.set_major_formatter(
+                plt.FuncFormatter(lambda x, p: format(int(x), ","))
+            )
+            ax.tick_params(axis="y", labelsize=8)
+
+            # Angle x-tick labels at 45 degrees
+            ax.set_xticklabels(ax.get_xticks(), rotation=45, ha="right", fontsize=8)
+
+            # Customize legend with smaller font
+            ax.legend(
+                title=None,
+                loc="upper right",
+                bbox_to_anchor=(1, 1.1),
+                ncol=3,
+                frameon=False,
+                fontsize=8,
+            )
+
+            # Remove spines
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.spines["bottom"].set_visible(False)
+            # # Set x limits to show all groups
+            # ax.set_xlim(-bar_width)
+            # Adjust layout to reduce extra space
+            plt.tight_layout(pad=2.0)
+            # fig.subplots_adjust(top=0.2, bottom=0.1, left=0.1, right=0.9)
+            return fig
+        except Exception as e:
+            logger.error("Failed to create budget comparison plot: %s", str(e))
+            raise
