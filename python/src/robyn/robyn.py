@@ -162,6 +162,7 @@ class Robyn:
         trials_config: Optional[TrialsConfig] = None,
         ts_validation: Optional[bool] = False,
         add_penalty_factor: Optional[bool] = False,
+        rssd_zero_penalty: Optional[bool] = True,
         nevergrad_algo: Optional[str] = NevergradAlgorithm.TWO_POINTS_DE,
         model_name: Optional[str] = Models.RIDGE,
         cores: Optional[int] = 16,
@@ -206,6 +207,7 @@ class Robyn:
                 trials_config=trials_config,
                 ts_validation=ts_validation,
                 add_penalty_factor=add_penalty_factor,
+                rssd_zero_penalty=rssd_zero_penalty,
                 nevergrad_algo=nevergrad_algo,
                 model_name=model_name,
                 cores=cores,
@@ -294,6 +296,7 @@ class Robyn:
         trials_config: Optional[TrialsConfig] = None,
         ts_validation: Optional[bool] = False,
         add_penalty_factor: Optional[bool] = False,
+        rssd_zero_penalty: Optional[bool] = True,
         nevergrad_algo: Optional[str] = NevergradAlgorithm.TWO_POINTS_DE,
         model_name: Optional[str] = Models.RIDGE,
         cores: Optional[int] = 16,
@@ -318,6 +321,7 @@ class Robyn:
             trials_config,
             ts_validation,
             add_penalty_factor,
+            rssd_zero_penalty,
             nevergrad_algo,
             model_name,
             cores,
@@ -355,9 +359,17 @@ class Robyn:
 
             if select_model is None:
                 pareto_solutions = self.pareto_result.pareto_solutions
-                if pareto_solutions and not np.isnan(pareto_solutions[0]):
+                if (
+                    pareto_solutions
+                    and pareto_solutions[0] is not None
+                    and pareto_solutions[0] != ""
+                ):
                     select_model = pareto_solutions[0]
-                elif len(pareto_solutions) > 1 and not np.isnan(pareto_solutions[1]):
+                elif (
+                    len(pareto_solutions) > 1
+                    and pareto_solutions[1] is not None
+                    and pareto_solutions[1] != ""
+                ):
                     select_model = pareto_solutions[1]
 
             allocator = BudgetAllocator(
