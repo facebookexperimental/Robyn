@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 class OnePager:
-
     def __init__(
         self,
         pareto_result: ParetoResult,
@@ -59,16 +58,16 @@ class OnePager:
         sns.set_theme(style="whitegrid", context="paper")
         plt.rcParams.update(
             {
-                "figure.figsize": (30, 34),  # Increased from (22, 17)
+                "figure.figsize": (30, 34),
                 "figure.dpi": 100,
                 "savefig.dpi": 300,
-                "font.size": 16,  # Increased from 10
-                "axes.titlesize": 22,  # Increased from 12
-                "axes.labelsize": 12,  # Increased from 10
-                "xtick.labelsize": 11,  # Increased from 9
-                "ytick.labelsize": 11,  # Increased from 9
-                "legend.fontsize": 11,  # Increased from 9
-                "figure.titlesize": 16,  # Increased from 14
+                "font.size": 16,
+                "axes.titlesize": 22,
+                "axes.labelsize": 12,
+                "xtick.labelsize": 11,
+                "ytick.labelsize": 11,
+                "legend.fontsize": 11,
+                "figure.titlesize": 16,
                 "axes.grid": True,
                 "grid.alpha": 0.3,
                 "axes.spines.top": False,
@@ -76,66 +75,22 @@ class OnePager:
             }
         )
 
-    def _setup_grid(
-        self, n_plots: int, n_solutions: int, figsize: tuple
-    ) -> Tuple[plt.Figure, List[GridSpec]]:
-        """Set up the grid layout for multiple solutions.
-
-        Args:
-            n_plots: Number of plots per solution
-            n_solutions: Number of solutions to plot
-            figsize: Base figure size (width, height)
-
-        Returns:
-            Tuple containing:
-            - Main figure
-            - List of GridSpec objects for each solution
-        """
-        if n_solutions == 1:
-            # Single solution case
-            fig = plt.figure(figsize=figsize, constrained_layout=True)
-            gs = [GridSpec(4, 2, figure=fig)]
-        else:
-            # Calculate dimensions for multi-solution layout
-            n_cols = min(2, n_solutions)  # Maximum 2 columns
-            n_rows = (n_solutions + 1) // 2  # Round up division
-
-            # Scale figsize based on number of solutions
-            scaled_figsize = (
-                figsize[0] * n_cols,  # Scale width by number of columns
-                figsize[1] * n_rows,  # Scale height by number of rows
-            )
-
-            # Create main figure
-            fig = plt.figure(figsize=scaled_figsize)
-
-            # Create subfigures
-            subfigs = fig.subfigures(n_rows, n_cols, squeeze=False)
-
-            # Create GridSpec for each solution
-            gs = []
-            for i in range(n_solutions):
-                row = i // n_cols
-                col = i % n_cols
-                subfig = subfigs[row, col]
-                gs.append(GridSpec(4, 2, figure=subfig))
-
-                # Add padding between subfigures
-                subfig.set_facecolor("white")
-                subfig.supylabel(f"Solution {i+1}", fontsize=12)
-
-            # Hide empty subfigures if any
-            for i in range(n_solutions, n_rows * n_cols):
-                row = i // n_cols
-                col = i % n_cols
-                subfigs[row, col].set_visible(False)
-
-        return fig, gs
+    def _safe_format(self, value, precision: int = 4) -> str:
+        """Safely format numeric values with specified precision."""
+        try:
+            if isinstance(value, (pd.DataFrame, pd.Series)):
+                value = (
+                    value.iloc[0] if isinstance(value, pd.Series) else value.iloc[0, 0]
+                )
+            if pd.isna(value):
+                return "0.0000"
+            return f"{float(value):.{precision}f}"
+        except (TypeError, ValueError, IndexError):
+            return "0.0000"
 
     def _get_model_info(self, solution_id: str) -> Dict[str, str]:
         """Get model performance metrics for specific solution."""
         try:
-            # Get media share data similar to R code
             x_decomp_agg = self.pareto_result.x_decomp_agg
             plot_media_share = x_decomp_agg[
                 (x_decomp_agg["sol_id"] == solution_id)
@@ -145,12 +100,12 @@ class OnePager:
                     )
                 )
             ]
+
             if plot_media_share.empty:
                 raise ValueError(
                     f"No media share data found for solution {solution_id}"
                 )
 
-            # Extract metrics following R code logic
             metrics = {}
 
             # Get training metrics
@@ -219,10 +174,9 @@ class OnePager:
                     performance = (
                         perf["total_spend"].iloc[0] / perf["xDecompAgg"].iloc[0]
                     )
-
                 metrics["performance"] = f"{performance:.3g} {type_metric}"
 
-            # Format the metrics string based on validation availability
+            # Format metrics text
             if "rsq_val" in metrics:
                 metrics_text = (
                     f"Adj.R2: train = {metrics['rsq_train']}, "
@@ -247,6 +201,7 @@ class OnePager:
                 metrics_text += f" | {metrics['performance']}"
 
             metrics["formatted_text"] = metrics_text
+
             return metrics
 
         except Exception as e:
@@ -260,28 +215,47 @@ class OnePager:
                 "formatted_text": "Error calculating metrics",
             }
 
-            if hasattr(self.pareto_result, "mape"):
-                mape_value = getattr(self.pareto_result, "mape")
-                metrics["mape"] = self._safe_format(mape_value)
-
-            return metrics
-
-        except Exception as e:
-            logger.error(
-                f"Error getting model info for solution {solution_id}: {str(e)}"
+    def _add_title_and_metrics(self, fig: plt.Figure, solution_id: str) -> None:
+        """Add title and metrics text to the figure."""
+        try:
+            model_info = self._get_model_info(solution_id)
+            metrics_text = model_info.get('formatted_text', '')
+            
+            # Add title with larger font and bold
+            fig.suptitle(
+                f"MMM Analysis One-Pager for Model: {solution_id}",
+                fontsize=24,          # Increased from 18
+                y=0.98,
+                weight='bold',        # Makes the text bold
+                fontfamily='sans-serif'  # Clear font family
             )
-            return {"rsq_train": "0.0000", "nrmse": "0.0000", "decomp_rssd": "0.0000"}
+            
+            # Add metrics text if available
+            if metrics_text:
+                fig.text(
+                    0.5,          # Center horizontally
+                    0.955,        # Position below title
+                    metrics_text,
+                    fontsize=16,  # Increased from 14
+                    ha='center',
+                    va='top',
+                    weight='bold'  # Also make metrics bold
+                )
+        except Exception as e:
+            logger.error(f"Error adding title and metrics: {str(e)}")
+            # Fallback title with same style
+            fig.suptitle(
+                f"MMM Analysis One-Pager for Model: {solution_id}",
+                fontsize=24,
+                y=0.98,
+                weight='bold',
+                fontfamily='sans-serif'
+            )
 
     def _generate_solution_plots(
         self, solution_id: str, plots: List[PlotType], gs: GridSpec
     ) -> None:
-        """Generate plots for a single solution with dynamic layout.
-
-        Args:
-            solution_id: Solution ID to generate plots for
-            plots: List of PlotType enums specifying which plots to generate
-            gs: GridSpec for plot layout
-        """
+        """Generate plots for a single solution with dynamic layout."""
         try:
             # Validate plot types
             for plot in plots:
@@ -311,12 +285,7 @@ class OnePager:
             response_viz = ResponseVisualizer(self.pareto_result, self.mmm_data)
             transfor_viz = TransformationVisualizer(self.pareto_result, self.mmm_data)
 
-            # Add space at top for title
-            gs.update(top=0.92)
-
-            # TODO: Move the config out of the method to its own data class.
-
-            # Define plot configurations without positions
+            # Define plot configurations
             plot_config = {
                 PlotType.SPEND_EFFECT: {
                     "title": "Share of Total Spend, Effect & Performance",
@@ -386,7 +355,6 @@ class OnePager:
                     logger.error(f"Unsupported plot type: {plot_type}")
                     continue
 
-                # Calculate position
                 row = i // 2
                 col = i % 2
 
@@ -409,35 +377,6 @@ class OnePager:
                     )
                     raise e
 
-            # Add model info and titles with adjusted positioning
-            try:
-                model_info = self._get_model_info(solution_id)
-                metrics_text = (
-                    f"Model Performance Metrics - "
-                    f"R²: {model_info['rsq_train']} | "
-                    f"NRMSE: {model_info['nrmse']} | "
-                    f"DECOMP.RSSD: {model_info['decomp_rssd']}"
-                )
-                if "mape" in model_info:
-                    metrics_text += f" | MAPE: {model_info['mape']}"
-
-                fig = gs.figure
-                fig.suptitle(
-                    f"MMM Analysis One-Pager for Model: {solution_id})",
-                    fontsize=18,
-                    y=0.98,
-                )
-                fig.text(0.5, 0.96, metrics_text, fontsize=18, ha="center")
-            except Exception as e:
-                logger.error(
-                    f"Error adding title and metrics for solution {solution_id}: {str(e)}"
-                )
-                gs.figure.suptitle(
-                    f"MMM Analysis One-Pager for Model: {solution_id})",
-                    fontsize=18,
-                    y=0.98,
-                )
-
         except Exception as e:
             logger.error(
                 f"Fatal error generating plots for solution {solution_id}: {str(e)}",
@@ -449,7 +388,7 @@ class OnePager:
         self,
         solution_ids: Union[str, List[str]] = "all",
         plots: Optional[List[str]] = None,
-        figsize: tuple = (30, 34),  # Reduced height from 36 to 32
+        figsize: tuple = (30, 34),
         save_path: Optional[str] = None,
         top_pareto: bool = False,
     ) -> List[plt.Figure]:
@@ -464,21 +403,9 @@ class OnePager:
 
         Returns:
             List[plt.Figure]: List of generated figures, one per solution
-
-        Raises:
-            ValueError: If invalid plot types are provided
         """
         # Use default plots if none provided
-        plots = plots or [
-            PlotType.SPEND_EFFECT,
-            PlotType.WATERFALL,
-            PlotType.FITTED_VS_ACTUAL,
-            PlotType.BOOTSTRAP,
-            PlotType.ADSTOCK,
-            PlotType.IMMEDIATE_CARRYOVER,
-            PlotType.RESPONSE_CURVES,
-            PlotType.DIAGNOSTIC,
-        ]
+        plots = plots or self.default_plots
 
         # Handle solution IDs based on top_pareto parameter
         if top_pareto:
@@ -507,12 +434,11 @@ class OnePager:
                     for sid in solution_ids
                     if sid is not None and pd.notna(sid)
                 ]
-                total_solutions = len(solution_ids)
 
                 if not solution_ids:
                     raise ValueError("No valid solution IDs found in top solutions")
 
-                logger.debug(f"Loading {total_solutions} top solutions")
+                logger.debug(f"Loading {len(solution_ids)} top solutions")
 
             except Exception as e:
                 raise ValueError(f"Error processing top solutions: {str(e)}")
@@ -545,7 +471,6 @@ class OnePager:
             raise ValueError(f"Invalid solution IDs: {invalid_ids}")
 
         figures = []
-
         try:
             if save_path:
                 os.makedirs(save_path, exist_ok=True)
@@ -558,55 +483,40 @@ class OnePager:
                 n_plots = len(plots)
                 n_rows = (n_plots + 1) // 2  # Ceiling division for number of rows
 
-                # Create figure and grid for this solution
+                # Create figure
                 fig = plt.figure(figsize=figsize)
-                gs = GridSpec(n_rows, 2, figure=fig)  # Dynamic number of rows
+
+                # Create GridSpec with explicit spacing parameters
+                gs = GridSpec(
+                    n_rows,
+                    2,
+                    figure=fig,
+                    height_ratios=[1] * n_rows,
+                    top=0.92,  # Space for title and metrics
+                    bottom=0.05,  # Extend plots to bottom
+                    left=0.08,  # Left margin
+                    right=0.92,  # Right margin
+                    hspace=0.4,  # Vertical space between subplots
+                    wspace=0.2,  # Horizontal space between subplots
+                )
 
                 # Generate plots for this solution
                 self._generate_solution_plots(solution_id, plots, gs)
 
-                # Adjust layout with improved spacing
-                fig.set_constrained_layout_pads(
-                    w_pad=0.15,  # Padding between plots horizontally
-                    h_pad=0.2,  # Padding between plots vertically
-                    hspace=0.4,  # Height space between subplots
-                    wspace=0.3,  # Width space between subplots
-                )
-
-                # Update layout with reduced top spacing
-                plt.subplots_adjust(
-                    top=0.92,  # Increased from 0.88 to reduce top space
-                    bottom=0.08,  # Keep the same
-                    left=0.08,  # Keep the same
-                    right=0.92,  # Keep the same
-                    hspace=0.35,  # Keep the same
-                    wspace=0.25,  # Keep the same
-                )
+                # Add title and metrics
+                self._add_title_and_metrics(fig, solution_id)
 
                 if save_path:
                     save_file = os.path.join(save_path, f"solution_{solution_id}.png")
-                    fig.savefig(save_file, dpi=300, bbox_inches="tight")
+                    fig.savefig(save_file, dpi=300, bbox_inches="tight", pad_inches=0.5)
                     logger.debug(f"Saved figure to {save_file}")
 
                 figures.append(fig)
 
         except Exception as e:
-            logger.error(f"Error generating plots: {str(e)}")
+            logger.error(f"Error generating plots: {str(e)}", exc_info=True)
             for fig in figures:
                 plt.close(fig)
             raise
 
         return figures
-
-    def _safe_format(self, value, precision: int = 4) -> str:
-        """Safely format numeric values with specified precision."""
-        try:
-            if isinstance(value, (pd.DataFrame, pd.Series)):
-                value = (
-                    value.iloc[0] if isinstance(value, pd.Series) else value.iloc[0, 0]
-                )
-            if pd.isna(value):
-                return "0.0000"
-            return f"{float(value):.{precision}f}"
-        except (TypeError, ValueError, IndexError):
-            return "0.0000"
