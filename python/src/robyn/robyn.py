@@ -5,7 +5,6 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, List
 import copy
-
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
@@ -24,13 +23,13 @@ from robyn.modeling.clustering.cluster_builder import ClusterBuilder
 from robyn.modeling.clustering.clustering_config import ClusteringConfig
 from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
 
-from robyn.allocator.budget_allocator import BudgetAllocator
-from robyn.allocator.entities.allocation_config import AllocationConfig
-from robyn.allocator.entities.allocation_results import AllocationResult
+from robyn.allocator.optimizer import BudgetAllocator
+from robyn.allocator.entities.allocation_params import AllocatorParams
+from robyn.allocator.entities.allocation_result import AllocationResult
 
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.reporting.onepager_reporting import OnePager
-from robyn.visualization.allocator_plotter import AllocationPlotter
+from robyn.visualization.allocator_visualizer import AllocatorPlotter
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
@@ -163,6 +162,7 @@ class Robyn:
         trials_config: Optional[TrialsConfig] = None,
         ts_validation: Optional[bool] = False,
         add_penalty_factor: Optional[bool] = False,
+        rssd_zero_penalty: Optional[bool] = True,
         nevergrad_algo: Optional[str] = NevergradAlgorithm.TWO_POINTS_DE,
         model_name: Optional[str] = Models.RIDGE,
         cores: Optional[int] = 16,
@@ -206,6 +206,7 @@ class Robyn:
                 trials_config=trials_config,
                 ts_validation=ts_validation,
                 add_penalty_factor=add_penalty_factor,
+                rssd_zero_penalty=rssd_zero_penalty,
                 nevergrad_algo=nevergrad_algo,
                 model_name=model_name,
                 cores=cores,
@@ -298,6 +299,7 @@ class Robyn:
         trials_config: Optional[TrialsConfig] = None,
         ts_validation: Optional[bool] = False,
         add_penalty_factor: Optional[bool] = False,
+        rssd_zero_penalty: Optional[bool] = True,
         nevergrad_algo: Optional[str] = NevergradAlgorithm.TWO_POINTS_DE,
         model_name: Optional[str] = Models.RIDGE,
         cores: Optional[int] = 16,
@@ -322,6 +324,7 @@ class Robyn:
             trials_config,
             ts_validation,
             add_penalty_factor,
+            rssd_zero_penalty,
             nevergrad_algo,
             model_name,
             cores,
@@ -332,7 +335,7 @@ class Robyn:
 
     def optimize_budget(
         self,
-        allocation_config: AllocationConfig,
+        allocator_params: AllocatorParams,
         select_model: Optional[str] = None,
         display_plots: bool = True,
         export_plots: bool = False,
@@ -357,19 +360,38 @@ class Robyn:
         try:
             logger.info("Optimizing budget allocation")
 
-            select_model = select_model or self.pareto_result.pareto_solutions[0]
+            if select_model is None:
+                pareto_solutions = self.pareto_result.pareto_solutions
+                if (
+                    pareto_solutions
+                    and pareto_solutions[0] is not None
+                    and pareto_solutions[0] != ""
+                ):
+                    select_model = pareto_solutions[0]
+                elif (
+                    len(pareto_solutions) > 1
+                    and pareto_solutions[1] is not None
+                    and pareto_solutions[1] != ""
+                ):
+                    select_model = pareto_solutions[1]
+
+            logger.info("Selected model for budget optimization: %s", select_model)
 
             allocator = BudgetAllocator(
                 mmm_data=self.mmm_data,
                 featurized_mmm_data=self.featurized_mmm_data,
+                hyperparameters=self.hyperparameters,
                 pareto_result=self.pareto_result,
                 select_model=select_model,
+                params=allocator_params,
             )
 
-            allocation_result = allocator.allocate(allocation_config)
+            allocation_result = allocator.optimize()
 
             if display_plots or export_plots:
-                allocator_visualizer = AllocationPlotter(allocation_result)
+                allocator_visualizer = AllocatorPlotter(
+                    allocation_result=allocation_result, budget_allocator=allocator
+                )
                 allocator_visualizer.plot_all(display_plots, self.working_dir)
 
             logger.info("Budget optimization complete")

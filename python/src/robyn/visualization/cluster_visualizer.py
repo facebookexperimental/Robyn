@@ -420,16 +420,7 @@ class ClusterVisualizer(BaseVisualizer):
     def generate_bootstrap_confidence(
         self, solution_id: str, ax: Optional[plt.Axes] = None
     ) -> Optional[plt.Figure]:
-        """
-        Generate error bar plot showing bootstrapped ROI/CPA confidence intervals.
-
-        Args:
-            solution_id: ID of solution to visualize
-            ax: Optional matplotlib axes to plot on
-
-        Returns:
-            Optional[plt.Figure]: Generated figure if ax is None, otherwise None
-        """
+        """Generate error bar plot showing bootstrapped ROI/CPA confidence intervals."""
         logger.debug("Starting generation of bootstrap confidence plot")
         if not hasattr(self, "pareto_result"):
             raise ValueError("Pareto result not initialized")
@@ -437,11 +428,10 @@ class ClusterVisualizer(BaseVisualizer):
         if solution_id not in self.pareto_result.plot_data_collect:
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
-        # Get specific solution's data - Changed sol_id to sol_id
         x_decomp_agg = self.pareto_result.x_decomp_agg[
             self.pareto_result.x_decomp_agg["sol_id"] == solution_id
         ]
-        # Check if we have confidence intervals
+
         if "ci_low" not in x_decomp_agg.columns:
             if ax is None:
                 fig, ax = plt.subplots(figsize=(10, 6))
@@ -451,7 +441,6 @@ class ClusterVisualizer(BaseVisualizer):
                 ax.text(0.5, 0.5, "No bootstrap results", ha="center", va="center")
                 return None
 
-        # Filter data for specific model - Changed sol_id to sol_id
         bootstrap_data = x_decomp_agg[
             (~x_decomp_agg["ci_low"].isna())
             & (~x_decomp_agg["ci_up"].isna())
@@ -459,10 +448,9 @@ class ClusterVisualizer(BaseVisualizer):
             & (x_decomp_agg["sol_id"] == solution_id)
         ][["rn", "sol_id", "boot_mean", "ci_low", "ci_up"]]
 
-        # Check if we have valid data after filtering
         if bootstrap_data.empty:
             if ax is None:
-                fig, ax = plt.subplots(figsize=(10, 6))
+                fig, ax = plt.subplots(figsize=(16, 10))
                 ax.text(
                     0.5,
                     0.5,
@@ -481,16 +469,16 @@ class ClusterVisualizer(BaseVisualizer):
                 )
                 return None
 
-        # Create figure if no axes provided
+        # Sort data alphabetically by rn
+        bootstrap_data = bootstrap_data.sort_values("rn", ascending=True)
+
         if ax is None:
             fig, ax = plt.subplots(figsize=(12, min(8, 3 + len(bootstrap_data) * 0.3)))
         else:
             fig = None
 
-        # Set clean background
         ax.set_facecolor("white")
 
-        # Determine metric type
         metric_type = (
             "ROAS"
             if (
@@ -501,10 +489,8 @@ class ClusterVisualizer(BaseVisualizer):
             else "CPA"
         )
 
-        # Create plot with proper y-axis labels
         y_pos = range(len(bootstrap_data))
 
-        # Add error bars
         ax.errorbar(
             x=bootstrap_data["boot_mean"],
             y=y_pos,
@@ -520,9 +506,7 @@ class ClusterVisualizer(BaseVisualizer):
             zorder=3,
         )
 
-        # Add labels
         for i, row in enumerate(bootstrap_data.itertuples()):
-            # Mean value
             ax.text(
                 row.boot_mean,
                 i,
@@ -533,7 +517,6 @@ class ClusterVisualizer(BaseVisualizer):
                 color="black",
             )
 
-            # CI values
             ax.text(
                 row.ci_low,
                 i,
@@ -554,24 +537,19 @@ class ClusterVisualizer(BaseVisualizer):
                 color="black",
             )
 
-        # Set y-axis labels properly
         ax.set_yticks(y_pos)
         ax.set_yticklabels(bootstrap_data["rn"], fontsize=9)
 
-        # Remove unnecessary spines but keep left spine for labels
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
 
-        # Add ROAS reference line if applicable
         if metric_type == "ROAS":
             ax.axvline(x=1, color="gray", linestyle="--", alpha=0.5, zorder=2)
 
         cluster_txt = ""
-        # Set title with solution ID
         if self.clustered_result is not None:
             temp2 = self.clustered_result.cluster_data
 
-            # If 'n' column doesn't exist, add count by cluster
             if "n" not in temp2.columns:
                 temp2 = (
                     temp2.groupby("cluster")
@@ -586,13 +564,11 @@ class ClusterVisualizer(BaseVisualizer):
 
         ax.set_title(title, pad=20, fontsize=11)
 
-        # Set proper x limits
         x_min = bootstrap_data["ci_low"].min()
         x_max = bootstrap_data["ci_up"].max()
         margin = (x_max - x_min) * 0.05
         ax.set_xlim(x_min - margin, x_max + margin)
 
-        # Add x grid
         ax.grid(True, axis="x", color="lightgray", linestyle="-", alpha=0.3, zorder=1)
         ax.set_axisbelow(True)
 
