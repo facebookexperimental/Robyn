@@ -390,7 +390,7 @@ class OnePager:
     def generate_one_pager(
         self,
         solution_ids: Union[str, List[str]] = "all",
-        plots: Optional[List[str]] = None,
+        plots: Optional[List[PlotType]] = None,  # Changed from List[str]
         figsize: tuple = (30, 34),
         save_path: Optional[str] = None,
         top_pareto: bool = False,
@@ -407,6 +407,13 @@ class OnePager:
         Returns:
             List[plt.Figure]: List of generated figures, one per solution
         """
+        # Convert string plot types to PlotType if necessary
+        if plots and isinstance(plots[0], str):
+            try:
+                plots = [PlotType[plot.upper()] for plot in plots]
+            except KeyError as e:
+                raise ValueError(f"Invalid plot type: {e}")
+
         # Use default plots if none provided
         plots = plots or self.default_plots
 
