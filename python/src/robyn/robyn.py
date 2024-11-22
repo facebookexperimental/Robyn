@@ -411,7 +411,7 @@ class Robyn:
     def _generate_one_pager(self, plots: Optional[List[PlotType]] = None) -> None:
         """
         Generate one-page summary report.
-        
+
         Args:
             plots: Optional list of specific plots to include
         """
@@ -421,7 +421,7 @@ class Robyn:
                 clustered_result=self.cluster_result,
                 adstock=self.hyperparameters.adstock,
                 mmm_data=self.mmm_data,
-                holidays_data=self.holidays_data
+                holidays_data=self.holidays_data,
             )
             figures = onepager.generate_one_pager(plots=plots, top_pareto=True)
             return figures

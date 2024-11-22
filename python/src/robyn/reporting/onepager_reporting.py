@@ -404,7 +404,7 @@ class OnePager:
         Returns:
             List[plt.Figure]: List of generated figures, one per solution
         """
-         # Convert string plot types to PlotType if necessary
+        # Convert string plot types to PlotType if necessary
         if plots and isinstance(plots[0], str):
             try:
                 plots = [PlotType[plot.upper()] for plot in plots]
