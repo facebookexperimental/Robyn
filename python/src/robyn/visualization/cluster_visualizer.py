@@ -599,6 +599,8 @@ class ClusterVisualizer(BaseVisualizer):
         logger.debug("Successfully generated bootstrap confidence plot")
         if fig:
             plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
         return fig
 
     def plot_all(

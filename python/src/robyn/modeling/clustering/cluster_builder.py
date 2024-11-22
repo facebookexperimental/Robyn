@@ -219,7 +219,7 @@ class ClusterBuilder:
         cluster_collect = []
 
         self.logger.debug(f"Processing {config.k_clusters} clusters")
-        for j in range(1, config.k_clusters + 1):
+        for j in range(0, config.k_clusters):
             df_outcome = df_clusters_outcome[df_clusters_outcome["cluster"] == j]
             if len(df_outcome["sol_id"].unique()) < 3:
                 self.logger.warning(

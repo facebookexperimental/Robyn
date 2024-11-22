@@ -4,6 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, List
+import copy
 
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
@@ -193,7 +194,6 @@ class Robyn:
         try:
             logger.info("Training models")
             trials_config = trials_config or TrialsConfig(trials=5, iterations=2000)
-
             model_executor = ModelExecutor(
                 mmmdata=self.mmm_data,
                 holidays_data=self.holidays_data,
@@ -257,6 +257,7 @@ class Robyn:
                 holidays_data=self.holidays_data,
             )
             self.pareto_result = pareto_optimizer.optimize(**pareto_config)
+            unfiltered_pareto_result = copy.deepcopy(self.pareto_result)
 
             # Optional clustering
             is_clustered = False
@@ -270,10 +271,13 @@ class Robyn:
             )
             if display_plots or export_plots:
                 pareto_visualizer = ParetoVisualizer(
-                    self.pareto_result,
-                    self.hyperparameters.adstock,
-                    self.mmm_data,
-                    self.holidays_data,
+                    pareto_result=self.pareto_result,
+                    mmm_data=self.mmm_data,
+                    holiday_data=self.holidays_data,
+                    hyperparameter=self.hyperparameters,
+                    featurized_mmm_data=self.featurized_mmm_data,
+                    unfiltered_pareto_result=unfiltered_pareto_result,
+                    model_outputs=self.model_outputs,
                 )
                 pareto_visualizer.plot_all(display_plots, self.working_dir)
                 if self.cluster_result:

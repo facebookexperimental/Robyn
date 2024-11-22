@@ -1,16 +1,21 @@
 from pathlib import Path
+import re
 from typing import Dict, List, Optional, Union
 from matplotlib import ticker, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from robyn.modeling.entities.modeloutputs import ModelOutputs
+import seaborn as sns
 import logging
 from robyn.data.entities.enums import ProphetVariableType
 from robyn.data.entities.holidays_data import HolidaysData
+from robyn.modeling.entities.featurized_mmm_data import FeaturizedMMMData
 from robyn.modeling.entities.pareto_result import ParetoResult
-from robyn.data.entities.hyperparameters import AdstockType
+from robyn.data.entities.hyperparameters import AdstockType, Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.visualization.base_visualizer import BaseVisualizer
+from robyn.data.entities.enums import DependentVarType
 import math
 
 logger = logging.getLogger(__name__)
@@ -20,15 +25,21 @@ class ParetoVisualizer(BaseVisualizer):
     def __init__(
         self,
         pareto_result: ParetoResult,
-        adstock: AdstockType,
         mmm_data: MMMData,
         holiday_data: Optional[HolidaysData] = None,
+        hyperparameter: Optional[Hyperparameters] = None,
+        featurized_mmm_data: Optional[FeaturizedMMMData] = None,
+        unfiltered_pareto_result: Optional[ParetoResult] = None,
+        model_outputs: Optional[ModelOutputs] = None,
     ):
         super().__init__()
         self.pareto_result = pareto_result
-        self.adstock = adstock
         self.mmm_data = mmm_data
         self.holiday_data = holiday_data
+        self.hyperparameter = hyperparameter
+        self.featurized_mmm_data = featurized_mmm_data
+        self.unfiltered_pareto_result = unfiltered_pareto_result
+        self.model_outputs = model_outputs
 
     def _baseline_vars(
         self, baseline_level, prophet_vars: List[ProphetVariableType] = []
@@ -216,6 +227,8 @@ class ParetoVisualizer(BaseVisualizer):
         # Adjust layout
         if fig:
             plt.subplots_adjust(right=0.85, top=0.85)
+            fig = plt.gcf()
+            plt.close(fig)
             return fig
 
         return None
@@ -329,6 +342,8 @@ class ParetoVisualizer(BaseVisualizer):
         logger.debug("Successfully generated of fitted vs casual plot")
         if fig:
             plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
             return fig
         return None
 
@@ -415,6 +430,8 @@ class ParetoVisualizer(BaseVisualizer):
 
         if fig:
             plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
             return fig
         return None
 
@@ -519,6 +536,8 @@ class ParetoVisualizer(BaseVisualizer):
 
         if fig:
             plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
             return fig
         return None
 
@@ -548,7 +567,7 @@ class ParetoVisualizer(BaseVisualizer):
             fig = None
 
         # Handle different adstock types
-        if self.adstock == AdstockType.GEOMETRIC:
+        if self.hyperparameter.adstock == AdstockType.GEOMETRIC:
             # Get geometric adstock data
             dt_geometric = adstock_data["dt_geometric"].copy()
 
@@ -586,7 +605,10 @@ class ParetoVisualizer(BaseVisualizer):
             ax.set_xlabel(f"Thetas [by {interval_type}]")
             ax.set_ylabel(None)
 
-        elif self.adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
+        elif self.hyperparameter.adstock in [
+            AdstockType.WEIBULL_CDF,
+            AdstockType.WEIBULL_PDF,
+        ]:
             # Get Weibull data
             weibull_data = adstock_data["weibullCollect"]
             wb_type = adstock_data["wb_type"]
@@ -635,7 +657,7 @@ class ParetoVisualizer(BaseVisualizer):
                 ax_sub.set_ylim(0, 1)
 
         # Customize grid
-        if self.adstock == AdstockType.GEOMETRIC:
+        if self.hyperparameter.adstock == AdstockType.GEOMETRIC:
             ax.grid(True, axis="x", alpha=0.2)
             ax.grid(False, axis="y")
         ax.set_axisbelow(True)
@@ -647,8 +669,239 @@ class ParetoVisualizer(BaseVisualizer):
 
         if fig:
             plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
             return fig
         return None
+
+    def create_prophet_decomposition_plot(self):
+        """Create Prophet Decomposition Plot."""
+        prophet_vars = (
+            [ProphetVariableType(var) for var in self.holiday_data.prophet_vars]
+            if self.holiday_data and self.holiday_data.prophet_vars
+            else []
+        )
+        factor_vars = self.mmm_data.mmmdata_spec.factor_vars if self.mmm_data else []
+        if not (prophet_vars or factor_vars):
+            return None
+        df = self.featurized_mmm_data.dt_mod.copy()
+        prophet_vars_str = [variable.value for variable in prophet_vars]
+        prophet_vars_str.sort(reverse=True)
+        value_variables = (
+            [
+                (
+                    "dep_var"
+                    if hasattr(df, "dep_var")
+                    else self.mmm_data.mmmdata_spec.dep_var
+                )
+            ]
+            + factor_vars
+            + prophet_vars_str
+        )
+        df_long = df.melt(
+            id_vars=["ds"],
+            value_vars=value_variables,
+            var_name="variable",
+            value_name="value",
+        )
+        df_long["ds"] = pd.to_datetime(df_long["ds"])
+        plt.figure(figsize=(12, 3 * len(df_long["variable"].unique())))
+        prophet_decomp_plot = plt.figure(
+            figsize=(12, 3 * len(df_long["variable"].unique()))
+        )
+        gs = prophet_decomp_plot.add_gridspec(len(df_long["variable"].unique()), 1)
+        for i, var in enumerate(df_long["variable"].unique()):
+            ax = prophet_decomp_plot.add_subplot(gs[i, 0])
+            var_data = df_long[df_long["variable"] == var]
+            ax.plot(var_data["ds"], var_data["value"], color="steelblue")
+            ax.set_title(var)
+            ax.set_xlabel(None)
+            ax.set_ylabel(None)
+        plt.suptitle("Prophet decomposition")
+        plt.tight_layout()
+        fig = plt.gcf()
+        plt.close(fig)
+        return fig
+
+    def create_hyperparameter_sampling_distribution(self):
+        """Create Hyperparameter Sampling Distribution Plot."""
+        unfiltered_pareto_results = self.unfiltered_pareto_result
+        if unfiltered_pareto_results is None:
+            return None
+        result_hyp_param = unfiltered_pareto_results.result_hyp_param
+        hp_names = list(self.hyperparameter.hyperparameters.keys())
+        hp_names = [name.replace("lambda", "lambda_hp") for name in hp_names]
+        matching_columns = [
+            col
+            for col in result_hyp_param.columns
+            if any(re.search(pattern, col, re.IGNORECASE) for pattern in hp_names)
+        ]
+        matching_columns.sort()
+        hyp_df = result_hyp_param[matching_columns]
+        melted_df = hyp_df.melt(var_name="variable", value_name="value")
+        melted_df["variable"] = melted_df["variable"].replace("lambda_hp", "lambda")
+
+        def parse_variable(variable):
+            parts = variable.split("_")
+            return {"type": parts[-1], "channel": "_".join(parts[:-1])}
+
+        parsed_vars = melted_df["variable"].apply(parse_variable).apply(pd.Series)
+        melted_df[["type", "channel"]] = parsed_vars
+        melted_df["type"] = pd.Categorical(
+            melted_df["type"], categories=melted_df["type"].unique()
+        )
+        melted_df["channel"] = pd.Categorical(
+            melted_df["channel"], categories=melted_df["channel"].unique()[::-1]
+        )
+        plt.figure(figsize=(12, 7))
+        g = sns.FacetGrid(melted_df, col="type", sharex=False, height=6, aspect=1)
+
+        def violin_plot(x, y, **kwargs):
+            sns.violinplot(x=x, y=y, **kwargs, alpha=0.8, linewidth=0)
+
+        g.map_dataframe(
+            violin_plot, x="value", y="channel", hue="channel", palette="Set2"
+        )
+        g.set_titles("{col_name}")
+        g.set_xlabels("Hyperparameter space")
+        g.set_ylabels("")
+        g.figure.suptitle("Hyperparameters Optimization Distributions", y=1.05)
+        subtitle_text = (
+            f"Sample distribution, iterations = "
+            f"{self.model_outputs.iterations} x {len(self.model_outputs.trials)} trial"
+        )
+        g.figure.text(0.5, 0.98, subtitle_text, ha="center", fontsize=10)
+        plt.subplots_adjust(top=0.9)
+        plt.tight_layout()
+        fig = plt.gcf()
+        plt.close(fig)
+        return fig
+
+    def create_pareto_front_plot(self, is_calibrated):
+        """Create Pareto Front Plot."""
+        unfiltered_pareto_results = self.unfiltered_pareto_result
+        result_hyp_param = unfiltered_pareto_results.result_hyp_param
+        pareto_fronts = self.pareto_result.pareto_fronts
+        if is_calibrated:
+            result_hyp_param["iterations"] = np.where(
+                result_hyp_param["robynPareto"].isna(),
+                np.nan,
+                result_hyp_param["iterations"],
+            )
+            result_hyp_param = result_hyp_param.sort_values(
+                by="robynPareto", na_position="first"
+            )
+        pareto_fronts_vec = list(range(1, pareto_fronts + 1))
+        plt.figure(figsize=(12, 8))
+        scatter = plt.scatter(
+            result_hyp_param["nrmse"],
+            result_hyp_param["decomp.rssd"],
+            c=result_hyp_param["iterations"],
+            cmap="Blues",
+            alpha=0.7,
+        )
+        plt.colorbar(scatter, label="Iterations")
+        if is_calibrated:
+            scatter = plt.scatter(
+                result_hyp_param["nrmse"],
+                result_hyp_param["decomp.rssd"],
+                c=result_hyp_param["iterations"],
+                cmap="Blues",
+                s=result_hyp_param["mape"] * 100,
+                alpha=1 - result_hyp_param["mape"],
+            )
+        for pfs in range(1, max(pareto_fronts_vec) + 1):
+            temp = result_hyp_param[result_hyp_param["robynPareto"] == pfs]
+            if len(temp) > 1:
+                temp = temp.sort_values("nrmse")
+                plt.plot(temp["nrmse"], temp["decomp.rssd"], color="coral", linewidth=2)
+        plt.title(
+            "Multi-objective Evolutionary Performance"
+            + (" with Calibration" if is_calibrated else "")
+        )
+        plt.xlabel("NRMSE")
+        plt.ylabel("DECOMP.RSSD")
+        plt.suptitle(
+            f"2D Pareto fronts with {self.model_outputs.nevergrad_algo or 'Unknown'}, "
+            f"for {len(self.model_outputs.trials)} trial{'' if pareto_fronts == 1 else 's'} "
+            f"with {self.model_outputs.iterations or 1} iterations each"
+        )
+        plt.tight_layout()
+        fig = plt.gcf()
+        plt.close(fig)
+        return fig
+
+    def create_ridgeline_model_convergence(self):
+        """Create Ridgeline Model Convergence Plots."""
+        all_plots = {}
+        x_decomp_agg = self.unfiltered_pareto_result.x_decomp_agg
+        paid_media_spends = self.mmm_data.mmmdata_spec.paid_media_spends
+        dt_ridges = x_decomp_agg[x_decomp_agg["rn"].isin(paid_media_spends)].copy()
+        dt_ridges["iteration"] = (
+            dt_ridges["iterNG"] - 1
+        ) * self.model_outputs.cores + dt_ridges["iterPar"]
+        dt_ridges = dt_ridges[["rn", "roi_total", "iteration", "trial"]]
+        dt_ridges = dt_ridges.sort_values(["iteration", "rn"])
+        iterations = self.model_outputs.iterations or 100
+        qt_len = (
+            1
+            if iterations <= 100
+            else (20 if iterations > 2000 else int(np.ceil(iterations / 100)))
+        )
+        set_qt = np.floor(np.linspace(1, iterations, qt_len + 1)).astype(int)
+        set_bin = set_qt[1:]
+        dt_ridges["iter_bin"] = pd.cut(
+            dt_ridges["iteration"], bins=set_qt, labels=set_bin
+        )
+        dt_ridges = dt_ridges.dropna(subset=["iter_bin"])
+        dt_ridges["iter_bin"] = pd.Categorical(
+            dt_ridges["iter_bin"],
+            categories=sorted(set_bin, reverse=True),
+            ordered=True,
+        )
+        dt_ridges["trial"] = dt_ridges["trial"].astype("category")
+        plot_vars = dt_ridges["rn"].unique()
+        plot_n = int(np.ceil(len(plot_vars) / 6))
+        metric = (
+            "ROAS"
+            if self.mmm_data.mmmdata_spec.dep_var_type == DependentVarType.REVENUE
+            else "CPA"
+        )
+        for pl in range(1, plot_n + 1):
+            start_idx = (pl - 1) * 6
+            loop_vars = plot_vars[start_idx : start_idx + 6]
+            dt_ridges_loop = dt_ridges[dt_ridges["rn"].isin(loop_vars)]
+            fig, axes = plt.subplots(
+                nrows=len(loop_vars), figsize=(12, 3 * len(loop_vars)), sharex=False
+            )
+            if len(loop_vars) == 1:
+                axes = [axes]
+            for idx, var in enumerate(loop_vars):
+                var_data = dt_ridges_loop[dt_ridges_loop["rn"] == var]
+                offset = 0
+                for iter_bin in sorted(var_data["iter_bin"].unique(), reverse=True):
+                    bin_data = var_data[var_data["iter_bin"] == iter_bin]["roi_total"]
+                    sns.kdeplot(
+                        bin_data,
+                        ax=axes[idx],
+                        fill=True,
+                        alpha=0.6,
+                        color=plt.cm.GnBu(offset / len(var_data["iter_bin"].unique())),
+                        label=f"Bin {iter_bin}",
+                        warn_singular=False,
+                    )
+                    offset += 1
+                axes[idx].set_title(f"{var} {metric}")
+                axes[idx].set_ylabel("")
+                axes[idx].legend().remove()
+                axes[idx].spines["right"].set_visible(False)
+                axes[idx].spines["top"].set_visible(False)
+            plt.suptitle(f"{metric} Distribution over Iteration Buckets", fontsize=16)
+            plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
+            all_plots[f"{metric}_convergence_{pl}"] = fig
+        return all_plots
 
     def plot_all(
         self, display_plots: bool = True, export_location: Union[str, Path] = None
@@ -687,6 +940,19 @@ class ParetoVisualizer(BaseVisualizer):
                 figures["adstock_rate_" + solution_id] = fig5
 
             break  # TODO: This will generate too many plots. Only generate plots for the first solution. we can export all plots to a folder if too many to display
+
+        if not self.model_outputs.hyper_fixed:
+            prophet_decomp_plot = self.create_prophet_decomposition_plot()
+            if prophet_decomp_plot:
+                figures["prophet_decomp"] = prophet_decomp_plot
+            hyperparameters_plot = self.create_hyperparameter_sampling_distribution()
+            if hyperparameters_plot:
+                figures["hyperparameters_sampling"] = hyperparameters_plot
+            pareto_front_plot = self.create_pareto_front_plot(is_calibrated=False)
+            if pareto_front_plot:
+                figures["pareto_front"] = pareto_front_plot
+            ridgeline_plots = self.create_ridgeline_model_convergence()
+            figures.update(ridgeline_plots)
 
         # Display plots if required
         if display_plots:
