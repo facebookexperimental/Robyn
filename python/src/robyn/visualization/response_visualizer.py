@@ -43,19 +43,9 @@ class ResponseVisualizer(BaseVisualizer):
         pass
 
     def generate_response_curves(
-        self, solution_id: str, ax: Optional[plt.Axes] = None, trim_rate: float = 1.3
-    ) -> Optional[plt.Figure]:
-        """
-        Generate response curves showing relationship between spend and response by channel.
-
-        Args:
-            solution_id: ID of solution to visualize
-            ax: Optional matplotlib axes to plot on. If None, creates new figure
-            trim_rate: Rate for trimming extreme values. Defaults to 1.3
-
-        Returns:
-            Optional[plt.Figure]: Generated figure if ax is None, otherwise None
-        """
+    self, solution_id: str, ax: Optional[plt.Axes] = None, trim_rate: float = 1.3
+) -> Optional[plt.Figure]:
+        """Generate response curves showing relationship between spend and response."""
         logger.debug("Generating response curves with trim_rate=%.2f", trim_rate)
 
         if solution_id not in self.pareto_result.plot_data_collect:
@@ -71,42 +61,54 @@ class ResponseVisualizer(BaseVisualizer):
             logger.debug("Initial curve data shape: %s", curve_data.shape)
             logger.debug("Initial mean data shape: %s", mean_data.shape)
 
+            # Scale down the values to thousands
+            curve_data["spend"] = curve_data["spend"] / 1000
+            curve_data["response"] = curve_data["response"] / 1000
+            mean_data["mean_spend_adstocked"] = mean_data["mean_spend_adstocked"] / 1000
+            mean_data["mean_response"] = mean_data["mean_response"] / 1000
+            if "mean_carryover" in mean_data.columns:
+                mean_data["mean_carryover"] = mean_data["mean_carryover"] / 1000
+
             # Add mean carryover information
             curve_data = curve_data.merge(
                 mean_data[["channel", "mean_carryover"]], on="channel", how="left"
             )
 
-            # Create figure if no axes provided
             if ax is None:
                 logger.debug("Creating new figure with axes")
-                fig, ax = plt.subplots(figsize=(12, 8))
+                fig, ax = plt.subplots(figsize=(16, 10))
             else:
                 logger.debug("Using provided axes")
                 fig = None
 
-            # Set up colors using Set2 colormap
+            # Define custom colors matching the R plot
+            color_map = {
+                'facebook_S': '#FF9D1C',  # Orange
+                'ooh_S': '#69B3E7',      # Light blue
+                'print_S': '#7B4EA3',    # Purple
+                'search_S': '#E41A1C',   # Red
+                'tv_S': '#4DAF4A'        # Green
+            }
+
             channels = curve_data["channel"].unique()
             logger.debug("Processing %d unique channels: %s", len(channels), channels)
-            colors = plt.cm.Set2(np.linspace(0, 1, len(channels)))
 
-            # Plot response curves for each channel
-            for idx, channel in enumerate(channels):
+            for channel in channels:
                 logger.debug("Plotting response curve for channel: %s", channel)
-                # Get channel data and sort by spend for smooth curve
                 channel_data = curve_data[curve_data["channel"] == channel].sort_values(
                     "spend"
                 )
 
-                # Plot response curve
+                color = color_map.get(channel, 'gray')  # Default to gray if channel not in map
+                
                 ax.plot(
                     channel_data["spend"],
                     channel_data["response"],
-                    color=colors[idx],
+                    color=color,
                     label=channel,
                     zorder=2,
                 )
 
-                # Add shaded area up to mean carryover
                 if "mean_carryover" in channel_data.columns:
                     logger.debug("Adding carryover shading for channel: %s", channel)
                     carryover_data = channel_data[
@@ -120,27 +122,21 @@ class ResponseVisualizer(BaseVisualizer):
                         zorder=1,
                     )
 
-            # Add mean points and labels
             logger.debug("Adding mean points and labels")
             for idx, row in mean_data.iterrows():
-                # Add point
+                channel = row['channel']
+                color = color_map.get(channel, 'gray')
+                
                 ax.scatter(
                     row["mean_spend_adstocked"],
                     row["mean_response"],
-                    color=colors[idx],
+                    color=color,
                     s=100,
                     zorder=3,
                 )
 
-                # Format and add label with abbreviated values
-                if abs(row["mean_spend_adstocked"]) >= 1e9:
-                    formatted_spend = f"{row['mean_spend_adstocked']/1e9:.1f}B"
-                elif abs(row["mean_spend_adstocked"]) >= 1e6:
-                    formatted_spend = f"{row['mean_spend_adstocked']/1e6:.1f}M"
-                elif abs(row["mean_spend_adstocked"]) >= 1e3:
-                    formatted_spend = f"{row['mean_spend_adstocked']/1e3:.1f}K"
-                else:
-                    formatted_spend = f"{row['mean_spend_adstocked']:.1f}"
+                # Format point labels
+                formatted_spend = f"{row['mean_spend_adstocked']:.1f}K"
 
                 ax.text(
                     row["mean_spend_adstocked"],
@@ -149,38 +145,39 @@ class ResponseVisualizer(BaseVisualizer):
                     ha="left",
                     va="bottom",
                     fontsize=9,
-                    color=colors[idx],
+                    color=color,
                 )
 
             logger.debug("Formatting axis labels")
 
-            # Format axes with K/M/B notation
-            def format_axis_labels(x, p):
-                if abs(x) >= 1e9:
-                    return f"{x/1e9:.0f}B"
-                elif abs(x) >= 1e6:
-                    return f"{x/1e6:.0f}M"
-                elif abs(x) >= 1e3:
-                    return f"{x/1e3:.0f}K"
-                return f"{x:.0f}"
+            # Custom locator for x and y axes
+            def custom_tick_formatter(x, p):
+                if x == 0:
+                    return "0"
+                return f"{int(x)}K"
 
-            ax.xaxis.set_major_formatter(plt.FuncFormatter(format_axis_labels))
-            ax.yaxis.set_major_formatter(plt.FuncFormatter(format_axis_labels))
+            # Set axis limits matching the R plot
+            ax.set_xlim(0, 120)
+            ax.set_ylim(0, 150)
 
-            # Customize plot
-            ax.grid(True, alpha=0.2)
+            # Set major ticks
+            ax.set_xticks([0, 30, 60, 90, 120])
+            ax.set_yticks([0, 25, 50, 75, 100, 125, 150])
+
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(custom_tick_formatter))
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(custom_tick_formatter))
+
+            # Grid styling to match R plot
+            ax.grid(True, alpha=0.2, linestyle='-', color='gray')
             ax.set_axisbelow(True)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
 
-            # Set labels
-            ax.set_title(
-                f"Response Curves and Mean Spends by Channel (Solution {solution_id})"
-            )
+            ax.set_title("Response Curves and Mean Spends by Channel")
             ax.set_xlabel("Spend (carryover + immediate)")
             ax.set_ylabel("Response")
 
-            # Add legend
+            # Adjust legend to match R plot
             ax.legend(
                 bbox_to_anchor=(1.02, 0.5),
                 loc="center left",
