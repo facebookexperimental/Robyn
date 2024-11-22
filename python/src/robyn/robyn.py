@@ -5,6 +5,8 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, List
 import numpy as np
+from robyn.modeling.entities.clustering_results import ClusteredResult
+from robyn.data.entities.enums import AdstockType, PlotType
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters
@@ -398,29 +400,31 @@ class Robyn:
             logger.error("Budget optimization failed: %s", str(e))
             raise
 
-    @staticmethod
-    def generate_one_pager(
-        pareto_result: ParetoResult,
-        cluster_result: Optional[ClusteringConfig] = None,
-        mmm_data: Optional[MMMData] = None,
-        plots: Optional[List[str]] = None,
-    ) -> None:
+    def plot_one_pager(self) -> None:
+        """Generate one pager plots for the model."""
+        try:
+            self._generate_one_pager()  # Call instance method
+        except Exception as e:
+            logging.error(f"Failed to generate one pager plots: {str(e)}")
+            raise
+
+    def _generate_one_pager(self, plots: Optional[List[PlotType]] = None) -> None:
         """
         Generate one-page summary report.
-
+        
         Args:
-            pareto_result: Pareto optimization results
-            cluster_result: Optional clustering results
-            mmm_data: Optional MMM data for additional context
             plots: Optional list of specific plots to include
         """
         try:
             onepager = OnePager(
-                pareto_result=pareto_result,
-                clustered_result=cluster_result,
-                mmm_data=mmm_data,
+                pareto_result=self.pareto_result,
+                clustered_result=self.cluster_result,
+                adstock=self.hyperparameters.adstock,
+                mmm_data=self.mmm_data,
+                holidays_data=self.holidays_data
             )
-            onepager.generate_one_pager(plots=plots)
+            figures = onepager.generate_one_pager(plots=plots, top_pareto=True)
+            return figures
 
         except Exception as e:
             logging.error("One-pager generation failed: %s", str(e))

@@ -219,27 +219,27 @@ class OnePager:
         """Add title and metrics text to the figure."""
         try:
             model_info = self._get_model_info(solution_id)
-            metrics_text = model_info.get('formatted_text', '')
-            
+            metrics_text = model_info.get("formatted_text", "")
+
             # Add title with larger font and bold
             fig.suptitle(
                 f"MMM Analysis One-Pager for Model: {solution_id}",
-                fontsize=24,          # Increased from 18
+                fontsize=24,  # Increased from 18
                 y=0.98,
-                weight='bold',        # Makes the text bold
-                fontfamily='sans-serif'  # Clear font family
+                weight="bold",  # Makes the text bold
+                fontfamily="sans-serif",  # Clear font family
             )
-            
+
             # Add metrics text if available
             if metrics_text:
                 fig.text(
-                    0.5,          # Center horizontally
-                    0.955,        # Position below title
+                    0.5,  # Center horizontally
+                    0.955,  # Position below title
                     metrics_text,
                     fontsize=16,  # Increased from 14
-                    ha='center',
-                    va='top',
-                    weight='bold'  # Also make metrics bold
+                    ha="center",
+                    va="top",
+                    weight="bold",  # Also make metrics bold
                 )
         except Exception as e:
             logger.error(f"Error adding title and metrics: {str(e)}")
@@ -248,8 +248,8 @@ class OnePager:
                 f"MMM Analysis One-Pager for Model: {solution_id}",
                 fontsize=24,
                 y=0.98,
-                weight='bold',
-                fontfamily='sans-serif'
+                weight="bold",
+                fontfamily="sans-serif",
             )
 
     def _generate_solution_plots(
@@ -387,7 +387,7 @@ class OnePager:
     def generate_one_pager(
         self,
         solution_ids: Union[str, List[str]] = "all",
-        plots: Optional[List[str]] = None,
+        plots: Optional[List[PlotType]] = None,  # Changed from List[str]
         figsize: tuple = (30, 34),
         save_path: Optional[str] = None,
         top_pareto: bool = False,
@@ -404,6 +404,13 @@ class OnePager:
         Returns:
             List[plt.Figure]: List of generated figures, one per solution
         """
+         # Convert string plot types to PlotType if necessary
+        if plots and isinstance(plots[0], str):
+            try:
+                plots = [PlotType[plot.upper()] for plot in plots]
+            except KeyError as e:
+                raise ValueError(f"Invalid plot type: {e}")
+
         # Use default plots if none provided
         plots = plots or self.default_plots
 
