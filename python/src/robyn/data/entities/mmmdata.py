@@ -249,3 +249,23 @@ class MMMData:
                 - self.mmmdata_spec.rolling_window_start_which
                 + 1
             )
+
+    def set_default_factor_vars(self) -> None:
+        """
+        Set the default factor variables.
+        """
+        factor_variables = self.mmmdata_spec.factor_vars
+        selected_columns = self.data[self.mmmdata_spec.context_vars]
+        non_numeric_columns = ~selected_columns.applymap(
+            lambda x: isinstance(x, (int, float))
+        ).all()
+        if non_numeric_columns.any():
+            non_factor_columns = non_numeric_columns[
+                ~non_numeric_columns.index.isin(factor_variables or [])
+            ]
+            non_factor_columns = non_factor_columns[non_factor_columns]
+            if len(non_factor_columns) > 0:
+                factor_variables = (
+                    factor_variables or []
+                ) + non_factor_columns.index.tolist()
+        self.mmmdata_spec.factor_vars = factor_variables

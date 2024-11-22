@@ -10,7 +10,7 @@ import logging
 
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.clustering_results import ClusteredResult
-from robyn.data.entities.hyperparameters import AdstockType
+from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.enums import PlotType
 
@@ -27,13 +27,13 @@ class OnePager:
         self,
         pareto_result: ParetoResult,
         clustered_result: Optional[ClusteredResult] = None,
-        adstock: Optional[AdstockType] = None,
+        hyperparameter: Optional[Hyperparameters] = None,
         mmm_data: Optional[MMMData] = None,
         holidays_data: Optional[HolidaysData] = None,
     ):
         self.pareto_result = pareto_result
         self.clustered_result = clustered_result
-        self.adstock = adstock
+        self.hyperparameter = hyperparameter
         self.mmm_data = mmm_data
         self.holidays_data = holidays_data
 
@@ -270,9 +270,12 @@ class OnePager:
             # Initialize visualizers
             pareto_viz = (
                 ParetoVisualizer(
-                    self.pareto_result, self.adstock, self.mmm_data, self.holidays_data
+                    self.pareto_result,
+                    self.mmm_data,
+                    self.holidays_data,
+                    self.hyperparameter,
                 )
-                if self.adstock and self.holidays_data
+                if self.hyperparameter and self.holidays_data
                 else None
             )
             cluster_viz = (

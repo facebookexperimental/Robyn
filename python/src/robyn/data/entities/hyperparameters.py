@@ -51,8 +51,8 @@ class Hyperparameters:
         hyperparameters (Dict[str, Hyperparameter]): A dictionary of hyperparameters where the key is the channel name and the value is a Hyperparameter object.
     """
 
-    hyperparameters: Dict[str, ChannelHyperparameters] = (None,)
-    adstock: AdstockType = (None,)  # Mandatory. User provides this.
+    hyperparameters: Dict[str, ChannelHyperparameters] = field(default_factory=dict)
+    adstock: AdstockType = AdstockType.GEOMETRIC  # Mandatory. User provides this.
     lambda_: float = 0.0  # User does not provide this. Model run calculates it.
     train_size: List[float] = field(default_factory=lambda: [0.5, 0.8])
     hyper_bound_list_updated: Dict[str, List[float]] = field(default_factory=dict)

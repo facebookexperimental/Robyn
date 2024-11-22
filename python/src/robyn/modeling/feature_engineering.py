@@ -392,6 +392,8 @@ class FeatureEngineering:
         dt_regressors["ds"] = pd.to_datetime(dt_regressors["ds"])
 
         # Handle factor variables
+        if self.mmm_data.mmmdata_spec.factor_vars is None:
+            self.mmm_data.set_default_factor_vars()
         factor_vars = self.mmm_data.mmmdata_spec.factor_vars
         if factor_vars:
             # Create dummy variables but keep original

@@ -253,7 +253,7 @@ class ParetoOptimizer:
             self.logger.info("Pareto optimization completed successfully")
             return ParetoResult(
                 pareto_solutions=plotting_data["pareto_solutions"],
-                pareto_fronts=pareto_fronts,
+                pareto_fronts=max(pareto_data.pareto_fronts),
                 result_hyp_param=aggregated_data["result_hyp_param"],
                 result_calibration=aggregated_data["result_calibration"],
                 x_decomp_agg=pareto_data.x_decomp_agg,
