@@ -50,3 +50,4 @@ python/src/tutorials/data/R/*
 python/src/tutorials/data/*
 *.pkl
 python/src/robyn/_deprecate/*
+python/src/robyn/tutorials/output/*
