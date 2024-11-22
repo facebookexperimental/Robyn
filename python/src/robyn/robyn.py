@@ -400,27 +400,10 @@ class Robyn:
             logger.error("Budget optimization failed: %s", str(e))
             raise
 
-    def plot_one_pager(self, solution_id: Optional[str] = None) -> None:
-        """Generate one pager plots for the model.
-        
-        Args:
-            solution_id: Optional specific solution ID to plot. 
-                       If None, generates plots for top pareto solutions
-        """
-        try:
-            self._generate_one_pager(solution_id=solution_id)
-        except Exception as e:
-            logging.error(f"Failed to generate one pager plots: {str(e)}")
-            raise
-
-    def _generate_one_pager(
-        self, 
-        plots: Optional[List[PlotType]] = None,
-        solution_id: Optional[str] = None
-    ) -> None:
+    def generate_one_pager(self, solution_id: Optional[str] = None) -> None:
         """
         Generate one-page summary report.
-        
+
         Args:
             plots: Optional list of specific plots to include
             solution_id: Optional specific solution ID to plot
@@ -431,16 +414,15 @@ class Robyn:
                 clustered_result=self.cluster_result,
                 adstock=self.hyperparameters.adstock,
                 mmm_data=self.mmm_data,
-                holidays_data=self.holidays_data
+                holidays_data=self.holidays_data,
             )
-            
+
             # Set top_pareto based on whether solution_id is provided
             top_pareto = solution_id is None
-            
+
             figures = onepager.generate_one_pager(
-                plots=plots,
                 solution_ids=solution_id if solution_id else "all",
-                top_pareto=top_pareto
+                top_pareto=top_pareto,
             )
             return figures
 
