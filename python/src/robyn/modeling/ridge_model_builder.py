@@ -47,7 +47,7 @@ class RidgeModelBuilder:
         dt_hyper_fixed: Optional[pd.DataFrame] = None,
         ts_validation: bool = False,
         add_penalty_factor: bool = False,
-        seed: List[int] = [123],  # Ensure seed is a list
+        seed: List[int] = [123],
         rssd_zero_penalty: bool = True,
         objective_weights: Optional[List[float]] = None,
         nevergrad_algo: NevergradAlgorithm = NevergradAlgorithm.TWO_POINTS_DE,
@@ -96,13 +96,59 @@ class RidgeModelBuilder:
         # Calculate convergence
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(trials)
-        # Aggregate results
+
+        # Aggregate results with explicit type casting
         all_result_hyp_param = pd.concat(
             [trial.result_hyp_param for trial in trials], ignore_index=True
         )
+        all_result_hyp_param = self.safe_astype(
+            all_result_hyp_param,
+            {
+                "sol_id": "str",
+                "trial": "int64",
+                "iterNG": "int64",
+                "iterPar": "int64",
+                "nrmse": "float64",
+                "decomp.rssd": "float64",
+                "mape": "int64",
+                "pos": "int64",
+                "lambda": "float64",
+                "lambda_hp": "float64",
+                "lambda_max": "float64",
+                "lambda_min_ratio": "float64",
+                "rsq_train": "float64",
+                "rsq_val": "float64",
+                "rsq_test": "float64",
+                "nrmse_train": "float64",
+                "nrmse_val": "float64",
+                "nrmse_test": "float64",
+                "ElapsedAccum": "float64",
+                "Elapsed": "float64",
+            },
+        )
+
         all_x_decomp_agg = pd.concat(
             [trial.x_decomp_agg for trial in trials], ignore_index=True
         )
+        all_x_decomp_agg = self.safe_astype(
+            all_x_decomp_agg,
+            {
+                "rn": "str",
+                "coef": "float64",
+                "xDecompAgg": "float64",
+                "xDecompPerc": "float64",
+                "xDecompMeanNon0": "float64",
+                "xDecompMeanNon0Perc": "float64",
+                "xDecompAggRF": "float64",
+                "xDecompPercRF": "float64",
+                "xDecompMeanNon0RF": "float64",
+                "xDecompMeanNon0PercRF": "float64",
+                "sol_id": "str",
+                "pos": "bool",
+                "mape": "int64",
+            },
+        )
+
         all_decomp_spend_dist = pd.concat(
             [
                 trial.decomp_spend_dist
@@ -111,7 +157,39 @@ class RidgeModelBuilder:
             ],
             ignore_index=True,
         )
-        # Create ModelOutputs with flattened hyperparameter structure
+        all_decomp_spend_dist = self.safe_astype(
+            all_decomp_spend_dist,
+            {
+                "rn": "str",
+                "coef": "float64",
+                "total_spend": "float64",
+                "mean_spend": "float64",
+                "effect_share": "float64",
+                "spend_share": "float64",
+                "xDecompAgg": "float64",
+                "xDecompPerc": "float64",
+                "xDecompMeanNon0": "float64",
+                "xDecompMeanNon0Perc": "float64",
+                "sol_id": "str",
+                "pos": "bool",
+                "mape": "int64",
+                "nrmse": "float64",
+                "decomp.rssd": "float64",
+                "trial": "int64",
+                "iterNG": "int64",
+                "iterPar": "int64",
+            },
+        )
+        # Convert hyper_bound_ng from dict to DataFrame
+        hyper_bound_ng_df = pd.DataFrame()
+        for param_name, bounds in hyper_collect["hyper_bound_list_updated"].items():
+            hyper_bound_ng_df.loc[0, param_name] = bounds[0]
+            hyper_bound_ng_df[param_name] = hyper_bound_ng_df[param_name].astype(
+                "float64"
+            )
+        if "lambda" in hyper_bound_ng_df.columns:
+            hyper_bound_ng_df["lambda"] = hyper_bound_ng_df["lambda"].astype("int64")
+        # Create ModelOutputs
         model_outputs = ModelOutputs(
             trials=trials,
             train_timestamp=current_time,
@@ -122,18 +200,19 @@ class RidgeModelBuilder:
             nevergrad_algo=nevergrad_algo,
             ts_validation=ts_validation,
             add_penalty_factor=add_penalty_factor,
-            hyper_updated=hyper_collect["hyper_list_all"],  # Using flattened structure
+            hyper_updated=hyper_collect["hyper_list_all"],
             hyper_fixed=hyper_collect["all_fixed"],
             convergence=convergence_results,
             select_id=self._select_best_model(trials),
-            seed=seed,  # Store seed as a list
-            hyper_bound_ng=hyper_collect["hyper_bound_list_updated"],
+            seed=seed,
+            hyper_bound_ng=hyper_bound_ng_df,
             hyper_bound_fixed=hyper_collect["hyper_bound_list_fixed"],
             ts_validation_plot=None,
             all_result_hyp_param=all_result_hyp_param,
             all_x_decomp_agg=all_x_decomp_agg,
             all_decomp_spend_dist=all_decomp_spend_dist,
         )
+
         return model_outputs
 
     def _select_best_model(self, output_models: List[Trial]) -> str:
@@ -260,26 +339,29 @@ class RidgeModelBuilder:
 
                 optimizer.tell(candidate, result["loss"])
 
-                # Update result params with all metrics, using the new 'lambda' name
+                # Important: Convert metrics to correct types
+                sol_id = f"{trial}_{iter_ng + 1}_1"
                 result["params"].update(
                     {
-                        "sol_id": f"{trial}_{iter_ng + 1}_1",  # Changed from solID to sol_id
+                        "sol_id": sol_id,
                         "ElapsedAccum": result["elapsed_accum"],
-                        "trial": trial,
-                        "rsq_train": result["rsq_train"],
-                        "rsq_val": result["rsq_val"],
-                        "rsq_test": result["rsq_test"],
-                        "nrmse": result["nrmse"],
-                        "nrmse_train": result["nrmse_train"],
-                        "nrmse_val": result["nrmse_val"],
-                        "nrmse_test": result["nrmse_test"],
-                        "decomp.rssd": result["decomp_rssd"],
-                        "mape": result["mape"],
-                        "lambda": result["lambda"],  # Changed from lambda_ to lambda
-                        "lambda_hp": result["lambda_hp"],
-                        "lambda_max": result["lambda_max"],
-                        "lambda_min_ratio": result["lambda_min_ratio"],
-                        "iterNG": iter_ng + 1,
+                        "trial": int(trial),
+                        "rsq_train": float(result["rsq_train"]),
+                        "rsq_val": float(result["rsq_val"]),
+                        "rsq_test": float(result["rsq_test"]),
+                        "nrmse": float(result["nrmse"]),
+                        "nrmse_train": float(result["nrmse_train"]),
+                        "nrmse_val": float(result["nrmse_val"]),
+                        "nrmse_test": float(result["nrmse_test"]),
+                        "decomp.rssd": float(result["decomp_rssd"]),
+                        "mape": float(result["mape"]),
+                        "lambda": float(
+                            result["lambda"]
+                        ),  # Critical: Using lambda not lambda_
+                        "lambda_hp": float(result["lambda_hp"]),
+                        "lambda_max": float(result["lambda_max"]),
+                        "lambda_min_ratio": float(result["lambda_min_ratio"]),
+                        "iterNG": int(iter_ng + 1),
                         "iterPar": 1,
                     }
                 )
@@ -290,8 +372,26 @@ class RidgeModelBuilder:
         end_time = time.time()
         self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
-        # Aggregate results
-        result_hyp_param = pd.DataFrame([r["params"] for r in all_results])
+        # Aggregate results with explicit dtypes
+        result_hyp_param = pd.DataFrame([r["params"] for r in all_results]).astype(
+            {
+                "sol_id": "str",
+                "trial": "int64",
+                "iterNG": "int64",
+                "iterPar": "int64",
+                "nrmse": "float64",
+                "decomp.rssd": "float64",
+                "mape": "float64",
+                "lambda": "float64",
+                "lambda_hp": "float64",
+                "lambda_max": "float64",
+                "lambda_min_ratio": "float64",
+                "rsq_train": "float64",
+                "rsq_val": "float64",
+                "rsq_test": "float64",
+            }
+        )
+
         decomp_spend_dist = pd.concat(
             [r["decomp_spend_dist"] for r in all_results], ignore_index=True
         )
@@ -299,33 +399,65 @@ class RidgeModelBuilder:
             [r["x_decomp_agg"] for r in all_results], ignore_index=True
         )
 
+        # Ensure correct dtypes in decomp_spend_dist and x_decomp_agg
+        decomp_spend_dist = decomp_spend_dist.astype(
+            {
+                "rn": "str",
+                "coef": "float64",
+                "total_spend": "float64",
+                "mean_spend": "float64",
+                "effect_share": "float64",
+                "spend_share": "float64",
+                "sol_id": "str",
+            }
+        )
+
+        x_decomp_agg = x_decomp_agg.astype(
+            {
+                "rn": "str",
+                "coef": "float64",
+                "xDecompAgg": "float64",
+                "xDecompPerc": "float64",
+                "sol_id": "str",
+            }
+        )
+
         # Find best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
 
+        # Convert values to Series before passing to Trial
         return Trial(
             result_hyp_param=result_hyp_param,
             lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),
             decomp_spend_dist=decomp_spend_dist,
             x_decomp_agg=x_decomp_agg,
-            nrmse=best_result["nrmse"],
-            decomp_rssd=best_result["decomp_rssd"],
-            mape=best_result["mape"],
-            rsq_train=best_result["rsq_train"],
-            rsq_val=best_result["rsq_val"],
-            rsq_test=best_result["rsq_test"],
-            lambda_=best_result["lambda"],  # Changed from lambda_ to lambda
-            lambda_hp=best_result["lambda_hp"],
-            lambda_max=best_result["lambda_max"],
-            lambda_min_ratio=best_result["lambda_min_ratio"],
-            pos=best_result.get("pos", 0),
-            elapsed=best_result["elapsed"],
-            elapsed_accum=best_result["elapsed_accum"],
-            trial=trial,
-            iter_ng=best_result["iter_ng"],
-            iter_par=best_result["iter_par"],
-            train_size=best_result["params"].get("train_size", 1.0),
-            sol_id=best_result["params"]["sol_id"],  # Changed from solID to sol_id
+            nrmse=pd.Series([float(best_result["nrmse"])]),
+            decomp_rssd=pd.Series([float(best_result["decomp_rssd"])]),
+            mape=pd.Series([int(best_result["mape"])]),  # Cast to int
+            rsq_train=pd.Series([float(best_result["rsq_train"])]),
+            rsq_val=pd.Series([float(best_result["rsq_val"])]),
+            rsq_test=pd.Series([float(best_result["rsq_test"])]),
+            lambda_=pd.Series([float(best_result["lambda"])]),
+            lambda_hp=pd.Series([float(best_result["lambda_hp"])]),
+            lambda_max=pd.Series([float(best_result["lambda_max"])]),
+            lambda_min_ratio=pd.Series([float(best_result["lambda_min_ratio"])]),
+            pos=pd.Series([int(best_result.get("pos", 0))]),  # Cast to int
+            elapsed=pd.Series([float(best_result["elapsed"])]),
+            elapsed_accum=pd.Series([float(best_result["elapsed_accum"])]),
+            trial=pd.Series([int(trial)]),
+            iter_ng=pd.Series([int(best_result["iter_ng"])]),
+            iter_par=pd.Series([int(best_result["iter_par"])]),
+            train_size=pd.Series([float(best_result["params"].get("train_size", 1.0))]),
+            sol_id=str(best_result["params"]["sol_id"]),
         )
+
+    @staticmethod
+    def safe_astype(df: pd.DataFrame, type_dict: Dict[str, str]) -> pd.DataFrame:
+        """Only cast columns that exist in the DataFrame"""
+        existing_cols = {
+            col: dtype for col, dtype in type_dict.items() if col in df.columns
+        }
+        return df.astype(existing_cols) if existing_cols else df
 
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
@@ -337,92 +469,146 @@ class RidgeModelBuilder:
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
 
+        total_media_spend = X[paid_media_cols].sum().sum()
+
         results = []
         for col in paid_media_cols:
             idx = list(X.columns).index(col)
-            coef = model.coef_[idx]
-            effect = coef * X[col].sum()
-            spend = X[col].sum()
+            coef = float(model.coef_[idx])
+            spend = float(X[col].sum())
+            effect = coef * spend
             non_zero_effect = X[col][X[col] > 0] * coef
 
+            # Calculate effect share across all media
+            total_effect = sum(
+                [
+                    model.coef_[list(X.columns).index(c)] * X[c].sum()
+                    for c in paid_media_cols
+                ]
+            )
+
             result = {
-                "rn": col,
-                "coef": coef,
-                "xDecompAgg": effect,
-                "total_spend": spend,
-                "mean_spend": X[col].mean(),
-                "spend_share": spend / X[paid_media_cols].sum().sum(),
-                "effect_share": effect
-                / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "xDecompPerc": effect
-                / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "xDecompMeanNon0": (
+                "rn": str(col),
+                "coef": float(coef),
+                "xDecompAgg": float(effect),
+                "total_spend": float(spend),
+                "mean_spend": float(X[col].mean()),
+                "spend_share": float(spend / total_media_spend),
+                "effect_share": float(
+                    effect / total_effect if total_effect != 0 else 0
+                ),
+                "xDecompPerc": float(effect / total_effect if total_effect != 0 else 0),
+                "xDecompMeanNon0": float(
                     non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
                 ),
-                "xDecompMeanNon0Perc": (
-                    non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
-                )
-                / sum(
-                    [
-                        coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0
-                        for c in paid_media_cols
-                    ]
+                "xDecompMeanNon0Perc": float(
+                    (non_zero_effect.mean() if len(non_zero_effect) > 0 else 0)
+                    / sum(
+                        [
+                            (
+                                model.coef_[list(X.columns).index(c)]
+                                * X[c][X[c] > 0].mean()
+                                if len(X[c][X[c] > 0]) > 0
+                                else 0
+                            )
+                            for c in paid_media_cols
+                        ]
+                    )
                 ),
-                "xDecompAggRF": effect,
-                "xDecompPercRF": effect
-                / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "xDecompMeanNon0RF": (
+                "xDecompAggRF": float(effect),
+                "xDecompPercRF": float(
+                    effect / total_effect if total_effect != 0 else 0
+                ),
+                "xDecompMeanNon0RF": float(
                     non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
                 ),
-                "xDecompMeanNon0PercRF": (
-                    non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
-                )
-                / sum(
-                    [
-                        coef * X[c][X[c] > 0].mean() if len(X[c][X[c] > 0]) > 0 else 0
-                        for c in paid_media_cols
-                    ]
+                "pos": bool(coef >= 0),
+                "spend_share_refresh": float(spend / total_media_spend),
+                "effect_share_refresh": float(
+                    effect / total_effect if total_effect != 0 else 0
                 ),
-                "pos": coef >= 0,
-                "spend_share_refresh": spend / X[paid_media_cols].sum().sum(),
-                "effect_share_refresh": effect
-                / sum([coef * X[c].sum() for c in paid_media_cols]),
-                "roi_total": effect / spend if spend > 0 else 0,
-                "cpa_total": spend / effect if effect > 0 else 0,
+                "roi_total": float(effect / spend if spend > 0 else 0),
+                "cpa_total": float(spend / effect if effect > 0 else 0),
             }
 
-            # Add model performance metrics
+            # Add model metrics with correct types
             result.update(
                 {
-                    "rsq_train": metrics.get("rsq_train", 0),
-                    "rsq_val": metrics.get("rsq_val", 0),
-                    "rsq_test": metrics.get("rsq_test", 0),
-                    "nrmse_train": metrics.get("nrmse_train", 0),
-                    "nrmse_val": metrics.get("nrmse_val", 0),
-                    "nrmse_test": metrics.get("nrmse_test", 0),
-                    "nrmse": metrics.get("nrmse", 0),
-                    "decomp.rssd": metrics.get("decomp_rssd", 0),
-                    "mape": metrics.get("mape", 0),
-                    "lambda": metrics.get("lambda_", 0),
-                    "lambda_hp": metrics.get("lambda_hp", 0),
-                    "lambda_max": metrics.get("lambda_max", 0),
-                    "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
-                    "sol_id": metrics.get("solID", ""),
-                    "trial": metrics.get("trial", 0),
-                    "iterNG": metrics.get("iterNG", 0),
-                    "iterPar": metrics.get("iterPar", 0),
-                    "Elapsed": metrics.get("elapsed", 0),
+                    "rsq_train": float(metrics.get("rsq_train", 0)),
+                    "rsq_val": float(metrics.get("rsq_val", 0)),
+                    "rsq_test": float(metrics.get("rsq_test", 0)),
+                    "nrmse_train": float(metrics.get("nrmse_train", 0)),
+                    "nrmse_val": float(metrics.get("nrmse_val", 0)),
+                    "nrmse_test": float(metrics.get("nrmse_test", 0)),
+                    "nrmse": float(metrics.get("nrmse", 0)),
+                    "decomp.rssd": float(metrics.get("decomp_rssd", 0)),
+                    "mape": float(metrics.get("mape", 0)),
+                    "lambda": float(
+                        metrics.get("lambda", 0)
+                    ),  # Using lambda not lambda_
+                    "lambda_hp": float(metrics.get("lambda_hp", 0)),
+                    "lambda_max": float(metrics.get("lambda_max", 0)),
+                    "lambda_min_ratio": float(metrics.get("lambda_min_ratio", 0)),
+                    "sol_id": str(metrics.get("sol_id", "")),
+                    "trial": int(metrics.get("trial", 0)),
+                    "iterNG": int(metrics.get("iterNG", 0)),
+                    "iterPar": int(metrics.get("iterPar", 0)),
+                    "Elapsed": float(metrics.get("elapsed", 0)),
                 }
             )
 
             results.append(result)
 
-        return pd.DataFrame(results)
+        df = pd.DataFrame(results)
+
+        # Ensure correct column order and types
+        required_cols = [
+            "rn",
+            "coef",
+            "xDecompAgg",
+            "total_spend",
+            "mean_spend",
+            "spend_share",
+            "effect_share",
+            "xDecompPerc",
+            "xDecompMeanNon0",
+            "xDecompMeanNon0Perc",
+            "xDecompAggRF",
+            "xDecompPercRF",
+            "xDecompMeanNon0RF",
+            "pos",
+            "spend_share_refresh",
+            "effect_share_refresh",
+            "roi_total",
+            "cpa_total",
+            "rsq_train",
+            "rsq_val",
+            "rsq_test",
+            "nrmse_train",
+            "nrmse_val",
+            "nrmse_test",
+            "nrmse",
+            "decomp.rssd",
+            "mape",
+            "lambda",
+            "lambda_hp",
+            "lambda_max",
+            "lambda_min_ratio",
+            "sol_id",
+            "trial",
+            "iterNG",
+            "iterPar",
+            "Elapsed",
+        ]
+
+        df = df[required_cols]
+        return df
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
-        """Prepare data with R-style scaling"""
         # Get the dependent variable
+        # Check if 'dep_var' is in columns
         if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
+            # Rename 'dep_var' to the specified value
             self.featurized_mmm_data.dt_mod = self.featurized_mmm_data.dt_mod.rename(
                 columns={"dep_var": self.mmm_data.mmmdata_spec.dep_var}
             )
@@ -433,17 +619,14 @@ class RidgeModelBuilder:
             columns=[self.mmm_data.mmmdata_spec.dep_var]
         )
 
-        # Add debug self.logger.debugs
-        self.logger.debug("Before scaling:")
-        self.logger.debug("X head 5:", X.head())
-        self.logger.debug("y head 5:", y.head())
-
-        # Convert date columns to numeric
+        # Convert date columns to numeric (number of days since the earliest date)
         date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
         for col in date_columns:
             X[col] = pd.to_datetime(X[col], errors="coerce", format="%Y-%m-%d")
+            # Fill NaT (Not a Time) values with a default date (e.g., the minimum date in the column)
             min_date = X[col].min()
             X[col] = X[col].fillna(min_date)
+            # Convert to days since minimum date, handling potential NaT values
             X[col] = (
                 (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
             )
@@ -467,29 +650,26 @@ class RidgeModelBuilder:
         # Handle any remaining NaN or infinite values
         X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
-
-        # Add small random noise to prevent perfect collinearity
         X = X + 1e-8 * np.random.randn(*X.shape)
 
         return X, y
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
-        # Add debug self.logger.debugs
-        self.logger.debug(f"Before adstock: {x.head()}")
+        # print(f"Before adstock: {x.head()}")
         y = x.copy()
         for i in range(1, len(x)):
             y.iloc[i] += theta * y.iloc[i - 1]
-        self.logger.debug(f"After adstock: {y.head()}")
+        # print(f"After adstock: {y.head()}")
         return y
 
     def _hill_transformation(
         self, x: pd.Series, alpha: float, gamma: float
     ) -> pd.Series:
         # Add debug self.logger.debugs
-        self.logger.debug(f"Before hill: {x.head()}")
+        # print(f"Before hill: {x.head()}")
         x_scaled = (x - x.min()) / (x.max() - x.min())
         result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
-        self.logger.debug(f"After hill: {result.head()}")
+        # print(f"After hill: {result.head()}")
         return result
 
     def _calculate_rssd(
@@ -577,104 +757,119 @@ class RidgeModelBuilder:
         """Calculate x decomposition aggregates matching R's implementation exactly"""
         # Calculate decomposition effects
         x_decomp = X * model.coef_
+        x_decomp_sum = x_decomp.sum().sum()
 
         results = []
         for col in X.columns:
             coef = model.coef_[list(X.columns).index(col)]
             decomp_values = x_decomp[col]
+            decomp_sum = decomp_values.sum()
 
-            # Calculate all required metrics
+            # Handle non-zero values
+            non_zero_values = decomp_values[decomp_values > 0]
+            non_zero_mean = non_zero_values.mean() if len(non_zero_values) > 0 else 0
+
+            # Calculate total non-zero means across all columns
+            total_non_zero_mean = sum(
+                [
+                    x_decomp[c][x_decomp[c] > 0].mean() if any(x_decomp[c] > 0) else 0
+                    for c in X.columns
+                ]
+            )
+
             result = {
-                "rn": col,
-                "coef": coef,
-                "xDecompAgg": decomp_values.sum(),
-                "xDecompPerc": (
-                    decomp_values.sum() / x_decomp.sum().sum()
-                    if x_decomp.sum().sum() != 0
+                "rn": str(col),  # Ensure string type
+                "coef": float(coef),  # Ensure float type
+                "xDecompAgg": float(decomp_sum),  # Ensure float type
+                "xDecompPerc": float(
+                    decomp_sum / x_decomp_sum if x_decomp_sum != 0 else 0
+                ),
+                "xDecompMeanNon0": float(non_zero_mean),
+                "xDecompMeanNon0Perc": float(
+                    non_zero_mean / total_non_zero_mean
+                    if total_non_zero_mean != 0
                     else 0
                 ),
-                "xDecompMeanNon0": (
-                    decomp_values[decomp_values > 0].mean()
-                    if any(decomp_values > 0)
+                "xDecompAggRF": float(decomp_sum),  # RF version
+                "xDecompPercRF": float(
+                    decomp_sum / x_decomp_sum if x_decomp_sum != 0 else 0
+                ),
+                "xDecompMeanNon0RF": float(non_zero_mean),
+                "xDecompMeanNon0PercRF": float(
+                    non_zero_mean / total_non_zero_mean
+                    if total_non_zero_mean != 0
                     else 0
                 ),
-                "xDecompMeanNon0Perc": (
-                    decomp_values[decomp_values > 0].mean()
-                    / sum(
-                        [
-                            (
-                                x_decomp[c][x_decomp[c] > 0].mean()
-                                if any(x_decomp[c] > 0)
-                                else 0
-                            )
-                            for c in X.columns
-                        ]
-                    )
-                    if any(decomp_values > 0)
-                    else 0
-                ),
-                # RF (refresh) versions
-                "xDecompAggRF": decomp_values.sum(),
-                "xDecompPercRF": (
-                    decomp_values.sum() / x_decomp.sum().sum()
-                    if x_decomp.sum().sum() != 0
-                    else 0
-                ),
-                "xDecompMeanNon0RF": (
-                    decomp_values[decomp_values > 0].mean()
-                    if any(decomp_values > 0)
-                    else 0
-                ),
-                "xDecompMeanNon0PercRF": (
-                    decomp_values[decomp_values > 0].mean()
-                    / sum(
-                        [
-                            (
-                                x_decomp[c][x_decomp[c] > 0].mean()
-                                if any(x_decomp[c] > 0)
-                                else 0
-                            )
-                            for c in X.columns
-                        ]
-                    )
-                    if any(decomp_values > 0)
-                    else 0
-                ),
-                "pos": coef >= 0,
+                "pos": bool(coef >= 0),
             }
 
-            # Add model performance metrics
+            # Add model performance metrics with correct types
             result.update(
                 {
-                    "train_size": metrics.get("train_size", 1.0),
-                    "rsq_train": metrics.get("rsq_train", 0),
-                    "rsq_val": metrics.get("rsq_val", 0),
-                    "rsq_test": metrics.get("rsq_test", 0),
-                    "nrmse_train": metrics.get("nrmse_train", 0),
-                    "nrmse_val": metrics.get("nrmse_val", 0),
-                    "nrmse_test": metrics.get("nrmse_test", 0),
-                    "nrmse": metrics.get("nrmse", 0),
-                    "decomp.rssd": metrics.get("decomp_rssd", 0),
-                    "mape": metrics.get("mape", 0),
-                    "lambda": metrics.get(
-                        "lambda", 0
-                    ),  # Using lambda instead of lambda_
-                    "lambda_hp": metrics.get("lambda_hp", 0),
-                    "lambda_max": metrics.get("lambda_max", 0),
-                    "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
-                    "sol_id": metrics.get(
-                        "sol_id", ""
-                    ),  # Using sol_id instead of solID
-                    "trial": metrics.get("trial", 0),
-                    "iterNG": metrics.get("iterNG", 0),
-                    "iterPar": metrics.get("iterPar", 0),
-                    "Elapsed": metrics.get("Elapsed", 0),
+                    "train_size": float(metrics.get("train_size", 1.0)),
+                    "rsq_train": float(metrics.get("rsq_train", 0)),
+                    "rsq_val": float(metrics.get("rsq_val", 0)),
+                    "rsq_test": float(metrics.get("rsq_test", 0)),
+                    "nrmse_train": float(metrics.get("nrmse_train", 0)),
+                    "nrmse_val": float(metrics.get("nrmse_val", 0)),
+                    "nrmse_test": float(metrics.get("nrmse_test", 0)),
+                    "nrmse": float(metrics.get("nrmse", 0)),
+                    "decomp.rssd": float(metrics.get("decomp_rssd", 0)),
+                    "mape": float(metrics.get("mape", 0)),
+                    "lambda": float(
+                        metrics.get("lambda", 0)
+                    ),  # Critical: Using lambda not lambda_
+                    "lambda_hp": float(metrics.get("lambda_hp", 0)),
+                    "lambda_max": float(metrics.get("lambda_max", 0)),
+                    "lambda_min_ratio": float(metrics.get("lambda_min_ratio", 0)),
+                    "sol_id": str(metrics.get("sol_id", "")),
+                    "trial": int(metrics.get("trial", 0)),
+                    "iterNG": int(metrics.get("iterNG", 0)),
+                    "iterPar": int(metrics.get("iterPar", 0)),
+                    "Elapsed": float(metrics.get("Elapsed", 0)),
                 }
             )
 
             results.append(result)
 
-        return pd.DataFrame(results)
+        df = pd.DataFrame(results)
+
+        # Ensure correct column order and types
+        required_cols = [
+            "rn",
+            "coef",
+            "xDecompAgg",
+            "xDecompPerc",
+            "xDecompMeanNon0",
+            "xDecompMeanNon0Perc",
+            "xDecompAggRF",
+            "xDecompPercRF",
+            "xDecompMeanNon0RF",
+            "xDecompMeanNon0PercRF",
+            "pos",
+            "train_size",
+            "rsq_train",
+            "rsq_val",
+            "rsq_test",
+            "nrmse_train",
+            "nrmse_val",
+            "nrmse_test",
+            "nrmse",
+            "decomp.rssd",
+            "mape",
+            "lambda",
+            "lambda_hp",
+            "lambda_max",
+            "lambda_min_ratio",
+            "sol_id",
+            "trial",
+            "iterNG",
+            "iterPar",
+            "Elapsed",
+        ]
+
+        df = df[required_cols]
+        return df
 
     def _format_hyperparameter_names(
         self, params: Dict[str, float]
@@ -707,22 +902,18 @@ class RidgeModelBuilder:
     ) -> Dict[str, Any]:
         """Evaluate model with parameter set matching R's implementation exactly"""
         X, y = self._prepare_data(params)
-        sol_id = f"{trial}_{iter_ng + 1}_1"
+        sol_id = f"{trial}_{iter_ng + 1}_1"  # Using sol_id to match R
 
-        # R-style standardization function
-        def r_style_standardize(x):
-            if isinstance(x, pd.Series):
-                mean = x.mean()
-                sd = np.sqrt(np.sum((x - mean) ** 2) / len(x))
-                return (x - mean) / (sd if sd > 0 else 1)
-            else:  # For numpy arrays
-                mean = np.mean(x)
-                sd = np.sqrt(np.sum((x - mean) ** 2) / len(x))
-                return (x - mean) / (sd if sd > 0 else 1)
+        # R-style data scaling
+        def scale_data(X: pd.DataFrame) -> pd.DataFrame:
+            X_scaled = X.copy()
+            for col in X.columns:
+                sd = np.sqrt(np.sum((X[col] - X[col].mean()) ** 2) / len(X[col]))
+                if sd > 0:
+                    X_scaled[col] = (X[col] - X[col].mean()) / sd
+            return X_scaled
 
-        # Scale features R-style
-        X_scaled = X.apply(r_style_standardize)
-        y_scaled = r_style_standardize(y)
+        X_scaled = scale_data(X)
 
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
@@ -732,39 +923,29 @@ class RidgeModelBuilder:
         if ts_validation:
             val_test_size = (len(X) - train_idx) // 2
             X_train = X_scaled.iloc[:train_idx]
-            y_train = y_scaled.iloc[:train_idx]
+            y_train = y.iloc[:train_idx]
             X_val = X_scaled.iloc[train_idx : train_idx + val_test_size]
-            y_val = y_scaled.iloc[train_idx : train_idx + val_test_size]
+            y_val = y.iloc[train_idx : train_idx + val_test_size]
             X_test = X_scaled.iloc[train_idx + val_test_size :]
-            y_test = y_scaled.iloc[train_idx + val_test_size :]
+            y_test = y.iloc[train_idx + val_test_size :]
         else:
-            X_train, y_train = X_scaled, y_scaled
+            X_train, y_train = X_scaled, y
             X_val = X_test = y_val = y_test = None
 
-        # Calculate lambda parameters matching R's glmnet
-        lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / len(
-            y_train
+        # Calculate lambda parameters like glmnet
+        alpha = 0.001  # R's ridge regression default
+        lambda_max = np.max(np.abs(X_train.to_numpy().T @ y_train.to_numpy())) / (
+            alpha * len(y_train)
         )
         lambda_min_ratio = 0.0001
-        lambda_hp = params.get("lambda", 1.0)
+        lambda_hp = params.get("lambda", 1.0)  # Using lambda instead of lambda_
         lambda_ = lambda_max * lambda_min_ratio + lambda_hp * (
             lambda_max - lambda_max * lambda_min_ratio
         )
 
-        # Add debug self.logger.debugs
-        self.logger.debug(f"lambda_max calculation: {lambda_max}")
-        self.logger.debug(f"lambda_min_ratio: {lambda_min_ratio}")
-        self.logger.debug(f"lambda_hp: {params['lambda']}")
-        self.logger.debug(f"final lambda_: {lambda_}")
-
         # Fit model
         model = Ridge(alpha=lambda_, fit_intercept=True)
         model.fit(X_train, y_train)
-
-        # Scale coefficients back to original scale
-        y_std = np.sqrt(np.sum((y - y.mean()) ** 2) / len(y))
-        X_std = np.sqrt(np.sum((X - X.mean()) ** 2) / len(X))
-        model.coef_ = model.coef_ * (y_std / X_std)
 
         # Training metrics
         y_train_pred = model.predict(X_train)
@@ -818,70 +999,72 @@ class RidgeModelBuilder:
         for col in paid_media_cols:
             idx = list(X_train.columns).index(col)
             coef = model.coef_[idx]
-            effect = coef * X[col].sum()  # Use unscaled X for effect calculation
+            effect = coef * X_train[col].sum()
             spend = X[col].sum()
             media_effects[col] = effect
             media_spends[col] = spend
 
-        # Calculate RSSD
+        # Normalize effects and spends like R
         total_effect = sum(abs(e) for e in media_effects.values())
         total_spend = sum(media_spends.values())
-
         effects_norm = {k: v / total_effect for k, v in media_effects.items()}
         spends_norm = {k: v / total_spend for k, v in media_spends.items()}
 
+        # Calculate RSSD
         effect_spend_diff = [
             effects_norm[col] - spends_norm[col] for col in paid_media_cols
         ]
         decomp_rssd = np.sqrt(np.mean(np.array(effect_spend_diff) ** 2))
 
+        # Apply zero penalty like R
         if rssd_zero_penalty:
             zero_effects = sum(1 for e in media_effects.values() if abs(e) < 1e-10)
             decomp_rssd *= 1 + zero_effects / len(media_effects)
 
         elapsed_time = time.time() - start_time
 
-        # Format hyperparameter names and update metrics
+        # Format hyperparameter names to match R's format
         params_formatted = self._format_hyperparameter_names(params)
+
+        # Update metrics dictionary with R-matching names
         metrics.update(
             {
-                "decomp_rssd": decomp_rssd,
-                "lambda": lambda_,
-                "lambda_hp": lambda_hp,
-                "lambda_max": lambda_max,
-                "lambda_min_ratio": lambda_min_ratio,
-                "mape": 0.0,
-                "sol_id": sol_id,
-                "trial": trial,
-                "iterNG": iter_ng + 1,
-                "iterPar": 1,
-                "Elapsed": elapsed_time,
-                "elapsed": elapsed_time,
-                "elapsed_accum": elapsed_time,
-                "pos": pos,
+                "decomp_rssd": float(decomp_rssd),
+                "lambda": float(lambda_),  # Using lambda not lambda_
+                "lambda_hp": float(lambda_hp),
+                "lambda_max": float(lambda_max),
+                "lambda_min_ratio": float(lambda_min_ratio),
+                "mape": int(0),  # Cast to int instead of float
+                "sol_id": str(sol_id),
+                "trial": int(trial),
+                "iterNG": int(iter_ng + 1),
+                "iterPar": int(1),
+                "Elapsed": float(elapsed_time),
+                "elapsed": float(elapsed_time),
+                "elapsed_accum": float(elapsed_time),
+                "pos": int(pos),  # Cast bool to int for result_hyp_param
             }
         )
 
+        # Update parameters with time info and metrics
         params_formatted.update(
             {
                 "sol_id": sol_id,
                 "Elapsed": elapsed_time,
                 "ElapsedAccum": elapsed_time,
-                "pos": pos,
+                "pos": int(pos),  # Cast bool to int
             }
         )
 
-        # Calculate decompositions
+        # Calculate x_decomp_agg with updated metrics
         x_decomp_agg = self._calculate_x_decomp_agg(
-            model, X, y, {**params_formatted, **metrics}
-        )
-        decomp_spend_dist = self._calculate_decomp_spend_dist(
-            model, X, y, {**metrics, "params": params_formatted}
+            model, X_train, y_train, {**params_formatted, **metrics}
         )
 
-        # self.logger.debug coefficients for debugging
-        self.logger.debug("Model coefficients:")
-        self.logger.debug(model.coef_)
+        # Calculate decomp_spend_dist with updated metrics
+        decomp_spend_dist = self._calculate_decomp_spend_dist(
+            model, X_train, y_train, {**metrics, "params": params_formatted}
+        )
 
         # Calculate loss
         loss = (
@@ -893,7 +1076,8 @@ class RidgeModelBuilder:
                 else 0
             )
         )
-
+        # print("Model coefficients:")
+        # print(model.coef_)
         return {
             "loss": loss,
             "params": params_formatted,
