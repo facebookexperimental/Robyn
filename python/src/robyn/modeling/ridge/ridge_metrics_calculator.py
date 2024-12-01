@@ -157,37 +157,51 @@ class RidgeMetricsCalculator:
         return df[required_cols]
 
     def _calculate_lambda(
-        self, x_norm: np.ndarray, y_norm: np.ndarray, lambda_hp: float
+        self,
+        x_norm: np.ndarray,
+        y_norm: np.ndarray,
+        lambda_hp: float,
+        debug: bool = True,
+        iteration: int = 0,
     ) -> Tuple[float, float]:
         """Match R's glmnet lambda calculation exactly"""
         n_samples = len(y_norm)
 
-        # Scale to original magnitude like R
-        scale_factor = np.max(np.abs(x_norm)) * np.max(np.abs(y_norm))
-
-        # R-style standardization
+        # Standardize first before scale factor calculation
         def r_scale(x):
             mean = np.mean(x)
-            var = np.sum((x - mean) ** 2) / (len(x) - 1)
-            sd = np.sqrt(var)
-            return (x - mean) / sd if sd > 1e-10 else np.zeros_like(x)
+            sd = np.sqrt(np.sum((x - mean) ** 2) / (len(x) - 1))
+            return (x - mean) / (sd if sd > 1e-10 else 1.0)
 
-        # Scale X and y
+        # Scale X and y first
         x_scaled = np.apply_along_axis(r_scale, 0, x_norm)
         y_scaled = r_scale(y_norm)
 
-        # R's lambda calculation with original magnitude
+        # Now calculate scale factor using scaled data
+        scale_factor = np.mean(np.abs(x_scaled)) * np.mean(np.abs(y_scaled))
+
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"\nLambda Calculation Debug (iteration {iteration}):")
+            print(f"n_samples: {n_samples}")
+            print(f"x_scaled mean abs: {np.mean(np.abs(x_scaled)):.6f}")
+            print(f"y_scaled mean abs: {np.mean(np.abs(y_scaled)):.6f}")
+            print(f"Scale factor: {scale_factor:.6f}")
+            print(f"lambda_hp: {lambda_hp:.6f}")
+
+        # R's lambda calculation
         alpha = 0.001
         gram = x_scaled.T @ x_scaled / n_samples
         ctx = np.abs(x_scaled.T @ y_scaled) / n_samples
 
-        # Rescale to match R's magnitude
-        lambda_max = np.max(ctx) * scale_factor / alpha
-
-        # R's lambda interpolation
-        lambda_min_ratio = 0.0001
-        lambda_min = lambda_min_ratio * lambda_max
+        lambda_max = np.max(ctx) / alpha
+        lambda_min = lambda_max * 0.0001
         lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
+
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"max ctx: {np.max(ctx):.6f}")
+            print(f"lambda_max: {lambda_max:.6f}")
+            print(f"lambda_min: {lambda_min:.6f}")
+            print(f"final lambda_: {lambda_:.6f}")
 
         return lambda_, lambda_max
 
@@ -197,61 +211,60 @@ class RidgeMetricsCalculator:
         X: pd.DataFrame,
         paid_media_cols: List[str],
         rssd_zero_penalty: bool,
+        debug: bool = True,
+        iteration: int = 0,
     ) -> float:
-        """Calculate RSSD exactly like R's implementation"""
-        self.logger.debug(f"\nRSSD Calculation Debug:")
-        self.logger.debug(f"Paid media columns: {paid_media_cols}")
-
-        total_spend = np.abs(X[paid_media_cols].sum()).sum()
+        """Calculate RSSD with proper normalization"""
+        total_raw_spend = np.sum(np.abs(X[paid_media_cols].sum()))
         effects = []
         spends = []
 
-        self.logger.debug(f"Effect calculations per channel:")
+        # First collect all values
         for col in paid_media_cols:
             idx = list(X.columns).index(col)
             coef = model.coef_[idx]
-            spend = np.abs(X[col].sum())
-            effect = coef * spend
+            raw_spend = np.abs(X[col].sum())
+            effect = np.abs(coef * raw_spend)  # Keep absolute effect
             effects.append(effect)
-            spends.append(spend)
-            self.logger.debug(
-                f"{col}: coef={coef:.6f}, spend={spend:.6f}, effect={effect:.6f}"
-            )
+            spends.append(raw_spend)
 
+            if debug and (iteration == 0 or iteration % 25 == 0):
+                print(f"{col}:")
+                print(f"  coefficient: {coef:.6f}")
+                print(f"  raw spend: {raw_spend:.6f}")
+                print(f"  effect: {effect:.6f}")
+
+        # Convert to numpy arrays
         effects = np.array(effects)
         spends = np.array(spends)
 
-        # Calculate normalized effects and spends
-        total_effect = np.sum(np.abs(effects))
-        self.logger.debug(
-            f"Totals - spend: {total_spend:.6f}, effect: {total_effect:.6f}"
-        )
+        # Calculate totals for normalization
+        total_effect = np.sum(effects)
+        total_spend = np.sum(spends)
 
         if total_effect > 0 and total_spend > 0:
-            effects_norm = np.abs(effects) / total_effect
+            # Normalize proportionally
+            effects_norm = effects / total_effect
             spends_norm = spends / total_spend
-            self.logger.debug(f"Normalized values:")
-            self.logger.debug(f"Effects: {effects_norm}")
-            self.logger.debug(f"Spends: {spends_norm}")
 
-            rssd = np.sqrt(np.mean((effects_norm - spends_norm) ** 2))
+            if debug and (iteration == 0 or iteration % 25 == 0):
+                print("\nNormalized values:")
+                print("Effects:", effects_norm)
+                print("Spends:", spends_norm)
+                print("Effect total (check=1):", np.sum(effects_norm))
+                print("Spend total (check=1):", np.sum(spends_norm))
+
+            # Calculate RSSD
+            squared_diff = (effects_norm - spends_norm) ** 2
+            rssd = np.sqrt(np.mean(squared_diff))
 
             if rssd_zero_penalty:
                 zero_effects = sum(1 for e in effects if abs(e) < 1e-10)
                 if zero_effects > 0:
-                    rssd_original = rssd
                     rssd *= 1 + zero_effects / len(effects)
-                    self.logger.debug(
-                        f"Applied zero penalty: {zero_effects} zero effects found"
-                    )
-                    self.logger.debug(
-                        f"RSSD adjusted from {rssd_original:.6f} to {rssd:.6f}"
-                    )
 
-            self.logger.debug(f"Final RSSD: {rssd:.6f}")
             return float(rssd)
 
-        self.logger.debug("RSSD calculation returned infinity")
         return float(np.inf)
 
     def _calculate_mape(
@@ -439,15 +452,45 @@ class RidgeMetricsCalculator:
 
         return float(adj_r2)
 
-    def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """Match R's NRMSE calculation exactly"""
+    def calculate_nrmse(
+        self,
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        debug: bool = True,
+        iteration: int = 0,
+    ) -> float:
+        """Calculate NRMSE with detailed debugging"""
         n = len(y_true)
-        rss = np.sum((y_true - y_pred) ** 2)
-        scale = np.max(y_true) - np.min(y_true)
+        y_true = np.asarray(y_true)
+        y_pred = np.asarray(y_pred)
 
-        if scale > 0:
-            nrmse = np.sqrt(rss / n) / scale
-        else:
-            nrmse = np.sqrt(rss / n)
+        # Calculate residuals and RSS
+        residuals = y_true - y_pred
+        rss = np.sum(residuals**2)
+
+        # Calculate range from true values
+        y_min = np.min(y_true)
+        y_max = np.max(y_true)
+        scale = y_max - y_min
+
+        # Calculate RMSE first
+        rmse = np.sqrt(rss / n)
+
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"\nNRMSE Calculation Debug (iteration {iteration}):")
+            print(f"n: {n}")
+            print(f"RSS: {rss:.6f}")
+            print(f"RMSE: {rmse:.6f}")
+            print(f"y_true range: [{y_min:.6f}, {y_max:.6f}]")
+            print(f"scale: {scale:.6f}")
+            print("First 5 pairs (true, pred, residual):")
+            for i in range(min(5, len(y_true))):
+                print(f"  {y_true[i]:.6f}, {y_pred[i]:.6f}, {residuals[i]:.6f}")
+
+        # Calculate final NRMSE
+        nrmse = rmse / scale if scale > 0 else rmse
+
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"Final NRMSE: {nrmse:.6f}")
 
         return float(nrmse)

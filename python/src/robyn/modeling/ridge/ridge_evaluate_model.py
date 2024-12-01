@@ -223,6 +223,15 @@ class RidgeModelEvaluator:
         self.logger.debug(f"Sample of X values: {X.head()}")
         self.logger.debug(f"Sample of y values: {y.head()}")
 
+        # Debug is True by default now
+        debug = True
+
+        if debug and (iter_ng == 0 or iter_ng % 25 == 0):
+            print(f"\nEvaluation Debug (trial {trial}, iteration {iter_ng}):")
+            print(f"X shape: {X.shape}")
+            print(f"y shape: {y.shape}")
+            print("Parameters:", params)
+
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
         train_idx = int(len(X) * train_size)
@@ -246,7 +255,7 @@ class RidgeModelEvaluator:
         # Calculate lambda using R-matching helper function
         lambda_hp = params.get("lambda", 1.0)
         lambda_, lambda_max = self.ridge_metrics_calculator._calculate_lambda(
-            x_norm, y_norm, lambda_hp
+            x_norm, y_norm, lambda_hp, debug=debug, iteration=iter_ng
         )
         # After calculating lambda
         self.logger.debug(f"Lambda calculation debug:")
@@ -264,7 +273,7 @@ class RidgeModelEvaluator:
             y_norm, y_train_pred, x_norm.shape[1]
         )
         metrics["nrmse_train"] = self.ridge_metrics_calculator.calculate_nrmse(
-            y_norm, y_train_pred
+            y_norm, y_train_pred, debug=debug, iteration=iter_ng
         )
 
         # Validation and test metrics
@@ -299,7 +308,12 @@ class RidgeModelEvaluator:
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
         decomp_rssd = self.ridge_metrics_calculator._calculate_rssd(
-            model, X_train, paid_media_cols, rssd_zero_penalty
+            model,
+            X_train,
+            paid_media_cols,
+            rssd_zero_penalty,
+            debug=debug,
+            iteration=iter_ng,
         )
 
         elapsed_time = time.time() - start_time
