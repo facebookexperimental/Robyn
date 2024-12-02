@@ -457,10 +457,10 @@ check_adstock <- function(adstock) {
   return(adstock)
 }
 
-check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
-                                  paid_media_spends = NULL, organic_vars = NULL,
-                                  exposure_vars = NULL, prophet_vars = NULL,
-                                  contextual_vars = NULL) {
+check_hyperparameters <- function(
+    hyperparameters = NULL, adstock = NULL, paid_media_selected = NULL,
+    paid_media_spends = NULL, organic_vars = NULL, exposure_vars = NULL,
+    prophet_vars = NULL, contextual_vars = NULL) {
   if (is.null(hyperparameters)) {
     message(paste(
       "Input 'hyperparameters' not provided yet. To include them, run",
@@ -477,22 +477,23 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
     hyperparameters_ordered <- hyperparameters[order(names(hyperparameters))]
     get_hyp_names <- names(hyperparameters_ordered)
     original_order <- sapply(names(hyperparameters), function(x) which(x == get_hyp_names))
+    ref_hyp_name_selected <- hyper_names(adstock, all_media = paid_media_selected)
     ref_hyp_name_spend <- hyper_names(adstock, all_media = paid_media_spends)
     ref_hyp_name_expo <- hyper_names(adstock, all_media = exposure_vars)
     ref_hyp_name_org <- hyper_names(adstock, all_media = organic_vars)
     ref_hyp_name_other <- get_hyp_names[get_hyp_names %in% HYPS_OTHERS]
     # Excluding lambda (first HYPS_OTHERS) given its range is not customizable
-    ref_all_media <- sort(c(ref_hyp_name_spend, ref_hyp_name_org, HYPS_OTHERS))
-    all_ref_names <- c(ref_hyp_name_spend, ref_hyp_name_expo, ref_hyp_name_org, HYPS_OTHERS)
-    all_ref_names <- all_ref_names[order(all_ref_names)]
-    # Adding penalty variations to the dictionary
-    if (any(grepl("_penalty", paste0(get_hyp_names)))) {
-      ref_hyp_name_penalties <- paste0(
-        c(paid_media_spends, organic_vars, prophet_vars, contextual_vars), "_penalty"
-      )
-      all_ref_names <- c(all_ref_names, ref_hyp_name_penalties)
-    } else {
-      ref_hyp_name_penalties <- NULL
+    ref_all_media <- sort(c(ref_hyp_name_selected, ref_hyp_name_org, HYPS_OTHERS))
+    all_ref_names <- sort(c(ref_hyp_name_selected, ref_hyp_name_spend, ref_hyp_name_org, HYPS_OTHERS))
+
+    if (!all(get_hyp_names %in% ref_all_media)) {
+      diff_hyp_loc <- which(!(get_hyp_names %in% ref_all_media))
+      diff_hyp_names <- get_hyp_names[diff_hyp_loc]
+      if (all(diff_hyp_names %in% ref_hyp_name_spend)) {
+        updated_hyp_names <- ref_hyp_name_selected[which(diff_hyp_names %in% ref_hyp_name_spend)]
+        get_hyp_names[diff_hyp_loc] <- updated_hyp_names
+        names(hyperparameters_ordered) <- get_hyp_names
+      }
     }
     if (!all(get_hyp_names %in% all_ref_names)) {
       wrong_hyp_names <- get_hyp_names[which(!(get_hyp_names %in% all_ref_names))]
@@ -501,8 +502,17 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
         paste(wrong_hyp_names, collapse = ", ")
       )
     }
+    # Adding penalty variations to the dictionary
+    if (any(grepl("_penalty", paste0(get_hyp_names)))) {
+      ref_hyp_name_penalties <- paste0(
+        c(paid_media_selected, organic_vars, prophet_vars, contextual_vars), "_penalty"
+      )
+      all_ref_names <- c(all_ref_names, ref_hyp_name_penalties)
+    } else {
+      ref_hyp_name_penalties <- NULL
+    }
     total <- length(get_hyp_names)
-    total_in <- length(c(ref_hyp_name_spend, ref_hyp_name_org, ref_hyp_name_penalties, ref_hyp_name_other))
+    total_in <- length(c(ref_hyp_name_selected, ref_hyp_name_org, ref_hyp_name_penalties, ref_hyp_name_other))
     if (total != total_in) {
       stop(sprintf(
         paste(
@@ -511,12 +521,6 @@ check_hyperparameters <- function(hyperparameters = NULL, adstock = NULL,
         ),
         total_in, total
       ))
-    }
-    # Old workflow: replace exposure with spend hyperparameters
-    if (any(get_hyp_names %in% ref_hyp_name_expo)) {
-      get_expo_pos <- which(get_hyp_names %in% ref_hyp_name_expo)
-      get_hyp_names[get_expo_pos] <- ref_all_media[!ref_all_media %in% HYPS_OTHERS][get_expo_pos]
-      names(hyperparameters_ordered) <- get_hyp_names
     }
     check_hyper_limits(hyperparameters_ordered, "thetas")
     check_hyper_limits(hyperparameters_ordered, "alphas")

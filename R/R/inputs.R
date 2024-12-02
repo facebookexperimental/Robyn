@@ -250,14 +250,12 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-    if (TRUE) {
-      window_start <- windows$window_start
-      rollingWindowStartWhich <- windows$rollingWindowStartWhich
-      refreshAddedStart <- windows$refreshAddedStart
-      window_end <- windows$window_end
-      rollingWindowEndWhich <- windows$rollingWindowEndWhich
-      rollingWindowLength <- windows$rollingWindowLength
-    }
+    window_start <- windows$window_start
+    rollingWindowStartWhich <- windows$rollingWindowStartWhich
+    refreshAddedStart <- windows$refreshAddedStart
+    window_end <- windows$window_end
+    rollingWindowEndWhich <- windows$rollingWindowEndWhich
+    rollingWindowLength <- windows$rollingWindowLength
 
     ## Check adstock
     adstock <- check_adstock(adstock)
@@ -334,7 +332,7 @@ robyn_inputs <- function(dt_input = NULL,
 
       ## Check hyperparameters
       hyperparameters <- check_hyperparameters(
-        hyperparameters, adstock, paid_media_spends, organic_vars,
+        hyperparameters, adstock, paid_media_selected, paid_media_spends, organic_vars,
         exposure_vars, prophet_vars, context_vars
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
@@ -368,7 +366,10 @@ robyn_inputs <- function(dt_input = NULL,
       ## Update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
       InputCollect$hyperparameters <- check_hyperparameters(
-        InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media
+        InputCollect$hyperparameters, InputCollect$adstock,
+        InputCollect$paid_media_selected, InputCollect$paid_media_spends,
+        InputCollect$organic_vars, InputCollect$exposure_vars,
+        InputCollect$prophet_vars, InputCollect$context_vars
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
@@ -897,7 +898,7 @@ set_default_hyppar <- function(
                         gamma = c(0.01, 1),
                         theta = c(0, 0.8),
                         shape = c(0, 10),
-                        scale = c(0, 0,1),
+                        scale = c(0, 0.1),
                         train_size = c(0.5, 0.9))
 
 ) {
@@ -905,11 +906,11 @@ set_default_hyppar <- function(
   hyperparameters <- list()
   for (i in seq_along(hpnames)) {
     hyperparameters[[i]] <- dplyr::case_when(
-      stringr::str_detect(hpnames[[i]], "_alphas") ~ list_default[["alpha"]],
-      stringr::str_detect(hpnames[[i]], "_gammas") ~ list_default[["gamma"]],
-      stringr::str_detect(hpnames[[i]], "_thetas") ~ list_default[["theta"]],
-      stringr::str_detect(hpnames[[i]], "_shapes") ~ list_default[["shape"]],
-      stringr::str_detect(hpnames[[i]], "_scales") ~ list_default[["scale"]])
+      str_detect(hpnames[[i]], "_alphas") ~ list_default[["alpha"]],
+      str_detect(hpnames[[i]], "_gammas") ~ list_default[["gamma"]],
+      str_detect(hpnames[[i]], "_thetas") ~ list_default[["theta"]],
+      str_detect(hpnames[[i]], "_shapes") ~ list_default[["shape"]],
+      str_detect(hpnames[[i]], "_scales") ~ list_default[["scale"]])
     names(hyperparameters)[[i]] <- hpnames[[i]]
   }
   hyperparameters[["train_size"]] <- list_default[["train_size"]]
