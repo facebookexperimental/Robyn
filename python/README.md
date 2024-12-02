@@ -12,7 +12,7 @@
   
 ## Quick start for Python (Beta)
 
-  The Python version of Robyn was developed by utilizing Code Llama's capabilities to port code from R to Python. As is common with any AI-based solutions, there may be potential challenges in translating code from one language to another.
+  The Python version of Robyn was developed by utilizing various LLMs and approaches to port code from R to Python. As is common with any AI-based solutions, there may be potential challenges in translating code from one language to another.
   In this case, we anticipate that there could be some issues in the translation from R to Python. However, we believe in the power of community collaboration and open-source contribution. Therefore, we are opening this project to the community to participate and contribute.
   Together, we can address and resolve any issues that may arise, enhancing the functionality and efficiency of the Python version of Robyn. We look forward to your contributions and to the continuous improvement of this project. 
 
@@ -30,8 +30,26 @@ pip3 install -r requirements.txt
   
 **2. Getting started**
 
-  * python/src/tutorials contains tutorials for most common scenarios.Tutorials uses simulated dataset provided in the package. 
+  * python/src/robyn/tutorials contains tutorials for most common scenarios. Tutorials use simulated dataset provided in the package.
+
+  * There are two ways of running Python Robyn; one is `tutorial1.ipynb` and second is `tutorial1_src.ipynb`.
+
+**3. Running end-to-end**
+
+Option 1:
+  * `tutorial1.ipynb` is the main notebook that runs the end-to-end flow. It is designed for majority of the users who would prefer a one click solution that runs the robyn flow end-to-end with minimal knowledge of the underlying logic. It should run without any changes required if you wish to use the simulated dataset for testing purposes. 
+
+  * This notebook uses APIs available in `python/src/robyn/robyn.py` to set the configs, run feature engineering, run model training, evaluate models with clustering, generate one pagers and perform budget allocation.
   
+  * Change any of the configs directly in the notebook and avoid changes to robyn.py for what can be configurable.
+
+Option 2:
+  * `tutorial1_src.ipynb` runs the end-to-end flow of robyn python but with a lot more flexibility. It is designed for users who would like to have more control over which modules are and aren't run (ie. skipping clustering/one pager plots/budget allocation etc.). It should run without any changes required if you wish to use the simulated dataset for testing purposes. 
+
+  * This notebook doesn't use APIs available in `python/src/robyn/robyn.py` but instead, calls the modules directly with the appropriate parameters. In this way, it is more flexible but still expects the users to understand the underlying logic that may change when using various parameter values.
+
+## Helpful Links
+
   * Visit our [website](https://facebookexperimental.github.io/Robyn/) to explore more details about Project Robyn.
   
   * Join our [public group](https://www.facebook.com/groups/robyn/) to exchange with other users and interact with team Robyn.
