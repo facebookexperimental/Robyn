@@ -185,7 +185,7 @@ class FeaturePlotter(BaseVisualizer):
                 logger.debug("Added linear model parameters: coefficient=%f", coef)
             plt.legend()
             plt.tight_layout()
-            # plt.close()
+            plt.close()
             logger.info(
                 "Successfully generated spend-exposure plot for channel %s", channel
             )
