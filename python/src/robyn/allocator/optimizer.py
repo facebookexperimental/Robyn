@@ -61,7 +61,7 @@ class BudgetAllocator:
         self.allocator_data_preparer._validate_inputs()
         self.allocator_data_preparer._initialize_data()
 
-        self.self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
         for channel in self.allocator_data_preparer.media_spend_sorted:
             coef = self.allocator_data_preparer.dt_best_coef[
                 self.allocator_data_preparer.dt_best_coef["rn"] == channel
