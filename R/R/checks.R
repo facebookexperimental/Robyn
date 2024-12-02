@@ -584,11 +584,14 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     }
     all_media <- c(paid_media_selected, organic_vars)
     cal_media <- str_split(calibration_input$channel, "\\+|,|;|\\s")
+    cal_media_updated <- lapply(cal_media, function(x) sapply(x, function(y) {
+      ifelse(any(paid_media_spends %in% y), paid_media_selected[paid_media_spends %in% y], y)
+    }))
+    cal_media_spend <- lapply(cal_media, function(x) sapply(x, function(y) {
+      ifelse(any(c(paid_media_spends, organic_vars) %in% y), y, paid_media_spends[paid_media_selected %in% y])
+    }))
     if (!all(unlist(cal_media) %in% all_media)) {
-      these <- unique(unlist(cal_media)[unlist(cal_media) %in% paid_media_selected])
-      cal_media <- lapply(cal_media, function(x) sapply(x, function(y) {
-        ifelse(any(paid_media_spends %in% y), paid_media_selected[paid_media_spends %in% y], y)
-      }))
+      cal_media <- cal_media_updated
       calibration_input$channel <- sapply(cal_media, function(x) paste0(x, collapse = "+"))
       if (!all(unlist(cal_media) %in% all_media)) {
         stop(sprintf(
@@ -620,7 +623,7 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     if ("spend" %in% colnames(calibration_input)) {
       for (i in seq_along(calibration_input$channel)) {
         temp <- calibration_input[i, ]
-        temp2 <- cal_media[[i]]
+        temp2 <- cal_media_spend[[i]]
         if (all(temp2 %in% organic_vars)) next
         dt_input_spend <- filter(
           dt_input, get(date_var) >= temp$liftStartDate,
