@@ -61,7 +61,7 @@ class BudgetAllocator:
         self.allocator_data_preparer._validate_inputs()
         self.allocator_data_preparer._initialize_data()
 
-        self.logger = logging.getLogger(__name__)
+        self.self.logger = logging.getLogger(__name__)
         for channel in self.allocator_data_preparer.media_spend_sorted:
             coef = self.allocator_data_preparer.dt_best_coef[
                 self.allocator_data_preparer.dt_best_coef["rn"] == channel
@@ -224,7 +224,7 @@ class BudgetAllocator:
                     self.logger.debug("Starting points:", starting_points)
                     self.logger.debug("Constraints:", constraints)
             except Exception as e:
-                logger.error(f"Optimization attempt {i+1} failed: {str(e)}")
+                self.logger.error(f"Optimization attempt {i+1} failed: {str(e)}")
                 continue
 
         if best_result is None:
