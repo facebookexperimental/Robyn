@@ -46,9 +46,9 @@ def get_hill_params(
 
         # Get alpha parameter
         alpha_col = f"{channel}_alphas"
-        print(f"alpha_col: {alpha_col}")
-        print("dt_hyppar: ", dt_hyppar)
-        print("dt_hyppar alpha_col: ", dt_hyppar[alpha_col])
+        logger.debug(f"alpha_col: {alpha_col}")
+        logger.debug("dt_hyppar: ", dt_hyppar)
+        logger.debug("dt_hyppar alpha_col: ", dt_hyppar[alpha_col])
         alpha = dt_hyppar[alpha_col].iloc[0]
         alphas.append(alpha)
         logger.debug(f"Alpha: {alpha}")
