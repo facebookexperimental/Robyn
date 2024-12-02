@@ -147,11 +147,11 @@ class RidgeMetricsCalculator:
             "iterPar",
             "Elapsed",
         ]
-        # print(f"Decomp spend distribution debug:")
-        # print(f"Total media spend: {total_media_spend}")
-        # print(f"Total effect: {total_effect}")
+        # self.logger.debug(f"Decomp spend distribution debug:")
+        # self.logger.debug(f"Total media spend: {total_media_spend}")
+        # self.logger.debug(f"Total effect: {total_effect}")
         # for col in paid_media_cols:
-        # print(f"{col} - effect: {all_effects[col]}, spend: {all_spends[col]}")
+        # self.logger.debug(f"{col} - effect: {all_effects[col]}, spend: {all_spends[col]}")
         return df[required_cols]
 
     def _calculate_lambda(
@@ -191,14 +191,14 @@ class RidgeMetricsCalculator:
         lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
 
         if debug and (iteration % 10 == 0):
-            print(f"\nLambda Debug (iter {iteration}):")
-            print(f"x_means: {np.mean(np.abs(x_means)):.6f}")
-            print(f"x_sds mean: {np.mean(x_sds):.6f}")
-            print(f"sx mean: {np.mean(np.abs(sx)):.6f}")
-            print(f"sy mean: {np.mean(np.abs(sy)):.6f}")
-            print(f"lambda_max: {lambda_max:.6f}")
-            print(f"lambda_: {lambda_:.6f}")
-            print(f"lambda_hp: {lambda_hp:.6f}")
+            self.logger.debug(f"\nLambda Debug (iter {iteration}):")
+            self.logger.debug(f"x_means: {np.mean(np.abs(x_means)):.6f}")
+            self.logger.debug(f"x_sds mean: {np.mean(x_sds):.6f}")
+            self.logger.debug(f"sx mean: {np.mean(np.abs(sx)):.6f}")
+            self.logger.debug(f"sy mean: {np.mean(np.abs(sy)):.6f}")
+            self.logger.debug(f"lambda_max: {lambda_max:.6f}")
+            self.logger.debug(f"lambda_: {lambda_:.6f}")
+            self.logger.debug(f"lambda_hp: {lambda_hp:.6f}")
 
         return float(lambda_), float(lambda_max)
 
@@ -226,10 +226,10 @@ class RidgeMetricsCalculator:
             spends.append(raw_spend)
 
             # if debug and (iteration % 50 == 0):
-            #     print(f"{col}:")
-            #     print(f"  coefficient: {coef:.6f}")
-            #     print(f"  raw spend: {raw_spend:.6f}")
-            #     print(f"  effect: {effect:.6f}")
+            #     self.logger.debug(f"{col}:")
+            #     self.logger.debug(f"  coefficient: {coef:.6f}")
+            #     self.logger.debug(f"  raw spend: {raw_spend:.6f}")
+            #     self.logger.debug(f"  effect: {effect:.6f}")
 
         # Convert to numpy arrays
         effects = np.array(effects)
@@ -245,11 +245,11 @@ class RidgeMetricsCalculator:
             spends_norm = spends / total_spend
 
             # if debug and (iteration % 50 == 0):
-            #     print("\nNormalized values:")
-            #     print("Effects:", effects_norm)
-            #     print("Spends:", spends_norm)
-            #     print("Effect total (check=1):", np.sum(effects_norm))
-            #     print("Spend total (check=1):", np.sum(spends_norm))
+            #     self.logger.debug("\nNormalized values:")
+            #     self.logger.debug("Effects:", effects_norm)
+            #     self.logger.debug("Spends:", spends_norm)
+            #     self.logger.debug("Effect total (check=1):", np.sum(effects_norm))
+            #     self.logger.debug("Spend total (check=1):", np.sum(spends_norm))
 
             # Calculate RSSD
             squared_diff = (effects_norm - spends_norm) ** 2
@@ -453,12 +453,12 @@ class RidgeMetricsCalculator:
             adj_r2 = -np.sqrt(np.abs(adj_r2))  # R-style negative scaling
 
         # if debug and (iteration % 50 == 0):
-        #     print(f"R² Calculation Debug:")
-        #     print(f"n: {n}")
-        #     print(f"ss_tot: {ss_tot:.6f}")
-        #     print(f"ss_res: {ss_res:.6f}")
-        #     print(f"R²: {r2:.6f}")
-        #     print(f"Adjusted R²: {adj_r2:.6f}")
+        #     self.logger.debug(f"R² Calculation Debug:")
+        #     self.logger.debug(f"n: {n}")
+        #     self.logger.debug(f"ss_tot: {ss_tot:.6f}")
+        #     self.logger.debug(f"ss_res: {ss_res:.6f}")
+        #     self.logger.debug(f"R²: {r2:.6f}")
+        #     self.logger.debug(f"Adjusted R²: {adj_r2:.6f}")
 
         return float(adj_r2)
 
@@ -486,10 +486,10 @@ class RidgeMetricsCalculator:
         nrmse = rmse / y_range if y_range > 0 else rmse
 
         # if debug and (iteration % 50 == 0):
-        #     print(f"\nNRMSE Calculation Debug (iteration {iteration}):")
-        #     print(f"RSS: {rss:.6f}")
-        #     print(f"RMSE: {rmse:.6f}")
-        #     print(f"Range: {y_range:.6f}")
-        #     print(f"NRMSE: {nrmse:.6f}")
+        #     self.logger.debug(f"\nNRMSE Calculation Debug (iteration {iteration}):")
+        #     self.logger.debug(f"RSS: {rss:.6f}")
+        #     self.logger.debug(f"RMSE: {rmse:.6f}")
+        #     self.logger.debug(f"Range: {y_range:.6f}")
+        #     self.logger.debug(f"NRMSE: {nrmse:.6f}")
 
         return float(nrmse)

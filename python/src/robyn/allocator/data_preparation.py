@@ -27,8 +27,6 @@ from .constants import (
     SCENARIO_TARGET_EFFICIENCY,
 )
 
-logger = logging.getLogger(__name__)
-
 
 class AllocatorDataPreparation:
     """Prepare data for the allocator optimization."""
@@ -56,11 +54,13 @@ class AllocatorDataPreparation:
         self.date_min = None
         self.date_max = None
 
+        self.logger = logging.getLogger(__name__)
+
     def _validate_inputs(self) -> None:
         """Validate input data and parameters."""
         if len(self.mmm_data.mmmdata_spec.paid_media_spends) <= 1:
             raise ValueError("Must have at least two paid media spends")
-        print("Printing params scenario", self.params.scenario)
+        self.logger.debug("self.logger.debuging params scenario", self.params.scenario)
         if self.params.scenario not in [
             SCENARIO_MAX_RESPONSE,
             SCENARIO_TARGET_EFFICIENCY,
@@ -150,9 +150,9 @@ class AllocatorDataPreparation:
         upper_bounds = self.init_spend_unit * self.params.channel_constr_up
         budget_constraint = self.init_spend_total
 
-        logger.debug("\nOptimization constraints:")
-        logger.debug(f"Total budget: {budget_constraint:,.2f}")
-        logger.debug(f"Bounds multiplier: {self.params.channel_constr_multiplier}")
+        self.logger.debug("\nOptimization constraints:")
+        self.logger.debug(f"Total budget: {budget_constraint:,.2f}")
+        self.logger.debug(f"Bounds multiplier: {self.params.channel_constr_multiplier}")
 
         return Constraints(
             lower_bounds=lower_bounds,
@@ -170,18 +170,18 @@ class AllocatorDataPreparation:
             if self.dep_var_type == "revenue":
                 initial_roas = np.sum(self.init_response) / np.sum(self.init_spend_unit)
                 target_value = initial_roas * 0.8  # Target 80% of initial ROAS
-                logger.debug(
+                self.logger.debug(
                     f"Target ROAS: {target_value:.4f} (80% of initial {initial_roas:.4f})"
                 )
             else:
                 initial_cpa = np.sum(self.init_spend_unit) / np.sum(self.init_response)
                 target_value = initial_cpa * 1.2  # Target 120% of initial CPA
-                logger.debug(
+                self.logger.debug(
                     f"Target CPA: {target_value:.4f} (120% of initial {initial_cpa:.4f})"
                 )
         else:
             target_value = self.params.target_value
-            logger.debug(f"Using provided target value: {target_value:.4f}")
+            self.logger.debug(f"Using provided target value: {target_value:.4f}")
 
         return Constraints(
             lower_bounds=lower_bounds,
@@ -238,8 +238,8 @@ class AllocatorDataPreparation:
             (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
             & (self.pareto_result.x_decomp_agg["rn"].isin(self.paid_media_spends))
         ]
-        logger.debug("Model Coefficients:")
-        logger.debug(self.dt_best_coef)
+        self.logger.debug("Model Coefficients:")
+        self.logger.debug(self.dt_best_coef)
 
         # Initialize hill parameters
         self.hill_params = get_hill_params(
@@ -260,7 +260,7 @@ class AllocatorDataPreparation:
                 for channel, is_excluded in zip(self.media_spend_sorted, self.exclude)
                 if is_excluded
             ]
-            logger.warning(
+            self.logger.warning(
                 f"The following media channels have zero coefficients and will be excluded: "
                 f"{', '.join(excluded_channels)}"
             )
@@ -279,11 +279,11 @@ class AllocatorDataPreparation:
             inflexion = x_range[0] * (1 - gamma) + x_range[1] * gamma
             self.adstocked_ranges[channel] = x_range
             self.inflexions[channel] = inflexion
-        print("\n=== Initialization ===")
-        print("Media spend sorted:", self.media_spend_sorted)
-        print("Initial spend unit:", self.init_spend_unit)
-        print("Initial response:", self.init_response)
-        print("Total budget:", self.params.total_budget)
+        self.logger.debug("\n=== Initialization ===")
+        self.logger.debug("Media spend sorted:", self.media_spend_sorted)
+        self.logger.debug("Initial spend unit:", self.init_spend_unit)
+        self.logger.debug("Initial response:", self.init_response)
+        self.logger.debug("Total budget:", self.params.total_budget)
         self._setup_date_ranges()
         self._initialize_optimization_params()
 
@@ -371,12 +371,12 @@ class AllocatorDataPreparation:
         x_adstocked = spend + carryover
         x_saturated = (x_adstocked**alpha) / (x_adstocked**alpha + inflexion**alpha)
         response = coef * x_saturated
-        print("\n=== Response Calculation ===")
-        print("Channel:", channel)
-        print("Input spend:", spend)
-        print("Alpha:", alpha)
-        print("Coef:", coef)
-        print("Carryover:", carryover)
-        print("Inflexion:", inflexion)
-        print("Response:", response)
+        self.logger.debug("\n=== Response Calculation ===")
+        self.logger.debug("Channel:", channel)
+        self.logger.debug("Input spend:", spend)
+        self.logger.debug("Alpha:", alpha)
+        self.logger.debug("Coef:", coef)
+        self.logger.debug("Carryover:", carryover)
+        self.logger.debug("Inflexion:", inflexion)
+        self.logger.debug("Response:", response)
         return response

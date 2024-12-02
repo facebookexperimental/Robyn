@@ -30,8 +30,6 @@ from .data_preparation import AllocatorDataPreparation
 
 from .utils import check_allocator_constraints, check_metric_dates, get_hill_params
 
-logger = logging.getLogger(__name__)
-
 
 class BudgetAllocator:
     """Budget Allocator for marketing mix modeling optimization."""
@@ -63,15 +61,18 @@ class BudgetAllocator:
         self.allocator_data_preparer._validate_inputs()
         self.allocator_data_preparer._initialize_data()
 
+        self.logger = logging.getLogger(__name__)
         for channel in self.allocator_data_preparer.media_spend_sorted:
             coef = self.allocator_data_preparer.dt_best_coef[
                 self.allocator_data_preparer.dt_best_coef["rn"] == channel
             ]["coef"].values[0]
-            logger.debug(f"{channel}: {coef}")
+            self.logger.debug(f"{channel}: {coef}")
 
     def optimize(self) -> AllocationResult:
         """Run the budget allocation optimization."""
-        logger.debug(f"\nStarting optimization for scenario: {self.params.scenario}")
+        self.logger.debug(
+            f"\nStarting optimization for scenario: {self.params.scenario}"
+        )
 
         # Initialize constraints based on scenario
         if self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
@@ -88,7 +89,7 @@ class BudgetAllocator:
 
     def _run_optimization(self, bounded: bool = True) -> OptimizationResult:
         """Run optimization while respecting excluded channels."""
-        logger.debug(f"\nOptimization run (Bounded: {bounded})")
+        self.logger.debug(f"\nOptimization run (Bounded: {bounded})")
 
         # Calculate bounds
         if bounded:
@@ -218,10 +219,10 @@ class BudgetAllocator:
                         gradient=result.jac if hasattr(result, "jac") else None,
                         constraints={},
                     )
-                    print("\n=== Optimization Run ===")
-                    print("Bounds:", bounds)
-                    print("Starting points:", starting_points)
-                    print("Constraints:", constraints)
+                    self.logger.debug("\n=== Optimization Run ===")
+                    self.logger.debug("Bounds:", bounds)
+                    self.logger.debug("Starting points:", starting_points)
+                    self.logger.debug("Constraints:", constraints)
             except Exception as e:
                 logger.error(f"Optimization attempt {i+1} failed: {str(e)}")
                 continue
@@ -242,11 +243,11 @@ class BudgetAllocator:
 
         total_response = np.sum(responses)
         total_spend = np.sum(x)
-        print("\n=== Objective Function Call ===")
-        print("Input x:", x)
-        print("Responses:", responses)
-        print("Total response:", total_response)
-        print("Total spend:", total_spend)
+        self.logger.debug("\n=== Objective Function Call ===")
+        self.logger.debug("Input x:", x)
+        self.logger.debug("Responses:", responses)
+        self.logger.debug("Total response:", total_response)
+        self.logger.debug("Total spend:", total_spend)
         if self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
             if self.allocator_data_preparer.dep_var_type == "revenue":
                 actual_roas = total_response / total_spend if total_spend > 0 else 0
