@@ -13,23 +13,33 @@ class OptimOutData:
         channels: List of channel names
         init_spend_unit: Initial spend per unit for each channel
         init_response_unit: Initial response per unit for each channel
+        init_response_marg_unit: Initial marginal response per unit for each channel
         optm_spend_unit: Optimized spend per unit for each channel
         optm_response_unit: Optimized response per unit for each channel
+        optm_response_marg_unit: Optimized marginal response per unit for each channel
         optm_spend_unit_unbound: Unbounded optimized spend per unit
         optm_response_unit_unbound: Unbounded optimized response per unit
+        optm_response_marg_unit_unbound: Unbounded optimized marginal response per unit
+        date_min: Start date of optimization window
+        date_max: End date of optimization window
+        metric: Metric type (ROAS or CPA)
+        periods: Time period description
     """
 
     channels: np.ndarray
     init_spend_unit: np.ndarray
     init_response_unit: np.ndarray
+    init_response_marg_unit: np.ndarray
     optm_spend_unit: np.ndarray
     optm_response_unit: np.ndarray
+    optm_response_marg_unit: np.ndarray
     optm_spend_unit_unbound: np.ndarray
     optm_response_unit_unbound: np.ndarray
-    date_min: str  # Added
-    date_max: str  # Added
+    optm_response_marg_unit_unbound: np.ndarray
+    date_min: str
+    date_max: str
     metric: str
-    periods: str  # Added if needed
+    periods: str
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convert optimization results to a DataFrame."""
@@ -38,10 +48,13 @@ class OptimOutData:
                 "channel": self.channels,
                 "init_spend": self.init_spend_unit,
                 "init_response": self.init_response_unit,
+                "init_response_marg": self.init_response_marg_unit,
                 "optm_spend": self.optm_spend_unit,
                 "optm_response": self.optm_response_unit,
+                "optm_response_marg": self.optm_response_marg_unit,
                 "optm_spend_unbound": self.optm_spend_unit_unbound,
                 "optm_response_unbound": self.optm_response_unit_unbound,
+                "optm_response_marg_unbound": self.optm_response_marg_unit_unbound,
             }
         )
 

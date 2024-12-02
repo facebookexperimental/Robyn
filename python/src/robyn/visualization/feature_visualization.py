@@ -117,7 +117,7 @@ class FeaturePlotter(BaseVisualizer):
         model type, R-squared value, and model-specific parameters (e.g., Vmax and Km for Michaelis-Menten model or coefficient for linear model).
         """
         logger.info("Generating spend-exposure plot for channel: %s", channel)
-        logger.debug("Featurized data being processed: %s", self.featurized_mmmdata)
+
         try:
             # Find the result for the current channel
             res = next(
@@ -128,6 +128,7 @@ class FeaturePlotter(BaseVisualizer):
                 ),
                 None,
             )
+            logger.info("Found result for channel %s", channel)
             if res is None:
                 logger.error("Channel %s not found in featurized data results", channel)
                 raise ValueError(
@@ -137,11 +138,6 @@ class FeaturePlotter(BaseVisualizer):
             if plot_data is None:
                 logger.error("Plot data for channel %s not found", channel)
                 raise ValueError(f"No plot data available for channel: {channel}")
-            logger.debug("Retrieved model results for channel %s: %s", channel, res)
-            logger.debug(
-                "Plot data shape: %s",
-                plot_data.shape if hasattr(plot_data, "shape") else "N/A",
-            )
             fig, ax = plt.subplots(figsize=(10, 6))
             # Plot scatter of actual data
             sns.scatterplot(

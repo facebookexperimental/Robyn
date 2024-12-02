@@ -4,15 +4,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, Union
 from pathlib import Path
 import logging
-from robyn.data.entities.mmmdata import MMMData
 
 from robyn.allocator.entities.allocation_result import (
-    OptimOutData,
-    MainPoints,
     AllocationResult,
 )
 from robyn.allocator.optimizer import BudgetAllocator
@@ -23,87 +19,6 @@ logger = logging.getLogger(__name__)
 
 class AllocatorPlotter(BaseVisualizer):
     """Generates plots for Robyn allocator results."""
-
-    def __init__(
-        self,
-        allocation_result: AllocationResult,
-        budget_allocator: BudgetAllocator,
-    ):
-        """
-        Initialize AllocatorPlotter with all necessary data.
-
-        Args:
-            allocation_result: Results from budget allocation
-            budget_allocator: Budget allocator instance with model parameters
-        """
-        super().__init__()
-        logger.info("Initializing AllocatorPlotter")
-
-        # Store provided data
-        self.allocation_result = allocation_result
-        self.budget_allocator = budget_allocator
-
-        # Store commonly used data
-        self.dt_optimOut = allocation_result.dt_optimOut
-        self.mainPoints = allocation_result.mainPoints
-
-        # Infer plotting configurations
-        self.metric = (
-            "ROAS"
-            if self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type == "revenue"
-            else "CPA"
-        )
-        self.interval_type = self.budget_allocator.mmm_data.mmmdata_spec.interval_type
-        self.model_id = budget_allocator.select_model
-        self.scenario = allocation_result.scenario
-
-        # Pre-calculate scenario metrics
-        self.scenarios = {
-            "Initial": {
-                "spend": self.dt_optimOut.init_spend_unit.sum(),
-                "response": self.dt_optimOut.init_response_unit.sum(),
-            },
-            "Bounded": {
-                "spend": self.dt_optimOut.optm_spend_unit.sum(),
-                "response": self.dt_optimOut.optm_response_unit.sum(),
-            },
-            "Bounded x3": {
-                "spend": self.dt_optimOut.optm_spend_unit_unbound.sum(),
-                "response": self.dt_optimOut.optm_response_unit_unbound.sum(),
-            },
-        }
-
-        # Calculate percentage changes and metrics for each scenario
-        for scenario in self.scenarios:
-            if scenario != "Initial":
-                self.scenarios[scenario].update(
-                    {
-                        "spend_pct_change": (
-                            self.scenarios[scenario]["spend"]
-                            / self.scenarios["Initial"]["spend"]
-                            - 1
-                        )
-                        * 100,
-                        "response_pct_change": (
-                            self.scenarios[scenario]["response"]
-                            / self.scenarios["Initial"]["response"]
-                            - 1
-                        )
-                        * 100,
-                    }
-                )
-                if self.metric == "ROAS":
-                    self.scenarios[scenario]["metric_value"] = (
-                        self.scenarios[scenario]["response"]
-                        / self.scenarios[scenario]["spend"]
-                    )
-                else:  # CPA
-                    self.scenarios[scenario]["metric_value"] = (
-                        self.scenarios[scenario]["spend"]
-                        / self.scenarios[scenario]["response"]
-                    )
-
-        logger.debug("AllocatorPlotter initialized with data")
 
     def __init__(
         self,
@@ -291,7 +206,11 @@ class AllocatorPlotter(BaseVisualizer):
                 ax = axes[i]
 
                 # Get channel parameters
-                carryover = self.budget_allocator.hill_params.carryover[i]
+                carryover = (
+                    self.budget_allocator.allocator_data_preparer.hill_params.carryover[
+                        i
+                    ]
+                )
 
                 # Generate response curve
                 max_spend = np.max(self.mainPoints.spend_points[:, i]) * 1.5
@@ -397,15 +316,31 @@ class AllocatorPlotter(BaseVisualizer):
         """Calculate response values using Hill transformation."""
         try:
             # Get parameters from budget allocator
-            alpha = self.budget_allocator.hill_params.alphas[channel_idx]
-            coef = self.budget_allocator.hill_params.coefs[channel_idx]
-            carryover = self.budget_allocator.hill_params.carryover[channel_idx]
-            gamma = self.budget_allocator.hill_params.gammas[channel_idx]
+            alpha = self.budget_allocator.allocator_data_preparer.hill_params.alphas[
+                channel_idx
+            ]
+            coef = self.budget_allocator.allocator_data_preparer.hill_params.coefs[
+                channel_idx
+            ]
+            carryover = (
+                self.budget_allocator.allocator_data_preparer.hill_params.carryover[
+                    channel_idx
+                ]
+            )
+            gamma = self.budget_allocator.allocator_data_preparer.hill_params.gammas[
+                channel_idx
+            ]
 
             # Get range values
-            channel = self.budget_allocator.media_spend_sorted[channel_idx]
-            x_range = self.budget_allocator.adstocked_ranges[channel]
-            inflexion = self.budget_allocator.inflexions[channel]
+            channel = self.budget_allocator.allocator_data_preparer.media_spend_sorted[
+                channel_idx
+            ]
+            x_range = self.budget_allocator.allocator_data_preparer.adstocked_ranges[
+                channel
+            ]
+            inflexion = self.budget_allocator.allocator_data_preparer.inflexions[
+                channel
+            ]
 
             # Step 1: Adstock transformation
             x_adstocked = spend_range + carryover
@@ -438,7 +373,12 @@ class AllocatorPlotter(BaseVisualizer):
                     "mean\nresponse%": self.dt_optimOut.init_response_unit
                     / self.dt_optimOut.init_response_unit.sum(),
                     f"mean\n{self.dt_optimOut.metric}": self.dt_optimOut.init_response_unit
-                    / self.dt_optimOut.init_spend_unit,
+                    / np.where(
+                        self.dt_optimOut.init_spend_unit > 0,
+                        self.dt_optimOut.init_spend_unit,
+                        np.inf,
+                    ),
+                    f"m{self.dt_optimOut.metric}": self.dt_optimOut.init_response_marg_unit,  # Use pre-calculated marginal response
                 }
             elif scenario == "Bounded":
                 data = {
@@ -448,7 +388,12 @@ class AllocatorPlotter(BaseVisualizer):
                     "mean\nresponse%": self.dt_optimOut.optm_response_unit
                     / self.dt_optimOut.optm_response_unit.sum(),
                     f"mean\n{self.dt_optimOut.metric}": self.dt_optimOut.optm_response_unit
-                    / self.dt_optimOut.optm_spend_unit,
+                    / np.where(
+                        self.dt_optimOut.optm_spend_unit > 0,
+                        self.dt_optimOut.optm_spend_unit,
+                        np.inf,
+                    ),
+                    f"m{self.dt_optimOut.metric}": self.dt_optimOut.optm_response_marg_unit,  # Use pre-calculated marginal response
                 }
             else:  # "Bounded x3"
                 data = {
@@ -458,14 +403,13 @@ class AllocatorPlotter(BaseVisualizer):
                     "mean\nresponse%": self.dt_optimOut.optm_response_unit_unbound
                     / self.dt_optimOut.optm_response_unit_unbound.sum(),
                     f"mean\n{self.dt_optimOut.metric}": self.dt_optimOut.optm_response_unit_unbound
-                    / self.dt_optimOut.optm_spend_unit_unbound,
+                    / np.where(
+                        self.dt_optimOut.optm_spend_unit_unbound > 0,
+                        self.dt_optimOut.optm_spend_unit_unbound,
+                        np.inf,
+                    ),
+                    f"m{self.dt_optimOut.metric}": self.dt_optimOut.optm_response_marg_unit_unbound,  # Use pre-calculated marginal response
                 }
-
-            # Calculate marginal metrics
-            spend = data["abs.mean\nspend"]
-            response = data[f"mean\n{self.dt_optimOut.metric}"] * spend
-            marginal_roi = np.gradient(response) / np.gradient(spend)
-            data[f"m{self.dt_optimOut.metric}"] = marginal_roi
 
             return pd.DataFrame(data, index=self.dt_optimOut.channels)
 
