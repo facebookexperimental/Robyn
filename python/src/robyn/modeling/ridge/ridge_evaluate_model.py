@@ -227,10 +227,12 @@ class RidgeModelEvaluator:
         debug = True
 
         if debug and (iter_ng == 0 or iter_ng % 25 == 0):
-            print(f"\nEvaluation Debug (trial {trial}, iteration {iter_ng}):")
-            print(f"X shape: {X.shape}")
-            print(f"y shape: {y.shape}")
-            print("Parameters:", params)
+            self.logger.debug(
+                f"\nEvaluation Debug (trial {trial}, iteration {iter_ng}):"
+            )
+            self.logger.debug(f"X shape: {X.shape}")
+            self.logger.debug(f"y shape: {y.shape}")
+            self.logger.debug("Parameters:", params)
 
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
@@ -270,7 +272,7 @@ class RidgeModelEvaluator:
         # Calculate metrics using R-style calculations
         y_train_pred = model.predict(x_norm)
         metrics["rsq_train"] = self.ridge_metrics_calculator.calculate_r2_score(
-            y_norm, y_train_pred, x_norm.shape[1]
+            y_norm, y_train_pred, x_norm.shape[1], debug=debug, iteration=iter_ng
         )
         metrics["nrmse_train"] = self.ridge_metrics_calculator.calculate_nrmse(
             y_norm, y_train_pred, debug=debug, iteration=iter_ng
