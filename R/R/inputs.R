@@ -263,7 +263,8 @@ robyn_inputs <- function(dt_input = NULL,
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
-      window_start, window_end, paid_media_spends, organic_vars
+      window_start, window_end, paid_media_spends, organic_vars,
+      paid_collect$paid_media_selected
     )
 
     ## Not used variables
@@ -332,7 +333,7 @@ robyn_inputs <- function(dt_input = NULL,
 
       ## Check hyperparameters
       hyperparameters <- check_hyperparameters(
-        hyperparameters, adstock, paid_media_selected, paid_media_spends, organic_vars,
+        hyperparameters, adstock, paid_collect$paid_media_selected, paid_media_spends, organic_vars,
         exposure_vars, prophet_vars, context_vars
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
@@ -352,7 +353,8 @@ robyn_inputs <- function(dt_input = NULL,
       window_start = InputCollect$window_start,
       window_end = InputCollect$window_end,
       paid_media_spends = InputCollect$paid_media_spends,
-      organic_vars = InputCollect$organic_vars
+      organic_vars = InputCollect$organic_vars,
+      paid_media_selected = InputCollect$paid_media_selected
     )
 
     ## Update calibration_input

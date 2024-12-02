@@ -572,7 +572,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 }
 
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
-                              window_start, window_end, paid_media_spends, organic_vars) {
+                              window_start, window_end, paid_media_spends, organic_vars, paid_media_selected) {
   if (!is.null(calibration_input)) {
     calibration_input <- as_tibble(as.data.frame(calibration_input))
     these <- c("channel", "liftStartDate", "liftEndDate", "liftAbs", "spend", "confidence", "metric", "calibration_scope")
@@ -584,6 +584,10 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     }
     all_media <- c(paid_media_spends, organic_vars)
     cal_media <- str_split(calibration_input$channel, "\\+|,|;|\\s")
+    cal_media_selected <- lapply(cal_media, function(x) sapply(x, function(y) {
+      ifelse(y %in% c(paid_media_selected, organic_vars), y, paid_media_selected[paid_media_spends == y])
+    }))
+    calibration_input$channel_selected <- sapply(cal_media_selected, function(x) paste0(x, collapse = "+"))
     if (!all(unlist(cal_media) %in% all_media)) {
       these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
       stop(sprintf(

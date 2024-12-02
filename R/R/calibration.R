@@ -203,6 +203,7 @@ robyn_calibrate <- function(
     best_loss_iter <- best_loss_iters[best_loss_trial]
     best_loss_val <- best_loss_vals[best_loss_trial]
     best_hp <- ng_hp[[best_loss_trial]][[best_loss_iter]]$value
+    best_pred_response <- pred_collect[[best_loss_trial]][[best_loss_iter]]
 
     ## saturation hill
     hp_alpha <- hp_bounds_loop[["alpha"]]
@@ -236,10 +237,14 @@ robyn_calibrate <- function(
     qt_gamma_out <- .qti(x = gamma_collect_converged, interval = hp_interval)
 
     ## plotting & prompting
-    df_sot_plot <- data.frame(spend = spend_cum_sot, response = response_sot_scaled)
+    coef_response <- sum(response_cum_sot) / sum(response_sot_scaled)
+    df_sot_plot <- data.frame(
+      spend = spend_cum_sot,
+      response = response_sot_scaled,
+      response_pred = best_pred_response * coef_response)
     temp_spend <- seq(0, max(spend_cum_sot), length.out = sim_n)
     temp_sat <- saturation_hill(x = sim_temp, alpha = best_alpha, gamma = best_gamma, x_marginal = temp_spend)[["x_saturated"]]
-    df_pred_plot <- data.frame(spend = temp_spend, response = temp_sat)
+    df_pred_sim_plot <- data.frame(spend = temp_spend, response = temp_sat)
 
     sim_alphas <- alpha_collect_converged[
       alpha_collect_converged > qt_alpha_out[1] &
@@ -278,7 +283,7 @@ robyn_calibrate <- function(
         aes(x = .data$spend, y = .data$response)
       ) +
       geom_line(
-        data = df_pred_plot,
+        data = df_pred_sim_plot,
         aes(x = .data$spend, y = .data$response), color = "blue"
       ) +
       labs(title = paste0("Spend to ", y_lab, " saturation curve estimation")) +
@@ -350,7 +355,12 @@ robyn_calibrate <- function(
       plot = p_lines / p_mse / (p_alpha + p_gamma) +
         plot_annotation(
           theme = theme_lares(background = "white", ...)
-        )
+        ),
+      df_out = df_curve_sot %>%
+        mutate(response_pred = best_pred_response * coef_response),
+      df_out_sim = df_pred_sim_plot %>%
+        mutate(response_pred = .data$response * coef_response),
+      coef_response = coef_response
     )
     return(curve_out)
   }
@@ -379,7 +389,7 @@ lift_calibration <- function(
       calibration_input,
       pred = NA, pred_total = NA, decompStart = NA, decompEnd = NA
     )
-    split_channels <- strsplit(calibration_input$channel, split = "\\+")
+    split_channels <- strsplit(calibration_input$channel_selected, split = "\\+")
 
     for (l_study in seq_along(split_channels)) {
       get_channels <- split_channels[[l_study]]
@@ -411,24 +421,27 @@ lift_calibration <- function(
             scale <- hypParamSam[paste0(get_channels[l_chn], "_scales")][[1]][[1]]
           }
           x_list <- transform_adstock(m, adstock, theta = theta, shape = shape, scale = scale)
+          x_list_cal <- transform_adstock(m[calib_pos], adstock, theta = theta, shape = shape, scale = scale)
           if (adstock == "weibull_pdf") {
             m_imme <- x_list$x_imme
+            m_imme_cal <- x_list_cal$x_imme
           } else {
             m_imme <- m
+            m_imme_cal <- m[calib_pos]
           }
           m_total <- x_list$x_decayed
-          m_caov <- m_total - m_imme
+          # m_caov <- m_total - m_imme
+          m_total_cal <- x_list_cal$x_decayed
 
           ## 2. Saturation
-          m_caov_calib <- m_caov[calib_pos]
           m_total_rw <- m_total[wind_start:wind_end]
           alpha <- hypParamSam[paste0(get_channels[l_chn], "_alphas")][[1]][[1]]
           gamma <- hypParamSam[paste0(get_channels[l_chn], "_gammas")][[1]][[1]]
           m_calib_caov_sat <- saturation_hill(
             m_total_rw,
-            alpha = alpha, gamma = gamma, x_marginal = m_caov_calib
+            alpha = alpha, gamma = gamma, x_marginal = m_total[calib_pos] - m_total_cal
           )
-          m_calib_caov_decomp <- m_calib_caov_sat * coefs$s0[coefs$rn == get_channels[l_chn]]
+          m_calib_caov_decomp <- m_calib_caov_sat$x_saturated * coefs$s0[coefs$rn == get_channels[l_chn]]
           m_calib_total_decomp <- xDecompVec[calib_pos_rw, get_channels[l_chn]]
           m_calib_decomp <- m_calib_total_decomp - m_calib_caov_decomp
         }
@@ -473,7 +486,7 @@ lift_calibration <- function(
         decompAbsTotalScaled = .data$pred_total / .data$decompDays * .data$liftDays
       ) %>%
       mutate(
-        liftMedia = .data$channel,
+        liftMedia = .data$channel_selected,
         liftStart = .data$liftStartDate,
         liftEnd = .data$liftEndDate,
         mape_lift = abs((.data$decompAbsScaled - .data$liftAbs) / .data$liftAbs),
