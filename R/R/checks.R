@@ -572,7 +572,7 @@ check_hyper_limits <- function(hyperparameters, hyper) {
 }
 
 check_calibration <- function(dt_input, date_var, calibration_input, dayInterval, dep_var,
-                              window_start, window_end, paid_media_spends, organic_vars, paid_media_selected) {
+                              window_start, window_end, paid_media_spends, organic_vars) {
   if (!is.null(calibration_input)) {
     calibration_input <- as_tibble(as.data.frame(calibration_input))
     these <- c("channel", "liftStartDate", "liftEndDate", "liftAbs", "spend", "confidence", "metric", "calibration_scope")
@@ -582,19 +582,14 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     if (!is.numeric(calibration_input$liftAbs) || any(is.na(calibration_input$liftAbs))) {
       stop("Check 'calibration_input$liftAbs': all lift values must be valid numerical numbers")
     }
-    all_media <- c(paid_media_selected, organic_vars)
+    all_media <- c(paid_media_spends, organic_vars)
     cal_media <- str_split(calibration_input$channel, "\\+|,|;|\\s")
     if (!all(unlist(cal_media) %in% all_media)) {
-      these <- unique(unlist(cal_media)[unlist(cal_media) %in% paid_media_selected])
-      cal_media <- lapply(cal_media, function(x) sapply(x, function(y) {
-        ifelse(any(paid_media_spends %in% y), paid_media_selected[paid_media_spends %in% y], y)
-      }))
-      calibration_input$channel <- sapply(cal_media, function(x) paste0(x, collapse = "+"))
-      if (!all(unlist(cal_media) %in% all_media)) {
-        stop(sprintf(
-          "Channels from 'calibration_input' must be any of: %s.\n", v2t(all_media)
-        ))
-      }
+      these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
+      stop(sprintf(
+        "All channels from 'calibration_input' must be any of: %s.\n  Check: %s",
+        v2t(all_media), v2t(these)
+      ))
     }
     for (i in seq_along(calibration_input$channel)) {
       temp <- calibration_input[i, ]

@@ -276,8 +276,7 @@ robyn_refresh <- function(json_file = NULL,
         window_start = InputCollectRF$window_start,
         window_end = InputCollectRF$window_end,
         paid_media_spends = InputCollectRF$paid_media_spends,
-        organic_vars = InputCollectRF$organic_vars,
-        paid_media_selected = InputCollectRF$paid_media_selected
+        organic_vars = InputCollectRF$organic_vars
       )
       InputCollectRF$calibration_input <- calibration_input
     }
