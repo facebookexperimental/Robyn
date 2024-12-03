@@ -168,37 +168,43 @@ class RidgeMetricsCalculator:
             """R's implementation of sd"""
             return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
 
+        # Remove the date column if it exists
+        if x_norm.shape[1] == 12:
+            x_norm = x_norm[:, 1:]  # Skip the first column (ds)
+
         # Scale X using R's approach
         x_means = np.mean(x_norm, axis=0)
         x_sds = np.apply_along_axis(mysd, 0, x_norm)
-        sx = (x_norm - x_means) / x_sds[:, np.newaxis].T
+
+        # Scale exactly like R does - one column at a time
+        sx = np.zeros_like(x_norm)
+        for j in range(x_norm.shape[1]):
+            sx[:, j] = (x_norm[:, j] - x_means[j]) / x_sds[j]
 
         # Handle NaN values like R does
         check_nan = np.all(np.isnan(sx), axis=0)
-        sx = np.where(check_nan, 0, sx)
+        sx = np.where(check_nan[np.newaxis, :], 0, sx)
 
-        # R does not scale y in this case
+        # Important: R does not scale y
         sy = y_norm
 
         # Calculate lambda_max using R's approach
-        # 0.001 is glmnet's default alpha value for ridge regression
-        lambda_max = np.max(np.abs(np.sum(sx * sy[:, np.newaxis], axis=0))) / (
-            0.001 * len(x_norm)
-        )
+        colsums = np.sum(sx * sy[:, np.newaxis], axis=0)
+        lambda_max = np.max(np.abs(colsums)) / (0.001 * len(x_norm))
 
         # Calculate lambda using lambda_hp
         lambda_min = lambda_max * 0.0001  # R's default lambda_min_ratio
         lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
 
-        if debug and (iteration % 10 == 0):
-            self.logger.debug(f"\nLambda Debug (iter {iteration}):")
-            self.logger.debug(f"x_means: {np.mean(np.abs(x_means)):.6f}")
+        if debug and (iteration % 50 == 0 or iteration == 1):
+            self.logger.debug(f"\nLambda calculation (iteration {iteration}):")
+            self.logger.debug(f"x_means: {np.mean(np.abs(x_norm)):.6f}")
             self.logger.debug(f"x_sds mean: {np.mean(x_sds):.6f}")
             self.logger.debug(f"sx mean: {np.mean(np.abs(sx)):.6f}")
             self.logger.debug(f"sy mean: {np.mean(np.abs(sy)):.6f}")
+            self.logger.debug(f"shape: {sx.shape}")
             self.logger.debug(f"lambda_max: {lambda_max:.6f}")
             self.logger.debug(f"lambda_: {lambda_:.6f}")
-            self.logger.debug(f"lambda_hp: {lambda_hp:.6f}")
 
         return float(lambda_), float(lambda_max)
 
@@ -485,11 +491,11 @@ class RidgeMetricsCalculator:
         rmse = np.sqrt(rss / n)
         nrmse = rmse / y_range if y_range > 0 else rmse
 
-        # if debug and (iteration % 50 == 0):
-        #     self.logger.debug(f"\nNRMSE Calculation Debug (iteration {iteration}):")
-        #     self.logger.debug(f"RSS: {rss:.6f}")
-        #     self.logger.debug(f"RMSE: {rmse:.6f}")
-        #     self.logger.debug(f"Range: {y_range:.6f}")
-        #     self.logger.debug(f"NRMSE: {nrmse:.6f}")
+        if debug and (iteration % 50 == 0):
+            self.logger.debug(f"\nNRMSE Calculation Debug (iteration {iteration}):")
+            self.logger.debug(f"RSS: {rss:.6f}")
+            self.logger.debug(f"RMSE: {rmse:.6f}")
+            self.logger.debug(f"Range: {y_range:.6f}")
+            self.logger.debug(f"NRMSE: {nrmse:.6f}")
 
         return float(nrmse)

@@ -58,6 +58,10 @@ class RidgeDataBuilder:
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
         X = X + 1e-8 * np.random.randn(*X.shape)
 
+        # Important: Remove the 'ds' column before returning
+        if "ds" in X.columns:
+            X = X.drop(columns=["ds"])
+
         return X, y
 
     @staticmethod

@@ -226,14 +226,6 @@ class RidgeModelEvaluator:
         # Debug is True by default now
         debug = True
 
-        if debug and (iter_ng == 0 or iter_ng % 25 == 0):
-            self.logger.debug(
-                f"\nEvaluation Debug (trial {trial}, iteration {iter_ng}):"
-            )
-            self.logger.debug(f"X shape: {X.shape}")
-            self.logger.debug(f"y shape: {y.shape}")
-            self.logger.debug("Parameters:", params)
-
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
         train_idx = int(len(X) * train_size)
@@ -254,17 +246,37 @@ class RidgeModelEvaluator:
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
 
+        # Add debugging before lambda calculation
+        if debug and (iter_ng == 0 or iter_ng % 50 == 0):
+            print(f"\nPre-lambda calculation debug (iteration {iter_ng}):")
+            print(f"x_norm shape: {x_norm.shape}")
+            print(f"x_norm columns: {X_train.columns.tolist()}")
+            print(f"x_norm first row: {x_norm[0]}")
+            print(f"y_norm shape: {y_norm.shape}")
+            print(f"y_norm first 5 values: {y_norm[:5]}")
         # Calculate lambda using R-matching helper function
         lambda_hp = params.get("lambda", 1.0)
+
+        # Add lambda_hp debugging
+        if debug and (iter_ng == 0 or iter_ng % 50 == 0):
+            print(f"Raw params: {params}")
+            print(f"lambda key exists: {'lambda' in params}")
+            print(f"lambda_hp direct: {lambda_hp}")
+
         lambda_, lambda_max = self.ridge_metrics_calculator._calculate_lambda(
             x_norm, y_norm, lambda_hp, debug=debug, iteration=iter_ng
         )
-        # After calculating lambda
-        self.logger.debug(f"Lambda calculation debug:")
-        self.logger.debug(f"lambda_hp: {lambda_hp}")
-        self.logger.debug(f"lambda_: {lambda_}")
-        self.logger.debug(f"lambda_max: {lambda_max}")
 
+        # Add post-lambda calculation debug
+        if debug and (iter_ng == 0 or iter_ng % 50 == 0):
+            lambda_min = lambda_max * 0.0001
+            expected_lambda = lambda_min + lambda_hp * (lambda_max - lambda_min)
+            print(f"Lambda calculation verification:")
+            print(f"lambda_min (lambda_max * 0.0001): {lambda_min}")
+            print(f"lambda_range (lambda_max - lambda_min): {lambda_max - lambda_min}")
+            print(f"expected_lambda: {expected_lambda}")
+            print(f"actual_lambda: {lambda_}")
+            print(f"difference: {abs(expected_lambda - lambda_)}")
         # Scale inputs for model
         model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
         model.fit(x_norm, y_norm)
@@ -341,7 +353,20 @@ class RidgeModelEvaluator:
                 "elapsed_accum": float(elapsed_time),
             }
         )
-
+        # # Print logs for the first iteration and every 50 iterations
+        # if iter_ng == 0 or (iter_ng + 1) % 50 == 0:
+        #     print(f"Iteration {iter_ng + 1}:")
+        #     print(f"  NRMSE: {metrics['nrmse']}")
+        #     print(f"  NRMSE Train: {metrics['nrmse_train']}")
+        #     print(f"  NRMSE Val: {metrics['nrmse_val']}")
+        #     print(f"  NRMSE Test: {metrics['nrmse_test']}")
+        #     print(f"  RSQ Train: {metrics['rsq_train']}")
+        #     print(f"  RSQ Val: {metrics['rsq_val']}")
+        #     print(f"  RSQ Test: {metrics['rsq_test']}")
+        #     print(f"  Decomp RSSD: {decomp_rssd}")
+        #     print(f"  Lambda: {lambda_}")
+        #     print(f"  Lambda HP: {lambda_hp}")
+        #     print(f"  Lambda Max: {lambda_max}")
         # Calculate decompositions
         x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
             model, X_train, y_train, {**params_formatted, **metrics}
