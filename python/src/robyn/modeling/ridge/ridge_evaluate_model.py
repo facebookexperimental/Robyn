@@ -11,6 +11,9 @@ from robyn.modeling.entities.modeloutputs import Trial
 from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
+import json
+
+json_file_path = "/Users/yijuilee/robynpy_release_reviews/Robyn/python/src/robyn/debug/modeling/2000iterations_1trial_metrics.json"
 
 
 class RidgeModelEvaluator:
@@ -217,6 +220,9 @@ class RidgeModelEvaluator:
     ) -> Dict[str, Any]:
         """Evaluate model with parameter set matching R's implementation exactly"""
         X, y = self.ridge_data_builder._prepare_data(params)
+        print("\nevaluate_model debug:")
+        print(f"After prepare_data - X: {X.shape}, y: {y.shape}")
+
         sol_id = f"{trial}_{iter_ng + 1}_1"
         # After preparing data
         self.logger.debug(f"Data shapes - X: {X.shape}, y: {y.shape}")
@@ -229,12 +235,17 @@ class RidgeModelEvaluator:
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
         train_idx = int(len(X) * train_size)
+        print(f"train_size: {train_size}, train_idx: {train_idx}")
 
         metrics = {}
         if ts_validation:
             val_test_size = (len(X) - train_idx) // 2
+            print(f"val_test_size: {val_test_size}")
             X_train = X.iloc[:train_idx]
             y_train = y.iloc[:train_idx]
+            print(
+                f"After train split - X_train: {X_train.shape}, y_train: {y_train.shape}"
+            )
             X_val = X.iloc[train_idx : train_idx + val_test_size]
             y_val = y.iloc[train_idx : train_idx + val_test_size]
             X_test = X.iloc[train_idx + val_test_size :]
@@ -246,37 +257,37 @@ class RidgeModelEvaluator:
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
 
-        # Add debugging before lambda calculation
-        if debug and (iter_ng == 0 or iter_ng % 50 == 0):
-            print(f"\nPre-lambda calculation debug (iteration {iter_ng}):")
-            print(f"x_norm shape: {x_norm.shape}")
-            print(f"x_norm columns: {X_train.columns.tolist()}")
-            print(f"x_norm first row: {x_norm[0]}")
-            print(f"y_norm shape: {y_norm.shape}")
-            print(f"y_norm first 5 values: {y_norm[:5]}")
+        # # Add debugging before lambda calculation
+        # if debug and (iter_ng == 0 or iter_ng % 50 == 0):
+        #     self.logger.debug(f"\nPre-lambda calculation debug (iteration {iter_ng}):")
+        #     self.logger.debug(f"x_norm shape: {x_norm.shape}")
+        #     self.logger.debug(f"x_norm columns: {X_train.columns.tolist()}")
+        #     self.logger.debug(f"x_norm first row: {x_norm[0]}")
+        #     self.logger.debug(f"y_norm shape: {y_norm.shape}")
+        #     self.logger.debug(f"y_norm first 5 values: {y_norm[:5]}")
         # Calculate lambda using R-matching helper function
         lambda_hp = params.get("lambda", 1.0)
 
         # Add lambda_hp debugging
         if debug and (iter_ng == 0 or iter_ng % 50 == 0):
-            print(f"Raw params: {params}")
-            print(f"lambda key exists: {'lambda' in params}")
-            print(f"lambda_hp direct: {lambda_hp}")
+            self.logger.debug("lambda_hp debug:")
+            self.logger.debug(f"lambda_hp raw value: {lambda_hp}")
+            self.logger.debug(f"lambda_hp type: {type(lambda_hp)}")
 
         lambda_, lambda_max = self.ridge_metrics_calculator._calculate_lambda(
             x_norm, y_norm, lambda_hp, debug=debug, iteration=iter_ng
         )
 
-        # Add post-lambda calculation debug
-        if debug and (iter_ng == 0 or iter_ng % 50 == 0):
-            lambda_min = lambda_max * 0.0001
-            expected_lambda = lambda_min + lambda_hp * (lambda_max - lambda_min)
-            print(f"Lambda calculation verification:")
-            print(f"lambda_min (lambda_max * 0.0001): {lambda_min}")
-            print(f"lambda_range (lambda_max - lambda_min): {lambda_max - lambda_min}")
-            print(f"expected_lambda: {expected_lambda}")
-            print(f"actual_lambda: {lambda_}")
-            print(f"difference: {abs(expected_lambda - lambda_)}")
+        # # Add post-lambda calculation debug
+        # if debug and (iter_ng == 0 or iter_ng % 50 == 0):
+        #     lambda_min = lambda_max * 0.0001
+        #     expected_lambda = lambda_min + lambda_hp * (lambda_max - lambda_min)
+        #     self.logger.debug(f"Lambda calculation verification:")
+        #     self.logger.debug(f"lambda_min (lambda_max * 0.0001): {lambda_min}")
+        #     self.logger.debug(f"lambda_range (lambda_max - lambda_min): {lambda_max - lambda_min}")
+        #     self.logger.debug(f"expected_lambda: {expected_lambda}")
+        #     self.logger.debug(f"actual_lambda: {lambda_}")
+        #     self.logger.debug(f"difference: {abs(expected_lambda - lambda_)}")
         # Scale inputs for model
         model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
         model.fit(x_norm, y_norm)
@@ -353,20 +364,26 @@ class RidgeModelEvaluator:
                 "elapsed_accum": float(elapsed_time),
             }
         )
-        # # Print logs for the first iteration and every 50 iterations
-        # if iter_ng == 0 or (iter_ng + 1) % 50 == 0:
-        #     print(f"Iteration {iter_ng + 1}:")
-        #     print(f"  NRMSE: {metrics['nrmse']}")
-        #     print(f"  NRMSE Train: {metrics['nrmse_train']}")
-        #     print(f"  NRMSE Val: {metrics['nrmse_val']}")
-        #     print(f"  NRMSE Test: {metrics['nrmse_test']}")
-        #     print(f"  RSQ Train: {metrics['rsq_train']}")
-        #     print(f"  RSQ Val: {metrics['rsq_val']}")
-        #     print(f"  RSQ Test: {metrics['rsq_test']}")
-        #     print(f"  Decomp RSSD: {decomp_rssd}")
-        #     print(f"  Lambda: {lambda_}")
-        #     print(f"  Lambda HP: {lambda_hp}")
-        #     print(f"  Lambda Max: {lambda_max}")
+        if iter_ng == 0 or (iter_ng + 1) % 50 == 0:
+            # Create a dictionary to store the metrics
+            iteration_data = {
+                "Python iteration": iter_ng + 1,
+                "nrmse": metrics["nrmse"],
+                "nrmse_train": metrics["nrmse_train"],
+                "nrmse_val": metrics["nrmse_val"],
+                "nrmse_test": metrics["nrmse_test"],
+                "rsq_train": metrics["rsq_train"],
+                "rsq_val": metrics["rsq_val"],
+                "rsq_test": metrics["rsq_test"],
+                "decomp_rssd": decomp_rssd,
+                "lambda": lambda_,
+                "lambda_hp": lambda_hp,
+                "lambda_max": lambda_max,
+            }
+            # Write the dictionary to a JSON file
+            with open(json_file_path, "a") as json_file:
+                json.dump(iteration_data, json_file)
+                json_file.write("\n")
         # Calculate decompositions
         x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
             model, X_train, y_train, {**params_formatted, **metrics}

@@ -4,6 +4,9 @@ from typing import Dict, Tuple, List, Any
 from sklearn.linear_model import Ridge
 import logging
 from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
+import json
+
+debug_json_file_path = "/Users/yijuilee/robynpy_release_reviews/Robyn/python/src/robyn/debug/modeling/2000iterations_1trial_lambda_params.json"  # Please provide the path you want to use
 
 
 class RidgeMetricsCalculator:
@@ -154,6 +157,47 @@ class RidgeMetricsCalculator:
         # self.logger.debug(f"{col} - effect: {all_effects[col]}, spend: {all_spends[col]}")
         return df[required_cols]
 
+    def lambda_seq(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        seq_len: int = 100,
+        lambda_min_ratio: float = 0.0001,
+    ) -> np.ndarray:
+        """Match R's lambda_seq function exactly"""
+
+        def mysd(y: np.ndarray) -> float:
+            """R's implementation of sd"""
+            return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
+
+        # Scale X using R's approach
+        x_means = np.mean(x, axis=0)
+        x_sds = np.apply_along_axis(mysd, 0, x)
+
+        # Scale each column
+        sx = np.zeros_like(x)
+        for j in range(x.shape[1]):
+            sx[:, j] = (x[:, j] - x_means[j]) / x_sds[j]
+
+        # Handle NaN values like R
+        check_nan = np.all(np.isnan(sx), axis=0)
+        sx = np.where(check_nan[np.newaxis, :], 0, sx)
+
+        # R does not scale y
+        sy = y
+
+        # Calculate lambda_max like R
+        colsums = np.sum(sx * sy[:, np.newaxis], axis=0)
+        colsums = np.nan_to_num(colsums)
+        lambda_max = np.max(np.abs(colsums)) / (0.001 * len(x))
+
+        # Generate sequence in log space
+        lambda_min = lambda_max * lambda_min_ratio
+        log_step = (np.log(lambda_max) - np.log(lambda_min)) / (seq_len - 1)
+        lambdas = np.exp(np.linspace(np.log(lambda_max), np.log(lambda_min), seq_len))
+
+        return lambdas
+
     def _calculate_lambda(
         self,
         x_norm: np.ndarray,
@@ -162,49 +206,42 @@ class RidgeMetricsCalculator:
         debug: bool = True,
         iteration: int = 0,
     ) -> Tuple[float, float]:
-        """Match R's glmnet lambda calculation exactly"""
+        """Match R's lambda calculation exactly"""
 
-        def mysd(y: np.ndarray) -> float:
-            """R's implementation of sd"""
-            return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
+        # Get lambda sequence like R
+        lambdas = self.lambda_seq(
+            x=x_norm, y=y_norm, seq_len=100, lambda_min_ratio=0.0001
+        )
 
-        # Remove the date column if it exists
-        if x_norm.shape[1] == 12:
-            x_norm = x_norm[:, 1:]  # Skip the first column (ds)
+        # Match R's lambda_max calculation - critical 0.1 factor
+        lambda_max = max(lambdas) * 0.1
+        lambda_min = lambda_max * 0.0001
 
-        # Scale X using R's approach
-        x_means = np.mean(x_norm, axis=0)
-        x_sds = np.apply_along_axis(mysd, 0, x_norm)
-
-        # Scale exactly like R does - one column at a time
-        sx = np.zeros_like(x_norm)
-        for j in range(x_norm.shape[1]):
-            sx[:, j] = (x_norm[:, j] - x_means[j]) / x_sds[j]
-
-        # Handle NaN values like R does
-        check_nan = np.all(np.isnan(sx), axis=0)
-        sx = np.where(check_nan[np.newaxis, :], 0, sx)
-
-        # Important: R does not scale y
-        sy = y_norm
-
-        # Calculate lambda_max using R's approach
-        colsums = np.sum(sx * sy[:, np.newaxis], axis=0)
-        lambda_max = np.max(np.abs(colsums)) / (0.001 * len(x_norm))
-
-        # Calculate lambda using lambda_hp
-        lambda_min = lambda_max * 0.0001  # R's default lambda_min_ratio
-        lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
+        # Calculate final lambda
+        log_lambda = np.log(lambda_min) + lambda_hp * (
+            np.log(lambda_max) - np.log(lambda_min)
+        )
+        lambda_ = np.exp(log_lambda)
 
         if debug and (iteration % 50 == 0 or iteration == 1):
-            self.logger.debug(f"\nLambda calculation (iteration {iteration}):")
-            self.logger.debug(f"x_means: {np.mean(np.abs(x_norm)):.6f}")
-            self.logger.debug(f"x_sds mean: {np.mean(x_sds):.6f}")
-            self.logger.debug(f"sx mean: {np.mean(np.abs(sx)):.6f}")
-            self.logger.debug(f"sy mean: {np.mean(np.abs(sy)):.6f}")
-            self.logger.debug(f"shape: {sx.shape}")
-            self.logger.debug(f"lambda_max: {lambda_max:.6f}")
-            self.logger.debug(f"lambda_: {lambda_:.6f}")
+            debug_data = {
+                "iteration": iteration,
+                "lambda_seq": {
+                    "initial_max": float(max(lambdas)),
+                    "lambda_max": float(lambda_max),  # After * 0.1
+                    "lambda_min": float(lambda_min),
+                    "lambda_hp": float(lambda_hp),
+                    "final_lambda": float(lambda_),
+                },
+                "data_info": {
+                    "x_shape": list(x_norm.shape),
+                    "y_shape": list(y_norm.shape),
+                },
+            }
+
+            with open(debug_json_file_path, "a") as json_file:
+                json.dump(debug_data, json_file)
+                json_file.write("\n")
 
         return float(lambda_), float(lambda_max)
 

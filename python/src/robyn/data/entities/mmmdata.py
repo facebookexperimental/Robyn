@@ -196,59 +196,55 @@ class MMMData:
         self.data.drop(columns=[column_name], inplace=True)
 
     def calculate_rolling_window_indices(self) -> None:
-        # Ensure the date column is in datetime format
+        """Match R's window index calculation exactly"""
+        # Convert dates to pandas datetime
         self.data[self.mmmdata_spec.date_var] = pd.to_datetime(
             self.data[self.mmmdata_spec.date_var]
         )
-        # Convert window_start and window_end to datetime if they are strings
-        window_start = (
-            pd.to_datetime(self.mmmdata_spec.window_start)
-            if isinstance(self.mmmdata_spec.window_start, str)
-            else self.mmmdata_spec.window_start
-        )
-        window_end = (
-            pd.to_datetime(self.mmmdata_spec.window_end)
-            if isinstance(self.mmmdata_spec.window_end, str)
-            else self.mmmdata_spec.window_end
-        )
+        dates_vec = self.data[self.mmmdata_spec.date_var]
 
-        # Calculate the index for the rolling window start
+        # Convert window dates to datetime
+        window_start = pd.to_datetime(self.mmmdata_spec.window_start)
+        window_end = pd.to_datetime(self.mmmdata_spec.window_end)
+
+        # Calculate start index using days difference like R
         if window_start is not None:
-            closest_start_idx = (
-                (self.data[self.mmmdata_spec.date_var] - window_start).abs().idxmin()
-            )
-            closest_start_date = self.data[self.mmmdata_spec.date_var].iloc[
-                closest_start_idx
-            ]
+            days_diff = (dates_vec - window_start).dt.total_seconds() / (24 * 3600)
+            closest_start_idx = days_diff.abs().argmin()
+            closest_start_date = dates_vec.iloc[closest_start_idx]
+
+            print(f"Python window calculation (start):")
+            print(f"window_start: {window_start}")
+            print(f"closest_start_date: {closest_start_date}")
+            print(f"closest_start_idx: {closest_start_idx}")
+            print(f"days_diff first few values: {days_diff.head().values}")
+
             self.mmmdata_spec.rolling_window_start_which = closest_start_idx
-            # Adjust window_start to the closest date in the data
             self.mmmdata_spec.window_start = closest_start_date
-            print(
-                f"Adjusted window_start to the closest date in the data: {closest_start_date}"
-            )
 
-        # Calculate the index for the rolling window end
+        # Calculate end index using days difference like R
         if window_end is not None:
-            closest_end_idx = (
-                (self.data[self.mmmdata_spec.date_var] - window_end).abs().idxmin()
-            )
-            closest_end_date = self.data[self.mmmdata_spec.date_var].iloc[
-                closest_end_idx
-            ]
-            self.mmmdata_spec.rolling_window_end_which = closest_end_idx
-            # Adjust window_end to the closest date in the data
-            self.mmmdata_spec.window_end = closest_end_date
-            print(
-                f"Adjusted window_end to the closest date in the data: {closest_end_date}"
-            )
+            days_diff = (dates_vec - window_end).dt.total_seconds() / (24 * 3600)
+            closest_end_idx = days_diff.abs().argmin()
+            closest_end_date = dates_vec.iloc[closest_end_idx]
 
-        # Calculate rolling window length
+            print(f"Python window calculation (end):")
+            print(f"window_end: {window_end}")
+            print(f"closest_end_date: {closest_end_date}")
+            print(f"closest_end_idx: {closest_end_idx}")
+            print(f"days_diff first few values: {days_diff.head().values}")
+
+            self.mmmdata_spec.rolling_window_end_which = closest_end_idx
+            self.mmmdata_spec.window_end = closest_end_date
+
+        # Calculate window length
         if window_start is not None and window_end is not None:
             self.mmmdata_spec.rolling_window_length = (
                 self.mmmdata_spec.rolling_window_end_which
                 - self.mmmdata_spec.rolling_window_start_which
                 + 1
             )
+            print(f"Window length: {self.mmmdata_spec.rolling_window_length}")
 
     def set_default_factor_vars(self) -> None:
         """
