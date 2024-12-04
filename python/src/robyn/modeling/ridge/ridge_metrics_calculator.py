@@ -166,15 +166,15 @@ class RidgeMetricsCalculator:
     ) -> np.ndarray:
         """Match R's lambda_seq function exactly"""
 
+        # R's sd implementation
         def mysd(y: np.ndarray) -> float:
-            """R's implementation of sd"""
             return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
 
         # Scale X using R's approach
         x_means = np.mean(x, axis=0)
         x_sds = np.apply_along_axis(mysd, 0, x)
 
-        # Scale each column
+        # Create scaled matrix exactly like R
         sx = np.zeros_like(x)
         for j in range(x.shape[1]):
             sx[:, j] = (x[:, j] - x_means[j]) / x_sds[j]
@@ -186,10 +186,10 @@ class RidgeMetricsCalculator:
         # R does not scale y
         sy = y
 
-        # Calculate lambda_max like R
+        # Calculate lambda_max exactly like R
         colsums = np.sum(sx * sy[:, np.newaxis], axis=0)
         colsums = np.nan_to_num(colsums)
-        lambda_max = np.max(np.abs(colsums)) / (0.001 * len(x))
+        lambda_max = np.max(np.abs(colsums)) / (0.001 * len(x))  # Critical 0.001 factor
 
         # Generate sequence in log space
         lambda_min = lambda_max * lambda_min_ratio
@@ -217,31 +217,20 @@ class RidgeMetricsCalculator:
         lambda_max = max(lambdas) * 0.1
         lambda_min = lambda_max * 0.0001
 
-        # Calculate final lambda
+        # Calculate final lambda using R's approach
         log_lambda = np.log(lambda_min) + lambda_hp * (
             np.log(lambda_max) - np.log(lambda_min)
         )
         lambda_ = np.exp(log_lambda)
 
-        if debug and (iteration % 50 == 0 or iteration == 1):
-            debug_data = {
-                "iteration": iteration,
-                "lambda_seq": {
-                    "initial_max": float(max(lambdas)),
-                    "lambda_max": float(lambda_max),  # After * 0.1
-                    "lambda_min": float(lambda_min),
-                    "lambda_hp": float(lambda_hp),
-                    "final_lambda": float(lambda_),
-                },
-                "data_info": {
-                    "x_shape": list(x_norm.shape),
-                    "y_shape": list(y_norm.shape),
-                },
-            }
-
-            with open(debug_json_file_path, "a") as json_file:
-                json.dump(debug_data, json_file)
-                json_file.write("\n")
+        if debug and (iteration == 0 or iteration % 50 == 0):
+            print("\nDEBUG lambda calculation:")
+            print(f"lambda_max (before 0.1 factor): {max(lambdas)}")
+            print(f"lambda_max (after 0.1 factor): {lambda_max}")
+            print(f"lambda_min: {lambda_min}")
+            print(f"lambda_hp: {lambda_hp}")
+            print(f"log_lambda: {log_lambda}")
+            print(f"final lambda: {lambda_}")
 
         return float(lambda_), float(lambda_max)
 
