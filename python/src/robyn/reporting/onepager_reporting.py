@@ -39,9 +39,9 @@ class OnePager:
 
         # Default plots using PlotType enum directly
         self.default_plots = [
-            PlotType.SPEND_EFFECT,
             PlotType.WATERFALL,
             PlotType.FITTED_VS_ACTUAL,
+            PlotType.SPEND_EFFECT,
             PlotType.BOOTSTRAP,
             PlotType.ADSTOCK,
             PlotType.IMMEDIATE_CARRYOVER,
