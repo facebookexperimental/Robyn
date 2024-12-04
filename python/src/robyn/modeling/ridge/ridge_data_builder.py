@@ -11,48 +11,40 @@ class RidgeDataBuilder:
         self.logger = logging.getLogger(__name__)
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
-        print("\nridge_data_builder prepare_data:")
-        print(
-            f"Window indices: {self.mmm_data.mmmdata_spec.rolling_window_start_which} to {self.mmm_data.mmmdata_spec.rolling_window_end_which}"
-        )
-        print(
-            f"Full data shape before windowing: {self.featurized_mmm_data.dt_mod.shape}"
-        )
-
-        # Apply window indices
-        start_idx = self.mmm_data.mmmdata_spec.rolling_window_start_which
-        end_idx = self.mmm_data.mmmdata_spec.rolling_window_end_which
-
-        # Window the data first
-        windowed_data = self.featurized_mmm_data.dt_mod.iloc[
-            start_idx : end_idx + 1
-        ].copy()
-        print(f"Data shape after windowing: {windowed_data.shape}")
-
-        # Get the dependent variable from windowed data
-        if "dep_var" in windowed_data.columns:
-            windowed_data = windowed_data.rename(
+        # Get the dependent variable
+        # Check if 'dep_var' is in columns
+        if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
+            # Rename 'dep_var' to the specified value
+            self.featurized_mmm_data.dt_mod = self.featurized_mmm_data.dt_mod.rename(
                 columns={"dep_var": self.mmm_data.mmmdata_spec.dep_var}
             )
-        y = windowed_data[self.mmm_data.mmmdata_spec.dep_var]
+        y = self.featurized_mmm_data.dt_mod[self.mmm_data.mmmdata_spec.dep_var]
 
         # Select all columns except the dependent variable
-        X = windowed_data.drop(columns=[self.mmm_data.mmmdata_spec.dep_var])
+        X = self.featurized_mmm_data.dt_mod.drop(
+            columns=[self.mmm_data.mmmdata_spec.dep_var]
+        )
 
-        # Rest of your existing code...
+        # Convert date columns to numeric (number of days since the earliest date)
         date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
         for col in date_columns:
             X[col] = pd.to_datetime(X[col], errors="coerce", format="%Y-%m-%d")
+            # Fill NaT (Not a Time) values with a default date (e.g., the minimum date in the column)
             min_date = X[col].min()
             X[col] = X[col].fillna(min_date)
+            # Convert to days since minimum date, handling potential NaT values
             X[col] = (
                 (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
             )
 
+        # One-hot encode categorical variables
         categorical_columns = X.select_dtypes(include=["object", "category"]).columns
         X = pd.get_dummies(X, columns=categorical_columns, drop_first=True)
+
+        # Ensure all columns are numeric
         X = X.select_dtypes(include=[np.number])
 
+        # Apply transformations based on hyperparameters
         for media in self.mmm_data.mmmdata_spec.paid_media_spends:
             if f"{media}_thetas" in params:
                 X[media] = self._geometric_adstock(X[media], params[f"{media}_thetas"])
@@ -61,14 +53,11 @@ class RidgeDataBuilder:
                     X[media], params[f"{media}_alphas"], params[f"{media}_gammas"]
                 )
 
+        # Handle any remaining NaN or infinite values
         X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
         X = X + 1e-8 * np.random.randn(*X.shape)
 
-        if "ds" in X.columns:
-            X = X.drop(columns=["ds"])
-
-        print(f"Final data shapes - X: {X.shape}, y: {y.shape}")
         return X, y
 
     @staticmethod
@@ -177,16 +166,19 @@ class RidgeDataBuilder:
         return hyper_collect
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
+        # print(f"Before adstock: {x.head()}")
         y = x.copy()
         for i in range(1, len(x)):
             y.iloc[i] += theta * y.iloc[i - 1]
+        # print(f"After adstock: {y.head()}")
         return y
 
     def _hill_transformation(
         self, x: pd.Series, alpha: float, gamma: float
     ) -> pd.Series:
-
+        # Add debug self.logger.debugs
+        # print(f"Before hill: {x.head()}")
         x_scaled = (x - x.min()) / (x.max() - x.min())
         result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
-
+        # print(f"After hill: {result.head()}")
         return result
