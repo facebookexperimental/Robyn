@@ -166,16 +166,19 @@ class RidgeDataBuilder:
         return hyper_collect
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
+        # print(f"Before adstock: {x.head()}")
         y = x.copy()
         for i in range(1, len(x)):
             y.iloc[i] += theta * y.iloc[i - 1]
+        # print(f"After adstock: {y.head()}")
         return y
 
     def _hill_transformation(
         self, x: pd.Series, alpha: float, gamma: float
     ) -> pd.Series:
-
+        # Add debug self.logger.debugs
+        # print(f"Before hill: {x.head()}")
         x_scaled = (x - x.min()) / (x.max() - x.min())
         result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
-
+        # print(f"After hill: {result.head()}")
         return result

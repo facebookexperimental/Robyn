@@ -318,25 +318,3 @@ class BaseModelExecutor(ABC):
                 "Error applying transformations for channel %s: %s", channel, str(e)
             )
             raise
-
-    def _prepare_model_data(self, hyperparameters: Dict[str, Any]) -> np.ndarray:
-        logger.info("Preparing model data")
-        transformed_data = {}
-
-        for channel in self.mmmdata.paid_media_vars:
-            logger.debug("Processing channel: %s", channel)
-            transformed_data[channel] = self._apply_transformations(
-                channel, hyperparameters
-            )
-
-        logger.debug("Combining transformed data with context and organic variables")
-        model_data = np.column_stack(
-            [transformed_data[channel] for channel in self.mmmdata.paid_media_vars]
-            + [
-                self.mmmdata.data[var]
-                for var in self.mmmdata.context_vars + self.mmmdata.organic_vars
-            ]
-        )
-
-        logger.info("Model data preparation complete. Shape: %s", model_data.shape)
-        return model_data

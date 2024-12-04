@@ -147,11 +147,13 @@ class RidgeMetricsCalculator:
             "iterPar",
             "Elapsed",
         ]
-        # self.logger.debug(f"Decomp spend distribution debug:")
-        # self.logger.debug(f"Total media spend: {total_media_spend}")
-        # self.logger.debug(f"Total effect: {total_effect}")
-        # for col in paid_media_cols:
-        # self.logger.debug(f"{col} - effect: {all_effects[col]}, spend: {all_spends[col]}")
+        self.logger.debug(f"Decomp spend distribution debug:")
+        self.logger.debug(f"Total media spend: {total_media_spend}")
+        self.logger.debug(f"Total effect: {total_effect}")
+        for col in paid_media_cols:
+            self.logger.debug(
+                f"{col} - effect: {all_effects[col]}, spend: {all_spends[col]}"
+            )
         return df[required_cols]
 
     def _calculate_lambda(
@@ -163,44 +165,45 @@ class RidgeMetricsCalculator:
         iteration: int = 0,
     ) -> Tuple[float, float]:
         """Match R's glmnet lambda calculation exactly"""
+        n_samples = len(y_norm)
 
-        def mysd(y: np.ndarray) -> float:
-            """R's implementation of sd"""
-            return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
+        # Standardize first before scale factor calculation
+        def r_scale(x):
+            mean = np.mean(x)
+            sd = np.sqrt(np.sum((x - mean) ** 2) / (len(x) - 1))
+            return (x - mean) / (sd if sd > 1e-10 else 1.0)
 
-        # Scale X using R's approach
-        x_means = np.mean(x_norm, axis=0)
-        x_sds = np.apply_along_axis(mysd, 0, x_norm)
-        sx = (x_norm - x_means) / x_sds[:, np.newaxis].T
+        # Scale X and y first
+        x_scaled = np.apply_along_axis(r_scale, 0, x_norm)
+        y_scaled = r_scale(y_norm)
 
-        # Handle NaN values like R does
-        check_nan = np.all(np.isnan(sx), axis=0)
-        sx = np.where(check_nan, 0, sx)
+        # Now calculate scale factor using scaled data
+        scale_factor = np.mean(np.abs(x_scaled)) * np.mean(np.abs(y_scaled))
 
-        # R does not scale y in this case
-        sy = y_norm
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"\nLambda Calculation Debug (iteration {iteration}):")
+            print(f"n_samples: {n_samples}")
+            print(f"x_scaled mean abs: {np.mean(np.abs(x_scaled)):.6f}")
+            print(f"y_scaled mean abs: {np.mean(np.abs(y_scaled)):.6f}")
+            print(f"Scale factor: {scale_factor:.6f}")
+            print(f"lambda_hp: {lambda_hp:.6f}")
 
-        # Calculate lambda_max using R's approach
-        # 0.001 is glmnet's default alpha value for ridge regression
-        lambda_max = np.max(np.abs(np.sum(sx * sy[:, np.newaxis], axis=0))) / (
-            0.001 * len(x_norm)
-        )
+        # R's lambda calculation
+        alpha = 0.001
+        gram = x_scaled.T @ x_scaled / n_samples
+        ctx = np.abs(x_scaled.T @ y_scaled) / n_samples
 
-        # Calculate lambda using lambda_hp
-        lambda_min = lambda_max * 0.0001  # R's default lambda_min_ratio
+        lambda_max = np.max(ctx) / alpha
+        lambda_min = lambda_max * 0.0001
         lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
 
-        if debug and (iteration % 10 == 0):
-            self.logger.debug(f"\nLambda Debug (iter {iteration}):")
-            self.logger.debug(f"x_means: {np.mean(np.abs(x_means)):.6f}")
-            self.logger.debug(f"x_sds mean: {np.mean(x_sds):.6f}")
-            self.logger.debug(f"sx mean: {np.mean(np.abs(sx)):.6f}")
-            self.logger.debug(f"sy mean: {np.mean(np.abs(sy)):.6f}")
-            self.logger.debug(f"lambda_max: {lambda_max:.6f}")
-            self.logger.debug(f"lambda_: {lambda_:.6f}")
-            self.logger.debug(f"lambda_hp: {lambda_hp:.6f}")
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"max ctx: {np.max(ctx):.6f}")
+            print(f"lambda_max: {lambda_max:.6f}")
+            print(f"lambda_min: {lambda_min:.6f}")
+            print(f"final lambda_: {lambda_:.6f}")
 
-        return float(lambda_), float(lambda_max)
+        return lambda_, lambda_max
 
     def _calculate_rssd(
         self,
@@ -225,11 +228,11 @@ class RidgeMetricsCalculator:
             effects.append(effect)
             spends.append(raw_spend)
 
-            # if debug and (iteration % 50 == 0):
-            #     self.logger.debug(f"{col}:")
-            #     self.logger.debug(f"  coefficient: {coef:.6f}")
-            #     self.logger.debug(f"  raw spend: {raw_spend:.6f}")
-            #     self.logger.debug(f"  effect: {effect:.6f}")
+            if debug and (iteration == 0 or iteration % 25 == 0):
+                print(f"{col}:")
+                print(f"  coefficient: {coef:.6f}")
+                print(f"  raw spend: {raw_spend:.6f}")
+                print(f"  effect: {effect:.6f}")
 
         # Convert to numpy arrays
         effects = np.array(effects)
@@ -244,12 +247,12 @@ class RidgeMetricsCalculator:
             effects_norm = effects / total_effect
             spends_norm = spends / total_spend
 
-            # if debug and (iteration % 50 == 0):
-            #     self.logger.debug("\nNormalized values:")
-            #     self.logger.debug("Effects:", effects_norm)
-            #     self.logger.debug("Spends:", spends_norm)
-            #     self.logger.debug("Effect total (check=1):", np.sum(effects_norm))
-            #     self.logger.debug("Spend total (check=1):", np.sum(spends_norm))
+            if debug and (iteration == 0 or iteration % 25 == 0):
+                print("\nNormalized values:")
+                print("Effects:", effects_norm)
+                print("Spends:", spends_norm)
+                print("Effect total (check=1):", np.sum(effects_norm))
+                print("Spend total (check=1):", np.sum(spends_norm))
 
             # Calculate RSSD
             squared_diff = (effects_norm - spends_norm) ** 2
@@ -427,18 +430,12 @@ class RidgeMetricsCalculator:
         return df
 
     def calculate_r2_score(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        n_features: int,
-        df_int: int = 1,
-        debug: bool = True,
-        iteration: int = 0,
+        self, y_true: np.ndarray, y_pred: np.ndarray, n_features: int, df_int: int = 1
     ) -> float:
         """Match R's R² calculation exactly"""
         n = len(y_true)
 
-        # Calculate R's version of R²
+        # Scale data like R
         y_mean = np.mean(y_true)
         ss_tot = np.sum((y_true - y_mean) ** 2)
         ss_res = np.sum((y_true - y_pred) ** 2)
@@ -449,16 +446,9 @@ class RidgeMetricsCalculator:
         # R's adjustment formula
         adj_r2 = 1 - ((1 - r2) * (n - df_int) / (n - n_features - df_int))
 
+        # Match R's scale
         if adj_r2 < 0:
             adj_r2 = -np.sqrt(np.abs(adj_r2))  # R-style negative scaling
-
-        # if debug and (iteration % 50 == 0):
-        #     self.logger.debug(f"R² Calculation Debug:")
-        #     self.logger.debug(f"n: {n}")
-        #     self.logger.debug(f"ss_tot: {ss_tot:.6f}")
-        #     self.logger.debug(f"ss_res: {ss_res:.6f}")
-        #     self.logger.debug(f"R²: {r2:.6f}")
-        #     self.logger.debug(f"Adjusted R²: {adj_r2:.6f}")
 
         return float(adj_r2)
 
@@ -469,7 +459,7 @@ class RidgeMetricsCalculator:
         debug: bool = True,
         iteration: int = 0,
     ) -> float:
-        """Calculate NRMSE with R-matching normalization"""
+        """Calculate NRMSE with detailed debugging"""
         n = len(y_true)
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
@@ -478,18 +468,29 @@ class RidgeMetricsCalculator:
         residuals = y_true - y_pred
         rss = np.sum(residuals**2)
 
-        # Calculate range same as R
-        y_range = np.max(y_true) - np.min(y_true)
+        # Calculate range from true values
+        y_min = np.min(y_true)
+        y_max = np.max(y_true)
+        scale = y_max - y_min
 
-        # Calculate RMSE
+        # Calculate RMSE first
         rmse = np.sqrt(rss / n)
-        nrmse = rmse / y_range if y_range > 0 else rmse
 
-        # if debug and (iteration % 50 == 0):
-        #     self.logger.debug(f"\nNRMSE Calculation Debug (iteration {iteration}):")
-        #     self.logger.debug(f"RSS: {rss:.6f}")
-        #     self.logger.debug(f"RMSE: {rmse:.6f}")
-        #     self.logger.debug(f"Range: {y_range:.6f}")
-        #     self.logger.debug(f"NRMSE: {nrmse:.6f}")
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"\nNRMSE Calculation Debug (iteration {iteration}):")
+            print(f"n: {n}")
+            print(f"RSS: {rss:.6f}")
+            print(f"RMSE: {rmse:.6f}")
+            print(f"y_true range: [{y_min:.6f}, {y_max:.6f}]")
+            print(f"scale: {scale:.6f}")
+            print("First 5 pairs (true, pred, residual):")
+            for i in range(min(5, len(y_true))):
+                print(f"  {y_true[i]:.6f}, {y_pred[i]:.6f}, {residuals[i]:.6f}")
+
+        # Calculate final NRMSE
+        nrmse = rmse / scale if scale > 0 else rmse
+
+        if debug and (iteration == 0 or iteration % 25 == 0):
+            print(f"Final NRMSE: {nrmse:.6f}")
 
         return float(nrmse)
