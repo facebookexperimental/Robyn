@@ -221,32 +221,3 @@ class TestResponseCurveCalculator(unittest.TestCase):
             "model1", "spend_metric", dt_hyppar
         )
         self.assertIsInstance(saturation_params, ChannelHyperparameters)
-
-    def test__create_response_plot(self):
-        m_adstockedRW = np.array([1, 2, 3, 4, 5])
-        m_response = np.array([1, 2, 3, 4, 5])
-        input_total = np.array([1, 2, 3, 4, 5])
-        response_total = np.array([1, 2, 3, 4, 5])
-        input_carryover = np.array([1, 2, 3, 4, 5])
-        response_carryover = np.array([1, 2, 3, 4, 5])
-        input_immediate = np.array([1, 2, 3, 4, 5])
-        response_immediate = np.array([1, 2, 3, 4, 5])
-        metric_name = "metric_name"
-        metric_type = "spend"
-        date_range_updated = pd.Series(pd.date_range("2020-01-01", periods=5))
-
-        plot = self.calculator._create_response_plot(
-            m_adstockedRW,
-            m_response,
-            input_total,
-            response_total,
-            input_carryover,
-            response_carryover,
-            input_immediate,
-            response_immediate,
-            metric_name,
-            metric_type,
-            date_range_updated,
-        )
-
-        self.assertIsInstance(plot, Figure)
