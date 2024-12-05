@@ -68,19 +68,22 @@ class Convergence:
 
             # Create visualization plots
             self.logger.info("Creating visualization plots")
-            moo_distrb_plot = self.visualizer.create_moo_distrb_plot(
-                dt_objfunc_cvg, conv_msg
-            )
-            moo_cloud_plot = self.visualizer.create_moo_cloud_plot(
-                df, conv_msg, calibrated
-            )
-            ts_validation_plot = None  # self.visualizer.create_ts_validation_plot(trials) #Disabled for testing. #Sandeep
+            plots_dict = {
+                "moo_distrb_plot": self.visualizer.create_moo_distrb_plot(
+                    dt_objfunc_cvg, conv_msg
+                ),
+                "moo_cloud_plot": self.visualizer.create_moo_cloud_plot(
+                    df, conv_msg, calibrated
+                ),
+                "ts_validation_plot": None  # Disabled for testing
+            }
+
+            # Display the plots
+            self.visualizer.display_convergence_plots(plots_dict)
 
             self.logger.info("Convergence calculation completed successfully")
             return {
-                "moo_distrb_plot": moo_distrb_plot,
-                "moo_cloud_plot": moo_cloud_plot,
-                "ts_validation_plot": ts_validation_plot,
+                **plots_dict,
                 "errors": errors,
                 "conv_msg": conv_msg,
             }
