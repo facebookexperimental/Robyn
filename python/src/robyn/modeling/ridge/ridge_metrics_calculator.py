@@ -13,7 +13,6 @@ class RidgeMetricsCalculator:
         self.ridge_data_builder = ridge_data_builder
         self.logger = logging.getLogger(__name__)
 
-    # Updated _calculate_decomp_spend_dist method
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
     ) -> pd.DataFrame:
@@ -29,17 +28,17 @@ class RidgeMetricsCalculator:
         all_effects = {}
         all_spends = {}
 
+        # Calculate effects using absolute values for scaling
         for col in paid_media_cols:
             idx = list(X.columns).index(col)
             coef = model.coef_[idx]
             spend = np.abs(X[col].sum())  # Ensure positive spend
-            effect = coef * spend  # Keep original sign for effect
+            # Use absolute values for effect calculation
+            effect = np.abs(coef * spend)  # Changed to use absolute value
             all_effects[col] = effect
             all_spends[col] = spend
 
-        total_effect = np.sum(
-            np.abs([e for e in all_effects.values()])
-        )  # Use absolute sum
+        total_effect = np.sum([e for e in all_effects.values()])
 
         # Second pass to calculate normalized metrics
         results = []
@@ -51,7 +50,9 @@ class RidgeMetricsCalculator:
 
             # Handle non-zero values properly
             non_zero_mask = X[col] != 0
-            non_zero_effect = X[col][non_zero_mask] * coef
+            non_zero_effect = np.abs(
+                X[col][non_zero_mask] * coef
+            )  # Changed to use absolute value
             non_zero_mean = float(
                 non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
             )
@@ -60,33 +61,16 @@ class RidgeMetricsCalculator:
             spend_share = (
                 float(spend / total_media_spend) if total_media_spend > 0 else 0
             )
-            effect_share = (
-                float(np.abs(effect) / total_effect) if total_effect > 0 else 0
-            )
+            effect_share = float(effect / total_effect) if total_effect > 0 else 0
 
             result = {
                 "rn": str(col),
                 "coef": float(coef),
-                "xDecompAgg": float(effect),
+                "xDecompAgg": float(effect),  # This is now positive
                 "total_spend": float(spend),
                 "mean_spend": float(np.abs(X[col].mean())),
                 "spend_share": spend_share,
                 "effect_share": effect_share,
-                "xDecompPerc": effect_share,
-                "xDecompMeanNon0": non_zero_mean,
-                "xDecompMeanNon0Perc": float(
-                    non_zero_mean
-                    / sum(
-                        [
-                            all_effects[c] / X[c][X[c] != 0].size
-                            for c in paid_media_cols
-                            if any(X[c] != 0)
-                        ]
-                    )
-                    if any(X[c][X[c] != 0].size > 0 for c in paid_media_cols)
-                    else 0
-                ),
-                "pos": bool(coef >= 0),
                 "sol_id": str(metrics.get("sol_id", "")),
             }
 
@@ -111,6 +95,7 @@ class RidgeMetricsCalculator:
                     "iterNG": int(metrics.get("iterNG", 0)),
                     "iterPar": int(metrics.get("iterPar", 0)),
                     "Elapsed": float(metrics.get("elapsed", 0)),
+                    "pos": bool(coef >= 0),
                 }
             )
 
@@ -118,7 +103,25 @@ class RidgeMetricsCalculator:
 
         df = pd.DataFrame(results)
 
-        # Ensure correct column order
+        # Ensure correct column types and order
+        df = df.astype(
+            {
+                "rn": "str",
+                "coef": "float64",
+                "xDecompAgg": "float64",
+                "total_spend": "float64",
+                "mean_spend": "float64",
+                "effect_share": "float64",
+                "spend_share": "float64",
+                "sol_id": "str",
+                "pos": "bool",
+                "mape": "int64",
+                "trial": "int64",
+                "iterNG": "int64",
+                "iterPar": "int64",
+            }
+        )
+
         required_cols = [
             "rn",
             "coef",
@@ -127,10 +130,6 @@ class RidgeMetricsCalculator:
             "mean_spend",
             "spend_share",
             "effect_share",
-            "xDecompPerc",
-            "xDecompMeanNon0",
-            "xDecompMeanNon0Perc",
-            "pos",
             "sol_id",
             "rsq_train",
             "rsq_val",
@@ -146,14 +145,9 @@ class RidgeMetricsCalculator:
             "iterNG",
             "iterPar",
             "Elapsed",
+            "pos",
         ]
-        self.logger.debug(f"Decomp spend distribution debug:")
-        self.logger.debug(f"Total media spend: {total_media_spend}")
-        self.logger.debug(f"Total effect: {total_effect}")
-        for col in paid_media_cols:
-            self.logger.debug(
-                f"{col} - effect: {all_effects[col]}, spend: {all_spends[col]}"
-            )
+
         return df[required_cols]
 
     def _calculate_lambda(
