@@ -134,12 +134,12 @@ class ParetoVisualizer(BaseVisualizer):
         """Create a figure with standard styling.
         
         Args:
-            figsize: Optional custom figure size
-            
+            figsize (Optional[tuple]): Optional figure size tuple (width, height)
+                
         Returns:
-            Tuple of (figure, axes)
+            tuple: (figure, axes)
         """
-        fig, ax = self.create_figure(figsize=figsize or self.figure_sizes["default"])
+        fig, ax = self.create_figure(figsize=figsize if figsize else self.figure_sizes["default"])
         ax.set_facecolor("white")
         return fig, ax
     
@@ -188,7 +188,7 @@ class ParetoVisualizer(BaseVisualizer):
 
             # Create figure using BaseVisualizer methods
             if ax is None:
-                fig, ax = self.create_figure(figsize=self.figure_sizes["default"])
+                fig, ax = self.create_figure(figsize=self.figure_sizes["medium"])
             else:
                 fig = None
 
@@ -247,7 +247,7 @@ class ParetoVisualizer(BaseVisualizer):
                 ax,
                 xlabel="Contribution",
                 ylabel=None,
-                title="Response Decomposition Waterfall"
+                title=f"Response Decomposition Waterfall (Solution {solution_id})"
             )
             self._add_standardized_grid(ax, axis='x')
             self._set_standardized_spines(ax)
@@ -262,13 +262,12 @@ class ParetoVisualizer(BaseVisualizer):
             # Add legend using BaseVisualizer method
             self._add_standardized_legend(
                 ax,
-                title="Sign",
                 loc='lower right',
                 ncol=2,
                 handles=legend_handles,
                 labels=legend_labels
             )
-            
+
             # Set white background
             ax.set_facecolor("white")
 
@@ -322,7 +321,7 @@ class ParetoVisualizer(BaseVisualizer):
 
             # Create figure using BaseVisualizer methods
             if ax is None:
-                fig, ax = self.create_figure(figsize=self.figure_sizes["default"])
+                fig, ax = self.create_figure(figsize=self.figure_sizes["medium"])
             else:
                 fig = None
 
@@ -416,7 +415,7 @@ class ParetoVisualizer(BaseVisualizer):
                 ax,
                 xlabel="Date",
                 ylabel="Response",
-                title="Actual vs. Predicted Response"
+                title=f"Actual vs. Predicted Response (Solution {solution_id})"
             )
             self._add_standardized_grid(ax)
             self._set_standardized_spines(ax)
@@ -479,7 +478,7 @@ class ParetoVisualizer(BaseVisualizer):
             
             # Create figure using BaseVisualizer methods
             if ax is None:
-                fig, ax = self.create_figure(figsize=self.figure_sizes["default"])
+                fig, ax = self.create_figure(figsize=self.figure_sizes["medium"])
             else:
                 fig = None
 
@@ -563,7 +562,7 @@ class ParetoVisualizer(BaseVisualizer):
                 ax,
                 xlabel="Fitted Values",
                 ylabel="Residuals",
-                title="Diagnostic Plot: Fitted vs Residuals"
+                title=f"Diagnostic Plot: Fitted vs Residuals (Solution {solution_id})"
             )
             self._add_standardized_grid(ax)
             self._set_standardized_spines(ax)
@@ -718,13 +717,13 @@ class ParetoVisualizer(BaseVisualizer):
                 ax,
                 xlabel="Response Percentage",
                 ylabel=None,
-                title="Immediate vs. Carryover Response"
+                title=f"Immediate vs. Carryover Response (Solution {solution_id})"
             )
             self._add_standardized_grid(ax, axis='x')
             self._set_standardized_spines(ax)
             self._add_standardized_legend(
                 ax,
-                loc='upper left',
+                loc='lower right',
                 ncol=2,
             )
 
@@ -762,12 +761,12 @@ class ParetoVisualizer(BaseVisualizer):
             adstock_data = plot_data["plot3data"]
 
             if ax is None:
-                fig, ax = self._create_standard_figure(igsize=self.figure_sizes["medium"])
+                fig, ax = self._create_standard_figure(figsize=self.figure_sizes["medium"])
             else:
                 fig = None
 
-            # Handle different adstock types
             if self.hyperparameter.adstock == AdstockType.GEOMETRIC:
+                # Handle Geometric Adstock
                 dt_geometric = adstock_data["dt_geometric"].copy()
                 dt_geometric = dt_geometric.sort_values("channels", ascending=True)
 
@@ -810,65 +809,91 @@ class ParetoVisualizer(BaseVisualizer):
                 )
 
             elif self.hyperparameter.adstock in [AdstockType.WEIBULL_CDF, AdstockType.WEIBULL_PDF]:
+                # Handle Weibull Adstock
                 weibull_data = adstock_data["weibullCollect"]
                 channels = sorted(weibull_data["channel"].unique())
-                rows = (len(channels) + 2) // 3
+                rows = (len(channels) + 2) // 3  # Calculate rows needed for 3 columns
 
                 if ax is None:
-                    fig, axes = plt.subplots(
-                        rows, 3,
-                        figsize=self.figure_sizes["wide"],
-                        squeeze=False
-                    )
-                    axes = axes.flatten()
+                    # Create new figure with subplots
+                    fig = plt.figure(figsize=self.figure_sizes["wide"])
+                    gs = fig.add_gridspec(rows, 3, hspace=0.4, wspace=0.3)
+                    axes = []
+                    for i in range(rows):
+                        for j in range(3):
+                            axes.append(fig.add_subplot(gs[i, j]))
                 else:
+                    # Use existing axes layout
                     gs = ax.get_gridspec()
-                    subfigs = ax.figure.subfigures(rows, 3)
-                    axes = [subfig.subplots() for subfig in subfigs]
-                    axes = [ax for sublist in axes for ax in sublist]
+                    fig = ax.figure
+                    axes = [ax]
 
-                # Create subplot for each channel
+                # Create plots for each channel
                 for idx, channel in enumerate(channels):
-                    ax_sub = axes[idx]
-                    channel_data = weibull_data[weibull_data["channel"] == channel]
+                    if idx < len(axes):
+                        ax_sub = axes[idx]
+                        channel_data = weibull_data[weibull_data["channel"] == channel]
 
-                    # Plot decay curve
-                    ax_sub.plot(
-                        channel_data["x"],
-                        channel_data["decay_accumulated"],
-                        color=self.colors["primary"],
-                        alpha=self.alpha["primary"]
-                    )
+                        # Plot decay curve
+                        ax_sub.plot(
+                            channel_data["x"],
+                            channel_data["decay_accumulated"],
+                            color=self.colors["primary"],
+                            alpha=self.alpha["primary"],
+                            linewidth=2
+                        )
 
-                    # Add halflife line
-                    ax_sub.axhline(
-                        y=0.5,
-                        color=self.colors["grid"],
-                        linestyle=self.line_styles["dashed"],
-                        alpha=self.alpha["grid"]
-                    )
-                    ax_sub.text(
-                        max(channel_data["x"]),
-                        0.5,
-                        "Halflife",
-                        color=self.colors["annotation"],
-                        va="bottom",
-                        ha="right",
-                        fontsize=self.fonts["sizes"]["annotation"]
-                    )
+                        # Add halflife line
+                        ax_sub.axhline(
+                            y=0.5,
+                            color=self.colors["grid"],
+                            linestyle=self.line_styles["dashed"],
+                            alpha=self.alpha["grid"]
+                        )
 
-                    # Style subplot
-                    ax_sub.set_title(
-                        channel,
-                        fontsize=self.fonts["sizes"]["subtitle"]
-                    )
-                    self._add_standardized_grid(ax_sub)
-                    self._set_standardized_spines(ax_sub)
-                    ax_sub.set_ylim(0, 1)
+                        # Add halflife label
+                        halflife_x = channel_data[
+                            channel_data["decay_accumulated"].between(0.49, 0.51)
+                        ]["x"].iloc[0]
+                        
+                        ax_sub.text(
+                            halflife_x * 1.1,
+                            0.52,
+                            f"Halflife: {halflife_x:.1f}",
+                            color=self.colors["annotation"],
+                            fontsize=self.fonts["sizes"]["annotation"],
+                            va="bottom",
+                            ha="left"
+                        )
 
-                    # Clean up unused subplots
-                    for ax_empty in axes[len(channels):]:
-                        ax_empty.set_visible(False)
+                        # Style subplot
+                        self._set_standardized_labels(
+                            ax_sub,
+                            xlabel="Time",
+                            ylabel="Decay Rate" if idx % 3 == 0 else None,
+                            title=channel
+                        )
+                        self._add_standardized_grid(ax_sub)
+                        self._set_standardized_spines(ax_sub)
+                        
+                        # Set axis limits
+                        ax_sub.set_ylim(0, 1.1)
+                        ax_sub.set_xlim(0, max(channel_data["x"]) * 1.2)
+
+                # Hide unused subplots
+                for idx in range(len(channels), len(axes)):
+                    axes[idx].set_visible(False)
+
+                # Add overall title
+                fig.suptitle(
+                    f"Weibull {self.hyperparameter.adstock.value} Adstock Decay Curves (Solution {solution_id})",
+                    fontsize=self.fonts["sizes"]["title"],
+                    y=1.02
+                )
+
+            else:
+                logger.warning(f"Unsupported adstock type: {self.hyperparameter.adstock}")
+                return None
 
             # Add common styling
             self._add_standardized_grid(ax, axis='x')
@@ -890,11 +915,7 @@ class ParetoVisualizer(BaseVisualizer):
             raise    
 
     def create_prophet_decomposition_plot(self) -> Optional[plt.Figure]:
-        """Create Prophet Decomposition Plot showing model components.
-
-        Returns:
-            Optional[plt.Figure]: Generated figure if prophet variables exist
-        """
+        """Create Prophet Decomposition Plot showing model components."""
         logger.debug("Starting generation of prophet decomposition plot")
 
         try:
@@ -938,11 +959,18 @@ class ParetoVisualizer(BaseVisualizer):
             # Create figure with subplots
             n_vars = len(df_long["variable"].unique())
             fig = plt.figure(figsize=(12, 3 * n_vars))
-            gs = fig.add_gridspec(n_vars, 1)
+            
+            # Create gridspec with tighter spacing
+            gs = fig.add_gridspec(
+                n_vars, 
+                1,
+                height_ratios=[1] * n_vars,
+                hspace=0.7  # Adjust vertical space between subplots
+            )
 
             # Create subplot for each variable
             for i, var in enumerate(df_long["variable"].unique()):
-                ax = fig.add_subplot(gs[i, 0])
+                ax = fig.add_subplot(gs[i])
                 var_data = df_long[df_long["variable"] == var]
 
                 # Plot time series
@@ -968,15 +996,21 @@ class ParetoVisualizer(BaseVisualizer):
                 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
                 plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
 
-            # Add overall title
+                # Adjust subplot padding
+                ax.margins(x=0.02)
+
+            # Add overall title with adjusted position
             fig.suptitle(
                 "Prophet Decomposition",
                 fontsize=self.fonts["sizes"]["title"],
-                y=1.02
+                y=1  # Moved title closer to the first subplot
             )
 
-            # Finalize figure
-            self.finalize_figure(tight_layout=True)
+            # Fine-tune the layout
+            plt.tight_layout()
+            
+            # Adjust layout to accommodate the title
+            plt.subplots_adjust(top=0.95)  # Adjust top margin to prevent title overlap
             
             logger.debug("Successfully generated prophet decomposition plot")
             return fig
@@ -1115,7 +1149,7 @@ class ParetoVisualizer(BaseVisualizer):
             pareto_fronts = self.pareto_result.pareto_fronts
 
             # Create figure using BaseVisualizer
-            fig, ax = self._create_standard_figure()
+            fig, ax = self._create_standard_figure(figsize=self.figure_sizes["medium"])
 
             # Handle calibrated case
             if is_calibrated:
