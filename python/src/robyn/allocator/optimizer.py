@@ -192,7 +192,7 @@ class BudgetAllocator:
                     options={
                         "ftol": 1e-10,
                         "maxiter": self.params.maxeval,
-                        "disp": True,
+                        "disp": False,
                     },
                 )
 

@@ -19,6 +19,15 @@ from robyn.modeling.entities.featurized_mmm_data import FeaturizedMMMData
 from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
 from robyn.data.entities.mmmdata import MMMData
 
+# Set logging level for this module
+logging.getLogger("cmdstanpy").setLevel(logging.CRITICAL)  # Only show critical errors
+logging.getLogger("prophet").setLevel(logging.CRITICAL)  # Only show critical errors
+warnings.filterwarnings("ignore")
+
+# Configure module logger to show only INFO
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class FeatureEngineering:
     """
@@ -34,7 +43,7 @@ class FeatureEngineering:
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.holidays_data = holidays_data
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.logger.debug(
             "Initializing FeatureEngineering with MMM data and hyperparameters"
         )

@@ -14,6 +14,7 @@ import io
 
 # Configure logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 
 class BaseVisualizer(ABC):

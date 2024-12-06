@@ -10,6 +10,9 @@ from robyn.data.entities.enums import (
     OrganicSigns,
     PaidMediaSigns,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -168,7 +171,7 @@ class MMMData:
         """
         Display the contents of the DataFrame.
         """
-        print(self.data)
+        logger.debug(self.data)
 
     def get_summary(self) -> pd.DataFrame:
         """
@@ -223,7 +226,7 @@ class MMMData:
             self.mmmdata_spec.rolling_window_start_which = closest_start_idx
             # Adjust window_start to the closest date in the data
             self.mmmdata_spec.window_start = closest_start_date
-            print(
+            logger.debug(
                 f"Adjusted window_start to the closest date in the data: {closest_start_date}"
             )
 
@@ -238,7 +241,7 @@ class MMMData:
             self.mmmdata_spec.rolling_window_end_which = closest_end_idx
             # Adjust window_end to the closest date in the data
             self.mmmdata_spec.window_end = closest_end_date
-            print(
+            logger.debug(
                 f"Adjusted window_end to the closest date in the data: {closest_end_date}"
             )
 

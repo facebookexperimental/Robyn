@@ -3,7 +3,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 import copy
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
@@ -15,7 +15,6 @@ from robyn.data.validation.hyperparameter_validation import HyperparametersValid
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
 from robyn.modeling.entities.enums import Models, NevergradAlgorithm
-from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.model_executor import ModelExecutor
 
 from robyn.modeling.pareto.pareto_optimizer import ParetoOptimizer
@@ -34,6 +33,7 @@ from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
 from robyn.visualization.pareto_visualizer import ParetoVisualizer
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -288,6 +288,7 @@ class Robyn:
                         self.mmm_data,
                     )
                     cluster_visualizer.plot_all(display_plots, self.working_dir)
+                    plt.close("all")
             logger.info("Model evaluation complete")
 
         except Exception as e:
@@ -425,7 +426,8 @@ class Robyn:
                 solution_ids=solution_id if solution_id else "all",
                 top_pareto=top_pareto,
             )
-            return figures
+            # return None instead of figures
+            return None
 
         except Exception as e:
             logging.error("One-pager generation failed: %s", str(e))
