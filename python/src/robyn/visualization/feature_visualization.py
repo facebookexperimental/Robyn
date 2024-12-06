@@ -12,13 +12,8 @@ from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.visualization.base_visualizer import BaseVisualizer
 import warnings
 
-# Set logging level for this module
-logging.getLogger("cmdstanpy").setLevel(logging.CRITICAL)  # Only show critical errors
-logging.getLogger("prophet").setLevel(logging.CRITICAL)  # Only show critical errors
-warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class FeaturePlotter(BaseVisualizer):

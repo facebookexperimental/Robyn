@@ -12,9 +12,7 @@ import numpy as np
 import base64
 import io
 
-# Configure logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class BaseVisualizer(ABC):
