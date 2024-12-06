@@ -71,6 +71,21 @@ class RidgeMetricsCalculator:
                 "mean_spend": float(np.abs(X[col].mean())),
                 "spend_share": spend_share,
                 "effect_share": effect_share,
+                "xDecompPerc": effect_share,
+                "xDecompMeanNon0": non_zero_mean,
+                "xDecompMeanNon0Perc": float(
+                    non_zero_mean
+                    / sum(
+                        [
+                            all_effects[c] / X[c][X[c] != 0].size
+                            for c in paid_media_cols
+                            if any(X[c] != 0)
+                        ]
+                    )
+                    if any(X[c][X[c] != 0].size > 0 for c in paid_media_cols)
+                    else 0
+                ),
+                "pos": bool(coef >= 0),
                 "sol_id": str(metrics.get("sol_id", "")),
             }
 
