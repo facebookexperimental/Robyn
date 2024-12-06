@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Union
 import re
 import numpy as np
 import pandas as pd
+from robyn.common.logger import RobynLogger
 from robyn.modeling.clustering.clustering_config import ClusterBy, ClusteringConfig
 from robyn.data.entities.enums import DependentVarType
 from robyn.modeling.entities.clustering_results import (
@@ -71,7 +72,7 @@ class ClusterBuilder:
             aux = self.pareto_result.media_vec_collect.columns
             type_index = aux.get_loc("type")
             config.all_media = aux[1:type_index].tolist()
-            self.logger.debug("Auto-detected media channels: %s", config.all_media)
+            self.logger.info("Auto-detected media channels: %s", config.all_media)
 
         self.logger.info("Clustering by: %s", config.cluster_by)
         if config.cluster_by == ClusterBy.HYPERPARAMETERS:
@@ -84,6 +85,7 @@ class ClusterBuilder:
             self.logger.error(f"Invalid clustering method: {config.cluster_by}")
             raise ValueError("Invalid clustering method")
 
+        RobynLogger.log_df(self.logger, df)
         ignored_columns = [
             "sol_id",
             "mape",
@@ -139,6 +141,7 @@ class ClusterBuilder:
         self.logger.debug("Selecting top solutions")
         top_solutions = self._select_top_solutions(result.cluster_data, config)
         self.logger.info(f"Selected {len(top_solutions)} top solutions")
+        RobynLogger.log_df(self.logger, top_solutions, print_head=True)
 
         self.logger.debug("Calculating confidence intervals")
         ci_results: ConfidenceIntervalCollectionData = (
@@ -170,13 +173,15 @@ class ClusterBuilder:
                 ci_results, config
             ),
         )
+        clustered_data = result.cluster_data.assign(
+            top_sol=result.cluster_data["sol_id"].isin(top_solutions["sol_id"]),
+            cluster=result.cluster_data["cluster"].astype(int),
+        )
 
+        RobynLogger.log_df(self.logger, clustered_data)
         self.logger.info("Clustering process completed successfully")
         return ClusteredResult(
-            cluster_data=result.cluster_data.assign(
-                top_sol=result.cluster_data["sol_id"].isin(top_solutions["sol_id"]),
-                cluster=result.cluster_data["cluster"].astype(int),
-            ),
+            cluster_data=clustered_data,
             top_solutions=top_solutions,
             wss=result.wss,
             cluster_ci=cluster_ci,
@@ -454,6 +459,9 @@ class ClusterBuilder:
             result.cluster_data = pd.concat(
                 [result.cluster_data, df_copy["cluster"]], axis=1
             )
+            self.logger.debug(f"Clustered data after KMeans:")
+            RobynLogger.log_df(self.logger, result.cluster_data)
+
             df = df_copy
 
             self.logger.debug("Calculating cluster means and counts")
@@ -468,6 +476,8 @@ class ClusterBuilder:
                 cluster_means["n"] = cluster_counts
 
                 self.logger.debug(f"Cluster sizes: {dict(cluster_counts)}")
+                self.logger.debug(f"Cluster means:")
+                RobynLogger.log_df(self.logger, cluster_means)
 
                 # Check for potentially problematic clusters
                 min_cluster_size = cluster_counts.min()
@@ -488,47 +498,6 @@ class ClusterBuilder:
             self.logger.debug(f"Final result shape: {result.cluster_data.shape}")
 
         return result
-
-    def _bootstrap_sampling(
-        self, sample: pd.Series, boot_n: int
-    ) -> Dict[str, List[float]]:
-        """Calculate bootstrap confidence interval"""
-        self.logger.debug(f"Starting bootstrap sampling with n={boot_n}")
-
-        if len(sample[~sample.isna()]) > 1:
-            sample_n = len(sample)
-            sample_mean = np.mean(sample)
-
-            self.logger.debug(f"Performing bootstrap with sample size={sample_n}")
-            boot_sample = np.random.choice(
-                sample, size=(boot_n, sample_n), replace=True
-            )
-            boot_means = np.mean(boot_sample, axis=1)
-            se = np.std(boot_means)
-            me = stats.t.ppf(0.975, sample_n - 1) * se
-            sample_me = np.sqrt(sample_n) * me
-            ci = [sample_mean - sample_me, sample_mean + sample_me]
-
-            self.logger.debug(
-                f"Bootstrap results: CI=[{ci[0]:.4f}, {ci[1]:.4f}], SE={se:.4f}"
-            )
-            return {
-                "boot_means": boot_means,
-                "ci": ci,
-                "se": [float(se)],
-            }
-        else:
-            self.logger.warning("Insufficient non-NA samples for bootstrap analysis")
-            ci = (
-                [np.nan, np.nan]
-                if sample.isna().all()
-                else [sample.iloc[0], sample.iloc[0]]
-            )
-            return {
-                "boot_means": sample.tolist(),
-                "ci": ci,
-                "se": [0.0],
-            }
 
     def _select_optimal_clusters(
         self,
@@ -766,14 +735,14 @@ class ClusterBuilder:
         df["rank"] = df.groupby("cluster", observed=False)["error_score"].rank(
             method="dense"
         )
-
-        self.logger.info(f"Selected {len(df)} solutions from {initial_solutions} total")
-        self.logger.debug(f"Final dataset shape: {df.shape}")
-
-        return df[
+        df = df[
             ["cluster", "rank"]
             + [col for col in df.columns if col not in ["cluster", "rank"]]
         ]
+        self.logger.info(f"Selected {len(df)} solutions from {initial_solutions} total")
+        RobynLogger.log_df(self.logger, df)
+
+        return df
 
     def _bootstrap_sampling(
         self, sample: pd.Series, boot_n: int, seed: int = 1

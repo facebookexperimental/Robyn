@@ -115,47 +115,6 @@ class ParetoUtils:
 
         return x_out
 
-    def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """
-        Calculate Normalized Root Mean Square Error (NRMSE).
-
-        Args:
-            y_true (np.ndarray): Array of true values.
-            y_pred (np.ndarray): Array of predicted values.
-
-        Returns:
-            float: Calculated NRMSE value.
-        """
-        # Implementation here
-        pass
-
-    def calculate_mape(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """
-        Calculate Mean Absolute Percentage Error (MAPE).
-
-        Args:
-            y_true (np.ndarray): Array of true values.
-            y_pred (np.ndarray): Array of predicted values.
-
-        Returns:
-            float: Calculated MAPE value.
-        """
-        # Implementation here
-        pass
-
-    def calculate_decomp_rssd(self, decomp_values: np.ndarray) -> float:
-        """
-        Calculate Root Sum Squared Distance (RSSD) for decomposition values.
-
-        Args:
-            decomp_values (np.ndarray): Array of decomposition values.
-
-        Returns:
-            float: Calculated RSSD value.
-        """
-        # Implementation here
-        pass
-
     def process_pareto_clustered_results(
         self,
         pareto_results: ParetoResult,

@@ -40,53 +40,6 @@ class FeaturePlotter(BaseVisualizer):
         logger.debug("MMM Data: %s", mmm_data)
         logger.debug("Hyperparameters: %s", hyperparameters)
 
-    def plot_adstock(self, channel: str, display: bool = True) -> Dict[str, plt.Figure]:
-        """
-        Plot the adstock transformation for a specific channel.
-
-        Args:
-            channel (str): The name of the channel to plot adstock for.
-
-        Returns:
-            plt.Figure: A matplotlib Figure object containing the adstock plot.
-        """
-        logger.info("Generating adstock plot for channel: %s", channel)
-        logger.debug("Processing adstock transformation for channel %s", channel)
-        try:
-            # Implementation placeholder
-            logger.warning("plot_adstock method not implemented yet")
-        except Exception as e:
-            logger.error(
-                "Failed to generate adstock plot for channel %s: %s", channel, str(e)
-            )
-            raise
-
-    def plot_saturation(
-        self, channel: str, display: bool = True
-    ) -> Dict[str, plt.Figure]:
-        """
-        Plot the saturation curve transformation for a specific channel.
-
-        Args:
-            channel (str): The name of the channel to plot saturation for.
-
-        Returns:
-            plt.Figure: A matplotlib Figure object containing the saturation curves plot.
-        """
-        logger.info("Generating saturation plot for channel: %s", channel)
-        logger.debug(
-            "Processing saturation curve transformation for channel %s", channel
-        )
-        try:
-            # Implementation placeholder
-            logger.warning("plot_saturation method not implemented yet")
-
-        except Exception as e:
-            logger.error(
-                "Failed to generate saturation plot for channel %s: %s", channel, str(e)
-            )
-            raise
-
     def plot_spend_exposure(
         self, channel: str, display: bool = True
     ) -> Dict[str, plt.Figure]:
@@ -254,7 +207,6 @@ class FeaturePlotter(BaseVisualizer):
         try:
             for item in self.featurized_mmmdata.modNLS["results"]:
                 channel = item["channel"]
-                self.plot_adstock(channel, display_plots)
                 # plot_collect.update(self.plot_adstock(channel, display))
                 # plot_collect.update(self.plot_saturation(channel, display))
                 plot_collect[channel] = self.plot_spend_exposure(
