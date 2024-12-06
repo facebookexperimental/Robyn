@@ -4,6 +4,7 @@ from typing import Dict, List
 import logging
 
 import pandas as pd
+from robyn.common.logger import RobynLogger
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
 
 
@@ -73,12 +74,21 @@ class DataAggregator:
         result_hyp_param = pd.concat(result_hyp_param_list, ignore_index=True)
         x_decomp_agg = pd.concat(x_decomp_agg_list, ignore_index=True)
 
+        self.logger.debug("Aggregated result_hyp_param:")
+        RobynLogger.log_df(self.logger, result_hyp_param)
+
+        self.logger.debug("Aggregated x_decomp_agg:")
+        RobynLogger.log_df(self.logger, x_decomp_agg)
+
         self._check_sol_id(result_hyp_param, x_decomp_agg)
 
         result_calibration = self._process_calibration_data(trials, calibrated)
 
         if not hyper_fixed:
             self._add_iterations(result_hyp_param, x_decomp_agg, result_calibration)
+
+        self.logger.debug("Aggregated x_decomp_agg:")
+        RobynLogger.log_df(self.logger, result_calibration)
 
         self._merge_bootstrap_results(x_decomp_agg)
 

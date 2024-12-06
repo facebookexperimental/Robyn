@@ -6,6 +6,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from robyn.common.logger import RobynLogger
 from robyn.data.entities.holidays_data import HolidaysData
 
 from robyn.data.entities.hyperparameters import Hyperparameters
@@ -271,19 +272,26 @@ class ParetoOptimizer:
             result_hyp_param, pareto_fronts, min_candidates, calibrated
         )
         pareto_fronts_vec = list(range(1, pareto_fronts + 1))
+        self.logger.info(f"Selected Pareto fronts: {pareto_fronts+1}")
 
         # Filtering data for selected Pareto fronts
         self.logger.info("Filtering data for selected Pareto fronts...")
         decomp_spend_dist_pareto = decomp_spend_dist[
             decomp_spend_dist["robynPareto"].isin(pareto_fronts_vec)
         ]
+        RobynLogger.log_df(self.logger, decomp_spend_dist_pareto)
+
         result_hyp_param_pareto = result_hyp_param[
             result_hyp_param["robynPareto"].isin(pareto_fronts_vec)
         ]
+        RobynLogger.log_df(self.logger, result_hyp_param_pareto)
+
         x_decomp_agg_pareto = aggregated_data["x_decomp_agg"][
             aggregated_data["x_decomp_agg"]["robynPareto"].isin(pareto_fronts_vec)
         ]
+        RobynLogger.log_df(self.logger, x_decomp_agg_pareto)
 
+        self.logger.info("Pareto data preparation completed")
         return ParetoData(
             decomp_spend_dist=decomp_spend_dist_pareto,
             result_hyp_param=result_hyp_param_pareto,

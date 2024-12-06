@@ -10,6 +10,7 @@ from typing import Dict, Literal, Optional, Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from robyn.common.logger import RobynLogger
 from robyn.data.entities.enums import AdstockType
 from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
@@ -19,6 +20,7 @@ from robyn.modeling.pareto.hill_calculator import HillCalculator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.transformations.transformations import Transformation
 from tqdm import tqdm  # Import tqdm for progress bar
+
 
 @dataclass
 class MetricDateInfo:
@@ -77,7 +79,9 @@ class ResponseCurveCalculator:
         hyperparameter: Hyperparameters,
     ):
         self.logger = logging.getLogger(__name__)
-        self.logger.debug("Initializing ResponseCurveCalculator with data: %s", mmm_data)
+        self.logger.debug(
+            "Initializing ResponseCurveCalculator with data: %s", mmm_data
+        )
         self.mmm_data: MMMData = mmm_data
         self.model_outputs: ModelOutputs = model_outputs
         self.hyperparameter: Hyperparameters = hyperparameter
@@ -129,7 +133,9 @@ class ResponseCurveCalculator:
 
         # Transform exposure to spend if necessary
         if metric_type == "exposure":
-            self.logger.debug("Transforming exposure to spend for metric: %s", metric_name)
+            self.logger.debug(
+                "Transforming exposure to spend for metric: %s", metric_name
+            )
             all_values_updated = self._transform_exposure_to_spend(
                 metric_name,
                 metric_value_updated,
@@ -240,7 +246,9 @@ class ResponseCurveCalculator:
             plot=None,
         )
 
-        self.logger.debug("Response calculation completed successfully: %s", response_output)
+        self.logger.debug(
+            "Response calculation completed successfully: %s", response_output
+        )
         return response_output
 
     def _which_usecase(
@@ -326,7 +334,9 @@ class ResponseCurveCalculator:
                 date_range_updated = all_dates[metric_loc]
             elif isinstance(date_range, list) and len(date_range) == 2:
                 start_date, end_date = pd.to_datetime(date_range)
-                self.logger.debug("Using custom date range: %s to %s", start_date, end_date)
+                self.logger.debug(
+                    "Using custom date range: %s to %s", start_date, end_date
+                )
                 metric_loc = (all_dates >= start_date) & (all_dates <= end_date)
                 date_range_updated = all_dates[metric_loc]
             else:
@@ -538,16 +548,14 @@ class ResponseCurveCalculator:
             get_spendname = row["rn"]
             startRW = self.mmm_data.mmmdata_spec.rolling_window_start_which
             endRW = self.mmm_data.mmmdata_spec.rolling_window_end_which
-            
-            response_output: ResponseOutput = (
-                self.calculate_response(
-                    select_model=get_sol_id,
-                    metric_name=get_spendname,
-                    date_range="all",
-                    dt_hyppar=paretoData.result_hyp_param,
-                    dt_coef=paretoData.x_decomp_agg,
-                    quiet=True,
-                )
+
+            response_output: ResponseOutput = self.calculate_response(
+                select_model=get_sol_id,
+                metric_name=get_spendname,
+                date_range="all",
+                dt_hyppar=paretoData.result_hyp_param,
+                dt_coef=paretoData.x_decomp_agg,
+                quiet=True,
             )
 
             mean_spend_adstocked = np.mean(response_output.input_total[startRW:endRW])
@@ -723,6 +731,13 @@ class ResponseCurveCalculator:
                 on=["sol_id", "rn"],
                 how="left",
             )
+            self.logger.info(
+                "Final Pareto Data updated with response curves:\nDecomp Spend Distribution:\n"
+            )
+            RobynLogger.log_df(self.logger, pareto_data.decomp_spend_dist, logging.INFO)
+            self.logger.info("X Spend Aggregated with response curves:\n")
+            RobynLogger.log_df(self.logger, pareto_data.x_decomp_agg, logging.INFO)
+            self.logger.info("Response curves calculated successfully")
 
             return pareto_data
 
@@ -739,7 +754,6 @@ class ResponseCurveCalculator:
             )
             raise
 
-    
     def _calculate_roi_and_cpa(self, pareto_data: ParetoData):
         pareto_data.decomp_spend_dist["roi_mean"] = (
             pareto_data.decomp_spend_dist["mean_response"]

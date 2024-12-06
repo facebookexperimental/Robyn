@@ -489,47 +489,6 @@ class ClusterBuilder:
 
         return result
 
-    def _bootstrap_sampling(
-        self, sample: pd.Series, boot_n: int
-    ) -> Dict[str, List[float]]:
-        """Calculate bootstrap confidence interval"""
-        self.logger.debug(f"Starting bootstrap sampling with n={boot_n}")
-
-        if len(sample[~sample.isna()]) > 1:
-            sample_n = len(sample)
-            sample_mean = np.mean(sample)
-
-            self.logger.debug(f"Performing bootstrap with sample size={sample_n}")
-            boot_sample = np.random.choice(
-                sample, size=(boot_n, sample_n), replace=True
-            )
-            boot_means = np.mean(boot_sample, axis=1)
-            se = np.std(boot_means)
-            me = stats.t.ppf(0.975, sample_n - 1) * se
-            sample_me = np.sqrt(sample_n) * me
-            ci = [sample_mean - sample_me, sample_mean + sample_me]
-
-            self.logger.debug(
-                f"Bootstrap results: CI=[{ci[0]:.4f}, {ci[1]:.4f}], SE={se:.4f}"
-            )
-            return {
-                "boot_means": boot_means,
-                "ci": ci,
-                "se": [float(se)],
-            }
-        else:
-            self.logger.warning("Insufficient non-NA samples for bootstrap analysis")
-            ci = (
-                [np.nan, np.nan]
-                if sample.isna().all()
-                else [sample.iloc[0], sample.iloc[0]]
-            )
-            return {
-                "boot_means": sample.tolist(),
-                "ci": ci,
-                "se": [0.0],
-            }
-
     def _select_optimal_clusters(
         self,
         df: pd.DataFrame,

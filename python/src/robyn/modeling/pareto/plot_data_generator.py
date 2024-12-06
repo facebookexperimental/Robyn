@@ -4,6 +4,7 @@ from typing import Dict, Union
 
 import pandas as pd
 import numpy as np
+from robyn.common.logger import RobynLogger
 from robyn.data.entities.enums import AdstockType, DependentVarType
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import ChannelHyperparameters, Hyperparameters
@@ -106,6 +107,14 @@ class PlotDataGenerator:
         if "sol_id" in xDecompVecCollect.columns:
             pareto_solutions.update(set(xDecompVecCollect["sol_id"].unique()))
 
+        self.logger.debug(
+            f"Found ({len(pareto_solutions)}) Pareto Solutions - {pareto_solutions}"
+        )
+        RobynLogger.log_df(self.logger, mediaVecCollect)
+        RobynLogger.log_df(self.logger, xDecompVecCollect)
+        RobynLogger.log_df(self.logger, df_caov_pct_all)
+
+        self.logger.info("Plot data generated Successfully.")
         return {
             "pareto_solutions": list(pareto_solutions),
             "mediaVecCollect": mediaVecCollect,
@@ -167,16 +176,16 @@ class PlotDataGenerator:
     ) -> Dict:
         # 1. Spend x effect share comparison
         plot1data = self._generate_spend_effect_data(plotMediaShare, sid)
-        self.logger.debug(f"Generated plot1data for sid: {sid}")
+        self.logger.debug(f"Generated plot1data, spend vs effect data, for sid: {sid}")
 
         # 2. Waterfall
         plotWaterfallLoop = self._generate_waterfall_data(plotWaterfall, sid)
         plot2data = {"plotWaterfallLoop": plotWaterfallLoop}
-        self.logger.debug(f"Generated plot2data for sid: {sid}")
+        self.logger.debug(f"Generated plot2data, waterfall data, for sid: {sid}")
 
         # 3. Adstock rate
         plot3data = self._generate_adstock_data(sid, pareto_data)
-        self.logger.debug(f"Generated plot3data for sid: {sid}")
+        self.logger.debug(f"Generated plot3data, adstock plot data, for sid: {sid}")
 
         # 4. Spend response curve
         plot4data = self._generate_response_data(
@@ -196,7 +205,7 @@ class PlotDataGenerator:
             "dt_scurvePlot": plot4data["dt_scurvePlot"],
             "dt_scurvePlotMean": plot4data["dt_scurvePlotMean"],
         }
-        self.logger.debug(f"Generated plot4data for sid: {sid}")
+        self.logger.debug(f"Generated plot4data, scurve plot data, for sid: {sid}")
 
         # 5. Fitted vs actual
         col_order = (
@@ -274,17 +283,19 @@ class PlotDataGenerator:
             "xDecompVecPlotMelted": xDecompVecPlotMelted,
             "rsq": rsq,
         }
-        self.logger.debug(f"Generated plot5data for sid: {sid}")
+        self.logger.debug(f"Generated plot5data, fitted vs actual, for sid: {sid}")
 
         # 6. Diagnostic: fitted vs residual
         plot6data = {"xDecompVecPlot": xDecompVecPlot}
-        self.logger.debug(f"Generated plot6data for sid: {sid}")
+        self.logger.debug(f"Generated plot6data, fitted vs residual, for sid: {sid}")
 
         # 7. Immediate vs carryover response
         plot7data = self.robyn_immcarr(
             pareto_data, aggregated_data["result_hyp_param"], sid
         )
-        self.logger.debug(f"Generated plot7data for sid: {sid}")
+        self.logger.debug(
+            f"Generated plot7data, immediate vs carryover, for sid: {sid}"
+        )
         mediaVecCollect = pd.concat(
             [
                 dt_transformPlot.assign(type="rawMedia", sol_id=sid),
