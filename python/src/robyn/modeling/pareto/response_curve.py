@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Literal, Optional, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from robyn.common.logger import RobynLogger
@@ -52,7 +51,6 @@ class ResponseOutput:
     response_carryover: np.ndarray
     response_immediate: np.ndarray
     usecase: str
-    plot: plt.Figure
 
     def __str__(self) -> str:
         return (
@@ -243,7 +241,6 @@ class ResponseCurveCalculator:
             response_carryover=response_carryover,
             response_immediate=response_immediate,
             usecase=usecase,
-            plot=None,
         )
 
         self.logger.debug(
