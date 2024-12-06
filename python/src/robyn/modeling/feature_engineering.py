@@ -20,6 +20,9 @@ from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperpar
 from robyn.data.entities.mmmdata import MMMData
 
 
+logger = logging.getLogger(__name__)
+
+
 class FeatureEngineering:
     """
     A class used to perform feature engineering for Marketing Mix Modeling (MMM) data.
@@ -34,7 +37,7 @@ class FeatureEngineering:
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
         self.holidays_data = holidays_data
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.logger.debug(
             "Initializing FeatureEngineering with MMM data and hyperparameters"
         )

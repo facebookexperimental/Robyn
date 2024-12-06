@@ -12,7 +12,6 @@ import numpy as np
 import base64
 import io
 
-# Configure logger
 logger = logging.getLogger(__name__)
 
 
