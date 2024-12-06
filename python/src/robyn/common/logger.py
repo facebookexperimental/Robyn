@@ -21,6 +21,10 @@ class RobynLogger:
             df (pd.DataFrame): DataFrame to log.
             name (str): Name of the DataFrame.
         """
+        if df is None:
+            logger.log(logLevel, "DataFrame is None")
+            return
+
         logger.log(logLevel, f"DataFrame columns: {df.columns}")
         logger.log(logLevel, f"DataFrame Shape: {df.shape}")
         if print_head:
