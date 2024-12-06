@@ -10,7 +10,6 @@ from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.visualization.base_visualizer import BaseVisualizer
-import warnings
 
 
 logger = logging.getLogger(__name__)
