@@ -5,6 +5,7 @@ import pandas as pd
 from typing import List, Dict, Any
 from robyn.modeling.entities.modeloutputs import Trial
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
+import matplotlib.pyplot as plt
 
 
 class Convergence:
@@ -67,7 +68,7 @@ class Convergence:
             conv_msg = self._generate_convergence_messages(errors)
 
             # Create visualization plots
-            self.logger.info("Creating visualization plots")
+
             moo_distrb_plot = self.visualizer.create_moo_distrb_plot(
                 dt_objfunc_cvg, conv_msg
             )

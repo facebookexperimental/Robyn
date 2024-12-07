@@ -423,7 +423,6 @@ class OnePager:
                 self.clustered_result, "top_solutions"
             ):
                 raise ValueError("No clustered results or top solutions available")
-
             try:
                 # Try accessing 'sol_id' column if it's a DataFrame
                 if isinstance(self.clustered_result.top_solutions, pd.DataFrame):
@@ -438,16 +437,13 @@ class OnePager:
                     raise ValueError(
                         f"Unexpected type for top_solutions: {type(self.clustered_result.top_solutions)}"
                     )
-
                 solution_ids = [
                     str(sid)
                     for sid in solution_ids
                     if sid is not None and pd.notna(sid)
                 ]
-
                 if not solution_ids:
                     raise ValueError("No valid solution IDs found in top solutions")
-
                 logger.debug(f"Loading {len(solution_ids)} top solutions")
 
             except Exception as e:

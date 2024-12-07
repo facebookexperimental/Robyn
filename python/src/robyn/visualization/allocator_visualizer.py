@@ -431,7 +431,7 @@ class AllocatorPlotter(BaseVisualizer):
             plots = {
                 "budget_opt": self._plot_budget_comparison(),
                 "allocation": self._plot_allocation_matrix(),
-                "response": self._plot_response_curves(),
+                # "response": self._plot_response_curves(),
             }
 
             if display_plots:
