@@ -28,7 +28,7 @@ class BaseVisualizer(ABC):
         Args:
             style: matplotlib style to use (default: "bmh")
         """
-        logger.info("Initializing BaseVisualizer with style: %s", style)
+        logger.debug("Initializing BaseVisualizer with style: %s", style)
 
         # Store style settings
         self.style = style
@@ -70,7 +70,7 @@ class BaseVisualizer(ABC):
 
         # Apply default style
         self._setup_plot_style()
-        logger.info("BaseVisualizer initialization completed")
+        logger.debug("BaseVisualizer initialization completed")
 
     def _setup_plot_style(self) -> None:
         """Configure default plotting style."""

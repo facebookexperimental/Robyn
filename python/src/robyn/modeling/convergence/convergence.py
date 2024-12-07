@@ -68,7 +68,7 @@ class Convergence:
             conv_msg = self._generate_convergence_messages(errors)
 
             # Create visualization plots
-            plt.ioff()
+
             moo_distrb_plot = self.visualizer.create_moo_distrb_plot(
                 dt_objfunc_cvg, conv_msg
             )
@@ -76,7 +76,6 @@ class Convergence:
                 df, conv_msg, calibrated
             )
             ts_validation_plot = None  # self.visualizer.create_ts_validation_plot(trials) #Disabled for testing. #Sandeep
-            plt.close()
 
             self.logger.info("Convergence calculation completed successfully")
             return {

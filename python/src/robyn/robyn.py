@@ -426,8 +426,7 @@ class Robyn:
                 solution_ids=solution_id if solution_id else "all",
                 top_pareto=top_pareto,
             )
-            # return None instead of figures
-            return None
+            return figures
 
         except Exception as e:
             logging.error("One-pager generation failed: %s", str(e))
