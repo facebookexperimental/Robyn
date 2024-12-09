@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robynpy"
+version = "0.1.1"
+authors = [
+  { name="Gufeng Zhou", email="gufeng@meta.com" },
+  { name="Igor Skokan", email="igorskokan@meta.com" },
+]
+description = "Robyn: Continuous & Semi-Automated MMM. The Open Source Marketing Mix Model Package from Meta Marketing Science"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pandas",
+    "numpy>=1.20.0",
+    "matplotlib",
+    "scikit-learn",
+    "prophet",
+    "scipy",
+    "lmfit",
+    "plotnine",
+    "nevergrad",
+    "PyQt6",
+    "nevergrad",
+    "seaborn",
+    "tqdm",
+    "rpy2",
+    "pytest",
+    "plotly",
+    "nlopt",
+    "cmake",
+]
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.setuptools.package-data]
+"*" = ["*.csv"]
+[project.urls]
+Homepage = "https://github.com/facebookexperimental/Robyn"
+Issues = "https://github.com/facebookexperimental/Robyn/issues"
