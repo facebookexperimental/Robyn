@@ -2,11 +2,11 @@
 % Please edit documentation in R/calibration.R
 \name{robyn_calibrate}
 \alias{robyn_calibrate}
-\title{Robyn Calibration Function}
+\title{Robyn Calibration Function - BETA}
 \usage{
 robyn_calibrate(
   df_curve_sot = NULL,
-  curve_type = "saturation_reach",
+  curve_type = "saturation",
   force_shape = NULL,
   hp_bounds = NULL,
   max_trials = 10,
@@ -24,9 +24,8 @@ robyn_calibrate(
 \item{df_curve_sot}{data.frame. Requires two columns named spend and response.
 Recommended sources of truth are Halo R&F or Meta conversion lift.}
 
-\item{curve_type}{Character. Currently only allows saturation calibration
-and only supports Hill function. Possible values are \code{c(
-"saturation_reach", "saturation_revenue", "saturation_conversion")}.}
+\item{curve_type}{Character. Currently only allows "saturation"
+and only supports Hill function.}
 
 \item{force_shape}{Character. Allows c("c", "s") with default NULL that's no
 shape forcing. It's recommended for offline media to have "c" shape, while
@@ -37,9 +36,10 @@ for alpha and gamma are provided as Hill parameters. If NULL, hp_bounds takes
 on default ranges.}
 
 \item{max_trials}{integer. Different trials have different starting point
-and provide diversified sampling paths.}
+and provide diversified sampling paths. Default to 10.}
 
-\item{max_iters}{integer. Loss is minimized while iteration increases.}
+\item{max_iters}{integer. Loss is minimized while iteration increases.
+Default to 2500.}
 
 \item{loss_min_step_rel}{numeric. Default to 0.01 and value is between 0-0.1.
 0.01 means the optimisation is considered converged if error minimization is
@@ -67,11 +67,13 @@ and iterations modeled.
 }
 \description{
 \code{robyn_calibrate()} consumes source of truth or proxy data for
-saturation or adstock curve estimation.
+saturation or adstock curve estimation. This is an experimental feature and
+can be used independently from Robyn's main model.
 }
 \examples{
 \dontrun{
-# Dummy source of truth data
+# Dummy input data for Meta spend. This is derived from Halo's reach & frequency data.
+# Note that spend and response need to be cumulative metrics.
 df_curve_sot <- data.frame(
   spend_cumulated = c(
     0, 1933, 94574, 131815, 370320, 470523, 489839,
@@ -82,12 +84,13 @@ df_curve_sot <- data.frame(
     1643194, 1677396, 1679811
   )
 )
-# Using reach saturation as source of truth with S shape forcing
+# Using reach saturation from Halo as proxy
 curve_out <- robyn_calibrate(
   df_curve_sot = df_curve_sot,
-  curve_type = "saturation_reach",
-  force_shape = "s",
-  max_trials = 5
+  force_shape = "s"
 )
+# Use the alpha and gamma ranges as guidance for Meta spend's hyperparameter configuration
+# Consider further widening the range if too narrow.
+print(curve_out$hill)
 }
 }

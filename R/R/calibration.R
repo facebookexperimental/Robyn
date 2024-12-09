@@ -4,17 +4,17 @@
 # LICENSE file in the root directory of this source tree.
 
 ####################################################################
-#' Robyn Calibration Function
+#' Robyn Calibration Function - BETA
 #'
 #' \code{robyn_calibrate()} consumes source of truth or proxy data for
-#' saturation or adstock curve estimation.
+#' saturation or adstock curve estimation. This is an experimental feature and
+#' can be used independently from Robyn's main model.
 #'
 #' @inheritParams robyn_run
 #' @param df_curve_sot data.frame. Requires two columns named spend and response.
 #' Recommended sources of truth are Halo R&F or Meta conversion lift.
-#' @param curve_type Character. Currently only allows saturation calibration
-#' and only supports Hill function. Possible values are \code{c(
-#' "saturation_reach", "saturation_revenue", "saturation_conversion")}.
+#' @param curve_type Character. Currently only allows "saturation"
+#' and only supports Hill function.
 #' @param force_shape Character. Allows c("c", "s") with default NULL that's no
 #' shape forcing. It's recommended for offline media to have "c" shape, while
 #' for online can be "s" or NULL. Shape forcing only works if hp_bounds is null.
@@ -22,8 +22,9 @@
 #' for alpha and gamma are provided as Hill parameters. If NULL, hp_bounds takes
 #' on default ranges.
 #' @param max_trials integer. Different trials have different starting point
-#' and provide diversified sampling paths.
+#' and provide diversified sampling paths. Default to 10.
 #' @param max_iters integer. Loss is minimized while iteration increases.
+#' Default to 2500.
 #' @param loss_min_step_rel numeric. Default to 0.01 and value is between 0-0.1.
 #' 0.01 means the optimisation is considered converged if error minimization is
 #' <1 percent of maximal error.
@@ -37,7 +38,8 @@
 #' 2.5 - 97.5 percent percentile are used as parameter range for output.
 #' @examples
 #' \dontrun{
-#' # Dummy source of truth data
+#' # Dummy input data for Meta spend. This is derived from Halo's reach & frequency data.
+#' # Note that spend and response need to be cumulative metrics.
 #' df_curve_sot <- data.frame(
 #'   spend_cumulated = c(
 #'     0, 1933, 94574, 131815, 370320, 470523, 489839,
@@ -48,20 +50,21 @@
 #'     1643194, 1677396, 1679811
 #'   )
 #' )
-#' # Using reach saturation as source of truth with S shape forcing
+#' # Using reach saturation from Halo as proxy
 #' curve_out <- robyn_calibrate(
 #'   df_curve_sot = df_curve_sot,
-#'   curve_type = "saturation_reach",
-#'   force_shape = "s",
-#'   max_trials = 5
+#'   force_shape = "s"
 #' )
+#' # Use the alpha and gamma ranges as guidance for Meta spend's hyperparameter configuration
+#' # Consider further widening the range if too narrow.
+#' print(curve_out$hill)
 #' }
 #' @return List. Class: \code{curve_out}. Contains the results of all trials
 #' and iterations modeled.
 #' @export
 robyn_calibrate <- function(
     df_curve_sot = NULL,
-    curve_type = "saturation_reach",
+    curve_type = "saturation",
     force_shape = NULL,
     hp_bounds = NULL,
     max_trials = 10,
@@ -79,7 +82,7 @@ robyn_calibrate <- function(
   # hp_bounds format
   # hp_interval
 
-  if (grepl("saturation", curve_type)) {
+  if (curve_type == "saturation") {
     spend_cum_sot <- df_curve_sot[["spend_cumulated"]]
     response_cum_sot <- df_curve_sot[["response_cumulated"]]
     # amend 0 if not available
@@ -144,8 +147,8 @@ robyn_calibrate <- function(
         gamma <- ng_hp_val_scaled["gamma"]
 
         ## predict saturation vector
-        sim_temp <- max(spend_cum_sot)
-        response_pred <- saturation_hill(x = sim_temp, alpha, gamma, x_marginal = spend_cum_sot)[["x_saturated"]]
+        total_cum_spend <- max(spend_cum_sot)
+        response_pred <- saturation_hill(x = total_cum_spend, alpha, gamma, x_marginal = spend_cum_sot)[["x_saturated"]]
         response_sot_scaled <- .min_max_norm(response_cum_sot)
 
         ## get loss
@@ -243,7 +246,7 @@ robyn_calibrate <- function(
       response = response_sot_scaled,
       response_pred = best_pred_response * coef_response)
     temp_spend <- seq(0, max(spend_cum_sot), length.out = sim_n)
-    temp_sat <- saturation_hill(x = sim_temp, alpha = best_alpha, gamma = best_gamma, x_marginal = temp_spend)[["x_saturated"]]
+    temp_sat <- saturation_hill(x = total_cum_spend, alpha = best_alpha, gamma = best_gamma, x_marginal = temp_spend)[["x_saturated"]]
     df_pred_sim_plot <- data.frame(spend = temp_spend, response = temp_sat)
 
     sim_alphas <- alpha_collect_converged[
@@ -260,7 +263,7 @@ robyn_calibrate <- function(
     # simulation for plotting
     sim_collect <- list()
     for (i in 1:sim_n) {
-      sim_collect[[i]] <- saturation_hill(x = sim_temp, alpha = sim_alphas[i], gamma = sim_gammas[i], x_marginal = temp_spend)[["x_saturated"]]
+      sim_collect[[i]] <- saturation_hill(x = total_cum_spend, alpha = sim_alphas[i], gamma = sim_gammas[i], x_marginal = temp_spend)[["x_saturated"]]
     }
     sim_collect <- data.frame(
       sim = as.character(c(sapply(1:sim_n, function(x) rep(x, length(temp_spend))))),
@@ -268,7 +271,7 @@ robyn_calibrate <- function(
       sim_saturation = unlist(sim_collect)
     )
 
-    y_lab <- stringr::str_to_title(gsub("saturation_", "", curve_type))
+    y_lab <- "response proxy"
     p_lines <- ggplot() +
       geom_line(
         data = sim_collect,
@@ -351,7 +354,7 @@ robyn_calibrate <- function(
     }
 
     curve_out <- list(
-      hill = list(alpha = c(qt_alpha_out), gamma = c(qt_gamma_out)),
+      hill = list(alpha = c(qt_alpha_out), gamma = c(qt_gamma_out), inflexion_max = total_cum_spend),
       plot = p_lines / p_mse / (p_alpha + p_gamma) +
         plot_annotation(
           theme = theme_lares(background = "white", ...)
