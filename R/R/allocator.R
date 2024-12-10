@@ -172,7 +172,8 @@ robyn_allocator <- function(robyn_object = NULL,
   dt_hyppar_sorted <- OutputCollect$resultHypParam %>%
     filter(.data$solID == select_model) %>%
     select(c(hyper_names(InputCollect$adstock, mediaSelectedSorted),
-             paste0(mediaSelectedSorted, "_inflexion"))) %>%
+             paste0(mediaSelectedSorted, "_inflexion"),
+             paste0(mediaSelectedSorted, "_inflation"))) %>%
     select(sort(colnames(.)))
   dt_coef_sorted <- OutputCollect$xDecompAgg %>%
     filter(.data$solID == select_model & .data$rn %in% mediaSelectedSorted) %>%
@@ -182,6 +183,7 @@ robyn_allocator <- function(robyn_object = NULL,
   names(non_zero_coef_sorted) <- dt_coef_sorted$rn
   alphas <- dt_hyppar_sorted %>% select(contains("alphas")) %>% unlist
   inflexions <- dt_hyppar_sorted %>% select(contains("inflexion")) %>% unlist
+  inflations <- dt_hyppar_sorted %>% select(contains("inflation")) %>% unlist
   coefs_sorted <- dt_coef_sorted$coef
   names(coefs_sorted) <- dt_coef_sorted$rn
 
@@ -312,22 +314,6 @@ robyn_allocator <- function(robyn_object = NULL,
     1 + (channelConstrUpSorted - 1) * channel_constr_multiplier
   )
 
-  target_value_ext <- target_value
-  if (scenario == "target_efficiency") {
-    channelConstrLowSortedExt <- channelConstrLowSorted
-    channelConstrUpSortedExt <- channelConstrUpSorted
-    if (dep_var_type == "conversion") {
-      if (is.null(target_value)) {
-        target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
-      }
-      target_value_ext <- target_value * 1.5
-    } else {
-      if (is.null(target_value)) {
-        target_value <- sum(initResponseUnit) / sum(initSpendUnit) * 0.8
-      }
-      target_value_ext <- 1
-    }
-  }
   temp_init <- temp_init_all <- initSpendUnit
   # if no spend within window as initial spend, use historical average
   if (length(zero_spend_channel) > 0) temp_init_all[zero_spend_channel] <- histSpendAllUnit[zero_spend_channel]
@@ -383,16 +369,36 @@ robyn_allocator <- function(robyn_object = NULL,
   x0_ext <- lb_ext <- temp_init * temp_lb_ext
   ub_ext <- temp_init * temp_ub_ext
 
+  target_value_ext <- target_value
+  if (scenario == "target_efficiency") {
+    # channelConstrLowSortedExt <- channelConstrLowSorted
+    # channelConstrUpSortedExt <- channelConstrUpSorted
+    x0_ext <- lb_ext <- temp_init * 0.9
+    if (dep_var_type == "conversion") {
+      if (is.null(target_value)) {
+        target_value <- sum(initSpendUnit) / sum(initResponseUnit) * 1.2
+      }
+      target_value_ext <- target_value * 1.5
+    } else {
+      if (is.null(target_value)) {
+        target_value <- sum(initResponseUnit) / sum(initSpendUnit) * 0.8
+      }
+      target_value_ext <- 1
+    }
+  }
+
   # Gather all values that will be used internally on optim (nloptr)
   coefs_eval <- coefs_sorted[channel_for_allocation]
   alphas_eval <- alphas[paste0(channel_for_allocation, "_alphas")]
   inflexions_eval <- inflexions[paste0(channel_for_allocation, "_inflexion")]
   hist_carryover_eval <- hist_carryover[channel_for_allocation]
+  inflations_eval <- inflations[paste0(channel_for_allocation, "_inflation")]
 
   eval_list <- list(
     coefs_eval = coefs_eval,
     alphas_eval = alphas_eval,
     inflexions_eval = inflexions_eval,
+    inflation_eval = inflations_eval,
     # mediaSpendSortedFiltered = mediaSpendSorted,
     total_budget = total_budget,
     total_budget_unit = total_budget_unit,
@@ -460,7 +466,7 @@ robyn_allocator <- function(robyn_object = NULL,
       eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
       eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
       lb = lb,
-      ub = x0 * channel_constr_up[1], # Large enough, but not infinite (customizable)
+      ub = ub, # Large enough, but not infinite (customizable)
       opts = list(
         "algorithm" = "NLOPT_LD_AUGLAG",
         "xtol_rel" = 1.0e-10,
@@ -471,12 +477,12 @@ robyn_allocator <- function(robyn_object = NULL,
     )
     ## unbounded optimisation
     nlsModUnbound <- nloptr::nloptr(
-      x0 = x0,
+      x0 = x0_ext,
       eval_f = eval_f,
       eval_g_eq = if (constr_mode == "eq") eval_g_eq_effi else NULL,
       eval_g_ineq = if (constr_mode == "ineq") eval_g_eq_effi else NULL,
-      lb = lb,
-      ub = x0 * channel_constr_up[1], # Large enough, but not infinite (customizable)
+      lb = lb_ext,
+      ub = ub_ext, # Large enough, but not infinite (customizable)
       opts = list(
         "algorithm" = "NLOPT_LD_AUGLAG",
         "xtol_rel" = 1.0e-10,
@@ -835,6 +841,7 @@ eval_f <- function(X, target_value) {
   inflexions_eval <- eval_list[["inflexions_eval"]]
   # mediaSpendSortedFiltered <- eval_list[["mediaSpendSortedFiltered"]]
   hist_carryover_eval <- eval_list[["hist_carryover_eval"]]
+  inflations_eval <- eval_list[["inflations_eval"]]
 
   objective <- -sum(mapply(
     fx_objective,
@@ -870,7 +877,7 @@ eval_f <- function(X, target_value) {
   return(optm)
 }
 
-fx_objective <- function(x, coeff, alpha, inflexion, x_hist_carryover, get_sum = TRUE) {
+fx_objective <- function(x, coeff, alpha, inflexion, x_hist_carryover, inflation = NULL, get_sum = TRUE) {
   # Apply Michaelis Menten model to scale spend to exposure
   # if (criteria) {
   #   xScaled <- mic_men(x = x, Vmax = vmax, Km = km) # vmax * x / (km + x)
@@ -882,6 +889,7 @@ fx_objective <- function(x, coeff, alpha, inflexion, x_hist_carryover, get_sum =
 
   # Adstock scales
   xAdstocked <- x + mean(x_hist_carryover)
+  # xAdstocked <- x * inflation
   # Hill transformation
   if (get_sum) {
     xOut <- coeff * sum((1 + inflexion**alpha / xAdstocked**alpha)**-1)
@@ -892,7 +900,7 @@ fx_objective <- function(x, coeff, alpha, inflexion, x_hist_carryover, get_sum =
 }
 
 # https://www.derivative-calculator.net/ on the objective function 1/(1+gamma^alpha / x^alpha)
-fx_gradient <- function(x, coeff, alpha, inflexion, x_hist_carryover
+fx_gradient <- function(x, coeff, alpha, inflexion, x_hist_carryover, inflation = NULL
                         # , chnName, vmax, km, criteria
 ) {
   # Apply Michaelis Menten model to scale spend to exposure
@@ -906,11 +914,12 @@ fx_gradient <- function(x, coeff, alpha, inflexion, x_hist_carryover
 
   # Adstock scales
   xAdstocked <- x + mean(x_hist_carryover)
+  # xAdstocked <- x * inflation
   xOut <- -coeff * sum((alpha * (inflexion**alpha) * (xAdstocked**(alpha - 1))) / (xAdstocked**alpha + inflexion**alpha)**2)
   return(xOut)
 }
 
-fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover
+fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover, inflation = NULL
                                 # , chnName, vmax, km, criteria
 ) {
   # Apply Michaelis Menten model to scale spend to exposure
@@ -924,6 +933,7 @@ fx_objective.chanel <- function(x, coeff, alpha, inflexion, x_hist_carryover
 
   # Adstock scales
   xAdstocked <- x + mean(x_hist_carryover)
+  # xAdstocked <- x * inflation
   xOut <- -coeff * sum((1 + inflexion**alpha / xAdstocked**alpha)**-1)
   return(xOut)
 }

@@ -824,13 +824,16 @@ allocation_plots <- function(
       .data$value / dplyr::first(.data$value)
     })
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
+  resp_delta <- df_roi %>% group_by(type) %>%
+    summarise(resp_delta = unique(total_response_lift)) %>%
+    pull(resp_delta)
   labs <- paste(
     paste(levs2, "\n"),
     paste("Spend:", formatNum(
       100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
       signif = 3, pos = "%", sign = TRUE
     )),
-    unique(paste("Resp:", formatNum(100 * df_roi$total_response_lift, signif = 3, pos = "%", sign = TRUE))),
+   paste("Resp:", formatNum(100 *  resp_delta, signif = 3, pos = "%", sign = TRUE)),
     paste(metric, ":", round(metric_vals, 2)),
     sep = "\n"
   )

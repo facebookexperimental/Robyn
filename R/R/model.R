@@ -679,15 +679,11 @@ robyn_mmm <- function(InputCollect,
                                         dt_mod = InputCollect$dt_mod,
                                         adstock = InputCollect$adstock,
                                         dt_hyppar = hypParamSam, ...)
-            dt_modSaturated <- temp$dt_modSaturated
-            dt_saturatedImmediate <- temp$dt_saturatedImmediate
-            dt_saturatedCarryover <- temp$dt_saturatedCarryover
-            inflexions <- temp$inflexions
 
             #####################################
             #### Split train & test and prepare data for modelling
 
-            dt_window <- dt_modSaturated
+            dt_window <- temp$dt_modSaturated
 
             ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
             y_window <- dt_window$dep_var
@@ -788,9 +784,9 @@ robyn_mmm <- function(InputCollect,
               inputs = list(
                 coefs = mod_out$coefs,
                 y_pred = mod_out$y_pred,
-                dt_modSaturated = dt_modSaturated,
-                dt_saturatedImmediate = dt_saturatedImmediate,
-                dt_saturatedCarryover = dt_saturatedCarryover,
+                dt_modSaturated = temp$dt_modSaturated,
+                dt_saturatedImmediate = temp$dt_saturatedImmediate,
+                dt_saturatedCarryover = temp$dt_saturatedCarryover,
                 dt_modRollWind = dt_modRollWind,
                 refreshAddedStart = refreshAddedStart
               ))
@@ -822,8 +818,7 @@ robyn_mmm <- function(InputCollect,
               filter(.data$rn %in% c(paid_media_selected, organic_vars)) %>%
               select(
                 .data$rn, .data$xDecompPerc, .data$xDecompPercRF
-              )
-            dt_loss_calc <- dt_loss_calc %>% left_join(
+              ) %>% left_join(
               select(
                 dt_spendShare,
                 c("rn", "spend_share", "spend_share_refresh","mean_spend",
@@ -905,7 +900,8 @@ robyn_mmm <- function(InputCollect,
 
             resultCollect[["resultHypParam"]] <- as_tibble(hypParamSam) %>%
               select(-.data$lambda) %>%
-              bind_cols(as_tibble(t(inflexions))) %>%
+              bind_cols(as_tibble(t(temp$inflexions))) %>%
+              bind_cols(as_tibble(t(temp$inflations))) %>%
               bind_cols(common[, 1:split_common]) %>%
               mutate(
                 pos = prod(decompCollect$xDecompAgg$pos),
@@ -926,7 +922,6 @@ robyn_mmm <- function(InputCollect,
 
             # resultCollect[["decompSpendDist"]] <- dt_decompSpendDist %>%
             #   bind_cols(common)
-
             resultCollect <- append(resultCollect, as.list(common))
             return(resultCollect)
           }

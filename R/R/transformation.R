@@ -384,8 +384,8 @@ run_transformations <- function(all_media,
   saturated_immediate_collect <- list()
   saturated_carryover_collect <- list()
   inflexion_collect <- list()
+  inflation_collect <- list()
 
-  system.time(
   for (v in seq_along(all_media)) {
     ################################################
     ## 1. Adstocking (whole data)
@@ -426,8 +426,9 @@ run_transformations <- function(all_media,
     saturated_carryover_collect[[v]] <- sat_temp_caov[["x_saturated"]]
     saturated_immediate_collect[[v]] <- saturated_total_collect[[v]] - saturated_carryover_collect[[v]]
     inflexion_collect[[v]] <- sat_temp_total[["inflexion"]]
+    inflation_collect[[v]] <- x_list$inflation_total
     # plot(input_total_rw, saturated_total_collect[[1]])
-  })
+  }
 
   names(adstocked_collect) <- names(saturated_total_collect) <- names(saturated_immediate_collect) <-
     names(saturated_carryover_collect) <- all_media
@@ -445,11 +446,14 @@ run_transformations <- function(all_media,
   dt_saturatedCarryover <- bind_cols(saturated_carryover_collect)
   dt_saturatedCarryover[is.na(dt_saturatedCarryover)] <- 0
   inflexion_collect <- unlist(inflexion_collect)
+  inflation_collect <- unlist(inflation_collect)
   names(inflexion_collect) <- paste0(all_media, "_inflexion")
+  names(inflation_collect) <- paste0(all_media, "_inflation")
   return(list(
     dt_modSaturated = dt_modSaturated,
     dt_saturatedImmediate = dt_saturatedImmediate,
     dt_saturatedCarryover = dt_saturatedCarryover,
-    inflexions = inflexion_collect
+    inflexions = inflexion_collect,
+    inflations = inflation_collect
   ))
 }
