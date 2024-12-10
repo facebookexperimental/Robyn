@@ -371,7 +371,7 @@ robyn_train <- function(InputCollect, hyper_collect,
     OutputModels[[1]]$trial <- 1
     # Set original solID (to overwrite default 1_1_1)
     if ("solID" %in% names(dt_hyper_fixed)) {
-      these <- c("resultHypParam", "xDecompVec", "xDecompAgg", "decompSpendDist")
+      these <- c("resultHypParam", "xDecompVec", "xDecompAgg")
       for (tab in these) OutputModels[[1]]$resultCollect[[tab]]$solID <- dt_hyper_fixed$solID
     }
   } else {
@@ -407,9 +407,9 @@ robyn_train <- function(InputCollect, hyper_collect,
         seed = seed + ngt,
         quiet = quiet
       )
-      check_coef0 <- any(model_output$resultCollect$decompSpendDist$decomp.rssd == Inf)
+      check_coef0 <- any(model_output$resultCollect$resultHypParam$decomp.rssd == Inf)
       if (check_coef0) {
-        num_coef0_mod <- filter(model_output$resultCollect$decompSpendDist, is.infinite(.data$decomp.rssd)) %>%
+        num_coef0_mod <- filter(model_output$resultCollect$resultHypParam, is.infinite(.data$decomp.rssd)) %>%
           distinct(.data$iterNG, .data$iterPar) %>%
           nrow()
         num_coef0_mod <- ifelse(num_coef0_mod > iterations, iterations, num_coef0_mod)
@@ -516,6 +516,8 @@ robyn_mmm <- function(InputCollect,
     refresh_steps <- InputCollect$refresh_steps
     rollingWindowLength <- InputCollect$rollingWindowLength
     paid_media_spends <- InputCollect$paid_media_spends
+    paid_media_selected <- InputCollect$paid_media_selected
+    exposure_vars <- InputCollect$exposure_vars
     organic_vars <- InputCollect$organic_vars
     context_vars <- InputCollect$context_vars
     prophet_vars <- InputCollect$prophet_vars
@@ -535,7 +537,7 @@ robyn_mmm <- function(InputCollect,
   dt_inputTrain <- InputCollect$dt_input[rollingWindowStartWhich:rollingWindowEndWhich, ]
   temp <- select(dt_inputTrain, all_of(paid_media_spends))
   dt_spendShare <- data.frame(
-    rn = paid_media_spends,
+    rn = paid_media_selected,
     total_spend = unlist(summarise_all(temp, sum)),
     # mean_spend = unlist(summarise_all(temp, function(x) {
     #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
@@ -543,12 +545,15 @@ robyn_mmm <- function(InputCollect,
     mean_spend = unlist(summarise_all(temp, mean))
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
+  temp <- select(dt_inputTrain, all_of(c(exposure_vars, organic_vars))) %>% summarise_all(mean) %>% unlist
+  temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
+  dt_spendShare <- full_join(dt_spendShare, temp, by = "rn")
   # When not refreshing, dt_spendShareRF = dt_spendShare
   refreshAddedStartWhich <- which(dt_modRollWind$ds == refreshAddedStart)
   temp <- select(dt_inputTrain, all_of(paid_media_spends)) %>%
     slice(refreshAddedStartWhich:rollingWindowLength)
   dt_spendShareRF <- data.frame(
-    rn = paid_media_spends,
+    rn = paid_media_selected,
     total_spend = unlist(summarise_all(temp, sum)),
     # mean_spend = unlist(summarise_all(temp, function(x) {
     #   ifelse(is.na(mean(x[x > 0])), 0, mean(x[x > 0]))
@@ -557,7 +562,13 @@ robyn_mmm <- function(InputCollect,
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # Join both dataframes into a single one
+  temp <- select(dt_inputTrain,  all_of(c(exposure_vars, organic_vars))) %>%
+    slice(refreshAddedStartWhich:rollingWindowLength) %>%
+    summarise_all(mean) %>% unlist
+  temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
+  dt_spendShareRF <- full_join(dt_spendShareRF, temp, by = "rn")
   dt_spendShare <- left_join(dt_spendShare, dt_spendShareRF, "rn", suffix = c("", "_refresh"))
+
 
   ################################################
   #### Get lambda
@@ -662,15 +673,17 @@ robyn_mmm <- function(InputCollect,
             adstock <- check_adstock(adstock)
 
             #### Transform media for model fitting
-            temp <- run_transformations(InputCollect, hypParamSam, ...)
-            dt_modSaturated <- temp$dt_modSaturated
-            dt_saturatedImmediate <- temp$dt_saturatedImmediate
-            dt_saturatedCarryover <- temp$dt_saturatedCarryover
+            temp <- run_transformations(all_media = InputCollect$all_media,
+                                        window_start_loc = InputCollect$rollingWindowStartWhich,
+                                        window_end_loc = InputCollect$rollingWindowEndWhich,
+                                        dt_mod = InputCollect$dt_mod,
+                                        adstock = InputCollect$adstock,
+                                        dt_hyppar = hypParamSam, ...)
 
             #####################################
             #### Split train & test and prepare data for modelling
 
-            dt_window <- dt_modSaturated
+            dt_window <- temp$dt_modSaturated
 
             ## Contrast matrix because glmnet does not treat categorical variables (one hot encoding)
             y_window <- dt_window$dep_var
@@ -697,7 +710,7 @@ robyn_mmm <- function(InputCollect,
             ## Define and set sign control
             dt_sign <- select(dt_window, -.data$dep_var)
             x_sign <- c(prophet_signs, context_signs, paid_media_signs, organic_signs)
-            names(x_sign) <- c(prophet_vars, context_vars, paid_media_spends, organic_vars)
+            names(x_sign) <- c(prophet_vars, context_vars, paid_media_selected, organic_vars)
             check_factor <- unlist(lapply(dt_sign, is.factor))
             lower.limits <- rep(0, length(prophet_signs))
             upper.limits <- rep(1, length(prophet_signs))
@@ -753,9 +766,12 @@ robyn_mmm <- function(InputCollect,
 
             ## If no lift calibration, refit using best lambda
             mod_out <- model_refit(
-              x_train, y_train,
-              x_val, y_val,
-              x_test, y_test,
+              x_train = x_train,
+              y_train = y_train,
+              x_val = x_val,
+              y_val = y_val,
+              x_test = x_test,
+              y_test = y_test,
               lambda = lambda_scaled,
               lower.limits = lower.limits,
               upper.limits = upper.limits,
@@ -768,9 +784,9 @@ robyn_mmm <- function(InputCollect,
               inputs = list(
                 coefs = mod_out$coefs,
                 y_pred = mod_out$y_pred,
-                dt_modSaturated = dt_modSaturated,
-                dt_saturatedImmediate = dt_saturatedImmediate,
-                dt_saturatedCarryover = dt_saturatedCarryover,
+                dt_modSaturated = temp$dt_modSaturated,
+                dt_saturatedImmediate = temp$dt_saturatedImmediate,
+                dt_saturatedCarryover = temp$dt_saturatedCarryover,
                 dt_modRollWind = dt_modRollWind,
                 refreshAddedStart = refreshAddedStart
               ))
@@ -781,7 +797,7 @@ robyn_mmm <- function(InputCollect,
             #####################################
             #### MAPE: Calibration error
             if (!is.null(calibration_input)) {
-              liftCollect <- robyn_calibrate(
+              liftCollect <- lift_calibration(
                 calibration_input = calibration_input,
                 df_raw = dt_mod,
                 hypParamSam = hypParamSam,
@@ -798,36 +814,37 @@ robyn_mmm <- function(InputCollect,
             #####################################
             #### DECOMP.RSSD: Business error
             # Sum of squared distance between decomp share and spend share to be minimized
-            dt_decompSpendDist <- decompCollect$xDecompAgg %>%
-              filter(.data$rn %in% paid_media_spends) %>%
+            dt_loss_calc <- decompCollect$xDecompAgg %>%
+              filter(.data$rn %in% c(paid_media_selected, organic_vars)) %>%
               select(
-                .data$rn, .data$xDecompAgg, .data$xDecompPerc, .data$xDecompMeanNon0Perc,
-                .data$xDecompMeanNon0, .data$xDecompPercRF, .data$xDecompMeanNon0PercRF,
-                .data$xDecompMeanNon0RF
-              ) %>%
-              left_join(
-                select(
-                  dt_spendShare,
-                  .data$rn, .data$spend_share, .data$spend_share_refresh,
-                  .data$mean_spend, .data$total_spend
-                ),
-                by = "rn"
-              ) %>%
-              mutate(
-                effect_share = .data$xDecompPerc / sum(.data$xDecompPerc),
-                effect_share_refresh = .data$xDecompPercRF / sum(.data$xDecompPercRF)
-              )
-            dt_decompSpendDist <- left_join(
-              filter(decompCollect$xDecompAgg, .data$rn %in% paid_media_spends),
-              select(dt_decompSpendDist, .data$rn, contains("_spend"), contains("_share")),
+                .data$rn, .data$xDecompPerc, .data$xDecompPercRF
+              ) %>% left_join(
+              select(
+                dt_spendShare,
+                c("rn", "spend_share", "spend_share_refresh","mean_spend",
+                  "total_spend", "mean_exposure", "mean_exposure_refresh")
+              ),
               by = "rn"
             )
+            dt_loss_calc <- bind_rows(
+              dt_loss_calc %>% filter(.data$rn %in% paid_media_selected) %>%
+                mutate(
+                  effect_share = .data$xDecompPerc / sum(.data$xDecompPerc),
+                  effect_share_refresh = .data$xDecompPercRF / sum(.data$xDecompPercRF)
+                ),
+              dt_loss_calc %>% filter(.data$rn %in% organic_vars) %>%
+                mutate(
+                  effect_share = NA, effect_share_refresh = NA)
+            ) %>% select(-c("xDecompPerc", "xDecompPercRF"))
+            decompCollect$xDecompAgg <- left_join(
+              decompCollect$xDecompAgg, dt_loss_calc, by = "rn")
+            dt_loss_calc <- dt_loss_calc %>% filter(.data$rn %in% paid_media_selected)
             if (!refresh) {
-              decomp.rssd <- sqrt(sum((dt_decompSpendDist$effect_share - dt_decompSpendDist$spend_share)^2))
+              decomp.rssd <- sqrt(sum((dt_loss_calc$effect_share - dt_loss_calc$spend_share)^2))
               # Penalty for models with more 0-coefficients
               if (rssd_zero_penalty) {
-                is_0eff <- round(dt_decompSpendDist$effect_share, 4) == 0
-                share_0eff <- sum(is_0eff) / length(dt_decompSpendDist$effect_share)
+                is_0eff <- round(dt_loss_calc$effect_share, 4) == 0
+                share_0eff <- sum(is_0eff) / length(dt_loss_calc$effect_share)
                 decomp.rssd <- decomp.rssd * (1 + share_0eff)
               }
             } else {
@@ -836,11 +853,11 @@ robyn_mmm <- function(InputCollect,
                   by = "rn"
                 )
               decomp.rssd.media <- dt_decompRF %>%
-                filter(.data$rn %in% paid_media_spends) %>%
+                filter(.data$rn %in% paid_media_selected) %>%
                 summarise(rssd.media = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
                 pull(.data$rssd.media)
               decomp.rssd.nonmedia <- dt_decompRF %>%
-                filter(!.data$rn %in% paid_media_spends) %>%
+                filter(!.data$rn %in% paid_media_selected) %>%
                 summarise(rssd.nonmedia = sqrt(mean((.data$decomp_perc - .data$decomp_perc_prev)^2))) %>%
                 pull(.data$rssd.nonmedia)
               decomp.rssd <- decomp.rssd.media + decomp.rssd.nonmedia /
@@ -849,7 +866,8 @@ robyn_mmm <- function(InputCollect,
             # When all media in this iteration have 0 coefficients
             if (is.nan(decomp.rssd)) {
               decomp.rssd <- Inf
-              dt_decompSpendDist$effect_share <- 0
+              decompCollect$xDecompAgg <- decompCollect$xDecompAgg %>%
+                mutate(effect_share = ifelse(is.na(.data$effect_share), NA, 0))
             }
 
             #####################################
@@ -882,6 +900,8 @@ robyn_mmm <- function(InputCollect,
 
             resultCollect[["resultHypParam"]] <- as_tibble(hypParamSam) %>%
               select(-.data$lambda) %>%
+              bind_cols(as_tibble(t(temp$inflexions))) %>%
+              bind_cols(as_tibble(t(temp$inflations))) %>%
               bind_cols(common[, 1:split_common]) %>%
               mutate(
                 pos = prod(decompCollect$xDecompAgg$pos),
@@ -900,9 +920,8 @@ robyn_mmm <- function(InputCollect,
                 bind_cols(common)
             }
 
-            resultCollect[["decompSpendDist"]] <- dt_decompSpendDist %>%
-              bind_cols(common)
-
+            # resultCollect[["decompSpendDist"]] <- dt_decompSpendDist %>%
+            #   bind_cols(common)
             resultCollect <- append(resultCollect, as.list(common))
             return(resultCollect)
           }
@@ -910,7 +929,6 @@ robyn_mmm <- function(InputCollect,
           ########### Parallel start
           nrmse.collect <- NULL
           decomp.rssd.collect <- NULL
-          best_mape <- Inf
           if (cores == 1) {
             doparCollect <- lapply(1:iterPar, robyn_iterations)
           } else {
@@ -1009,11 +1027,11 @@ robyn_mmm <- function(InputCollect,
       arrange(.data$mape, .data$liftMedia, .data$liftStart))
   }
 
-  resultCollect[["decompSpendDist"]] <- as_tibble(bind_rows(
-    lapply(resultCollectNG, function(x) {
-      bind_rows(lapply(x, function(y) y$decompSpendDist))
-    })
-  ))
+  # resultCollect[["decompSpendDist"]] <- as_tibble(bind_rows(
+  #   lapply(resultCollectNG, function(x) {
+  #     bind_rows(lapply(x, function(y) y$decompSpendDist))
+  #   })
+  # ))
 
   resultCollect$iter <- length(resultCollect$mape)
   resultCollect$elapsed.min <- sysTimeDopar[3] / 60
@@ -1147,7 +1165,6 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
     intercept = intercept,
     ...
   ) # coef(mod)
-
   df.int <- 1
 
   ## Drop intercept if negative and intercept_sign == "non_negative"
@@ -1160,6 +1177,7 @@ model_refit <- function(x_train, y_train, x_val, y_val, x_test, y_test,
       lambda = lambda,
       lower.limits = lower.limits,
       upper.limits = upper.limits,
+      type.measure = "mse",
       penalty.factor = penalty.factor,
       intercept = FALSE,
       ...

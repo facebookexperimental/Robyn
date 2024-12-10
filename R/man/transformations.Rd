@@ -8,7 +8,15 @@
 \usage{
 mic_men(x, Vmax, Km, reverse = FALSE)
 
-run_transformations(InputCollect, hyperparameters, ...)
+run_transformations(
+  all_media,
+  window_start_loc,
+  window_end_loc,
+  dt_mod,
+  adstock,
+  dt_hyppar,
+  ...
+)
 }
 \arguments{
 \item{x}{Numeric value or vector. Input media spend when
@@ -22,12 +30,17 @@ GRPs, etc.) when \code{reverse = TRUE}.}
 \item{reverse}{Boolean. Input media spend when \code{reverse = FALSE}.
 Input media exposure metrics (impression, clicks, GRPs etc.) when \code{reverse = TRUE}.}
 
-\item{InputCollect}{Default to NULL. \code{robyn_inputs}'s output when
-\code{hyperparameters} are not yet set.}
+\item{all_media}{Character. Vector of all selected paid media variable names.}
 
-\item{hyperparameters}{List. Contains hyperparameter lower and upper bounds.
-Names of elements in list must be identical to output of \code{hyper_names()}.
-To fix hyperparameter values, provide only one value.}
+\item{window_start_loc}{Integer. Rolling window start location.}
+
+\item{window_end_loc}{Integer. Rolling window end location.}
+
+\item{dt_mod}{dataframe. Transformed input table for transformation.}
+
+\item{adstock}{Character. Adstock config.}
+
+\item{dt_hyppar}{data.frame. All hyperparaters for provided media.}
 
 \item{...}{Additional parameters passed to \code{prophet} functions.}
 }

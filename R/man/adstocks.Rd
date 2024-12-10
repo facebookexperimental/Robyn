@@ -9,7 +9,7 @@
 \usage{
 adstock_geometric(x, theta)
 
-adstock_weibull(x, shape, scale, windlen = length(x), type = "cdf")
+adstock_weibull(x, shape, scale, windlen = length(x), type = "pdf")
 
 transform_adstock(
   x,
@@ -88,11 +88,9 @@ Run \code{plot_adstock()} to see the difference visually.
 }
 \examples{
 adstock_geometric(rep(100, 5), theta = 0.5)
-adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "CDF")
-adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "PDF")
+adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "cdf")
+adstock_weibull(rep(100, 5), shape = 0.5, scale = 0.5, type = "pdf")
 
-# Wrapped function for either adstock
-transform_adstock(rep(100, 10), "weibull_pdf", shape = 1, scale = 0.5)
 }
 \seealso{
 Other Transformations: 

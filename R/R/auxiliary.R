@@ -94,3 +94,24 @@ baseline_vars <- function(InputCollect, baseline_level) {
   }
   return(x)
 }
+
+# Calculate dot product
+.dot_product <- function(range, proportion) {
+  mapply(function(proportion) {
+    c(range %*% c(1 - proportion, proportion))
+  },
+  proportion = proportion)
+}
+
+# Calculate quantile interval
+.qti <- function(x, interval = 0.95) {
+  check_qti(interval)
+  int_low <- (1 - interval)/2
+  int_up <- 1 - int_low
+  qt_low <- quantile(x, int_low)
+  qt_up <- quantile(x, int_up)
+  return(c(qt_low, qt_up))
+}
+
+# Calculate MSE
+.mse_loss <- function(y, y_hat) mean((y - y_hat)^2)

@@ -24,7 +24,7 @@ Hill-transformed value of the x_marginal input.}
 \item{plot}{Boolean. Do you wish to return the plot?}
 }
 \value{
-Numeric values. Transformed values.
+List. x_saturated as transformed values and inflexion point
 }
 \description{
 \code{saturation_hill} is a two-parametric version of the Hill

@@ -23,7 +23,6 @@ Imports:
     jsonlite,
     lares,
     lubridate,
-    minpack.lm,
     nloptr,
     patchwork,
     prophet,

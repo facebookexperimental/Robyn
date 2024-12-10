@@ -14,6 +14,7 @@ prophet_decomp(
   context_vars,
   organic_vars,
   paid_media_spends,
+  paid_media_vars,
   intervalType,
   dayInterval,
   custom_params
@@ -32,6 +33,14 @@ Prophet holidays using \code{data("dt_prophet_holidays")}}
 \item{organic_vars}{Character vector. Typically newsletter sendings,
 push-notifications, social media posts etc. Compared to \code{paid_media_vars}
 \code{organic_vars} are often marketing activities without clear spends.}
+
+\item{paid_media_vars}{Character vector. Names of the paid media variables'
+exposure level metrics (impressions, clicks, GRP etc) other than spend.
+The values on each of these variables must be numeric. These variables are not
+being used to train the model but to check relationship and recommend to
+split media channels into sub-channels (e.g. fb_retargeting, fb_prospecting,
+etc.) to gain more variance. \code{paid_media_vars} must have same
+order and length as \code{paid_media_spends} respectively and is not required.}
 
 \item{custom_params}{List. Custom parameters passed to \code{prophet()}}
 }
