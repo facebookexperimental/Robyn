@@ -85,7 +85,7 @@ robyn_calibrate <- function(
       curve_collect[[i]] <- robyn_calibrate_single_dim(
         df_curve = df_curve_i,
         curve_type,
-        force_shape = "c",
+        force_shape = "c", # assumption: reach saturation is always concave
         hp_bounds,
         max_trials,
         max_iters,
@@ -103,7 +103,8 @@ robyn_calibrate <- function(
       geom_point(aes(y = .data$response_cumulated, colour = .data$freq_bucket)) +
       geom_line(aes(y = .data$response_pred, colour = .data$freq_bucket), alpha = 0.5) +
       labs(
-        title = "Cumulative reach saturation fitting",
+        title = "Cumulative reach & frequency saturation fitting",
+        subtitle = "The dots are input R&F data. The lines are fitted curves.",
         x = "cumulative spend",
         y = "cumulative reach"
       ) +

@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 #############################################################################################
-####################         Meta MMM Open Source: Robyn 3.11.0       #######################
+####################         Meta MMM Open Source: Robyn 3.12.0       #######################
 ####################             Quick demo guide                     #######################
 #############################################################################################
 
@@ -32,9 +32,6 @@ packageVersion("Robyn")
 Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
 options(future.fork.enable = TRUE)
 
-# Set to FALSE to avoid the creation of files locally
-create_files <- TRUE
-
 ## IMPORTANT: Must install and setup the python library "Nevergrad" once before using Robyn
 ## Guide: https://github.com/facebookexperimental/Robyn/blob/main/demo/install_nevergrad.R
 
@@ -46,7 +43,7 @@ data("dt_simulated_weekly")
 head(dt_simulated_weekly)
 
 ## Check holidays from Prophet
-# 59 countries included. If your country is not included, please manually add it.
+# 123 countries included. If your country is not included, please manually add it.
 # Tipp: any events can be added into this table, school break, events etc.
 data("dt_prophet_holidays")
 head(dt_prophet_holidays)
@@ -59,44 +56,41 @@ robyn_directory <- "~/Desktop"
 
 #### 2a-1: First, specify input variables
 
-## All sign control are now automatically provided: "positive" for media & organic
-## variables and "default" for all others. User can still customise signs if necessary.
-## Documentation is available, access it anytime by running: ?robyn_inputs
+## For documentation of all arguments run ?robyn_inputs
 InputCollect <- robyn_inputs(
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   date_var = "DATE", # date format must be "2020-01-01"
-  dep_var = "revenue", # there should be only one dependent variable
-  dep_var_type = "revenue", # "revenue" (ROI) or "conversion" (CPA)
-  prophet_vars = c("trend", "season", "holiday"), # "trend","season", "weekday" & "holiday"
-  prophet_country = "DE", # input country code. Check: dt_prophet_holidays
+  dep_var = "revenue", # currently one dependent variable allowed
+  dep_var_type = "revenue", # "revenue" or "conversion" allowed
+  prophet_vars = c("trend", "season", "holiday"), # "trend","season", "weekday" & "holiday" allowed
+  prophet_country = "DE", # 123 countries included in dt_prophet_holidays
   context_vars = c("competitor_sales_B", "events"), # e.g. competitors, discount, unemployment etc
   paid_media_spends = c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S"), # mandatory input
-  paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"), # mandatory.
-  # paid_media_vars must have same order as paid_media_spends. Use media exposure metrics like
-  # impressions, GRP etc. If not applicable, use spend instead.
-  organic_vars = "newsletter", # marketing activity without media spend
-  # factor_vars = c("events"), # force variables in context_vars or organic_vars to be categorical
+  paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P"), # if provided,
+  # Robyn will use this instead of paid_media_spends for modelling. Media exposure metrics
+  # include typically, but not limited to impressions, GRP etc. If not applicable, use spend instead.
+  organic_vars = c("newsletter"), # marketing activity without media spend
+  factor_vars = c("events"), # indicate categorical varibales in context_vars or organic_vars
   window_start = "2016-01-01",
   window_end = "2018-12-31",
-  adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
+  adstock = "geometric" # geometric or weibull_pdf
 )
 print(InputCollect)
 
 #### 2a-2: Second, define and add hyperparameters
 
-## Default media variable for modelling has changed from paid_media_vars to paid_media_spends.
-## Also, calibration_input are required to be spend names.
-## hyperparameter names are based on paid_media_spends names too. See right hyperparameter names:
+## hyperparameter names are based on paid_media_vars. See right hyperparameter names:
 hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 
 ## Guide to setup & understand hyperparameters
 
-## Robyn's hyperparameters have four components:
+## Robyn's hyperparameters have five components:
 ## - Adstock parameters (theta or shape/scale)
 ## - Saturation parameters (alpha/gamma)
 ## - Regularisation parameter (lambda). No need to specify manually
 ## - Time series validation parameter (train_size)
+## - Beta coefficient penalty factor (_penalty). No need to specify manually
 
 ## 1. IMPORTANT: set plot = TRUE to create example plots for adstock & saturation
 ## hyperparameters and their influence in curve transformation.
@@ -104,7 +98,7 @@ plot_adstock(plot = FALSE)
 plot_saturation(plot = FALSE)
 
 ## 2. Get correct hyperparameter names:
-# All variables in paid_media_spends and organic_vars require hyperparameter and will be
+# All variables in paid_media_vars and organic_vars require hyperparameter and will be
 # transformed by adstock & saturation.
 # Run hyper_names(adstock = InputCollect$adstock, all_media = InputCollect$all_media)
 # to get correct media hyperparameter names. All names in hyperparameters must equal
@@ -118,14 +112,6 @@ plot_saturation(plot = FALSE)
 # media genre: TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3). Also,
 # to convert weekly to daily we can transform the parameter to the power of (1/7),
 # so to convert 30% daily to weekly is 0.3^(1/7) = 0.84.
-
-## Weibull CDF adstock: The Cumulative Distribution Function of Weibull has two parameters,
-# shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
-# decay rate. The shape parameter controls the shape of the decay curve. Recommended
-# bound is c(0, 2). The larger the shape, the more S-shape. The smaller, the more
-# L-shape. Scale controls the inflexion point of the decay curve. We recommend very
-# conservative bounce of c(0, 0.1), because scale increases the adstock half-life greatly.
-# When shape or scale is 0, adstock will be 0.
 
 ## Weibull PDF adstock: The Probability Density Function of the Weibull also has two
 # parameters, shape & scale, and also has flexible decay rate as Weibull CDF. The
@@ -144,10 +130,18 @@ plot_saturation(plot = FALSE)
 # in hyperparameter spaces for Nevergrad to explore, it also requires larger iterations
 # to converge. When shape or scale is 0, adstock will be 0.
 
+## Weibull CDF adstock (to be depreceated): The Cumulative Distribution Function of Weibull has two parameters,
+# shape & scale, and has flexible decay rate, compared to Geometric adstock with fixed
+# decay rate. The shape parameter controls the shape of the decay curve. Recommended
+# bound is c(0, 2). The larger the shape, the more S-shape. The smaller, the more
+# L-shape. Scale controls the inflexion point of the decay curve. We recommend very
+# conservative bounce of c(0, 0.1), because scale increases the adstock half-life greatly.
+# When shape or scale is 0, adstock will be 0.
+
 ## Hill function for saturation: Hill function is a two-parametric function in Robyn with
 # alpha and gamma. Alpha controls the shape of the curve between exponential and s-shape.
 # Recommended bound is c(0.5, 3). The larger the alpha, the more S-shape. The smaller, the
-# more C-shape. Gamma controls the inflexion point. Recommended bounce is c(0.3, 1). The
+# more C-shape. Gamma controls the inflexion point. Recommended bounce is c(0.01, 1). The
 # larger the gamma, the later the inflection point in the response curve.
 
 ## Regularization for ridge regression: Lambda is the penalty term for regularised regression.
@@ -167,19 +161,19 @@ hyper_limits()
 
 # Example hyperparameters ranges for Geometric adstock
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3),
-  facebook_S_gammas = c(0.3, 1),
-  facebook_S_thetas = c(0, 0.3),
-  print_S_alphas = c(0.5, 3),
+  facebook_I_alphas = c(0.5, 3),
+  facebook_I_gammas = c(0.3, 1),
+  facebook_I_thetas = c(0, 0.3),
+  print_S_alphas = c(0.5, 1),
   print_S_gammas = c(0.3, 1),
   print_S_thetas = c(0.1, 0.4),
-  tv_S_alphas = c(0.5, 3),
+  tv_S_alphas = c(0.5, 1),
   tv_S_gammas = c(0.3, 1),
   tv_S_thetas = c(0.3, 0.8),
-  search_S_alphas = c(0.5, 3),
-  search_S_gammas = c(0.3, 1),
-  search_S_thetas = c(0, 0.3),
-  ooh_S_alphas = c(0.5, 3),
+  search_clicks_P_alphas = c(0.5, 3),
+  search_clicks_P_gammas = c(0.3, 1),
+  search_clicks_P_thetas = c(0, 0.3),
+  ooh_S_alphas = c(0.5, 1),
   ooh_S_gammas = c(0.3, 1),
   ooh_S_thetas = c(0.1, 0.4),
   newsletter_alphas = c(0.5, 3),
@@ -187,6 +181,8 @@ hyperparameters <- list(
   newsletter_thetas = c(0.1, 0.4),
   train_size = c(0.5, 0.8)
 )
+
+# hyperparameters <- set_default_hyppar("weibull_pdf", InputCollect$all_media)
 
 # Example hyperparameters ranges for Weibull CDF adstock
 # facebook_S_alphas = c(0.5, 3)
@@ -200,16 +196,50 @@ hyperparameters <- list(
 # facebook_S_shapes = c(0, 10)
 # facebook_S_scales = c(0, 0.1)
 
-#### 2a-3: Third, add hyperparameters into robyn_inputs()
 
+#### 2a-3 (Optional) Saturation calibration - The curve calibrator - Beta feature
+
+## Dummy input data for Meta spend. This is derived from Halo's reach & frequency data.
+## Note that spend and response need to be cumulative metrics. Headers need to be
+## kept the same as dummy dataset.
+
+# data("df_curve_reach_freq")
+#
+# # Currently only supports curve_type = "saturation_reach"
+# curve_out <- robyn_calibrate(
+#   df_curve = df_curve_reach_freq,
+#   curve_type = "saturation_reach"
+# )
+# curve_out$plot_reach_freq
+#
+# ## Reach & frequency calibration reasoning
+# # When calibrating response saturation with reach and frequency, it's
+# # recommended to use "reach 1+" for gamma lower bound and higher frequency bucket,
+# # e.g. "reach 10+" in the dummy dataset, for gamma upper bound calibration.
+# # Assuming an extreme situation when every user sees one impression and purchases
+# # immediately, In such case, response curve equals to the reach 1+ curve. Gamma
+# # controls the inflexion point of a Hill curve and a lower gamma means earlier
+# # and faster saturation at a lower spend level. We believe that the cumulative
+# # reach 1+ curve represents the earliest inflexion, thus we believe it's a
+# # reasonable lower boundary for gamma for a selected channel. As frequency
+# # increases, the inflexion point also delays and approaches the hidden true
+# # response curve. In the dummy dataset, we've simulated reach 10+ to represent
+# # upper bound for gamma. Use domain expertise to further narrow down or widen
+# # the bounds. For alpha, we recommend to keep the value flexible as in default.
+# facebook_I_gammas <- c(
+#   curve_out[["curve_collect"]][["reach 1+"]][["hill"]][["gamma_best"]],
+#   curve_out[["curve_collect"]][["reach 10+"]][["hill"]][["gamma_best"]])
+# hyperparameters$facebook_I_gammas <- facebook_I_gammas
+
+#### 2a-4: Third, add hyperparameters into robyn_inputs()
 InputCollect <- robyn_inputs(InputCollect = InputCollect, hyperparameters = hyperparameters)
 print(InputCollect)
 
-#### 2a-4: Fourth (optional), model calibration / add experimental input
+#### 2a-5: (Optional) Effect size calibration
 
-## Guide for calibration
+## Effect size calibration
 
-# 1. Calibration channels need to be paid_media_spends or organic_vars names.
+# 1. Calibration channels need to be paid_media_vars or organic_vars names.
 # 2. We strongly recommend to use Weibull PDF adstock for more degree of freedom when
 # calibrating Robyn.
 # 3. We strongly recommend to use experimental and causal results that are considered
@@ -234,16 +264,16 @@ print(InputCollect)
 # to indicate combination of channels, case sensitive.
 
 # calibration_input <- data.frame(
-#   # channel name must in paid_media_vars
+#   # channel name should be in paid_media_vars and / or organic_vars
 #   channel = c("facebook_S",  "tv_S", "facebook_S+search_S", "newsletter"),
 #   # liftStartDate must be within input data range
-#   liftStartDate = as.Date(c("2018-05-01", "2018-04-03", "2018-07-01", "2017-12-01")),
+#   liftStartDate = as.Date(c("2018-05-01", "2018-01-01", "2018-07-01", "2017-12-01")),
 #   # liftEndDate must be within input data range
-#   liftEndDate = as.Date(c("2018-06-10", "2018-06-03", "2018-07-20", "2017-12-31")),
+#   liftEndDate = as.Date(c("2018-06-10", "2018-03-01", "2018-07-20", "2017-12-31")),
 #   # Provided value must be tested on same campaign level in model and same metric as dep_var_type
-#   liftAbs = c(400000, 300000, 700000, 200),
+#   liftAbs = c(40000, 120000, 60000, 200),
 #   # Spend within experiment: should match within a 10% error your spend on date range for each channel from dt_input
-#   spend = c(421000, 7100, 350000, 0),
+#   spend = c(12000, 86000, 22000, 0),
 #   # Confidence: if frequentist experiment, you may use 1 - pvalue
 #   confidence = c(0.85, 0.8, 0.99, 0.95),
 #   # KPI measured: must match your dep_var
@@ -252,7 +282,6 @@ print(InputCollect)
 #   calibration_scope = c("immediate", "immediate", "immediate", "immediate")
 # )
 # InputCollect <- robyn_inputs(InputCollect = InputCollect, calibration_input = calibration_input)
-
 
 ################################################################
 #### Step 2b: For known model specification, setup in one single step
@@ -280,9 +309,7 @@ print(InputCollect)
 # )
 
 #### Check spend exposure fit if available
-if (length(InputCollect$exposure_vars) > 0) {
-  lapply(InputCollect$modNLS$plots, plot)
-}
+InputCollect$ExposureCollect$plot_spend_exposure
 
 ##### Manually save and import InputCollect as JSON file
 # robyn_write(InputCollect, dir = "~/Desktop")
@@ -300,8 +327,8 @@ OutputModels <- robyn_run(
   cores = NULL, # NULL defaults to (max available - 1)
   iterations = 2000, # 2000 recommended for the dummy dataset with no calibration
   trials = 5, # 5 recommended for the dummy dataset
-  ts_validation = TRUE, # 3-way-split time series for NRMSE validation.
-  add_penalty_factor = FALSE # Experimental feature. Use with caution.
+  ts_validation = FALSE, # 3-way-split time series for NRMSE validation.
+  add_penalty_factor = FALSE # Experimental feature to add more flexibility
 )
 print(OutputModels)
 
@@ -311,8 +338,8 @@ OutputModels$convergence$moo_distrb_plot
 OutputModels$convergence$moo_cloud_plot
 
 ## Check time-series validation plot (when ts_validation == TRUE)
-# Read more and replicate results: ?ts_validation
-if (OutputModels$ts_validation) OutputModels$ts_validation_plot
+## Read more and replicate results: ?ts_validation
+# if (OutputModels$ts_validation) OutputModels$ts_validation_plot
 
 ## Calculate Pareto fronts, cluster and export results and plots. See ?robyn_outputs
 OutputCollect <- robyn_outputs(
@@ -322,9 +349,9 @@ OutputCollect <- robyn_outputs(
   # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
   csv_out = "pareto", # "pareto", "all", or NULL (for none)
   clusters = TRUE, # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
-  export = create_files, # this will create files locally
+  export = TRUE, # this will create files locally
   plot_folder = robyn_directory, # path for plots exports and files creation
-  plot_pareto = create_files # Set to FALSE to deactivate plotting and saving model one-pagers
+  plot_pareto = TRUE # Set to FALSE to deactivate plotting and saving model one-pagers
 )
 print(OutputCollect)
 
@@ -341,10 +368,10 @@ print(OutputCollect)
 
 ## Compare all model one-pagers and select one that mostly reflects your business reality
 print(OutputCollect)
-select_model <- "1_122_7" # Pick one of the models from OutputCollect to proceed
+select_model <- "5_257_2" # Pick one of the models from OutputCollect to proceed
 
 #### Version >=3.7.1: JSON export and import (faster and lighter than RDS files)
-ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = create_files)
+ExportedModel <- robyn_write(InputCollect, OutputCollect, select_model, export = TRUE)
 print(ExportedModel)
 
 # To plot any model's one-pager:
@@ -367,7 +394,7 @@ print(ExportedModel)
 # Run ?robyn_allocator to check parameter definition
 
 # NOTE: The order of constraints should follow:
-InputCollect$paid_media_spends
+InputCollect$paid_media_selected
 
 # Scenario "max_response": "What's the max. return given certain spend?"
 # Example 1: max_response default setting: maximize response for latest month
@@ -380,8 +407,7 @@ AllocatorCollect1 <- robyn_allocator(
   channel_constr_low = 0.7,
   channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
   # channel_constr_multiplier = 3,
-  scenario = "max_response",
-  export = create_files
+  scenario = "max_response"
 )
 # Print & plot allocator's output
 print(AllocatorCollect1)
@@ -393,12 +419,11 @@ AllocatorCollect2 <- robyn_allocator(
   OutputCollect = OutputCollect,
   select_model = select_model,
   date_range = "last_10", # Last 10 periods, same as c("2018-10-22", "2018-12-31")
-  total_budget = 5000000, # Total budget for date_range period simulation
+  total_budget = 1500000, # Total budget for date_range period simulation
   channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
-  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_up = 1.5,
   channel_constr_multiplier = 5, # Customise bound extension for wider insights
-  scenario = "max_response",
-  export = create_files
+  scenario = "max_response"
 )
 print(AllocatorCollect2)
 plot(AllocatorCollect2)
@@ -412,50 +437,30 @@ AllocatorCollect3 <- robyn_allocator(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
+  #channel_constr_low = 0.1,
+  #channel_constr_up = 10,
   # date_range = NULL, # Default: "all" available dates
   scenario = "target_efficiency",
-  # target_value = 2, # Customize target ROAS or CPA value
-  export = create_files
+  # target_value = 5 # Customize target ROAS or CPA value
 )
 print(AllocatorCollect3)
 plot(AllocatorCollect3)
 
 # Example 4: Customize target_value for ROAS or CPA (using json_file)
-json_file = "~/Desktop/Robyn_202302221206_init/RobynModel-1_117_11.json"
+json_file = "~/Desktop/Robyn_202412181043_init/RobynModel-5_257_2.json"
 AllocatorCollect4 <- robyn_allocator(
   json_file = json_file, # Using json file from robyn_write() for allocation
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
-  date_range = NULL, # Default last month as initial period
+  # date_range = NULL,
   scenario = "target_efficiency",
   target_value = 2, # Customize target ROAS or CPA value
-  plot_folder = "~/Desktop/my_dir",
-  plot_folder_sub = "my_subdir",
-  export = create_files
+  plot_folder = "~/Desktop",
+  plot_folder_sub = "my_subdir"
 )
 
 ## A csv is exported into the folder for further usage. Check schema here:
 ## https://github.com/facebookexperimental/Robyn/blob/main/demo/schema.R
-
-## QA optimal response
-# Pick any media variable: InputCollect$all_media
-select_media <- "search_S"
-# For paid_media_spends set metric_value as your optimal spend
-metric_value <- AllocatorCollect1$dt_optimOut$optmSpendUnit[
-  AllocatorCollect1$dt_optimOut$channels == select_media
-]; metric_value
-# # For paid_media_vars and organic_vars, manually pick a value
-# metric_value <- 10000
-
-## Saturation curve for adstocked metric results (example)
-robyn_response(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model,
-  metric_name = select_media,
-  metric_value = metric_value,
-  date_range = "last_5"
-)
 
 ################################################################
 #### Step 6: Model refresh based on selected model and saved results
@@ -469,24 +474,23 @@ robyn_response(
 
 # Provide JSON file with your InputCollect and ExportedModel specifications
 # It can be any model, initial or a refresh model
-json_file <- "~/Desktop/Robyn_202211211853_init/RobynModel-1_100_6.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
-  refresh_steps = 13,
-  refresh_iters = 1000, # 1k is an estimation
-  refresh_trials = 1
+  refresh_steps = 4,
+  refresh_iters = 2000,
+  refresh_trials = 5
 )
 # Now refreshing a refreshed model, following the same approach
-json_file_rf1 <- "~/Desktop/Robyn_202208231837_init/Robyn_202208231841_rf1/RobynModel-1_12_5.json"
+json_file_rf1 <- "~/Desktop/Robyn_202412181043_init/Robyn_202412181054_rf1/RobynModel-1_133_7.json"
 RobynRefresh <- robyn_refresh(
   json_file = json_file_rf1,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
-  refresh_steps = 7,
-  refresh_iters = 1000, # 1k is an estimation
-  refresh_trials = 1
+  refresh_steps = 4,
+  refresh_iters = 2000,
+  refresh_trials = 5
 )
 
 # Continue with refreshed new InputCollect, OutputCollect, select_model values
@@ -519,7 +523,7 @@ Response <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  metric_name = "facebook_S"
+  metric_name = "facebook_I"
 )
 Response$plot
 
@@ -532,14 +536,14 @@ Response$plot
 # )
 
 ## Get the "next 100 dollar" marginal response on Spend1
-Spend1 <- 20000
+Spend1 <- 80000
 Response1 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  metric_name = "facebook_S",
+  metric_name = "facebook_I",
   metric_value = Spend1, # total budget for date_range
-  date_range = "last_1" # last two periods
+  date_range = "last_10" # last two periods
 )
 Response1$plot
 
@@ -548,36 +552,13 @@ Response2 <- robyn_response(
   InputCollect = InputCollect,
   OutputCollect = OutputCollect,
   select_model = select_model,
-  metric_name = "facebook_S",
+  metric_name = "facebook_I",
   metric_value = Spend2,
-  date_range = "last_1"
+  date_range = "last_10"
 )
 # ROAS for the 100$ from Spend1 level
-(Response2$response_total - Response1$response_total) / (Spend2 - Spend1)
-
-## Get response from for a given budget and date_range
-Spend3 <- 100000
-Response3 <- robyn_response(
-  InputCollect = InputCollect,
-  OutputCollect = OutputCollect,
-  select_model = select_model,
-  metric_name = "facebook_S",
-  metric_value = Spend3, # total budget for date_range
-  date_range = "last_5" # last 5 periods
-)
-Response3$plot
-
-## Example of getting paid media exposure response curves
-# imps <- 10000000
-# response_imps <- robyn_response(
-#   InputCollect = InputCollect,
-#   OutputCollect = OutputCollect,
-#   select_model = select_model,
-#   metric_name = "facebook_I",
-#   metric_value = imps
-# )
-# response_imps$response_total / imps * 1000
-# response_imps$plot
+(Response2$sim_mean_response - Response1$sim_mean_response) /
+  (Response2$sim_mean_spend - Response1$sim_mean_spend)
 
 ## Example of getting organic media exposure response curves
 sendings <- 30000
@@ -586,11 +567,11 @@ response_sending <- robyn_response(
   OutputCollect = OutputCollect,
   select_model = select_model,
   metric_name = "newsletter",
-  metric_value = sendings
+  metric_value = sendings,
+  date_range = "last_10"
 )
-# response per 1000 sendings
-response_sending$response_total / sendings * 1000
-response_sending$plot
+# Simulated cost per thousand sendings
+response_sending$sim_mean_spend / response_sending$sim_mean_response * 1000
 
 ################################################################
 #### Optional: recreate old models and replicate results
@@ -610,7 +591,7 @@ robyn_write(InputCollect, OutputCollect, select_model)
 ############ READ ############
 # Recreate `InputCollect` and `OutputCollect` objects
 # Pick any exported model (initial or refreshed)
-json_file <- "~/Desktop/Robyn_202208231837_init/RobynModel-1_100_6.json"
+json_file <- "~/Desktop/Robyn_202412181043_init/RobynModel-5_257_2.json"
 
 # Optional: Manually read and check data stored in file
 json_data <- robyn_read(json_file)
@@ -625,12 +606,12 @@ InputCollectX <- robyn_inputs(
 # Re-create OutputCollect
 OutputCollectX <- robyn_run(
   InputCollect = InputCollectX,
-  json_file = json_file,
-  export = create_files)
+  json_file = json_file
+  )
 
 # Or re-create both by simply using robyn_recreate()
 RobynRecreated <- robyn_recreate(
-  json_file = "~/Desktop/Robyn_202303131448_init/RobynModel-1_103_7.json",
+  json_file = json_file,
   dt_input = dt_simulated_weekly,
   dt_holidays = dt_prophet_holidays,
   quiet = FALSE)

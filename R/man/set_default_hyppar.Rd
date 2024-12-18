@@ -8,7 +8,7 @@ set_default_hyppar(
   adstock = NULL,
   all_media = NULL,
   list_default = list(alpha = c(0.5, 3), gamma = c(0.01, 1), theta = c(0, 0.8), shape =
-    c(0, 10), scale = c(0, 0, 1), train_size = c(0.5, 0.9))
+    c(0, 10), scale = c(0, 0.1), train_size = c(0.5, 0.9))
 )
 }
 \arguments{
