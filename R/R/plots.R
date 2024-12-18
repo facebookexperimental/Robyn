@@ -824,8 +824,8 @@ allocation_plots <- function(
       .data$value / dplyr::first(.data$value)
     })
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
-  resp_delta <- df_roi %>% group_by(type) %>%
-    summarise(resp_delta = unique(total_response_lift)) %>%
+  resp_delta <- df_roi %>% group_by(.data$type) %>%
+    summarise(resp_delta = unique(.data$total_response_lift)) %>%
     pull(resp_delta)
   labs <- paste(
     paste(levs2, "\n"),

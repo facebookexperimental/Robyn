@@ -5,26 +5,26 @@
 \title{Robyn Calibration Function - BETA}
 \usage{
 robyn_calibrate(
-  df_curve_sot = NULL,
-  curve_type = "saturation",
+  df_curve = NULL,
+  curve_type = NULL,
   force_shape = NULL,
   hp_bounds = NULL,
   max_trials = 10,
   max_iters = 2500,
-  loss_min_step_rel = 0.01,
+  loss_min_step_rel = 1e-04,
   loss_stop_rel = 0.05,
   burn_in_rel = 0.1,
-  sim_n = 100,
-  hp_interval = 0.95,
+  sim_n = 30,
+  hp_interval = 0.5,
   quiet = FALSE,
   ...
 )
 }
 \arguments{
-\item{df_curve_sot}{data.frame. Requires two columns named spend and response.
+\item{df_curve}{data.frame. Requires two columns named spend and response.
 Recommended sources of truth are Halo R&F or Meta conversion lift.}
 
-\item{curve_type}{Character. Currently only allows "saturation"
+\item{curve_type}{Character. Currently only allows "saturation_reach"
 and only supports Hill function.}
 
 \item{force_shape}{Character. Allows c("c", "s") with default NULL that's no
@@ -74,23 +74,18 @@ can be used independently from Robyn's main model.
 \dontrun{
 # Dummy input data for Meta spend. This is derived from Halo's reach & frequency data.
 # Note that spend and response need to be cumulative metrics.
-df_curve_sot <- data.frame(
-  spend_cumulated = c(
-    0, 1933, 94574, 131815, 370320, 470523, 489839,
-    514386, 531668, 532889
-  ),
-  response_cumulated = c(
-    0, 72484, 586912, 749784, 1339424, 1553394, 1593612,
-    1643194, 1677396, 1679811
-  )
-)
+data("df_curve_reach_freq")
+
 # Using reach saturation from Halo as proxy
 curve_out <- robyn_calibrate(
-  df_curve_sot = df_curve_sot,
-  force_shape = "s"
+  df_curve = df_curve_reach_freq,
+  curve_type = "saturation_reach"
 )
-# Use the alpha and gamma ranges as guidance for Meta spend's hyperparameter configuration
-# Consider further widening the range if too narrow.
-print(curve_out$hill)
+# For the simulated reach and frequency dataset, it's recommended to use
+# "reach 1+" for gamma lower bound and "reach 10+" for gamma upper bound
+facebook_I_gammas <- c(
+  curve_out[["curve_collect"]][["reach 1+"]][["hill"]][["gamma_best"]],
+  curve_out[["curve_collect"]][["reach 10+"]][["hill"]][["gamma_best"]])
+print(facebook_I_gammas)
 }
 }
