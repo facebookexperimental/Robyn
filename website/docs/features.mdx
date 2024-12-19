@@ -333,7 +333,7 @@ As depicted in plot 4 in [session model onepager](#model-onepager) below, the k-
 
 ---
 
-## Calibration with causal experiments
+## Calibration of average effect size with causal experiments
 
 Randomised controlled trial (RCT) is an established academic gold standard to infer causality in science. By applying results from RCT in ads measurement that are considered ground truth, you can introduce causality into your marketing mix models. Robyn implements the MMM calibration as an objective function in the multi-objective optimization by parameterizing the difference between causal results and predicted media contribution.
 
@@ -362,6 +362,55 @@ There're two major types of experiements in ads measurement, as pointed out by t
   - **Cons**: Could get affected by potential spillover effects across regions, requiring careful design to ensure comparability.
 
 Robyn accepts a dataframe as calibration input in the `robyn_inputs()` function. The function usage can be found in the [demo](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R#L262).
+
+---
+
+## Holistic calibration
+
+### Rethinking calibration
+
+The triangulation of MMM, experiments and attribution is the centerpiece of [modern measurement](https://www.facebook.com/business/news/advanced-measurement-strategy). While there's no universally accepted definition of calibration, it often refers to the adjustment of estimated impact of media between different measurement solutions. In MMM, calibration usually refers to adjusting the average effect size of a certain channel by causal experiments, as explained in details above. However, the average effect size, or the beta coefficient in a regression model, is not the only estimate in an MMM system. The bare minimum of a set of estimates in MMM includes the **average effect size, adstock and saturation**. And just as the effect size, adstock and saturation are uncertain parametric quantities that can and should be calibrated by ground truth whenever possible. We believe that **holistic calibration** is the next step of triangulation and integrated marketing measurement system.
+
+<img alt="Reach & frequency curve calibration" src={useBaseUrl('img/curve_calibrator.png')} />
+
+### The curve calibrator (beta)
+
+Robyn is releasing a new feature **"the curve calibrator"** `robyn_calibrate()` as a step towards holistic calibration. The first use case is to calibrate the response saturation curve using cumulative reach and frequency data as input. This type of data is usually available as siloed media reports for most offline and online channels. The latest choice of reach and frequency data is **[Project Halo](https://wfanet.org/leadership/cross-media-measurement)**, an industry-wide collaboration to improve cross-channel reach deduplication. The above graphic is derived and simulated based on a real Halo dataset with cumulative spend and cumulative reach by frequency buckets. For example, "reach 3+" means reaching 3 impressions on average per person. There's certainly a gap between saturation of reach and business outcome (purchase, sales etc.). However, they're also interconnected along the same conversion funnel (upper funnel -> lower funnel), while reach & frequency saturaion curve is often more available. Therefore, we're exploring the potential of using reach & frequency to guide response saturation estimation.
+
+According to [a recent paper](https://arxiv.org/abs/2408.07678) from the Wharton School and the London Business School by Dew, Padilla and Shchetkina, an common MMM cannot reliably identify saturation parameters, quote _"as practitioners attempt to capture increasingly complex effects in MMMs, like nonlinearities and dynamics, our results suggest caution is warranted: the simple data used for building such models often cannot uniquely identify such complexity."_ In other words, saturation should be caibrated by ground truth whenever possible.
+
+**Our approach for saturation calibration by reach & frequency**: Assuming an extreme situation where every user sees the first impression and purchases immediately, In such a case, response saturation curve equals the reach 1+ saturation curve. [Hill function](https://facebookexperimental.github.io/Robyn/docs/features#saturation) is a popular choice for saturation transformation and implemented in Robyn, where gamma controls the inflexion point. A lower gamma means earlier and faster saturation at a lower spend level. We believe that the cumulative reach 1+ curve represents the earliest inflexion, thus it serves as a reasonable lower boundary for gamma for a selected channel. As frequency increases, the inflexion point delays and approaches the hidden true response curve. In the dummy dataset, we've simulated reach 10+ to represent the upper bound for gamma. The "best converting frequency" varies strongly across verticals. We believe that reach & frequency it's one step closer to identifying the true saturation relationship. Use domain expertise to further narrow down or widen the bounds. For alpha, we recommend to keeping the value flexible as in default.
+
+The below graphic is an exemplary visualisation of a curve fitting process, where Nevergrad is used to estimate alpha, gamma as well as the beta. Note that the distribution of alpha and gamma are often multimodal and non-normal, because they rather reflect the hyperparameter optimization path of Nevergrad than their underlying distribution.
+
+<img alt="Reach & frequency curve fitting" src={useBaseUrl('img/curve_calibrator_onepager.png')} />
+
+To try out `robyn_calibrate()`, please see [this tutorial](https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R#L200) in the demo.
+
+```
+library(Robyn)
+data("df_curve_reach_freq")
+
+# Using reach saturation as proxy
+curve_out <- robyn_calibrate(
+  df_curve = df_curve_reach_freq,
+  curve_type = "saturation_reach_hill"
+)
+# For the simulated reach and frequency dataset, it's recommended to use
+# "reach 1+" for gamma lower bound and "reach 10+" for gamma upper bound
+facebook_I_gammas <- c(
+  curve_out[["curve_collect"]][["reach 1+"]][["hill"]][["gamma_best"]],
+  curve_out[["curve_collect"]][["reach 10+"]][["hill"]][["gamma_best"]])
+print(facebook_I_gammas)
+
+```
+
+### Customizable for 3rd-party MMM
+While the curve calibrator is released within the Robyn package, it can be used standalone without having built a model in Robyn. The current beta version is piloting the two-parametric Hill function for saturaion. Any MMM solution, not only Robyn, that employs the two-parametric Hill function can be callibrated by the curve calibrator.
+
+In the future, we're planning to partner with our community, advertisers, agencies and measurement vendors to further explore this area and also to expand the curve calibrator to cover other popular nonlinear functions for saturation (e.g. exponential, arctan or power function) as well as adstock (geometric or weibull function).
+
+
 
 ---
 ## Model onepager

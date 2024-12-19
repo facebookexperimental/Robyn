@@ -13,7 +13,7 @@
 #' @inheritParams robyn_run
 #' @param df_curve data.frame. Requires two columns named spend and response.
 #' Recommended sources of truth are Halo R&F or Meta conversion lift.
-#' @param curve_type Character. Currently only allows "saturation_reach"
+#' @param curve_type Character. Currently only allows "saturation_reach_hill"
 #' and only supports Hill function.
 #' @param force_shape Character. Allows c("c", "s") with default NULL that's no
 #' shape forcing. It's recommended for offline media to have "c" shape, while
@@ -45,7 +45,7 @@
 #' # Using reach saturation from Halo as proxy
 #' curve_out <- robyn_calibrate(
 #'   df_curve = df_curve_reach_freq,
-#'   curve_type = "saturation_reach"
+#'   curve_type = "saturation_reach_hill"
 #' )
 #' # For the simulated reach and frequency dataset, it's recommended to use
 #' # "reach 1+" for gamma lower bound and "reach 10+" for gamma upper bound
@@ -77,7 +77,7 @@ robyn_calibrate <- function(
   # hp_bounds format
   # hp_interval
 
-  if (curve_type == "saturation_reach") {
+  if (curve_type == "saturation_reach_hill") {
     curve_collect <- list()
     for (i in unique(df_curve$freq_bucket)) {
       message(">>> Fitting ", i)

@@ -24,7 +24,7 @@ robyn_calibrate(
 \item{df_curve}{data.frame. Requires two columns named spend and response.
 Recommended sources of truth are Halo R&F or Meta conversion lift.}
 
-\item{curve_type}{Character. Currently only allows "saturation_reach"
+\item{curve_type}{Character. Currently only allows "saturation_reach_hill"
 and only supports Hill function.}
 
 \item{force_shape}{Character. Allows c("c", "s") with default NULL that's no
@@ -79,7 +79,7 @@ data("df_curve_reach_freq")
 # Using reach saturation from Halo as proxy
 curve_out <- robyn_calibrate(
   df_curve = df_curve_reach_freq,
-  curve_type = "saturation_reach"
+  curve_type = "saturation_reach_hill"
 )
 # For the simulated reach and frequency dataset, it's recommended to use
 # "reach 1+" for gamma lower bound and "reach 10+" for gamma upper bound
