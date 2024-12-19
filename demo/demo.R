@@ -308,7 +308,7 @@ print(InputCollect)
 #   ,calibration_input = calibration_input # as in 2a-4 above
 # )
 
-#### Check spend exposure fit if available
+#### Check spend exposure fit and consider channel split if applicable
 InputCollect$ExposureCollect$plot_spend_exposure
 
 ##### Manually save and import InputCollect as JSON file
