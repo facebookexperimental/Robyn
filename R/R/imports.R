@@ -21,8 +21,8 @@
 #' @importFrom doRNG %dorng%
 #' @importFrom doParallel registerDoParallel stopImplicitCluster
 #' @importFrom dplyr across any_of arrange as_tibble bind_rows case_when contains desc distinct
-#' everything filter group_by lag left_join mutate n pull rename row_number select slice
-#' summarise summarise_all ungroup all_of bind_cols mutate_at starts_with ends_with tally n_distinct
+#' everything filter full_join group_by lag left_join mutate mutate_at n pull rename row_number select
+#' slice summarise summarise_all ungroup all_of bind_cols mutate_at starts_with ends_with tally n_distinct
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
 #' @importFrom ggridges geom_density_ridges geom_density_ridges_gradient
@@ -31,7 +31,6 @@
 #' @importFrom lares check_opts clusterKmeans formatNum freqs glued num_abbr ohse removenacols
 #' theme_lares `%>%` scale_x_abbr scale_x_percent scale_y_percent scale_y_abbr try_require v2t
 #' @importFrom lubridate is.Date day floor_date
-#' @importFrom minpack.lm nlsLM
 #' @importFrom nloptr nloptr
 #' @importFrom parallel detectCores
 #' @importFrom patchwork guide_area plot_layout plot_annotation wrap_plots

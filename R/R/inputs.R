@@ -200,12 +200,7 @@ robyn_inputs <- function(dt_input = NULL,
     if (!is.null(dt_holidays)) dt_holidays <- as_tibble(dt_holidays)
 
     ## Check vars names (duplicates and valid)
-    check_varnames(
-      dt_input, dt_holidays,
-      dep_var, date_var,
-      context_vars, paid_media_spends,
-      organic_vars
-    )
+    check_varnames(dt_input, dt_holidays)
 
     ## Check for NA and all negative values
     dt_input <- check_allneg(dt_input)
@@ -234,8 +229,8 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check paid media variables (and maybe transform paid_media_signs)
     if (is.null(paid_media_vars)) paid_media_vars <- paid_media_spends
-    paidmedia <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
-    paid_media_signs <- paidmedia$paid_media_signs
+    paid_collect <- check_paidmedia(dt_input, paid_media_vars, paid_media_signs, paid_media_spends)
+    paid_media_signs <- paid_collect$paid_media_signs
     exposure_vars <- paid_media_vars[!(paid_media_vars == paid_media_spends)]
 
     ## Check organic media variables (and maybe transform organic_signs)
@@ -246,7 +241,7 @@ robyn_inputs <- function(dt_input = NULL,
     factor_vars <- check_factorvars(dt_input, factor_vars, context_vars)
 
     ## Check all vars
-    all_media <- c(paid_media_spends, organic_vars)
+    all_media <- c(paid_collect$paid_media_selected, organic_vars)
     all_ind_vars <- c(tolower(prophet_vars), context_vars, all_media)
     check_allvars(all_ind_vars)
 
@@ -255,14 +250,12 @@ robyn_inputs <- function(dt_input = NULL,
 
     ## Check window_start & window_end (and transform parameters/data)
     windows <- check_windows(dt_input, date_var, all_media, window_start, window_end)
-    if (TRUE) {
-      window_start <- windows$window_start
-      rollingWindowStartWhich <- windows$rollingWindowStartWhich
-      refreshAddedStart <- windows$refreshAddedStart
-      window_end <- windows$window_end
-      rollingWindowEndWhich <- windows$rollingWindowEndWhich
-      rollingWindowLength <- windows$rollingWindowLength
-    }
+    window_start <- windows$window_start
+    rollingWindowStartWhich <- windows$rollingWindowStartWhich
+    refreshAddedStart <- windows$refreshAddedStart
+    window_end <- windows$window_end
+    rollingWindowEndWhich <- windows$rollingWindowEndWhich
+    rollingWindowLength <- windows$rollingWindowLength
 
     ## Check adstock
     adstock <- check_adstock(adstock)
@@ -270,7 +263,8 @@ robyn_inputs <- function(dt_input = NULL,
     ## Check calibration and iters/trials
     calibration_input <- check_calibration(
       dt_input, date_var, calibration_input, dayInterval, dep_var,
-      window_start, window_end, paid_media_spends, organic_vars
+      window_start, window_end, paid_media_spends, organic_vars,
+      paid_collect$paid_media_selected
     )
 
     ## Not used variables
@@ -311,6 +305,7 @@ robyn_inputs <- function(dt_input = NULL,
       paid_media_vars = paid_media_vars,
       paid_media_signs = paid_media_signs,
       paid_media_spends = paid_media_spends,
+      paid_media_selected = paid_collect$paid_media_selected,
       paid_media_total = paid_media_total,
       exposure_vars = exposure_vars,
       organic_vars = organic_vars,
@@ -338,7 +333,7 @@ robyn_inputs <- function(dt_input = NULL,
 
       ## Check hyperparameters
       hyperparameters <- check_hyperparameters(
-        hyperparameters, adstock, paid_media_spends, organic_vars,
+        hyperparameters, adstock, paid_collect$paid_media_selected, paid_media_spends, organic_vars,
         exposure_vars, prophet_vars, context_vars
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
@@ -358,7 +353,8 @@ robyn_inputs <- function(dt_input = NULL,
       window_start = InputCollect$window_start,
       window_end = InputCollect$window_end,
       paid_media_spends = InputCollect$paid_media_spends,
-      organic_vars = InputCollect$organic_vars
+      organic_vars = InputCollect$organic_vars,
+      paid_media_selected = InputCollect$paid_media_selected
     )
 
     ## Update calibration_input
@@ -372,12 +368,15 @@ robyn_inputs <- function(dt_input = NULL,
       ## Update & check hyperparameters
       if (is.null(InputCollect$hyperparameters)) InputCollect$hyperparameters <- hyperparameters
       InputCollect$hyperparameters <- check_hyperparameters(
-        InputCollect$hyperparameters, InputCollect$adstock, InputCollect$all_media
+        InputCollect$hyperparameters, InputCollect$adstock,
+        InputCollect$paid_media_selected, InputCollect$paid_media_spends,
+        InputCollect$organic_vars, InputCollect$exposure_vars,
+        InputCollect$prophet_vars, InputCollect$context_vars
       )
       InputCollect <- robyn_engineering(InputCollect, ...)
     }
 
-    # Check for no-variance columns (after filtering modeling window)
+    # Re-check for no-variance columns after feature enginerring
     dt_mod_model_window <- InputCollect$dt_mod %>%
       select(-any_of(InputCollect$unused_vars)) %>%
       filter(
@@ -469,39 +468,14 @@ Adstock: {x$adstock}
 #' hyperparameters that is inserted into \code{robyn_inputs(hyperparameters = ...)}
 #'
 #' @section Guide to setup hyperparameters:
-#'  \enumerate{
-#'    \item Get correct hyperparameter names:
-#'    All variables in \code{paid_media_vars} or \code{organic_vars} require hyperprameters
-#'    and will be transformed by adstock & saturation. Difference between \code{paid_media_vars}
-#'    and \code{organic_vars} is that \code{paid_media_vars} has spend that
-#'    needs to be specified in \code{paid_media_spends} specifically. Run \code{hyper_names()}
-#'    to get correct hyperparameter names. All names in hyperparameters must
-#'    equal names from \code{hyper_names()}, case sensitive.
-#'    \item Get guidance for setting hyperparameter bounds:
-#'    For geometric adstock, use theta, alpha & gamma. For both weibull adstock options,
-#'    use shape, scale, alpha, gamma.
-#'    \itemize{
-#'      \item Theta: In geometric adstock, theta is decay rate. guideline for usual media genre:
-#'    TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
-#'      \item Shape: In weibull adstock, shape controls the decay shape. Recommended c(0.0001, 2).
-#'    The larger, the more S-shape. The smaller, the more L-shape. Channel-type specific
-#'    values still to be investigated
-#'      \item Scale: In weibull adstock, scale controls the decay inflexion point. Very conservative
-#'    recommended bounce c(0, 0.1), because scale can increase adstocking half-life greatly.
-#'    Channel-type specific values still to be investigated
-#'      \item Gamma: In s-curve transformation with hill function, gamma controls the inflexion point.
-#'    Recommended bounce c(0.3, 1). The larger the gamma, the later the inflection point
-#'    in the response curve
-#'    }
-#'    \item Set each hyperparameter bounds. They either contains two values e.g. c(0, 0.5),
-#'    or only one value (in which case you've "fixed" that hyperparameter)
-#' }
+#' See section "Hyperparameter interpretation & recommendation" in demo
+#' https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R
 #'
 #' @section Helper plots:
 #' \describe{
-#'   \item{plot_adstock}{Get adstock transformation example plot,
+#'   \item{plot_adstock(TRUE)}{Get adstock transformation example plot,
 #' helping you understand geometric/theta and weibull/shape/scale transformation}
-#'   \item{plot_saturation}{Get saturation curve transformation example plot,
+#'   \item{plot_saturation(TRUE)}{Get saturation curve transformation example plot,
 #' helping you understand hill/alpha/gamma transformation}
 #' }
 #'
@@ -512,13 +486,13 @@ Adstock: {x$adstock}
 #' @param all_vars Used to check the penalties inputs, especially for refreshing models.
 #' @examples
 #' \donttest{
-#' media <- c("facebook_S", "print_S", "tv_S")
+#' media <- c("facebook_I", "print_S", "tv_S")
 #' hyper_names(adstock = "geometric", all_media = media)
 #'
 #' hyperparameters <- list(
-#'   facebook_S_alphas = c(0.5, 3), # example bounds for alpha
-#'   facebook_S_gammas = c(0.3, 1), # example bounds for gamma
-#'   facebook_S_thetas = c(0, 0.3), # example bounds for theta
+#'   facebook_I_alphas = c(0.5, 3), # example bounds for alpha
+#'   facebook_I_gammas = c(0.3, 1), # example bounds for gamma
+#'   facebook_I_thetas = c(0, 0.3), # example bounds for theta
 #'   print_S_alphas = c(0.5, 3),
 #'   print_S_gammas = c(0.3, 1),
 #'   print_S_thetas = c(0.1, 0.4),
@@ -528,13 +502,13 @@ Adstock: {x$adstock}
 #' )
 #'
 #' # Define hyper_names for weibull adstock
-#' hyper_names(adstock = "weibull", all_media = media)
+#' hyper_names(adstock = "weibull_pdf", all_media = media)
 #'
 #' hyperparameters <- list(
-#'   facebook_S_alphas = c(0.5, 3), # example bounds for alpha
-#'   facebook_S_gammas = c(0.3, 1), # example bounds for gamma
-#'   facebook_S_shapes = c(0.0001, 2), # example bounds for shape
-#'   facebook_S_scales = c(0, 0.1), # example bounds for scale
+#'   facebook_I_alphas = c(0.5, 3), # example bounds for alpha
+#'   facebook_I_gammas = c(0.3, 1), # example bounds for gamma
+#'   facebook_I_shapes = c(0.0001, 2), # example bounds for shape
+#'   facebook_I_scales = c(0, 0.1), # example bounds for scale
 #'   print_S_alphas = c(0.5, 3),
 #'   print_S_gammas = c(0.3, 1),
 #'   print_S_shapes = c(0.0001, 2),
@@ -607,123 +581,11 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   rollingWindowStartWhich <- InputCollect$rollingWindowStartWhich
   rollingWindowEndWhich <- InputCollect$rollingWindowEndWhich
 
-  # dt_inputRollWind
-  dt_inputRollWind <- dt_input[rollingWindowStartWhich:rollingWindowEndWhich, ]
-
-  # dt_transform
-  dt_transform <- dt_input
-  colnames(dt_transform)[colnames(dt_transform) == InputCollect$date_var] <- "ds"
-  colnames(dt_transform)[colnames(dt_transform) == InputCollect$dep_var] <- "dep_var"
-  dt_transform <- arrange(dt_transform, .data$ds)
-
-  # dt_transformRollWind
-  dt_transformRollWind <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
-
-  ################################################################
-  #### Model exposure metric from spend
-
-  exposure_selector <- paid_media_spends != paid_media_vars
-  names(exposure_selector) <- paid_media_vars
-
-  if (any(exposure_selector)) {
-    modNLSCollect <- list()
-    yhatCollect <- list()
-    plotNLSCollect <- list()
-    mediaCostFactor <- colSums(subset(dt_inputRollWind, select = paid_media_spends), na.rm = TRUE) /
-      colSums(subset(dt_inputRollWind, select = paid_media_vars), na.rm = TRUE)
-
-    for (i in seq_along(paid_media_spends)) {
-      if (exposure_selector[i]) {
-        # Run models (NLS and/or LM)
-        dt_spendModInput <- subset(dt_inputRollWind, select = c(paid_media_spends[i], paid_media_vars[i]))
-        results <- fit_spend_exposure(dt_spendModInput, mediaCostFactor[i], paid_media_vars[i])
-        # Compare NLS & LM, takes LM if NLS fits worse
-        mod <- results$res
-        exposure_selector[i] <- if (is.null(mod$rsq_nls)) FALSE else mod$rsq_nls > mod$rsq_lm
-        # Data to create plot
-        dt_plotNLS <- data.frame(
-          channel = paid_media_vars[i],
-          yhatNLS = if (exposure_selector[i]) results$yhatNLS else results$yhatLM,
-          yhatLM = results$yhatLM,
-          y = results$data$exposure,
-          x = results$data$spend
-        )
-        caption <- glued("
-          nls: AIC = {aic_nls} | R2 = {r2_nls}
-          lm: AIC = {aic_lm} | R2 = {r2_lm}",
-          aic_nls = signif(AIC(if (exposure_selector[i]) results$modNLS else results$modLM), 3),
-          r2_nls = signif(if (exposure_selector[i]) mod$rsq_nls else mod$rsq_lm, 3),
-          aic_lm = signif(AIC(results$modLM), 3),
-          r2_lm = signif(mod$rsq_lm, 3)
-        )
-        dt_plotNLS <- dt_plotNLS %>%
-          pivot_longer(
-            cols = c("yhatNLS", "yhatLM"),
-            names_to = "models", values_to = "yhat"
-          ) %>%
-          mutate(models = str_remove(tolower(.data$models), "yhat"))
-        models_plot <- ggplot(
-          dt_plotNLS, aes(x = .data$x, y = .data$y, color = .data$models)
-        ) +
-          geom_point() +
-          geom_line(aes(y = .data$yhat, x = .data$x, color = .data$models)) +
-          labs(
-            title = "Exposure-Spend Models Fit Comparison",
-            x = sprintf("Spend [%s]", paid_media_spends[i]),
-            y = sprintf("Exposure [%s]", paid_media_vars[i]),
-            caption = caption,
-            color = "Model"
-          ) +
-          theme_lares(background = "white", legend = "top") +
-          scale_x_abbr() +
-          scale_y_abbr()
-
-        # Save results into modNLSCollect. plotNLSCollect, yhatCollect
-        modNLSCollect[[paid_media_vars[i]]] <- mod
-        plotNLSCollect[[paid_media_vars[i]]] <- models_plot
-        yhatCollect[[paid_media_vars[i]]] <- dt_plotNLS
-      }
-    }
-    modNLSCollect <- bind_rows(modNLSCollect)
-    yhatNLSCollect <- bind_rows(yhatCollect)
-    yhatNLSCollect$ds <- rep(dt_transformRollWind$ds, nrow(yhatNLSCollect) / nrow(dt_transformRollWind))
-  } else {
-    modNLSCollect <- plotNLSCollect <- yhatNLSCollect <- NULL
-  }
-
-  # Give recommendations and show warnings
-  if (!is.null(modNLSCollect) && !quiet) {
-    threshold <- 0.80
-    final_print <- these <- NULL # TRUE if we accumulate a common message
-    metrics <- c("R2 (nls)", "R2 (lm)")
-    names(metrics) <- c("rsq_nls", "rsq_lm")
-    for (m in seq_along(metrics)) {
-      temp <- which(modNLSCollect[[names(metrics)[m]]] < threshold)
-      if (length(temp) > 0) {
-        # warning(sprintf(
-        #   "%s: weak relationship for %s and %s spend",
-        #   metrics[m],
-        #   v2t(modNLSCollect$channel[temp], and = "and"),
-        #   ifelse(length(temp) > 1, "their", "its")
-        # ))
-        final_print <- TRUE
-        these <- modNLSCollect$channel[temp]
-      }
-    }
-    if (isTRUE(final_print)) {
-      message(
-        paste(
-          "NOTE: potential improvement on splitting channels for better exposure fitting.",
-          "Threshold (Minimum R2) =", threshold,
-          "\n  Check: InputCollect$modNLS$plots outputs"
-        ),
-        "\n  Weak relationship for: ", v2t(these), " and their spend"
-      )
-    }
-  }
-
-  ################################################################
-  #### Clean & aggregate data
+  ## Standardise ds and dep_var cols
+  dt_transform <- dt_input %>%
+    rename("ds" = InputCollect$date_var,
+           "dep_var" = InputCollect$dep_var) %>%
+    arrange(.data$ds)
 
   ## Transform all factor variables
   if (length(factor_vars) > 0) {
@@ -763,6 +625,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
       context_vars = InputCollect$context_vars,
       organic_vars = InputCollect$organic_vars,
       paid_media_spends = paid_media_spends,
+      paid_media_vars = paid_media_vars,
       intervalType = InputCollect$intervalType,
       dayInterval = InputCollect$dayInterval,
       custom_params = custom_params
@@ -770,17 +633,23 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
   }
 
   ################################################################
-  #### Finalize enriched input
+  #### Model exposure metric from spend
 
+  ExposureCollect <- exposure_handling(
+    dt_transform,
+    window_start_loc = rollingWindowStartWhich,
+    window_end_loc = rollingWindowEndWhich,
+    paid_media_spends,
+    paid_media_vars,
+    quiet)
+
+  ################################################################
+  #### Finalize enriched input
+  dt_transform <- ExposureCollect$dt_transform
   dt_transform <- subset(dt_transform, select = c("ds", "dep_var", InputCollect$all_ind_vars))
   InputCollect[["dt_mod"]] <- dt_transform
   InputCollect[["dt_modRollWind"]] <- dt_transform[rollingWindowStartWhich:rollingWindowEndWhich, ]
-  InputCollect[["dt_inputRollWind"]] <- dt_inputRollWind
-  InputCollect[["modNLS"]] <- list(
-    results = modNLSCollect,
-    yhat = yhatNLSCollect,
-    plots = plotNLSCollect
-  )
+  InputCollect[["ExposureCollect"]] <- ExposureCollect
   return(InputCollect)
 }
 
@@ -803,7 +672,7 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
 prophet_decomp <- function(dt_transform, dt_holidays,
                            prophet_country, prophet_vars, prophet_signs,
                            factor_vars, context_vars, organic_vars, paid_media_spends,
-                           intervalType, dayInterval, custom_params) {
+                           paid_media_vars, intervalType, dayInterval, custom_params) {
   check_prophet(dt_holidays, prophet_country, prophet_vars, prophet_signs, dayInterval)
   recurrence <- select(dt_transform, .data$ds, .data$dep_var) %>% rename("y" = "dep_var")
   holidays <- set_holidays(dt_transform, dt_holidays, intervalType)
@@ -814,7 +683,7 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   use_weekday <- "weekday" %in% prophet_vars | "weekly.seasonality" %in% prophet_vars
 
   dt_regressors <- bind_cols(recurrence, select(
-    dt_transform, all_of(c(paid_media_spends, context_vars, organic_vars))
+    dt_transform, all_of(c(paid_media_spends, paid_media_vars, context_vars, organic_vars))
   )) %>%
     mutate(ds = as.Date(.data$ds))
 
@@ -879,93 +748,69 @@ prophet_decomp <- function(dt_transform, dt_holidays,
   return(dt_transform)
 }
 
-####################################################################
-#' Fit a nonlinear model for media spend and exposure
-#'
-#' This function is called in \code{robyn_engineering()}. It uses
-#' the Michaelis-Menten function to fit the nonlinear model. Fallback
-#' model is the simple linear model \code{lm()} in case the nonlinear
-#' model is fitting worse. A bad fit here might result in unreasonable
-#' model results. Two options are recommended: Either splitting the
-#' channel into sub-channels to achieve better fit, or just use
-#' spend as \code{paid_media_vars}
-#'
-#' @param dt_spendModInput data.frame. Containing channel spends and
-#' exposure data.
-#' @param mediaCostFactor Numeric vector. The ratio between raw media
-#' exposure and spend metrics.
-#' @param paid_media_var Character. Paid media variable.
-#' @return List. Containing the all spend-exposure model results.
-fit_spend_exposure <- function(dt_spendModInput, mediaCostFactor, paid_media_var) {
-  if (ncol(dt_spendModInput) != 2) stop("Pass only 2 columns")
-  colnames(dt_spendModInput) <- c("spend", "exposure")
+exposure_handling <- function(dt_transform,
+                              window_start_loc,
+                              window_end_loc,
+                              paid_media_spends,
+                              paid_media_vars,
+                              quiet) {
+  exposure_selector <- paid_media_spends != paid_media_vars
+  paid_media_selected <- ifelse(exposure_selector, paid_media_vars, paid_media_spends)
+  df_cpe <- list()
+  df_expo_p <- list()
+  for (i in seq_along(exposure_selector)) {
+    temp_spend <- dt_transform %>% select(paid_media_spends[i])
+    temp_expo <- dt_transform %>% select(paid_media_vars[i])
+    temp_spend_window <- temp_spend[window_start_loc:window_end_loc, ]
+    temp_expo_window <- temp_expo[window_start_loc:window_end_loc, ]
+    ## cpe = cost per exposure, an internal linear scaler between spend & exposure
+    temp_cpe <- sum(temp_spend)/ sum(temp_expo)
+    temp_cpe_window <- sum(temp_spend_window)/ sum(temp_expo_window)
+    temp_spend_scaled <- ifelse(exposure_selector[i], temp_expo * temp_cpe, temp_spend)
+    temp_spend_scaled_window <- ifelse(exposure_selector[i], temp_expo_window * temp_cpe_window, temp_spend_window)
+    df_cpe[[i]] <- data.frame(
+      paid_media_selected = paid_media_selected[i],
+      cpe = temp_cpe,
+      cpe_window = temp_cpe_window,
+      adj_rsq = get_rsq(true = unlist(temp_spend),
+                        predicted = unlist(temp_spend_scaled)),
+      adj_rsq_window = get_rsq(true = unlist(temp_spend_window),
+                               predicted = unlist(temp_spend_scaled_window))
+    )
+    ## Use window cpe to predict the whole dataset to keep the window spend scale right
+    spend_scaled_extrapolated <- temp_expo * temp_cpe_window
+    df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),
+                                 exposure = unlist(temp_expo),
+                                 media = paid_media_selected[i])
+    dt_transform <- dt_transform %>%
+      mutate_at(vars(paid_media_selected[i]), function(x) unlist(spend_scaled_extrapolated))
+  }
+  df_cpe <- bind_rows(df_cpe)
+  df_expo_p <- bind_rows(df_expo_p)
+  p_expo <- df_expo_p %>% ggplot(aes(x = .data$spend, y = .data$exposure)) +
+    geom_point() +
+    geom_smooth(method = "lm", formula = y ~ x) +
+    facet_wrap(~ .data$media, scales = "free") +
+    labs(title = "Spend & exposure relationship for paid media.",
+         subtitle = "Re-consider media splits if a media shows multiple patterns.")
 
-  # Model 1: Michaelis-Menten model Vmax * spend/(Km + spend)
-  tryCatch(
-    {
-      nlsStartVal <- list(
-        Vmax = max(dt_spendModInput$exposure),
-        Km = max(dt_spendModInput$exposure) / 2
-      )
-
-      modNLS <- nlsLM(exposure ~ Vmax * spend / (Km + spend),
-        data = dt_spendModInput,
-        start = nlsStartVal,
-        control = nls.control(warnOnly = TRUE)
-      )
-      yhatNLS <- predict(modNLS)
-      modNLSSum <- summary(modNLS)
-      rsq_nls <- get_rsq(true = dt_spendModInput$exposure, predicted = yhatNLS)
-
-      # # QA nls model prediction: check
-      # yhatNLSQA <- modNLSSum$coefficients[1,1] * dt_spendModInput$spend / (modNLSSum$coefficients[2,1] + dt_spendModInput$spend) #exposure = v  * spend / (k + spend)
-      # identical(yhatNLS, yhatNLSQA)
-    },
-    error = function(cond) {
-      modNLS <- yhatNLS <- modNLSSum <- rsq_nls <- NULL
-    },
-    warning = function(cond) {
-      modNLS <- yhatNLS <- modNLSSum <- rsq_nls <- NULL
-    },
-    finally = if (!exists("modNLS")) modNLS <- yhatNLS <- modNLSSum <- rsq_nls <- NULL
-  )
-
-  # Model 2: Build lm comparison model
-  modLM <- lm(exposure ~ spend - 1, data = dt_spendModInput)
-  yhatLM <- predict(modLM)
-  modLMSum <- summary(modLM)
-  rsq_lm <- modLMSum$adj.r.squared
-  if (is.na(rsq_lm)) stop("Please check if ", paid_media_var, " contains only 0s")
-  # if (max(rsq_lm, rsq_nls) < 0.7) {
-  #   warning(paste(
-  #     "Spend-exposure fitting for", paid_media_var,
-  #     "has rsq = ", round(max(rsq_lm, rsq_nls), 4),
-  #     "To increase the fit, try splitting the variable.",
-  #     "Otherwise consider using spend instead."
-  #   ))
-  # }
-
-  output <- list(
-    res = data.frame(
-      channel = paid_media_var,
-      Vmax = if (!is.null(modNLS)) modNLSSum$coefficients[1, 1] else NA,
-      Km = if (!is.null(modNLS)) modNLSSum$coefficients[2, 1] else NA,
-      aic_nls = if (!is.null(modNLS)) AIC(modNLS) else NA,
-      aic_lm = AIC(modLM),
-      bic_nls = if (!is.null(modNLS)) BIC(modNLS) else NA,
-      bic_lm = BIC(modLM),
-      rsq_nls = if (!is.null(modNLS)) rsq_nls else 0,
-      rsq_lm = rsq_lm,
-      coef_lm = coef(modLMSum)[1]
-    ),
-    yhatNLS = yhatNLS,
-    modNLS = modNLS,
-    yhatLM = yhatLM,
-    modLM = modLM,
-    data = dt_spendModInput,
-    type = ifelse(is.null(modNLS), "lm", "mm")
-  )
-  return(output)
+  # Give recommendations and show warnings
+  threshold <- 0.8
+  temp_names <- df_cpe %>% filter(.data$adj_rsq_window < threshold) %>% pull(paid_media_selected)
+  if (!quiet & any(exposure_selector) & length(temp_names) > 1) {
+    message(
+      paste(
+        "NOTE: potential improvement on splitting channels for better spend exposure fitting.",
+        "Threshold (min.adj.R2) =", threshold,
+        "\n  Check: InputCollect$ExposureCollect$plot_spend_exposure outputs"
+      ),
+      "\n  Weak relationship for: ", v2t(temp_names), " and their spend"
+    )
+  }
+  return(list(df_cpe = df_cpe,
+              plot_spend_exposure = p_expo,
+              dt_transform = dt_transform,
+              paid_media_selected = paid_media_selected))
 }
 
 ####################################################################
@@ -1011,4 +856,40 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
   }
 
   return(holidays)
+}
+
+####################################################################
+#' Set default hyperparameters
+#'
+#' For quick setting of hyperparameter ranges.
+#'
+#' @param adstock Character. InputCollect$adstock
+#' @param all_media Character. Provide InputCollect$all_media.
+#' @param list_default A List. Default ranges for hyperparameters.
+#' @return List. Expanded range of hyperparameters for all media.
+#' @export
+set_default_hyppar <- function(
+    adstock = NULL,
+    all_media = NULL,
+    list_default = list(alpha = c(0.5, 3),
+                        gamma = c(0.01, 1),
+                        theta = c(0, 0.8),
+                        shape = c(0, 10),
+                        scale = c(0, 0.1),
+                        train_size = c(0.5, 0.9))
+
+) {
+  hpnames <- hyper_names(adstock = adstock, all_media = all_media)
+  hyperparameters <- list()
+  for (i in seq_along(hpnames)) {
+    hyperparameters[[i]] <- dplyr::case_when(
+      str_detect(hpnames[[i]], "_alphas") ~ list_default[["alpha"]],
+      str_detect(hpnames[[i]], "_gammas") ~ list_default[["gamma"]],
+      str_detect(hpnames[[i]], "_thetas") ~ list_default[["theta"]],
+      str_detect(hpnames[[i]], "_shapes") ~ list_default[["shape"]],
+      str_detect(hpnames[[i]], "_scales") ~ list_default[["scale"]])
+    names(hyperparameters)[[i]] <- hpnames[[i]]
+  }
+  hyperparameters[["train_size"]] <- list_default[["train_size"]]
+  return(hyperparameters)
 }

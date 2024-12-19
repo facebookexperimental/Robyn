@@ -61,3 +61,45 @@
 # lares::missingness(dt_prophet_holidays)
 # dt_prophet_holidays <- dplyr::filter(dt_prophet_holidays, !is.na(country))
 # save(dt_prophet_holidays, file = "data/dt_prophet_holidays.RData", version = 2)
+
+####################################################################
+#' Robyn Dataset: Reach & frequency simulated dataset
+#'
+#' A simulated cumulated reach and spend dataset by frequency buckets.
+#' The headers must be kept as
+#' \code{c("spend_cumulated", "response_cumulated", "freq_bucket")}.
+#'
+#'
+#' @family Dataset
+#' @docType data
+#' @usage data(df_curve_reach_freq)
+#' @return data.frame
+#' @format An object of class \code{"data.frame"}
+#' \describe{
+#'   \item{spend_cumulated}{cumulated spend of paid media}
+#'   \item{response_cumulated}{cumulated reach of paid media}
+#'   \item{freq_bucket}{Frequency bucket for cumulated reach}
+#' }
+#' @examples
+#' data(df_curve_reach_freq)
+#' head(df_curve_reach_freq)
+#' @return Dataframe.
+"df_curve_reach_freq"
+
+# xSample <- round(seq(0, 100000, length.out = 10))
+# gammaSamp <- seq(0.3, 1, length.out = 20)
+# coeff <- 10000000
+# df_curve_reach_freq <- list()
+# for (i in seq_along(gammaSamp)) {
+#   df_curve_reach_freq[[i]] <- data.frame(
+#     spend_cumulated = xSample,
+#     response_predicted = (xSample**0.5 / (xSample**0.5 + (gammaSamp[i] * max(xSample))**0.5)) * coeff ,
+#     gamma = gammaSamp[i],
+#     freq_bucket = as.factor(paste0("reach ", i, "+"))
+#   )
+# }
+# df_curve_reach_freq <- bind_rows(df_curve_reach_freq) %>%
+#   mutate(response_cumulated = response_predicted * (1+ runif(length(xSample) * length(gammaSamp), -0.05, 0.05))) %>%
+#   select(spend_cumulated, response_cumulated, response_predicted, freq_bucket)
+# levels(df_curve_reach_freq$freq_bucket) <- paste0("reach ", seq_along(gammaSamp), "+")
+# save(df_curve_reach_freq, file = "data/df_curve_reach_freq.RData", version = 2)

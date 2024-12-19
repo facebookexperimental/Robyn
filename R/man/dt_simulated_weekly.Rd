@@ -31,6 +31,7 @@ head(dt_simulated_weekly)
 }
 \seealso{
 Other Dataset: 
+\code{\link{df_curve_reach_freq}},
 \code{\link{dt_prophet_holidays}}
 }
 \concept{Dataset}

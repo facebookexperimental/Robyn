@@ -180,7 +180,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
         ) %>%
         left_join(
           pareto_results$df_caov_pct_all %>%
-            filter(type == "Carryover") %>%
+            filter(.data$type == "Carryover") %>%
             select("solID", "rn", "carryover_pct"),
           by = c("solID", "rn")
         )

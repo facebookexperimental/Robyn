@@ -24,54 +24,29 @@ hyperparameters that is inserted into \code{robyn_inputs(hyperparameters = ...)}
 }
 \section{Guide to setup hyperparameters}{
 
- \enumerate{
-   \item Get correct hyperparameter names:
-   All variables in \code{paid_media_vars} or \code{organic_vars} require hyperprameters
-   and will be transformed by adstock & saturation. Difference between \code{paid_media_vars}
-   and \code{organic_vars} is that \code{paid_media_vars} has spend that
-   needs to be specified in \code{paid_media_spends} specifically. Run \code{hyper_names()}
-   to get correct hyperparameter names. All names in hyperparameters must
-   equal names from \code{hyper_names()}, case sensitive.
-   \item Get guidance for setting hyperparameter bounds:
-   For geometric adstock, use theta, alpha & gamma. For both weibull adstock options,
-   use shape, scale, alpha, gamma.
-   \itemize{
-     \item Theta: In geometric adstock, theta is decay rate. guideline for usual media genre:
-   TV c(0.3, 0.8), OOH/Print/Radio c(0.1, 0.4), digital c(0, 0.3)
-     \item Shape: In weibull adstock, shape controls the decay shape. Recommended c(0.0001, 2).
-   The larger, the more S-shape. The smaller, the more L-shape. Channel-type specific
-   values still to be investigated
-     \item Scale: In weibull adstock, scale controls the decay inflexion point. Very conservative
-   recommended bounce c(0, 0.1), because scale can increase adstocking half-life greatly.
-   Channel-type specific values still to be investigated
-     \item Gamma: In s-curve transformation with hill function, gamma controls the inflexion point.
-   Recommended bounce c(0.3, 1). The larger the gamma, the later the inflection point
-   in the response curve
-   }
-   \item Set each hyperparameter bounds. They either contains two values e.g. c(0, 0.5),
-   or only one value (in which case you've "fixed" that hyperparameter)
-}
+See section "Hyperparameter interpretation & recommendation" in demo
+https://github.com/facebookexperimental/Robyn/blob/main/demo/demo.R
 }
 
 \section{Helper plots}{
 
 \describe{
-  \item{plot_adstock}{Get adstock transformation example plot,
+  \item{plot_adstock(TRUE)}{Get adstock transformation example plot,
 helping you understand geometric/theta and weibull/shape/scale transformation}
-  \item{plot_saturation}{Get saturation curve transformation example plot,
+  \item{plot_saturation(TRUE)}{Get saturation curve transformation example plot,
 helping you understand hill/alpha/gamma transformation}
 }
 }
 
 \examples{
 \donttest{
-media <- c("facebook_S", "print_S", "tv_S")
+media <- c("facebook_I", "print_S", "tv_S")
 hyper_names(adstock = "geometric", all_media = media)
 
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3), # example bounds for alpha
-  facebook_S_gammas = c(0.3, 1), # example bounds for gamma
-  facebook_S_thetas = c(0, 0.3), # example bounds for theta
+  facebook_I_alphas = c(0.5, 3), # example bounds for alpha
+  facebook_I_gammas = c(0.3, 1), # example bounds for gamma
+  facebook_I_thetas = c(0, 0.3), # example bounds for theta
   print_S_alphas = c(0.5, 3),
   print_S_gammas = c(0.3, 1),
   print_S_thetas = c(0.1, 0.4),
@@ -81,13 +56,13 @@ hyperparameters <- list(
 )
 
 # Define hyper_names for weibull adstock
-hyper_names(adstock = "weibull", all_media = media)
+hyper_names(adstock = "weibull_pdf", all_media = media)
 
 hyperparameters <- list(
-  facebook_S_alphas = c(0.5, 3), # example bounds for alpha
-  facebook_S_gammas = c(0.3, 1), # example bounds for gamma
-  facebook_S_shapes = c(0.0001, 2), # example bounds for shape
-  facebook_S_scales = c(0, 0.1), # example bounds for scale
+  facebook_I_alphas = c(0.5, 3), # example bounds for alpha
+  facebook_I_gammas = c(0.3, 1), # example bounds for gamma
+  facebook_I_shapes = c(0.0001, 2), # example bounds for shape
+  facebook_I_scales = c(0, 0.1), # example bounds for scale
   print_S_alphas = c(0.5, 3),
   print_S_gammas = c(0.3, 1),
   print_S_shapes = c(0.0001, 2),

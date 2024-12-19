@@ -487,10 +487,14 @@ robyn_onepagers <- function(
       trim_rate <- 1.3 # maybe enable as a parameter
       if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
+          select(-"ds") %>%
+          bind_rows(data.frame(
+            channel = unique(dt_scurvePlot$channel), spend = 0, response = 0
+          )) %>%
           filter(
             .data$spend < max(dt_scurvePlotMean$mean_spend_adstocked) * trim_rate,
             .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate,
-            .data$channel %in% InputCollect$paid_media_spends
+            .data$channel %in% InputCollect$paid_media_selected
           ) %>%
           left_join(
             dt_scurvePlotMean[, c("channel", "mean_carryover")], "channel"
@@ -591,6 +595,7 @@ robyn_onepagers <- function(
       ## 7. Immediate vs carryover
       df_imme_caov <- temp[[sid]]$plot7data
       p7 <- df_imme_caov %>%
+        replace(is.na(.), 0) %>%
         mutate(type = factor(.data$type, levels = c("Immediate", "Carryover"))) %>%
         ggplot(aes(
           x = .data$percentage, y = .data$rn, fill = reorder(.data$type, as.integer(.data$type)),
@@ -819,13 +824,16 @@ allocation_plots <- function(
       .data$value / dplyr::first(.data$value)
     })
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
+  resp_delta <- df_roi %>% group_by(.data$type) %>%
+    summarise(resp_delta = unique(.data$total_response_lift)) %>%
+    pull(resp_delta)
   labs <- paste(
     paste(levs2, "\n"),
     paste("Spend:", formatNum(
       100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
       signif = 3, pos = "%", sign = TRUE
     )),
-    unique(paste("Resp:", formatNum(100 * df_roi$total_response_lift, signif = 3, pos = "%", sign = TRUE))),
+   paste("Resp:", formatNum(100 *  resp_delta, signif = 3, pos = "%", sign = TRUE)),
     paste(metric, ":", round(metric_vals, 2)),
     sep = "\n"
   )
@@ -1585,7 +1593,7 @@ decomp_plot <- function(
   # Sort variables by baseline first & amount of absolute impact
   levs <- df %>%
     group_by(.data$variable) %>%
-    summarize(impact = sum(abs(.data$value))) %>%
+    summarise(impact = sum(abs(.data$value))) %>%
     mutate(is_baseline = grepl("Baseline_L", .data$variable)) %>%
     arrange(desc(.data$is_baseline), desc(.data$impact)) %>%
     filter(.data$impact > 0) %>%
@@ -1600,8 +1608,8 @@ decomp_plot <- function(
     filter(.data$variable %in% levs) %>%
     mutate(variable = factor(.data$variable, levels = rev(levs)))
 
-  p <- ggplot(df, aes(x = as.character(ds), y = value, fill = variable)) +
-    facet_grid(solID ~ .) +
+  p <- ggplot(df, aes(x = as.character(.data$ds), y = .data$value, fill = .data$variable)) +
+    facet_grid(.data$solID ~ .) +
     labs(
       title = paste(varType, "Decomposition by Variable"),
       x = NULL, y = paste(intType, varType), fill = NULL
@@ -1619,9 +1627,32 @@ decomp_plot <- function(
   return(p)
 }
 
+# Custom plot for geom_density interval
+geom_density_ci <- function(
+    gg_density,  # ggplot object that contains geom_density
+    ci_low,
+    ci_up,
+    fill = "grey"
+) {
+  build_object <- ggplot_build(gg_density)
+  x_dens <- build_object$data[[1]]$x
+  y_dens <- build_object$data[[1]]$y
+  ind_low <- min(which(x_dens >= ci_low))
+  ind_up <- max(which(x_dens <= ci_up))
+
+  gg_density <- gg_density +
+    geom_area(
+      data=data.frame(
+        x=x_dens[ind_low:ind_up],
+        density=y_dens[ind_low:ind_up]),
+      aes(x=.data$x,y=.data$density),
+      fill=fill,
+      alpha=0.6)
+  return(gg_density)
+  }
+
 get_evenly_separated_dates <- function(dates, n = 6) {
   dates <- sort(dates)
-  intervals <- n - 1
   indices <- round(seq(1, length(dates), length.out = n))
   selected_dates <- dates[indices]
   return(as.character(selected_dates))

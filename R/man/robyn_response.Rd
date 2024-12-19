@@ -8,7 +8,6 @@ robyn_response(
   InputCollect = NULL,
   OutputCollect = NULL,
   json_file = NULL,
-  robyn_object = NULL,
   select_build = NULL,
   select_model = NULL,
   metric_name = NULL,
@@ -32,9 +31,6 @@ recreate a model. To generate this file, use \code{robyn_write()}.
 If you didn't export your data in the json file as "raw_data",
 \code{dt_input} must be provided; \code{dt_holidays} input is optional.}
 
-\item{robyn_object}{Character or List. Path of the \code{Robyn.RDS} object
-that contains all previous modeling information or the imported list.}
-
 \item{select_build}{Integer. Default to the latest model build. \code{select_build = 0}
 selects the initial model. \code{select_build = 1} selects the first refresh model.}
 
@@ -54,11 +50,11 @@ per channel. Set one of: "all", "last", or "last_n" (where
 n is the last N dates available), date (i.e. "2022-03-27"), or date range
 (i.e. \code{c("2022-01-01", "2022-12-31")}). Default to "all".}
 
-\item{dt_hyppar}{A data.frame. When \code{robyn_object} is not provided, use
+\item{dt_hyppar}{A data.frame. When \code{json_file} is not provided, use
 \code{dt_hyppar = OutputCollect$resultHypParam}. It must be provided along
 \code{select_model}, \code{dt_coef} and \code{InputCollect}.}
 
-\item{dt_coef}{A data.frame. When \code{robyn_object} is not provided, use
+\item{dt_coef}{A data.frame. When \code{json_file} is not provided, use
 \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.}
 
