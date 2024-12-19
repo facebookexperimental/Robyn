@@ -457,6 +457,17 @@ following deepdive articles:
 - **"Hitting ROAS target using Robyn’s budget allocator"**: [here](https://medium.com/@gufengzhou/hitting-roas-target-using-robyns-budget-allocator-274ace3add4f)
 
 ---
+## The reach & frequency allocator (prototype)
+
+Reach and frequency planning is conducted frequently by advertisers and media agencies. To further harvest the power of **[Project Halo](https://wfanet.org/leadership/cross-media-measurement)** and provide more actionability for R&F data, we're experimenting on a new feature "reach and frequency allocator". It answers the question “what’s the optimal combination of reach & frequency” on a channel given a total budget and average CPM. It consumes the saturation information from R&F data and uses nonlinear optimization to find the optimal point with highest response.
+
+Decription of the graphic below: Given 100k budget and 6$ CPM, as well as the estimated saturation curve for reach and frequency separately using Halo data, the optimum R&F combination is 5.67M reach x 2.94 frequency, with the maximum response (sales) of 317.8k$.
+
+<img alt="ModelResults1 chart" src={useBaseUrl('/img/rnf_allocator_prototype.png')} />
+
+It's currently a prototype and not yet available. An MVP is expected in 2025.
+
+---
 ## Model refresh
 
 Conventionally, the model refresh cycle of MMM is bi-annual or even longer. The time delay leads to limited actionability of MMM insights. Robyn's model refresh feature aims to solve this challenge and enables model refresh and reporting as frequently as the data allows. It also enables MMM to be a continuous reporting tool for actionable and timely decision-making that could feed your reporting or BI tools.
