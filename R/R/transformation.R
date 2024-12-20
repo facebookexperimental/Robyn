@@ -249,7 +249,7 @@ plot_adstock <- function(plot = TRUE) {
     p1 <- ggplot(geomCollect, aes(x = .data$x, y = .data$decay_accumulated)) +
       geom_line(aes(color = .data$theta_halflife)) +
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
-      geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
+      annotate("text", x = max(geomCollect$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife", colour = "gray") +
       labs(
         title = "Geometric Adstock\n(Fixed decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",
@@ -290,9 +290,7 @@ plot_adstock <- function(plot = TRUE) {
       geom_line(aes(color = .data$scale)) +
       facet_grid(.data$shape ~ .data$type) +
       geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
-      geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"),
-        colour = "gray"
-      ) +
+      annotate("text", x = max(weibullCollect$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife", colour = "gray") +
       labs(
         title = "Weibull Adstock CDF vs PDF\n(Flexible decay rate)",
         subtitle = "Halflife = time until effect reduces to 50%",

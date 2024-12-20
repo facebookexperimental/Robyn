@@ -2,8 +2,8 @@
 % Please edit documentation in R/imports.R
 \docType{package}
 \name{Robyn}
-\alias{Robyn}
 \alias{Robyn-package}
+\alias{Robyn}
 \title{Robyn MMM Project from Meta Marketing Science}
 \description{
 Robyn is an automated Marketing Mix Modeling (MMM) code. It aims to reduce human
