@@ -473,7 +473,7 @@ robyn_onepagers <- function(
           geom_line(aes(color = .data$channel)) +
           facet_wrap(~ .data$channel) +
           geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
-          geom_text(aes(x = max(.data$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife"), colour = "gray") +
+          annotate("text", x = max(weibullCollect$x), y = 0.5, vjust = -0.5, hjust = 1, label = "Halflife", colour = "gray") +
           theme_lares(background = "white", legend = "none", grid = "Xx") +
           labs(
             title = paste("Weibull", wb_type, "Adstock: Flexible Rate Over Time"),
