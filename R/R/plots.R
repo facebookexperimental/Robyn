@@ -538,7 +538,6 @@ robyn_onepagers <- function(
       ## 5. Fitted vs actual
       xDecompVecPlotMelted <- temp[[sid]]$plot5data$xDecompVecPlotMelted %>%
         mutate(
-          linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
           variable = stringr::str_to_title(.data$variable),
           ds = as.Date(.data$ds, origin = "1970-01-01")
         )
@@ -546,7 +545,7 @@ robyn_onepagers <- function(
         xDecompVecPlotMelted,
         aes(x = .data$ds, y = .data$value, color = .data$variable)
       ) +
-        geom_path(aes(linetype = .data$linetype), size = 0.6) +
+        geom_path(aes(linetype = .data$variable), size = 0.5) +
         theme_lares(background = "white", legend = "top", pal = 2) +
         scale_y_abbr() +
         guides(linetype = "none") +
@@ -1332,7 +1331,6 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
   if (!is.null(df)) {
     xDecompVecPlotMelted <- df$plot5data$xDecompVecPlotMelted %>%
       mutate(
-        linetype = ifelse(.data$variable == "predicted", "solid", "dotted"),
         variable = stringr::str_to_title(.data$variable),
         ds = as.Date(.data$ds, origin = "1970-01-01")
       )
@@ -1358,7 +1356,7 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
       )) %>%
       as_tibble()
     outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecPlotMelted) +
-      geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$linetype), size = 0.6) +
+      geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$variable), size = 0.5) +
       geom_rect(
         data = dt_refreshDates,
         aes(
