@@ -415,10 +415,11 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
     }
   }
 
+  # Find closest date contained in input data
   rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, window_end, units = "days")))
-  if (!(window_end %in% dates_vec)) {
-    window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
-    message("Input 'window_end' is adapted to the closest date contained in input data: ", window_end)
+  if (!window_end %in% c(dates_vec, .next_date(dates_vec) - 1)) {
+    window_end <- .next_date(dt_input[seq(rollingWindowEndWhich), date_var][[1]]) - 1
+    message("Input 'window_end' is adapted to the closest available date from input data: ", window_end)
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
 
