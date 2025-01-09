@@ -1358,7 +1358,7 @@ init_msgs_run <- function(InputCollect, refresh, lambda_control = NULL, quiet = 
       nrow(InputCollect$dt_mod),
       InputCollect$intervalType,
       min(InputCollect$dt_mod$ds),
-      max(InputCollect$dt_mod$ds)
+      .next_date(InputCollect$dt_mod$ds) - 1
     ))
     depth <- ifelse(
       "refreshDepth" %in% names(InputCollect),
