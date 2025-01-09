@@ -28,7 +28,6 @@ dependencies = [
     "plotnine",
     "nevergrad",
     "PyQt6",
-    "nevergrad",
     "seaborn",
     "tqdm",
     "rpy2",
