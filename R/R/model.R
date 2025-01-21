@@ -545,9 +545,13 @@ robyn_mmm <- function(InputCollect,
     mean_spend = unlist(summarise_all(temp, mean))
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
-  temp <- select(dt_inputTrain, all_of(c(exposure_vars, organic_vars))) %>% summarise_all(mean) %>% unlist
-  temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
-  dt_spendShare <- full_join(dt_spendShare, temp, by = "rn")
+  if (length(c(exposure_vars, organic_vars)) > 0) {
+    temp <- select(dt_inputTrain, all_of(c(exposure_vars, organic_vars))) %>% summarise_all(mean) %>% unlist
+    temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
+    dt_spendShare <- full_join(dt_spendShare, temp, by = "rn")
+  } else {
+    dt_spendShare$mean_exposure <- NA
+  }
   # When not refreshing, dt_spendShareRF = dt_spendShare
   refreshAddedStartWhich <- which(dt_modRollWind$ds == refreshAddedStart)
   temp <- select(dt_inputTrain, all_of(paid_media_spends)) %>%
@@ -562,11 +566,15 @@ robyn_mmm <- function(InputCollect,
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # Join both dataframes into a single one
-  temp <- select(dt_inputTrain,  all_of(c(exposure_vars, organic_vars))) %>%
-    slice(refreshAddedStartWhich:rollingWindowLength) %>%
-    summarise_all(mean) %>% unlist
-  temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
-  dt_spendShareRF <- full_join(dt_spendShareRF, temp, by = "rn")
+  if (length(c(exposure_vars, organic_vars)) > 0) {
+    temp <- select(dt_inputTrain,  all_of(c(exposure_vars, organic_vars))) %>%
+      slice(refreshAddedStartWhich:rollingWindowLength) %>%
+      summarise_all(mean) %>% unlist
+    temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
+    dt_spendShareRF <- full_join(dt_spendShareRF, temp, by = "rn")
+  } else {
+    dt_spendShareRF$mean_exposure <- NA
+  }
   dt_spendShare <- left_join(dt_spendShare, dt_spendShareRF, "rn", suffix = c("", "_refresh"))
 
 
