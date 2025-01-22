@@ -133,7 +133,8 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## set local variables, sort & prompt
   # paid_media_spends <- InputCollect$paid_media_spends
-  paid_media_selected <- InputCollect$paid_media_selected
+  paid_media_selected <- if ("paid_media_selected" %in% names(InputCollect))
+    InputCollect$paid_media_selected else InputCollect$paid_media_spends
   dep_var_type <- InputCollect$dep_var_type
   if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
     select_model <- OutputCollect$allSolutions

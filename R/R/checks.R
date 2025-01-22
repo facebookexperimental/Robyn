@@ -395,30 +395,31 @@ check_windows <- function(dt_input, date_var, all_media, window_start, window_en
   refreshAddedStart <- window_start
 
   if (is.null(window_end)) {
-    window_end <- max(dates_vec)
+    window_end <- .next_date(dates_vec) - 1
   } else {
     window_end <- as.Date(as.character(window_end), "%Y-%m-%d", origin = "1970-01-01")
     if (is.na(window_end)) {
       stop(sprintf("Input 'window_end' must have date format, i.e. '%s'", Sys.Date()))
-    } else if (window_end > max(dates_vec)) {
-      window_end <- max(dates_vec)
+    } else if (window_end > .next_date(dates_vec) - 1) {
+      window_end <- .next_date(dates_vec) - 1
       message(paste(
-        "Input 'window_end' is larger than the latest date in input data.",
-        "It's automatically set to the latest date:", window_end
+        "Input 'window_end' is larger than the latest dates available in input data.",
+        "Automatically set to date:", window_end
       ))
     } else if (window_end < window_start) {
-      window_end <- max(dates_vec)
+      window_end <- .next_date(dates_vec) - 1
       message(paste(
         "Input 'window_end' must be >= 'window_start.",
-        "It's automatically set to the latest date:", window_end
+        "Automatically set to date:", window_end
       ))
     }
   }
 
+  # Find closest date contained in input data
   rollingWindowEndWhich <- which.min(abs(difftime(dates_vec, window_end, units = "days")))
-  if (!(window_end %in% dates_vec)) {
-    window_end <- dt_input[rollingWindowEndWhich, date_var][[1]]
-    message("Input 'window_end' is adapted to the closest date contained in input data: ", window_end)
+  if (!window_end %in% c(dates_vec, .next_date(dates_vec) - 1)) {
+    window_end <- .next_date(dt_input[seq(rollingWindowEndWhich), date_var][[1]]) - 1
+    message("Input 'window_end' is adapted to the closest available date from input data: ", window_end)
   }
   rollingWindowLength <- rollingWindowEndWhich - rollingWindowStartWhich + 1
 
