@@ -109,9 +109,18 @@ class FeatureEngineering:
             dt_transform[self.mmm_data.mmmdata_spec.date_var]
         ).dt.strftime("%Y-%m-%d")
         dt_transform["dep_var"] = dt_transform[self.mmm_data.mmmdata_spec.dep_var]
-        dt_transform["competitor_sales_B"] = dt_transform["competitor_sales_B"].astype(
-            "int64"
-        )
+
+        # Handle context variables type conversion if needed
+        for context_var in self.mmm_data.mmmdata_spec.context_vars:
+            try:
+                # Attempt to convert to numeric if not already
+                if pd.api.types.is_object_dtype(dt_transform[context_var]):
+                    dt_transform[context_var] = pd.to_numeric(dt_transform[context_var])
+            except Exception as e:
+                self.logger.warning(
+                    f"Could not convert {context_var} to numeric: {str(e)}"
+                )
+
         self.logger.debug("Data preparation complete")
         return dt_transform
 
