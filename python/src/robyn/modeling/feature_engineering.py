@@ -119,7 +119,7 @@ class FeatureEngineering:
         dt_transform = self.mmm_data.data.copy()
         dt_transform["ds"] = pd.to_datetime(
             dt_transform[self.mmm_data.mmmdata_spec.date_var]
-        ).dt.strftime("%Y-%m-%d")
+        )
         dt_transform["dep_var"] = dt_transform[self.mmm_data.mmmdata_spec.dep_var]
 
         # Handle context variables type conversion if needed
