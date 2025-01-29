@@ -49,22 +49,34 @@ class FeatureEngineering:
         dt_transform = self._prepare_data()
         self.logger.debug(f"Prepared data shape: {dt_transform.shape}")
 
-        if any(
-            var in self.holidays_data.prophet_vars
-            for var in ["trend", "season", "holiday", "monthly", "weekday"]
-        ):
+        # Check if Prophet decomposition should be performed
+        prophet_enabled = (
+            self.holidays_data is not None
+            and self.holidays_data.prophet_vars is not None
+            and len(self.holidays_data.prophet_vars) > 0
+        )
+
+        if prophet_enabled:
             self.logger.info("Starting Prophet decomposition")
             dt_transform = self._prophet_decomposition(dt_transform)
             if not quiet:
                 self.logger.info("Prophet decomposition complete")
+        else:
+            self.logger.info(
+                "Prophet decomposition disabled - no prophet variables specified"
+            )
 
         # Include all independent variables
-        all_ind_vars = (
-            self.holidays_data.prophet_vars
-            + self.mmm_data.mmmdata_spec.context_vars
+        all_ind_vars = []
+        if prophet_enabled:
+            all_ind_vars.extend(self.holidays_data.prophet_vars)
+
+        all_ind_vars.extend(
+            self.mmm_data.mmmdata_spec.context_vars
             + self.mmm_data.mmmdata_spec.paid_media_spends
             + self.mmm_data.mmmdata_spec.organic_vars
         )
+
         self.logger.debug(f"Processing {len(all_ind_vars)} independent variables")
 
         dt_mod = dt_transform
