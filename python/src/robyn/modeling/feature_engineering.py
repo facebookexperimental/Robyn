@@ -116,6 +116,10 @@ class FeatureEngineering:
                 # Attempt to convert to numeric if not already
                 if pd.api.types.is_object_dtype(dt_transform[context_var]):
                     dt_transform[context_var] = pd.to_numeric(dt_transform[context_var])
+                    self.logger.debug(f"Converted {context_var} to numeric")
+                self.logger.debug(
+                    f"Data type for {context_var}: {dt_transform[context_var].dtype}"
+                )
             except Exception as e:
                 self.logger.warning(
                     f"Could not convert {context_var} to numeric: {str(e)}"
