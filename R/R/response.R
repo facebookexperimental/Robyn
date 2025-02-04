@@ -246,9 +246,9 @@ robyn_response <- function(InputCollect = NULL,
         "media:", metric_type$metric_name_updated
       ),
       subtitle = sprintf(paste(
-        "Response: %s @ mean input %s",
-        "Response: %s @ mean input carryover %s",
-        "Response: %s @ mean input immediate %s",
+        "%s response @ mean total input %s",
+        "    %s response @ mean carryover input %s",
+        "    %s response @ mean immediate input %s",
         sep = "\n"),
         num_abbr(dt_point$mean_response_total),
         num_abbr(dt_point$mean_input_total),
@@ -257,12 +257,16 @@ robyn_response <- function(InputCollect = NULL,
         num_abbr(dt_point$mean_response_immediate),
         num_abbr(dt_point$mean_input_immediate)
       ),
-      x = "Input", y = "Response",
+      x = sprintf("Input Metric per %s (%s)", InputCollect$intervalType, metric_type$metric_name_updated),
+      y = sprintf("Response (%s)", InputCollect$dep_var),
       caption = sprintf(
-        "Response period: %s%s%s",
+        "Response period: %s%s%s%s",
         head(date_range_updated, 1),
         ifelse(length(date_range_updated) > 1, paste(" to", tail(date_range_updated, 1)), ""),
-        ifelse(length(date_range_updated) > 1, paste0(" [", length(date_range_updated), " periods]"), "")
+        ifelse(length(date_range_updated) > 1, paste0(" [", length(date_range_updated), " periods]"), ""),
+        paste("\nTotal Input Metric for period:", formatNum(ifelse(
+          !is.null(metric_value), metric_value, sum(hist_transform$input_total)),
+          abbr = TRUE))
       )
     ) +
     theme_lares(background = "white") +
@@ -270,7 +274,10 @@ robyn_response <- function(InputCollect = NULL,
     scale_y_abbr()
   if (!is.null(metric_value) | !is.null(date_range)) {
     p_res <- p_res +
-      geom_point(data = dt_point_sim, aes(x = .data$input, y = .data$output), size = 3, color = "blue")
+      geom_point(data = dt_point_sim, aes(x = .data$input, y = .data$output), size = 3, color = "blue") +
+      labs(caption = paste0(
+        p_res$labels$caption,
+        sprintf("\n%s response @ input %s", num_abbr(dt_point_sim$output), num_abbr(dt_point_sim$input))))
   }
   if (!is.null(metric_value)) {
     sim_mean_spend <- hist_transform_sim$sim_mean_spend
