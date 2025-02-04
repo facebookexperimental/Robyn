@@ -122,20 +122,44 @@ class FeatureEngineering:
         )
         dt_transform["dep_var"] = dt_transform[self.mmm_data.mmmdata_spec.dep_var]
 
-        # Handle context variables type conversion if needed
-        for context_var in self.mmm_data.mmmdata_spec.context_vars:
+        # Set default factor_vars if None
+        if self.mmm_data.mmmdata_spec.factor_vars is None:
+            self.mmm_data.set_default_factor_vars()
+        factor_vars = self.mmm_data.mmmdata_spec.factor_vars or []
+
+        # Handle factor variables conversion first
+        for factor_var in factor_vars:
             try:
-                # Attempt to convert to numeric if not already
-                if pd.api.types.is_object_dtype(dt_transform[context_var]):
-                    dt_transform[context_var] = pd.to_numeric(dt_transform[context_var])
-                    self.logger.debug(f"Converted {context_var} to numeric")
-                self.logger.debug(
-                    f"Data type for {context_var}: {dt_transform[context_var].dtype}"
-                )
+                dt_transform[factor_var] = dt_transform[factor_var].astype("category")
+                self.logger.debug(f"Converted {factor_var} to categorical")
             except Exception as e:
                 self.logger.warning(
-                    f"Could not convert {context_var} to numeric: {str(e)}"
+                    f"Could not convert {factor_var} to categorical: {str(e)}"
                 )
+
+        # Only convert context variables that are used in numerical calculations
+        # i.e., those that aren't categorical/factor variables
+        numeric_context_vars = [
+            var
+            for var in self.mmm_data.mmmdata_spec.context_vars
+            if var not in factor_vars
+            and pd.api.types.is_object_dtype(dt_transform[var])
+        ]
+
+        if numeric_context_vars:
+            self.logger.debug(
+                f"Converting numeric context variables: {numeric_context_vars}"
+            )
+            for var in numeric_context_vars:
+                try:
+                    dt_transform[var] = pd.to_numeric(
+                        dt_transform[var], errors="coerce"
+                    )
+                    self.logger.debug(
+                        f"Converted {var} to numeric: {dt_transform[var].dtype}"
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Could not convert {var} to numeric: {str(e)}")
 
         self.logger.debug("Data preparation complete")
         return dt_transform
