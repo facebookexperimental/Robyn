@@ -36,6 +36,7 @@ dependencies = [
     "plotly",
     "nlopt",
     "cmake",
+    "ipykernel",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]
