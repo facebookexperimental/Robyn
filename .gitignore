@@ -1,6 +1,7 @@
 .DS_Store
 .Rproj.user
 .Rhistory
+.pyvenv/
 .venv/
 robynpy.egg-info/
 node_modules/
