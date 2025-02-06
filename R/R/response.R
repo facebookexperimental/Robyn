@@ -178,7 +178,7 @@ robyn_response <- function(InputCollect = NULL,
   metric_name_updated <- metric_type$metric_name_updated
   all_dates <- dt_input[[InputCollect$date_var]]
   all_values <- dt_mod[[metric_name_updated]]
-  ds_list <- check_metric_dates(date_range = date_range, all_dates[1:window_end_loc], dayInterval, quiet, ...)
+  ds_list <- check_metric_dates(date_range, all_dates[1:window_end_loc], dayInterval, quiet, ...)
   val_list <- check_metric_value(metric_value, metric_name_updated, all_values, ds_list$metric_loc)
   if (!is.null(metric_value) & is.null(date_range)) {
     stop("Must specify date_range when using metric_value")
@@ -236,6 +236,10 @@ robyn_response <- function(InputCollect = NULL,
 
   ## Plot optimal response
   if (isTRUE(plots)) {
+    # # Add c(0,0) as first point of the curve?
+    # dt_line <- bind_rows(
+    #   data.frame(metric = 0, response = 0, channel = dt_line$channel[1]),
+    #   dt_line)
     p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
       geom_line(color = "steelblue") +
       geom_point(
