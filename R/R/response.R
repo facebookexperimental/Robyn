@@ -220,6 +220,8 @@ robyn_response <- function(InputCollect = NULL,
     dt_point_sim <- data.frame(
       input = hist_transform$sim_mean_spend + hist_transform$sim_mean_carryover,
       output = hist_transform$sim_mean_response)
+  } else {
+    dt_point_sim <- NULL
   }
 
   ## Simulated transformation
@@ -278,7 +280,7 @@ robyn_response <- function(InputCollect = NULL,
       theme_lares(background = "white") +
       scale_x_abbr() +
       scale_y_abbr()
-    if (!is.null(metric_value) | !is.null(date_range)) {
+    if (!is.null(dt_point_sim)) {
       p_res <- p_res +
         geom_point(data = dt_point_sim, aes(x = .data$input, y = .data$output), size = 3, color = "blue") +
         labs(caption = paste0(

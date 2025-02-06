@@ -928,7 +928,11 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
   } else if (is.Date(as.Date(date_range[1]))) {
     ## Using dates as date_range range
     date_range_updated <- date_range <- as.Date(date_range, origin = "1970-01-01")
-    date_range_loc <- which(all_dates >= date_range[1] & all_dates <= date_range[2])
+    if (length(date_range) == 2) {
+      date_range_loc <- which(all_dates >= date_range[1] & all_dates <= date_range[2])
+    } else if (length(date_range) == 1) {
+      date_range_loc <- sapply(date_range, FUN = function(x) which.min(abs(x - all_dates)))
+    }
     date_range_updated <- all_dates[date_range_loc]
   } else {
     stop("Input 'date_range' must have date format '1970-01-01' or use 'last_n'")
