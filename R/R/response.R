@@ -301,6 +301,7 @@ robyn_response <- function(InputCollect = NULL,
 
   ret <- list(
     metric_name = metric_name_updated,
+    metric_value = val_list$metric_value_updated,
     date = date_range_updated,
     input_total = hist_transform$input_total,
     input_carryover = hist_transform$input_carryover,
