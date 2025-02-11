@@ -113,6 +113,7 @@ robyn_response <- function(InputCollect = NULL,
                            date_range = NULL,
                            dt_hyppar = NULL,
                            dt_coef = NULL,
+                           plots = TRUE,
                            quiet = FALSE,
                            ...) {
   ## Get input
@@ -177,7 +178,7 @@ robyn_response <- function(InputCollect = NULL,
   metric_name_updated <- metric_type$metric_name_updated
   all_dates <- dt_input[[InputCollect$date_var]]
   all_values <- dt_mod[[metric_name_updated]]
-  ds_list <- check_metric_dates(date_range = date_range, all_dates[1:window_end_loc], dayInterval, quiet, ...)
+  ds_list <- check_metric_dates(date_range, all_dates[1:window_end_loc], dayInterval, quiet, ...)
   val_list <- check_metric_value(metric_value, metric_name_updated, all_values, ds_list$metric_loc)
   if (!is.null(metric_value) & is.null(date_range)) {
     stop("Must specify date_range when using metric_value")
@@ -219,6 +220,8 @@ robyn_response <- function(InputCollect = NULL,
     dt_point_sim <- data.frame(
       input = hist_transform$sim_mean_spend + hist_transform$sim_mean_carryover,
       output = hist_transform$sim_mean_response)
+  } else {
+    dt_point_sim <- NULL
   }
 
   ## Simulated transformation
@@ -234,44 +237,60 @@ robyn_response <- function(InputCollect = NULL,
   }
 
   ## Plot optimal response
-  p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
-    geom_line(color = "steelblue") +
-    geom_point(
-      data = dt_point,
-      aes(x = .data$mean_input_total, y = .data$mean_response_total),
-      size = 3, color = "grey") +
-    labs(
-      title = paste(
-        "Saturation curve of", metric_type$metric_type,
-        "media:", metric_type$metric_name_updated
-      ),
-      subtitle = sprintf(paste(
-        "Response: %s @ mean input %s",
-        "Response: %s @ mean input carryover %s",
-        "Response: %s @ mean input immediate %s",
-        sep = "\n"),
-        num_abbr(dt_point$mean_response_total),
-        num_abbr(dt_point$mean_input_total),
-        num_abbr(dt_point$mean_response_carryover),
-        num_abbr(dt_point$mean_input_carryover),
-        num_abbr(dt_point$mean_response_immediate),
-        num_abbr(dt_point$mean_input_immediate)
-      ),
-      x = "Input", y = "Response",
-      caption = sprintf(
-        "Response period: %s%s%s",
-        head(date_range_updated, 1),
-        ifelse(length(date_range_updated) > 1, paste(" to", tail(date_range_updated, 1)), ""),
-        ifelse(length(date_range_updated) > 1, paste0(" [", length(date_range_updated), " periods]"), "")
-      )
-    ) +
-    theme_lares(background = "white") +
-    scale_x_abbr() +
-    scale_y_abbr()
-  if (!is.null(metric_value) | !is.null(date_range)) {
-    p_res <- p_res +
-      geom_point(data = dt_point_sim, aes(x = .data$input, y = .data$output), size = 3, color = "blue")
+  if (isTRUE(plots)) {
+    # # Add c(0,0) as first point of the curve?
+    # dt_line <- bind_rows(
+    #   data.frame(metric = 0, response = 0, channel = dt_line$channel[1]),
+    #   dt_line)
+    p_res <- ggplot(dt_line, aes(x = .data$metric, y = .data$response)) +
+      geom_line(color = "steelblue") +
+      geom_point(
+        data = dt_point,
+        aes(x = .data$mean_input_total, y = .data$mean_response_total),
+        size = 3, color = "grey") +
+      labs(
+        title = paste(
+          "Saturation curve of", metric_type$metric_type,
+          "media:", metric_type$metric_name_updated
+        ),
+        subtitle = sprintf(paste(
+          "%s response @ mean total input %s",
+          "    %s response @ mean carryover input %s",
+          "    %s response @ mean immediate input %s",
+          sep = "\n"),
+          num_abbr(dt_point$mean_response_total),
+          num_abbr(dt_point$mean_input_total),
+          num_abbr(dt_point$mean_response_carryover),
+          num_abbr(dt_point$mean_input_carryover),
+          num_abbr(dt_point$mean_response_immediate),
+          num_abbr(dt_point$mean_input_immediate)
+        ),
+        x = sprintf("Input Metric per %s (%s)", InputCollect$intervalType, metric_type$metric_name_updated),
+        y = sprintf("Response (%s)", InputCollect$dep_var),
+        caption = sprintf(
+          "Response period: %s%s%s%s",
+          head(date_range_updated, 1),
+          ifelse(length(date_range_updated) > 1, paste(" to", tail(date_range_updated, 1)), ""),
+          ifelse(length(date_range_updated) > 1, paste0(" [", length(date_range_updated), " periods]"), ""),
+          paste("\nTotal Input Metric for period:", formatNum(ifelse(
+            !is.null(metric_value), metric_value, sum(hist_transform$input_total)),
+            abbr = TRUE))
+        )
+      ) +
+      theme_lares(background = "white") +
+      scale_x_abbr() +
+      scale_y_abbr()
+    if (!is.null(dt_point_sim)) {
+      p_res <- p_res +
+        geom_point(data = dt_point_sim, aes(x = .data$input, y = .data$output), size = 3, color = "blue") +
+        labs(caption = paste0(
+          p_res$labels$caption,
+          sprintf("\n%s response @ input %s", num_abbr(dt_point_sim$output), num_abbr(dt_point_sim$input))))
+    }
+  } else {
+    p_res <- NULL
   }
+
   if (!is.null(metric_value)) {
     sim_mean_spend <- hist_transform_sim$sim_mean_spend
     sim_mean_carryover <- hist_transform_sim$sim_mean_carryover
@@ -282,6 +301,7 @@ robyn_response <- function(InputCollect = NULL,
 
   ret <- list(
     metric_name = metric_name_updated,
+    metric_value = val_list$metric_value_updated,
     date = date_range_updated,
     input_total = hist_transform$input_total,
     input_carryover = hist_transform$input_carryover,

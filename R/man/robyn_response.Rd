@@ -15,6 +15,7 @@ robyn_response(
   date_range = NULL,
   dt_hyppar = NULL,
   dt_coef = NULL,
+  plots = TRUE,
   quiet = FALSE,
   ...
 )
@@ -57,6 +58,8 @@ n is the last N dates available), date (i.e. "2022-03-27"), or date range
 \item{dt_coef}{A data.frame. When \code{json_file} is not provided, use
 \code{dt_coef = OutputCollect$xDecompAgg}. It must be provided along
 \code{select_model}, \code{dt_hyppar} and \code{InputCollect}.}
+
+\item{plots}{Boolean. Generate plots?}
 
 \item{quiet}{Boolean. Keep messages off?}
 
