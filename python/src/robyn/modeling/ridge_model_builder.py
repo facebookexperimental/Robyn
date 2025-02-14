@@ -446,3 +446,29 @@ class RidgeModelBuilder:
             "iter_ng": iter_ng + 1,
             "iter_par": 1,
         }
+
+    def normalize_features(self, X, y):
+        X_norm = (X - X.mean()) / X.std()
+        y_norm = (y - y.mean()) / y.std()
+        return X_norm, y_norm, X.mean(), X.std(), y.mean(), y.std()
+
+    def evaluate_ridge_model(self, X, y, lambda_):
+        X_norm, y_norm, X_mean, X_std, y_mean, y_std = self.normalize_features(X, y)
+        model = Ridge(alpha=lambda_, fit_intercept=True)
+        model.fit(X_norm, y_norm)
+        
+        # Scale coefficients back
+        model.coef_ = model.coef_ * y_std / X_std
+        if model.intercept_:
+            model.intercept_ = y_mean - np.sum(model.coef_ * X_mean)
+        
+        return model
+
+    def calculate_effects(self, model, X, media_cols):
+        effects = pd.DataFrame()
+        for col in media_cols:
+            X_temp = X.copy()
+            X_temp[col] = 0
+            effect = (model.predict(X) - model.predict(X_temp)).sum()
+            effects[col] = [effect]
+        return effects

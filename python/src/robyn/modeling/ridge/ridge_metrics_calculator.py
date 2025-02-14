@@ -4,6 +4,9 @@ from typing import Dict, Tuple, List, Any
 from sklearn.linear_model import Ridge
 import logging
 from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
+import os
+import json
+from datetime import datetime
 
 
 class RidgeMetricsCalculator:
@@ -12,6 +15,44 @@ class RidgeMetricsCalculator:
         self.hyperparameters = hyperparameters
         self.ridge_data_builder = ridge_data_builder
         self.logger = logging.getLogger(__name__)
+
+    def debug_model_metrics(self, X, y, lambda_info, metrics, iteration=None):
+        """Log debug metrics to JSON file every 10 iterations"""
+        if iteration is None or iteration == 1 or iteration % 10 == 0:
+            debug_info = {
+                "iteration": metrics.get("iterNG", iteration),
+                "nrmse_train": metrics.get("nrmse_train"),
+                "nrmse_val": metrics.get("nrmse_val"),
+                "nrmse_test": metrics.get("nrmse_test"),
+                "nrmse": metrics.get("nrmse"),
+                "rsq_train": metrics.get("rsq_train"),
+                "rsq_val": metrics.get("rsq_val"), 
+                "rsq_test": metrics.get("rsq_test"),
+                "lambda": metrics.get("lambda"),
+                "lambda_max": metrics.get("lambda_max"),
+                "lambda_hp": metrics.get("lambda_hp"),
+                "decomp_rssd": metrics.get("decomp_rssd"),
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+
+            # Read existing logs if file exists
+            json_path = os.path.join(os.getcwd(), "python_debug_model_data.json")
+            if os.path.exists(json_path):
+                with open(json_path, 'r') as f:
+                    existing_logs = json.load(f)
+            else:
+                existing_logs = {}
+
+            # Use iteration number as key if available, otherwise use sequential number
+            key = str(iteration) if iteration is not None else str(len(existing_logs) + 1)
+            existing_logs[key] = debug_info
+
+            # Write updated logs
+            with open(json_path, 'w') as f:
+                json.dump(existing_logs, f, indent=2)
+
+            print(f"\nIteration {iteration} metrics saved to {json_path}")
+
 
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
@@ -23,22 +64,33 @@ class RidgeMetricsCalculator:
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
 
-        # First pass to calculate total spend and effect for normalization
+        # Add debug prints for effect calculations
+        print("\n=== Effect Calculation Debug ===")
+        print(f"Number of paid media columns: {len(paid_media_cols)}")
+        
+        # First pass calculations
         total_media_spend = np.abs(X[paid_media_cols].sum().sum())
+        print(f"Total media spend: {total_media_spend:.6f}")
+        
         all_effects = {}
         all_spends = {}
-
-        # Calculate effects using absolute values for scaling
+        
+        # Calculate and print individual channel effects
         for col in paid_media_cols:
             idx = list(X.columns).index(col)
             coef = model.coef_[idx]
-            spend = np.abs(X[col].sum())  # Ensure positive spend
-            # Use absolute values for effect calculation
-            effect = np.abs(coef * spend)  # Changed to use absolute value
+            spend = np.abs(X[col].sum())
+            effect = np.abs(coef * spend)
             all_effects[col] = effect
             all_spends[col] = spend
-
+            print(f"\nChannel: {col}")
+            print(f"Coefficient: {coef:.6f}")
+            print(f"Spend: {spend:.6f}")
+            print(f"Effect: {effect:.6f}")
+        
         total_effect = np.sum([e for e in all_effects.values()])
+        print(f"\nTotal Effect: {total_effect:.6f}")
+        print("===========================\n")
 
         # Second pass to calculate normalized metrics
         results = []
@@ -175,44 +227,41 @@ class RidgeMetricsCalculator:
     ) -> Tuple[float, float]:
         """Match R's glmnet lambda calculation exactly"""
         n_samples = len(y_norm)
-
-        # Standardize first before scale factor calculation
+        
+        # 1. Standardize first (match R's scale function)
         def r_scale(x):
             mean = np.mean(x)
-            sd = np.sqrt(np.sum((x - mean) ** 2) / (len(x) - 1))
+            sd = np.sqrt(np.sum((x - mean) ** 2) / (len(x) - 1))  # Use n-1 like R
             return (x - mean) / (sd if sd > 1e-10 else 1.0)
-
-        # Scale X and y first
+        
+        # 2. Scale X and y first
         x_scaled = np.apply_along_axis(r_scale, 0, x_norm)
         y_scaled = r_scale(y_norm)
+        
+        # 3. Calculate lambda_max using R's formula
+        alpha = 0.001  # R's default for ridge
+        colsums = np.abs(x_scaled.T @ y_scaled)
+        lambda_max = np.max(colsums) / (alpha * n_samples)
+        
+        # 4. Calculate lambda_min using R's ratio
+        lambda_min_ratio = 0.0001  # R's default
+        lambda_min = lambda_max * lambda_min_ratio
+        
+        # 5. Interpolate lambda based on hyperparameter
+        lambda_scaled = lambda_min + (lambda_max - lambda_min) * lambda_hp
 
-        # Now calculate scale factor using scaled data
-        scale_factor = np.mean(np.abs(x_scaled)) * np.mean(np.abs(y_scaled))
+        if debug:
+            print("\n=== Lambda Calculation Debug ===")
+            print(f"Input Shapes - X: {x_norm.shape}, y: {y_norm.shape}")
+            print(f"X scaled range: {x_scaled.min():.6f} to {x_scaled.max():.6f}")
+            print(f"y scaled range: {y_scaled.min():.6f} to {y_scaled.max():.6f}")
+            print(f"lambda_max: {lambda_max:.6f}")
+            print(f"lambda_min: {lambda_min:.6f}")
+            print(f"lambda_hp: {lambda_hp:.6f}")
+            print(f"lambda_scaled: {lambda_scaled:.6f}")
+            print("===========================\n")
 
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"\nLambda Calculation Debug (iteration {iteration}):")
-            self.logger.debug(f"n_samples: {n_samples}")
-            self.logger.debug(f"x_scaled mean abs: {np.mean(np.abs(x_scaled)):.6f}")
-            self.logger.debug(f"y_scaled mean abs: {np.mean(np.abs(y_scaled)):.6f}")
-            self.logger.debug(f"Scale factor: {scale_factor:.6f}")
-            self.logger.debug(f"lambda_hp: {lambda_hp:.6f}")
-
-        # R's lambda calculation
-        alpha = 0.001
-        gram = x_scaled.T @ x_scaled / n_samples
-        ctx = np.abs(x_scaled.T @ y_scaled) / n_samples
-
-        lambda_max = np.max(ctx) / alpha
-        lambda_min = lambda_max * 0.0001
-        lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
-
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"max ctx: {np.max(ctx):.6f}")
-            self.logger.debug(f"lambda_max: {lambda_max:.6f}")
-            self.logger.debug(f"lambda_min: {lambda_min:.6f}")
-            self.logger.debug(f"final lambda_: {lambda_:.6f}")
-
-        return lambda_, lambda_max
+        return lambda_scaled, lambda_max
 
     def _calculate_rssd(
         self,

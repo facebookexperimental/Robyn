@@ -341,7 +341,15 @@ class RidgeModelEvaluator:
                 "elapsed_accum": float(elapsed_time),
             }
         )
-
+        # Debug model metrics
+        lambda_info = {
+            'lambda_': lambda_,
+            'lambda_max': lambda_max,
+            'lambda_min_ratio': 0.0001
+        }
+        self.ridge_metrics_calculator.debug_model_metrics(
+            X_train, y_train, lambda_info, metrics
+        )
         # Calculate decompositions
         x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
             model, X_train, y_train, {**params_formatted, **metrics}

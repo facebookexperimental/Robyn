@@ -2,6 +2,7 @@
 .Rproj.user
 .Rhistory
 .venv/
+.pyvenv/
 robynpy.egg-info/
 node_modules/
 RobynApp.Rcheck/00_pkg_src/RobynApp/R/ui.R
