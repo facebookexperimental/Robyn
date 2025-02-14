@@ -77,7 +77,7 @@ def pandas_builder(jsondata):
     returndf = pd.DataFrame(jsondata)
     return returndf
 
-def robyn_api(argument,payload=0,api='http://127.0.0.1:9999/{}'):
+def robyn_api(argument,payload=0,api='http://0.0.0.0:9999/{}'):
     """
     Calls the Robyn API with the specified argument and payload.
     Args:
