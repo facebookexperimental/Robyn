@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
+from scipy.signal import lfilter
 
 
 class RidgeDataBuilder:
@@ -166,12 +167,11 @@ class RidgeDataBuilder:
         return hyper_collect
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
-        # print(f"Before adstock: {x.head()}")
-        y = x.copy()
-        for i in range(1, len(x)):
-            y.iloc[i] += theta * y.iloc[i - 1]
-        # print(f"After adstock: {y.head()}")
-        return y
+
+        x_array = x.values
+        # Use lfilter to efficiently compute the geometric transformation
+        y = lfilter([1], [1, -theta], x_array)
+        return pd.Series(y, index=x.index)
 
     def _hill_transformation(
         self, x: pd.Series, alpha: float, gamma: float
