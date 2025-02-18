@@ -23,6 +23,9 @@ class RidgeMetricsCalculator:
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
 
+        # Precompute a mapping from column names to their index in X.columns
+        col_to_index = {col: idx for idx, col in enumerate(X.columns)}
+
         # First pass to calculate total spend and effect for normalization
         total_media_spend = np.abs(X[paid_media_cols].sum().sum())
         all_effects = {}
@@ -30,7 +33,7 @@ class RidgeMetricsCalculator:
 
         # Calculate effects using absolute values for scaling
         for col in paid_media_cols:
-            idx = list(X.columns).index(col)
+            idx = col_to_index[col]
             coef = model.coef_[idx]
             spend = np.abs(X[col].sum())  # Ensure positive spend
             # Use absolute values for effect calculation
@@ -40,18 +43,27 @@ class RidgeMetricsCalculator:
 
         total_effect = np.sum([e for e in all_effects.values()])
 
+        # Precompute the non-zero count per column and denominator for xDecompMeanNon0Perc.
+        # The denominator is the sum over paid media channels of (effect / count_non_zero) for channels with non-zero spends.
+        count_non_zero = {col: (X[col] != 0).sum() for col in paid_media_cols}
+        denom = sum(
+            all_effects[col] / count_non_zero[col]
+            for col in paid_media_cols
+            if count_non_zero[col] > 0
+        )
         # Second pass to calculate normalized metrics
         results = []
         for col in paid_media_cols:
-            idx = list(X.columns).index(col)
+            idx = col_to_index[col]
             coef = float(model.coef_[idx])
             spend = float(np.abs(all_spends[col]))
             effect = float(all_effects[col])
 
             # Handle non-zero values properly
             non_zero_mask = X[col] != 0
+            non_zero_values = X.loc[non_zero_mask, col]
             non_zero_effect = np.abs(
-                X[col][non_zero_mask] * coef
+                non_zero_values * coef
             )  # Changed to use absolute value
             non_zero_mean = float(
                 non_zero_effect.mean() if len(non_zero_effect) > 0 else 0
@@ -62,6 +74,9 @@ class RidgeMetricsCalculator:
                 float(spend / total_media_spend) if total_media_spend > 0 else 0
             )
             effect_share = float(effect / total_effect) if total_effect > 0 else 0
+            # Calculate the percentage for non-zero mean; use precomputed denominator.
+
+            xDecompMeanNon0Perc = float(non_zero_mean / denom) if denom > 0 else 0
 
             result = {
                 "rn": str(col),
@@ -73,18 +88,7 @@ class RidgeMetricsCalculator:
                 "effect_share": effect_share,
                 "xDecompPerc": effect_share,
                 "xDecompMeanNon0": non_zero_mean,
-                "xDecompMeanNon0Perc": float(
-                    non_zero_mean
-                    / sum(
-                        [
-                            all_effects[c] / X[c][X[c] != 0].size
-                            for c in paid_media_cols
-                            if any(X[c] != 0)
-                        ]
-                    )
-                    if any(X[c][X[c] != 0].size > 0 for c in paid_media_cols)
-                    else 0
-                ),
+                "xDecompMeanNon0Perc": xDecompMeanNon0Perc,
                 "pos": bool(coef >= 0),
                 "sol_id": str(metrics.get("sol_id", "")),
             }
@@ -323,25 +327,25 @@ class RidgeMetricsCalculator:
         # Calculate decomposition effects with R-style scaling
         scale_factor = np.mean(np.abs(X)) * np.mean(np.abs(y))
         x_decomp = (X * model.coef_) * scale_factor
-        x_decomp_sum = x_decomp.sum().sum()
+        x_decomp_sum = x_decomp.to_numpy().sum()  # faster summing over all elements
+
+        # Precompute total non-zero mean across all columns once
+        total_non_zero_mean = sum(
+            x_decomp[c][x_decomp[c] > 0].mean() if (x_decomp[c] > 0).any() else 0
+            for c in X.columns
+        )
 
         results = []
-        for col in X.columns:
-            coef = model.coef_[list(X.columns).index(col)]
+        # Use enumerate to iterate over columns and corresponding coefficients
+        for idx, col in enumerate(X.columns):
+            coef = model.coef_[idx]
             decomp_values = x_decomp[col]
             decomp_sum = decomp_values.sum()
 
-            # Handle non-zero values with R's approach
+            # Calculate non-zero mean for this column
             non_zero_mask = decomp_values != 0
-            non_zero_values = decomp_values[non_zero_mask]
-            non_zero_mean = non_zero_values.mean() if len(non_zero_values) > 0 else 0
-
-            # Calculate total non-zero means across all columns
-            total_non_zero_mean = sum(
-                [
-                    x_decomp[c][x_decomp[c] > 0].mean() if any(x_decomp[c] > 0) else 0
-                    for c in X.columns
-                ]
+            non_zero_mean = (
+                decomp_values[non_zero_mask].mean() if non_zero_mask.any() else 0
             )
 
             result = {
