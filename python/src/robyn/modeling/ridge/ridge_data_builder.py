@@ -11,44 +11,54 @@ class RidgeDataBuilder:
         self.logger = logging.getLogger(__name__)
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
-        # Get the dependent variable
-        # Check if 'dep_var' is in columns
-        if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
-            # Rename 'dep_var' to the specified value
-            self.featurized_mmm_data.dt_mod = self.featurized_mmm_data.dt_mod.rename(
-                columns={"dep_var": self.mmm_data.mmmdata_spec.dep_var}
-            )
-        y = self.featurized_mmm_data.dt_mod[self.mmm_data.mmmdata_spec.dep_var]
+        """Prepare data for ridge regression, excluding date columns"""
+        # print("\n=== Data Preparation Debug ===")
+        # print("Initial dt_mod shape:", self.featurized_mmm_data.dt_mod.shape)
+        # print("Initial dt_mod columns:", self.featurized_mmm_data.dt_mod.columns.tolist())
+        # print("Initial dep_var:", self.mmm_data.mmmdata_spec.dep_var)
+        
+        # Get the dependent variable, handling both possible column names
+        dep_var = self.mmm_data.mmmdata_spec.dep_var
+        if dep_var not in self.featurized_mmm_data.dt_mod.columns:
+            # If dep_var column doesn't exist, try 'dep_var'
+            if 'dep_var' in self.featurized_mmm_data.dt_mod.columns:
+                y = self.featurized_mmm_data.dt_mod['dep_var']
+            else:
+                raise KeyError(f"Could not find dependent variable column. Expected either '{dep_var}' or 'dep_var' in columns: {self.featurized_mmm_data.dt_mod.columns.tolist()}")
+        else:
+            y = self.featurized_mmm_data.dt_mod[dep_var]
 
-        # Select all columns except the dependent variable
-        X = self.featurized_mmm_data.dt_mod.drop(
-            columns=[self.mmm_data.mmmdata_spec.dep_var]
-        )
+        # Select all columns except the dependent variable and date columns
+        exclude_cols = ['ds']  # Always exclude 'ds'
+        if dep_var in self.featurized_mmm_data.dt_mod.columns:
+            exclude_cols.append(dep_var)
+        if 'dep_var' in self.featurized_mmm_data.dt_mod.columns:
+            exclude_cols.append('dep_var')
+        
+        X = self.featurized_mmm_data.dt_mod.drop(columns=exclude_cols)
 
-        # Convert date columns to numeric (number of days since the earliest date)
-        date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
-        for col in date_columns:
-            X[col] = pd.to_datetime(X[col], errors="coerce", format="%Y-%m-%d")
-            # Fill NaT (Not a Time) values with a default date (e.g., the minimum date in the column)
-            min_date = X[col].min()
-            X[col] = X[col].fillna(min_date)
-            # Convert to days since minimum date, handling potential NaT values
-            X[col] = (
-                (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
-            )
+        # print("\nAfter initial selection:")
+        # print("X shape:", X.shape)
+        # print("X columns:", X.columns.tolist())
+        # print("y shape:", y.shape)
+        # print("First 3 rows of y:", y.head(3).tolist())
 
-        # One-hot encode categorical variables
+        # Handle any remaining categorical columns (if any)
         categorical_columns = X.select_dtypes(include=["object", "category"]).columns
+        # print("\nCategorical columns found:", categorical_columns.tolist())
         X = pd.get_dummies(X, columns=categorical_columns, drop_first=True)
 
-        # Ensure all columns are numeric
-        X = X.select_dtypes(include=[np.number])
-
+        # print("\nAfter transformations:")
+        # print("X shape:", X.shape)
+        # print("X columns:", X.columns.tolist())
+        
         # Apply transformations based on hyperparameters
         for media in self.mmm_data.mmmdata_spec.paid_media_spends:
             if f"{media}_thetas" in params:
+                # print(f"\nApplying geometric adstock to {media}")
                 X[media] = self._geometric_adstock(X[media], params[f"{media}_thetas"])
             if f"{media}_alphas" in params and f"{media}_gammas" in params:
+                # print(f"Applying hill transformation to {media}")
                 X[media] = self._hill_transformation(
                     X[media], params[f"{media}_alphas"], params[f"{media}_gammas"]
                 )
@@ -57,6 +67,11 @@ class RidgeDataBuilder:
         X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
         X = X + 1e-8 * np.random.randn(*X.shape)
+
+        # print("\nFinal data shapes:")
+        # print("X shape:", X.shape)
+        # print("y shape:", y.shape)
+        # print("===========================\n")
 
         return X, y
 
@@ -145,24 +160,15 @@ class RidgeDataBuilder:
                 prepared_hyperparameters.lambda_,
                 prepared_hyperparameters.lambda_,
             ]
-        # Handle train_size similarly
+        # Remove train_size from optimization
         if ts_validation:
-            if (
-                isinstance(prepared_hyperparameters.train_size, list)
-                and len(prepared_hyperparameters.train_size) == 2
-            ):
-                hyper_collect["hyper_bound_list_updated"][
-                    "train_size"
-                ] = prepared_hyperparameters.train_size
-                hyper_collect["hyper_list_all"][
-                    "train_size"
-                ] = prepared_hyperparameters.train_size
-            else:
-                train_size = [0.5, 0.8]
-                hyper_collect["hyper_bound_list_updated"]["train_size"] = train_size
-                hyper_collect["hyper_list_all"]["train_size"] = train_size
+            # Use fixed train_size (0.7 by default)
+            train_size = 0.7  # or get from hyperparameters input
+            hyper_collect["hyper_list_all"]["train_size"] = [train_size, train_size]
+            hyper_collect["hyper_bound_list_fixed"]["train_size"] = train_size
         else:
             hyper_collect["hyper_list_all"]["train_size"] = [1.0, 1.0]
+            hyper_collect["hyper_bound_list_fixed"]["train_size"] = 1.0
         return hyper_collect
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:

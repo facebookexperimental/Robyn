@@ -15,6 +15,50 @@ class RidgeMetricsCalculator:
         self.hyperparameters = hyperparameters
         self.ridge_data_builder = ridge_data_builder
         self.logger = logging.getLogger(__name__)
+        
+        # Calculate lambda sequence once during initialization
+        self.lambda_max = None
+        self.lambda_min_ratio = 0.0001
+
+    def initialize_lambda_sequence(self, X, y):
+        """Calculate lambda_max and lambda_min exactly like R"""
+        if self.lambda_max is None:
+            # Convert inputs to numpy arrays if they're pandas objects
+            X = X.to_numpy() if hasattr(X, 'to_numpy') else np.array(X)
+            y = y.to_numpy() if hasattr(y, 'to_numpy') else np.array(y)
+            
+            n = X.shape[0]
+            
+            # Scale X and y
+            X_mean = X.mean(axis=0)
+            X_std = X.std(axis=0)
+            y_mean = y.mean()
+            y_std = y.std()
+            
+            X_scaled = (X - X_mean) / X_std
+            y_scaled = (y - y_mean) / y_std
+            
+            # Calculate column sums of X'y directly
+            col_sums = X_scaled.T @ y_scaled
+            
+            # Get max absolute column sum
+            max_abs_col_sum = np.max(np.abs(col_sums))
+            
+            # Calculate lambda_max exactly as R does
+            self.lambda_max = max_abs_col_sum * y_std / n * 100  # Base calculation
+            
+            # Calculate lambda_min using same ratio as R
+            self.lambda_min_ratio = 0.0001  # Same as R's default
+            self.lambda_min = self.lambda_max * self.lambda_min_ratio
+
+    def get_lambda_from_hp(self, lambda_hp):
+        """Convert lambda hyperparameter to actual lambda value using R's method"""
+        if self.lambda_max is None:
+            raise ValueError("Must call initialize_lambda_sequence first")
+        
+        # Use linear interpolation like R
+        lambda_scaled = self.lambda_min + (self.lambda_max - self.lambda_min) * lambda_hp
+        return lambda_scaled
 
     def debug_model_metrics(self, X, y, lambda_info, metrics, iteration=None):
         """Log debug metrics to JSON file every 10 iterations"""
@@ -51,7 +95,7 @@ class RidgeMetricsCalculator:
             with open(json_path, 'w') as f:
                 json.dump(existing_logs, f, indent=2)
 
-            print(f"\nIteration {iteration} metrics saved to {json_path}")
+    
 
 
     def _calculate_decomp_spend_dist(
@@ -64,13 +108,11 @@ class RidgeMetricsCalculator:
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
 
-        # Add debug prints for effect calculations
-        print("\n=== Effect Calculation Debug ===")
-        print(f"Number of paid media columns: {len(paid_media_cols)}")
+
         
         # First pass calculations
         total_media_spend = np.abs(X[paid_media_cols].sum().sum())
-        print(f"Total media spend: {total_media_spend:.6f}")
+
         
         all_effects = {}
         all_spends = {}
@@ -83,14 +125,13 @@ class RidgeMetricsCalculator:
             effect = np.abs(coef * spend)
             all_effects[col] = effect
             all_spends[col] = spend
-            print(f"\nChannel: {col}")
-            print(f"Coefficient: {coef:.6f}")
-            print(f"Spend: {spend:.6f}")
-            print(f"Effect: {effect:.6f}")
+    
+    
+    
+    
         
         total_effect = np.sum([e for e in all_effects.values()])
-        print(f"\nTotal Effect: {total_effect:.6f}")
-        print("===========================\n")
+
 
         # Second pass to calculate normalized metrics
         results = []
@@ -217,52 +258,6 @@ class RidgeMetricsCalculator:
 
         return df[required_cols]
 
-    def _calculate_lambda(
-        self,
-        x_norm: np.ndarray,
-        y_norm: np.ndarray,
-        lambda_hp: float,
-        debug: bool = True,
-        iteration: int = 0,
-    ) -> Tuple[float, float]:
-        """Match R's glmnet lambda calculation exactly"""
-        n_samples = len(y_norm)
-        
-        # 1. Standardize first (match R's scale function)
-        def r_scale(x):
-            mean = np.mean(x)
-            sd = np.sqrt(np.sum((x - mean) ** 2) / (len(x) - 1))  # Use n-1 like R
-            return (x - mean) / (sd if sd > 1e-10 else 1.0)
-        
-        # 2. Scale X and y first
-        x_scaled = np.apply_along_axis(r_scale, 0, x_norm)
-        y_scaled = r_scale(y_norm)
-        
-        # 3. Calculate lambda_max using R's formula
-        alpha = 0.001  # R's default for ridge
-        colsums = np.abs(x_scaled.T @ y_scaled)
-        lambda_max = np.max(colsums) / (alpha * n_samples)
-        
-        # 4. Calculate lambda_min using R's ratio
-        lambda_min_ratio = 0.0001  # R's default
-        lambda_min = lambda_max * lambda_min_ratio
-        
-        # 5. Interpolate lambda based on hyperparameter
-        lambda_scaled = lambda_min + (lambda_max - lambda_min) * lambda_hp
-
-        if debug:
-            print("\n=== Lambda Calculation Debug ===")
-            print(f"Input Shapes - X: {x_norm.shape}, y: {y_norm.shape}")
-            print(f"X scaled range: {x_scaled.min():.6f} to {x_scaled.max():.6f}")
-            print(f"y scaled range: {y_scaled.min():.6f} to {y_scaled.max():.6f}")
-            print(f"lambda_max: {lambda_max:.6f}")
-            print(f"lambda_min: {lambda_min:.6f}")
-            print(f"lambda_hp: {lambda_hp:.6f}")
-            print(f"lambda_scaled: {lambda_scaled:.6f}")
-            print("===========================\n")
-
-        return lambda_scaled, lambda_max
-
     def _calculate_rssd(
         self,
         model: Ridge,
@@ -286,12 +281,6 @@ class RidgeMetricsCalculator:
             effects.append(effect)
             spends.append(raw_spend)
 
-            if debug and (iteration == 0 or iteration % 25 == 0):
-                self.logger.debug(f"{col}:")
-                self.logger.debug(f"  coefficient: {coef:.6f}")
-                self.logger.debug(f"  raw spend: {raw_spend:.6f}")
-                self.logger.debug(f"  effect: {effect:.6f}")
-
         # Convert to numpy arrays
         effects = np.array(effects)
         spends = np.array(spends)
@@ -304,13 +293,6 @@ class RidgeMetricsCalculator:
             # Normalize proportionally
             effects_norm = effects / total_effect
             spends_norm = spends / total_spend
-
-            if debug and (iteration == 0 or iteration % 25 == 0):
-                self.logger.debug("\nNormalized values:")
-                self.logger.debug("Effects:", effects_norm)
-                self.logger.debug("Spends:", spends_norm)
-                self.logger.debug("Effect total (check=1):", np.sum(effects_norm))
-                self.logger.debug("Spend total (check=1):", np.sum(spends_norm))
 
             # Calculate RSSD
             squared_diff = (effects_norm - spends_norm) ** 2
@@ -533,24 +515,13 @@ class RidgeMetricsCalculator:
 
         # Calculate RMSE first
         rmse = np.sqrt(rss / n)
-
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"\nNRMSE Calculation Debug (iteration {iteration}):")
-            self.logger.debug(f"n: {n}")
-            self.logger.debug(f"RSS: {rss:.6f}")
-            self.logger.debug(f"RMSE: {rmse:.6f}")
-            self.logger.debug(f"y_true range: [{y_min:.6f}, {y_max:.6f}]")
-            self.logger.debug(f"scale: {scale:.6f}")
-            self.logger.debug("First 5 pairs (true, pred, residual):")
-            for i in range(min(5, len(y_true))):
-                self.logger.debug(
-                    f"  {y_true[i]:.6f}, {y_pred[i]:.6f}, {residuals[i]:.6f}"
-                )
-
         # Calculate final NRMSE
         nrmse = rmse / scale if scale > 0 else rmse
 
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"Final NRMSE: {nrmse:.6f}")
-
         return float(nrmse)
+    
+    def get_lambda_bounds(self):
+        """Get lambda bounds for optimization"""
+        return [0, 1]  # This matches R's approach where lambda_hp is between 0 and 1
+
+    

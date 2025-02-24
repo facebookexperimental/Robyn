@@ -225,7 +225,9 @@ class BaseModelExecutor(ABC):
 
         instrum = ng.p.Instrumentation(**instrum_dict)
         optimizer = ng.optimizers.registry[nevergrad_algo.value](
-            instrum, budget=iterations, num_workers=cores
+            parametrization=instrum,
+            budget=iterations,
+            num_workers=cores
         )
 
         logger.info(

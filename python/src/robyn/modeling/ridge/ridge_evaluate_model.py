@@ -223,47 +223,42 @@ class RidgeModelEvaluator:
         self.logger.debug(f"Sample of X values: {X.head()}")
         self.logger.debug(f"Sample of y values: {y.head()}")
 
-        # Debug is True by default now
-        debug = True
 
-        if debug and (iter_ng == 0 or iter_ng % 25 == 0):
-            self.logger.debug(
-                f"\nEvaluation Debug (trial {trial}, iteration {iter_ng}):"
-            )
-            self.logger.debug(f"X shape: {X.shape}")
-            self.logger.debug(f"y shape: {y.shape}")
-            self.logger.debug("Parameters:", params)
+        # Get train_size from fixed hyperparameters
+        train_size = params.get("train_size", 0.7 if ts_validation else 1.0)
+        
 
-        # Split data using R's approach
-        train_size = params.get("train_size", 1.0) if ts_validation else 1.0
+        # Calculate split indices
         train_idx = int(len(X) * train_size)
-
+        val_test_size = (len(X) - train_idx) // 2
         metrics = {}
+        
+
+        # Split the data
+        X_train = X[:train_idx]
+        y_train = y[:train_idx]
+        
         if ts_validation:
-            val_test_size = (len(X) - train_idx) // 2
-            X_train = X.iloc[:train_idx]
-            y_train = y.iloc[:train_idx]
-            X_val = X.iloc[train_idx : train_idx + val_test_size]
-            y_val = y.iloc[train_idx : train_idx + val_test_size]
-            X_test = X.iloc[train_idx + val_test_size :]
-            y_test = y.iloc[train_idx + val_test_size :]
+            X_val = X[train_idx:train_idx + val_test_size]
+            y_val = y[train_idx:train_idx + val_test_size]
+            X_test = X[train_idx + val_test_size:]
+            y_test = y[train_idx + val_test_size:]
         else:
-            X_train, y_train = X, y
             X_val = X_test = y_val = y_test = None
+
 
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
 
-        # Calculate lambda using R-matching helper function
+
+        # Initialize lambda sequence if needed
+        self.ridge_metrics_calculator.initialize_lambda_sequence(X, y)
+
+        # Get lambda values
         lambda_hp = params.get("lambda", 1.0)
-        lambda_, lambda_max = self.ridge_metrics_calculator._calculate_lambda(
-            x_norm, y_norm, lambda_hp, debug=debug, iteration=iter_ng
-        )
-        # After calculating lambda
-        self.logger.debug(f"Lambda calculation debug:")
-        self.logger.debug(f"lambda_hp: {lambda_hp}")
-        self.logger.debug(f"lambda_: {lambda_}")
-        self.logger.debug(f"lambda_max: {lambda_max}")
+        lambda_ = self.ridge_metrics_calculator.get_lambda_from_hp(lambda_hp)
+        lambda_max = self.ridge_metrics_calculator.lambda_max  # Get lambda_max from calculator
+        lambda_min_ratio = self.ridge_metrics_calculator.lambda_min_ratio  # Get ratio too
 
         # Scale inputs for model
         model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
@@ -275,7 +270,7 @@ class RidgeModelEvaluator:
             y_norm, y_train_pred, x_norm.shape[1]
         )
         metrics["nrmse_train"] = self.ridge_metrics_calculator.calculate_nrmse(
-            y_norm, y_train_pred, debug=debug, iteration=iter_ng
+            y_norm, y_train_pred
         )
 
         # Validation and test metrics
@@ -314,8 +309,6 @@ class RidgeModelEvaluator:
             X_train,
             paid_media_cols,
             rssd_zero_penalty,
-            debug=debug,
-            iteration=iter_ng,
         )
 
         elapsed_time = time.time() - start_time
@@ -329,8 +322,8 @@ class RidgeModelEvaluator:
                 "decomp_rssd": float(decomp_rssd),
                 "lambda": float(lambda_),
                 "lambda_hp": float(lambda_hp),
-                "lambda_max": float(lambda_max),
-                "lambda_min_ratio": float(0.0001),
+                "lambda_max": float(lambda_max),  # Now lambda_max is defined
+                "lambda_min_ratio": float(lambda_min_ratio),  # Use the ratio from calculator
                 "mape": int(0),  # Cast to int as in R
                 "sol_id": str(sol_id),
                 "trial": int(trial),
@@ -345,7 +338,7 @@ class RidgeModelEvaluator:
         lambda_info = {
             'lambda_': lambda_,
             'lambda_max': lambda_max,
-            'lambda_min_ratio': 0.0001
+            'lambda_min_ratio': lambda_min_ratio
         }
         self.ridge_metrics_calculator.debug_model_metrics(
             X_train, y_train, lambda_info, metrics
