@@ -492,32 +492,38 @@ class RidgeMetricsCalculator:
 
         return float(adj_r2)
 
-    def calculate_nrmse(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        debug: bool = True,
-        iteration: int = 0,
-    ) -> float:
+    def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray, debug: bool = True) -> float:
         """Calculate NRMSE with detailed debugging"""
+        print("\n=== NRMSE Calculation Debug ===")
+        
+        # Add scale check
+        print(f"Data ranges:")
+        print(f"y_true range: [{y_true.min():.4f}, {y_true.max():.4f}]")
+        print(f"y_pred range: [{y_pred.min():.4f}, {y_pred.max():.4f}]")
+        
+        # Add distribution check
+        print(f"\nDistribution stats:")
+        print(f"y_true mean: {y_true.mean():.4f}, std: {y_true.std():.4f}")
+        print(f"y_pred mean: {y_pred.mean():.4f}, std: {y_pred.std():.4f}")
+        
         n = len(y_true)
-        y_true = np.asarray(y_true)
-        y_pred = np.asarray(y_pred)
-
-        # Calculate residuals and RSS
         residuals = y_true - y_pred
         rss = np.sum(residuals**2)
-
-        # Calculate range from true values
-        y_min = np.min(y_true)
-        y_max = np.max(y_true)
-        scale = y_max - y_min
-
-        # Calculate RMSE first
-        rmse = np.sqrt(rss / n)
-        # Calculate final NRMSE
-        nrmse = rmse / scale if scale > 0 else rmse
-
+        
+        # Print intermediate calculations
+        print(f"\nIntermediate values:")
+        print(f"n: {n}")
+        print(f"RSS: {rss:.4f}")
+        print(f"RMSE: {np.sqrt(rss/n):.4f}")
+        
+        scale = y_true.max() - y_true.min()
+        nrmse = np.sqrt(rss/n) / scale if scale > 0 else np.sqrt(rss/n)
+        
+        print(f"\nFinal values:")
+        print(f"Scale (y_range): {scale:.4f}")
+        print(f"NRMSE: {nrmse:.4f}")
+        print("===========================\n")
+        
         return float(nrmse)
     
     def get_lambda_bounds(self):

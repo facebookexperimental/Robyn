@@ -91,7 +91,7 @@ class RidgeModelEvaluator:
                         trial=trial,
                     )
 
-                optimizer.tell(candidate, result["loss"])
+                optimizer.tell(candidate, result["loss"]) # telling python a tuple of 3 or tuple of 3. 
 
                 # Important: Convert metrics to correct types
                 sol_id = f"{trial}_{iter_ng + 1}_1"
@@ -215,7 +215,9 @@ class RidgeModelEvaluator:
         iter_ng: int,
         trial: int,
     ) -> Dict[str, Any]:
-        """Evaluate model with parameter set matching R's implementation exactly"""
+        print(f"\n=== Iteration {iter_ng} ===")
+        print(f"Lambda HP: {params.get('lambda', 1.0)}")
+        
         X, y = self.ridge_data_builder._prepare_data(params)
         sol_id = f"{trial}_{iter_ng + 1}_1"
         # After preparing data
@@ -366,6 +368,20 @@ class RidgeModelEvaluator:
         )
         self.logger.debug(f"Sample predictions: {y_train_pred[:5]}")
         self.logger.debug(f"Sample actual values: {y_norm[:5]}")
+
+        # After calculating metrics
+        print(f"NRMSE train: {metrics['nrmse_train']:.4f}")
+        if ts_validation:
+            print(f"NRMSE val: {metrics['nrmse_val']:.4f}")
+            print(f"NRMSE test: {metrics['nrmse_test']:.4f}")
+        print(f"NRMSE used for optimization: {metrics['nrmse']:.4f}")
+        print("===================\n")
+
+        # After fitting the model
+        print("Model coefficients:")
+        print(model.coef_)
+        print(f"Intercept: {model.intercept_}")
+
         return {
             "loss": loss,
             "params": params_formatted,
