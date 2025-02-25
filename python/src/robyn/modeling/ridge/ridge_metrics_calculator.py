@@ -168,55 +168,47 @@ class RidgeMetricsCalculator:
         ]
 
         return df[required_cols]
+    
+    def get_lambda_from_hp(self, lambda_hp):
+        """Convert lambda hyperparameter to actual lambda value using R's method"""
+        if self.lambda_max is None:
+            raise ValueError("Must call initialize_lambda_sequence first")
+        
+        # Use linear interpolation like R
+        lambda_scaled = self.lambda_min + (self.lambda_max - self.lambda_min) * lambda_hp
+        return lambda_scaled
 
-    def _calculate_lambda(
-        self,
-        x_norm: np.ndarray,
-        y_norm: np.ndarray,
-        lambda_hp: float,
-        debug: bool = True,
-        iteration: int = 0,
-    ) -> Tuple[float, float]:
-        """Match R's glmnet lambda calculation exactly"""
-        n_samples = len(y_norm)
+    def initialize_lambda_sequence(self, X, y):
+        """Calculate lambda_max and lambda_min exactly like R"""
+        if self.lambda_max is None:
+            # Convert inputs to numpy arrays if they're pandas objects
+            X = X.to_numpy() if hasattr(X, 'to_numpy') else np.array(X)
+            y = y.to_numpy() if hasattr(y, 'to_numpy') else np.array(y)
+            
+            n = X.shape[0]
+            
+            # Scale X and y
+            X_mean = X.mean(axis=0)
+            X_std = X.std(axis=0)
+            y_mean = y.mean()
+            y_std = y.std()
+            
+            X_scaled = (X - X_mean) / X_std
+            y_scaled = (y - y_mean) / y_std
+            
+            # Calculate column sums of X'y directly
+            col_sums = X_scaled.T @ y_scaled
+            
+            # Get max absolute column sum
+            max_abs_col_sum = np.max(np.abs(col_sums))
+            
+            # Calculate lambda_max exactly as R does
+            self.lambda_max = max_abs_col_sum * y_std / n * 100  # Base calculation
+            
+            # Calculate lambda_min using same ratio as R
+            self.lambda_min_ratio = 0.0001  # Same as R's default
+            self.lambda_min = self.lambda_max * self.lambda_min_ratio
 
-        # Standardize first before scale factor calculation
-        def r_scale(x):
-            mean = np.mean(x)
-            sd = np.sqrt(np.sum((x - mean) ** 2) / (len(x) - 1))
-            return (x - mean) / (sd if sd > 1e-10 else 1.0)
-
-        # Scale X and y first
-        x_scaled = np.apply_along_axis(r_scale, 0, x_norm)
-        y_scaled = r_scale(y_norm)
-
-        # Now calculate scale factor using scaled data
-        scale_factor = np.mean(np.abs(x_scaled)) * np.mean(np.abs(y_scaled))
-
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"\nLambda Calculation Debug (iteration {iteration}):")
-            self.logger.debug(f"n_samples: {n_samples}")
-            self.logger.debug(f"x_scaled mean abs: {np.mean(np.abs(x_scaled)):.6f}")
-            self.logger.debug(f"y_scaled mean abs: {np.mean(np.abs(y_scaled)):.6f}")
-            self.logger.debug(f"Scale factor: {scale_factor:.6f}")
-            self.logger.debug(f"lambda_hp: {lambda_hp:.6f}")
-
-        # R's lambda calculation
-        alpha = 0.001
-        gram = x_scaled.T @ x_scaled / n_samples
-        ctx = np.abs(x_scaled.T @ y_scaled) / n_samples
-
-        lambda_max = np.max(ctx) / alpha
-        lambda_min = lambda_max * 0.0001
-        lambda_ = lambda_min + lambda_hp * (lambda_max - lambda_min)
-
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"max ctx: {np.max(ctx):.6f}")
-            self.logger.debug(f"lambda_max: {lambda_max:.6f}")
-            self.logger.debug(f"lambda_min: {lambda_min:.6f}")
-            self.logger.debug(f"final lambda_: {lambda_:.6f}")
-
-        return lambda_, lambda_max
 
     def _calculate_rssd(
         self,
