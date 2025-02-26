@@ -22,11 +22,13 @@ class RidgeModelEvaluator:
         featurized_mmm_data,
         ridge_metrics_calculator,
         ridge_data_builder,
+        calibration_input=None,
     ):
         self.mmm_data = mmm_data
         self.featurized_mmm_data = featurized_mmm_data
         self.ridge_metrics_calculator = ridge_metrics_calculator
         self.ridge_data_builder = ridge_data_builder
+        self.calibration_input = calibration_input
         self.logger = logging.getLogger(__name__)
 
     def _run_nevergrad_optimization(
@@ -66,6 +68,13 @@ class RidgeModelEvaluator:
             instrum, budget=iterations, num_workers=cores
         )
 
+        # Set up multi-objective reference and weights
+        if self.calibration_input is not None:
+            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1, 1))
+            if objective_weights is None:
+                objective_weights = [1, 1, 1]
+            optimizer.set_objective_weights(tuple(objective_weights))
+
         all_results = []
         start_time = time.time()
 
@@ -92,7 +101,13 @@ class RidgeModelEvaluator:
                         trial=trial,
                     )
 
-                optimizer.tell(candidate, result["loss"])
+                if self.calibration_input is not None:
+                    optimizer.tell(
+                        candidate,
+                        (result["nrmse"], result["decomp_rssd"], result["mape"]),
+                    )
+                else:
+                    optimizer.tell(candidate, (result["nrmse"], result["decomp_rssd"]))
 
                 # Important: Convert metrics to correct types
                 sol_id = f"{trial}_{iter_ng + 1}_1"
