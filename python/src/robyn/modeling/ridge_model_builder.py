@@ -53,6 +53,7 @@ class RidgeModelBuilder:
             self.featurized_mmm_data,
             self.ridge_metrics_calculator,
             self.ridge_data_builder,
+            self.calibration_input,
         )
 
         self.logger = logging.getLogger(__name__)
@@ -86,9 +87,9 @@ class RidgeModelBuilder:
         # Set up objective weights including calibration if available
         if objective_weights is None:
             if self.calibration_input is not None:
-                objective_weights = [1 / 3, 1 / 3, 1 / 3]  # NRMSE, RSSD, MAPE
+                objective_weights = [1, 1, 1]  # NRMSE, RSSD, MAPE
             else:
-                objective_weights = [0.5, 0.5]  # NRMSE, RSSD only
+                objective_weights = [1, 1]  # NRMSE, RSSD only
         # Run trials
         trials = []
         for trial in range(1, trials_config.trials + 1):
