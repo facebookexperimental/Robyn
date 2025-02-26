@@ -4,6 +4,7 @@ from typing import Dict, Tuple, List, Any
 from sklearn.linear_model import Ridge
 import logging
 from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
+from robyn.reporting.utils.modeling_debug import debug_model_metrics
 
 
 class RidgeMetricsCalculator:
@@ -12,6 +13,10 @@ class RidgeMetricsCalculator:
         self.hyperparameters = hyperparameters
         self.ridge_data_builder = ridge_data_builder
         self.logger = logging.getLogger(__name__)
+
+        # Calculate lambda sequence once during initialization
+        self.lambda_max = None
+        self.lambda_min_ratio = 0.0001
 
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
@@ -168,47 +173,48 @@ class RidgeMetricsCalculator:
         ]
 
         return df[required_cols]
-    
+
     def get_lambda_from_hp(self, lambda_hp):
         """Convert lambda hyperparameter to actual lambda value using R's method"""
         if self.lambda_max is None:
             raise ValueError("Must call initialize_lambda_sequence first")
-        
+
         # Use linear interpolation like R
-        lambda_scaled = self.lambda_min + (self.lambda_max - self.lambda_min) * lambda_hp
+        lambda_scaled = (
+            self.lambda_min + (self.lambda_max - self.lambda_min) * lambda_hp
+        )
         return lambda_scaled
 
     def initialize_lambda_sequence(self, X, y):
         """Calculate lambda_max and lambda_min exactly like R"""
         if self.lambda_max is None:
             # Convert inputs to numpy arrays if they're pandas objects
-            X = X.to_numpy() if hasattr(X, 'to_numpy') else np.array(X)
-            y = y.to_numpy() if hasattr(y, 'to_numpy') else np.array(y)
-            
+            X = X.to_numpy() if hasattr(X, "to_numpy") else np.array(X)
+            y = y.to_numpy() if hasattr(y, "to_numpy") else np.array(y)
+
             n = X.shape[0]
-            
+
             # Scale X and y
             X_mean = X.mean(axis=0)
             X_std = X.std(axis=0)
             y_mean = y.mean()
             y_std = y.std()
-            
+
             X_scaled = (X - X_mean) / X_std
             y_scaled = (y - y_mean) / y_std
-            
+
             # Calculate column sums of X'y directly
             col_sums = X_scaled.T @ y_scaled
-            
+
             # Get max absolute column sum
             max_abs_col_sum = np.max(np.abs(col_sums))
-            
+
             # Calculate lambda_max exactly as R does
             self.lambda_max = max_abs_col_sum * y_std / n * 100  # Base calculation
-            
+
             # Calculate lambda_min using same ratio as R
             self.lambda_min_ratio = 0.0001  # Same as R's default
             self.lambda_min = self.lambda_max * self.lambda_min_ratio
-
 
     def _calculate_rssd(
         self,

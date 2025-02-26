@@ -11,6 +11,7 @@ from robyn.modeling.entities.modeloutputs import Trial
 from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
+from robyn.reporting.utils.modeling_debug import debug_model_metrics
 
 
 class RidgeModelEvaluator:
@@ -260,8 +261,12 @@ class RidgeModelEvaluator:
         # Get lambda values
         lambda_hp = params.get("lambda", 1.0)
         lambda_ = self.ridge_metrics_calculator.get_lambda_from_hp(lambda_hp)
-        lambda_max = self.ridge_metrics_calculator.lambda_max  # Get lambda_max from calculator
-        lambda_min_ratio = self.ridge_metrics_calculator.lambda_min_ratio  # Get ratio too
+        lambda_max = (
+            self.ridge_metrics_calculator.lambda_max
+        )  # Get lambda_max from calculator
+        lambda_min_ratio = (
+            self.ridge_metrics_calculator.lambda_min_ratio
+        )  # Get ratio too
 
         # Scale inputs for model
         model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
@@ -328,7 +333,9 @@ class RidgeModelEvaluator:
                 "lambda": float(lambda_),
                 "lambda_hp": float(lambda_hp),
                 "lambda_max": float(lambda_max),  # Now lambda_max is defined
-                "lambda_min_ratio": float(lambda_min_ratio),  # Use the ratio from calculator
+                "lambda_min_ratio": float(
+                    lambda_min_ratio
+                ),  # Use the ratio from calculator
                 "mape": int(0),  # Cast to int as in R
                 "sol_id": str(sol_id),
                 "trial": int(trial),
@@ -339,7 +346,20 @@ class RidgeModelEvaluator:
                 "elapsed_accum": float(elapsed_time),
             }
         )
-
+        # Debug model metrics
+        lambda_info = {
+            "lambda_": lambda_,
+            "lambda_max": lambda_max,
+            "lambda_min_ratio": lambda_min_ratio,
+        }
+        debug_model_metrics(
+            self.ridge_metrics_calculator,
+            X_train,
+            y_train,
+            lambda_info,
+            metrics,
+            iter_ng,
+        )
         # Calculate decompositions
         x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
             model, X_train, y_train, {**params_formatted, **metrics}
