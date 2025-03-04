@@ -28,6 +28,7 @@ from robyn.modeling.ridge.ridge_metrics_calculator import (
 )
 from robyn.modeling.ridge.ridge_evaluate_model import RidgeModelEvaluator
 from robyn.modeling.ridge.ridge_data_builder import RidgeDataBuilder
+from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 
 
 class RidgeModelBuilder:
@@ -342,7 +343,23 @@ class RidgeModelBuilder:
         self.logger.debug(f"lambda_max: {lambda_max}")
 
         # Scale inputs for model
-        model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
+        N = len(x_norm)
+
+        # Convert lambda to sklearn alpha using Approach 1: alpha = lambda * N / 2
+        # model = create_ridge_model_sklearn(
+        #     lambda_value=lambda_, n_samples=N, fit_intercept=True
+        # model.fit(x_norm, y_norm)
+
+        # Create and fit the model
+        model = create_ridge_model_rpy2(
+            lambda_value=lambda_,
+            n_samples=N,
+            fit_intercept=True,
+            standardize=True,
+            lower_limits=params.get("lower_limits", None),
+            upper_limits=params.get("upper_limits", None),
+            penalty_factor=params.get("penalty_factor", None),
+        )
         model.fit(x_norm, y_norm)
 
         # Calculate metrics using R-style calculations

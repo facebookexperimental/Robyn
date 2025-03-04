@@ -4,7 +4,6 @@ from typing import Dict, Tuple, List, Any
 from sklearn.linear_model import Ridge
 import logging
 from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
-from robyn.reporting.utils.modeling_debug import debug_model_metrics
 
 
 class RidgeMetricsCalculator:
@@ -260,10 +259,10 @@ class RidgeMetricsCalculator:
 
             if debug and (iteration == 0 or iteration % 25 == 0):
                 self.logger.debug("\nNormalized values:")
-                self.logger.debug("Effects:", effects_norm)
-                self.logger.debug("Spends:", spends_norm)
-                self.logger.debug("Effect total (check=1):", np.sum(effects_norm))
-                self.logger.debug("Spend total (check=1):", np.sum(spends_norm))
+                self.logger.debug(f"Effects: {effects_norm}")
+                self.logger.debug(f"Spends: {spends_norm}")
+                self.logger.debug(f"Effect total (check=1): {np.sum(effects_norm)}")
+                self.logger.debug(f"Spend total (check=1): {np.sum(spends_norm)}")
 
             # Calculate RSSD
             squared_diff = (effects_norm - spends_norm) ** 2
@@ -471,6 +470,17 @@ class RidgeMetricsCalculator:
         iteration: int = 0,
     ) -> float:
         """Calculate NRMSE with detailed debugging"""
+        # Add more detailed logging
+        self.logger.debug(
+            f"NRMSE Calculation (iter {iteration}) - data lengths: {len(y_true)}"
+        )
+        self.logger.debug(
+            f"y_true stats: mean={np.mean(y_true):.6f}, std={np.std(y_true):.6f}, min={np.min(y_true):.6f}, max={np.max(y_true):.6f}"
+        )
+        self.logger.debug(
+            f"y_pred stats: mean={np.mean(y_pred):.6f}, std={np.std(y_pred):.6f}, min={np.min(y_pred):.6f}, max={np.max(y_pred):.6f}"
+        )
+
         n = len(y_true)
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
@@ -504,6 +514,6 @@ class RidgeMetricsCalculator:
         nrmse = rmse / scale if scale > 0 else rmse
 
         if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"Final NRMSE: {nrmse:.6f}")
+            self.logger.debug(f"Final NRMSE: {nrmse:.6f} (scale={scale:.6f})")
 
         return float(nrmse)

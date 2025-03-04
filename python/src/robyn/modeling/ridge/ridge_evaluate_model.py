@@ -12,6 +12,7 @@ from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
 from robyn.reporting.utils.modeling_debug import debug_model_metrics
+from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 
 
 class RidgeModelEvaluator:
@@ -48,6 +49,19 @@ class RidgeModelEvaluator:
         seed: int,
         total_trials: int,
     ) -> Trial:
+        """Run Nevergrad optimization for ridge regression."""
+        # Log key optimization settings
+        self.logger.debug(
+            f"\n=== Starting Nevergrad Optimization (Trial {trial}/{total_trials}) ==="
+        )
+        self.logger.debug(
+            f"Iterations: {iterations}, Algorithm: {nevergrad_algo.value}, Random seed: {seed}"
+        )
+        self.logger.debug(f"Objective weights: {objective_weights}")
+        self.logger.debug(
+            f"Hyperparameter bounds: {hyper_collect['hyper_bound_list_updated']}"
+        )
+
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -63,9 +77,21 @@ class RidgeModelEvaluator:
             for name, bound in zip(param_names, param_bounds)
         }
 
+        self.logger.debug(
+            f"Parameter space created with {len(instrum_dict)} dimensions: {list(instrum_dict.keys())}"
+        )
+        self.logger.debug(
+            f"Parameter bounds: {[(name, instrum_dict[name].bounds) for name in instrum_dict]}"
+        )
+
         instrum = ng.p.Instrumentation(**instrum_dict)
         optimizer = ng.optimizers.registry[nevergrad_algo.value](
             instrum, budget=iterations, num_workers=cores
+        )
+        optimizer.seed = seed
+        self.logger.debug(f"Optimizer: {type(optimizer).__name__}, workers={cores}")
+        self.logger.debug(
+            f"Optimizer configuration: budget={iterations}, workers={cores}, seed={seed}"
         )
 
         # Set up multi-objective reference and weights
@@ -87,6 +113,15 @@ class RidgeModelEvaluator:
             for iter_ng in range(iterations):
                 candidate = optimizer.ask()
                 params = candidate.kwargs
+                self.logger.debug(
+                    f"Iteration {iter_ng+1}/{iterations}: Asked for candidate"
+                )
+                self.logger.debug(f"Candidate parameters: {params}")
+
+                if iter_ng == 0 or iter_ng % 10 == 0:
+                    self.logger.debug(
+                        f"Iteration {iter_ng+1}/{iterations} parameters: {params}"
+                    )
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -101,11 +136,16 @@ class RidgeModelEvaluator:
                         trial=trial,
                     )
 
+                self.logger.debug(
+                    f"Evaluation result - NRMSE: {result['nrmse']:.6f}, RSSD: {result.get('decomp_rssd', 0):.6f}"
+                )
+
                 if self.calibration_input is not None:
                     optimizer.tell(
                         candidate,
                         (result["nrmse"], result["decomp_rssd"], result["mape"]),
                     )
+                    self.logger.debug(f"Told optimizer with multi-objective results")
                 else:
                     optimizer.tell(candidate, (result["nrmse"], result["decomp_rssd"]))
 
@@ -138,6 +178,11 @@ class RidgeModelEvaluator:
 
                 all_results.append(result)
                 pbar.update(1)
+
+                if iter_ng == 0 or iter_ng % 10 == 0:
+                    self.logger.debug(
+                        f"Iteration {iter_ng+1} results - NRMSE: {result['nrmse']:.6f}, RSSD: {result.get('decomp_rssd', 0):.6f}, Loss: {result['loss']:.6f}"
+                    )
 
         end_time = time.time()
         self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
@@ -195,6 +240,21 @@ class RidgeModelEvaluator:
         # Find best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
         # Convert values to Series before passing to Trial
+        recommendation = best_result["params"]
+        self.logger.debug(
+            f"=== Optimization Complete (Trial {trial}/{total_trials}) ==="
+        )
+        self.logger.debug(f"Best parameters: {recommendation}")
+        if (
+            hasattr(optimizer, "current_bests")
+            and "pessimistic" in optimizer.current_bests
+        ):
+            self.logger.debug(
+                f"Best observed loss: {optimizer.current_bests['pessimistic'].mean}"
+            )
+        self.logger.debug(
+            f"Final performance: NRMSE={best_result['nrmse']:.6f}, RSSD={best_result.get('decomp_rssd', 0):.6f}"
+        )
         return Trial(
             result_hyp_param=result_hyp_param,
             lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),
@@ -276,15 +336,27 @@ class RidgeModelEvaluator:
         # Get lambda values
         lambda_hp = params.get("lambda", 1.0)
         lambda_ = self.ridge_metrics_calculator.get_lambda_from_hp(lambda_hp)
-        lambda_max = (
-            self.ridge_metrics_calculator.lambda_max
-        )  # Get lambda_max from calculator
-        lambda_min_ratio = (
-            self.ridge_metrics_calculator.lambda_min_ratio
-        )  # Get ratio too
+        lambda_max = self.ridge_metrics_calculator.lambda_max
+        lambda_min_ratio = self.ridge_metrics_calculator.lambda_min_ratio
 
         # Scale inputs for model
-        model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
+        N = len(x_norm)
+
+        # Convert lambda to sklearn alpha using Approach 1: alpha = lambda * N / 2
+        # model = create_ridge_model_sklearn(
+        #     lambda_value=lambda_, n_samples=N, fit_intercept=True
+        # model.fit(x_norm, y_norm)
+
+        # Create and fit the model
+        model = create_ridge_model_rpy2(
+            lambda_value=lambda_,
+            n_samples=N,
+            fit_intercept=True,
+            standardize=True,
+            lower_limits=params.get("lower_limits", None),
+            upper_limits=params.get("upper_limits", None),
+            penalty_factor=params.get("penalty_factor", None),
+        )
         model.fit(x_norm, y_norm)
 
         # Calculate metrics using R-style calculations
@@ -398,6 +470,35 @@ class RidgeModelEvaluator:
         )
         self.logger.debug(f"Sample predictions: {y_train_pred[:5]}")
         self.logger.debug(f"Sample actual values: {y_norm[:5]}")
+
+        # Log raw parameters
+        self.logger.debug(
+            f"\n=== Model Evaluation (Trial {trial}, Iteration {iter_ng}) ==="
+        )
+        self.logger.debug(f"Raw parameters: {params}")
+
+        # After formatting parameters
+        self.logger.debug(f"Formatted parameters: {params_formatted}")
+
+        # After data preparation
+        self.logger.debug(
+            f"Data splits - train: {X_train.shape}, test: {X_test.shape if X_test is not None else 'None'}"
+        )
+
+        # After fitting model
+        self.logger.debug(f"Model fitted - elapsed: {elapsed_time:.4f}s")
+        self.logger.debug(
+            f"Lambda: {lambda_:.4f}, Lambda as proportion of max: {lambda_/lambda_max:.4f}"
+        )
+        self.logger.debug(
+            f"Coefficient stats - min: {model.coef_.min():.6f}, max: {model.coef_.max():.6f}, mean: {model.coef_.mean():.6f}"
+        )
+
+        # After metric calculation
+        self.logger.debug(
+            f"Metrics - NRMSE: {metrics['nrmse']:.6f}, RSQ: {metrics.get('rsq_train', 0):.6f}, RSSD: {metrics.get('decomp_rssd', 0):.6f}"
+        )
+
         return {
             "loss": loss,
             "params": params_formatted,

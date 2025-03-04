@@ -13,31 +13,51 @@ class RidgeDataBuilder:
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
         """Prepare data for ridge regression, handling dependent variable and excluding date columns"""
+        self.logger.debug(f"Starting data preparation with params: {params}")
+
         # Get the dependent variable, handling both possible column names
         dep_var = self.mmm_data.mmmdata_spec.dep_var
+        self.logger.debug(f"Using dependent variable: {dep_var}")
         if dep_var not in self.featurized_mmm_data.dt_mod.columns:
             # If dep_var column doesn't exist, try 'dep_var'
-            if 'dep_var' in self.featurized_mmm_data.dt_mod.columns:
+            if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
                 # Rename 'dep_var' to the specified value
-                self.featurized_mmm_data.dt_mod = self.featurized_mmm_data.dt_mod.rename(
-                    columns={"dep_var": dep_var}
+                self.featurized_mmm_data.dt_mod = (
+                    self.featurized_mmm_data.dt_mod.rename(columns={"dep_var": dep_var})
                 )
                 y = self.featurized_mmm_data.dt_mod[dep_var]
             else:
-                raise KeyError(f"Could not find dependent variable column. Expected either '{dep_var}' or 'dep_var' in columns: {self.featurized_mmm_data.dt_mod.columns.tolist()}")
+                raise KeyError(
+                    f"Could not find dependent variable column. Expected either '{dep_var}' or 'dep_var' in columns: {self.featurized_mmm_data.dt_mod.columns.tolist()}"
+                )
         else:
             y = self.featurized_mmm_data.dt_mod[dep_var]
 
+        # After getting y
+        self.logger.debug(
+            f"Dependent variable stats - mean: {y.mean():.6f}, min: {y.min():.6f}, max: {y.max():.6f}, std: {y.std():.6f}"
+        )
+
         # Select all columns except the dependent variable and date columns
-        exclude_cols = ['ds']  # Always exclude 'ds' if present
+        exclude_cols = ["ds"]  # Always exclude 'ds' if present
         if dep_var in self.featurized_mmm_data.dt_mod.columns:
             exclude_cols.append(dep_var)
-        if 'dep_var' in self.featurized_mmm_data.dt_mod.columns:
-            exclude_cols.append('dep_var')
-        
+        if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
+            exclude_cols.append("dep_var")
+
         # Only drop columns that actually exist in the dataframe
-        exclude_cols = [col for col in exclude_cols if col in self.featurized_mmm_data.dt_mod.columns]
+        exclude_cols = [
+            col
+            for col in exclude_cols
+            if col in self.featurized_mmm_data.dt_mod.columns
+        ]
         X = self.featurized_mmm_data.dt_mod.drop(columns=exclude_cols)
+
+        # After creating X
+        self.logger.debug(f"Independent variables shape: {X.shape}")
+        self.logger.debug(
+            f"Column stats summary:\n{X.describe().loc[['mean', 'std', 'min', 'max']].T.head()}"
+        )
 
         # Convert date columns to numeric (number of days since the earliest date)
         date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
