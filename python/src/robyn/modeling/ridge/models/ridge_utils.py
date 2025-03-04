@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 from sklearn.linear_model import Ridge
+import time
 
 
 def create_ridge_model_sklearn(
@@ -90,83 +91,88 @@ def create_ridge_model_sklearn(
 
 
 def create_ridge_model_rpy2(
-    lambda_value,
-    n_samples,
-    fit_intercept=True,
-    standardize=True,
-    lower_limits=None,
-    upper_limits=None,
-    penalty_factor=None,
-    **kwargs,  # This catches any additional arguments
+    lambda_value, n_samples, fit_intercept=True, standardize=True, **kwargs
 ):
-    """Create a Ridge regression model using R's glmnet via rpy2.
-
-    This implementation exactly matches R's glmnet behavior by directly
-    calling the R functions through rpy2.
+    """Create a Ridge regression model using rpy2 to access glmnet.
 
     Args:
-        lambda_value: Regularization parameter (lambda)
-        n_samples: Number of samples (not directly used for glmnet)
+        lambda_value: Regularization parameter
+        n_samples: Number of samples (not directly used, but kept for API consistency)
         fit_intercept: Whether to fit the intercept
         standardize: Whether to standardize the input features
-        lower_limits: Lower bounds for coefficients (default None)
-        upper_limits: Upper bounds for coefficients (default None)
-        penalty_factor: Custom penalty factors for variables (default None)
         **kwargs: Additional arguments to pass to glmnet
 
     Returns:
-        A model object with fit() and predict() methods
+        A Ridge regression model using rpy2 to access glmnet.
     """
-    import rpy2.robjects as ro
-    from rpy2.robjects.packages import importr
-    from rpy2.robjects import numpy2ri
-    from rpy2.robjects.conversion import localconverter
-
-    # Activate automatic conversion between R and numpy
-    numpy2ri.activate()
-
-    # Import necessary R packages
-    utils = importr("utils")
-
-    # Make sure the glmnet package is available
     try:
-        ro.r("library(glmnet)")
-    except Exception as e:
-        print(f"Error loading glmnet: {e}")
-        print("Installing glmnet package...")
-        utils.install_packages("glmnet")
-        ro.r("library(glmnet)")
+        import rpy2.robjects as ro
+        from rpy2.robjects import numpy2ri
+        from rpy2.robjects.packages import importr
+        from rpy2.robjects.conversion import localconverter
+
+        # Import glmnet only once per Python session
+        global glmnet_imported
+        if "glmnet_imported" not in globals():
+            try:
+                importr("glmnet")
+                glmnet_imported = True
+            except Exception as e:
+                logging.warning(f"Failed to import glmnet: {e}")
+                logging.warning("Falling back to sklearn implementation")
+                return create_ridge_model_sklearn(
+                    lambda_value, n_samples, fit_intercept, standardize
+                )
+    except ImportError:
+        logging.warning("rpy2 not available, using sklearn implementation")
+        return create_ridge_model_sklearn(
+            lambda_value, n_samples, fit_intercept, standardize
+        )
 
     class GlmnetRidgeWrapper:
         def __init__(self):
+            self.lambda_value = lambda_value
+            self.fit_intercept = fit_intercept
+            self.standardize = standardize
+            self.kwargs = kwargs
             self.fitted_model = None
             self.coef_ = None
             self.intercept_ = 0.0
-            self.lambda_value = lambda_value
-            self.kwargs = kwargs
+
+            # Cache for performance
+            self._X_matrix_cache = {}
+            self._prediction_cache = {}
 
         def fit(self, X, y):
             # Ensure numpy arrays
             X = np.asarray(X)
             y = np.asarray(y)
 
-            # Convert to R matrices directly using R code
+            fit_intercept_r = "TRUE" if self.fit_intercept else "FALSE"
+            standardize_r = "TRUE" if self.standardize else "FALSE"
+
+            # Collect optional parameters
+            optional_params = []
+
+            # Generate key for caching
+            cache_key = (
+                hash(X.tobytes()),
+                hash(y.tobytes()),
+                self.lambda_value,
+                self.fit_intercept,
+                self.standardize,
+            )
+
+            # Convert Python objects to R
             with localconverter(ro.default_converter + numpy2ri.converter):
                 # Pass the data to R environment
                 ro.r.assign("X_r", X)
                 ro.r.assign("y_r", y)
                 ro.r.assign("lambda_value", self.lambda_value)
 
-                # Set up parameters
-                fit_intercept_r = "TRUE" if fit_intercept else "FALSE"
-                standardize_r = "TRUE" if standardize else "FALSE"
-
-                # Prepare R command for optional parameters
-                optional_params = []
-
-                if penalty_factor is not None:
-                    ro.r.assign("penalty_factor_r", penalty_factor)
-                    optional_params.append("penalty.factor = penalty_factor_r")
+                # Extract optional parameters
+                lower_limits = kwargs.get("lower_limits", None)
+                upper_limits = kwargs.get("upper_limits", None)
 
                 if lower_limits is not None:
                     ro.r.assign("lower_limits_r", lower_limits)
@@ -203,14 +209,19 @@ def create_ridge_model_rpy2(
                 )
                 coef_values <<- as.numeric(coef(r_model, s = lambda_value))
                 """
+
+                # Execute R code for model fitting
                 ro.r(r_code)
 
                 # Get the model and coefficients from R
                 self.fitted_model = ro.r["r_model"]
                 coef_array = np.array(ro.r["coef_values"])
 
+                # Store X matrix for future predictions
+                self._X_matrix_cache[cache_key] = X
+
                 # First coefficient is intercept, rest are feature coefficients
-                if fit_intercept:
+                if self.fit_intercept:
                     self.intercept_ = float(coef_array[0])
                     self.coef_ = coef_array[1:]
                 else:
@@ -225,6 +236,16 @@ def create_ridge_model_rpy2(
 
             # Ensure numpy array
             X = np.asarray(X)
+
+            # For small matrices (fewer than 1000 rows), it's faster to just
+            # compute the prediction in Python directly
+            if X.shape[0] < 1000:
+                return np.dot(X, self.coef_) + self.intercept_
+
+            # For larger matrices, use R but check cache first
+            X_hash = hash(X.tobytes())
+            if X_hash in self._prediction_cache:
+                return self._prediction_cache[X_hash]
 
             # Make predictions using R code directly
             with localconverter(ro.default_converter + numpy2ri.converter):
@@ -241,6 +262,9 @@ def create_ridge_model_rpy2(
 
                 # Get predictions from R
                 predictions = np.array(ro.r["predictions"])
+
+                # Cache the predictions
+                self._prediction_cache[X_hash] = predictions
 
                 return predictions
 
