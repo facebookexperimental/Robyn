@@ -338,14 +338,31 @@ class RidgeDataBuilder:
 
         return hyper_collect
 
-    def _geometric_adstock(self, x: pd.Series, theta: float) -> np.ndarray:
-        """Apply geometric adstock transformation"""
-        # Convert to numpy array if it's a pandas Series
+    def _geometric_adstock(self, x: pd.Series, theta: float) -> Dict[str, np.ndarray]:
+        """Exactly match R's geometric adstock implementation"""
         x_array = x.values if isinstance(x, pd.Series) else x
+        x_decayed = np.zeros_like(x_array)
+        x_decayed[0] = x_array[0]
 
-        # Use lfilter to efficiently compute the geometric transformation
-        y = lfilter([1], [1, -theta], x_array)
-        return y
+        # Calculate x_decayed exactly like R
+        for i in range(1, len(x_array)):
+            x_decayed[i] = x_array[i] + theta * x_decayed[i - 1]
+
+        # Calculate thetaVecCum exactly like R
+        thetaVecCum = np.zeros_like(x_array)
+        thetaVecCum[0] = theta
+        for i in range(1, len(x_array)):
+            thetaVecCum[i] = thetaVecCum[i - 1] * theta
+
+        # Calculate inflation_total
+        inflation_total = np.sum(x_decayed) / np.sum(x_array)
+
+        return {
+            "x": x_array,
+            "x_decayed": x_decayed,
+            "thetaVecCum": thetaVecCum,
+            "inflation_total": inflation_total,
+        }
 
     def _hill_transformation(
         self,
@@ -353,24 +370,31 @@ class RidgeDataBuilder:
         alpha: float,
         gamma: float,
         x_marginal: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
-        """Hill transformation with optional marginal effect calculation"""
+    ) -> Dict[str, np.ndarray]:
+        """Exactly match R's Hill transformation implementation.
+
+        Args:
+            x: Input array
+            alpha: Shape parameter
+            gamma: Inflection point parameter
+            x_marginal: Optional marginal values for carryover effects
+
+        Returns:
+            Dictionary containing x_saturated and inflexion point
+        """
         x_array = np.array(x)
-        x_scaled = (x_array - x_array.min()) / (x_array.max() - x_array.min())
 
-        if x_marginal is not None:
-            # Calculate marginal effect for carryover
-            x_marginal_scaled = x_marginal / (x_array.max() - x_array.min())
-            result = (
-                x_marginal_scaled
-                * (alpha * x_scaled ** (alpha - 1) * gamma**alpha)
-                / (x_scaled**alpha + gamma**alpha) ** 2
-            )
+        # Calculate inflexion point exactly like R
+        inflexion = np.max(x_array) * gamma
+
+        if x_marginal is None:
+            # Regular hill transformation (exactly like R)
+            x_saturated = x_array**alpha / (x_array**alpha + inflexion**alpha)
         else:
-            # Regular hill transformation
-            result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
+            # Marginal effect calculation (exactly like R)
+            x_saturated = x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
 
-        return result
+        return {"x_saturated": x_saturated, "inflexion": inflexion}
 
     def run_transformations(
         self,
@@ -442,18 +466,26 @@ class RidgeDataBuilder:
         self.logger.debug(f"Processing media variables: {media_vars}")
 
         # Process each media variable (including newsletter)
-        for var in media_vars + ["newsletter"]:  # Add newsletter explicitly
+        for var in media_vars + ["newsletter"]:
             self.logger.debug(f"Processing variable: {var}")
 
             # 1. Adstocking (whole data)
             input_data = dt_modAdstocked[var].values
             theta = params[f"{var}_thetas"]
 
-            # Get adstocked values
-            input_total = self._geometric_adstock(input_data, theta)
-            input_immediate = input_data
+            # Get adstocked values with all components
+            adstock_result = self._geometric_adstock(input_data, theta)
+            input_total = adstock_result["x_decayed"]
+            input_immediate = adstock_result["x"]
             adstocked_collect[var] = input_total
             input_carryover = input_total - input_immediate
+
+            # Store inflation metrics (like R)
+            if not hasattr(self, "inflation_collect"):
+                self.inflation_collect = {}
+            self.inflation_collect[f"{var}_inflation"] = adstock_result[
+                "inflation_total"
+            ]
 
             # 2. Saturation (only window data)
             input_total_rw = input_total[window_indices]
@@ -462,15 +494,22 @@ class RidgeDataBuilder:
             alpha = params[f"{var}_alphas"]
             gamma = params[f"{var}_gammas"]
 
-            # Apply saturation
-            sat_total = self._hill_transformation(input_total_rw, alpha, gamma)
-            sat_carryover = self._hill_transformation(
+            # Apply saturation (exactly like R)
+            sat_result_total = self._hill_transformation(input_total_rw, alpha, gamma)
+            sat_result_carryover = self._hill_transformation(
                 input_total_rw, alpha, gamma, x_marginal=input_carryover_rw
             )
 
-            saturated_total_collect[var] = sat_total
-            saturated_carryover_collect[var] = sat_carryover
-            saturated_immediate_collect[var] = sat_total - sat_carryover
+            saturated_total_collect[var] = sat_result_total["x_saturated"]
+            saturated_carryover_collect[var] = sat_result_carryover["x_saturated"]
+            saturated_immediate_collect[var] = (
+                sat_result_total["x_saturated"] - sat_result_carryover["x_saturated"]
+            )
+
+            # Store inflexion points (like R)
+            if not hasattr(self, "inflexion_collect"):
+                self.inflexion_collect = {}
+            self.inflexion_collect[f"{var}_inflexion"] = sat_result_total["inflexion"]
 
         # EXACTLY match R's flow:
         # 1. First update dt_modAdstocked with adstocked values (full data)
@@ -484,6 +523,11 @@ class RidgeDataBuilder:
 
         # 2. Then window and create dt_modSaturated (exactly like R)
         dt_modSaturated = dt_modAdstocked.iloc[window_indices].copy()
+
+        # Drop media columns before binding (exactly like R)
+        dt_modSaturated = dt_modSaturated.drop(columns=media_vars + ["newsletter"])
+        for var, values in saturated_total_collect.items():
+            dt_modSaturated[var] = values
 
         # 2. Add dep_var as first column (like R)
         if "dep_var" not in dt_modSaturated.columns:
