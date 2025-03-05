@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import nevergrad as ng
+from nevergrad.optimization.base import Optimizer
 import time
 import warnings
 from tqdm import tqdm
@@ -13,6 +14,7 @@ from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
 from robyn.reporting.utils.modeling_debug import debug_model_metrics
 from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
+import json
 
 
 class RidgeModelEvaluator:
@@ -34,6 +36,7 @@ class RidgeModelEvaluator:
 
     def _run_nevergrad_optimization(
         self,
+        optimizer: Optimizer,
         hyper_collect: Dict[str, Any],
         iterations: int,
         cores: int,
@@ -50,17 +53,6 @@ class RidgeModelEvaluator:
         total_trials: int,
     ) -> Trial:
         """Run Nevergrad optimization for ridge regression."""
-        # Log key optimization settings
-        self.logger.debug(
-            f"\n=== Starting Nevergrad Optimization (Trial {trial}/{total_trials}) ==="
-        )
-        self.logger.debug(
-            f"Iterations: {iterations}, Algorithm: {nevergrad_algo.value}, Random seed: {seed}"
-        )
-        self.logger.debug(f"Objective weights: {objective_weights}")
-        self.logger.debug(
-            f"Hyperparameter bounds: {hyper_collect['hyper_bound_list_updated']}"
-        )
 
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -77,22 +69,8 @@ class RidgeModelEvaluator:
             for name, bound in zip(param_names, param_bounds)
         }
 
-        self.logger.debug(
-            f"Parameter space created with {len(instrum_dict)} dimensions: {list(instrum_dict.keys())}"
-        )
-        self.logger.debug(
-            f"Parameter bounds: {[(name, instrum_dict[name].bounds) for name in instrum_dict]}"
-        )
-
         instrum = ng.p.Instrumentation(**instrum_dict)
-        optimizer = ng.optimizers.registry[nevergrad_algo.value](
-            instrum, budget=iterations, num_workers=cores
-        )
         optimizer.seed = seed
-        self.logger.debug(f"Optimizer: {type(optimizer).__name__}, workers={cores}")
-        self.logger.debug(
-            f"Optimizer configuration: budget={iterations}, workers={cores}, seed={seed}"
-        )
 
         # Set up multi-objective reference and weights
         if self.calibration_input is not None:
@@ -112,21 +90,65 @@ class RidgeModelEvaluator:
         ) as pbar:
             for iter_ng in range(iterations):
                 candidate = optimizer.ask()
-                params = candidate.kwargs
-                self.logger.debug(
-                    f"Iteration {iter_ng+1}/{iterations}: Asked for candidate"
-                )
-                self.logger.debug(f"Candidate parameters: {params}")
 
-                if iter_ng == 0 or iter_ng % 10 == 0:
-                    self.logger.debug(
-                        f"Iteration {iter_ng+1}/{iterations} parameters: {params}"
+                # Extract values from the candidate's dictionary (second element of tuple)
+                param_dict = candidate.value[1]
+
+                # Get raw values in the correct order
+                raw_values = [param_dict[name] for name in param_names]
+
+                # Transform values using qunif (like R)
+                transformed_params = {}
+                for i, name in enumerate(param_names):
+                    bounds = hyper_collect["hyper_bound_list_updated"][name]
+                    raw_value = raw_values[i]
+                    # Linear transformation (equivalent to R's qunif)
+                    transformed_value = bounds[0] + raw_value * (bounds[1] - bounds[0])
+                    transformed_params[name] = transformed_value
+
+                # Log both raw and transformed values
+                self.logger.debug(
+                    json.dumps(
+                        {
+                            "step": f"step6_hyperparameter_sampling_iteration_{iter_ng + 1}",
+                            "data": {
+                                "iteration_info": {
+                                    "current_iteration": iter_ng + 1,
+                                    "total_iterations": iterations,
+                                    "cores": 1,
+                                },
+                                "sampling": {
+                                    "hyper_fixed": False,
+                                    "num_samples": 1,
+                                    "updated_params": {
+                                        "names": param_names,
+                                        "bounds": {
+                                            name: hyper_collect[
+                                                "hyper_bound_list_updated"
+                                            ][name]
+                                            for name in param_names
+                                        },
+                                    },
+                                },
+                                "results": {
+                                    "sampled_values": [
+                                        [round(v, 4) for v in raw_values]
+                                    ],
+                                    "final_hyperparams": {
+                                        name: [round(transformed_params[name], 4)]
+                                        for name in param_names
+                                    },
+                                },
+                            },
+                        },
+                        indent=2,
                     )
+                )
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     result = self._evaluate_model(
-                        params,
+                        transformed_params,
                         ts_validation,
                         add_penalty_factor,
                         rssd_zero_penalty,
@@ -453,14 +475,14 @@ class RidgeModelEvaluator:
             "lambda_max": lambda_max,
             "lambda_min_ratio": lambda_min_ratio,
         }
-        debug_model_metrics(
-            self.ridge_metrics_calculator,
-            X_train,
-            y_train,
-            lambda_info,
-            metrics,
-            iter_ng,
-        )
+        # debug_model_metrics(
+        #     self.ridge_metrics_calculator,
+        #     X_train,
+        #     y_train,
+        #     lambda_info,
+        #     metrics,
+        #     iter_ng,
+        # )
         # Calculate decompositions
         x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
             model, X_train, y_train, {**params_formatted, **metrics}

@@ -8,6 +8,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
+from nevergrad.optimization.base import Optimizer
 
 import logging
 import time
@@ -29,6 +30,7 @@ from robyn.modeling.ridge.ridge_metrics_calculator import (
 from robyn.modeling.ridge.ridge_evaluate_model import RidgeModelEvaluator
 from robyn.modeling.ridge.ridge_data_builder import RidgeDataBuilder
 from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
+import json
 
 
 class RidgeModelBuilder:
@@ -59,6 +61,83 @@ class RidgeModelBuilder:
 
         self.logger = logging.getLogger(__name__)
 
+    def initialize_nevergrad_optimizer(
+        self,
+        hyper_collect: Dict[str, Any],
+        iterations: int,
+        cores: int,
+        nevergrad_algo: NevergradAlgorithm,
+        calibration_input: Optional[Any] = None,
+        objective_weights: Optional[List[float]] = None,
+    ) -> Tuple[Optimizer, List[float]]:
+        """Initialize Nevergrad optimizer exactly like R's implementation"""
+
+        # Create parameter space
+        param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
+        param_bounds = [
+            hyper_collect["hyper_bound_list_updated"][name] for name in param_names
+        ]
+
+        # Create instrumentation dictionary
+        instrum_dict = {
+            name: ng.p.Scalar(lower=bound[0], upper=bound[1])
+            for name, bound in zip(param_names, param_bounds)
+        }
+
+        # Create instrumentation
+        instrum = ng.p.Instrumentation(**instrum_dict)
+
+        # Initialize optimizer (without parallel processing for now)
+        optimizer = ng.optimizers.registry[nevergrad_algo.value](
+            instrum, budget=iterations, num_workers=1  # Keep single worker for now
+        )
+
+        # Set multi-objective dimensions for objective functions (errors)
+        if calibration_input is None:
+            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1))
+            if objective_weights is None:
+                objective_weights = [1, 1]
+            optimizer.set_objective_weights(tuple(objective_weights[:2]))
+        else:
+            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1, 1))
+            if objective_weights is None:
+                objective_weights = [1, 1, 1]
+            optimizer.set_objective_weights(tuple(objective_weights[:3]))
+
+        # Log step5 nevergrad setup
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": "step5_nevergrad_setup",
+                    "data": {
+                        "iterations": {
+                            "total": iterations,
+                            "parallel": 1,  # Single process for now
+                            "nevergrad": iterations,  # All iterations run sequentially
+                        },
+                        "optimizer": {
+                            "name": nevergrad_algo.value,
+                            "hyper_fixed": False,
+                            "tuple_size": len(param_names),
+                            "num_workers": 1,  # Single worker
+                            "budget": iterations,
+                        },
+                        "objective": {
+                            "has_calibration": calibration_input is not None,
+                            "weights": objective_weights,
+                            "dimensions": 3 if calibration_input else 2,
+                        },
+                        "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[
+                            :-3
+                        ],
+                    },
+                },
+                indent=2,
+            )
+        )
+
+        return optimizer, objective_weights
+
     def build_models(
         self,
         trials_config: TrialsConfig,
@@ -82,19 +161,22 @@ class RidgeModelBuilder:
             dt_hyper_fixed,
             cores,
         )
-        # Convert datetime to string format matching R's format
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Set up objective weights including calibration if available
-        if objective_weights is None:
-            if self.calibration_input is not None:
-                objective_weights = [1, 1, 1]  # NRMSE, RSSD, MAPE
-            else:
-                objective_weights = [1, 1]  # NRMSE, RSSD only
+        # Initialize Nevergrad optimizer
+        optimizer, objective_weights = self.initialize_nevergrad_optimizer(
+            hyper_collect=hyper_collect,
+            iterations=trials_config.iterations,
+            cores=cores,
+            nevergrad_algo=nevergrad_algo,
+            calibration_input=self.calibration_input,
+            objective_weights=objective_weights,
+        )
+
         # Run trials
         trials = []
         for trial in range(1, trials_config.trials + 1):
             trial_result = self.ridge_model_evaluator._run_nevergrad_optimization(
+                optimizer=optimizer,  # Pass the initialized optimizer
                 hyper_collect=hyper_collect,
                 iterations=trials_config.iterations,
                 cores=cores,
@@ -107,10 +189,11 @@ class RidgeModelBuilder:
                 dt_hyper_fixed=dt_hyper_fixed,
                 rssd_zero_penalty=rssd_zero_penalty,
                 trial=trial,
-                seed=seed[0] + trial,  # Use the first element of the seed list
+                seed=seed[0] + trial,
                 total_trials=trials_config.trials,
             )
             trials.append(trial_result)
+
         # Calculate convergence
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(trials)
@@ -210,7 +293,7 @@ class RidgeModelBuilder:
         # Create ModelOutputs
         model_outputs = ModelOutputs(
             trials=trials,
-            train_timestamp=current_time,
+            train_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             cores=cores,
             iterations=trials_config.iterations,
             intercept=intercept,

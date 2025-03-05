@@ -4,6 +4,7 @@ from typing import Dict, Tuple, List, Any, Optional
 from sklearn.linear_model import Ridge
 import logging
 from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
+import json
 
 
 class RidgeMetricsCalculator:
@@ -184,36 +185,77 @@ class RidgeMetricsCalculator:
         )
         return lambda_scaled
 
-    def initialize_lambda_sequence(self, X, y):
-        """Calculate lambda_max and lambda_min exactly like R"""
+    def initialize_lambda_sequence(self, X, y, seq_len=100):
+        """Calculate lambda sequence exactly like R's lambda_seq function"""
         if self.lambda_max is None:
-            # Convert inputs to numpy arrays if they're pandas objects
+            # Convert to numpy arrays
             X = X.to_numpy() if hasattr(X, "to_numpy") else np.array(X)
             y = y.to_numpy() if hasattr(y, "to_numpy") else np.array(y)
 
-            n = X.shape[0]
+            # R's mysd function
+            mysd = lambda x: np.sqrt(np.sum((x - np.mean(x)) ** 2) / len(x))
 
-            # Scale X and y
-            X_mean = X.mean(axis=0)
-            X_std = X.std(axis=0)
-            y_mean = y.mean()
-            y_std = y.std()
+            # Scale X using mysd (like R's scale function)
+            X_scaled = np.zeros_like(X)
+            for j in range(X.shape[1]):
+                sd = mysd(X[:, j])
+                X_scaled[:, j] = (X[:, j] - np.mean(X[:, j])) / sd if sd != 0 else 0
 
-            X_scaled = (X - X_mean) / X_std
-            y_scaled = (y - y_mean) / y_std
+            # Handle NaN values like R
+            nan_cols = np.all(np.isnan(X_scaled), axis=0)
+            X_scaled[:, nan_cols] = 0
 
-            # Calculate column sums of X'y directly
-            col_sums = X_scaled.T @ y_scaled
+            # Calculate lambda_max (R's way)
+            lambda_max = np.max(np.abs(np.sum(X_scaled * y[:, None], axis=0))) / (
+                0.001 * len(y)
+            )
 
-            # Get max absolute column sum
-            max_abs_col_sum = np.max(np.abs(col_sums))
+            # Generate lambda sequence
+            log_seq = np.linspace(
+                np.log(lambda_max), np.log(lambda_max * self.lambda_min_ratio), seq_len
+            )
+            lambdas = np.exp(log_seq)
 
-            # Calculate lambda_max exactly as R does
-            self.lambda_max = max_abs_col_sum * y_std / n * 100  # Base calculation
+            # Store final values (with 0.1 adjustment like R)
+            self.lambda_max = np.max(lambdas) * 0.1  # Apply 0.1 to final lambda_max
+            self.lambda_min = (
+                self.lambda_max * self.lambda_min_ratio
+            )  # Use adjusted lambda_max
 
-            # Calculate lambda_min using same ratio as R
-            self.lambda_min_ratio = 0.0001  # Same as R's default
-            self.lambda_min = self.lambda_max * self.lambda_min_ratio
+            # Log debug info
+            self.logger.debug(
+                json.dumps(
+                    {
+                        "step": "step4_lambda_calculation",
+                        "data": {
+                            "lambda_min_ratio": self.lambda_min_ratio,
+                            "lambda_sequence": {
+                                "length": seq_len,
+                                "min": float(
+                                    np.min(lambdas)
+                                ),  # Original sequence values
+                                "max": float(
+                                    np.max(lambdas)
+                                ),  # Original sequence values
+                                "mean": float(
+                                    np.mean(lambdas)
+                                ),  # Original sequence values
+                            },
+                            "final_values": {
+                                "lambda_max": float(self.lambda_max),  # Adjusted by 0.1
+                                "lambda_min": float(
+                                    self.lambda_min
+                                ),  # Based on adjusted lambda_max
+                            },
+                            "input_dimensions": {
+                                "x_shape": list(X.shape),
+                                "y_length": len(y),
+                            },
+                        },
+                    },
+                    indent=2,
+                )
+            )
 
     def _calculate_rssd(
         self,
