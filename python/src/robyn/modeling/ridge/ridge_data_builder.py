@@ -437,38 +437,32 @@ class RidgeDataBuilder:
         saturated_immediate_collect = {}
         saturated_carryover_collect = {}
 
-        # Get media variables
+        # Process media variables
         media_vars = self.mmm_data.mmmdata_spec.paid_media_spends
         self.logger.debug(f"Processing media variables: {media_vars}")
 
-        for var in media_vars:
-            # Log progress
+        # Process each media variable (including newsletter)
+        for var in media_vars + ["newsletter"]:  # Add newsletter explicitly
             self.logger.debug(f"Processing variable: {var}")
 
             # 1. Adstocking (whole data)
-            m = dt_modAdstocked[var]
+            input_data = dt_modAdstocked[var].values
             theta = params[f"{var}_thetas"]
 
-            # Apply geometric adstock to full dataset
-            input_total = self._geometric_adstock(m, theta)
-            input_immediate = m.values
+            # Get adstocked values
+            input_total = self._geometric_adstock(input_data, theta)
+            input_immediate = input_data
             adstocked_collect[var] = input_total
             input_carryover = input_total - input_immediate
-
-            # Log shapes after adstocking
-            self.logger.debug(f"{var} adstocked shape: {len(input_total)}")
 
             # 2. Saturation (only window data)
             input_total_rw = input_total[window_indices]
             input_carryover_rw = input_carryover[window_indices]
 
-            # Log shapes after windowing
-            self.logger.debug(f"{var} windowed shape: {len(input_total_rw)}")
-
             alpha = params[f"{var}_alphas"]
             gamma = params[f"{var}_gammas"]
 
-            # Apply saturation to windowed data
+            # Apply saturation
             sat_total = self._hill_transformation(input_total_rw, alpha, gamma)
             sat_carryover = self._hill_transformation(
                 input_total_rw, alpha, gamma, x_marginal=input_carryover_rw
@@ -477,9 +471,6 @@ class RidgeDataBuilder:
             saturated_total_collect[var] = sat_total
             saturated_carryover_collect[var] = sat_carryover
             saturated_immediate_collect[var] = sat_total - sat_carryover
-
-            # Log shapes after saturation
-            self.logger.debug(f"{var} saturated shape: {len(sat_total)}")
 
         # EXACTLY match R's flow:
         # 1. First update dt_modAdstocked with adstocked values (full data)
@@ -492,24 +483,14 @@ class RidgeDataBuilder:
         )
 
         # 2. Then window and create dt_modSaturated (exactly like R)
-        dt_modSaturated = dt_modAdstocked.iloc[window_indices].drop(columns=media_vars)
-        self.logger.debug(
-            f"dt_modSaturated shape after windowing: {dt_modSaturated.shape}"
-        )
+        dt_modSaturated = dt_modAdstocked.iloc[window_indices].copy()
 
-        # Create DataFrame from saturated_total_collect with explicit index
-        saturated_df = pd.DataFrame(
-            saturated_total_collect, index=dt_modSaturated.index
-        )
-        self.logger.debug(f"saturated_df shape before concat: {saturated_df.shape}")
+        # 2. Add dep_var as first column (like R)
+        if "dep_var" not in dt_modSaturated.columns:
+            dt_modSaturated.insert(0, "dep_var", self.y_base.iloc[window_indices])
 
-        # Concatenate with matching indices
-        dt_modSaturated = pd.concat([dt_modSaturated, saturated_df], axis=1)
-        self.logger.debug(
-            f"dt_modSaturated shape after concat: {dt_modSaturated.shape}"
-        )
-
-        # 3. Create immediate and carryover dataframes (already windowed)
+        # 3. Create immediate and carryover dataframes
+        # These should only contain media variables
         dt_saturatedImmediate = pd.DataFrame(
             saturated_immediate_collect, index=dt_modSaturated.index
         ).fillna(0)
@@ -517,8 +498,16 @@ class RidgeDataBuilder:
             saturated_carryover_collect, index=dt_modSaturated.index
         ).fillna(0)
 
-        self.logger.debug(f"Immediate shape: {dt_saturatedImmediate.shape}")
-        self.logger.debug(f"Carryover shape: {dt_saturatedCarryover.shape}")
+        # 4. Log the shapes and verify
+        self.logger.debug(
+            f"dt_modSaturated shape (should be 12 cols): {dt_modSaturated.shape}"
+        )
+        self.logger.debug(
+            f"dt_saturatedImmediate shape (media vars only): {dt_saturatedImmediate.shape}"
+        )
+        self.logger.debug(
+            f"dt_saturatedCarryover shape (media vars only): {dt_saturatedCarryover.shape}"
+        )
 
         # Window y data using same indices
         self.y_windowed = self.y_base.iloc[window_indices]
@@ -526,7 +515,9 @@ class RidgeDataBuilder:
 
         # Additional debug info
         self.logger.debug(f"dt_modSaturated index length: {len(dt_modSaturated.index)}")
-        self.logger.debug(f"saturated_df index length: {len(saturated_df.index)}")
+        self.logger.debug(
+            f"saturated_df index length: {len(dt_saturatedImmediate.index)}"
+        )
 
         # Verify shapes match
         assert len(dt_modSaturated) == len(self.y_windowed) == window_length, (
@@ -534,10 +525,67 @@ class RidgeDataBuilder:
             f"y_windowed has {len(self.y_windowed)} rows, "
             f"expected {window_length} rows"
         )
-
+        # Enhanced step7b logging with detailed transformation info
+        self.logger.debug(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": f"step7b_transformation_iteration_{current_iteration}",
+                    "data": {
+                        "transformation_info": {
+                            "dt_modSaturated": {
+                                "shape": list(dt_modSaturated.shape),
+                                "columns": list(dt_modSaturated.columns),
+                                "stats": {
+                                    "min": dt_modSaturated.min().to_dict(),
+                                    "max": dt_modSaturated.max().to_dict(),
+                                    "mean": dt_modSaturated.mean().to_dict(),
+                                    "std": dt_modSaturated.std().to_dict(),
+                                },
+                            },
+                            "dt_saturatedImmediate": {
+                                "shape": list(dt_saturatedImmediate.shape),
+                                "columns": list(dt_saturatedImmediate.columns),
+                                "stats": {
+                                    "min": dt_saturatedImmediate.min().to_dict(),
+                                    "max": dt_saturatedImmediate.max().to_dict(),
+                                    "mean": dt_saturatedImmediate.mean().to_dict(),
+                                    "std": dt_saturatedImmediate.std().to_dict(),
+                                },
+                            },
+                            "dt_saturatedCarryover": {
+                                "shape": list(dt_saturatedCarryover.shape),
+                                "columns": list(dt_saturatedCarryover.columns),
+                                "stats": {
+                                    "min": dt_saturatedCarryover.min().to_dict(),
+                                    "max": dt_saturatedCarryover.max().to_dict(),
+                                    "mean": dt_saturatedCarryover.mean().to_dict(),
+                                    "std": dt_saturatedCarryover.std().to_dict(),
+                                },
+                            },
+                        },
+                        "iteration_info": {
+                            "current_iteration": current_iteration,
+                            "total_iterations": total_iterations,
+                            "cores": cores,
+                        },
+                        "y_info": {
+                            "shape": len(self.y_windowed),
+                            "stats": {
+                                "min": float(self.y_windowed.min()),
+                                "max": float(self.y_windowed.max()),
+                                "mean": float(self.y_windowed.mean()),
+                                "std": float(self.y_windowed.std()),
+                            },
+                        },
+                    },
+                },
+                indent=2,
+            )
+        )
         return {
-            "dt_modSaturated": dt_modSaturated,
-            "dt_saturatedImmediate": dt_saturatedImmediate,
-            "dt_saturatedCarryover": dt_saturatedCarryover,
-            "y": self.y_windowed,
+            "dt_modSaturated": dt_modSaturated,  # includes dep_var
+            "dt_saturatedImmediate": dt_saturatedImmediate,  # media vars only
+            "dt_saturatedCarryover": dt_saturatedCarryover,  # media vars only
+            "y": self.y_windowed,  # keep for convenience
         }
