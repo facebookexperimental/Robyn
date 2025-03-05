@@ -34,12 +34,23 @@ class RidgeModelEvaluator:
         self.calibration_input = calibration_input
         self.logger = logging.getLogger(__name__)
 
+    def _qunif(self, p: float, min_val: float, max_val: float) -> float:
+        """
+        Replicate R's qunif function (quantile function for uniform distribution)
+        p: probability value between 0 and 1
+        min_val: minimum value of the range
+        max_val: maximum value of the range
+        """
+        p = max(0.0, min(1.0, p))  # Ensure p is between 0 and 1
+        return min_val + p * (max_val - min_val)
+
     def _run_nevergrad_optimization(
         self,
         optimizer: Optimizer,
         hyper_collect: Dict[str, Any],
         iterations: int,
         cores: int,
+        total_iterations: int,
         nevergrad_algo: NevergradAlgorithm,
         intercept: bool,
         intercept_sign: str,
@@ -53,46 +64,133 @@ class RidgeModelEvaluator:
         total_trials: int,
     ) -> Trial:
         """Run Nevergrad optimization for ridge regression."""
-
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
         np.random.seed(seed)
+        param_names = sorted(hyper_collect["hyper_bound_list_updated"].keys())
 
-        param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
-        param_bounds = [
-            hyper_collect["hyper_bound_list_updated"][name] for name in param_names
-        ]
-
-        instrum_dict = {
-            name: ng.p.Scalar(lower=bound[0], upper=bound[1])
-            for name, bound in zip(param_names, param_bounds)
-        }
-
-        instrum = ng.p.Instrumentation(**instrum_dict)
-        optimizer.seed = seed
-
-        # Set up multi-objective reference and weights
-        if self.calibration_input is not None:
-            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1, 1))
-            if objective_weights is None:
-                objective_weights = [1, 1, 1]
-            optimizer.set_objective_weights(tuple(objective_weights))
-
-        all_results = []
+        result_collect_ng = []
         start_time = time.time()
 
         with tqdm(
-            total=iterations,
+            total=total_iterations,
             desc=f"Running trial {trial} of total {total_trials} trials",
             bar_format="{l_bar}{bar}",
             ncols=75,
         ) as pbar:
             for iter_ng in range(iterations):
-                candidate = optimizer.ask()
+                nevergrad_hp = []
+                nevergrad_hp_val = []
+                hyper_param_sam_list = []
+                hyper_param_sam_ng = None
+
+                if dt_hyper_fixed is None:
+                    for co in range(cores):
+                        # Get sample and debug its structure
+                        candidate = optimizer.ask()
+                        self.logger.debug(f"Candidate type: {type(candidate)}")
+                        self.logger.debug(
+                            f"Candidate value type: {type(candidate.value)}"
+                        )
+                        self.logger.debug(f"Candidate value: {candidate.value}")
+
+                        nevergrad_hp.append(candidate)
+                        raw_values = candidate.value  # numpy array
+                        nevergrad_hp_val.append(raw_values)
+
+                        # Debug raw values
+                        self.logger.debug(f"Raw values type: {type(raw_values)}")
+                        self.logger.debug(f"Raw values shape: {raw_values.shape}")
+                        self.logger.debug(f"Raw values: {raw_values}")
+
+                        # Transform parameters
+                        param_values = {}
+                        for i, name in enumerate(param_names):
+                            bounds = hyper_collect["hyper_bound_list_updated"][name]
+                            raw_value = float(f"{raw_values[i]:.10g}")
+
+                            if isinstance(bounds, (list, tuple)) and len(bounds) > 1:
+                                transformed_value = self._qunif(
+                                    raw_value, bounds[0], bounds[1]
+                                )
+                            else:
+                                transformed_value = raw_value
+
+                            param_values[name] = transformed_value
+
+                        # Debug transformed values
+                        self.logger.debug(f"Transformed values: {param_values}")
+
+                        hyper_param_sam_list.append(pd.DataFrame([param_values]))
+
+                    hyper_param_sam_ng = pd.concat(
+                        hyper_param_sam_list, ignore_index=True
+                    )
+                    hyper_param_sam_ng.columns = param_names
+                else:
+                    hyper_param_sam_ng = pd.DataFrame(
+                        hyper_collect["hyper_bound_list_fixed"]
+                    )[param_names]
+
+                # Fix the logging to handle numpy arrays
+                self.logger.debug(
+                    json.dumps(
+                        {
+                            "step": f"step6_hyperparameter_sampling_iteration_{iter_ng + 1}",
+                            "data": {
+                                "iteration_info": {
+                                    "current_iteration": iter_ng + 1,
+                                    "total_iterations": iterations,
+                                    "cores": cores,
+                                },
+                                "sampling": {
+                                    "hyper_fixed": dt_hyper_fixed is not None,
+                                    "num_samples": (
+                                        len(nevergrad_hp)
+                                        if dt_hyper_fixed is None
+                                        else 0
+                                    ),
+                                    "updated_params": (
+                                        {
+                                            "names": param_names,
+                                            "bounds": hyper_collect[
+                                                "hyper_bound_list_updated"
+                                            ],
+                                        }
+                                        if dt_hyper_fixed is None
+                                        else None
+                                    ),
+                                },
+                                "results": {
+                                    "sampled_values": (
+                                        [
+                                            [
+                                                float(f"{v:.10g}") for v in val
+                                            ]  # Convert numpy array values
+                                            for val in nevergrad_hp_val
+                                        ]
+                                        if dt_hyper_fixed is None
+                                        else None
+                                    ),
+                                    "final_hyperparams": {
+                                        k: [float(f"{v:.10g}") for v in vals]
+                                        for k, vals in hyper_param_sam_ng.to_dict(
+                                            "list"
+                                        ).items()
+                                    },
+                                },
+                            },
+                        },
+                        indent=2,
+                    )
+                )
+
+                # Now we'll evaluate each sample (like R's robyn_iterations)
+                # ... next part will go here ...
 
                 # Extract values from the candidate's dictionary (second element of tuple)
-                param_dict = candidate.value[1]
+                param_dict = nevergrad_hp[-1]
 
                 # Get raw values in the correct order
                 raw_values = [param_dict[name] for name in param_names]
@@ -164,12 +262,14 @@ class RidgeModelEvaluator:
 
                 if self.calibration_input is not None:
                     optimizer.tell(
-                        candidate,
+                        nevergrad_hp[-1],
                         (result["nrmse"], result["decomp_rssd"], result["mape"]),
                     )
                     self.logger.debug(f"Told optimizer with multi-objective results")
                 else:
-                    optimizer.tell(candidate, (result["nrmse"], result["decomp_rssd"]))
+                    optimizer.tell(
+                        nevergrad_hp[-1], (result["nrmse"], result["decomp_rssd"])
+                    )
 
                 # Important: Convert metrics to correct types
                 sol_id = f"{trial}_{iter_ng + 1}_1"
@@ -198,7 +298,7 @@ class RidgeModelEvaluator:
                     }
                 )
 
-                all_results.append(result)
+                result_collect_ng.append(result)
                 pbar.update(1)
 
                 if iter_ng == 0 or iter_ng % 10 == 0:
@@ -210,7 +310,9 @@ class RidgeModelEvaluator:
         self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
 
         # Aggregate results with explicit dtypes
-        result_hyp_param = pd.DataFrame([r["params"] for r in all_results]).astype(
+        result_hyp_param = pd.DataFrame(
+            [r["params"] for r in result_collect_ng]
+        ).astype(
             {
                 "sol_id": "str",
                 "trial": "int64",
@@ -230,10 +332,10 @@ class RidgeModelEvaluator:
         )
 
         decomp_spend_dist = pd.concat(
-            [r["decomp_spend_dist"] for r in all_results], ignore_index=True
+            [r["decomp_spend_dist"] for r in result_collect_ng], ignore_index=True
         )
         x_decomp_agg = pd.concat(
-            [r["x_decomp_agg"] for r in all_results], ignore_index=True
+            [r["x_decomp_agg"] for r in result_collect_ng], ignore_index=True
         )
 
         # Ensure correct dtypes in decomp_spend_dist and x_decomp_agg
@@ -260,7 +362,7 @@ class RidgeModelEvaluator:
         )
 
         # Find best result based on loss
-        best_result = min(all_results, key=lambda x: x["loss"])
+        best_result = min(result_collect_ng, key=lambda x: x["loss"])
         # Convert values to Series before passing to Trial
         recommendation = best_result["params"]
         self.logger.debug(

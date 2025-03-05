@@ -72,27 +72,20 @@ class RidgeModelBuilder:
     ) -> Tuple[Optimizer, List[float]]:
         """Initialize Nevergrad optimizer exactly like R's implementation"""
 
-        # Create parameter space
-        param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
-        param_bounds = [
-            hyper_collect["hyper_bound_list_updated"][name] for name in param_names
-        ]
+        # Get parameter count (like R's hyper_count)
+        param_names = sorted(hyper_collect["hyper_bound_list_updated"].keys())
+        hyper_count = len(param_names)
 
-        # Create instrumentation dictionary
-        instrum_dict = {
-            name: ng.p.Scalar(lower=bound[0], upper=bound[1])
-            for name, bound in zip(param_names, param_bounds)
-        }
+        # Create array instrumentation exactly like R
+        shape = (hyper_count,)  # Create a tuple with one element
+        instrum = ng.p.Array(shape=shape, lower=0, upper=1)
 
-        # Create instrumentation
-        instrum = ng.p.Instrumentation(**instrum_dict)
-
-        # Initialize optimizer (without parallel processing for now)
+        # Initialize optimizer
         optimizer = ng.optimizers.registry[nevergrad_algo.value](
-            instrum, budget=iterations, num_workers=1  # Keep single worker for now
+            instrum, budget=iterations, num_workers=cores
         )
 
-        # Set multi-objective dimensions for objective functions (errors)
+        # Set multi-objective dimensions
         if calibration_input is None:
             optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1))
             if objective_weights is None:
@@ -119,7 +112,7 @@ class RidgeModelBuilder:
                             "name": nevergrad_algo.value,
                             "hyper_fixed": False,
                             "tuple_size": len(param_names),
-                            "num_workers": 1,  # Single worker
+                            "num_workers": cores,  # Single worker
                             "budget": iterations,
                         },
                         "objective": {
@@ -162,6 +155,17 @@ class RidgeModelBuilder:
             cores,
         )
 
+        # Calculate iterations like R
+        hyper_fixed = dt_hyper_fixed is not None
+        if not hyper_fixed:
+            iter_total = trials_config.iterations
+            iter_par = cores if cores else 1
+            iter_ng = int(
+                np.ceil(trials_config.iterations / iter_par)
+            )  # Like R's ceiling
+        else:
+            iter_total = iter_par = iter_ng = 1
+
         # Initialize Nevergrad optimizer
         optimizer, objective_weights = self.initialize_nevergrad_optimizer(
             hyper_collect=hyper_collect,
@@ -178,8 +182,9 @@ class RidgeModelBuilder:
             trial_result = self.ridge_model_evaluator._run_nevergrad_optimization(
                 optimizer=optimizer,  # Pass the initialized optimizer
                 hyper_collect=hyper_collect,
-                iterations=trials_config.iterations,
+                iterations=iter_ng,
                 cores=cores,
+                total_iterations=iter_total,
                 nevergrad_algo=nevergrad_algo,
                 intercept=intercept,
                 intercept_sign=intercept_sign,
