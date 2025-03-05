@@ -280,12 +280,6 @@ class RidgeMetricsCalculator:
             effects.append(effect)
             spends.append(raw_spend)
 
-            if debug and (iteration == 0 or iteration % 25 == 0):
-                self.logger.debug(f"{col}:")
-                self.logger.debug(f"  coefficient: {coef:.6f}")
-                self.logger.debug(f"  raw spend: {raw_spend:.6f}")
-                self.logger.debug(f"  effect: {effect:.6f}")
-
         # Convert to numpy arrays
         effects = np.array(effects)
         spends = np.array(spends)
@@ -298,13 +292,6 @@ class RidgeMetricsCalculator:
             # Normalize proportionally
             effects_norm = effects / total_effect
             spends_norm = spends / total_spend
-
-            if debug and (iteration == 0 or iteration % 25 == 0):
-                self.logger.debug("\nNormalized values:")
-                self.logger.debug(f"Effects: {effects_norm}")
-                self.logger.debug(f"Spends: {spends_norm}")
-                self.logger.debug(f"Effect total (check=1): {np.sum(effects_norm)}")
-                self.logger.debug(f"Spend total (check=1): {np.sum(spends_norm)}")
 
             # Calculate RSSD
             squared_diff = (effects_norm - spends_norm) ** 2
@@ -524,19 +511,12 @@ class RidgeMetricsCalculator:
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
 
-        self.logger.debug("\n=== NRMSE Calculation ===")
-        self.logger.debug(f"y_true shape: {y_true.shape}, y_pred shape: {y_pred.shape}")
-        self.logger.debug(f"y_true range: [{y_true.min():.6f}, {y_true.max():.6f}]")
-        self.logger.debug(f"y_pred range: [{y_pred.min():.6f}, {y_pred.max():.6f}]")
-
         # Calculate RMSE
         squared_errors = (y_true - y_pred) ** 2
         rmse = np.sqrt(np.mean(squared_errors))
-        self.logger.debug(f"RMSE: {rmse:.6f}")
 
         # Calculate range denominator
         y_range = np.max(y_true) - np.min(y_true)
-        self.logger.debug(f"y_true range denominator: {y_range:.6f}")
 
         if y_range > 0:
             nrmse = rmse / y_range
@@ -544,5 +524,4 @@ class RidgeMetricsCalculator:
             self.logger.warning("y_true range is 0, using rmse as nrmse")
             nrmse = rmse
 
-        self.logger.debug(f"Final NRMSE: {nrmse:.6f}")
         return float(nrmse)
