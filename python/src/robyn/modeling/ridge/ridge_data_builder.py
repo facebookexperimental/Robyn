@@ -3,6 +3,8 @@ from typing import Any, Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
 from scipy.signal import lfilter
+import json
+from datetime import datetime
 
 
 class RidgeDataBuilder:
@@ -13,11 +15,9 @@ class RidgeDataBuilder:
 
     def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
         """Prepare data for ridge regression, handling dependent variable and excluding date columns"""
-        self.logger.debug(f"Starting data preparation with params: {params}")
 
         # Get the dependent variable, handling both possible column names
         dep_var = self.mmm_data.mmmdata_spec.dep_var
-        self.logger.debug(f"Using dependent variable: {dep_var}")
         if dep_var not in self.featurized_mmm_data.dt_mod.columns:
             # If dep_var column doesn't exist, try 'dep_var'
             if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
@@ -32,11 +32,6 @@ class RidgeDataBuilder:
                 )
         else:
             y = self.featurized_mmm_data.dt_mod[dep_var]
-
-        # After getting y
-        self.logger.debug(
-            f"Dependent variable stats - mean: {y.mean():.6f}, min: {y.min():.6f}, max: {y.max():.6f}, std: {y.std():.6f}"
-        )
 
         # Select all columns except the dependent variable and date columns
         exclude_cols = ["ds"]  # Always exclude 'ds' if present
@@ -53,12 +48,49 @@ class RidgeDataBuilder:
         ]
         X = self.featurized_mmm_data.dt_mod.drop(columns=exclude_cols)
 
-        # After creating X
-        self.logger.debug(f"Independent variables shape: {X.shape}")
+        # Log step2 environment setup info
         self.logger.debug(
-            f"Column stats summary:\n{X.describe().loc[['mean', 'std', 'min', 'max']].T.head()}"
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": "step2_environment_setup",
+                    "data": {
+                        "dt_mod_shape": [
+                            len(self.featurized_mmm_data.dt_mod),
+                            len(self.featurized_mmm_data.dt_mod.columns),
+                        ],
+                        "rolling_window": {
+                            "start": self.mmm_data.mmmdata_spec.rolling_window_start_which,
+                            "end": self.mmm_data.mmmdata_spec.rolling_window_end_which,
+                            "length": self.mmm_data.mmmdata_spec.rolling_window_length,
+                        },
+                        "refresh": {
+                            "added_start": str(
+                                self.mmm_data.mmmdata_spec.refresh_added_start
+                            ),
+                            "steps": {},  # Fill this if refresh steps exist
+                        },
+                        "variables": {
+                            "paid_media": self.mmm_data.mmmdata_spec.paid_media_spends,
+                            "organic": self.mmm_data.mmmdata_spec.organic_vars,
+                            "context": self.mmm_data.mmmdata_spec.context_vars,
+                            "prophet": ["trend", "season", "holiday"],
+                        },
+                        "signs": {
+                            "context": ["default"]
+                            * len(self.mmm_data.mmmdata_spec.context_vars),
+                            "paid_media": ["positive"]
+                            * len(self.mmm_data.mmmdata_spec.paid_media_spends),
+                            "prophet": ["default"] * 3,
+                            "organic": "positive",
+                        },
+                        "adstock": "geometric",
+                        "optimizer": "TwoPointsDE",
+                    },
+                },
+                indent=2,
+            )
         )
-
         # Convert date columns to numeric (number of days since the earliest date)
         date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
         for col in date_columns:
@@ -91,6 +123,108 @@ class RidgeDataBuilder:
         X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
         y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
         X = X + 1e-8 * np.random.randn(*X.shape)
+
+        # Get raw input data window for logging (matches R's dt_inputTrain)
+        start_idx = self.mmm_data.mmmdata_spec.rolling_window_start_which
+        end_idx = self.mmm_data.mmmdata_spec.rolling_window_end_which
+        dt_input_train = self.mmm_data.data.iloc[start_idx : end_idx + 1]
+
+        # Calculate initial spend metrics using training window
+        paid_media_cols = [
+            col
+            for col in dt_input_train.columns
+            if col in self.mmm_data.mmmdata_spec.paid_media_spends
+        ]
+
+        # Initial spend calculations
+        total_spends = []
+        mean_spends = []
+        spend_shares = []
+
+        total_spend = dt_input_train[paid_media_cols].sum().sum()
+
+        for col in paid_media_cols:
+            col_total = float(dt_input_train[col].sum())
+            col_mean = float(dt_input_train[col].mean())
+            col_share = (
+                float(round(col_total / total_spend, 4)) if total_spend > 0 else 0
+            )
+
+            total_spends.append(col_total)
+            mean_spends.append(col_mean)
+            spend_shares.append(col_share)
+
+        # Calculate refresh spend metrics if in refresh mode
+        refresh_spends = total_spends.copy()
+        refresh_means = mean_spends.copy()
+        refresh_shares = spend_shares.copy()
+
+        if self.mmm_data.mmmdata_spec.refresh_counter > 0:
+            # Get refresh window data
+            refresh_start = pd.to_datetime(
+                self.mmm_data.mmmdata_spec.refresh_added_start
+            )
+            refresh_data = dt_input_train[dt_input_train["ds"] >= refresh_start]
+
+            refresh_total = refresh_data[paid_media_cols].sum().sum()
+            refresh_spends = []
+            refresh_means = []
+            refresh_shares = []
+
+            for col in paid_media_cols:
+                col_total = float(refresh_data[col].sum())
+                col_mean = float(refresh_data[col].mean())
+                col_share = (
+                    float(round(col_total / refresh_total, 4))
+                    if refresh_total > 0
+                    else 0
+                )
+
+                refresh_spends.append(col_total)
+                refresh_means.append(col_mean)
+                refresh_shares.append(col_share)
+
+        # Log step3 spend share calculation
+        self.logger.debug(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": "step3_spend_share_calculation",
+                    "data": {
+                        "input_train_shape": [
+                            len(dt_input_train),
+                            len(dt_input_train.columns),
+                        ],
+                        "input_data_columns": dt_input_train.columns.tolist(),
+                        "initial_spend_share": {
+                            "rn": paid_media_cols,
+                            "total_spend": total_spends,
+                            "mean_spend": mean_spends,
+                            "spend_share": spend_shares,
+                            "total_spend_refresh": refresh_spends,
+                            "mean_spend_refresh": refresh_means,
+                            "spend_share_refresh": refresh_shares,
+                        },
+                        "refresh_spend_share": {
+                            "rn": paid_media_cols,
+                            "total_spend": refresh_spends,
+                            "mean_spend": refresh_means,
+                            "spend_share": refresh_shares,
+                        },
+                        "final_spend_share": {
+                            "rn": paid_media_cols,
+                            "total_spend": total_spends,
+                            "mean_spend": mean_spends,
+                            "spend_share": spend_shares,
+                            "total_spend_refresh": refresh_spends,
+                            "mean_spend_refresh": refresh_means,
+                            "spend_share_refresh": refresh_shares,
+                        },
+                    },
+                },
+                indent=2,
+            )
+        )
 
         return X, y
 
@@ -197,6 +331,35 @@ class RidgeDataBuilder:
                 hyper_collect["hyper_list_all"]["train_size"] = train_size
         else:
             hyper_collect["hyper_list_all"]["train_size"] = [1.0, 1.0]
+
+        # Add debug logging with pretty printing
+        logger.debug(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": "step1_hyperparameter_collection",
+                    "data": {
+                        "hyper_param_names": list(
+                            hyper_collect["hyper_list_all"].keys()
+                        ),
+                        "updated_bounds": {
+                            k: {"min": v[0], "max": v[1]}
+                            for k, v in hyper_collect[
+                                "hyper_bound_list_updated"
+                            ].items()
+                        },
+                        "fixed_bounds": hyper_collect["hyper_bound_list_fixed"],
+                        "hyper_count": len(hyper_collect["hyper_list_all"]),
+                        "hyper_count_fixed": len(
+                            hyper_collect["hyper_bound_list_fixed"]
+                        ),
+                        "all_fixed": hyper_collect["all_fixed"],
+                    },
+                },
+                indent=2,
+            )
+        )
+
         return hyper_collect
 
     def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
@@ -209,9 +372,6 @@ class RidgeDataBuilder:
     def _hill_transformation(
         self, x: pd.Series, alpha: float, gamma: float
     ) -> pd.Series:
-        # Add debug self.logger.debugs
-        # print(f"Before hill: {x.head()}")
         x_scaled = (x - x.min()) / (x.max() - x.min())
         result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
-        # print(f"After hill: {result.head()}")
         return result

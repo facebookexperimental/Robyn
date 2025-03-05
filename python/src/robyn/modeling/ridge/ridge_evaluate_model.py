@@ -362,10 +362,13 @@ class RidgeModelEvaluator:
         # Calculate metrics using R-style calculations
         y_train_pred = model.predict(x_norm)
         metrics["rsq_train"] = self.ridge_metrics_calculator.calculate_r2_score(
-            y_norm, y_train_pred, x_norm.shape[1]
+            y_norm,
+            y_train_pred,
+            p=x_norm.shape[1],
+            df_int=1 if model.fit_intercept else 0,
         )
         metrics["nrmse_train"] = self.ridge_metrics_calculator.calculate_nrmse(
-            y_norm, y_train_pred, debug=debug, iteration=iter_ng
+            y_norm, y_train_pred
         )
 
         # Validation and test metrics
@@ -373,15 +376,26 @@ class RidgeModelEvaluator:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
 
+            n_train = len(y_train)  # Get training set size
+
             metrics["rsq_val"] = self.ridge_metrics_calculator.calculate_r2_score(
-                y_val, y_val_pred, X_val.shape[1]
-            )
-            metrics["nrmse_val"] = self.ridge_metrics_calculator.calculate_nrmse(
-                y_val, y_val_pred
+                y_val,
+                y_val_pred,
+                p=X_val.shape[1],
+                df_int=1 if model.fit_intercept else 0,
+                n_train=n_train,  # Pass training set size
             )
 
             metrics["rsq_test"] = self.ridge_metrics_calculator.calculate_r2_score(
-                y_test, y_test_pred, X_test.shape[1]
+                y_test,
+                y_test_pred,
+                p=X_test.shape[1],
+                df_int=1 if model.fit_intercept else 0,
+                n_train=n_train,  # Pass training set size
+            )
+
+            metrics["nrmse_val"] = self.ridge_metrics_calculator.calculate_nrmse(
+                y_val, y_val_pred
             )
             metrics["nrmse_test"] = self.ridge_metrics_calculator.calculate_nrmse(
                 y_test, y_test_pred

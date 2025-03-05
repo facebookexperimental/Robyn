@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, Tuple, List, Any
+from typing import Dict, Tuple, List, Any, Optional
 from sklearn.linear_model import Ridge
 import logging
 from robyn.calibration.media_effect_calibration import MediaEffectCalibrator
@@ -440,80 +440,67 @@ class RidgeMetricsCalculator:
         return df
 
     def calculate_r2_score(
-        self, y_true: np.ndarray, y_pred: np.ndarray, n_features: int, df_int: int = 1
+        self,
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        p: int,  # number of features
+        df_int: int = 1,  # degrees of freedom for intercept
+        n_train: Optional[int] = None,  # training set size for validation/test
     ) -> float:
-        """Match R's R² calculation exactly"""
-        n = len(y_true)
+        """
+        Calculate R-squared score matching R's implementation exactly.
 
-        # Scale data like R
+        Args:
+            y_true: True values
+            y_pred: Predicted values
+            p: Number of features (excluding intercept)
+            df_int: Degrees of freedom for intercept (1 if intercept, 0 if not)
+            n_train: Size of training set (used for validation/test adjustments)
+        """
+        n = len(y_true)
+        n_adj = n_train if n_train is not None else n
+
+        # Calculate R² components
         y_mean = np.mean(y_true)
         ss_tot = np.sum((y_true - y_mean) ** 2)
         ss_res = np.sum((y_true - y_pred) ** 2)
 
-        # Calculate base R²
+        # Base R²
         r2 = 1 - (ss_res / ss_tot)
 
-        # R's adjustment formula
-        adj_r2 = 1 - ((1 - r2) * (n - df_int) / (n - n_features - df_int))
+        # Adjust R² using n_adj
+        adj_r2 = 1 - ((1 - r2) * (n_adj - df_int) / (n_adj - p - df_int))
 
-        # Match R's scale
+        # R-style negative scaling
         if adj_r2 < 0:
-            adj_r2 = -np.sqrt(np.abs(adj_r2))  # R-style negative scaling
+            adj_r2 = -np.sqrt(np.abs(adj_r2))
 
         return float(adj_r2)
 
-    def calculate_nrmse(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        debug: bool = True,
-        iteration: int = 0,
-    ) -> float:
-        """Calculate NRMSE with detailed debugging"""
-        # Add more detailed logging
-        self.logger.debug(
-            f"NRMSE Calculation (iter {iteration}) - data lengths: {len(y_true)}"
-        )
-        self.logger.debug(
-            f"y_true stats: mean={np.mean(y_true):.6f}, std={np.std(y_true):.6f}, min={np.min(y_true):.6f}, max={np.max(y_true):.6f}"
-        )
-        self.logger.debug(
-            f"y_pred stats: mean={np.mean(y_pred):.6f}, std={np.std(y_pred):.6f}, min={np.min(y_pred):.6f}, max={np.max(y_pred):.6f}"
-        )
-
-        n = len(y_true)
+    def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
+        """Calculate NRMSE matching R's implementation"""
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
 
-        # Calculate residuals and RSS
-        residuals = y_true - y_pred
-        rss = np.sum(residuals**2)
+        self.logger.debug("\n=== NRMSE Calculation ===")
+        self.logger.debug(f"y_true shape: {y_true.shape}, y_pred shape: {y_pred.shape}")
+        self.logger.debug(f"y_true range: [{y_true.min():.6f}, {y_true.max():.6f}]")
+        self.logger.debug(f"y_pred range: [{y_pred.min():.6f}, {y_pred.max():.6f}]")
 
-        # Calculate range from true values
-        y_min = np.min(y_true)
-        y_max = np.max(y_true)
-        scale = y_max - y_min
+        # Calculate RMSE
+        squared_errors = (y_true - y_pred) ** 2
+        rmse = np.sqrt(np.mean(squared_errors))
+        self.logger.debug(f"RMSE: {rmse:.6f}")
 
-        # Calculate RMSE first
-        rmse = np.sqrt(rss / n)
+        # Calculate range denominator
+        y_range = np.max(y_true) - np.min(y_true)
+        self.logger.debug(f"y_true range denominator: {y_range:.6f}")
 
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"\nNRMSE Calculation Debug (iteration {iteration}):")
-            self.logger.debug(f"n: {n}")
-            self.logger.debug(f"RSS: {rss:.6f}")
-            self.logger.debug(f"RMSE: {rmse:.6f}")
-            self.logger.debug(f"y_true range: [{y_min:.6f}, {y_max:.6f}]")
-            self.logger.debug(f"scale: {scale:.6f}")
-            self.logger.debug("First 5 pairs (true, pred, residual):")
-            for i in range(min(5, len(y_true))):
-                self.logger.debug(
-                    f"  {y_true[i]:.6f}, {y_pred[i]:.6f}, {residuals[i]:.6f}"
-                )
+        if y_range > 0:
+            nrmse = rmse / y_range
+        else:
+            self.logger.warning("y_true range is 0, using rmse as nrmse")
+            nrmse = rmse
 
-        # Calculate final NRMSE
-        nrmse = rmse / scale if scale > 0 else rmse
-
-        if debug and (iteration == 0 or iteration % 25 == 0):
-            self.logger.debug(f"Final NRMSE: {nrmse:.6f} (scale={scale:.6f})")
-
+        self.logger.debug(f"Final NRMSE: {nrmse:.6f}")
         return float(nrmse)

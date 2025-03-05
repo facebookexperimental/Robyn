@@ -22,61 +22,74 @@ def create_ridge_model_sklearn(
     # Create a wrapper class that matches glmnet's behavior
     class GlmnetLikeRidge:
         def __init__(self):
+            self.logger = logging.getLogger(__name__)
+            self.lambda_value = lambda_value  # Use raw lambda value
+            self.fit_intercept = fit_intercept
+            self.standardize = standardize
             self.feature_means = None
             self.feature_stds = None
             self.y_mean = None
             self.coef_ = None
             self.intercept_ = 0.0
-            # Lambda value used for regularization
-            self.lambda_value = lambda_value
-            self.fit_intercept = fit_intercept
-            self.standardize = standardize
+
+        def mysd(self, y):
+            """R-like standard deviation"""
+            return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
 
         def fit(self, X, y):
-            # Make copies to avoid modifying original data
-            X_processed = X.copy()
-            y_processed = y.copy()
+            X = np.asarray(X)
+            y = np.asarray(y)
 
-            # Center y if fitting intercept
-            if self.fit_intercept:
-                self.y_mean = np.mean(y_processed)
-                y_processed = y_processed - self.y_mean
+            # Debug prints matching R
+            self.logger.debug("Lambda calculation debug:")
+            self.logger.debug(f"x_means: {np.mean(np.abs(X))}")
+            x_sds = np.apply_along_axis(self.mysd, 0, X)
+            self.logger.debug(f"x_sds mean: {np.mean(x_sds)}")
+
+            # Center and scale like R's glmnet
+            if self.standardize:
+                self.feature_means = np.mean(X, axis=0)
+                self.feature_stds = np.apply_along_axis(self.mysd, 0, X)
+                self.feature_stds[self.feature_stds == 0] = 1.0
+                X_scaled = (X - self.feature_means) / self.feature_stds
             else:
+                X_scaled = X
+                self.feature_means = np.zeros(X.shape[1])
+                self.feature_stds = np.ones(X.shape[1])
+
+            if self.fit_intercept:
+                self.y_mean = np.mean(y)
+                y_centered = y - self.y_mean
+            else:
+                y_centered = y
                 self.y_mean = 0.0
 
-            # Standardize X if needed
+            self.logger.debug(f"sx mean: {np.mean(np.abs(X_scaled))}")
+            self.logger.debug(f"sy mean: {np.mean(np.abs(y_centered))}")
+            self.logger.debug(f"lambda: {self.lambda_value}")
+
+            # Fit model using raw lambda (not scaled)
+            model = Ridge(
+                alpha=self.lambda_value,
+                fit_intercept=False,  # We handle centering manually
+                solver="cholesky",
+            )
+
+            model.fit(X_scaled, y_centered)
+
+            # Transform coefficients back to original scale
             if self.standardize:
-                self.feature_means = np.mean(X_processed, axis=0)
-                self.feature_stds = np.std(X_processed, axis=0, ddof=1)  # R uses ddof=1
-                # Avoid division by zero
-                self.feature_stds[self.feature_stds == 0] = 1.0
-                X_processed = (X_processed - self.feature_means) / self.feature_stds
+                self.coef_ = model.coef_ / self.feature_stds
             else:
-                self.feature_means = np.zeros(X_processed.shape[1])
-                self.feature_stds = np.ones(X_processed.shape[1])
+                self.coef_ = model.coef_
 
-            # ADJUST THE LAMBDA VALUE based on StackExchange findings
-            # From the top answer: To match glmnet, use λ = 2*α_sklearn/N
-            # So working backwards, α_sklearn = λ*N/2
-            # This accounts for how both libraries scale the regularization term
-            sklearn_alpha = self.lambda_value * n_samples / 2
-
-            # Use cholesky solver for better numerical stability, same as glmnet
-            model = Ridge(alpha=sklearn_alpha, fit_intercept=False, solver="cholesky")
-            model.fit(X_processed, y_processed)
-
-            # Extract coefficients and adjust for standardization
-            self.coef_ = model.coef_.copy()
-
-            if self.standardize:
-                # Scale coefficients back to original scale
-                self.coef_ = self.coef_ / self.feature_stds
-
-            # Calculate intercept manually (similar to how glmnet does it)
             if self.fit_intercept:
                 self.intercept_ = self.y_mean - np.dot(self.feature_means, self.coef_)
-            else:
-                self.intercept_ = 0.0
+
+            self.logger.debug(
+                f"Coefficients range: [{np.min(self.coef_):.6f}, {np.max(self.coef_):.6f}]"
+            )
+            self.logger.debug(f"Intercept: {self.intercept_:.6f}")
 
             return self
 
@@ -138,6 +151,7 @@ def create_ridge_model_rpy2(
             self.fitted_model = None
             self.coef_ = None
             self.intercept_ = 0.0
+            self.logger = logging.getLogger(__name__)
 
             # Cache for performance
             self._X_matrix_cache = {}
@@ -147,6 +161,16 @@ def create_ridge_model_rpy2(
             # Ensure numpy arrays
             X = np.asarray(X)
             y = np.asarray(y)
+
+            self.logger.debug("\n=== Model Fitting Debug ===")
+            self.logger.debug(f"Input shapes - X: {X.shape}, y: {y.shape}")
+            self.logger.debug(
+                f"X stats - min: {X.min():.6f}, max: {X.max():.6f}, mean: {X.mean():.6f}"
+            )
+            self.logger.debug(
+                f"y stats - min: {y.min():.6f}, max: {y.max():.6f}, mean: {y.mean():.6f}"
+            )
+            self.logger.debug(f"lambda_value: {self.lambda_value}")
 
             fit_intercept_r = "TRUE" if self.fit_intercept else "FALSE"
             standardize_r = "TRUE" if self.standardize else "FALSE"
@@ -220,52 +244,75 @@ def create_ridge_model_rpy2(
                 # Store X matrix for future predictions
                 self._X_matrix_cache[cache_key] = X
 
+                # After getting coefficients
+                self.logger.debug("\n=== Coefficient Debug ===")
+                self.logger.debug(f"Raw coefficients shape: {coef_array.shape}")
+                self.logger.debug(
+                    f"Raw coefficients range: [{coef_array.min():.6f}, {coef_array.max():.6f}]"
+                )
+
                 # First coefficient is intercept, rest are feature coefficients
                 if self.fit_intercept:
                     self.intercept_ = float(coef_array[0])
                     self.coef_ = coef_array[1:]
                 else:
                     self.intercept_ = 0.0
-                    self.coef_ = coef_array[1:]  # Still skip first element as it's 0
+                    self.coef_ = coef_array[1:]
+
+                self.logger.debug(f"Final intercept: {self.intercept_:.6f}")
+                self.logger.debug(
+                    f"Final coefficients range: [{self.coef_.min():.6f}, {self.coef_.max():.6f}]"
+                )
 
             return self
 
         def predict(self, X):
-            if self.fitted_model is None:
-                raise ValueError("Model must be fitted before making predictions")
-
-            # Ensure numpy array
             X = np.asarray(X)
+            self.logger.debug("\n=== Prediction Input ===")
+            self.logger.debug(f"X shape: {X.shape}")
+            self.logger.debug(f"X range: [{X.min():.6f}, {X.max():.6f}]")
+            self.logger.debug(f"X mean: {X.mean():.6f}")
+            self.logger.debug(
+                f"X stats - min: {X.min():.6f}, max: {X.max():.6f}, mean: {X.mean():.6f}"
+            )
 
-            # For small matrices (fewer than 1000 rows), it's faster to just
-            # compute the prediction in Python directly
             if X.shape[0] < 1000:
-                return np.dot(X, self.coef_) + self.intercept_
+                predictions = np.dot(X, self.coef_) + self.intercept_
+                self.logger.debug(f"Using direct computation")
+            else:
+                # For larger matrices, use R but check cache first
+                X_hash = hash(X.tobytes())
+                if X_hash in self._prediction_cache:
+                    return self._prediction_cache[X_hash]
 
-            # For larger matrices, use R but check cache first
-            X_hash = hash(X.tobytes())
-            if X_hash in self._prediction_cache:
-                return self._prediction_cache[X_hash]
+                # Make predictions using R code directly
+                with localconverter(ro.default_converter + numpy2ri.converter):
+                    # Pass the data to R environment
+                    ro.r.assign("X_new", X)
+                    ro.r.assign("lambda_value", self.lambda_value)
 
-            # Make predictions using R code directly
-            with localconverter(ro.default_converter + numpy2ri.converter):
-                # Pass the data to R environment
-                ro.r.assign("X_new", X)
-                ro.r.assign("lambda_value", self.lambda_value)
-
-                # Make predictions using R code
-                ro.r(
+                    # Make predictions using R code
+                    ro.r(
+                        """
+                    predictions <<- as.numeric(predict(r_model, newx = X_new, s = lambda_value, type = "response"))
                     """
-                predictions <<- as.numeric(predict(r_model, newx = X_new, s = lambda_value, type = "response"))
-                """
-                )
+                    )
 
-                # Get predictions from R
-                predictions = np.array(ro.r["predictions"])
+                    # Get predictions from R
+                    predictions = np.array(ro.r["predictions"])
+                    self.logger.debug("\n=== Prediction Output ===")
+                    self.logger.debug(
+                        f"Predictions range: [{predictions.min():.6f}, {predictions.max():.6f}]"
+                    )
+                    self.logger.debug(f"Predictions mean: {predictions.mean():.6f}")
+                    # Cache the predictions
+                    self._prediction_cache[X_hash] = predictions
 
-                # Cache the predictions
-                self._prediction_cache[X_hash] = predictions
+                    self.logger.debug(f"Using R computation")
 
-                return predictions
+            self.logger.debug(
+                f"Predictions stats - min: {predictions.min():.6f}, max: {predictions.max():.6f}, mean: {predictions.mean():.6f}"
+            )
+            return predictions
 
     return GlmnetRidgeWrapper()
