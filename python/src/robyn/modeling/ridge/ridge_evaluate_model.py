@@ -53,58 +53,43 @@ class RidgeModelEvaluator:
         total_trials: int,
     ) -> Trial:
         """Run Nevergrad optimization for ridge regression."""
-
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
         np.random.seed(seed)
-
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
-        param_bounds = [
-            hyper_collect["hyper_bound_list_updated"][name] for name in param_names
-        ]
 
-        instrum_dict = {
-            name: ng.p.Scalar(lower=bound[0], upper=bound[1])
-            for name, bound in zip(param_names, param_bounds)
-        }
+        self.logger.debug(f"Starting optimization with {len(param_names)} parameters")
+        self.logger.debug(f"Parameter names: {param_names}")
 
-        instrum = ng.p.Instrumentation(**instrum_dict)
-        optimizer.seed = seed
-
-        # Set up multi-objective reference and weights
-        if self.calibration_input is not None:
-            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1, 1))
-            if objective_weights is None:
-                objective_weights = [1, 1, 1]
-            optimizer.set_objective_weights(tuple(objective_weights))
-
-        all_results = []
         start_time = time.time()
+        all_results = []
 
         with tqdm(
-            total=iterations,
-            desc=f"Running trial {trial} of total {total_trials} trials",
-            bar_format="{l_bar}{bar}",
-            ncols=75,
+            total=iterations, desc=f"Running trial {trial} of {total_trials}"
         ) as pbar:
             for iter_ng in range(iterations):
                 candidate = optimizer.ask()
+                self.logger.debug(
+                    f"Iteration {iter_ng + 1}: Got candidate: {candidate}"
+                )
+                self.logger.debug(f"Candidate value type: {type(candidate.value)}")
+                self.logger.debug(f"Candidate value: {candidate.value}")
 
-                # Extract values from the candidate's dictionary (second element of tuple)
-                param_dict = candidate.value[1]
-
-                # Get raw values in the correct order
-                raw_values = [param_dict[name] for name in param_names]
+                # Since we're using Array instrumentation, candidate.value should be a numpy array
+                raw_values = candidate.value
+                self.logger.debug(f"Raw values: {raw_values}")
 
                 # Transform values using qunif (like R)
                 transformed_params = {}
                 for i, name in enumerate(param_names):
                     bounds = hyper_collect["hyper_bound_list_updated"][name]
                     raw_value = raw_values[i]
-                    # Linear transformation (equivalent to R's qunif)
                     transformed_value = bounds[0] + raw_value * (bounds[1] - bounds[0])
                     transformed_params[name] = transformed_value
+                    self.logger.debug(
+                        f"Parameter {name}: raw={raw_value}, transformed={transformed_value}"
+                    )
 
                 # Log both raw and transformed values
                 self.logger.debug(

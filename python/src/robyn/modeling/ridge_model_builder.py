@@ -72,27 +72,25 @@ class RidgeModelBuilder:
     ) -> Tuple[Optimizer, List[float]]:
         """Initialize Nevergrad optimizer exactly like R's implementation"""
 
-        # Create parameter space
-        param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
-        param_bounds = [
-            hyper_collect["hyper_bound_list_updated"][name] for name in param_names
-        ]
+        # Get number of hyperparameters
+        hyper_count = len(hyper_collect["hyper_bound_list_updated"])
+        self.logger.debug(f"Number of hyperparameters: {hyper_count}")
 
-        # Create instrumentation dictionary
-        instrum_dict = {
-            name: ng.p.Scalar(lower=bound[0], upper=bound[1])
-            for name, bound in zip(param_names, param_bounds)
-        }
+        # Create tuple for shape
+        shape_tuple = (hyper_count,)
+        self.logger.debug(f"Created shape tuple: {shape_tuple}")
 
         # Create instrumentation
-        instrum = ng.p.Instrumentation(**instrum_dict)
+        instrum = ng.p.Array(shape=shape_tuple, lower=0, upper=1)
+        self.logger.debug(f"Created instrumentation: {instrum}")
 
-        # Initialize optimizer (without parallel processing for now)
+        # Initialize optimizer
         optimizer = ng.optimizers.registry[nevergrad_algo.value](
-            instrum, budget=iterations, num_workers=1  # Keep single worker for now
+            instrum, budget=iterations, num_workers=1
         )
+        self.logger.debug(f"Initialized optimizer: {optimizer}")
 
-        # Set multi-objective dimensions for objective functions (errors)
+        # Set multi-objective dimensions exactly like R
         if calibration_input is None:
             optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1))
             if objective_weights is None:
@@ -118,7 +116,9 @@ class RidgeModelBuilder:
                         "optimizer": {
                             "name": nevergrad_algo.value,
                             "hyper_fixed": False,
-                            "tuple_size": len(param_names),
+                            "tuple_size": len(
+                                hyper_collect["hyper_bound_list_updated"]
+                            ),
                             "num_workers": 1,  # Single worker
                             "budget": iterations,
                         },
