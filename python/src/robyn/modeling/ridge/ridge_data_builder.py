@@ -12,42 +12,12 @@ class RidgeDataBuilder:
         self.mmm_data = mmm_data
         self.featurized_mmm_data = featurized_mmm_data
         self.logger = logging.getLogger(__name__)
+        # Initialize base data during construction
+        self.X_base, self.y_base = self._prepare_base_data()
+        self.setup_initial_data()  # Run initial setup and logging
 
-    def _prepare_data(self, params: Dict[str, float]) -> Tuple[pd.DataFrame, pd.Series]:
-        """Prepare data for ridge regression, handling dependent variable and excluding date columns"""
-
-        # Get the dependent variable, handling both possible column names
-        dep_var = self.mmm_data.mmmdata_spec.dep_var
-        if dep_var not in self.featurized_mmm_data.dt_mod.columns:
-            # If dep_var column doesn't exist, try 'dep_var'
-            if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
-                # Rename 'dep_var' to the specified value
-                self.featurized_mmm_data.dt_mod = (
-                    self.featurized_mmm_data.dt_mod.rename(columns={"dep_var": dep_var})
-                )
-                y = self.featurized_mmm_data.dt_mod[dep_var]
-            else:
-                raise KeyError(
-                    f"Could not find dependent variable column. Expected either '{dep_var}' or 'dep_var' in columns: {self.featurized_mmm_data.dt_mod.columns.tolist()}"
-                )
-        else:
-            y = self.featurized_mmm_data.dt_mod[dep_var]
-
-        # Select all columns except the dependent variable and date columns
-        exclude_cols = ["ds"]  # Always exclude 'ds' if present
-        if dep_var in self.featurized_mmm_data.dt_mod.columns:
-            exclude_cols.append(dep_var)
-        if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
-            exclude_cols.append("dep_var")
-
-        # Only drop columns that actually exist in the dataframe
-        exclude_cols = [
-            col
-            for col in exclude_cols
-            if col in self.featurized_mmm_data.dt_mod.columns
-        ]
-        X = self.featurized_mmm_data.dt_mod.drop(columns=exclude_cols)
-
+    def setup_initial_data(self):
+        """One-time setup and logging of environment and spend metrics"""
         # Log step2 environment setup info
         self.logger.debug(
             json.dumps(
@@ -68,7 +38,7 @@ class RidgeDataBuilder:
                             "added_start": str(
                                 self.mmm_data.mmmdata_spec.refresh_added_start
                             ),
-                            "steps": {},  # Fill this if refresh steps exist
+                            "steps": {},
                         },
                         "variables": {
                             "paid_media": self.mmm_data.mmmdata_spec.paid_media_spends,
@@ -91,57 +61,27 @@ class RidgeDataBuilder:
                 indent=2,
             )
         )
-        # Convert date columns to numeric (number of days since the earliest date)
-        date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
-        for col in date_columns:
-            X[col] = pd.to_datetime(X[col], errors="coerce", format="%Y-%m-%d")
-            # Fill NaT (Not a Time) values with a default date (e.g., the minimum date in the column)
-            min_date = X[col].min()
-            X[col] = X[col].fillna(min_date)
-            # Convert to days since minimum date, handling potential NaT values
-            X[col] = (
-                (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
-            )
 
-        # One-hot encode categorical variables
-        categorical_columns = X.select_dtypes(include=["object", "category"]).columns
-        X = pd.get_dummies(X, columns=categorical_columns, drop_first=True)
+        # Calculate and log spend metrics
+        self._calculate_spend_metrics()
 
-        # Ensure all columns are numeric
-        X = X.select_dtypes(include=[np.number])
-
-        # Apply transformations based on hyperparameters
-        for media in self.mmm_data.mmmdata_spec.paid_media_spends:
-            if f"{media}_thetas" in params:
-                X[media] = self._geometric_adstock(X[media], params[f"{media}_thetas"])
-            if f"{media}_alphas" in params and f"{media}_gammas" in params:
-                X[media] = self._hill_transformation(
-                    X[media], params[f"{media}_alphas"], params[f"{media}_gammas"]
-                )
-
-        # Handle any remaining NaN or infinite values
-        X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
-        y = y.replace([np.inf, -np.inf], np.nan).fillna(y.mean())
-        X = X + 1e-8 * np.random.randn(*X.shape)
-
-        # Get raw input data window for logging (matches R's dt_inputTrain)
+    def _calculate_spend_metrics(self):
+        """Calculate and log spend metrics"""
         start_idx = self.mmm_data.mmmdata_spec.rolling_window_start_which
         end_idx = self.mmm_data.mmmdata_spec.rolling_window_end_which
         dt_input_train = self.mmm_data.data.iloc[start_idx : end_idx + 1]
 
-        # Calculate initial spend metrics using training window
         paid_media_cols = [
             col
             for col in dt_input_train.columns
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
 
-        # Initial spend calculations
+        # Calculate initial spend metrics
+        total_spend = dt_input_train[paid_media_cols].sum().sum()
         total_spends = []
         mean_spends = []
         spend_shares = []
-
-        total_spend = dt_input_train[paid_media_cols].sum().sum()
 
         for col in paid_media_cols:
             col_total = float(dt_input_train[col].sum())
@@ -154,19 +94,18 @@ class RidgeDataBuilder:
             mean_spends.append(col_mean)
             spend_shares.append(col_share)
 
-        # Calculate refresh spend metrics if in refresh mode
+        # Handle refresh metrics
         refresh_spends = total_spends.copy()
         refresh_means = mean_spends.copy()
         refresh_shares = spend_shares.copy()
 
         if self.mmm_data.mmmdata_spec.refresh_counter > 0:
-            # Get refresh window data
             refresh_start = pd.to_datetime(
                 self.mmm_data.mmmdata_spec.refresh_added_start
             )
             refresh_data = dt_input_train[dt_input_train["ds"] >= refresh_start]
-
             refresh_total = refresh_data[paid_media_cols].sum().sum()
+
             refresh_spends = []
             refresh_means = []
             refresh_shares = []
@@ -225,6 +164,43 @@ class RidgeDataBuilder:
                 indent=2,
             )
         )
+
+    def _prepare_base_data(self) -> Tuple[pd.DataFrame, pd.Series]:
+        """One-time preparation of base data structure"""
+        # Get the dependent variable
+        dep_var = self.mmm_data.mmmdata_spec.dep_var
+        if dep_var not in self.featurized_mmm_data.dt_mod.columns:
+            if "dep_var" in self.featurized_mmm_data.dt_mod.columns:
+                self.featurized_mmm_data.dt_mod = (
+                    self.featurized_mmm_data.dt_mod.rename(columns={"dep_var": dep_var})
+                )
+            else:
+                raise KeyError(f"Could not find dependent variable column")
+
+        y = self.featurized_mmm_data.dt_mod[dep_var]
+
+        # Select features
+        exclude_cols = ["ds", dep_var, "dep_var"]
+        exclude_cols = [
+            col
+            for col in exclude_cols
+            if col in self.featurized_mmm_data.dt_mod.columns
+        ]
+        X = self.featurized_mmm_data.dt_mod.drop(columns=exclude_cols)
+
+        # Handle date columns
+        date_columns = X.select_dtypes(include=["datetime64", "object"]).columns
+        for col in date_columns:
+            X[col] = pd.to_datetime(X[col], errors="coerce", format="%Y-%m-%d")
+            min_date = X[col].min()
+            X[col] = X[col].fillna(min_date)
+            X[col] = (
+                (X[col] - min_date).dt.total_seconds().div(86400).fillna(0).astype(int)
+            )
+
+        # One-hot encode categorical variables
+        categorical_columns = X.select_dtypes(include=["object", "category"]).columns
+        X = pd.get_dummies(X, columns=categorical_columns, drop_first=True)
 
         return X, y
 
@@ -362,16 +338,206 @@ class RidgeDataBuilder:
 
         return hyper_collect
 
-    def _geometric_adstock(self, x: pd.Series, theta: float) -> pd.Series:
+    def _geometric_adstock(self, x: pd.Series, theta: float) -> np.ndarray:
+        """Apply geometric adstock transformation"""
+        # Convert to numpy array if it's a pandas Series
+        x_array = x.values if isinstance(x, pd.Series) else x
 
-        x_array = x.values
         # Use lfilter to efficiently compute the geometric transformation
         y = lfilter([1], [1, -theta], x_array)
-        return pd.Series(y, index=x.index)
+        return y
 
     def _hill_transformation(
-        self, x: pd.Series, alpha: float, gamma: float
-    ) -> pd.Series:
-        x_scaled = (x - x.min()) / (x.max() - x.min())
-        result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
+        self,
+        x: np.ndarray,
+        alpha: float,
+        gamma: float,
+        x_marginal: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """Hill transformation with optional marginal effect calculation"""
+        x_array = np.array(x)
+        x_scaled = (x_array - x_array.min()) / (x_array.max() - x_array.min())
+
+        if x_marginal is not None:
+            # Calculate marginal effect for carryover
+            x_marginal_scaled = x_marginal / (x_array.max() - x_array.min())
+            result = (
+                x_marginal_scaled
+                * (alpha * x_scaled ** (alpha - 1) * gamma**alpha)
+                / (x_scaled**alpha + gamma**alpha) ** 2
+            )
+        else:
+            # Regular hill transformation
+            result = x_scaled**alpha / (x_scaled**alpha + gamma**alpha)
+
         return result
+
+    def run_transformations(
+        self,
+        params: Dict[str, float],
+        current_iteration: int = 1,
+        total_iterations: int = 1,
+        cores: int = 1,
+    ) -> Dict[str, pd.DataFrame]:
+        """Run transformations exactly like R implementation"""
+        # Step7a logging (keep this part as is)
+        self.logger.debug(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": f"step7a_transformation_inputs_iteration_{current_iteration}",
+                    "data": {
+                        "input_data": {
+                            "dt_mod_shape": [
+                                len(self.featurized_mmm_data.dt_mod),
+                                len(self.featurized_mmm_data.dt_mod.columns),
+                            ],
+                            "dt_mod_columns": self.featurized_mmm_data.dt_mod.columns.tolist(),
+                            "window_info": {
+                                "start": self.mmm_data.mmmdata_spec.rolling_window_start_which,
+                                "end": self.mmm_data.mmmdata_spec.rolling_window_end_which,
+                                "length": self.mmm_data.mmmdata_spec.rolling_window_length,
+                            },
+                            "media_variables": self.mmm_data.mmmdata_spec.paid_media_spends,
+                            "hyperparameters": params,
+                        }
+                    },
+                },
+                indent=2,
+            )
+        )
+
+        # 1. Remove 'ds' column first
+        dt_modAdstocked = self.X_base.drop(
+            columns=["ds"] if "ds" in self.X_base.columns else []
+        )
+        self.logger.debug(
+            f"After ds drop - dt_modAdstocked shape: {dt_modAdstocked.shape}"
+        )
+
+        # 2. Get window indices - FIXED to match R exactly
+        window_start = self.mmm_data.mmmdata_spec.rolling_window_start_which
+        window_end = self.mmm_data.mmmdata_spec.rolling_window_end_which
+        window_length = self.mmm_data.mmmdata_spec.rolling_window_length
+
+        # Calculate window indices to match R exactly
+        window_indices = list(
+            range(window_start, window_end + 1)
+        )  # Convert to list for consistent indexing
+
+        self.logger.debug(f"Window indices - start: {window_start}, end: {window_end}")
+        self.logger.debug(f"Expected window length: {window_length}")
+        self.logger.debug(f"Actual window indices length: {len(window_indices)}")
+        self.logger.debug(f"First few indices: {window_indices[:5]}")
+        self.logger.debug(f"Last few indices: {window_indices[-5:]}")
+
+        # Storage for transformed data
+        adstocked_collect = {}
+        saturated_total_collect = {}
+        saturated_immediate_collect = {}
+        saturated_carryover_collect = {}
+
+        # Get media variables
+        media_vars = self.mmm_data.mmmdata_spec.paid_media_spends
+        self.logger.debug(f"Processing media variables: {media_vars}")
+
+        for var in media_vars:
+            # Log progress
+            self.logger.debug(f"Processing variable: {var}")
+
+            # 1. Adstocking (whole data)
+            m = dt_modAdstocked[var]
+            theta = params[f"{var}_thetas"]
+
+            # Apply geometric adstock to full dataset
+            input_total = self._geometric_adstock(m, theta)
+            input_immediate = m.values
+            adstocked_collect[var] = input_total
+            input_carryover = input_total - input_immediate
+
+            # Log shapes after adstocking
+            self.logger.debug(f"{var} adstocked shape: {len(input_total)}")
+
+            # 2. Saturation (only window data)
+            input_total_rw = input_total[window_indices]
+            input_carryover_rw = input_carryover[window_indices]
+
+            # Log shapes after windowing
+            self.logger.debug(f"{var} windowed shape: {len(input_total_rw)}")
+
+            alpha = params[f"{var}_alphas"]
+            gamma = params[f"{var}_gammas"]
+
+            # Apply saturation to windowed data
+            sat_total = self._hill_transformation(input_total_rw, alpha, gamma)
+            sat_carryover = self._hill_transformation(
+                input_total_rw, alpha, gamma, x_marginal=input_carryover_rw
+            )
+
+            saturated_total_collect[var] = sat_total
+            saturated_carryover_collect[var] = sat_carryover
+            saturated_immediate_collect[var] = sat_total - sat_carryover
+
+            # Log shapes after saturation
+            self.logger.debug(f"{var} saturated shape: {len(sat_total)}")
+
+        # EXACTLY match R's flow:
+        # 1. First update dt_modAdstocked with adstocked values (full data)
+        dt_modAdstocked = dt_modAdstocked.drop(columns=media_vars)
+        for var, values in adstocked_collect.items():
+            dt_modAdstocked[var] = values
+
+        self.logger.debug(
+            f"dt_modAdstocked shape before windowing: {dt_modAdstocked.shape}"
+        )
+
+        # 2. Then window and create dt_modSaturated (exactly like R)
+        dt_modSaturated = dt_modAdstocked.iloc[window_indices].drop(columns=media_vars)
+        self.logger.debug(
+            f"dt_modSaturated shape after windowing: {dt_modSaturated.shape}"
+        )
+
+        # Create DataFrame from saturated_total_collect with explicit index
+        saturated_df = pd.DataFrame(
+            saturated_total_collect, index=dt_modSaturated.index
+        )
+        self.logger.debug(f"saturated_df shape before concat: {saturated_df.shape}")
+
+        # Concatenate with matching indices
+        dt_modSaturated = pd.concat([dt_modSaturated, saturated_df], axis=1)
+        self.logger.debug(
+            f"dt_modSaturated shape after concat: {dt_modSaturated.shape}"
+        )
+
+        # 3. Create immediate and carryover dataframes (already windowed)
+        dt_saturatedImmediate = pd.DataFrame(
+            saturated_immediate_collect, index=dt_modSaturated.index
+        ).fillna(0)
+        dt_saturatedCarryover = pd.DataFrame(
+            saturated_carryover_collect, index=dt_modSaturated.index
+        ).fillna(0)
+
+        self.logger.debug(f"Immediate shape: {dt_saturatedImmediate.shape}")
+        self.logger.debug(f"Carryover shape: {dt_saturatedCarryover.shape}")
+
+        # Window y data using same indices
+        self.y_windowed = self.y_base.iloc[window_indices]
+        self.logger.debug(f"y_windowed shape: {len(self.y_windowed)}")
+
+        # Additional debug info
+        self.logger.debug(f"dt_modSaturated index length: {len(dt_modSaturated.index)}")
+        self.logger.debug(f"saturated_df index length: {len(saturated_df.index)}")
+
+        # Verify shapes match
+        assert len(dt_modSaturated) == len(self.y_windowed) == window_length, (
+            f"Shape mismatch: dt_modSaturated has {len(dt_modSaturated)} rows, "
+            f"y_windowed has {len(self.y_windowed)} rows, "
+            f"expected {window_length} rows"
+        )
+
+        return {
+            "dt_modSaturated": dt_modSaturated,
+            "dt_saturatedImmediate": dt_saturatedImmediate,
+            "dt_saturatedCarryover": dt_saturatedCarryover,
+            "y": self.y_windowed,
+        }

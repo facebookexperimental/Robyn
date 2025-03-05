@@ -47,6 +47,8 @@ class RidgeModelBuilder:
         self.calibration_input = calibration_input
         self.hyperparameters = hyperparameters
         self.featurized_mmm_data = featurized_mmm_data
+
+        # Initialize builders and calculators
         self.ridge_data_builder = RidgeDataBuilder(mmm_data, featurized_mmm_data)
         self.ridge_metrics_calculator = RidgeMetricsCalculator(
             mmm_data, hyperparameters, self.ridge_data_builder
@@ -58,7 +60,6 @@ class RidgeModelBuilder:
             self.ridge_data_builder,
             self.calibration_input,
         )
-
         self.logger = logging.getLogger(__name__)
 
     def initialize_nevergrad_optimizer(

@@ -140,6 +140,8 @@ class RidgeModelEvaluator:
                         objective_weights,
                         start_time=start_time,
                         iter_ng=iter_ng,
+                        total_iterations=iterations,
+                        cores=cores,
                         trial=trial,
                     )
 
@@ -296,13 +298,26 @@ class RidgeModelEvaluator:
         objective_weights: Optional[List[float]],
         start_time: float,
         iter_ng: int,
+        total_iterations: int,
+        cores: int,
         trial: int,
     ) -> Dict[str, Any]:
-        """Evaluate model with parameter set matching R's implementation exactly"""
-        X, y = self.ridge_data_builder._prepare_data(params)
+        """Evaluate model with parameter set"""
+        # Get transformed data
+        transformed_data = self.ridge_data_builder.run_transformations(
+            params,
+            current_iteration=iter_ng + 1,
+            total_iterations=total_iterations,
+            cores=cores,
+        )
+        X = transformed_data["dt_modSaturated"]
+        y = transformed_data["y"]  # Use the windowed y data
+
+        self.logger.debug(f"Data shapes - X: {X.shape}, y: {y.shape}")
+
+        # Continue with existing evaluation logic...
         sol_id = f"{trial}_{iter_ng + 1}_1"
         # After preparing data
-        self.logger.debug(f"Data shapes - X: {X.shape}, y: {y.shape}")
         self.logger.debug(f"Sample of X values: {X.head()}")
         self.logger.debug(f"Sample of y values: {y.head()}")
 
