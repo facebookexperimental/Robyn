@@ -251,45 +251,32 @@ class RidgeDataBuilder:
             "all_fixed": False,
         }
 
-        # Adjust hyper_list_all to store lists
+        # Create a sorted list of parameter names to match R's alphabetical ordering
+        param_names = []
         for channel, channel_params in prepared_hyperparameters.hyperparameters.items():
-            for param in ["thetas", "alphas", "gammas"]:
+            for param in ["alphas", "gammas", "thetas"]:
                 param_value = getattr(channel_params, param, None)
                 if param_value is not None:
-                    if isinstance(param_value, list) and len(param_value) == 2:
-                        param_key = f"{channel}_{param}"
-                        hyper_collect["hyper_bound_list_updated"][
-                            param_key
-                        ] = param_value
-                        hyper_collect["hyper_list_all"][
-                            f"{channel}_{param}"
-                        ] = param_value  # Store as list
-                    elif not isinstance(param_value, list):
-                        hyper_collect["hyper_bound_list_fixed"][
-                            f"{channel}_{param}"
-                        ] = param_value
-                        hyper_collect["hyper_list_all"][f"{channel}_{param}"] = [
-                            param_value,
-                            param_value,
-                        ]  # Store as list
-        # Handle lambda parameter similarly
-        if (
-            isinstance(prepared_hyperparameters.lambda_, list)
-            and len(prepared_hyperparameters.lambda_) == 2
-        ):
-            hyper_collect["hyper_bound_list_updated"][
-                "lambda"
-            ] = prepared_hyperparameters.lambda_
-            hyper_collect["hyper_list_all"]["lambda"] = prepared_hyperparameters.lambda_
-        else:
-            hyper_collect["hyper_bound_list_fixed"][
-                "lambda"
-            ] = prepared_hyperparameters.lambda_
-            hyper_collect["hyper_list_all"]["lambda"] = [
-                prepared_hyperparameters.lambda_,
-                prepared_hyperparameters.lambda_,
-            ]
-        # Handle train_size similarly
+                    param_names.append(f"{channel}_{param}")
+
+        # Sort parameter names alphabetically to match R
+        param_names.sort()
+
+        # Process parameters in alphabetical order
+        for param_key in param_names:
+            channel, param = param_key.rsplit("_", 1)
+            param_value = getattr(
+                prepared_hyperparameters.hyperparameters[channel], param
+            )
+
+            if isinstance(param_value, list) and len(param_value) == 2:
+                hyper_collect["hyper_bound_list_updated"][param_key] = param_value
+                hyper_collect["hyper_list_all"][param_key] = param_value
+            else:
+                hyper_collect["hyper_bound_list_fixed"][param_key] = param_value
+                hyper_collect["hyper_list_all"][param_key] = [param_value, param_value]
+
+        # Handle lambda and train_size after media parameters
         if ts_validation:
             if (
                 isinstance(prepared_hyperparameters.train_size, list)

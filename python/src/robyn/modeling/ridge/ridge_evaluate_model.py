@@ -15,6 +15,7 @@ import logging
 from robyn.reporting.utils.modeling_debug import debug_model_metrics
 from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 import json
+from datetime import datetime
 
 
 class RidgeModelEvaluator:
@@ -310,35 +311,22 @@ class RidgeModelEvaluator:
             total_iterations=total_iterations,
             cores=cores,
         )
-        X = transformed_data["dt_modSaturated"]
-        y = transformed_data["y"]  # Use the windowed y data
+        dt_modSaturated = transformed_data["dt_modSaturated"]
 
-        self.logger.debug(f"Data shapes - X: {X.shape}, y: {y.shape}")
+        # Split dep_var and features like R does
+        y = dt_modSaturated["dep_var"]
+        X = dt_modSaturated.drop(columns=["dep_var"])
 
         # Continue with existing evaluation logic...
         sol_id = f"{trial}_{iter_ng + 1}_1"
-        # After preparing data
-        self.logger.debug(f"Sample of X values: {X.head()}")
-        self.logger.debug(f"Sample of y values: {y.head()}")
-
-        # Debug is True by default now
-        debug = True
-
-        if debug and (iter_ng == 0 or iter_ng % 25 == 0):
-            self.logger.debug(
-                f"\nEvaluation Debug (trial {trial}, iteration {iter_ng}):"
-            )
-            self.logger.debug(f"X shape: {X.shape}")
-            self.logger.debug(f"y shape: {y.shape}")
-            self.logger.debug("Parameters:", params)
 
         # Split data using R's approach
         train_size = params.get("train_size", 1.0) if ts_validation else 1.0
-        train_idx = int(len(X) * train_size)
+        train_idx = int(np.floor(np.quantile(range(len(X)), train_size)))
+        val_test_size = int(np.floor((len(X) * (1 - train_size)) / 2))
 
         metrics = {}
         if ts_validation:
-            val_test_size = (len(X) - train_idx) // 2
             X_train = X.iloc[:train_idx]
             y_train = y.iloc[:train_idx]
             X_val = X.iloc[train_idx : train_idx + val_test_size]
@@ -348,6 +336,72 @@ class RidgeModelEvaluator:
         else:
             X_train, y_train = X, y
             X_val = X_test = y_val = y_test = None
+
+        # After splitting data (around line 352)
+        # Log step8 data splitting information
+        self.logger.debug(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": f"step8_data_split_iteration_{iter_ng + 1}",
+                    "data": {
+                        "window_info": {
+                            "total_rows": len(X),
+                            "total_features": X.shape[1],
+                            "feature_names": X.columns.tolist(),
+                        },
+                        "split_params": {
+                            "train_size": train_size,
+                            "val_size": (1 - train_size) / 2 if ts_validation else None,
+                            "test_size": (
+                                (1 - train_size) / 2 if ts_validation else None
+                            ),
+                        },
+                        "split_indices": {
+                            "train_end": train_idx,
+                            "val_end": (
+                                train_idx + val_test_size if ts_validation else None
+                            ),
+                            "test_end": len(X) if ts_validation else None,
+                        },
+                        "split_shapes": {
+                            "x_train": X_train.shape,
+                            "y_train": len(y_train),
+                            "x_val": X_val.shape if X_val is not None else None,
+                            "y_val": len(y_val) if y_val is not None else None,
+                            "x_test": X_test.shape if X_test is not None else None,
+                            "y_test": len(y_test) if y_test is not None else None,
+                        },
+                        "data_ranges": {
+                            "y_train": {
+                                "min": float(y_train.min()),
+                                "max": float(y_train.max()),
+                                "mean": float(y_train.mean()),
+                            },
+                            "y_val": (
+                                {
+                                    "min": float(y_val.min()),
+                                    "max": float(y_val.max()),
+                                    "mean": float(y_val.mean()),
+                                }
+                                if y_val is not None
+                                else None
+                            ),
+                            "y_test": (
+                                {
+                                    "min": float(y_test.min()),
+                                    "max": float(y_test.max()),
+                                    "mean": float(y_test.mean()),
+                                }
+                                if y_test is not None
+                                else None
+                            ),
+                        },
+                    },
+                },
+                indent=2,
+            )
+        )
 
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
@@ -440,7 +494,7 @@ class RidgeModelEvaluator:
             X_train,
             paid_media_cols,
             rssd_zero_penalty,
-            debug=debug,
+            debug=True,
             iteration=iter_ng,
         )
 
