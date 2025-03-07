@@ -471,39 +471,24 @@ class RidgeMetricsCalculator:
         self,
         y_true: np.ndarray,
         y_pred: np.ndarray,
-        p: int,  # number of features
-        df_int: int = 1,  # degrees of freedom for intercept
-        n_train: Optional[int] = None,  # training set size for validation/test
+        p: int,
+        df_int: int = 1,
+        n_train: Optional[int] = None,
     ) -> float:
-        """
-        Calculate R-squared score matching R's implementation exactly.
-
-        Args:
-            y_true: True values
-            y_pred: Predicted values
-            p: Number of features (excluding intercept)
-            df_int: Degrees of freedom for intercept (1 if intercept, 0 if not)
-            n_train: Size of training set (used for validation/test adjustments)
-        """
-        n = len(y_true)
-        n_adj = n_train if n_train is not None else n
-
-        # Calculate R² components
+        """Calculate R-squared score matching R's implementation exactly."""
+        # Match R's SSE calculation order
+        sse = np.sum((y_pred - y_true) ** 2)  # Changed order to match R
         y_mean = np.mean(y_true)
-        ss_tot = np.sum((y_true - y_mean) ** 2)
-        ss_res = np.sum((y_true - y_pred) ** 2)
+        sst = np.sum((y_true - y_mean) ** 2)
+        r2 = 1 - (sse / sst)
 
-        # Base R²
-        r2 = 1 - (ss_res / ss_tot)
+        if p is not None and df_int is not None:
+            n = n_train if n_train is not None else len(y_true)
+            rdf = n - p - 1  # R's degrees of freedom calculation
+            r2_adj = 1 - (1 - r2) * ((n - df_int) / rdf)
+            return float(r2_adj)
 
-        # Adjust R² using n_adj
-        adj_r2 = 1 - ((1 - r2) * (n_adj - df_int) / (n_adj - p - df_int))
-
-        # R-style negative scaling
-        if adj_r2 < 0:
-            adj_r2 = -np.sqrt(np.abs(adj_r2))
-
-        return float(adj_r2)
+        return float(r2)
 
     def calculate_nrmse(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
         """Calculate NRMSE matching R's implementation"""

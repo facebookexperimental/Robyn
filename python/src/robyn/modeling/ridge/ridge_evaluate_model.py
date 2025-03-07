@@ -531,15 +531,75 @@ class RidgeModelEvaluator:
             upper_limits=upper_limits,
             penalty_factor=penalty_factor,
         )
+        # Log data shapes and stats before fitting
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": "step11a_model_refit_data_check",
+                    "data": {
+                        "shapes": {
+                            "x_norm": x_norm.shape,
+                            "y_norm": y_norm.shape,
+                            "X_val": X_val.shape if X_val is not None else None,
+                            "X_test": X_test.shape if X_test is not None else None,
+                        },
+                        "stats": {
+                            "y_norm": {
+                                "mean": float(np.mean(y_norm)),
+                                "std": float(np.std(y_norm)),
+                                "min": float(np.min(y_norm)),
+                                "max": float(np.max(y_norm)),
+                            },
+                            "x_norm_mean": float(np.mean(np.abs(x_norm))),
+                        },
+                    },
+                },
+                indent=2,
+            )
+        )
+
         model.fit(x_norm, y_norm)
 
         # Calculate metrics using R-style calculations
         y_train_pred = model.predict(x_norm)
+
+        # Log prediction stats
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": "step11b_model_refit_predictions",
+                    "data": {
+                        "predictions": {
+                            "y_train_pred": {
+                                "mean": float(np.mean(y_train_pred)),
+                                "std": float(np.std(y_train_pred)),
+                                "min": float(np.min(y_train_pred)),
+                                "max": float(np.max(y_train_pred)),
+                            },
+                            "y_norm": {
+                                "mean": float(np.mean(y_norm)),
+                                "std": float(np.std(y_norm)),
+                                "min": float(np.min(y_norm)),
+                                "max": float(np.max(y_norm)),
+                            },
+                        },
+                        "r2_components": {
+                            "sse": float(np.sum((y_train_pred - y_norm) ** 2)),
+                            "sst": float(np.sum((y_norm - np.mean(y_norm)) ** 2)),
+                            "n": len(y_norm),
+                            "p": x_norm.shape[1],
+                            "df_int": model.df_int,
+                        },
+                    },
+                },
+                indent=2,
+            )
+        )
         metrics["rsq_train"] = self.ridge_metrics_calculator.calculate_r2_score(
             y_norm,
             y_train_pred,
             p=x_norm.shape[1],
-            df_int=1 if model.fit_intercept else 0,
+            df_int=model.df_int,
         )
         metrics["nrmse_train"] = self.ridge_metrics_calculator.calculate_nrmse(
             y_norm, y_train_pred
@@ -556,16 +616,16 @@ class RidgeModelEvaluator:
                 y_val,
                 y_val_pred,
                 p=X_val.shape[1],
-                df_int=1 if model.fit_intercept else 0,
-                n_train=n_train,  # Pass training set size
+                df_int=model.df_int,
+                n_train=n_train,
             )
 
             metrics["rsq_test"] = self.ridge_metrics_calculator.calculate_r2_score(
                 y_test,
                 y_test_pred,
                 p=X_test.shape[1],
-                df_int=1 if model.fit_intercept else 0,
-                n_train=n_train,  # Pass training set size
+                df_int=model.df_int,
+                n_train=n_train,
             )
 
             metrics["nrmse_val"] = self.ridge_metrics_calculator.calculate_nrmse(
@@ -580,6 +640,26 @@ class RidgeModelEvaluator:
             metrics["rsq_val"] = metrics["rsq_test"] = 0.0
             metrics["nrmse_val"] = metrics["nrmse_test"] = 0.0
             metrics["nrmse"] = metrics["nrmse_train"]
+
+        # Log ridge regression results
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": f"step11c_model_refit_mod_out_iteration_{iter_ng + 1}",
+                    "data": {
+                        "rsq_train": metrics["rsq_train"],
+                        "rsq_val": metrics["rsq_val"],
+                        "rsq_test": metrics["rsq_test"],
+                        "nrmse_train": metrics["nrmse_train"],
+                        "nrmse_val": metrics["nrmse_val"],
+                        "nrmse_test": metrics["nrmse_test"],
+                        "coefs": list(model.get_full_coefficients()),
+                        "df_int": model.df_int,
+                    },
+                },
+                indent=2,
+            )
+        )
 
         # Calculate RSSD
         paid_media_cols = [

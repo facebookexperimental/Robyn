@@ -163,7 +163,8 @@ def create_ridge_model_rpy2(
             self._prediction_cache = {}
             # Cache for performance
             self._X_matrix_cache = {}
-            self._prediction_cache = {}
+            self.full_coef_ = None  # Add this to store full coefficient array
+            self.df_int = 1  # Initialize to 1
 
         def fit(self, X, y):
             X = np.asarray(X)
@@ -229,15 +230,21 @@ def create_ridge_model_rpy2(
                     ro.r(r_code)
                     coef_array = np.array(ro.r["coef_values"])
                     self.fit_intercept = False
+                    self.df_int = 0  # Set df_int to 0 when intercept is dropped
+                else:
+                    self.df_int = 1  # Keep df_int as 1 when intercept is kept
 
                 # Store model and coefficients
                 self.fitted_model = ro.r["r_model"]
                 if self.fit_intercept:
                     self.intercept_ = float(coef_array[0])
                     self.coef_ = coef_array[1:]
+                    self.full_coef_ = coef_array  # Store full array including intercept
                 else:
                     self.intercept_ = 0.0
                     self.coef_ = coef_array[1:]
+                    # Create full coefficient array with 0 intercept
+                    self.full_coef_ = np.concatenate([[0.0], self.coef_])
 
             return self
 
@@ -282,5 +289,9 @@ def create_ridge_model_rpy2(
                 f"Predictions stats - min: {predictions.min():.6f}, max: {predictions.max():.6f}, mean: {predictions.mean():.6f}"
             )
             return predictions
+
+        def get_full_coefficients(self):
+            """Get full coefficient array including intercept (R-style)"""
+            return self.full_coef_
 
     return GlmnetRidgeWrapper()
