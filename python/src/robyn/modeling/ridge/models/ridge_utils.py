@@ -104,7 +104,15 @@ def create_ridge_model_sklearn(
 
 
 def create_ridge_model_rpy2(
-    lambda_value, n_samples, fit_intercept=True, standardize=True, **kwargs
+    lambda_value,
+    n_samples,
+    fit_intercept=True,
+    standardize=True,
+    lower_limits=None,
+    upper_limits=None,
+    intercept=True,
+    intercept_sign="non_negative",
+    penalty_factor=None,
 ):
     """Create a Ridge regression model using rpy2 to access glmnet.
 
@@ -147,111 +155,83 @@ def create_ridge_model_rpy2(
             self.lambda_value = lambda_value
             self.fit_intercept = fit_intercept
             self.standardize = standardize
-            self.kwargs = kwargs
+            self.intercept_sign = intercept_sign
             self.fitted_model = None
             self.coef_ = None
             self.intercept_ = 0.0
             self.logger = logging.getLogger(__name__)
-
+            self._prediction_cache = {}
             # Cache for performance
             self._X_matrix_cache = {}
             self._prediction_cache = {}
 
         def fit(self, X, y):
-            # Ensure numpy arrays
             X = np.asarray(X)
             y = np.asarray(y)
 
-            self.logger.debug("\n=== Model Fitting Debug ===")
-            self.logger.debug(f"Input shapes - X: {X.shape}, y: {y.shape}")
-            self.logger.debug(
-                f"X stats - min: {X.min():.6f}, max: {X.max():.6f}, mean: {X.mean():.6f}"
-            )
-            self.logger.debug(
-                f"y stats - min: {y.min():.6f}, max: {y.max():.6f}, mean: {y.mean():.6f}"
-            )
-            self.logger.debug(f"lambda_value: {self.lambda_value}")
-
-            fit_intercept_r = "TRUE" if self.fit_intercept else "FALSE"
-            standardize_r = "TRUE" if self.standardize else "FALSE"
-
-            # Collect optional parameters
-            optional_params = []
-
-            # Generate key for caching
-            cache_key = (
-                hash(X.tobytes()),
-                hash(y.tobytes()),
-                self.lambda_value,
-                self.fit_intercept,
-                self.standardize,
-            )
-
             # Convert Python objects to R
             with localconverter(ro.default_converter + numpy2ri.converter):
-                # Pass the data to R environment
                 ro.r.assign("X_r", X)
                 ro.r.assign("y_r", y)
                 ro.r.assign("lambda_value", self.lambda_value)
+                ro.r.assign(
+                    "lower_limits_r",
+                    lower_limits if lower_limits is not None else ro.r("NULL"),
+                )
+                ro.r.assign(
+                    "upper_limits_r",
+                    upper_limits if upper_limits is not None else ro.r("NULL"),
+                )
+                ro.r.assign(
+                    "penalty_factor_r",
+                    penalty_factor if penalty_factor is not None else ro.r("NULL"),
+                )
 
-                # Extract optional parameters
-                lower_limits = kwargs.get("lower_limits", None)
-                upper_limits = kwargs.get("upper_limits", None)
-
-                if lower_limits is not None:
-                    ro.r.assign("lower_limits_r", lower_limits)
-                    optional_params.append("lower.limits = lower_limits_r")
-
-                if upper_limits is not None:
-                    ro.r.assign("upper_limits_r", upper_limits)
-                    optional_params.append("upper.limits = upper_limits_r")
-
-                # Add any additional parameters
-                for k, v in self.kwargs.items():
-                    if v is not None:
-                        k_r = k.replace("_", ".")
-                        ro.r.assign(f"{k}_param", v)
-                        optional_params.append(f"{k_r} = {k}_param")
-
-                # Join optional parameters
-                optional_str = ", ".join(optional_params)
-                if optional_str:
-                    optional_str = ", " + optional_str
-
-                # Fit the model using direct R code
-                r_code = f"""
-                # Use global assignment operator to ensure objects persist
+                # First attempt: Fit with intercept
+                r_code = """
+                # First fit with intercept
                 r_model <<- glmnet(
                     x = X_r,
                     y = y_r,
                     family = "gaussian",
-                    alpha = 0,  # 0 for ridge regression
+                    alpha = 0,
                     lambda = lambda_value,
-                    standardize = {standardize_r},
-                    intercept = {fit_intercept_r},
-                    type.measure = "mse"{optional_str}
+                    lower.limits = lower_limits_r,
+                    upper.limits = upper_limits_r,
+                    type.measure = "mse",
+                    penalty.factor = penalty_factor_r,
+                    intercept = TRUE
                 )
                 coef_values <<- as.numeric(coef(r_model, s = lambda_value))
                 """
-
-                # Execute R code for model fitting
                 ro.r(r_code)
 
-                # Get the model and coefficients from R
-                self.fitted_model = ro.r["r_model"]
+                # Check intercept sign constraint
                 coef_array = np.array(ro.r["coef_values"])
+                if self.intercept_sign == "non_negative" and coef_array[0] < 0:
+                    # Second attempt: Refit without intercept
+                    r_code = """
+                    # Refit without intercept
+                    r_model <<- glmnet(
+                        x = X_r,
+                        y = y_r,
+                        family = "gaussian",
+                        alpha = 0,
+                        lambda = lambda_value,
+                        lower.limits = lower_limits_r,
+                        upper.limits = upper_limits_r,
+                        type.measure = "mse",
+                        penalty.factor = penalty_factor_r,
+                        intercept = FALSE
+                    )
+                    coef_values <<- as.numeric(coef(r_model, s = lambda_value))
+                    """
+                    ro.r(r_code)
+                    coef_array = np.array(ro.r["coef_values"])
+                    self.fit_intercept = False
 
-                # Store X matrix for future predictions
-                self._X_matrix_cache[cache_key] = X
-
-                # After getting coefficients
-                self.logger.debug("\n=== Coefficient Debug ===")
-                self.logger.debug(f"Raw coefficients shape: {coef_array.shape}")
-                self.logger.debug(
-                    f"Raw coefficients range: [{coef_array.min():.6f}, {coef_array.max():.6f}]"
-                )
-
-                # First coefficient is intercept, rest are feature coefficients
+                # Store model and coefficients
+                self.fitted_model = ro.r["r_model"]
                 if self.fit_intercept:
                     self.intercept_ = float(coef_array[0])
                     self.coef_ = coef_array[1:]
@@ -259,22 +239,10 @@ def create_ridge_model_rpy2(
                     self.intercept_ = 0.0
                     self.coef_ = coef_array[1:]
 
-                self.logger.debug(f"Final intercept: {self.intercept_:.6f}")
-                self.logger.debug(
-                    f"Final coefficients range: [{self.coef_.min():.6f}, {self.coef_.max():.6f}]"
-                )
-
             return self
 
         def predict(self, X):
             X = np.asarray(X)
-            self.logger.debug("\n=== Prediction Input ===")
-            self.logger.debug(f"X shape: {X.shape}")
-            self.logger.debug(f"X range: [{X.min():.6f}, {X.max():.6f}]")
-            self.logger.debug(f"X mean: {X.mean():.6f}")
-            self.logger.debug(
-                f"X stats - min: {X.min():.6f}, max: {X.max():.6f}, mean: {X.mean():.6f}"
-            )
 
             if X.shape[0] < 1000:
                 predictions = np.dot(X, self.coef_) + self.intercept_

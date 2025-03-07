@@ -5,16 +5,21 @@ import numpy as np
 from scipy.signal import lfilter
 import json
 from datetime import datetime
+from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 
 
 class RidgeDataBuilder:
-    def __init__(self, mmm_data, featurized_mmm_data):
+    def __init__(self, mmm_data, featurized_mmm_data, ridge_metrics_calculator):
         self.mmm_data = mmm_data
         self.featurized_mmm_data = featurized_mmm_data
         self.logger = logging.getLogger(__name__)
+        self.ridge_metrics_calculator = ridge_metrics_calculator
         # Initialize base data during construction
         self.X_base, self.y_base = self._prepare_base_data()
         self.setup_initial_data()  # Run initial setup and logging
+        self.ridge_metrics_calculator.initialize_lambda_sequence(
+            self.X_base, self.y_base, seq_len=100
+        )
 
     def setup_initial_data(self):
         """One-time setup and logging of environment and spend metrics"""
@@ -276,7 +281,11 @@ class RidgeDataBuilder:
                 hyper_collect["hyper_bound_list_fixed"][param_key] = param_value
                 hyper_collect["hyper_list_all"][param_key] = [param_value, param_value]
 
-        # Handle lambda and train_size after media parameters
+        # Add lambda parameter (like R)
+        hyper_collect["hyper_bound_list_updated"]["lambda"] = [0, 1]  # Lambda_hp bounds
+        hyper_collect["hyper_list_all"]["lambda"] = [0, 1]
+
+        # Handle train_size after media parameters
         if ts_validation:
             if (
                 isinstance(prepared_hyperparameters.train_size, list)

@@ -8,10 +8,9 @@ import json
 
 
 class RidgeMetricsCalculator:
-    def __init__(self, mmm_data, hyperparameters, ridge_data_builder):
+    def __init__(self, mmm_data, hyperparameters):
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
-        self.ridge_data_builder = ridge_data_builder
         self.logger = logging.getLogger(__name__)
 
         # Calculate lambda sequence once during initialization

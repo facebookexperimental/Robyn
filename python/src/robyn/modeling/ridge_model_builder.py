@@ -49,9 +49,11 @@ class RidgeModelBuilder:
         self.featurized_mmm_data = featurized_mmm_data
 
         # Initialize builders and calculators
-        self.ridge_data_builder = RidgeDataBuilder(mmm_data, featurized_mmm_data)
         self.ridge_metrics_calculator = RidgeMetricsCalculator(
-            mmm_data, hyperparameters, self.ridge_data_builder
+            mmm_data, hyperparameters
+        )
+        self.ridge_data_builder = RidgeDataBuilder(
+            mmm_data, featurized_mmm_data, self.ridge_metrics_calculator
         )
         self.ridge_model_evaluator = RidgeModelEvaluator(
             self.mmm_data,

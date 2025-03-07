@@ -16,6 +16,7 @@ from robyn.reporting.utils.modeling_debug import debug_model_metrics
 from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 import json
 from datetime import datetime
+import random
 
 
 class RidgeModelEvaluator:
@@ -58,6 +59,7 @@ class RidgeModelEvaluator:
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
         np.random.seed(seed)
+        random.seed(seed)
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
 
         self.logger.debug(f"Starting optimization with {len(param_names)} parameters")
@@ -144,6 +146,8 @@ class RidgeModelEvaluator:
                         total_iterations=iterations,
                         cores=cores,
                         trial=trial,
+                        intercept_sign=intercept_sign,
+                        intercept=intercept,
                     )
 
                 self.logger.debug(
@@ -302,8 +306,11 @@ class RidgeModelEvaluator:
         total_iterations: int,
         cores: int,
         trial: int,
+        intercept_sign: str,
+        intercept: bool,
     ) -> Dict[str, Any]:
         """Evaluate model with parameter set"""
+        # Get transformed data
         # Get transformed data
         transformed_data = self.ridge_data_builder.run_transformations(
             params,
@@ -406,6 +413,76 @@ class RidgeModelEvaluator:
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
 
+        # Get sign control parameters
+        x_sign, lower_limits, upper_limits, check_factor = self._setup_sign_control(X)
+        params["lower_limits"] = lower_limits
+        params["upper_limits"] = upper_limits
+
+        # Convert numpy bool_ to Python bool for JSON serialization
+        factor_dict = {col: bool(is_factor) for col, is_factor in check_factor.items()}
+
+        # Helper function to format limit values
+        def format_limit_value(val):
+            if isinstance(val, str):
+                return val  # Already a string ("Inf" or "-Inf")
+            return str(val) if isinstance(val, float) and np.isinf(val) else float(val)
+
+        # Log step9 sign control
+        self.logger.debug(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "step": f"step9_sign_control_iteration_{iter_ng + 1}",
+                    "data": {
+                        "variable_types": {
+                            "prophet": ["trend", "season", "holiday"],
+                            "context": list(self.mmm_data.mmmdata_spec.context_vars),
+                            "paid_media": list(
+                                self.mmm_data.mmmdata_spec.paid_media_spends
+                            ),
+                            "organic": list(self.mmm_data.mmmdata_spec.organic_vars),
+                        },
+                        "signs": x_sign,
+                        "factor_variables": {
+                            "is_factor": factor_dict,
+                            "factor_names": [
+                                col
+                                for col, is_factor in factor_dict.items()
+                                if is_factor
+                            ],
+                        },
+                        "trend_info": (
+                            {
+                                "location": (
+                                    int(X.columns.get_loc("trend"))
+                                    if "trend" in X.columns
+                                    else None
+                                ),
+                                "negative_trend": (
+                                    bool(X["trend"].sum() < 0)
+                                    if "trend" in X.columns
+                                    else None
+                                ),
+                            }
+                            if "trend" in X.columns
+                            else None
+                        ),
+                        "constraints": {
+                            "lower_limits": [
+                                {"value": format_limit_value(val), "variable": str(col)}
+                                for col, val in zip(X.columns, lower_limits)
+                            ],
+                            "upper_limits": [
+                                {"value": format_limit_value(val), "variable": str(col)}
+                                for col, val in zip(X.columns, upper_limits)
+                            ],
+                        },
+                    },
+                },
+                indent=2,
+            )
+        )
+
         # Initialize lambda sequence if needed
         self.ridge_metrics_calculator.initialize_lambda_sequence(X, y)
 
@@ -415,9 +492,28 @@ class RidgeModelEvaluator:
         lambda_max = self.ridge_metrics_calculator.lambda_max
         lambda_min_ratio = self.ridge_metrics_calculator.lambda_min_ratio
 
+        # Handle penalty factor exactly like R
+        if add_penalty_factor:
+            penalty_factor = [v for k, v in params.items() if "_penalty" in k]
+        else:
+            penalty_factor = [1] * x_norm.shape[1]  # rep(1, ncol(x_train))
+
+        # Log ridge regression setup
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": f"step10_ridge_regression_setup_iteration_{iter_ng + 1}",
+                    "data": {
+                        "lambda_hp": lambda_hp,
+                        "lambda_scaled": lambda_,  # Using lambda_ instead of lambda_scaled
+                        "penalty_factor": penalty_factor,
+                    },
+                },
+                indent=2,
+            )
+        )
         # Scale inputs for model
         N = len(x_norm)
-
         # Convert lambda to sklearn alpha using Approach 1: alpha = lambda * N / 2
         # model = create_ridge_model_sklearn(
         #     lambda_value=lambda_, n_samples=N, fit_intercept=True
@@ -429,9 +525,11 @@ class RidgeModelEvaluator:
             n_samples=N,
             fit_intercept=True,
             standardize=True,
-            lower_limits=params.get("lower_limits", None),
-            upper_limits=params.get("upper_limits", None),
-            penalty_factor=params.get("penalty_factor", None),
+            intercept_sign=intercept_sign,
+            intercept=intercept,
+            lower_limits=lower_limits,
+            upper_limits=upper_limits,
+            penalty_factor=penalty_factor,
         )
         model.fit(x_norm, y_norm)
 
@@ -600,3 +698,81 @@ class RidgeModelEvaluator:
             "iter_ng": iter_ng + 1,
             "iter_par": 1,
         }
+
+    def _setup_sign_control(
+        self, X: pd.DataFrame
+    ) -> Tuple[Dict[str, List[str]], List[float], List[float], Dict[str, bool]]:
+        """Set up sign control for model variables, matching R's implementation exactly.
+
+        Args:
+            X: Feature DataFrame with dep_var already removed
+
+        Returns:
+            Tuple containing:
+            - x_sign: Dict mapping variable types to their signs
+            - lower_limits: List of lower bounds for each variable
+            - upper_limits: List of upper bounds for each variable
+            - check_factor: Dict mapping column names to boolean indicating if they are factors
+        """
+        # Define signs grouped by variable type (matching R's structure)
+        x_sign = {
+            "prophet": ["default"] * 3,  # [trend, season, holiday]
+            "context": ["default"] * len(self.mmm_data.mmmdata_spec.context_vars),
+            "paid_media": ["positive"]
+            * len(self.mmm_data.mmmdata_spec.paid_media_spends),
+            "organic": "positive",  # Single string for organic, matching R
+        }
+
+        # Check for factor variables
+        check_factor = {
+            col: pd.api.types.is_categorical_dtype(X[col]) for col in X.columns
+        }
+
+        # Initialize limits for prophet vars
+        lower_limits = [0] * 3  # trend, season, holiday
+        upper_limits = [1] * 3
+
+        # Handle negative trend case
+        if "trend" in X.columns and X["trend"].sum() < 0:
+            lower_limits[0] = -1
+            upper_limits[0] = 0
+
+        # Handle remaining variables
+        for col in X.columns[3:]:  # Skip prophet vars
+            if check_factor.get(col, False):
+                level_n = len(X[col].unique())
+                if level_n <= 1:
+                    raise ValueError(
+                        f"Factor variable {col} must have more than 1 level"
+                    )
+
+                # Get variable type and index
+                if col in self.mmm_data.mmmdata_spec.context_vars:
+                    sign = "default"
+                elif col in self.mmm_data.mmmdata_spec.paid_media_spends:
+                    sign = "positive"
+                else:  # organic
+                    sign = "positive"
+
+                if sign == "positive":
+                    lower_vec = [0] * (level_n - 1)
+                    upper_vec = ["Inf"] * (level_n - 1)  # Match R's "Inf"
+                elif sign == "negative":
+                    lower_vec = ["-Inf"] * (level_n - 1)
+                    upper_vec = [0] * (level_n - 1)
+                else:  # default
+                    lower_vec = ["-Inf"] * (level_n - 1)
+                    upper_vec = ["Inf"] * (level_n - 1)
+
+                lower_limits.extend(lower_vec)
+                upper_limits.extend(upper_vec)
+            else:
+                # Handle non-factor variables
+                if col in self.mmm_data.mmmdata_spec.context_vars:
+                    lower_limits.append("-Inf")
+                    upper_limits.append("Inf")
+                else:  # paid_media or organic
+                    lower_limits.append(0)
+                    upper_limits.append("Inf")
+
+        return x_sign, lower_limits, upper_limits, check_factor
