@@ -1,0 +1,461 @@
+---
+title: "Robyn_学習用コード"
+format:
+  html:
+    theme: default
+    toc: true
+    toc-title: 目次
+    toc-depth: 4
+    number-sections: true
+    self-contained: true
+    code-tools: true
+    code-fold: true
+execute:
+  echo: true     # コードを出力に含めるか
+  cache: false   # 実行結果のキャッシュを保持するか
+  prompt: false  # コードの先頭に">"を表示するか
+  tidy: false    # コードの整形を行うか
+  message: false # コードが出力するメッセージを含めるか
+  warning: false # コードが出力する警告を含めるか
+  error: false   # エラーメッセージを表示するか
+editor_options:
+  chunk_output_type: console
+---
+
+# コード概要
+
+# 環境構築
+
+## ライブラリ
+
+```{r}
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+# データ加工
+p_load(tidyverse)
+p_load(data.table)
+p_load(skimr)
+p_load(readxl)
+p_load(openxlsx)
+p_load(glue)
+
+# 表・図の可視化
+p_load(formattable)
+p_load(reactable)
+p_load(DT)
+p_load(plotly)
+p_load(ggridges)
+
+# 分析
+p_load(correlation)
+p_load(corrplot)
+p_load(broom)
+p_load(psych)　# 因子分析・クラスター分析
+p_load(stats) # PCR(主成分回帰)
+p_load(glmnet) # リッジ回帰・ラッソ回帰・Elastic Net
+p_load(MASS) # リッジ回帰専用（コードを汎用化させやすいのでこっちを使うかも）
+
+p_load(car) # 回帰分析のVIF確認用
+
+
+# dplyrのselect/filter()を優先的に使用する設定
+p_load(conflicted)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("select", "dplyr")
+
+## datatable
+my_datatable <- function(data, ...) {
+  data %>% 
+    datatable(
+      extensions = 'Buttons',
+      options = list(
+        dom = 'Blfrtip',
+        buttons = c('copy', 'csv'),
+        lengthMenu = list(
+          c(10,50,100,-1),　# 表示行
+          c(10,50,100,"All")　# 表示行のタイトル
+        )
+      )
+    ,...)
+}
+
+# plotly
+
+gginteractive <- function(interactive = TRUE, ...) {
+  strvolumeture(
+    if(interactive) {
+      purrr::partial(plotly::ggplotly, ...)
+    } else {
+      identity
+    },
+    class = c("gginteractive", "function")
+  )
+}
+ggplot_add.gginteractive <- function (object, plot, object_name) object(plot)
+
+
+# project path
+PATH_PROJ = "C:/Users/moris/stats_semi1/bayes/MMM/Robyn/"
+```
+
+## MMMを実装するための準備
+
+```{r}
+p_load(Robyn)
+# Version管理
+packageVersion("Robyn")
+
+Sys.setenv(R_FUTURE_FORK_ENABLE = "true")
+options(future.fork.enable = TRUE)
+
+create_files <- TRUE
+
+# Outputのディレクトリ
+robyn_directory <- str_c(PATH_PROJ, "03.output")
+
+
+p_load(reticulate)
+
+# Pythonのインストール
+reticulate::install_python(version = "3.9")
+
+
+# 使用するPython環境を確認または指定
+"C:/Users/moris/AppData/Local/r-reticulate/r-reticulate/pyenv/pyenv-win/versions/3.9.13/python.exe"
+py_config()
+
+# nevergradのインストール
+reticulate::py_install("nevergrad", pip = TRUE)
+
+```
+
+# データの読み込み
+
+## 広告出稿と売り上げデータ
+
+```{r}
+dt_simulated_weekly
+
+dt_simulated_weekly %>% my_datatable()
+
+```
+
+## 日本の祝日データ
+
+以下のリンクからデータを取得
+
+<https://www8.cao.go.jp/chosei/shukujitsu/gaiyou.html>
+
+```{r}
+dt_holidays_jp =
+  read_csv(
+    str_c(PATH_PROJ, "01.data/syukujitsu.csv")
+    , locale = locale(encoding = "SHIFT-JIS")
+    ) %>% 
+  mutate(
+    ds = `国民の祝日・休日月日` %>% ymd()
+    , holiday = `国民の祝日・休日名称`
+    , country = "JP"
+    , year = lubridate::year(ds)
+  ) %>% 
+  select(ds,holiday,country,year)
+
+dt_holidays_jp %>% view()
+```
+
+# モデルに投入する情報の整理
+
+## データ周りの情報
+```{r}
+InputCollect = 
+  robyn_inputs(
+    # 広告出稿＆結果データ
+    dt_input = dt_simulated_weekly
+    # 祝日データ
+    , dt_holidays = dt_holidays_jp
+    
+    # データ型の指定
+    , date_var = "DATE" # date format must be "2020-01-01"
+    , dep_var = "revenue" # there should be only one dependent variable
+    , dep_var_type = "revenue" # "revenue" (ROI) or "conversion" (CPA)
+    
+    # prophetの情報整理
+    , prophet_vars = c("trend", "season", "holiday") # "trend","season", "weekday" & "holiday"
+    , prophet_country = "JP" # input country code. Check: dt_prophet_holidays
+    
+    # MMMを分析する上での情報整理
+    , paid_media_spends = c("tv_S", "ooh_S", "print_S", "facebook_S", "search_S") #出稿金額
+    , paid_media_vars = c("tv_S", "ooh_S", "print_S", "facebook_I", "search_clicks_P") # 出稿金額以外のInput要素
+  , organic_vars = "newsletter" # オウンドメディア
+  , factor_vars = c("events") # イベント
+  , context_vars = c("competitor_sales_B", "events") # 施策以外の要因
+  
+  
+  # 学習期間
+  , window_start = "2016-01-01"
+  ,window_end = "2018-12-31"
+  
+  # Adstock情報
+  , adstock = "geometric" # geometric, weibull_cdf or weibull_pdf.
+  )
+```
+
+## 分析周りの情報(ハイパーパラメータ)
+
+```{r}
+plot_adstock(plot = TRUE)
+plot_saturation(plot = TRUE)
+```
+
+::: panel-tabset
+
+### Adstock(残存)
+Adstockの中でも3種類存在するのでどのパターン実施するかを考慮
+```{r}
+
+```
+
+
+::: panel-tabset
+
+#### Geometric adstock
+```{r}
+geo_adstock = 
+  list(
+    facebook_S_thetas = c(0, 0.3)
+    , print_S_thetas = c(0.1, 0.4)
+    , tv_S_thetas = c(0.3, 0.8)
+    , search_S_thetas = c(0, 0.3)
+    , ooh_S_thetas = c(0.1, 0.4)
+    , newsletter_thetas = c(0.1, 0.4)
+  )
+```
+
+#### Weibull CDF adstock
+```{r}
+cdf_adstock = 
+  list(
+    facebook_S_shapes = c(0, 2)
+    , facebook_S_scales = c(0, 0.1)
+  )
+```
+
+#### Weibull PDF adstock
+```{r}
+pdf_adstock = 
+  list(
+    facebook_S_shapes = c(0, 10)
+    , facebook_S_scales = c(0, 0.1)
+  )
+```
+
+::: 
+
+### Saturation(飽和)
+```{r}
+saturation = 
+  list(
+    facebook_S_alphas = c(0.5, 3)
+    , facebook_S_gammas = c(0.3, 1)
+    , print_S_alphas = c(0.5, 3)
+    , print_S_gammas = c(0.3, 1)
+    , tv_S_alphas = c(0.5, 3)
+    , tv_S_gammas = c(0.3, 1)
+    , search_S_alphas = c(0.5, 3)
+    , search_S_gammas = c(0.3, 1)
+    , ooh_S_alphas = c(0.5, 3)
+    , ooh_S_gammas = c(0.3, 1)
+    , newsletter_alphas = c(0.5, 3)
+    , newsletter_gammas = c(0.3, 1)
+    )
+```
+
+### 学習データサイズ
+```{r}
+train_size_list = list(train_size =   c(0.5, 0.8))
+```
+
+::: 
+
+### 情報をまとめる
+```{r}
+hyperparameters = 
+  c(
+    saturation
+    # adstockはどれか一つだけ残す。他はコメントアウト
+    , geo_adstock
+    # , cdf_adstock
+    # , pdf_adstock
+    , train_size_list
+  )
+```
+
+## Input情報の作成
+```{r}
+InputCollect =  
+  robyn_inputs(
+    InputCollect = InputCollect
+    , hyperparameters = hyperparameters)
+
+print(InputCollect)
+```
+
+
+
+# モデル構築
+```{r}
+OutputModels <- 
+  robyn_run(
+    InputCollect = InputCollect　# feed in all model specification
+    , cores = NULL # NULL defaults to (max available - 1)
+    , iterations = 2000 # 2000 recommended for the dummy dataset with no calibration
+    , trials = 5 # 5 recommended for the dummy dataset
+    , ts_validation = TRUE # 3-way-split time series for NRMSE validation.
+    , add_penalty_factor = FALSE # Experimental feature. Use with caution
+    )
+
+print(OutputModels)
+```
+
+# Output作成&保存
+```{r}
+OutputCollect <- 
+  robyn_outputs(
+    InputCollect
+    , OutputModels
+    ,　pareto_fronts = "auto" # automatically pick how many pareto-fronts to fill min_candidates (100)
+  # min_candidates = 100, # top pareto models for clustering. Default to 100
+  # calibration_constraint = 0.1, # range c(0.01, 0.1) & default at 0.1
+  , csv_out = "pareto" # "pareto", "all", or NULL (for none)
+  , clusters = TRUE # Set to TRUE to cluster similar models by ROAS. See ?robyn_clusters
+  , export = create_files # this will create files locally
+  , plot_folder = robyn_directory # path for plots exports and files creation
+  , plot_pareto = create_files # Set to FALSE to deactivate plotting and saving model one-pagers
+)
+
+print(OutputCollect)
+```
+
+
+
+```{r}
+OutputCollect$allSolutions
+
+select_model <- "3_165_9" 
+
+ExportedModel <- 
+  robyn_write(
+    InputCollect
+    , OutputCollect
+    , select_model
+    , export = create_files)
+
+print(ExportedModel)
+```
+
+
+```{r}
+myOnePager =
+  robyn_onepagers(
+    InputCollect
+    , OutputCollect
+    , select_model
+    , export = FALSE)
+
+myOnePager[[select_model]]$patches$plots[[1]]
+myOnePager[[select_model]]$patches$plots[[2]]
+```
+
+# 予算配分シミュレータ
+
+## 選択したモデルの確認
+```{r}
+print(ExportedModel)
+```
+
+## シミュレーションで使用する広告出稿について 
+```{r}
+InputCollect$paid_media_spends
+```
+
+## 例1
+```{r}
+AllocatorCollect1 <- 
+  robyn_allocator(
+    InputCollect = InputCollect
+    , OutputCollect = OutputCollect
+    , select_model = select_model
+  # date_range = "all", # Default to "all"
+  # total_budget = NULL, # When NULL, default is total spend in date_range
+  , channel_constr_low = 0.7
+  , channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5)
+  # , channel_constr_multiplier = 3
+  , scenario = "max_response"
+  , export = create_files
+)
+
+print(AllocatorCollect1)
+plot(AllocatorCollect1)
+```
+
+## 例2
+```{r}
+AllocatorCollect2 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  date_range = "last_10", # Last 10 periods, same as c("2018-10-22", "2018-12-31")
+  total_budget = 5000000, # Total budget for date_range period simulation
+  channel_constr_low = c(0.8, 0.7, 0.7, 0.7, 0.7),
+  channel_constr_up = c(1.2, 1.5, 1.5, 1.5, 1.5),
+  channel_constr_multiplier = 5, # Customise bound extension for wider insights
+  scenario = "max_response",
+  export = create_files
+)
+print(AllocatorCollect2)
+plot(AllocatorCollect2)
+```
+
+## 例3
+```{r}
+AllocatorCollect3 <- robyn_allocator(
+  InputCollect = InputCollect,
+  OutputCollect = OutputCollect,
+  select_model = select_model,
+  # date_range = NULL, # Default: "all" available dates
+  scenario = "target_efficiency",
+  # target_value = 2, # Customize target ROAS or CPA value
+  export = create_files
+)
+print(AllocatorCollect3)
+plot(AllocatorCollect3)
+```
+
+## 例4
+```{r}
+json_file = str_c(PATH_PROJ
+                  ,"03.output/Robyn_202411301927_init/RobynModel-models.json")
+  
+AllocatorCollect4 <- robyn_allocator(
+  json_file = json_file, # Using json file from robyn_write() for allocation
+  dt_input = dt_simulated_weekly,
+  dt_holidays = dt_prophet_holidays,
+  date_range = NULL, # Default last month as initial period
+  scenario = "target_efficiency",
+  target_value = 2, # Customize target ROAS or CPA value
+  plot_folder = "~/Desktop/my_dir",
+  plot_folder_sub = "my_subdir",
+  export = create_files
+)
+```
+
+
+
+
+
+  
+  
+  
+  
+
+
+
