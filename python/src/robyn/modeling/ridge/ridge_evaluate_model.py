@@ -721,6 +721,7 @@ class RidgeModelEvaluator:
         ][
             [
                 "rn",
+                "coef",  # add coef in from x_decomp_agg
                 "xDecompAgg",
                 "xDecompPerc",
                 "xDecompMeanNon0Perc",
@@ -897,7 +898,184 @@ class RidgeModelEvaluator:
                 else 0
             )
         )
+        # Get paid media rows from x_decomp_agg
+        paid_media_mask = x_decomp_agg["rn"].isin(
+            self.mmm_data.mmmdata_spec.paid_media_spends
+        )
+        paid_media_rows = x_decomp_agg[paid_media_mask]
 
+        # Add debug logging
+        self.logger.debug("Spend metrics structure:")
+        self.logger.debug(
+            f"total_spend: {self.ridge_data_builder.spend_metrics['total_spend']}"
+        )
+        self.logger.debug(
+            f"mean_spend: {self.ridge_data_builder.spend_metrics['mean_spend']}"
+        )
+        self.logger.debug(
+            f"spend_share: {self.ridge_data_builder.spend_metrics['spend_share']}"
+        )
+
+        self.logger.debug("\nPaid media channels:")
+        self.logger.debug(
+            f"x_decomp_agg filtered rn: {x_decomp_agg.loc[paid_media_mask, 'rn'].tolist()}"
+        )
+        # Create mapping of channel names to indices
+        channel_to_index = {
+            channel: idx
+            for idx, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends)
+        }
+
+        self.logger.debug("Channel to index mapping:")
+        self.logger.debug(channel_to_index)
+        # Add all required columns with correct types
+        decomp_spend_dist = pd.DataFrame(
+            {
+                "rn": paid_media_rows["rn"],
+                "coef": paid_media_rows["coef"],
+                "xDecompAgg": paid_media_rows["xDecompAgg"],
+                "xDecompPerc": paid_media_rows[
+                    "xDecompPerc"
+                ],  # Get this from paid_media_rows
+                # Use list indices via the mapping
+                "total_spend": [
+                    self.ridge_data_builder.spend_metrics["total_spend"][
+                        channel_to_index[name]
+                    ]
+                    for name in paid_media_rows["rn"]
+                ],
+                "mean_spend": [
+                    self.ridge_data_builder.spend_metrics["mean_spend"][
+                        channel_to_index[name]
+                    ]
+                    for name in paid_media_rows["rn"]
+                ],
+                "spend_share": [
+                    self.ridge_data_builder.spend_metrics["spend_share"][
+                        channel_to_index[name]
+                    ]
+                    for name in paid_media_rows["rn"]
+                ],
+                "effect_share": paid_media_rows["xDecompPerc"],
+                "sol_id": metrics.get("sol_id", ""),
+                "rsq_train": metrics.get("rsq_train", 0),
+                "rsq_val": metrics.get("rsq_val", 0),
+                "rsq_test": metrics.get("rsq_test", 0),
+                "nrmse": metrics.get("nrmse", 0),
+                "decomp_rssd": metrics.get("decomp_rssd", 0),
+                "mape": metrics.get("mape", 0),
+                "lambda": metrics.get("lambda", 0),
+                "lambda_hp": metrics.get("lambda_hp", 0),
+                "lambda_max": metrics.get("lambda_max", 0),
+                "lambda_min_ratio": metrics.get("lambda_min_ratio", 0),
+                "trial": metrics.get("trial", 0),
+                "iterNG": metrics.get("iterNG", 0),
+                "iterPar": metrics.get("iterPar", 0),
+                "Elapsed": metrics.get("elapsed", 0),
+                "pos": paid_media_rows["pos"],
+            }
+        )
+
+        # Ensure correct column order
+        required_cols = [
+            "rn",
+            "coef",
+            "xDecompAgg",
+            "xDecompPerc",
+            "total_spend",
+            "mean_spend",
+            "spend_share",
+            "effect_share",
+            "sol_id",
+            "rsq_train",
+            "rsq_val",
+            "rsq_test",
+            "nrmse",
+            "decomp_rssd",
+            "mape",
+            "lambda",
+            "lambda_hp",
+            "lambda_max",
+            "lambda_min_ratio",
+            "trial",
+            "iterNG",
+            "iterPar",
+            "Elapsed",
+            "pos",
+        ]
+        decomp_spend_dist = decomp_spend_dist[required_cols]
+
+        # Format x_decomp_agg with all required columns and metrics
+        x_decomp_agg = pd.DataFrame(
+            {
+                "rn": x_decomp_agg["rn"],
+                "coef": x_decomp_agg["coef"],
+                "xDecompAgg": x_decomp_agg["xDecompAgg"],
+                "xDecompPerc": x_decomp_agg["xDecompPerc"],
+                "xDecompMeanNon0": x_decomp_agg["xDecompMeanNon0"],
+                "xDecompMeanNon0Perc": x_decomp_agg["xDecompMeanNon0Perc"],
+                "xDecompAggRF": x_decomp_agg["xDecompAggRF"],
+                "xDecompPercRF": x_decomp_agg["xDecompPercRF"],
+                "xDecompMeanNon0RF": x_decomp_agg["xDecompMeanNon0RF"],
+                "xDecompMeanNon0PercRF": x_decomp_agg["xDecompMeanNon0PercRF"],
+                "pos": x_decomp_agg["pos"],
+                # Add all metrics
+                "train_size": float(metrics.get("train_size", 1.0)),
+                "rsq_train": float(metrics.get("rsq_train", 0)),
+                "rsq_val": float(metrics.get("rsq_val", 0)),
+                "rsq_test": float(metrics.get("rsq_test", 0)),
+                "nrmse_train": float(metrics.get("nrmse_train", 0)),
+                "nrmse_val": float(metrics.get("nrmse_val", 0)),
+                "nrmse_test": float(metrics.get("nrmse_test", 0)),
+                "nrmse": float(metrics.get("nrmse", 0)),
+                "decomp.rssd": float(metrics.get("decomp_rssd", 0)),
+                "mape": float(metrics.get("mape", 0)),
+                "lambda": float(metrics.get("lambda", 0)),
+                "lambda_hp": float(metrics.get("lambda_hp", 0)),
+                "lambda_max": float(metrics.get("lambda_max", 0)),
+                "lambda_min_ratio": float(metrics.get("lambda_min_ratio", 0)),
+                "sol_id": str(metrics.get("sol_id", "")),
+                "trial": int(metrics.get("trial", 0)),
+                "iterNG": int(metrics.get("iterNG", 0)),
+                "iterPar": int(metrics.get("iterPar", 0)),
+                "Elapsed": float(metrics.get("Elapsed", 0)),
+            }
+        )
+
+        # Ensure correct column order
+        required_cols = [
+            "rn",
+            "coef",
+            "xDecompAgg",
+            "xDecompPerc",
+            "xDecompMeanNon0",
+            "xDecompMeanNon0Perc",
+            "xDecompAggRF",
+            "xDecompPercRF",
+            "xDecompMeanNon0RF",
+            "xDecompMeanNon0PercRF",
+            "pos",
+            "train_size",
+            "rsq_train",
+            "rsq_val",
+            "rsq_test",
+            "nrmse_train",
+            "nrmse_val",
+            "nrmse_test",
+            "nrmse",
+            "decomp.rssd",
+            "mape",
+            "lambda",
+            "lambda_hp",
+            "lambda_max",
+            "lambda_min_ratio",
+            "sol_id",
+            "trial",
+            "iterNG",
+            "iterPar",
+            "Elapsed",
+        ]
+        x_decomp_agg = x_decomp_agg[required_cols]
         return {
             "loss": loss,
             "params": params_formatted,

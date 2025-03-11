@@ -17,6 +17,128 @@ class RidgeMetricsCalculator:
         self.lambda_max = None
         self.lambda_min_ratio = 0.0001
 
+    def _calculate_x_decomp_agg(
+        self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, Any]
+    ) -> pd.DataFrame:
+        """Calculate x decomposition aggregates matching R's implementation exactly"""
+        # Calculate decomposition effects with R-style scaling
+        scale_factor = np.mean(np.abs(X)) * np.mean(np.abs(y))
+        x_decomp = (X * model.coef_) * scale_factor
+        x_decomp_sum = x_decomp.to_numpy().sum()  # faster summing over all elements
+
+        # Precompute total non-zero mean across all columns once
+        total_non_zero_mean = sum(
+            x_decomp[c][x_decomp[c] > 0].mean() if (x_decomp[c] > 0).any() else 0
+            for c in X.columns
+        )
+
+        results = []
+        # Use enumerate to iterate over columns and corresponding coefficients
+        for idx, col in enumerate(X.columns):
+            coef = model.coef_[idx]
+            decomp_values = x_decomp[col]
+            decomp_sum = decomp_values.sum()
+
+            # Calculate non-zero mean for this column
+            non_zero_mask = decomp_values != 0
+            non_zero_mean = (
+                decomp_values[non_zero_mask].mean() if non_zero_mask.any() else 0
+            )
+
+            result = {
+                "rn": str(col),  # Ensure string type
+                "coef": float(coef),  # Ensure float type
+                "xDecompAgg": float(decomp_sum),  # Ensure float type
+                "xDecompPerc": float(
+                    decomp_sum / x_decomp_sum if x_decomp_sum != 0 else 0
+                ),
+                "xDecompMeanNon0": float(non_zero_mean),
+                "xDecompMeanNon0Perc": float(
+                    non_zero_mean / total_non_zero_mean
+                    if total_non_zero_mean != 0
+                    else 0
+                ),
+                "xDecompAggRF": float(decomp_sum),  # RF version
+                "xDecompPercRF": float(
+                    decomp_sum / x_decomp_sum if x_decomp_sum != 0 else 0
+                ),
+                "xDecompMeanNon0RF": float(non_zero_mean),
+                "xDecompMeanNon0PercRF": float(
+                    non_zero_mean / total_non_zero_mean
+                    if total_non_zero_mean != 0
+                    else 0
+                ),
+                "pos": bool(coef >= 0),
+            }
+
+            # Add model performance metrics with correct types
+            result.update(
+                {
+                    "train_size": float(metrics.get("train_size", 1.0)),
+                    "rsq_train": float(metrics.get("rsq_train", 0)),
+                    "rsq_val": float(metrics.get("rsq_val", 0)),
+                    "rsq_test": float(metrics.get("rsq_test", 0)),
+                    "nrmse_train": float(metrics.get("nrmse_train", 0)),
+                    "nrmse_val": float(metrics.get("nrmse_val", 0)),
+                    "nrmse_test": float(metrics.get("nrmse_test", 0)),
+                    "nrmse": float(metrics.get("nrmse", 0)),
+                    "decomp.rssd": float(metrics.get("decomp_rssd", 0)),
+                    "mape": float(metrics.get("mape", 0)),
+                    "lambda": float(
+                        metrics.get("lambda", 0)
+                    ),  # Critical: Using lambda not lambda_
+                    "lambda_hp": float(metrics.get("lambda_hp", 0)),
+                    "lambda_max": float(metrics.get("lambda_max", 0)),
+                    "lambda_min_ratio": float(metrics.get("lambda_min_ratio", 0)),
+                    "sol_id": str(metrics.get("sol_id", "")),
+                    "trial": int(metrics.get("trial", 0)),
+                    "iterNG": int(metrics.get("iterNG", 0)),
+                    "iterPar": int(metrics.get("iterPar", 0)),
+                    "Elapsed": float(metrics.get("Elapsed", 0)),
+                }
+            )
+
+            results.append(result)
+
+        df = pd.DataFrame(results)
+
+        # Ensure correct column order and types
+        required_cols = [
+            "rn",
+            "coef",
+            "xDecompAgg",
+            "xDecompPerc",
+            "xDecompMeanNon0",
+            "xDecompMeanNon0Perc",
+            "xDecompAggRF",
+            "xDecompPercRF",
+            "xDecompMeanNon0RF",
+            "xDecompMeanNon0PercRF",
+            "pos",
+            "train_size",
+            "rsq_train",
+            "rsq_val",
+            "rsq_test",
+            "nrmse_train",
+            "nrmse_val",
+            "nrmse_test",
+            "nrmse",
+            "decomp.rssd",
+            "mape",
+            "lambda",
+            "lambda_hp",
+            "lambda_max",
+            "lambda_min_ratio",
+            "sol_id",
+            "trial",
+            "iterNG",
+            "iterPar",
+            "Elapsed",
+        ]
+
+        df = df[required_cols]
+        return df
+
     def _calculate_decomp_spend_dist(
         self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, float]
     ) -> pd.DataFrame:
@@ -344,128 +466,6 @@ class RidgeMetricsCalculator:
         except Exception as e:
             self.logger.warning(f"Error calculating MAPE: {str(e)}")
             return 0.0
-
-    def _calculate_x_decomp_agg(
-        self, model: Ridge, X: pd.DataFrame, y: pd.Series, metrics: Dict[str, Any]
-    ) -> pd.DataFrame:
-        """Calculate x decomposition aggregates matching R's implementation exactly"""
-        # Calculate decomposition effects with R-style scaling
-        scale_factor = np.mean(np.abs(X)) * np.mean(np.abs(y))
-        x_decomp = (X * model.coef_) * scale_factor
-        x_decomp_sum = x_decomp.to_numpy().sum()  # faster summing over all elements
-
-        # Precompute total non-zero mean across all columns once
-        total_non_zero_mean = sum(
-            x_decomp[c][x_decomp[c] > 0].mean() if (x_decomp[c] > 0).any() else 0
-            for c in X.columns
-        )
-
-        results = []
-        # Use enumerate to iterate over columns and corresponding coefficients
-        for idx, col in enumerate(X.columns):
-            coef = model.coef_[idx]
-            decomp_values = x_decomp[col]
-            decomp_sum = decomp_values.sum()
-
-            # Calculate non-zero mean for this column
-            non_zero_mask = decomp_values != 0
-            non_zero_mean = (
-                decomp_values[non_zero_mask].mean() if non_zero_mask.any() else 0
-            )
-
-            result = {
-                "rn": str(col),  # Ensure string type
-                "coef": float(coef),  # Ensure float type
-                "xDecompAgg": float(decomp_sum),  # Ensure float type
-                "xDecompPerc": float(
-                    decomp_sum / x_decomp_sum if x_decomp_sum != 0 else 0
-                ),
-                "xDecompMeanNon0": float(non_zero_mean),
-                "xDecompMeanNon0Perc": float(
-                    non_zero_mean / total_non_zero_mean
-                    if total_non_zero_mean != 0
-                    else 0
-                ),
-                "xDecompAggRF": float(decomp_sum),  # RF version
-                "xDecompPercRF": float(
-                    decomp_sum / x_decomp_sum if x_decomp_sum != 0 else 0
-                ),
-                "xDecompMeanNon0RF": float(non_zero_mean),
-                "xDecompMeanNon0PercRF": float(
-                    non_zero_mean / total_non_zero_mean
-                    if total_non_zero_mean != 0
-                    else 0
-                ),
-                "pos": bool(coef >= 0),
-            }
-
-            # Add model performance metrics with correct types
-            result.update(
-                {
-                    "train_size": float(metrics.get("train_size", 1.0)),
-                    "rsq_train": float(metrics.get("rsq_train", 0)),
-                    "rsq_val": float(metrics.get("rsq_val", 0)),
-                    "rsq_test": float(metrics.get("rsq_test", 0)),
-                    "nrmse_train": float(metrics.get("nrmse_train", 0)),
-                    "nrmse_val": float(metrics.get("nrmse_val", 0)),
-                    "nrmse_test": float(metrics.get("nrmse_test", 0)),
-                    "nrmse": float(metrics.get("nrmse", 0)),
-                    "decomp.rssd": float(metrics.get("decomp_rssd", 0)),
-                    "mape": float(metrics.get("mape", 0)),
-                    "lambda": float(
-                        metrics.get("lambda", 0)
-                    ),  # Critical: Using lambda not lambda_
-                    "lambda_hp": float(metrics.get("lambda_hp", 0)),
-                    "lambda_max": float(metrics.get("lambda_max", 0)),
-                    "lambda_min_ratio": float(metrics.get("lambda_min_ratio", 0)),
-                    "sol_id": str(metrics.get("sol_id", "")),
-                    "trial": int(metrics.get("trial", 0)),
-                    "iterNG": int(metrics.get("iterNG", 0)),
-                    "iterPar": int(metrics.get("iterPar", 0)),
-                    "Elapsed": float(metrics.get("Elapsed", 0)),
-                }
-            )
-
-            results.append(result)
-
-        df = pd.DataFrame(results)
-
-        # Ensure correct column order and types
-        required_cols = [
-            "rn",
-            "coef",
-            "xDecompAgg",
-            "xDecompPerc",
-            "xDecompMeanNon0",
-            "xDecompMeanNon0Perc",
-            "xDecompAggRF",
-            "xDecompPercRF",
-            "xDecompMeanNon0RF",
-            "xDecompMeanNon0PercRF",
-            "pos",
-            "train_size",
-            "rsq_train",
-            "rsq_val",
-            "rsq_test",
-            "nrmse_train",
-            "nrmse_val",
-            "nrmse_test",
-            "nrmse",
-            "decomp.rssd",
-            "mape",
-            "lambda",
-            "lambda_hp",
-            "lambda_max",
-            "lambda_min_ratio",
-            "sol_id",
-            "trial",
-            "iterNG",
-            "iterPar",
-            "Elapsed",
-        ]
-
-        df = df[required_cols]
-        return df
 
     def calculate_r2_score(
         self,
