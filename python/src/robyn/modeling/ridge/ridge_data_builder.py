@@ -68,14 +68,15 @@ class RidgeDataBuilder:
         )
 
         # Calculate and log spend metrics
-        self._calculate_spend_metrics()
+        self.spend_metrics = self._calculate_spend_metrics()
 
     def _calculate_spend_metrics(self):
-        """Calculate and log spend metrics"""
+        """Calculate and log spend metrics for all media channels"""
         start_idx = self.mmm_data.mmmdata_spec.rolling_window_start_which
         end_idx = self.mmm_data.mmmdata_spec.rolling_window_end_which
         dt_input_train = self.mmm_data.data.iloc[start_idx : end_idx + 1]
 
+        # Get list of paid media columns
         paid_media_cols = [
             col
             for col in dt_input_train.columns
@@ -83,15 +84,18 @@ class RidgeDataBuilder:
         ]
 
         # Calculate initial spend metrics
-        total_spend = dt_input_train[paid_media_cols].sum().sum()
-        total_spends = []
-        mean_spends = []
-        spend_shares = []
+        total_spend = (
+            dt_input_train[paid_media_cols].sum().sum()
+        )  # Grand total across all channels
+        total_spends = []  # List to store total spend per individual channel
+        mean_spends = []  # List to store mean spend per individual channel
+        spend_shares = []  # List to store each channel's share of total spend
 
+        # Calculate metrics for each channel
         for col in paid_media_cols:
-            col_total = float(dt_input_train[col].sum())
-            col_mean = float(dt_input_train[col].mean())
-            col_share = (
+            col_total = float(dt_input_train[col].sum())  # Total spend for this channel
+            col_mean = float(dt_input_train[col].mean())  # Mean spend for this channel
+            col_share = (  # This channel's share of total spend
                 float(round(col_total / total_spend, 4)) if total_spend > 0 else 0
             )
 
@@ -99,22 +103,29 @@ class RidgeDataBuilder:
             mean_spends.append(col_mean)
             spend_shares.append(col_share)
 
-        # Handle refresh metrics
-        refresh_spends = total_spends.copy()
-        refresh_means = mean_spends.copy()
-        refresh_shares = spend_shares.copy()
+        # Initialize refresh metrics with initial values
+        refresh_spends = (
+            total_spends.copy()
+        )  # Total spend per channel for refresh period
+        refresh_means = mean_spends.copy()  # Mean spend per channel for refresh period
+        refresh_shares = spend_shares.copy()  # Spend shares for refresh period
 
+        # Recalculate metrics for refresh period if needed
         if self.mmm_data.mmmdata_spec.refresh_counter > 0:
             refresh_start = pd.to_datetime(
                 self.mmm_data.mmmdata_spec.refresh_added_start
             )
+            # Get data only from refresh start date
             refresh_data = dt_input_train[dt_input_train["ds"] >= refresh_start]
-            refresh_total = refresh_data[paid_media_cols].sum().sum()
+            refresh_total = (
+                refresh_data[paid_media_cols].sum().sum()
+            )  # Grand total for refresh period
 
             refresh_spends = []
             refresh_means = []
             refresh_shares = []
 
+            # Calculate refresh metrics for each channel
             for col in paid_media_cols:
                 col_total = float(refresh_data[col].sum())
                 col_mean = float(refresh_data[col].mean())
@@ -128,7 +139,7 @@ class RidgeDataBuilder:
                 refresh_means.append(col_mean)
                 refresh_shares.append(col_share)
 
-        # Log step3 spend share calculation
+        # Log all metrics for debugging
         self.logger.debug(
             json.dumps(
                 {
@@ -169,6 +180,15 @@ class RidgeDataBuilder:
                 indent=2,
             )
         )
+        return {
+            "rn": paid_media_cols,
+            "total_spend": total_spends,
+            "mean_spend": mean_spends,
+            "spend_share": spend_shares,
+            "total_spend_refresh": refresh_spends,
+            "mean_spend_refresh": refresh_means,
+            "spend_share_refresh": refresh_shares,
+        }
 
     def _prepare_base_data(self) -> Tuple[pd.DataFrame, pd.Series]:
         """One-time preparation of base data structure"""
@@ -445,12 +465,6 @@ class RidgeDataBuilder:
             range(window_start, window_end + 1)
         )  # Convert to list for consistent indexing
 
-        self.logger.debug(f"Window indices - start: {window_start}, end: {window_end}")
-        self.logger.debug(f"Expected window length: {window_length}")
-        self.logger.debug(f"Actual window indices length: {len(window_indices)}")
-        self.logger.debug(f"First few indices: {window_indices[:5]}")
-        self.logger.debug(f"Last few indices: {window_indices[-5:]}")
-
         # Storage for transformed data
         adstocked_collect = {}
         saturated_total_collect = {}
@@ -459,11 +473,9 @@ class RidgeDataBuilder:
 
         # Process media variables
         media_vars = self.mmm_data.mmmdata_spec.paid_media_spends
-        self.logger.debug(f"Processing media variables: {media_vars}")
 
         # Process each media variable (including newsletter)
         for var in media_vars + ["newsletter"]:
-            self.logger.debug(f"Processing variable: {var}")
 
             # 1. Adstocking (whole data)
             input_data = dt_modAdstocked[var].values
@@ -513,10 +525,6 @@ class RidgeDataBuilder:
         for var, values in adstocked_collect.items():
             dt_modAdstocked[var] = values
 
-        self.logger.debug(
-            f"dt_modAdstocked shape before windowing: {dt_modAdstocked.shape}"
-        )
-
         # 2. Then window and create dt_modSaturated (exactly like R)
         dt_modSaturated = dt_modAdstocked.iloc[window_indices].copy()
 
@@ -538,33 +546,9 @@ class RidgeDataBuilder:
             saturated_carryover_collect, index=dt_modSaturated.index
         ).fillna(0)
 
-        # 4. Log the shapes and verify
-        self.logger.debug(
-            f"dt_modSaturated shape (should be 12 cols): {dt_modSaturated.shape}"
-        )
-        self.logger.debug(
-            f"dt_saturatedImmediate shape (media vars only): {dt_saturatedImmediate.shape}"
-        )
-        self.logger.debug(
-            f"dt_saturatedCarryover shape (media vars only): {dt_saturatedCarryover.shape}"
-        )
-
         # Window y data using same indices
         self.y_windowed = self.y_base.iloc[window_indices]
-        self.logger.debug(f"y_windowed shape: {len(self.y_windowed)}")
 
-        # Additional debug info
-        self.logger.debug(f"dt_modSaturated index length: {len(dt_modSaturated.index)}")
-        self.logger.debug(
-            f"saturated_df index length: {len(dt_saturatedImmediate.index)}"
-        )
-
-        # Verify shapes match
-        assert len(dt_modSaturated) == len(self.y_windowed) == window_length, (
-            f"Shape mismatch: dt_modSaturated has {len(dt_modSaturated)} rows, "
-            f"y_windowed has {len(self.y_windowed)} rows, "
-            f"expected {window_length} rows"
-        )
         # Enhanced step7b logging with detailed transformation info
         self.logger.debug(
             json.dumps(

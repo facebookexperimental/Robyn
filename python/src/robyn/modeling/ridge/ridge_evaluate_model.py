@@ -228,28 +228,28 @@ class RidgeModelEvaluator:
             [r["x_decomp_agg"] for r in all_results], ignore_index=True
         )
 
-        # Ensure correct dtypes in decomp_spend_dist and x_decomp_agg
-        decomp_spend_dist = decomp_spend_dist.astype(
-            {
-                "rn": "str",
-                "coef": "float64",
-                "total_spend": "float64",
-                "mean_spend": "float64",
-                "effect_share": "float64",
-                "spend_share": "float64",
-                "sol_id": "str",
-            }
-        )
+        # # Ensure correct dtypes in decomp_spend_dist and x_decomp_agg
+        # decomp_spend_dist = decomp_spend_dist.astype(
+        #     {
+        #         "rn": "str",
+        #         "coef": "float64",
+        #         "total_spend": "float64",
+        #         "mean_spend": "float64",
+        #         "effect_share": "float64",
+        #         "spend_share": "float64",
+        #         "sol_id": "str",
+        #     }
+        # )
 
-        x_decomp_agg = x_decomp_agg.astype(
-            {
-                "rn": "str",
-                "coef": "float64",
-                "xDecompAgg": "float64",
-                "xDecompPerc": "float64",
-                "sol_id": "str",
-            }
-        )
+        # x_decomp_agg = x_decomp_agg.astype(
+        #     {
+        #         "rn": "str",
+        #         "coef": "float64",
+        #         "xDecompAgg": "float64",
+        #         "xDecompPerc": "float64",
+        #         "sol_id": "str",
+        #     }
+        # )
 
         # Find best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
@@ -310,7 +310,6 @@ class RidgeModelEvaluator:
         intercept: bool,
     ) -> Dict[str, Any]:
         """Evaluate model with parameter set"""
-        # Get transformed data
         # Get transformed data
         transformed_data = self.ridge_data_builder.run_transformations(
             params,
@@ -609,8 +608,10 @@ class RidgeModelEvaluator:
         if ts_validation and X_val is not None and X_test is not None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
+            # Concatenate predictions like R does
+            y_pred = np.concatenate([y_train_pred, y_val_pred, y_test_pred])
 
-            n_train = len(y_train)  # Get training set size
+            n_train = len(y_train)
 
             metrics["rsq_val"] = self.ridge_metrics_calculator.calculate_r2_score(
                 y_val,
@@ -619,7 +620,6 @@ class RidgeModelEvaluator:
                 df_int=model.df_int,
                 n_train=n_train,
             )
-
             metrics["rsq_test"] = self.ridge_metrics_calculator.calculate_r2_score(
                 y_test,
                 y_test_pred,
@@ -627,16 +627,15 @@ class RidgeModelEvaluator:
                 df_int=model.df_int,
                 n_train=n_train,
             )
-
             metrics["nrmse_val"] = self.ridge_metrics_calculator.calculate_nrmse(
                 y_val, y_val_pred
             )
             metrics["nrmse_test"] = self.ridge_metrics_calculator.calculate_nrmse(
                 y_test, y_test_pred
             )
-
             metrics["nrmse"] = metrics["nrmse_val"]
         else:
+            y_pred = y_train_pred  # If no validation, just use training predictions
             metrics["rsq_val"] = metrics["rsq_test"] = 0.0
             metrics["nrmse_val"] = metrics["nrmse_test"] = 0.0
             metrics["nrmse"] = metrics["nrmse_train"]
@@ -661,20 +660,185 @@ class RidgeModelEvaluator:
             )
         )
 
-        # Calculate RSSD
         paid_media_cols = [
             col
             for col in X.columns
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
-        decomp_rssd = self.ridge_metrics_calculator._calculate_rssd(
-            model,
-            X_train,
-            paid_media_cols,
-            rssd_zero_penalty,
-            debug=True,
-            iteration=iter_ng,
+
+        # Log model decomp inputs
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": "step11d_model_decomp_inputs",
+                    "data": {
+                        "coefs": model.coef_.tolist(),
+                        "y_pred_length": len(y_train_pred),
+                        "dt_modSaturated_dims": dt_modSaturated.shape,
+                        "dt_saturatedImmediate_dims": transformed_data[
+                            "dt_saturatedImmediate"
+                        ].shape,
+                        "dt_saturatedCarryover_dims": transformed_data[
+                            "dt_saturatedCarryover"
+                        ].shape,
+                        "dt_modRollWind_dims": self.featurized_mmm_data.dt_modRollWind.shape,
+                        "refreshAddedStart": str(
+                            self.mmm_data.mmmdata_spec.refresh_added_start
+                        ),
+                        "dt_modSaturated_cols": dt_modSaturated.columns.tolist(),
+                        "dt_saturatedImmediate_cols": transformed_data[
+                            "dt_saturatedImmediate"
+                        ].columns.tolist(),
+                        "dt_saturatedCarryover_cols": transformed_data[
+                            "dt_saturatedCarryover"
+                        ].columns.tolist(),
+                        "dt_modRollWind_cols": self.featurized_mmm_data.dt_modRollWind.columns.tolist(),
+                    },
+                },
+                indent=2,
+            )
         )
+        # Now use the concatenated predictions for decomposition
+        decomp_results = self.ridge_metrics_calculator.model_decomp(
+            model=model,
+            y_pred=y_pred,  # Use concatenated predictions here
+            dt_modSaturated=dt_modSaturated,
+            dt_saturatedImmediate=transformed_data["dt_saturatedImmediate"],
+            dt_saturatedCarryover=transformed_data["dt_saturatedCarryover"],
+            dt_modRollWind=self.featurized_mmm_data.dt_modRollWind,
+            refreshAddedStart=self.mmm_data.mmmdata_spec.refresh_added_start,
+        )
+
+        # Get the components we need
+        x_decomp_agg = decomp_results["xDecompAgg"]
+        decomp_spend_dist = x_decomp_agg[
+            x_decomp_agg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends)
+        ]
+
+        # 1. Filter and select media decomposition data
+        decomp_spend_dist = x_decomp_agg[
+            x_decomp_agg["rn"].isin(self.mmm_data.mmmdata_spec.paid_media_spends)
+        ][
+            [
+                "rn",
+                "xDecompAgg",
+                "xDecompPerc",
+                "xDecompMeanNon0Perc",
+                "xDecompMeanNon0",
+                "xDecompPercRF",
+                "xDecompMeanNon0PercRF",
+                "xDecompMeanNon0RF",
+            ]
+        ]
+
+        # 2. Get spend metrics and join
+        spend_metrics = pd.DataFrame(
+            {
+                "rn": self.ridge_data_builder.spend_metrics["rn"],
+                "spend_share": self.ridge_data_builder.spend_metrics["spend_share"],
+                "spend_share_refresh": self.ridge_data_builder.spend_metrics[
+                    "spend_share_refresh"
+                ],
+                "mean_spend": self.ridge_data_builder.spend_metrics["mean_spend"],
+                "total_spend": self.ridge_data_builder.spend_metrics["total_spend"],
+            }
+        )
+
+        # 3. Merge spend metrics with decomposition results
+        decomp_spend_dist = decomp_spend_dist.merge(spend_metrics, on="rn", how="left")
+
+        # 4. Calculate effect shares
+        total_decomp = decomp_spend_dist["xDecompPerc"].sum()
+        total_decomp_rf = decomp_spend_dist["xDecompPercRF"].sum()
+        decomp_spend_dist["effect_share"] = (
+            decomp_spend_dist["xDecompPerc"] / total_decomp
+        )
+        decomp_spend_dist["effect_share_refresh"] = (
+            decomp_spend_dist["xDecompPercRF"] / total_decomp_rf
+        )
+
+        # 5. Calculate RSSD based on refresh status
+        if not self.mmm_data.mmmdata_spec.refresh_counter:
+            # Regular RSSD calculation
+            rssd = np.sqrt(
+                np.sum(
+                    (
+                        decomp_spend_dist["effect_share"]
+                        - decomp_spend_dist["spend_share"]
+                    )
+                    ** 2
+                )
+            )
+
+            # Apply zero penalty if requested
+            if rssd_zero_penalty:
+                is_zero_effect = np.round(decomp_spend_dist["effect_share"], 4) == 0
+                share_zero_effect = np.sum(is_zero_effect) / len(decomp_spend_dist)
+                rssd *= 1 + share_zero_effect
+
+        else:
+            # Refresh case
+            dt_decomp_rf = pd.DataFrame(
+                {"rn": x_decomp_agg["rn"], "decomp_perc": x_decomp_agg["xDecompPerc"]}
+            )
+
+            # Join with previous decomposition
+            dt_decomp_rf = dt_decomp_rf.merge(
+                self.previous_decomp[["rn", "xDecompPerc"]].rename(
+                    columns={"xDecompPerc": "decomp_perc_prev"}
+                ),
+                on="rn",
+                how="left",
+            )
+
+            # Calculate media RSSD
+            media_mask = dt_decomp_rf["rn"].isin(
+                self.mmm_data.mmmdata_spec.paid_media_spends
+            )
+            rssd_media = np.sqrt(
+                np.mean(
+                    (
+                        dt_decomp_rf.loc[media_mask, "decomp_perc"]
+                        - dt_decomp_rf.loc[media_mask, "decomp_perc_prev"]
+                    )
+                    ** 2
+                )
+            )
+
+            # Calculate non-media RSSD
+            rssd_non_media = np.sqrt(
+                np.mean(
+                    (
+                        dt_decomp_rf.loc[~media_mask, "decomp_perc"]
+                        - dt_decomp_rf.loc[~media_mask, "decomp_perc_prev"]
+                    )
+                    ** 2
+                )
+            )
+
+            # Combine them
+            rssd = rssd_media + rssd_non_media / (
+                1
+                - self.mmm_data.mmmdata_spec.refresh_steps
+                / self.mmm_data.mmmdata_spec.rolling_window_length
+            )
+
+        # 6. Handle zero coefficient case
+        if np.isnan(rssd):
+            rssd = np.inf
+            decomp_spend_dist["effect_share"] = 0
+
+        # # Calculate RSSD
+        # decomp_rssd = self.ridge_metrics_calculator._calculate_rssd(
+        #     decomp_results=decomp_results,  # Pass decomp results instead of model
+        #     paid_media_cols=self.mmm_data.mmmdata_spec.paid_media_spends,
+        #     rssd_zero_penalty=rssd_zero_penalty,
+        #     refresh=self.mmm_data.mmmdata_spec.refresh_counter > 0,
+        #     refresh_steps=self.mmm_data.mmmdata_spec.refresh_steps,
+        #     rolling_window_length=self.mmm_data.mmmdata_spec.rolling_window_length,
+        #     debug=True,
+        #     iteration=iter_ng,
+        # )
 
         elapsed_time = time.time() - start_time
 
@@ -684,7 +848,7 @@ class RidgeModelEvaluator:
         # Update metrics dictionary
         metrics.update(
             {
-                "decomp_rssd": float(decomp_rssd),
+                "decomp_rssd": float(rssd),
                 "lambda": float(lambda_),
                 "lambda_hp": float(lambda_hp),
                 "lambda_max": float(lambda_max),  # Now lambda_max is defined
@@ -715,13 +879,13 @@ class RidgeModelEvaluator:
         #     metrics,
         #     iter_ng,
         # )
-        # Calculate decompositions
-        x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
-            model, X_train, y_train, {**params_formatted, **metrics}
-        )
-        decomp_spend_dist = self.ridge_metrics_calculator._calculate_decomp_spend_dist(
-            model, X_train, y_train, {**metrics, "params": params_formatted}
-        )
+        # # Calculate decompositions
+        # x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
+        #     model, X_train, y_train, {**params_formatted, **metrics}
+        # )
+        # decomp_spend_dist = self.ridge_metrics_calculator._calculate_decomp_spend_dist(
+        #     model, X_train, y_train, {**metrics, "params": params_formatted}
+        # )
 
         # Calculate loss
         loss = (
@@ -732,39 +896,6 @@ class RidgeModelEvaluator:
                 if len(objective_weights) > 2
                 else 0
             )
-        )
-        self.logger.debug(
-            f"Model coefficients range: {model.coef_.min()} to {model.coef_.max()}"
-        )
-        self.logger.debug(f"Sample predictions: {y_train_pred[:5]}")
-        self.logger.debug(f"Sample actual values: {y_norm[:5]}")
-
-        # Log raw parameters
-        self.logger.debug(
-            f"\n=== Model Evaluation (Trial {trial}, Iteration {iter_ng}) ==="
-        )
-        self.logger.debug(f"Raw parameters: {params}")
-
-        # After formatting parameters
-        self.logger.debug(f"Formatted parameters: {params_formatted}")
-
-        # After data preparation
-        self.logger.debug(
-            f"Data splits - train: {X_train.shape}, test: {X_test.shape if X_test is not None else 'None'}"
-        )
-
-        # After fitting model
-        self.logger.debug(f"Model fitted - elapsed: {elapsed_time:.4f}s")
-        self.logger.debug(
-            f"Lambda: {lambda_:.4f}, Lambda as proportion of max: {lambda_/lambda_max:.4f}"
-        )
-        self.logger.debug(
-            f"Coefficient stats - min: {model.coef_.min():.6f}, max: {model.coef_.max():.6f}, mean: {model.coef_.mean():.6f}"
-        )
-
-        # After metric calculation
-        self.logger.debug(
-            f"Metrics - NRMSE: {metrics['nrmse']:.6f}, RSQ: {metrics.get('rsq_train', 0):.6f}, RSSD: {metrics.get('decomp_rssd', 0):.6f}"
         )
 
         return {
