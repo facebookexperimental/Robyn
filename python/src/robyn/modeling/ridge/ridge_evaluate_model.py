@@ -13,7 +13,10 @@ from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
 from robyn.reporting.utils.modeling_debug import debug_model_metrics
-from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
+from robyn.modeling.ridge.models.ridge_utils import (
+    create_ridge_model_rpy2,
+    create_ridge_model_sklearn,
+)
 import json
 from datetime import datetime
 import random
@@ -513,9 +516,10 @@ class RidgeModelEvaluator:
         )
         # Scale inputs for model
         N = len(x_norm)
-        # Convert lambda to sklearn alpha using Approach 1: alpha = lambda * N / 2
+        # # Convert lambda to sklearn alpha using Approach 1: alpha = lambda * N / 2
         # model = create_ridge_model_sklearn(
         #     lambda_value=lambda_, n_samples=N, fit_intercept=True
+        # )
         # model.fit(x_norm, y_norm)
 
         # Create and fit the model

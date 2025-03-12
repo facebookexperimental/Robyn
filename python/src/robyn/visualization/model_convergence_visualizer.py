@@ -131,7 +131,7 @@ class ModelConvergenceVisualizer:
                 df["nrmse"],
                 df["decomp.rssd"],
                 c=df["ElapsedAccum"],
-                cmap="viridis",
+                cmap="Blues",
                 alpha=0.7,
             )
             if calibrated and "mape" in df.columns:
