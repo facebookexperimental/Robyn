@@ -12,11 +12,7 @@ from robyn.modeling.entities.modeloutputs import Trial
 from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
-from robyn.reporting.utils.modeling_debug import debug_model_metrics
-from robyn.modeling.ridge.models.ridge_utils import (
-    create_ridge_model_rpy2,
-    create_ridge_model_sklearn,
-)
+from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 import json
 from datetime import datetime
 import random
