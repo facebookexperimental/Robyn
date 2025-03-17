@@ -17,16 +17,41 @@
   Together, we can address and resolve any issues that may arise, enhancing the functionality and efficiency of the Python version of Robyn. We look forward to your contributions and to the continuous improvement of this project.
 
 **1. Installing the package**
-  
-  * Install Robyn latest package version:
-```{r}
-## Pypi
-pip3 install robynpy
 
-## DEV VERSION
-# if you are pulling source from github, install dependencies using requirements.txt
-pip3 install -r requirements.txt
+**Prerequisites:**
+* Make sure you have R installed on your machine. You can download R from the [official R Project website](https://www.r-project.org/).
+
+First, create and activate a Python virtual environment (recommended):
+
+**Windows:**
+```bash
+# Create virtual environment
+python -m venv robyn-env
+
+# Activate virtual environment
+robyn-env\Scripts\activate
 ```
+
+**macOS/Linux:**
+```bash
+# Create virtual environment
+python3 -m venv robyn-env
+
+# Activate virtual environment
+source robyn-env/bin/activate
+```
+
+Then install Robyn:
+```bash
+# Install from PyPI (stable version)
+pip install robynpy
+
+# OR install development version from GitHub
+git clone https://github.com/facebookexperimental/Robyn.git
+cd Robyn
+pip install -r requirements.txt
+```
+
   
 **2. Getting started**
 

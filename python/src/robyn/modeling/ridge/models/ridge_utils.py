@@ -125,30 +125,29 @@ def create_ridge_model_rpy2(
 
     Returns:
         A Ridge regression model using rpy2 to access glmnet.
+
+    Raises:
+        ImportError: If rpy2 is not available
+        RuntimeError: If glmnet R package cannot be imported
     """
     try:
         import rpy2.robjects as ro
         from rpy2.robjects import numpy2ri
         from rpy2.robjects.packages import importr
         from rpy2.robjects.conversion import localconverter
-
-        # Import glmnet only once per Python session
-        global glmnet_imported
-        if "glmnet_imported" not in globals():
-            try:
-                importr("glmnet")
-                glmnet_imported = True
-            except Exception as e:
-                logging.warning(f"Failed to import glmnet: {e}")
-                logging.warning("Falling back to sklearn implementation")
-                return create_ridge_model_sklearn(
-                    lambda_value, n_samples, fit_intercept, standardize
-                )
     except ImportError:
-        logging.warning("rpy2 not available, using sklearn implementation")
-        return create_ridge_model_sklearn(
-            lambda_value, n_samples, fit_intercept, standardize
+        raise ImportError(
+            "rpy2 is required for using the R implementation. Please install rpy2."
         )
+
+    # Import glmnet only once per Python session
+    global glmnet_imported
+    if "glmnet_imported" not in globals():
+        try:
+            importr("glmnet")
+            glmnet_imported = True
+        except Exception as e:
+            raise RuntimeError(f"Failed to import glmnet R package: {e}")
 
     class GlmnetRidgeWrapper:
         def __init__(self):
