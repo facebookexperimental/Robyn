@@ -36,6 +36,7 @@ dependencies = [
     "nlopt",
     "cmake",
     "ipykernel",
+    "rpy2==3.5.16",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]

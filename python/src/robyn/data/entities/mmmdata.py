@@ -60,6 +60,9 @@ class MMMData:
             all_media: Optional[List[str]] = None,
             day_interval: Optional[int] = 7,
             interval_type: Optional[str] = "week",
+            refresh_steps: Optional[int] = None,
+            refresh_counter: Optional[int] = 0,
+            refresh_added_start: Optional[datetime] = None,
         ) -> None:
             self.dep_var: Optional[str] = dep_var
             self.dep_var_type: DependentVarType = dep_var_type
@@ -82,6 +85,9 @@ class MMMData:
             )
             self.day_interval: Optional[int] = day_interval
             self.interval_type: Optional[str] = interval_type
+            self.refresh_steps = refresh_steps
+            self.refresh_counter = refresh_counter
+            self.refresh_added_start = refresh_added_start
 
         def __str__(self) -> str:
             return f"""
@@ -105,6 +111,9 @@ class MMMData:
             all_media: {self.all_media}
             day_interval: {self.day_interval}
             interval_type: {self.interval_type}
+            refresh_steps: {self.refresh_steps}
+            refresh_counter: {self.refresh_counter}
+            refresh_added_start: {self.refresh_added_start}
             """
 
         def update(self, **kwargs: Any) -> None:
@@ -245,6 +254,9 @@ class MMMData:
                 f"Adjusted window_end to the closest date in the data: {closest_end_date}"
             )
 
+        # Calculate refresh_added_start - matching R's behavior
+        self.mmmdata_spec.refresh_added_start = self.mmmdata_spec.window_start
+
         # Calculate rolling window length
         if window_start is not None and window_end is not None:
             self.mmmdata_spec.rolling_window_length = (
@@ -252,6 +264,23 @@ class MMMData:
                 - self.mmmdata_spec.rolling_window_start_which
                 + 1
             )
+
+        # If we're in refresh mode, check the data proportions like R does
+        if self.mmmdata_spec.refresh_counter > 0:
+            original_periods = self.mmmdata_spec.rolling_window_length
+            new_periods = len(
+                self.data[
+                    self.data[self.mmmdata_spec.date_var] > self.mmmdata_spec.window_end
+                ]
+            )
+
+            if new_periods > 0.5 * (original_periods + new_periods):
+                logger.warning(
+                    f"We recommend re-building a model rather than refreshing this one. "
+                    f"More than 50% of your refresh data ({original_periods + new_periods} "
+                    f"{self.mmmdata_spec.interval_type}s) is new data ({new_periods} "
+                    f"{self.mmmdata_spec.interval_type}s)"
+                )
 
     def set_default_factor_vars(self) -> None:
         """

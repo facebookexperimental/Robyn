@@ -8,6 +8,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 import nevergrad as ng
 from tqdm import tqdm
+from nevergrad.optimization.base import Optimizer
 
 import logging
 import time
@@ -28,6 +29,8 @@ from robyn.modeling.ridge.ridge_metrics_calculator import (
 )
 from robyn.modeling.ridge.ridge_evaluate_model import RidgeModelEvaluator
 from robyn.modeling.ridge.ridge_data_builder import RidgeDataBuilder
+from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
+import json
 
 
 class RidgeModelBuilder:
@@ -44,18 +47,99 @@ class RidgeModelBuilder:
         self.calibration_input = calibration_input
         self.hyperparameters = hyperparameters
         self.featurized_mmm_data = featurized_mmm_data
-        self.ridge_data_builder = RidgeDataBuilder(mmm_data, featurized_mmm_data)
+
+        # Initialize builders and calculators
         self.ridge_metrics_calculator = RidgeMetricsCalculator(
-            mmm_data, hyperparameters, self.ridge_data_builder
+            mmm_data, hyperparameters
+        )
+        self.ridge_data_builder = RidgeDataBuilder(
+            mmm_data, featurized_mmm_data, self.ridge_metrics_calculator
         )
         self.ridge_model_evaluator = RidgeModelEvaluator(
             self.mmm_data,
             self.featurized_mmm_data,
             self.ridge_metrics_calculator,
             self.ridge_data_builder,
+            self.calibration_input,
+        )
+        self.logger = logging.getLogger(__name__)
+
+    def initialize_nevergrad_optimizer(
+        self,
+        hyper_collect: Dict[str, Any],
+        iterations: int,
+        cores: int,
+        nevergrad_algo: NevergradAlgorithm,
+        calibration_input: Optional[Any] = None,
+        objective_weights: Optional[List[float]] = None,
+    ) -> Tuple[Optimizer, List[float]]:
+        """Initialize Nevergrad optimizer exactly like R's implementation"""
+
+        # Get number of hyperparameters
+        hyper_count = len(hyper_collect["hyper_bound_list_updated"])
+        self.logger.debug(f"Number of hyperparameters: {hyper_count}")
+
+        # Create tuple for shape
+        shape_tuple = (hyper_count,)
+        self.logger.debug(f"Created shape tuple: {shape_tuple}")
+
+        # Create instrumentation
+        instrum = ng.p.Array(shape=shape_tuple, lower=0, upper=1)
+        self.logger.debug(f"Created instrumentation: {instrum}")
+
+        # Initialize optimizer
+        optimizer = ng.optimizers.registry[nevergrad_algo.value](
+            instrum, budget=iterations, num_workers=1
+        )
+        self.logger.debug(f"Initialized optimizer: {optimizer}")
+
+        # Set multi-objective dimensions exactly like R
+        if calibration_input is None:
+            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1))
+            if objective_weights is None:
+                objective_weights = [1, 1]
+            optimizer.set_objective_weights(tuple(objective_weights[:2]))
+        else:
+            optimizer.tell(ng.p.MultiobjectiveReference(), (1, 1, 1))
+            if objective_weights is None:
+                objective_weights = [1, 1, 1]
+            optimizer.set_objective_weights(tuple(objective_weights[:3]))
+
+        # Log step5 nevergrad setup
+        self.logger.debug(
+            json.dumps(
+                {
+                    "step": "step5_nevergrad_setup",
+                    "data": {
+                        "iterations": {
+                            "total": iterations,
+                            "parallel": 1,  # Single process for now
+                            "nevergrad": iterations,  # All iterations run sequentially
+                        },
+                        "optimizer": {
+                            "name": nevergrad_algo.value,
+                            "hyper_fixed": False,
+                            "tuple_size": len(
+                                hyper_collect["hyper_bound_list_updated"]
+                            ),
+                            "num_workers": 1,  # Single worker
+                            "budget": iterations,
+                        },
+                        "objective": {
+                            "has_calibration": calibration_input is not None,
+                            "weights": objective_weights,
+                            "dimensions": 3 if calibration_input else 2,
+                        },
+                        "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[
+                            :-3
+                        ],
+                    },
+                },
+                indent=2,
+            )
         )
 
-        self.logger = logging.getLogger(__name__)
+        return optimizer, objective_weights
 
     def build_models(
         self,
@@ -80,19 +164,22 @@ class RidgeModelBuilder:
             dt_hyper_fixed,
             cores,
         )
-        # Convert datetime to string format matching R's format
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Set up objective weights including calibration if available
-        if objective_weights is None:
-            if self.calibration_input is not None:
-                objective_weights = [1 / 3, 1 / 3, 1 / 3]  # NRMSE, RSSD, MAPE
-            else:
-                objective_weights = [0.5, 0.5]  # NRMSE, RSSD only
+        # Initialize Nevergrad optimizer
+        optimizer, objective_weights = self.initialize_nevergrad_optimizer(
+            hyper_collect=hyper_collect,
+            iterations=trials_config.iterations,
+            cores=cores,
+            nevergrad_algo=nevergrad_algo,
+            calibration_input=self.calibration_input,
+            objective_weights=objective_weights,
+        )
+
         # Run trials
         trials = []
         for trial in range(1, trials_config.trials + 1):
             trial_result = self.ridge_model_evaluator._run_nevergrad_optimization(
+                optimizer=optimizer,  # Pass the initialized optimizer
                 hyper_collect=hyper_collect,
                 iterations=trials_config.iterations,
                 cores=cores,
@@ -105,10 +192,11 @@ class RidgeModelBuilder:
                 dt_hyper_fixed=dt_hyper_fixed,
                 rssd_zero_penalty=rssd_zero_penalty,
                 trial=trial,
-                seed=seed[0] + trial,  # Use the first element of the seed list
+                seed=seed[0] + trial,
                 total_trials=trials_config.trials,
             )
             trials.append(trial_result)
+
         # Calculate convergence
         convergence = Convergence()
         convergence_results = convergence.calculate_convergence(trials)
@@ -208,7 +296,7 @@ class RidgeModelBuilder:
         # Create ModelOutputs
         model_outputs = ModelOutputs(
             trials=trials,
-            train_timestamp=current_time,
+            train_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             cores=cores,
             iterations=trials_config.iterations,
             intercept=intercept,
@@ -252,197 +340,3 @@ class RidgeModelBuilder:
 
         # Return the sol_id of the best model (changed from solID)
         return output_models[best_index].result_hyp_param["sol_id"].values[0]
-
-    def _model_train(
-        self,
-        hyper_collect: Dict[str, Any],
-        trials_config: TrialsConfig,
-        intercept_sign: str,
-        intercept: bool,
-        nevergrad_algo: NevergradAlgorithm,
-        dt_hyper_fixed: Optional[pd.DataFrame],
-        ts_validation: bool,
-        add_penalty_factor: bool,
-        objective_weights: Optional[List[float]],
-        rssd_zero_penalty: bool,
-        seed: int,
-        cores: int,
-    ) -> List[Trial]:
-        trials = []
-        for trial in range(1, trials_config.trials + 1):
-            trial_result = self.ridge_model_evaluator._run_nevergrad_optimization(
-                hyper_collect,
-                trials_config.iterations,
-                cores,
-                nevergrad_algo,
-                intercept,
-                intercept_sign,
-                ts_validation,
-                add_penalty_factor,
-                objective_weights,
-                dt_hyper_fixed,
-                rssd_zero_penalty,
-                trial,
-                seed + trial,
-                trials_config.trials,
-            )
-
-            trials.append(trial_result)
-        return trials
-
-    def _evaluate_model(
-        self,
-        params: Dict[str, float],
-        ts_validation: bool,
-        add_penalty_factor: bool,
-        rssd_zero_penalty: bool,
-        objective_weights: Optional[List[float]],
-        start_time: float,
-        iter_ng: int,
-        trial: int,
-    ) -> Dict[str, Any]:
-        """Evaluate model with parameter set matching R's implementation exactly"""
-        X, y = self._prepare_data(params)
-        sol_id = f"{trial}_{iter_ng + 1}_1"
-        # After preparing data
-        self.logger.debug(f"Data shapes - X: {X.shape}, y: {y.shape}")
-        self.logger.debug(f"Sample of X values: {X.head()}")
-        self.logger.debug(f"Sample of y values: {y.head()}")
-
-        # Split data using R's approach
-        train_size = params.get("train_size", 1.0) if ts_validation else 1.0
-        train_idx = int(len(X) * train_size)
-
-        metrics = {}
-        if ts_validation:
-            val_test_size = (len(X) - train_idx) // 2
-            X_train = X.iloc[:train_idx]
-            y_train = y.iloc[:train_idx]
-            X_val = X.iloc[train_idx : train_idx + val_test_size]
-            y_val = y.iloc[train_idx : train_idx + val_test_size]
-            X_test = X.iloc[train_idx + val_test_size :]
-            y_test = y.iloc[train_idx + val_test_size :]
-        else:
-            X_train, y_train = X, y
-            X_val = X_test = y_val = y_test = None
-
-        x_norm = X_train.to_numpy()
-        y_norm = y_train.to_numpy()
-
-        # Calculate lambda using R-matching helper function
-        lambda_hp = params.get("lambda", 1.0)
-        lambda_, lambda_max = self.ridge_metrics_calculator._calculate_lambda(
-            x_norm, y_norm, lambda_hp
-        )
-        # After calculating lambda
-        self.logger.debug(f"Lambda calculation debug:")
-        self.logger.debug(f"lambda_hp: {lambda_hp}")
-        self.logger.debug(f"lambda_: {lambda_}")
-        self.logger.debug(f"lambda_max: {lambda_max}")
-
-        # Scale inputs for model
-        model = Ridge(alpha=lambda_ / len(x_norm), fit_intercept=True)
-        model.fit(x_norm, y_norm)
-
-        # Calculate metrics using R-style calculations
-        y_train_pred = model.predict(x_norm)
-        metrics["rsq_train"] = self.ridge_metrics_calculator.calculate_r2_score(
-            y_norm, y_train_pred, x_norm.shape[1]
-        )
-        metrics["nrmse_train"] = self.ridge_metrics_calculator.calculate_nrmse(
-            y_norm, y_train_pred
-        )
-
-        # Validation and test metrics
-        if ts_validation and X_val is not None and X_test is not None:
-            y_val_pred = model.predict(X_val)
-            y_test_pred = model.predict(X_test)
-
-            metrics["rsq_val"] = self.ridge_metrics_calculator.calculate_r2_score(
-                y_val, y_val_pred, X_val.shape[1]
-            )
-            metrics["nrmse_val"] = self.ridge_metrics_calculator.calculate_nrmse(
-                y_val, y_val_pred
-            )
-
-            metrics["rsq_test"] = self.ridge_metrics_calculator.calculate_r2_score(
-                y_test, y_test_pred, X_test.shape[1]
-            )
-            metrics["nrmse_test"] = self.ridge_metrics_calculator.calculate_nrmse(
-                y_test, y_test_pred
-            )
-
-            metrics["nrmse"] = metrics["nrmse_val"]
-        else:
-            metrics["rsq_val"] = metrics["rsq_test"] = 0.0
-            metrics["nrmse_val"] = metrics["nrmse_test"] = 0.0
-            metrics["nrmse"] = metrics["nrmse_train"]
-
-        # Calculate RSSD
-        paid_media_cols = [
-            col
-            for col in X.columns
-            if col in self.mmm_data.mmmdata_spec.paid_media_spends
-        ]
-        decomp_rssd = self.ridge_metrics_calculator._calculate_rssd(
-            model, X_train, paid_media_cols, rssd_zero_penalty
-        )
-
-        elapsed_time = time.time() - start_time
-
-        # Format hyperparameter names to match R's format
-        params_formatted = self._format_hyperparameter_names(params)
-
-        # Update metrics dictionary
-        metrics.update(
-            {
-                "decomp_rssd": float(decomp_rssd),
-                "lambda": float(lambda_),
-                "lambda_hp": float(lambda_hp),
-                "lambda_max": float(lambda_max),
-                "lambda_min_ratio": float(0.0001),
-                "mape": int(0),  # Cast to int as in R
-                "sol_id": str(sol_id),
-                "trial": int(trial),
-                "iterNG": int(iter_ng + 1),
-                "iterPar": int(1),
-                "Elapsed": float(elapsed_time),
-                "elapsed": float(elapsed_time),
-                "elapsed_accum": float(elapsed_time),
-            }
-        )
-
-        # Calculate decompositions
-        x_decomp_agg = self.ridge_metrics_calculator._calculate_x_decomp_agg(
-            model, X_train, y_train, {**params_formatted, **metrics}
-        )
-        decomp_spend_dist = self.ridge_metrics_calculator._calculate_decomp_spend_dist(
-            model, X_train, y_train, {**metrics, "params": params_formatted}
-        )
-
-        # Calculate loss
-        loss = (
-            objective_weights[0] * metrics["nrmse"]
-            + objective_weights[1] * metrics["decomp_rssd"]
-            + (
-                objective_weights[2] * metrics["mape"]
-                if len(objective_weights) > 2
-                else 0
-            )
-        )
-        self.logger.debug(
-            f"Model coefficients range: {model.coef_.min()} to {model.coef_.max()}"
-        )
-        self.logger.debug(f"Sample predictions: {y_train_pred[:5]}")
-        self.logger.debug(f"Sample actual values: {y_norm[:5]}")
-        return {
-            "loss": loss,
-            "params": params_formatted,
-            **metrics,
-            "decomp_spend_dist": decomp_spend_dist,
-            "x_decomp_agg": x_decomp_agg,
-            "elapsed": elapsed_time,
-            "elapsed_accum": elapsed_time,
-            "iter_ng": iter_ng + 1,
-            "iter_par": 1,
-        }
