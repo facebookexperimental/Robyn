@@ -227,29 +227,6 @@ class RidgeModelEvaluator:
             [r["x_decomp_agg"] for r in all_results], ignore_index=True
         )
 
-        # # Ensure correct dtypes in decomp_spend_dist and x_decomp_agg
-        # decomp_spend_dist = decomp_spend_dist.astype(
-        #     {
-        #         "rn": "str",
-        #         "coef": "float64",
-        #         "total_spend": "float64",
-        #         "mean_spend": "float64",
-        #         "effect_share": "float64",
-        #         "spend_share": "float64",
-        #         "sol_id": "str",
-        #     }
-        # )
-
-        # x_decomp_agg = x_decomp_agg.astype(
-        #     {
-        #         "rn": "str",
-        #         "coef": "float64",
-        #         "xDecompAgg": "float64",
-        #         "xDecompPerc": "float64",
-        #         "sol_id": "str",
-        #     }
-        # )
-
         # Find best result based on loss
         best_result = min(all_results, key=lambda x: x["loss"])
         # Convert values to Series before passing to Trial
@@ -512,11 +489,6 @@ class RidgeModelEvaluator:
         )
         # Scale inputs for model
         N = len(x_norm)
-        # # Convert lambda to sklearn alpha using Approach 1: alpha = lambda * N / 2
-        # model = create_ridge_model_sklearn(
-        #     lambda_value=lambda_, n_samples=N, fit_intercept=True
-        # )
-        # model.fit(x_norm, y_norm)
 
         # Create and fit the model
         model = create_ridge_model_rpy2(
@@ -828,18 +800,6 @@ class RidgeModelEvaluator:
         if np.isnan(rssd):
             rssd = np.inf
             decomp_spend_dist["effect_share"] = 0
-
-        # # Calculate RSSD
-        # decomp_rssd = self.ridge_metrics_calculator._calculate_rssd(
-        #     decomp_results=decomp_results,  # Pass decomp results instead of model
-        #     paid_media_cols=self.mmm_data.mmmdata_spec.paid_media_spends,
-        #     rssd_zero_penalty=rssd_zero_penalty,
-        #     refresh=self.mmm_data.mmmdata_spec.refresh_counter > 0,
-        #     refresh_steps=self.mmm_data.mmmdata_spec.refresh_steps,
-        #     rolling_window_length=self.mmm_data.mmmdata_spec.rolling_window_length,
-        #     debug=True,
-        #     iteration=iter_ng,
-        # )
 
         elapsed_time = time.time() - start_time
 
