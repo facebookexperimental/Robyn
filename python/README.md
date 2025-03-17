@@ -20,6 +20,27 @@
 
 **Prerequisites:**
 * Make sure you have R installed on your machine. You can download R from the [official R Project website](https://www.r-project.org/).
+* Install the glmnet package in R:
+
+**Windows:**
+```bash
+# Open R console (run in Command Prompt/PowerShell)
+R
+# Then in R console, install glmnet
+install.packages("glmnet")
+# Exit R console
+q()
+```
+
+**macOS/Linux:**
+```bash
+# Open terminal and run R
+R
+# Then in R console, install glmnet
+install.packages("glmnet")
+# Exit R console
+q()
+```
 
 First, create and activate a Python virtual environment (recommended):
 
