@@ -298,7 +298,14 @@ class RidgeModelEvaluator:
         # Split dep_var and features like R does
         y = dt_modSaturated["dep_var"]
         X = dt_modSaturated.drop(columns=["dep_var"])
-
+        # After getting dt_modSaturated
+        self.logger.debug("Step 1 - Initial data check:")
+        self.logger.debug(
+            f"dt_modSaturated has NaN: {dt_modSaturated.isna().any().any()}"
+        )
+        if dt_modSaturated.isna().any().any():
+            nan_cols = dt_modSaturated.columns[dt_modSaturated.isna().any()].tolist()
+            self.logger.debug(f"Columns with NaN in dt_modSaturated: {nan_cols}")
         # Continue with existing evaluation logic...
         sol_id = f"{trial}_{iter_ng + 1}_1"
 
@@ -387,6 +394,26 @@ class RidgeModelEvaluator:
 
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
+
+        self.logger.debug("Data quality check:")
+        self.logger.debug(f"x_norm shape: {x_norm.shape}")
+        self.logger.debug(f"y_norm shape: {y_norm.shape}")
+        self.logger.debug(f"x_norm has NaN: {np.isnan(x_norm).any()}")
+        self.logger.debug(f"y_norm has NaN: {np.isnan(y_norm).any()}")
+        self.logger.debug(f"x_norm has inf: {np.isinf(x_norm).any()}")
+        self.logger.debug(f"y_norm has inf: {np.isinf(y_norm).any()}")
+
+        # Check value ranges
+        self.logger.debug(f"x_norm min: {np.min(x_norm)}, max: {np.max(x_norm)}")
+        self.logger.debug(f"y_norm min: {np.min(y_norm)}, max: {np.max(y_norm)}")
+
+        # Check for any zero variance columns
+        zero_var_cols = np.where(np.var(x_norm, axis=0) == 0)[0]
+        if len(zero_var_cols) > 0:
+            self.logger.warning(
+                f"Found {len(zero_var_cols)} columns with zero variance"
+            )
+            self.logger.debug(f"Zero variance columns: {zero_var_cols}")
 
         # Get sign control parameters
         x_sign, lower_limits, upper_limits, check_factor = self._setup_sign_control(X)

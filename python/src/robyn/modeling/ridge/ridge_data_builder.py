@@ -387,28 +387,44 @@ class RidgeDataBuilder:
         gamma: float,
         x_marginal: Optional[np.ndarray] = None,
     ) -> Dict[str, np.ndarray]:
-        """Exactly match R's Hill transformation implementation.
-
-        Args:
-            x: Input array
-            alpha: Shape parameter
-            gamma: Inflection point parameter
-            x_marginal: Optional marginal values for carryover effects
-
-        Returns:
-            Dictionary containing x_saturated and inflexion point
-        """
+        """Exactly match R's Hill transformation implementation."""
         x_array = np.array(x)
 
-        # Calculate inflexion point exactly like R
-        inflexion = np.max(x_array) * gamma
+        # Debug input array
+        self.logger.debug(f"Hill transformation input stats:")
+        self.logger.debug(f"x_array min: {np.min(x_array)}, max: {np.max(x_array)}")
+        self.logger.debug(f"x_array has zeros: {np.any(x_array == 0)}")
+        self.logger.debug(f"Number of zeros: {np.sum(x_array == 0)}")
 
-        if x_marginal is None:
-            # Regular hill transformation (exactly like R)
-            x_saturated = x_array**alpha / (x_array**alpha + inflexion**alpha)
-        else:
-            # Marginal effect calculation (exactly like R)
-            x_saturated = x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
+        inflexion = np.max(x_array) * gamma
+        self.logger.debug(f"inflexion: {inflexion}")
+
+        # If all values are 0, R returns NaN
+        if np.max(x_array) == 0:
+            self.logger.debug("All values are zero, returning NaN")
+            return {
+                "x_saturated": np.full_like(x_array, np.nan),
+                "inflexion": inflexion,
+            }
+
+        # Use x_marginal if provided, otherwise use x_array
+        input_array = x_marginal if x_marginal is not None else x_array
+
+        # Calculate hill transformation
+        numerator = input_array**alpha
+        denominator = input_array**alpha + inflexion**alpha
+
+        self.logger.debug("Calculation stats:")
+        self.logger.debug(
+            f"numerator min: {np.min(numerator)}, max: {np.max(numerator)}"
+        )
+        self.logger.debug(
+            f"denominator min: {np.min(denominator)}, max: {np.max(denominator)}"
+        )
+        self.logger.debug(f"numerator has NaN: {np.isnan(numerator).any()}")
+        self.logger.debug(f"denominator has NaN: {np.isnan(denominator).any()}")
+
+        x_saturated = numerator / denominator
 
         return {"x_saturated": x_saturated, "inflexion": inflexion}
 
@@ -473,9 +489,27 @@ class RidgeDataBuilder:
 
         # Process media variables using all_media from spec
         for var in self.mmm_data.mmmdata_spec.all_media:
+            # Debug for channel11
+            if "channel11" in var:
+                self.logger.debug(f"\nProcessing {var}:")
+                self.logger.debug(
+                    f"Original data has NaN: {dt_modAdstocked[var].isna().any()}"
+                )
+                self.logger.debug(f"Theta value: {params[f'{var}_thetas']}")
+                self.logger.debug(f"Alpha value: {params[f'{var}_alphas']}")
+                self.logger.debug(f"Gamma value: {params[f'{var}_gammas']}")
+
             # 1. Adstocking (whole data)
             input_data = dt_modAdstocked[var].values
             theta = params[f"{var}_thetas"]
+
+            # Debug adstocking for channel11
+            if "channel11" in var:
+                self.logger.debug(f"After adstocking:")
+                self.logger.debug(f"input_total has NaN: {np.isnan(input_total).any()}")
+                if np.isnan(input_total).any():
+                    nan_indices = np.where(np.isnan(input_total))[0]
+                    self.logger.debug(f"NaN indices in input_total: {nan_indices}")
 
             # Get adstocked values with all components
             adstock_result = self._geometric_adstock(input_data, theta)
@@ -515,6 +549,13 @@ class RidgeDataBuilder:
                 self.inflexion_collect = {}
             self.inflexion_collect[f"{var}_inflexion"] = sat_result_total["inflexion"]
 
+            # Debug saturation for channel11
+            if "channel11" in var:
+                self.logger.debug(f"After saturation:")
+                self.logger.debug(
+                    f"saturated_total has NaN: {np.isnan(sat_result_total['x_saturated']).any()}"
+                )
+
         # EXACTLY match R's flow:
         # 1. First update dt_modAdstocked with adstocked values (full data)
         dt_modAdstocked = dt_modAdstocked.drop(
@@ -545,6 +586,7 @@ class RidgeDataBuilder:
         dt_saturatedCarryover = pd.DataFrame(
             saturated_carryover_collect, index=dt_modSaturated.index
         ).fillna(0)
+        dt_modSaturated = dt_modSaturated.fillna(0)
 
         # Window y data using same indices
         self.y_windowed = self.y_base.iloc[window_indices]
