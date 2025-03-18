@@ -471,12 +471,8 @@ class RidgeDataBuilder:
         saturated_immediate_collect = {}
         saturated_carryover_collect = {}
 
-        # Process media variables
-        media_vars = self.mmm_data.mmmdata_spec.paid_media_spends
-
-        # Process each media variable (including newsletter)
-        for var in media_vars + ["newsletter"]:
-
+        # Process media variables using all_media from spec
+        for var in self.mmm_data.mmmdata_spec.all_media:
             # 1. Adstocking (whole data)
             input_data = dt_modAdstocked[var].values
             theta = params[f"{var}_thetas"]
@@ -521,7 +517,9 @@ class RidgeDataBuilder:
 
         # EXACTLY match R's flow:
         # 1. First update dt_modAdstocked with adstocked values (full data)
-        dt_modAdstocked = dt_modAdstocked.drop(columns=media_vars)
+        dt_modAdstocked = dt_modAdstocked.drop(
+            columns=self.mmm_data.mmmdata_spec.all_media
+        )
         for var, values in adstocked_collect.items():
             dt_modAdstocked[var] = values
 
@@ -529,7 +527,9 @@ class RidgeDataBuilder:
         dt_modSaturated = dt_modAdstocked.iloc[window_indices].copy()
 
         # Drop media columns before binding (exactly like R)
-        dt_modSaturated = dt_modSaturated.drop(columns=media_vars + ["newsletter"])
+        dt_modSaturated = dt_modSaturated.drop(
+            columns=self.mmm_data.mmmdata_spec.all_media
+        )
         for var, values in saturated_total_collect.items():
             dt_modSaturated[var] = values
 
