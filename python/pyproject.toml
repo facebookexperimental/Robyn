@@ -30,7 +30,6 @@ dependencies = [
     "PyQt6",
     "seaborn",
     "tqdm",
-    "rpy2",
     "pytest",
     "plotly",
     "nlopt",
