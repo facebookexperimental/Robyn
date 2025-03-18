@@ -7,7 +7,7 @@ import warnings
 from tqdm import tqdm
 from sklearn.linear_model import Ridge
 from sklearn.exceptions import ConvergenceWarning
-from typing import Dict, Any, Tuple, Optional, List
+from typing import Dict, Any, Tuple, Optional, List, Union
 from robyn.modeling.entities.modeloutputs import Trial
 from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
@@ -16,6 +16,7 @@ from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 import json
 from datetime import datetime
 import random
+from enum import Enum
 
 
 class RidgeModelEvaluator:
@@ -27,12 +28,14 @@ class RidgeModelEvaluator:
         ridge_metrics_calculator,
         ridge_data_builder,
         calibration_input=None,
+        holidays_data=None,
     ):
         self.mmm_data = mmm_data
         self.featurized_mmm_data = featurized_mmm_data
         self.ridge_metrics_calculator = ridge_metrics_calculator
         self.ridge_data_builder = ridge_data_builder
         self.calibration_input = calibration_input
+        self.holidays_data = holidays_data
         self.logger = logging.getLogger(__name__)
 
     def _run_nevergrad_optimization(
@@ -407,16 +410,10 @@ class RidgeModelEvaluator:
         self.logger.debug(f"x_norm min: {np.min(x_norm)}, max: {np.max(x_norm)}")
         self.logger.debug(f"y_norm min: {np.min(y_norm)}, max: {np.max(y_norm)}")
 
-        # Check for any zero variance columns
-        zero_var_cols = np.where(np.var(x_norm, axis=0) == 0)[0]
-        if len(zero_var_cols) > 0:
-            self.logger.warning(
-                f"Found {len(zero_var_cols)} columns with zero variance"
-            )
-            self.logger.debug(f"Zero variance columns: {zero_var_cols}")
-
         # Get sign control parameters
-        x_sign, lower_limits, upper_limits, check_factor = self._setup_sign_control(X)
+        signs_grouped, lower_limits, upper_limits, check_factor = (
+            self._setup_sign_control(X)
+        )
         params["lower_limits"] = lower_limits
         params["upper_limits"] = upper_limits
 
@@ -444,7 +441,7 @@ class RidgeModelEvaluator:
                             ),
                             "organic": list(self.mmm_data.mmmdata_spec.organic_vars),
                         },
-                        "signs": x_sign,
+                        "signs": signs_grouped,
                         "factor_variables": {
                             "is_factor": factor_dict,
                             "factor_names": [
@@ -1056,78 +1053,110 @@ class RidgeModelEvaluator:
 
     def _setup_sign_control(
         self, X: pd.DataFrame
-    ) -> Tuple[Dict[str, List[str]], List[float], List[float], Dict[str, bool]]:
-        """Set up sign control for model variables, matching R's implementation exactly.
+    ) -> Tuple[
+        Dict[str, Union[List[str], str]], List[float], List[float], Dict[str, bool]
+    ]:
+        """Set up sign control for model variables, matching R's implementation exactly."""
+        # Get prophet variables and signs from holidays_data
+        prophet_vars = self.holidays_data.prophet_vars
+        prophet_signs = [
+            sign.value if isinstance(sign, Enum) else sign
+            for sign in self.holidays_data.prophet_signs
+        ]
 
-        Args:
-            X: Feature DataFrame with dep_var already removed
+        # Get signs from mmm_data_spec, converting Enums to strings
+        context_signs = (
+            [sign.value for sign in self.mmm_data.mmmdata_spec.context_signs]
+            if self.mmm_data.mmmdata_spec.context_signs
+            else ["default"] * len(self.mmm_data.mmmdata_spec.context_vars or [])
+        )
 
-        Returns:
-            Tuple containing:
-            - x_sign: Dict mapping variable types to their signs
-            - lower_limits: List of lower bounds for each variable
-            - upper_limits: List of upper bounds for each variable
-            - check_factor: Dict mapping column names to boolean indicating if they are factors
-        """
-        # Define signs grouped by variable type (matching R's structure)
-        x_sign = {
-            "prophet": ["default"] * 3,  # [trend, season, holiday]
-            "context": ["default"] * len(self.mmm_data.mmmdata_spec.context_vars),
-            "paid_media": ["positive"]
-            * len(self.mmm_data.mmmdata_spec.paid_media_spends),
-            "organic": "positive",  # Single string for organic, matching R
+        paid_media_signs = (
+            [sign.value for sign in self.mmm_data.mmmdata_spec.paid_media_signs]
+            if self.mmm_data.mmmdata_spec.paid_media_signs
+            else ["positive"] * len(self.mmm_data.mmmdata_spec.paid_media_spends or [])
+        )
+
+        organic_signs = (
+            [sign.value for sign in self.mmm_data.mmmdata_spec.organic_signs]
+            if self.mmm_data.mmmdata_spec.organic_signs
+            else ["positive"] * len(self.mmm_data.mmmdata_spec.organic_vars or [])
+        )
+
+        # Create grouped signs structure like R
+        signs_grouped = {
+            "prophet": prophet_signs,
+            "context": context_signs,
+            "paid_media": paid_media_signs,
+            "organic": (
+                organic_signs[0] if organic_signs else "positive"
+            ),  # R uses single string
         }
 
-        # Check for factor variables
-        check_factor = {
-            col: pd.api.types.is_categorical_dtype(X[col]) for col in X.columns
-        }
+        # Create flat x_sign for internal use
+        x_sign = (
+            prophet_signs
+            + context_signs
+            + paid_media_signs
+            + (
+                [signs_grouped["organic"]]
+                if isinstance(signs_grouped["organic"], str)
+                else organic_signs
+            )
+        )
+
+        # Get variable names in same order
+        var_names = (
+            prophet_vars
+            + (self.mmm_data.mmmdata_spec.context_vars or [])
+            + (self.mmm_data.mmmdata_spec.paid_media_spends or [])
+            + (self.mmm_data.mmmdata_spec.organic_vars or [])
+        )
+
+        # Check factors exactly like R
+        dt_sign = X.copy()
+        check_factor = pd.Series(
+            [pd.api.types.is_categorical_dtype(dt_sign[col]) for col in var_names],
+            index=var_names,
+        )
 
         # Initialize limits for prophet vars
-        lower_limits = [0] * 3  # trend, season, holiday
-        upper_limits = [1] * 3
+        lower_limits = [0] * len(prophet_signs)
+        upper_limits = [1] * len(prophet_signs)
 
-        # Handle negative trend case
-        if "trend" in X.columns and X["trend"].sum() < 0:
-            lower_limits[0] = -1
-            upper_limits[0] = 0
+        # Handle negative trend case exactly like R
+        trend_loc = X.columns.get_loc("trend") if "trend" in X.columns else -1
+        if trend_loc >= 0 and X.iloc[:, trend_loc].sum() < 0:
+            trend_loc = prophet_vars.index("trend")
+            lower_limits[trend_loc] = -1
+            upper_limits[trend_loc] = 0
 
-        # Handle remaining variables
-        for col in X.columns[3:]:  # Skip prophet vars
-            if check_factor.get(col, False):
-                level_n = len(X[col].unique())
+        # Handle remaining variables exactly like R's loop
+        for s in range(len(prophet_signs), len(x_sign)):
+            col = var_names[s]
+            if check_factor[col]:
+                # Use categorical levels if available, otherwise unique values
+                if pd.api.types.is_categorical_dtype(dt_sign[col]):
+                    level_n = len(dt_sign[col].cat.categories)
+                else:
+                    level_n = len(dt_sign[col].unique())
+
                 if level_n <= 1:
-                    raise ValueError(
-                        f"Factor variable {col} must have more than 1 level"
-                    )
+                    raise ValueError("All factor variables must have more than 1 level")
 
-                # Get variable type and index
-                if col in self.mmm_data.mmmdata_spec.context_vars:
-                    sign = "default"
-                elif col in self.mmm_data.mmmdata_spec.paid_media_spends:
-                    sign = "positive"
-                else:  # organic
-                    sign = "positive"
-
-                if sign == "positive":
+                if x_sign[s] == "positive":
                     lower_vec = [0] * (level_n - 1)
-                    upper_vec = ["Inf"] * (level_n - 1)  # Match R's "Inf"
-                elif sign == "negative":
-                    lower_vec = ["-Inf"] * (level_n - 1)
-                    upper_vec = [0] * (level_n - 1)
-                else:  # default
-                    lower_vec = ["-Inf"] * (level_n - 1)
-                    upper_vec = ["Inf"] * (level_n - 1)
+                    upper_vec = [float("inf")] * (level_n - 1)
+                else:
+                    lower_vec = [float("-inf")] * (level_n - 1)
+                    upper_vec = [0 if x_sign[s] == "negative" else float("inf")] * (
+                        level_n - 1
+                    )
 
                 lower_limits.extend(lower_vec)
                 upper_limits.extend(upper_vec)
             else:
-                # Handle non-factor variables
-                if col in self.mmm_data.mmmdata_spec.context_vars:
-                    lower_limits.append("-Inf")
-                    upper_limits.append("Inf")
-                else:  # paid_media or organic
-                    lower_limits.append(0)
-                    upper_limits.append("Inf")
+                lower_limits.append(0 if x_sign[s] == "positive" else float("-inf"))
+                upper_limits.append(0 if x_sign[s] == "negative" else float("inf"))
 
-        return x_sign, lower_limits, upper_limits, check_factor
+        return signs_grouped, lower_limits, upper_limits, check_factor
