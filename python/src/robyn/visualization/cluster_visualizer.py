@@ -126,16 +126,26 @@ class ClusterVisualizer(BaseVisualizer):
             for i, rn_val in enumerate(unique_rns):
                 rn_data = cluster_data[cluster_data["rn"] == rn_val]["x_sim"].values
                 if len(rn_data) > 0:
-                    # Calculate KDE with minimum density threshold (rel_min_height)
-                    kde = stats.gaussian_kde(rn_data, bw_method=0.5)
-                    x_range = np.linspace(x_min, x_max, 200)
-                    density = kde(x_range)
+                    if len(rn_data) <= 1 or len(np.unique(rn_data)) <= 1:
+                        # Handle singular data points
+                        x_range = np.linspace(x_min, x_max, 200)
+                        density = np.zeros_like(x_range)
+                        idx = np.abs(x_range - rn_data[0]).argmin()
+                        density[idx] = 1
+                    else:
+                        # Use scott bandwidth method (matching R's default)
+                        kde = stats.gaussian_kde(
+                            rn_data, bw_method="scott"
+                        )  # Changed from 0.5 to 'scott'
+                        x_range = np.linspace(x_min, x_max, 200)
+                        density = kde(x_range)
 
-                    # Apply minimum density threshold (equivalent to rel_min_height = 0.01)
-                    density[density < np.max(density) * 0.01] = 0
+                        # Apply relative minimum height threshold (matching R's rel_min_height=0.01)
+                        max_density = np.max(density)
+                        density[density < 0.01 * max_density] = 0
 
-                    # Scale density for better visualization
-                    density = density * 3  # Matches scale=3 in R code
+                        # Scale density (matching R's scale=3)
+                        density = density * 3
 
                     data_matrix.append(density)
                     y_positions.append(i)

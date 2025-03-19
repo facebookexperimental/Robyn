@@ -227,7 +227,7 @@ class PlotDataGenerator:
             + self.mmm_data.mmmdata_spec.context_vars
         )
 
-        dt_transformDecomp = dt_modRollWind[selected_columns]
+        dt_transformDecomp = dt_modRollWind[selected_columns].reset_index(drop=True)
         dt_transformDecomp = pd.concat(
             [
                 dt_transformDecomp,
@@ -310,6 +310,7 @@ class PlotDataGenerator:
             ],
             ignore_index=True,
         )
+
         return {
             "mediaVecCollect": mediaVecCollect,
             "xDecompVec": xDecompVec,
