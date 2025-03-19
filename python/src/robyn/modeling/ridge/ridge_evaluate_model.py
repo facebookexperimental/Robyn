@@ -1064,7 +1064,7 @@ class RidgeModelEvaluator:
             for sign in self.holidays_data.prophet_signs
         ]
 
-        # Get signs from mmm_data_spec, converting Enums to strings
+        # Convert Enum values to strings
         context_signs = (
             [sign.value for sign in self.mmm_data.mmmdata_spec.context_signs]
             if self.mmm_data.mmmdata_spec.context_signs
@@ -1083,27 +1083,8 @@ class RidgeModelEvaluator:
             else ["positive"] * len(self.mmm_data.mmmdata_spec.organic_vars or [])
         )
 
-        # Create grouped signs structure like R
-        signs_grouped = {
-            "prophet": prophet_signs,
-            "context": context_signs,
-            "paid_media": paid_media_signs,
-            "organic": (
-                organic_signs[0] if organic_signs else "positive"
-            ),  # R uses single string
-        }
-
-        # Create flat x_sign for internal use
-        x_sign = (
-            prophet_signs
-            + context_signs
-            + paid_media_signs
-            + (
-                [signs_grouped["organic"]]
-                if isinstance(signs_grouped["organic"], str)
-                else organic_signs
-            )
-        )
+        # Combine all signs in order (matching R's vector)
+        x_sign = prophet_signs + context_signs + paid_media_signs + organic_signs
 
         # Get variable names in same order
         var_names = (
@@ -1113,14 +1094,17 @@ class RidgeModelEvaluator:
             + (self.mmm_data.mmmdata_spec.organic_vars or [])
         )
 
-        # Check factors exactly like R
+        # Create named dictionary like R's named vector
+        x_sign_dict = dict(zip(var_names, x_sign))
+
+        # Check factors exactly like R - using all columns except dep_var
         dt_sign = X.copy()
         check_factor = pd.Series(
             [pd.api.types.is_categorical_dtype(dt_sign[col]) for col in var_names],
             index=var_names,
         )
 
-        # Initialize limits for prophet vars
+        # Initialize limits for prophet vars exactly like R
         lower_limits = [0] * len(prophet_signs)
         upper_limits = [1] * len(prophet_signs)
 
@@ -1158,5 +1142,13 @@ class RidgeModelEvaluator:
             else:
                 lower_limits.append(0 if x_sign[s] == "positive" else float("-inf"))
                 upper_limits.append(0 if x_sign[s] == "negative" else float("inf"))
+
+        # Create signs grouped structure for logging
+        signs_grouped = {
+            "prophet": prophet_signs,
+            "context": context_signs,
+            "paid_media": paid_media_signs,
+            "organic": organic_signs[0] if organic_signs else "positive",
+        }
 
         return signs_grouped, lower_limits, upper_limits, check_factor

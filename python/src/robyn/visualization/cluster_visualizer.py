@@ -107,6 +107,7 @@ class ClusterVisualizer(BaseVisualizer):
 
         # Calculate figure-level x_range for consistent scaling
         x_min, x_max = sim_collect["x_sim"].min(), sim_collect["x_sim"].max()
+        x_range = np.linspace(x_min, x_max, 200)
 
         # Main plotting loop
         for idx, (cluster, ax) in enumerate(zip(unique_clusters, axes)):
@@ -119,61 +120,44 @@ class ClusterVisualizer(BaseVisualizer):
             # Get unique rn values preserving original order
             unique_rns = pd.Categorical(cluster_data["rn"]).categories
 
-            # Create data matrix for efficient plotting
-            data_matrix = []
-            y_positions = []
-
+            # Plot each response variable
             for i, rn_val in enumerate(unique_rns):
                 rn_data = cluster_data[cluster_data["rn"] == rn_val]["x_sim"].values
                 if len(rn_data) > 0:
-                    # Calculate KDE with minimum density threshold (rel_min_height)
-                    kde = stats.gaussian_kde(rn_data, bw_method=0.5)
-                    x_range = np.linspace(x_min, x_max, 200)
-                    density = kde(x_range)
+                    try:
+                        # Use histogram instead of KDE for more robust density estimation
+                        counts, bins = np.histogram(rn_data, bins=50, density=True)
+                        # Smooth the histogram
+                        smoothed = np.convolve(counts, np.ones(5) / 5, mode="same")
+                        # Scale the density
+                        density = smoothed * 3  # Match R's scale=3
 
-                    # Apply minimum density threshold (equivalent to rel_min_height = 0.01)
-                    density[density < np.max(density) * 0.01] = 0
+                        # Plot the ridge
+                        bin_centers = (bins[:-1] + bins[1:]) / 2
+                        ax.fill_between(
+                            bin_centers, i, i + density, alpha=0.5, color="#4682B4"
+                        )
+                        ax.plot(
+                            bin_centers, i + density, color="#4682B4", linewidth=0.5
+                        )
 
-                    # Scale density for better visualization
-                    density = density * 3  # Matches scale=3 in R code
-
-                    data_matrix.append(density)
-                    y_positions.append(i)
-
-            # Convert to numpy array for faster operations
-            data_matrix = np.array(data_matrix)
-
-            # Plot ridges
-            for i, density in enumerate(data_matrix):
-                y_base = y_positions[i]
-                x_range = np.linspace(x_min, x_max, len(density))
-
-                # Fill area
-                ax.fill_between(
-                    x_range,
-                    y_base,
-                    y_base + density,
-                    alpha=0.5,
-                    color="#4682B4",  # Steel blue color
-                )
-
-                # Add outline
-                ax.plot(x_range, y_base + density, color="#4682B4", linewidth=0.5)
-
-            # Add CI text for each unique rn value
-            for i, rn_val in enumerate(unique_rns):
-                cluster_ci_rn = cluster_ci[cluster_ci["rn"] == rn_val]
-                if not cluster_ci_rn.empty:
-                    # Match R's position_nudge behavior
-                    y_pos = y_positions[i] + 0.1
-                    x_pos = cluster_ci_rn["boot_mean"].iloc[0] - 0.02
-                    ax.text(
-                        x_pos,
-                        y_pos,
-                        cluster_ci_rn["boot_ci"].iloc[0],
-                        color="#4D4D4D",
-                        size=9,
-                    )
+                        # Add CI text
+                        cluster_ci_rn = cluster_ci[cluster_ci["rn"] == rn_val]
+                        if not cluster_ci_rn.empty:
+                            y_pos = i + 0.1
+                            x_pos = cluster_ci_rn["boot_mean"].iloc[0] - 0.02
+                            ax.text(
+                                x_pos,
+                                y_pos,
+                                cluster_ci_rn["boot_ci"].iloc[0],
+                                color="#4D4D4D",
+                                size=9,
+                            )
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to plot density for {rn_val}: {str(e)}"
+                        )
+                        continue
 
             # Add vertical line at x=1
             ax.axvline(x=1, linestyle="--", linewidth=0.5, color="#BFBFBF")
@@ -181,7 +165,7 @@ class ClusterVisualizer(BaseVisualizer):
             # Set axis properties
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(-0.5, len(unique_rns))
-            ax.yaxis.set_major_locator(FixedLocator(y_positions))
+            ax.yaxis.set_major_locator(FixedLocator(range(len(unique_rns))))
             ax.set_yticklabels(unique_rns)
 
             # Add horizontal line for ROAS
