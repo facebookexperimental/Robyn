@@ -61,6 +61,7 @@ class RidgeModelBuilder:
             self.ridge_metrics_calculator,
             self.ridge_data_builder,
             self.calibration_input,
+            self.holiday_data,
         )
         self.logger = logging.getLogger(__name__)
 

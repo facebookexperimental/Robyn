@@ -387,28 +387,26 @@ class RidgeDataBuilder:
         gamma: float,
         x_marginal: Optional[np.ndarray] = None,
     ) -> Dict[str, np.ndarray]:
-        """Exactly match R's Hill transformation implementation.
-
-        Args:
-            x: Input array
-            alpha: Shape parameter
-            gamma: Inflection point parameter
-            x_marginal: Optional marginal values for carryover effects
-
-        Returns:
-            Dictionary containing x_saturated and inflexion point
-        """
+        """Exactly match R's Hill transformation implementation."""
         x_array = np.array(x)
 
-        # Calculate inflexion point exactly like R
         inflexion = np.max(x_array) * gamma
 
-        if x_marginal is None:
-            # Regular hill transformation (exactly like R)
-            x_saturated = x_array**alpha / (x_array**alpha + inflexion**alpha)
-        else:
-            # Marginal effect calculation (exactly like R)
-            x_saturated = x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
+        # If all values are 0, R returns NaN
+        if np.max(x_array) == 0:
+            return {
+                "x_saturated": np.full_like(x_array, np.nan),
+                "inflexion": inflexion,
+            }
+
+        # Use x_marginal if provided, otherwise use x_array
+        input_array = x_marginal if x_marginal is not None else x_array
+
+        # Calculate hill transformation
+        numerator = input_array**alpha
+        denominator = input_array**alpha + inflexion**alpha
+
+        x_saturated = numerator / denominator
 
         return {"x_saturated": x_saturated, "inflexion": inflexion}
 
@@ -451,9 +449,6 @@ class RidgeDataBuilder:
         dt_modAdstocked = self.X_base.drop(
             columns=["ds"] if "ds" in self.X_base.columns else []
         )
-        self.logger.debug(
-            f"After ds drop - dt_modAdstocked shape: {dt_modAdstocked.shape}"
-        )
 
         # 2. Get window indices - FIXED to match R exactly
         window_start = self.mmm_data.mmmdata_spec.rolling_window_start_which
@@ -471,12 +466,8 @@ class RidgeDataBuilder:
         saturated_immediate_collect = {}
         saturated_carryover_collect = {}
 
-        # Process media variables
-        media_vars = self.mmm_data.mmmdata_spec.paid_media_spends
-
-        # Process each media variable (including newsletter)
-        for var in media_vars + ["newsletter"]:
-
+        # Process media variables using all_media from spec
+        for var in self.mmm_data.mmmdata_spec.all_media:
             # 1. Adstocking (whole data)
             input_data = dt_modAdstocked[var].values
             theta = params[f"{var}_thetas"]
@@ -521,7 +512,9 @@ class RidgeDataBuilder:
 
         # EXACTLY match R's flow:
         # 1. First update dt_modAdstocked with adstocked values (full data)
-        dt_modAdstocked = dt_modAdstocked.drop(columns=media_vars)
+        dt_modAdstocked = dt_modAdstocked.drop(
+            columns=self.mmm_data.mmmdata_spec.all_media
+        )
         for var, values in adstocked_collect.items():
             dt_modAdstocked[var] = values
 
@@ -529,7 +522,9 @@ class RidgeDataBuilder:
         dt_modSaturated = dt_modAdstocked.iloc[window_indices].copy()
 
         # Drop media columns before binding (exactly like R)
-        dt_modSaturated = dt_modSaturated.drop(columns=media_vars + ["newsletter"])
+        dt_modSaturated = dt_modSaturated.drop(
+            columns=self.mmm_data.mmmdata_spec.all_media
+        )
         for var, values in saturated_total_collect.items():
             dt_modSaturated[var] = values
 
@@ -545,6 +540,7 @@ class RidgeDataBuilder:
         dt_saturatedCarryover = pd.DataFrame(
             saturated_carryover_collect, index=dt_modSaturated.index
         ).fillna(0)
+        dt_modSaturated = dt_modSaturated.fillna(0)
 
         # Window y data using same indices
         self.y_windowed = self.y_base.iloc[window_indices]

@@ -50,37 +50,82 @@ remotes::install_github("facebookexperimental/Robyn/R")
 
 The Python version of Robyn is rewritten from Robyn's R package version `3.11.1` to Python using object oriented programming principles and modular architecture for a robust solution. It was developed by utilizing various LLMs and AI workflows like [Llama](https://www.llama.com/). As is common with any AI-based solutions, there may be potential challenges in translating code from one language to another. In this case, we anticipate that there could be some issues in the translation from R to Python. However, we believe in the power of community collaboration and open-source contribution. Therefore, we are opening this project to the community to participate and contribute. Together, we can address and resolve any issues that may arise, enhancing the functionality and efficiency of the Python version of Robyn. We look forward to your contributions and to the continuous improvement of this project.
 
-**1. Installing the package**
-  
-  * Install Robyn latest Python package version:
-```{r}
-## Pypi
+### 1. Prerequisites
+
+- R must be installed on your machine. Download from the [official R Project website](https://www.r-project.org/)
+- The glmnet R package is required
+
+#### Installing glmnet on Windows
+```bash
+# Open R console (run in Command Prompt/PowerShell)
+R
+# Then in R console, install glmnet
+install.packages("glmnet")
+# Exit R console
+q()
+```
+
+#### Installing glmnet on macOS/Linux
+```bash
+# Open terminal and run R
+R
+# Then in R console, install glmnet
+install.packages("glmnet")
+# Exit R console
+q()
+```
+
+### 2. Setting up Python Environment
+
+#### Windows
+```bash
+# Create virtual environment
+python -m venv robyn-env
+
+# Activate virtual environment
+robyn-env\Scripts\activate
+```
+
+#### macOS/Linux
+```bash
+# Create virtual environment
+python3 -m venv robyn-env
+
+# Activate virtual environment
+source robyn-env/bin/activate
+```
+
+### 3. Install Robyn
+
+Choose one of the following installation methods:
+
+```bash
+# Install from PyPI (recommended)
 pip3 install robynpy
 
-## DEV VERSION
-# if you are pulling source from github, install dependencies using requirements.txt
+# OR install development version from source
 pip3 install -r requirements.txt
 ```
-  
-**2. Getting started**
 
-  * The directory python/src/robyn/tutorials contains tutorials for most common scenarios. Tutorials use simulated dataset provided in the package.
+### 4. Getting Started
 
-  * There are two ways of running Python Robyn; one is `tutorial1.ipynb` and second is `tutorial1_src.ipynb`.
+The `python/src/robyn/tutorials` directory contains tutorials for most common scenarios using the included simulated dataset.
 
-**3. Running end-to-end**
+There are two ways to run Python Robyn:
 
-Option 1:
-  * `tutorial1.ipynb` is the main notebook that runs the end-to-end flow. It is designed for majority of the users who would prefer a one click solution that runs the robyn flow end-to-end with minimal knowledge of the underlying logic. It should run without any changes required if you wish to use the simulated dataset for testing purposes. 
+#### Option 1: Using tutorial1.ipynb (Recommended)
+- Provides an end-to-end flow with a one-click solution
+- Ideal for users who prefer minimal setup
+- Uses APIs from `python/src/robyn/robyn.py`
+- Includes feature engineering, model training, clustering, one-pager generation, and budget allocation
+- Configurations can be modified directly in the notebook
 
-  * This notebook uses APIs available in `python/src/robyn/robyn.py` to set the configs, run feature engineering, run model training, evaluate models with clustering, generate one pagers and perform budget allocation.
-  
-  * Change any of the configs directly in the notebook and avoid changes to robyn.py for what can be configurable.
-
-Option 2:
-  * `tutorial1_src.ipynb` runs the end-to-end flow of robyn python but with a lot more flexibility. It is designed for users who would like to have more control over which modules are and aren't run (ie. skipping clustering/one pager plots/budget allocation etc.). It should run without any changes required if you wish to use the simulated dataset for testing purposes. 
-
-  * This notebook doesn't use APIs available in `python/src/robyn/robyn.py` but instead, calls the modules directly with the appropriate parameters. In this way, it is more flexible but still expects the users to understand the underlying logic that may change when using various parameter values.
+#### Option 2: Using tutorial1_src.ipynb (Advanced)
+- Offers more flexibility and control over individual modules
+- Designed for users who want to customize the workflow
+- Calls modules directly with parameters
+- Allows skipping specific components (clustering/one-pager plots/budget allocation)
+- Requires understanding of underlying logic
   
 ## Quick start Python wrapper (Robyn API for Python beta)
 
