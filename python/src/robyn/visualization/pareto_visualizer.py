@@ -268,10 +268,19 @@ class ParetoVisualizer(BaseVisualizer):
         )
         ts_data["variable"] = ts_data["variable"].str.title()
 
-        # Get train_size from x_decomp_agg
-        train_size_series = self.pareto_result.x_decomp_agg[
-            self.pareto_result.x_decomp_agg["sol_id"] == solution_id
-        ]["train_size"]
+        # Get train_size from x_decomp_agg with column name handling
+        x_decomp = self.pareto_result.x_decomp_agg
+
+        # Try both possible column names
+        if "solID" in x_decomp.columns:
+            train_size_series = x_decomp[x_decomp["solID"] == solution_id]["train_size"]
+        elif "sol_id" in x_decomp.columns:
+            train_size_series = x_decomp[x_decomp["sol_id"] == solution_id][
+                "train_size"
+            ]
+        else:
+            logger.warning("Neither 'solID' nor 'sol_id' column found in x_decomp_agg")
+            train_size_series = pd.Series([])
 
         if not train_size_series.empty:
             train_size = float(train_size_series.iloc[0])

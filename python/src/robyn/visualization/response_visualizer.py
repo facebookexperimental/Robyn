@@ -43,8 +43,8 @@ class ResponseVisualizer(BaseVisualizer):
         pass
 
     def generate_response_curves(
-    self, solution_id: str, ax: Optional[plt.Axes] = None, trim_rate: float = 1.3
-) -> Optional[plt.Figure]:
+        self, solution_id: str, ax: Optional[plt.Axes] = None, trim_rate: float = 1.3
+    ) -> Optional[plt.Figure]:
         """Generate response curves showing relationship between spend and response."""
         logger.debug("Generating response curves with trim_rate=%.2f", trim_rate)
 
@@ -83,11 +83,11 @@ class ResponseVisualizer(BaseVisualizer):
 
             # Define custom colors matching the R plot
             color_map = {
-                'facebook_S': '#FF9D1C',  # Orange
-                'ooh_S': '#69B3E7',      # Light blue
-                'print_S': '#7B4EA3',    # Purple
-                'search_S': '#E41A1C',   # Red
-                'tv_S': '#4DAF4A'        # Green
+                "facebook_S": "#FF9D1C",  # Orange
+                "ooh_S": "#69B3E7",  # Light blue
+                "print_S": "#7B4EA3",  # Purple
+                "search_S": "#E41A1C",  # Red
+                "tv_S": "#4DAF4A",  # Green
             }
 
             channels = curve_data["channel"].unique()
@@ -99,8 +99,10 @@ class ResponseVisualizer(BaseVisualizer):
                     "spend"
                 )
 
-                color = color_map.get(channel, 'gray')  # Default to gray if channel not in map
-                
+                color = color_map.get(
+                    channel, "gray"
+                )  # Default to gray if channel not in map
+
                 ax.plot(
                     channel_data["spend"],
                     channel_data["response"],
@@ -124,9 +126,9 @@ class ResponseVisualizer(BaseVisualizer):
 
             logger.debug("Adding mean points and labels")
             for idx, row in mean_data.iterrows():
-                channel = row['channel']
-                color = color_map.get(channel, 'gray')
-                
+                channel = row["channel"]
+                color = color_map.get(channel, "gray")
+
                 ax.scatter(
                     row["mean_spend_adstocked"],
                     row["mean_response"],
@@ -168,7 +170,7 @@ class ResponseVisualizer(BaseVisualizer):
             ax.yaxis.set_major_formatter(plt.FuncFormatter(custom_tick_formatter))
 
             # Grid styling to match R plot
-            ax.grid(True, alpha=0.2, linestyle='-', color='gray')
+            ax.grid(True, alpha=0.2, linestyle="-", color="gray")
             ax.set_axisbelow(True)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
