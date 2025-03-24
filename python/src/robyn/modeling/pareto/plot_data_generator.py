@@ -441,6 +441,13 @@ class PlotDataGenerator:
         rw_start_loc: int,
         rw_end_loc: int,
     ) -> Dict[str, pd.DataFrame]:
+        # Before any transformations
+        self.logger.debug("Starting response data generation for solution %s", sid)
+        self.logger.debug(
+            "Initial plotWaterfall data:\n%s",
+            plotWaterfall[plotWaterfall["sol_id"] == sid],
+        )
+
         dt_transformPlot = dt_mod[["ds"] + self.mmm_data.mmmdata_spec.all_media]
         dt_transformSpend = pd.concat(
             [
@@ -474,6 +481,13 @@ class PlotDataGenerator:
             dt_transformAdstock[med_select] = m_adstocked
             m_adstockedRollWind = m_adstocked[rw_start_loc:rw_end_loc]
 
+            # After adstock transformation
+            self.logger.debug(
+                "After adstock transformation for channel %s:\n%s",
+                med_select,
+                dt_transformAdstock[med_select].head(),
+            )
+
             # Saturation
             alpha = self.hypParam[f"{all_media_channels[med]}_alphas"].iloc[0]
             gamma = self.hypParam[f"{all_media_channels[med]}_gammas"].iloc[0]
@@ -483,12 +497,29 @@ class PlotDataGenerator:
                 )
             )
 
+            # After saturation
+            self.logger.debug(
+                "After saturation for channel %s:\n%s",
+                med_select,
+                self.dt_transformSaturation[med_select].head(),
+            )
+
         dt_transformSaturationDecomp = self.dt_transformSaturation.copy()
         for i in range(len(all_media_channels)):
             coef = plotWaterfallLoop["coef"][
                 plotWaterfallLoop["rn"] == all_media_channels[i]
             ].values[0]
             dt_transformSaturationDecomp[all_media_channels[i]] *= coef
+
+            # After coefficient multiplication
+            self.logger.debug(
+                "Coefficient for channel %s: %f", all_media_channels[i], coef
+            )
+            self.logger.debug(
+                "After coefficient multiplication for channel %s:\n%s",
+                all_media_channels[i],
+                dt_transformSaturationDecomp[all_media_channels[i]].head(),
+            )
 
         dt_transformSaturationSpendReverse = dt_transformAdstock.iloc[
             rw_start_loc:rw_end_loc
@@ -537,6 +568,10 @@ class PlotDataGenerator:
             .rename(columns={"rn": "channel"})
             .reset_index()
         )
+
+        # Final data
+        self.logger.debug("Final dt_scurvePlot data:\n%s", dt_scurvePlot.head())
+        self.logger.debug("Final dt_scurvePlotMean data:\n%s", dt_scurvePlotMean)
 
         return {
             "dt_scurvePlot": dt_scurvePlot,

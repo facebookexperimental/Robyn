@@ -52,22 +52,66 @@ class ResponseVisualizer(BaseVisualizer):
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
         try:
+            # Add debug logging to inspect plot4data structure
+            plot_data = self.pareto_result.plot_data_collect[solution_id]
+            logger.debug("plot4data keys: %s", plot_data["plot4data"].keys())
+            logger.debug(
+                "dt_scurvePlot structure:\n%s",
+                plot_data["plot4data"]["dt_scurvePlot"].info(),
+            )
+            logger.debug(
+                "dt_scurvePlotMean structure:\n%s",
+                plot_data["plot4data"]["dt_scurvePlotMean"].info(),
+            )
+
+            # Original data before any transformations
+            logger.debug(
+                "Original dt_scurvePlot sample:\n%s",
+                plot_data["plot4data"]["dt_scurvePlot"].head(10),
+            )
+            logger.debug(
+                "Original dt_scurvePlotMean:\n%s",
+                plot_data["plot4data"]["dt_scurvePlotMean"],
+            )
+
             # Get plot data for specific solution
             logger.debug("Extracting plot data from pareto results")
-            plot_data = self.pareto_result.plot_data_collect[solution_id]
             curve_data = plot_data["plot4data"]["dt_scurvePlot"].copy()
             mean_data = plot_data["plot4data"]["dt_scurvePlotMean"].copy()
 
-            logger.debug("Initial curve data shape: %s", curve_data.shape)
-            logger.debug("Initial mean data shape: %s", mean_data.shape)
+            # Add debug logging
+            logger.debug("Curve data head:\n%s", curve_data.head())
+            logger.debug("Mean data:\n%s", mean_data)
 
             # Scale down the values to thousands
             curve_data["spend"] = curve_data["spend"] / 1000
             curve_data["response"] = curve_data["response"] / 1000
             mean_data["mean_spend_adstocked"] = mean_data["mean_spend_adstocked"] / 1000
             mean_data["mean_response"] = mean_data["mean_response"] / 1000
-            if "mean_carryover" in mean_data.columns:
-                mean_data["mean_carryover"] = mean_data["mean_carryover"] / 1000
+
+            # Add debug logging after scaling
+            logger.debug("Scaled curve data head:\n%s", curve_data.head())
+            logger.debug("Scaled mean data:\n%s", mean_data)
+
+            # For each channel, verify the mean point exists on the curve
+            for channel in curve_data["channel"].unique():
+                channel_curve = curve_data[curve_data["channel"] == channel]
+                channel_mean = mean_data[mean_data["channel"] == channel]
+
+                if not channel_mean.empty:
+                    mean_spend = channel_mean["mean_spend_adstocked"].iloc[0]
+                    mean_response = channel_mean["mean_response"].iloc[0]
+
+                    # Find closest point on curve
+                    closest_point = channel_curve.iloc[
+                        (channel_curve["spend"] - mean_spend).abs().argsort()[:1]
+                    ]
+
+                    logger.debug(
+                        f"Channel {channel} - Mean point: ({mean_spend:.2f}, {mean_response:.2f}), "
+                        f"Closest curve point: ({closest_point['spend'].iloc[0]:.2f}, "
+                        f"{closest_point['response'].iloc[0]:.2f})"
+                    )
 
             # Add mean carryover information
             curve_data = curve_data.merge(
