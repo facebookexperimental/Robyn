@@ -848,6 +848,7 @@ class RidgeModelEvaluator:
                 "Elapsed": float(elapsed_time),
                 "elapsed": float(elapsed_time),
                 "elapsed_accum": float(elapsed_time),
+                "train_size": float(train_size),
             }
         )
 
@@ -1039,6 +1040,53 @@ class RidgeModelEvaluator:
             "Elapsed",
         ]
         x_decomp_agg = x_decomp_agg[required_cols]
+
+        # # Log x_decomp_agg details
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": f"step13_xDecompAgg_iteration_{iter_ng + 1}",
+        #             "data": {
+        #                 "xDecompAgg": x_decomp_agg.apply(
+        #                     lambda row: {
+        #                         "rn": row["rn"],
+        #                         "coef": row["coef"],
+        #                         "xDecompAgg": row["xDecompAgg"],
+        #                         "xDecompPerc": row["xDecompPerc"],
+        #                         "xDecompMeanNon0": row["xDecompMeanNon0"],
+        #                         "xDecompMeanNon0Perc": row["xDecompMeanNon0Perc"],
+        #                         "xDecompAggRF": row["xDecompAggRF"],
+        #                         "xDecompPercRF": row["xDecompPercRF"],
+        #                         "xDecompMeanNon0RF": row["xDecompMeanNon0RF"],
+        #                         "xDecompMeanNon0PercRF": row["xDecompMeanNon0PercRF"],
+        #                         "pos": row["pos"],
+        #                         "train_size": row["train_size"],
+        #                         "rsq_train": row["rsq_train"],
+        #                         "rsq_val": row["rsq_val"],
+        #                         "rsq_test": row["rsq_test"],
+        #                         "nrmse_train": row["nrmse_train"],
+        #                         "nrmse_val": row["nrmse_val"],
+        #                         "nrmse_test": row["nrmse_test"],
+        #                         "nrmse": row["nrmse"],
+        #                         "decomp.rssd": row["decomp.rssd"],
+        #                         "mape": row["mape"],
+        #                         "lambda": row["lambda"],
+        #                         "lambda_hp": row["lambda_hp"],
+        #                         "lambda_max": row["lambda_max"],
+        #                         "lambda_min_ratio": row["lambda_min_ratio"],
+        #                         "solID": row["sol_id"],
+        #                         "trial": row["trial"],
+        #                         "iterNG": row["iterNG"],
+        #                         "iterPar": row["iterPar"],
+        #                     },
+        #                     axis=1,
+        #                 ).tolist()
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
         return {
             "loss": loss,
             "params": params_formatted,
