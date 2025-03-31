@@ -69,17 +69,6 @@ class BudgetAllocator:
         # Run optimization and get results
         self.dt_optim_out = self._optimize()
 
-        # log json
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "dt_optimOut",
-                    "data": self.dt_optim_out.to_dict("index"),
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                },
-                indent=2,
-            )
-        )
         # Calculate curves and main points
         curves_data = self._calculate_curves(self.dt_optim_out)
         scurve_data = self._prepare_scurve_data(
@@ -154,13 +143,12 @@ class BudgetAllocator:
             self.params.channel_constr_up, index=paid_media_spends
         ).reindex(self.media_spend_sorted)
 
-        # Get model parameters for selected model
+        # Try with sol_id first
         self.dt_hyppar = self.pareto_result.result_hyp_param[
-            self.pareto_result.result_hyp_param["solID"] == self.select_model
+            self.pareto_result.result_hyp_param["sol_id"] == self.select_model
         ]
-
         self.dt_best_coef = self.pareto_result.x_decomp_agg[
-            (self.pareto_result.x_decomp_agg["solID"] == self.select_model)
+            (self.pareto_result.x_decomp_agg["sol_id"] == self.select_model)
             & (self.pareto_result.x_decomp_agg["rn"].isin(paid_media_spends))
         ]
 
@@ -375,7 +363,7 @@ class BudgetAllocator:
         chn_adstocked = (
             self.pareto_result.media_vec_collect[
                 (self.pareto_result.media_vec_collect["type"] == "adstockedMedia")
-                & (self.pareto_result.media_vec_collect["solID"] == self.select_model)
+                & (self.pareto_result.media_vec_collect["sol_id"] == self.select_model)
             ][self.media_spend_sorted]
         ).iloc[
             self.mmm_data.mmmdata_spec.rolling_window_start_which : self.mmm_data.mmmdata_spec.rolling_window_end_which
@@ -1087,7 +1075,7 @@ class BudgetAllocator:
         # Create output DataFrame
         dt_optim_out = pd.DataFrame(
             {
-                "solID": self.select_model,
+                "sol_id": self.select_model,
                 "dep_var_type": self.mmm_data.mmmdata_spec.dep_var_type,
                 "channels": self.media_spend_sorted,
                 "date_min": self.date_min,

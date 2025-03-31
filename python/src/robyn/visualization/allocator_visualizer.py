@@ -19,17 +19,14 @@ class AllocatorVisualizer(BaseVisualizer):
     def __init__(
         self,
         budget_allocator: BudgetAllocator,
-        dt_optim_out: pd.DataFrame,
-        eval_list: Dict[str, Any],
         metric: str = "CPA",
         quiet: bool = False,
     ):
         super().__init__()
         logger.info("Initializing AllocatorPlotter")
-        self.dt_optim_out = dt_optim_out
-        self.eval_list = eval_list
+        self.dt_optim_out = budget_allocator.dt_optim_out
+        self.eval_list = budget_allocator.eval_dict
         self.metric = metric
-        self.quiet = quiet
         self.budget_allocator = budget_allocator
         self.logger = logging.getLogger(__name__)
 
@@ -754,14 +751,18 @@ class AllocatorVisualizer(BaseVisualizer):
         return fig
 
     def plot_all(
-        self, display_plots: bool = True, export_location: Union[str, Path] = None
+        self,
+        display_plots: bool = True,
+        export_location: Union[str, Path] = None,
+        quiet: bool = True,
     ) -> Dict[str, plt.Figure]:
         """
         Create all allocator plots.
+        Parameters:
+            display_plots (bool): Whether to display the plots
+            export_location (Union[str, Path]): Location to export plots
+            quiet (bool): If True, suppresses logging output
         """
-        logger.info(
-            f"Creating all plots for model {self.budget_allocator.select_model}"
-        )
 
         try:
             plots = {

@@ -108,7 +108,7 @@ def robyn_response(
     paid_media_spends = mmm_data.mmmdata_spec.paid_media_spends
     exposure_vars = mmm_data.mmmdata_spec.exposure_vars
     organic_vars = mmm_data.mmmdata_spec.organic_vars
-    all_solutions = dt_hyppar["solID"].unique()
+    all_solutions = dt_hyppar["sol_id"].unique()
     day_interval = mmm_data.mmmdata_spec.day_interval
 
     # Validate select_model
@@ -219,15 +219,15 @@ def robyn_response(
 
     if adstock == "geometric":
         theta = dt_hyppar.loc[
-            dt_hyppar["solID"] == select_model, f"{hpm_name}_thetas"
+            dt_hyppar["sol_id"] == select_model, f"{hpm_name}_thetas"
         ].iloc[0]
 
     if "weibull" in adstock:
         shape = dt_hyppar.loc[
-            dt_hyppar["solID"] == select_model, f"{hpm_name}_shapes"
+            dt_hyppar["sol_id"] == select_model, f"{hpm_name}_shapes"
         ].iloc[0]
         scale = dt_hyppar.loc[
-            dt_hyppar["solID"] == select_model, f"{hpm_name}_scales"
+            dt_hyppar["sol_id"] == select_model, f"{hpm_name}_scales"
         ].iloc[0]
 
     x_list = transform_adstock(
@@ -251,10 +251,10 @@ def robyn_response(
     # Saturation
     m_adstocked_rw = m_adstocked[start_rw:end_rw]
     alpha = dt_hyppar.loc[
-        dt_hyppar["solID"] == select_model, f"{hpm_name}_alphas"
+        dt_hyppar["sol_id"] == select_model, f"{hpm_name}_alphas"
     ].iloc[0]
     gamma = dt_hyppar.loc[
-        dt_hyppar["solID"] == select_model, f"{hpm_name}_gammas"
+        dt_hyppar["sol_id"] == select_model, f"{hpm_name}_gammas"
     ].iloc[0]
 
     if usecase == "all_historical_vec":
@@ -276,7 +276,7 @@ def robyn_response(
 
     # Decomposition
     coeff = dt_coef.loc[
-        (dt_coef["solID"] == select_model) & (dt_coef["rn"] == hpm_name), "coef"
+        (dt_coef["sol_id"] == select_model) & (dt_coef["rn"] == hpm_name), "coef"
     ].iloc[0]
 
     m_saturated = saturation_hill(x=m_adstocked_rw, alpha=alpha, gamma=gamma)
