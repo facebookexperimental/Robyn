@@ -10,6 +10,7 @@ from robyn.data.entities.enums import (
     OrganicSigns,
     PaidMediaSigns,
 )
+from robyn.data.validation.checks import check_paidmedia
 import logging
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,7 @@ class MMMData:
             self.refresh_steps = refresh_steps
             self.refresh_counter = refresh_counter
             self.refresh_added_start = refresh_added_start
+            self.exposure_vars: List[str] = []
 
         def __str__(self) -> str:
             return f"""
@@ -139,7 +141,9 @@ class MMMData:
         """
         self.data: pd.DataFrame = data
         self.mmmdata_spec: MMMData.MMMDataSpec = mmmdata_spec
+        self.exposure_vars: List[str] = []
         self.calculate_rolling_window_indices()
+        self.check_paid_media_vars()
 
     def __str__(self) -> str:
         """
@@ -301,3 +305,27 @@ class MMMData:
                     factor_variables or []
                 ) + non_factor_columns.index.tolist()
         self.mmmdata_spec.factor_vars = factor_variables
+
+    def check_paid_media_vars(self) -> None:
+        """Check and set paid media variables and exposure variables."""
+        # If paid_media_vars is None, use paid_media_spends
+        if self.mmmdata_spec.paid_media_vars is None:
+            self.mmmdata_spec.paid_media_vars = self.mmmdata_spec.paid_media_spends
+
+        # Check paid media variables and signs
+        paid_collect = check_paidmedia(
+            dt_input=self.data,
+            paid_media_vars=self.mmmdata_spec.paid_media_vars,
+            paid_media_signs=self.mmmdata_spec.paid_media_signs,
+            paid_media_spends=self.mmmdata_spec.paid_media_spends,
+        )
+
+        # Update paid_media_signs from the check
+        self.mmmdata_spec.paid_media_signs = paid_collect["paid_media_signs"]
+
+        # Calculate exposure variables (variables that are in paid_media_vars but not in paid_media_spends)
+        self.exposure_vars = [
+            var
+            for var in self.mmmdata_spec.paid_media_vars
+            if var not in self.mmmdata_spec.paid_media_spends
+        ]

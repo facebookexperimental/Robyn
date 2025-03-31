@@ -1112,23 +1112,33 @@ class RidgeModelEvaluator:
             for sign in self.holidays_data.prophet_signs
         ]
 
-        # Convert Enum values to strings
-        context_signs = (
-            [sign.value for sign in self.mmm_data.mmmdata_spec.context_signs]
-            if self.mmm_data.mmmdata_spec.context_signs
-            else ["default"] * len(self.mmm_data.mmmdata_spec.context_vars or [])
+        # Convert Enum values to strings, with proper type checking
+        def convert_signs(signs, default_value, count):
+            if not signs:
+                return [default_value] * count
+            return [
+                sign.value if isinstance(sign, Enum) else str(sign) for sign in signs
+            ]
+
+        # Handle context signs
+        context_signs = convert_signs(
+            self.mmm_data.mmmdata_spec.context_signs,
+            "default",
+            len(self.mmm_data.mmmdata_spec.context_vars or []),
         )
 
-        paid_media_signs = (
-            [sign.value for sign in self.mmm_data.mmmdata_spec.paid_media_signs]
-            if self.mmm_data.mmmdata_spec.paid_media_signs
-            else ["positive"] * len(self.mmm_data.mmmdata_spec.paid_media_spends or [])
+        # Handle paid media signs
+        paid_media_signs = convert_signs(
+            self.mmm_data.mmmdata_spec.paid_media_signs,
+            "positive",
+            len(self.mmm_data.mmmdata_spec.paid_media_spends or []),
         )
 
-        organic_signs = (
-            [sign.value for sign in self.mmm_data.mmmdata_spec.organic_signs]
-            if self.mmm_data.mmmdata_spec.organic_signs
-            else ["positive"] * len(self.mmm_data.mmmdata_spec.organic_vars or [])
+        # Handle organic signs
+        organic_signs = convert_signs(
+            self.mmm_data.mmmdata_spec.organic_signs,
+            "positive",
+            len(self.mmm_data.mmmdata_spec.organic_vars or []),
         )
 
         # Combine all signs in order (matching R's vector)
