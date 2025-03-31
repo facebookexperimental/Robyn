@@ -19,7 +19,7 @@ class AllocatorVisualizer(BaseVisualizer):
     def __init__(
         self,
         budget_allocator: BudgetAllocator,
-        metric: str = "CPA",
+        metric: str = "ROAS",
         quiet: bool = False,
     ):
         super().__init__()
@@ -513,7 +513,7 @@ class AllocatorVisualizer(BaseVisualizer):
             )
             plt.tight_layout(pad=2.0)
 
-            return {"p2": fig}
+            return fig
 
         except Exception as e:
             self.logger.error(
@@ -603,12 +603,15 @@ class AllocatorVisualizer(BaseVisualizer):
         )
 
         # 4. Create the plot with improved layout
+        num_channels = len(plotDT_scurve["constr_label"].unique())
+        num_rows = (num_channels + 2) // 3
+
         fig = make_subplots(
-            rows=((len(plotDT_scurve["constr_label"].unique()) + 2) // 3),
+            rows=num_rows,
             cols=3,
             subplot_titles=plotDT_scurve["constr_label"].unique(),
-            horizontal_spacing=0.1,
-            vertical_spacing=0.15,
+            horizontal_spacing=0.15,  # Increased from 0.1
+            vertical_spacing=0.25,  # Increased from 0.15
         )
 
         # Add traces for each channel
@@ -672,15 +675,13 @@ class AllocatorVisualizer(BaseVisualizer):
                         marker=dict(
                             size=10,
                             color=[
-                                color_map.get(
-                                    str(t), "red"
-                                )  # Keep red as fallback for debugging
+                                color_map.get(str(t), "red")
                                 for t in channel_points["type"]
                             ],
                             line=dict(color="black", width=1),
                         ),
                         name=channel,
-                        showlegend=True,
+                        showlegend=False,  # Changed to False to remove legend
                     ),
                     row=row,
                     col=col,
@@ -689,32 +690,30 @@ class AllocatorVisualizer(BaseVisualizer):
         # Update layout with improved formatting
         fig.update_layout(
             title={
-                "text": f"Simulated Response Curve per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type}",
-                "y": 0.95,
+                "text": (
+                    f"Simulated Response Curves<br>"
+                    f"<span style='font-size:10px'>"
+                    f"Spend per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type} "
+                    f"(grey area: mean historical carryover) | "
+                    f"Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]"
+                    "</span>"
+                ),
+                "y": 0.98,
                 "x": 0.02,
                 "xanchor": "left",
                 "yanchor": "top",
                 "font": {"size": 12},
             },
-            showlegend=True,
-            legend={
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "font": {"size": 8},
-            },
-            height=250 * ((len(plotDT_scurve["constr_label"].unique()) + 2) // 3),
+            showlegend=False,  # Remove legend
+            height=300 * num_rows,
             width=1000,
             template="plotly_white",
-            margin=dict(t=80, b=50, l=50, r=50),
+            margin=dict(t=120, b=50, l=50, r=50),
         )
 
-        # Update axes with improved formatting
+        # Update axes without repetitive text
         fig.update_xaxes(
-            title_text=f"Spend** per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type} (grey area: mean historical carryover)",
-            title_font={"size": 10},
+            title_text=None,  # Remove individual x-axis titles
             tickfont={"size": 8},
             showgrid=True,
             gridwidth=1,
@@ -725,8 +724,7 @@ class AllocatorVisualizer(BaseVisualizer):
         )
 
         fig.update_yaxes(
-            title_text=f"Total Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]",
-            title_font={"size": 10},
+            title_text=None,  # Remove individual y-axis titles
             tickfont={"size": 8},
             showgrid=True,
             gridwidth=1,
@@ -736,15 +734,29 @@ class AllocatorVisualizer(BaseVisualizer):
             zerolinecolor="rgba(128, 128, 128, 0.2)",
         )
 
-        # Update subplot titles
-        for annotation in fig["layout"]["annotations"]:
+        # Update subplot titles with corrected positioning
+        for idx, annotation in enumerate(fig["layout"]["annotations"]):
             if annotation["text"] in plotDT_scurve["constr_label"].unique():
+                # Calculate row and column position
+                row = (idx // 3) + 1
+                col = (idx % 3) + 1
+
+                # Extract channel name and constraints
+                channel_name = annotation["text"].split("\n")[0]
+                constraints = annotation["text"].split("\n")[1]
+
+                # Update annotation properties with corrected y-position calculation
+                y_position = 1.15 - ((row - 1) * 0.8)  # Adjusted scaling factor
+
                 annotation.update(
                     {
+                        "text": f"{channel_name}<br><span style='font-size:8px'>{constraints}</span>",
                         "font": dict(size=10, weight="bold"),
-                        "y": 1.05,
+                        "y": y_position,
                         "yanchor": "bottom",
                         "xanchor": "center",
+                        "xref": "paper",
+                        "yref": "paper",
                     }
                 )
 

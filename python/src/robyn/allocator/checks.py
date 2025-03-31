@@ -155,18 +155,6 @@ def check_metric_dates(
     # Reset index of all_dates to ensure continuous indexing from 0
     all_dates = all_dates.reset_index(drop=True)
 
-    # Debug prints
-    print("\nDebug info for check_metric_dates:")
-    print(f"date_range: {date_range}")
-    print(f"all_dates type: {type(all_dates)}")
-    print(
-        f"all_dates shape: {all_dates.shape if hasattr(all_dates, 'shape') else 'no shape'}"
-    )
-    print(
-        f"all_dates head: {all_dates.head() if hasattr(all_dates, 'head') else 'no head method'}"
-    )
-    print(f"day_interval: {day_interval}")
-
     # Default handling
     if date_range is None:
         if day_interval is None:

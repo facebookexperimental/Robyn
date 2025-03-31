@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import base64
 import io
+import plotly.graph_objects as go
 
 logger = logging.getLogger(__name__)
 
@@ -326,14 +327,16 @@ class BaseVisualizer(ABC):
 
     @staticmethod
     def export_plots_fig(
-        export_location: Union[str, Path], plots: Dict[str, plt.Figure], dpi: int = 300
+        export_location: Union[str, Path],
+        plots: Dict[str, Union[plt.Figure, "go.Figure"]],
+        dpi: int = 300,
     ) -> None:
         """
         Save multiple plots to the specified location.
 
         Args:
             export_location: Directory to save the plots
-            plots: Dictionary of plot names and their corresponding figures
+            plots: Dictionary of plot names and their corresponding figures (matplotlib or plotly)
             dpi: Resolution for saved plots
         """
         logger.info("Saving multiple plots to: %s", export_location)
@@ -344,13 +347,16 @@ class BaseVisualizer(ABC):
             filename = export_path / f"{plot_name}.png"
             logger.debug("Saving plot: %s to %s", plot_name, filename)
             try:
-                fig.savefig(
-                    filename,
-                    dpi=dpi,
-                    bbox_inches="tight",
-                    facecolor="white",
-                    edgecolor="none",
-                )
+                if hasattr(fig, "write_image"):  # Plotly figure
+                    fig.write_image(str(filename), scale=2, width=1000, height=800)
+                else:  # Matplotlib figure
+                    fig.savefig(
+                        filename,
+                        dpi=dpi,
+                        bbox_inches="tight",
+                        facecolor="white",
+                        edgecolor="none",
+                    )
                 logger.info("Plot %s saved successfully", plot_name)
             except Exception as e:
                 logger.error("Failed to save plot %s: %s", plot_name, str(e))
