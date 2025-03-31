@@ -20,13 +20,10 @@ from .calculate_response import robyn_response, which_usecase
 from .checks import check_metric_dates, check_daterange
 
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
-from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
-from robyn.modeling.entities.model_refit_output import ModelRefitOutput
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.modeling.entities.pareto_result import ParetoResult
-from .optimizer import run_optimization, eval_f, eval_g_eq, eval_g_ineq, eval_g_eq_effi
+from .optimizer import run_optimization, eval_f, eval_g_eq, eval_g_ineq
 
 
 class BudgetAllocator:
@@ -399,16 +396,6 @@ class BudgetAllocator:
             self.dt_coef_sorted["coef"].values, index=self.dt_coef_sorted["rn"]
         ).reindex(self.media_spend_sorted)
 
-        # Debug prints
-        if not self.params.quiet:
-            print("\nHill Parameters:")
-            for media in self.media_spend_sorted:
-                print(f"\n{media}:")
-                print(f"  Alpha: {alphas[f'{media}_alphas']:.6f}")
-                print(f"  Gamma: {gammas[f'{media}_gammas']:.6f}")
-                print(f"  Inflexion: {inflexions[f'{media}_gammas']:.6f}")
-                print(f"  Coefficient: {coefs_sorted[media]:.6f}")
-
         return {
             "alphas": alphas,
             "inflexions": inflexions,
@@ -435,73 +422,6 @@ class BudgetAllocator:
                 dt_hyppar=self.pareto_result.result_hyp_param,
                 dt_coef=self.pareto_result.x_decomp_agg,
             )
-
-            # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            # Log response values
-            def convert_to_serializable(obj):
-                if isinstance(obj, pd.Series):
-                    return obj.tolist()
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                if isinstance(obj, (pd.Timestamp, datetime)):
-                    return str(obj)
-                if isinstance(obj, (list, tuple)):
-                    return [
-                        str(x) if isinstance(x, (pd.Timestamp, datetime)) else x
-                        for x in obj
-                    ]
-                if isinstance(obj, (dict_keys, dict_values)):
-                    return list(obj)
-                return obj
-
-            # Get keys and types info
-            keys_info = {
-                key: {
-                    "type": str(type(value).__name__),
-                    "shape": (
-                        value.shape
-                        if hasattr(value, "shape")
-                        else len(value) if hasattr(value, "__len__") else "scalar"
-                    ),
-                }
-                for key, value in response.items()
-            }
-
-            # self.logger.debug(
-            #     json.dumps(
-            #         {
-            #             "step": "response_values",
-            #             "keys_info": keys_info,
-            #             "data": {
-            #                 "response_cols": list(response.keys()),  # Convert to list
-            #                 "metric_name": response["metric_name"],
-            #                 "date": convert_to_serializable(response["date"]),
-            #                 "input_total": convert_to_serializable(
-            #                     response["input_total"]
-            #                 ),
-            #                 "input_carryover": convert_to_serializable(
-            #                     response["input_carryover"]
-            #                 ),
-            #                 "input_immediate": convert_to_serializable(
-            #                     response["input_immediate"]
-            #                 ),
-            #                 "response_total": convert_to_serializable(
-            #                     response["response_total"]
-            #                 ),
-            #                 "response_carryover": convert_to_serializable(
-            #                     response["response_carryover"]
-            #                 ),
-            #                 "response_immediate": convert_to_serializable(
-            #                     response["response_immediate"]
-            #                 ),
-            #                 "usecase": response["usecase"],
-            #             },
-            #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            #         },
-            #         indent=2,
-            #     )
-            # )
-            # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
             # Store carryover values with dates as index
             hist_carryover_temp = response["input_carryover"][self.window_loc]

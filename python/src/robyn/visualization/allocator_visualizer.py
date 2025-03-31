@@ -40,19 +40,11 @@ class AllocatorVisualizer(BaseVisualizer):
         init_total_response = self.dt_optim_out["initResponseTotal"].iloc[0]
         init_total_roi = init_total_response / init_total_spend
         init_total_cpa = init_total_spend / init_total_response
-        print("\nInitial values:")
-        print(f"init_total_spend: {init_total_spend:,.2f}")
-        print(f"init_total_response: {init_total_response:,.2f}")
-        print(f"init_total_roi: {init_total_roi:.2f}")
-        print(f"init_total_cpa: {init_total_cpa:.2f}")
         # Bounded optimization values
         optm_total_spend_bounded = self.dt_optim_out["optmSpendTotal"].iloc[0]
         optm_total_response_bounded = self.dt_optim_out["optmResponseTotal"].iloc[0]
         optm_total_roi_bounded = optm_total_response_bounded / optm_total_spend_bounded
         optm_total_cpa_bounded = optm_total_spend_bounded / optm_total_response_bounded
-        print("\nBounded values:")
-        print(f"optm_total_spend_bounded: {optm_total_spend_bounded:,.2f}")
-        print(f"optm_total_response_bounded: {optm_total_response_bounded:,.2f}")
         # Unbounded optimization values
         optm_total_spend_unbounded = self.dt_optim_out["optmSpendTotalUnbound"].iloc[0]
         optm_total_response_unbounded = self.dt_optim_out[
@@ -65,9 +57,6 @@ class AllocatorVisualizer(BaseVisualizer):
             optm_total_spend_unbounded / optm_total_response_unbounded
         )
         bound_mult = self.dt_optim_out["unconstr_mult"].iloc[0]
-        print("\nUnbounded values:")
-        print(f"optm_total_spend_unbounded: {optm_total_spend_unbounded:,.2f}")
-        print(f"optm_total_response_unbounded: {optm_total_response_unbounded:,.2f}")
 
         # Check if optimization topped out
         optm_topped_bounded = optm_topped_unbounded = any_topped = False
