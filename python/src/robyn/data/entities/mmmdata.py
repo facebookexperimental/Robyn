@@ -10,8 +10,8 @@ from robyn.data.entities.enums import (
     OrganicSigns,
     PaidMediaSigns,
 )
-from robyn.data.validation.checks import check_paidmedia
 import logging
+from robyn.data.validation.mmmdata_utils import MMMDataUtils
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +313,7 @@ class MMMData:
             self.mmmdata_spec.paid_media_vars = self.mmmdata_spec.paid_media_spends
 
         # Check paid media variables and signs
-        paid_collect = check_paidmedia(
+        paid_collect = MMMDataUtils.check_paidmedia(
             dt_input=self.data,
             paid_media_vars=self.mmmdata_spec.paid_media_vars,
             paid_media_signs=self.mmmdata_spec.paid_media_signs,

@@ -1,21 +1,12 @@
 from typing import Optional, List, Dict, Any, Union
 import pandas as pd
 import numpy as np
-from .checks import (
-    check_metric_dates,
-    check_metric_type,
-    check_metric_value,
-    check_adstock,
-)
 from scipy.stats import weibull_min
-from scipy.stats import norm
 from robyn.data.entities.mmmdata import MMMData
-from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
-from robyn.modeling.entities.modelrun_trials_config import TrialsConfig
-from robyn.modeling.entities.model_refit_output import ModelRefitOutput
 from robyn.modeling.feature_engineering import FeaturizedMMMData
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.modeling.entities.pareto_result import ParetoResult
+from robyn.data.validation.mmmdata_utils import MMMDataUtils
 
 
 def which_usecase(
@@ -69,7 +60,7 @@ def mic_men(x: float, Vmax: float, Km: float, reverse: bool = False) -> float:
     return mm_out
 
 
-def robyn_response(
+def calculate_response(
     mmm_data: MMMData,
     pareto_result: ParetoResult,
     hyperparameters: Hyperparameters,
@@ -121,7 +112,7 @@ def robyn_response(
     usecase = which_usecase(metric_value, date_range)
 
     # Check inputs with usecases
-    metric_type = check_metric_type(
+    metric_type = MMMDataUtils.check_metric_type(
         metric_name, paid_media_spends, paid_media_vars, exposure_vars, organic_vars
     )
 
@@ -135,7 +126,7 @@ def robyn_response(
     print("all_values", all_values)
     # Handle different use cases
     if usecase == "all_historical_vec":
-        ds_list = check_metric_dates(
+        ds_list = MMMDataUtils.check_metric_dates(
             date_range="all",
             all_dates=all_dates[:end_rw],  # Now passing a pandas Series
             day_interval=day_interval,
@@ -144,7 +135,7 @@ def robyn_response(
         )
         metric_value = None
     elif usecase == "unit_metric_default_last_n":
-        ds_list = check_metric_dates(
+        ds_list = MMMDataUtils.check_metric_dates(
             date_range=f"last_{len(metric_value)}",
             all_dates=all_dates[:end_rw],
             day_interval=day_interval,
@@ -152,7 +143,7 @@ def robyn_response(
             **kwargs,
         )
     else:
-        ds_list = check_metric_dates(
+        ds_list = MMMDataUtils.check_metric_dates(
             date_range=date_range,
             all_dates=all_dates[:end_rw],
             day_interval=day_interval,
@@ -160,19 +151,8 @@ def robyn_response(
             **kwargs,
         )
 
-    # Before check_metric_value call
-    print("\nDebug info before check_metric_value:")
-    print(f"metric_value type: {type(metric_value)}")
-    print(f"metric_name: {metric_name}")
-    print(f"all_values type: {type(all_values)}")
-    print(
-        f"all_values shape: {all_values.shape if hasattr(all_values, 'shape') else len(all_values)}"
-    )
-    print(f"metric_loc type: {type(ds_list['metric_loc'])}")
-    print(f"metric_loc: {ds_list['metric_loc'][:5]}...")  # Show first 5 elements
-
     # Check metric values
-    val_list = check_metric_value(
+    val_list = MMMDataUtils.check_metric_value(
         metric_value, metric_name, all_values, ds_list["metric_loc"]
     )
     date_range_updated = ds_list["date_range_updated"]
@@ -356,7 +336,7 @@ def transform_adstock(
         Dictionary containing transformed values
     """
     # Validate adstock type
-    check_adstock(adstock)
+    MMMDataUtils.check_adstock(adstock)
 
     # Set default windlen if not provided
     if windlen is None:

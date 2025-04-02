@@ -10,14 +10,13 @@ from .entities.optimization_result import OptimizationResult
 from .entities.constraints import Constraints
 from .constants import (
     SCENARIO_MAX_RESPONSE,
+    SCENARIO_TARGET_EFFICIENCY,
     ALGO_SLSQP_AUGLAG,
-    CONSTRAINT_MODE_EQ,
-    DEFAULT_CONSTRAINT_MULTIPLIER,
-    DATE_RANGE_ALL,
+    ALGO_MMA_AUGLAG,
 )
 from datetime import datetime
-from .calculate_response import robyn_response, which_usecase
-from .checks import check_metric_dates, check_daterange
+from .response import calculate_response, which_usecase
+from robyn.data.validation.mmmdata_utils import MMMDataUtils
 
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.feature_engineering import FeaturizedMMMData
@@ -113,15 +112,15 @@ class BudgetAllocator:
 
         # Set up channel constraints
         if self.params.channel_constr_low is None:
-            if self.params.scenario == "max_response":
+            if self.params.scenario == SCENARIO_MAX_RESPONSE:
                 self.params.channel_constr_low = 0.5
-            elif self.params.scenario == "target_efficiency":
+            elif self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
                 self.params.channel_constr_low = 0.1
 
         if self.params.channel_constr_up is None:
-            if self.params.scenario == "max_response":
+            if self.params.scenario == SCENARIO_MAX_RESPONSE:
                 self.params.channel_constr_up = 2
-            elif self.params.scenario == "target_efficiency":
+            elif self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
                 self.params.channel_constr_up = 10
 
         # Replicate single values if needed
@@ -215,7 +214,7 @@ class BudgetAllocator:
         ].copy()
 
         # Check and update date range
-        date_range = check_metric_dates(
+        date_range = MMMDataUtils.check_metric_dates(
             date_range=self.params.date_range,
             all_dates=pd.Series(self.dt_optim_cost["ds"]),  # Convert to Series
             day_interval=self.mmm_data.mmmdata_spec.interval_type,
@@ -224,7 +223,9 @@ class BudgetAllocator:
         self.date_max = date_range["date_range_updated"][-1]
 
         # Validate date range
-        check_daterange(self.date_min, self.date_max, self.dt_optim_cost["ds"])
+        MMMDataUtils.check_daterange(
+            self.date_min, self.date_max, self.dt_optim_cost["ds"]
+        )
 
         # Adjust date range if needed
         if self.date_min is None:
@@ -317,9 +318,6 @@ class BudgetAllocator:
         )
         self.usecase = f"{self.usecase} {budget_type}"
 
-        if not self.params.quiet:
-            print(f"\nUse case: {self.usecase}")
-
     def _get_hyper_names(self, adstock: str, media_list: List[str]) -> List[str]:
         """Get hyperparameter column names based on adstock type and media list"""
         base_params = ["alphas", "gammas"]
@@ -400,7 +398,7 @@ class BudgetAllocator:
 
         # Calculate response for each media channel
         for media in self.media_spend_sorted:
-            response = robyn_response(
+            response = calculate_response(
                 mmm_data=self.mmm_data,
                 featurized_mmm_data=self.featurized_mmm_data,
                 pareto_result=self.pareto_result,
@@ -449,13 +447,6 @@ class BudgetAllocator:
             self.init_response_unit[media] = resp_simulate
             self.init_response_marg_unit[media] = resp_simulate_plus1 - resp_simulate
 
-            if not self.params.quiet:
-                print(f"\nResponse values for {media}:")
-                print(f"  Response Unit: {self.init_response_unit[media]:.6f}")
-                print(
-                    f"  Response Marginal Unit: {self.init_response_marg_unit[media]:.6f}"
-                )
-
         # Convert qa_carryover to DataFrame
         self.qa_carryover = pd.DataFrame(self.qa_carryover)
 
@@ -466,7 +457,7 @@ class BudgetAllocator:
             if self.init_spend_unit[media] == 0
         ]
         if zero_spend_channels and not self.params.quiet:
-            print(
+            self.logger.debug(
                 f"\nMedia variables with 0 spending during date range: {', '.join(zero_spend_channels)}"
             )
 
@@ -734,9 +725,9 @@ class BudgetAllocator:
         }
 
         # Set optimization options based on algorithm
-        if self.params.optim_algo == "MMA_AUGLAG":
+        if self.params.optim_algo == ALGO_MMA_AUGLAG:
             self.local_opts = {"algorithm": "NLOPT_LD_MMA", "xtol_rel": 1.0e-10}
-        elif self.params.optim_algo == "SLSQP_AUGLAG":
+        elif self.params.optim_algo == ALGO_SLSQP_AUGLAG:
             self.local_opts = {"algorithm": "NLOPT_LD_SLSQP", "xtol_rel": 1.0e-10}
         else:
             raise ValueError(
@@ -785,7 +776,7 @@ class BudgetAllocator:
         x_hist_carryover = {k: np.mean(v) for k, v in self.hist_carryover_eval.items()}
 
         # Run optimization based on scenario
-        if self.params.scenario == "max_response":
+        if self.params.scenario == SCENARIO_MAX_RESPONSE:
             # Bounded optimization
             nls_mod = run_optimization(
                 x0=self.x0,
@@ -860,7 +851,7 @@ class BudgetAllocator:
                     indent=2,
                 )
             )
-        elif self.params.scenario == "target_efficiency":
+        elif self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
             # Bounded optimization
             nls_mod = run_optimization(
                 x0=self.x0,
