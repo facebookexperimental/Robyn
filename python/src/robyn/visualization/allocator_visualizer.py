@@ -771,7 +771,7 @@ class AllocatorVisualizer(BaseVisualizer):
                     f"<span style='font-size:10px'>"
                     f"Spend per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type} "
                     f"(grey area: mean historical carryover) | "
-                    f"Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type.value}]"
+                    f"Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]"
                     "</span>"
                 ),
                 "y": 0.95,
@@ -804,7 +804,7 @@ class AllocatorVisualizer(BaseVisualizer):
                     font=dict(size=10),
                 ),
                 dict(
-                    text=f"Total Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type.value}]",
+                    text=f"Total Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]",
                     x=-0.08,  # Adjusted position
                     y=0.35,
                     xref="paper",

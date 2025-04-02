@@ -79,9 +79,28 @@ class ResponseVisualizer(BaseVisualizer):
             curve_data = plot_data["plot4data"]["dt_scurvePlot"].copy()
             mean_data = plot_data["plot4data"]["dt_scurvePlotMean"].copy()
 
-            # Add debug logging
-            logger.debug("Curve data head:\n%s", curve_data.head())
-            logger.debug("Mean data:\n%s", mean_data)
+            # Add filtering for paid media channels and trim rate
+            if trim_rate > 0:
+                max_mean_spend = mean_data["mean_spend_adstocked"].max()
+                max_mean_response = mean_data["mean_response"].max()
+                curve_data = curve_data[
+                    (curve_data["spend"] < max_mean_spend * trim_rate)
+                    & (curve_data["response"] < max_mean_response * trim_rate)
+                    & (
+                        curve_data["channel"].isin(
+                            self.mmm_data.mmmdata_spec.paid_media_spends
+                        )
+                    )
+                ]
+                # Add mean carryover information early
+                curve_data = curve_data.merge(
+                    mean_data[["channel", "mean_carryover"]], on="channel", how="left"
+                )
+
+            # Filter mean data to match curve data channels
+            mean_data = mean_data[
+                mean_data["channel"].isin(curve_data["channel"].unique())
+            ]
 
             # Scale down the values to thousands
             curve_data["spend"] = curve_data["spend"] / 1000
