@@ -389,7 +389,7 @@ class Robyn:
 
             if display_plots or export_plots:
                 allocator_visualizer = AllocatorVisualizer(budget_allocator=allocator)
-                allocator_visualizer.plot_all(display_plots, self.working_dir)
+                _ = allocator_visualizer.plot_all(display_plots, self.working_dir)
 
             logger.info("Budget optimization complete")
             return allocator

@@ -502,6 +502,7 @@ class AllocatorVisualizer(BaseVisualizer):
                 axes[i].set_title(type_name, fontsize=8)
                 axes[i].set_ylabel("Paid Media" if i == 0 else "", fontsize=8)
                 axes[i].tick_params(axis="both", labelsize=8)
+                axes[i].set_xlabel("")  # Remove the "metric" label
 
                 # Rotate x-axis labels
                 axes[i].set_xticklabels(
@@ -512,6 +513,9 @@ class AllocatorVisualizer(BaseVisualizer):
                 f"Budget Allocation per Paid Media Variable per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type}*",
             )
             plt.tight_layout(pad=2.0)
+
+            # Add this line to prevent double display
+            plt.close(fig)
 
             return fig
 
@@ -722,9 +726,6 @@ class AllocatorVisualizer(BaseVisualizer):
                     # First add the dotted lines between bounds
                     for _, point in bounded_points.iterrows():
                         if pd.notna(point["plot_lb"]) and pd.notna(point["plot_ub"]):
-                            print(
-                                f"Adding error bar for point: lb={point['plot_lb']}, ub={point['plot_ub']}, response={point['response_point']}"
-                            )
                             fig.add_trace(
                                 go.Scatter(
                                     x=[point["plot_lb"], point["plot_ub"]],
