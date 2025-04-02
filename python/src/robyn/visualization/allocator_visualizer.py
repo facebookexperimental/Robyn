@@ -220,11 +220,11 @@ class AllocatorVisualizer(BaseVisualizer):
             showlegend=True,
             legend={
                 "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.1,
-                "xanchor": "right",
-                "x": 1,
-                "font": {"size": 8},
+                "yanchor": "top",  # Keep as top
+                "y": 0.9,  # Higher value to position near the top
+                "xanchor": "left",
+                "x": 0.02,
+                "font": {"size": 10},
             },
             height=500,
             width=1000,
@@ -578,21 +578,32 @@ class AllocatorVisualizer(BaseVisualizer):
         # Merge and calculate constraint bounds
         mainPoints = mainPoints.merge(caov_points, on="channel")
 
-        # Calculate constraint bounds
-        def adjust_bounds(row, bound_col, type_val):
-            if row["type"] == type_val:
-                return row[bound_col] + row["caov_spend"]
-            return np.nan
+        # Get the levels from resp_metric
+        levs1 = self.resp_metric[
+            "type"
+        ].unique()  # Should contain ["Initial", "Unbounded"]
 
-        for bound in ["constr_low_abs", "constr_up_abs"]:
-            mainPoints[bound] = mainPoints.apply(
-                lambda row: adjust_bounds(row, bound, "Initial"), axis=1
-            )
-
-        for bound in ["constr_low_unb_abs", "constr_up_unb_abs"]:
-            mainPoints[bound] = mainPoints.apply(
-                lambda row: adjust_bounds(row, bound, "Unbounded"), axis=1
-            )
+        # Calculate constraint bounds directly using pandas operations
+        mainPoints["constr_low_abs"] = np.where(
+            mainPoints["type"] == levs1[1],  # levs1[1] should be "Initial"
+            mainPoints["constr_low_abs"] + mainPoints["caov_spend"],
+            np.nan,
+        )
+        mainPoints["constr_up_abs"] = np.where(
+            mainPoints["type"] == levs1[1],
+            mainPoints["constr_up_abs"] + mainPoints["caov_spend"],
+            np.nan,
+        )
+        mainPoints["constr_low_unb_abs"] = np.where(
+            mainPoints["type"] == levs1[2],  # levs1[2] should be "Unbounded"
+            mainPoints["constr_low_unb_abs"] + mainPoints["caov_spend"],
+            np.nan,
+        )
+        mainPoints["constr_up_unb_abs"] = np.where(
+            mainPoints["type"] == levs1[2],
+            mainPoints["constr_up_unb_abs"] + mainPoints["caov_spend"],
+            np.nan,
+        )
 
         # Calculate plot bounds
         mainPoints["plot_lb"] = mainPoints["constr_low_abs"].fillna(
@@ -622,7 +633,25 @@ class AllocatorVisualizer(BaseVisualizer):
             channel_data = plotDT_scurve[plotDT_scurve["constr_label"] == channel]
             channel_points = mainPoints[mainPoints["constr_label"] == channel]
 
-            # Response curve
+            # Carryover area first
+            carryover_data = channel_data[
+                channel_data["spend"] <= channel_data["mean_carryover"].iloc[0]
+            ]
+            if not carryover_data.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=carryover_data["spend"],
+                        y=carryover_data["total_response"],
+                        fill="tozeroy",
+                        fillcolor="rgba(128, 128, 128, 0.4)",
+                        mode="none",  # Changed from line=dict(width=0)
+                        showlegend=False,
+                    ),
+                    row=row,
+                    col=col,
+                )
+
+            # Response curve second
             fig.add_trace(
                 go.Scatter(
                     x=channel_data["spend"],
@@ -636,24 +665,6 @@ class AllocatorVisualizer(BaseVisualizer):
                 col=col,
             )
 
-            # Carryover area
-            carryover_data = channel_data[
-                channel_data["spend"] <= channel_data["mean_carryover"].iloc[0]
-            ]
-            if not carryover_data.empty:
-                fig.add_trace(
-                    go.Scatter(
-                        x=carryover_data["spend"],
-                        y=carryover_data["total_response"],
-                        fill="tozeroy",
-                        fillcolor="rgba(128, 128, 128, 0.4)",
-                        line=dict(width=0),
-                        showlegend=False,
-                    ),
-                    row=row,
-                    col=col,
-                )
-
             # Add points and error bars
             if not channel_points.empty:
                 # Get the bound multiplier from the data
@@ -664,28 +675,93 @@ class AllocatorVisualizer(BaseVisualizer):
                     "Carryover": "white",
                     "Initial": "grey",
                     "Bounded": "steelblue",
-                    f"Bounded x{bound_mult}": "darkgoldenrod",  # Dynamic key based on actual multiplier
+                    f"Bounded x{bound_mult}": "darkgoldenrod",
                 }
 
-                fig.add_trace(
-                    go.Scatter(
-                        x=channel_points["spend_point"],
-                        y=channel_points["response_point"],
-                        mode="markers",
-                        marker=dict(
-                            size=10,
-                            color=[
-                                color_map.get(str(t), "red")
-                                for t in channel_points["type"]
-                            ],
-                            line=dict(color="black", width=1),
-                        ),
-                        name=channel,
-                        showlegend=False,  # Changed to False to remove legend
-                    ),
-                    row=row,
-                    col=col,
-                )
+                # Add points for each type (only add to legend for first subplot)
+                for type_label in color_map.keys():
+                    # Use type column for Carryover, type_lab for others
+                    if type_label == "Carryover":
+                        type_points = channel_points[
+                            channel_points["type"] == "Carryover"
+                        ]
+                    else:
+                        type_points = channel_points[
+                            channel_points["type_lab"] == type_label
+                        ]
+
+                    if not type_points.empty:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=type_points["spend_point"],
+                                y=type_points["response_point"],
+                                mode="markers",
+                                marker=dict(
+                                    size=10,
+                                    color=color_map[type_label],
+                                    line=dict(color="black", width=1),
+                                ),
+                                name=type_label,
+                                legendgroup=type_label,
+                                showlegend=(
+                                    i == 0
+                                ),  # Only show in legend for first subplot
+                            ),
+                            row=row,
+                            col=col,
+                        )
+
+                # Add error bars only for Bounded and Bounded x{bound_mult} points
+                bounded_points = channel_points[
+                    channel_points["type_lab"].isin(
+                        ["Bounded", f"Bounded x{bound_mult}"]
+                    )
+                ].copy()  # Add .copy() to avoid SettingWithCopyWarning
+
+                if not bounded_points.empty:
+                    # First add the dotted lines between bounds
+                    for _, point in bounded_points.iterrows():
+                        if pd.notna(point["plot_lb"]) and pd.notna(point["plot_ub"]):
+                            print(
+                                f"Adding error bar for point: lb={point['plot_lb']}, ub={point['plot_ub']}, response={point['response_point']}"
+                            )
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=[point["plot_lb"], point["plot_ub"]],
+                                    y=[
+                                        point["response_point"],
+                                        point["response_point"],
+                                    ],
+                                    mode="lines",
+                                    line=dict(color="black", width=1, dash="dot"),
+                                    showlegend=False,
+                                ),
+                                row=row,
+                                col=col,
+                            )
+
+                    # Then add the triangular markers at the bounds
+                    for bound, symbol in [
+                        ("plot_lb", "triangle-left"),
+                        ("plot_ub", "triangle-right"),
+                    ]:
+                        bound_points = bounded_points[pd.notna(bounded_points[bound])]
+                        if not bound_points.empty:
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=bound_points[bound],
+                                    y=bound_points["response_point"],
+                                    mode="markers",
+                                    marker=dict(
+                                        symbol=symbol,
+                                        size=8,
+                                        color="black",
+                                    ),
+                                    showlegend=False,
+                                ),
+                                row=row,
+                                col=col,
+                            )
 
         # Update layout with improved formatting
         fig.update_layout(
@@ -695,25 +771,53 @@ class AllocatorVisualizer(BaseVisualizer):
                     f"<span style='font-size:10px'>"
                     f"Spend per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type} "
                     f"(grey area: mean historical carryover) | "
-                    f"Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]"
+                    f"Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type.value}]"
                     "</span>"
                 ),
-                "y": 0.98,
+                "y": 0.95,
                 "x": 0.02,
                 "xanchor": "left",
                 "yanchor": "top",
                 "font": {"size": 12},
             },
-            showlegend=False,  # Remove legend
+            showlegend=True,
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=0.85,
+                xanchor="left",
+                x=1.05,
+                font=dict(size=10),
+            ),
             height=300 * num_rows,
             width=1000,
             template="plotly_white",
-            margin=dict(t=120, b=50, l=50, r=50),
+            margin=dict(t=80, b=80, l=120, r=50),  # Reduced top margin from 120 to 80
+            annotations=[
+                dict(
+                    text=f"Spend** per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type}",
+                    x=0.5,
+                    y=-0.15,
+                    xref="paper",
+                    yref="paper",
+                    showarrow=False,
+                    font=dict(size=10),
+                ),
+                dict(
+                    text=f"Total Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type.value}]",
+                    x=-0.08,  # Adjusted position
+                    y=0.35,
+                    xref="paper",
+                    yref="paper",
+                    showarrow=False,
+                    textangle=-90,
+                    font=dict(size=10),
+                ),
+            ],
         )
 
-        # Update axes without repetitive text
+        # Update axes without titles (remove title_text from both)
         fig.update_xaxes(
-            title_text=None,  # Remove individual x-axis titles
             tickfont={"size": 8},
             showgrid=True,
             gridwidth=1,
@@ -724,7 +828,6 @@ class AllocatorVisualizer(BaseVisualizer):
         )
 
         fig.update_yaxes(
-            title_text=None,  # Remove individual y-axis titles
             tickfont={"size": 8},
             showgrid=True,
             gridwidth=1,
@@ -733,32 +836,6 @@ class AllocatorVisualizer(BaseVisualizer):
             zerolinewidth=1,
             zerolinecolor="rgba(128, 128, 128, 0.2)",
         )
-
-        # Update subplot titles with corrected positioning
-        for idx, annotation in enumerate(fig["layout"]["annotations"]):
-            if annotation["text"] in plotDT_scurve["constr_label"].unique():
-                # Calculate row and column position
-                row = (idx // 3) + 1
-                col = (idx % 3) + 1
-
-                # Extract channel name and constraints
-                channel_name = annotation["text"].split("\n")[0]
-                constraints = annotation["text"].split("\n")[1]
-
-                # Update annotation properties with corrected y-position calculation
-                y_position = 1.15 - ((row - 1) * 0.8)  # Adjusted scaling factor
-
-                annotation.update(
-                    {
-                        "text": f"{channel_name}<br><span style='font-size:8px'>{constraints}</span>",
-                        "font": dict(size=10, weight="bold"),
-                        "y": y_position,
-                        "yanchor": "bottom",
-                        "xanchor": "center",
-                        "xref": "paper",
-                        "yref": "paper",
-                    }
-                )
 
         return fig
 

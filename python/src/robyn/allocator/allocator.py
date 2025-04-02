@@ -55,7 +55,7 @@ class BudgetAllocator:
         self.pareto_result = pareto_result
         self.select_model = select_model
         self.params = params
-        self.params.quiet = False
+        self.params.quiet = True
 
         # Initialize optimization components
         self._setup_local_data_and_params()
