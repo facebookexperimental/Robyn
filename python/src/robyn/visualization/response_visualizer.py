@@ -53,28 +53,7 @@ class ResponseVisualizer(BaseVisualizer):
         try:
             # Add debug logging to inspect plot4data structure
             plot_data = self.pareto_result.plot_data_collect[solution_id]
-            logger.debug("plot4data keys: %s", plot_data["plot4data"].keys())
-            logger.debug(
-                "dt_scurvePlot structure:\n%s",
-                plot_data["plot4data"]["dt_scurvePlot"].info(),
-            )
-            logger.debug(
-                "dt_scurvePlotMean structure:\n%s",
-                plot_data["plot4data"]["dt_scurvePlotMean"].info(),
-            )
 
-            # Original data before any transformations
-            logger.debug(
-                "Original dt_scurvePlot sample:\n%s",
-                plot_data["plot4data"]["dt_scurvePlot"].head(10),
-            )
-            logger.debug(
-                "Original dt_scurvePlotMean:\n%s",
-                plot_data["plot4data"]["dt_scurvePlotMean"],
-            )
-
-            # Get plot data for specific solution
-            logger.debug("Extracting plot data from pareto results")
             curve_data = plot_data["plot4data"]["dt_scurvePlot"].copy()
             mean_data = plot_data["plot4data"]["dt_scurvePlotMean"].copy()
 
