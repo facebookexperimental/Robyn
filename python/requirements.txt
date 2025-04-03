@@ -15,3 +15,4 @@ ipykernel==6.29.5
 rpy2==3.5.16
 kaleido==0.2.1
 nlopt==2.9.1
+nbformat==5.10.4
