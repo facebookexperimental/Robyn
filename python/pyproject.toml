@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "robynpy"
-version = "0.3.2"
+version = "0.3.5"
 authors = [
   { name="Gufeng Zhou", email="gufeng@meta.com" },
   { name="Igor Skokan", email="igorskokan@meta.com" },
@@ -31,11 +31,11 @@ dependencies = [
     "tqdm",
     "pytest",
     "plotly",
-    "nlopt",
     "ipykernel",
     "rpy2==3.5.16",
     "kaleido==0.2.1",
     "nlopt==2.9.1",
+    "nbformat==5.10.4",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]
