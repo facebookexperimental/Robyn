@@ -75,7 +75,7 @@ class MMMData:
             self.rolling_window_end_which: int = rolling_window_end_which
             self.paid_media_spends: Optional[List[str]] = paid_media_spends
             self.paid_media_vars: Optional[List[str]] = paid_media_vars
-            self.paid_media_signs: Optional[List[str]] = paid_media_signs
+            self.paid_media_signs: Optional[List[PaidMediaSigns]] = paid_media_signs
             self.organic_vars: Optional[List[str]] = organic_vars
             self.organic_signs: Optional[List[str]] = organic_signs
             self.context_vars: Optional[List[str]] = context_vars
@@ -312,16 +312,26 @@ class MMMData:
         if self.mmmdata_spec.paid_media_vars is None:
             self.mmmdata_spec.paid_media_vars = self.mmmdata_spec.paid_media_spends
 
+        # Convert enum values to strings
+        paid_media_signs_str = (
+            [sign.value for sign in self.mmmdata_spec.paid_media_signs]
+            if self.mmmdata_spec.paid_media_signs
+            else None
+        )
+
         # Check paid media variables and signs
         paid_collect = MMMDataUtils.check_paidmedia(
             dt_input=self.data,
             paid_media_vars=self.mmmdata_spec.paid_media_vars,
-            paid_media_signs=self.mmmdata_spec.paid_media_signs,
+            paid_media_signs=paid_media_signs_str,  # Pass string values instead of enums
             paid_media_spends=self.mmmdata_spec.paid_media_spends,
         )
 
-        # Update paid_media_signs from the check
-        self.mmmdata_spec.paid_media_signs = paid_collect["paid_media_signs"]
+        # Convert strings back to enum values
+        self.mmmdata_spec.paid_media_signs = [
+            PaidMediaSigns.POSITIVE if sign == "positive" else PaidMediaSigns.NEGATIVE
+            for sign in paid_collect["paid_media_signs"]
+        ]
 
         # Calculate exposure variables (variables that are in paid_media_vars but not in paid_media_spends)
         self.exposure_vars = [

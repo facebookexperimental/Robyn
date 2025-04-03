@@ -120,10 +120,6 @@ def calculate_response(
     all_dates = dt_input[mmm_data.mmmdata_spec.date_var]  # This will be a pandas Series
     all_values = pd.Series(dt_input[metric_name].values)  # Keep this as numpy array
 
-    print("date_var", mmm_data.mmmdata_spec.date_var)
-    print("data.columns", mmm_data.data.columns)
-    print("all_dates", all_dates)
-    print("all_values", all_values)
     # Handle different use cases
     if usecase == "all_historical_vec":
         ds_list = MMMDataUtils.check_metric_dates(

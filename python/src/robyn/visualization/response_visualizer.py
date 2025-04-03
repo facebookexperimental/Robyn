@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Optional, Union
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import logging
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.pareto_result import ParetoResult
@@ -181,9 +180,10 @@ class ResponseVisualizer(BaseVisualizer):
                     ]
                     ax.fill_between(
                         carryover_data["spend"],
+                        np.zeros_like(carryover_data["spend"]),
                         carryover_data["response"],
                         color="grey",
-                        alpha=0.2,
+                        alpha=0.4,
                         zorder=1,
                     )
 
@@ -244,8 +244,7 @@ class ResponseVisualizer(BaseVisualizer):
 
             # Adjust legend to match R plot
             ax.legend(
-                bbox_to_anchor=(1.02, 0.5),
-                loc="center left",
+                loc="upper left",  # or any other position: 'lower right', 'center left', etc.
                 frameon=True,
                 framealpha=0.8,
                 facecolor="white",
