@@ -2,7 +2,7 @@
 
 ### The Open Source Marketing Mix Model Package from Meta Marketing Science
 
-<!-- [![Pypi\\\_Status\\\_Badge]([https://www.r-pkg.org/badges/version/Robyn)](https://cran.r-project.org/package=Robyn)](https://www.r-pkg.org/badges/version/Robyn)](https://cran.r-project.org/package=Robyn)) [![Downloads]([https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green)](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green)](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green)](https://cranlogs.r-pkg.org/badges/grand-total/Robyn?color=green)) [![Site]([https://img.shields.io/badge/site-Robyn-blue.svg)](https://facebookexperimental.github.io/Robyn/)](https://img.shields.io/badge/site-Robyn-blue.svg)](https://facebookexperimental.github.io/Robyn/)) [![Facebook]([https://img.shields.io/badge/group-Facebook-blue.svg)](https://www.facebook.com/groups/robynmmm/)](https://img.shields.io/badge/group-Facebook-blue.svg)](https://www.facebook.com/groups/robynmmm/)) [![CodeFactor]([https://www.codefactor.io/repository/github/facebookexperimental/robyn/badge)](https://www.codefactor.io/repository/github/facebookexperimental/robyn)](https://www.codefactor.io/repository/github/facebookexperimental/robyn/badge)](https://www.codefactor.io/repository/github/facebookexperimental/robyn)) -->
+[![Pypi Status Badge](https://img.shields.io/pypi/v/robynpy)](https://pypi.org/project/robynpy)
 
 ---
 
