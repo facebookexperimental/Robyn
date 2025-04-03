@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "robynpy"
-version = "0.2.1"
+version = "0.3.2"
 authors = [
   { name="Gufeng Zhou", email="gufeng@meta.com" },
   { name="Igor Skokan", email="igorskokan@meta.com" },
@@ -34,6 +34,8 @@ dependencies = [
     "nlopt",
     "ipykernel",
     "rpy2==3.5.16",
+    "kaleido==0.2.1",
+    "nlopt==2.9.1",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]

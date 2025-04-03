@@ -728,12 +728,14 @@ class ResponseCurveCalculator:
                 on=["sol_id", "rn"],
                 how="left",
             )
-            self.logger.info(
+            self.logger.debug(
                 "Final Pareto Data updated with response curves:\nDecomp Spend Distribution:\n"
             )
-            RobynLogger.log_df(self.logger, pareto_data.decomp_spend_dist, logging.INFO)
-            self.logger.info("X Spend Aggregated with response curves:\n")
-            RobynLogger.log_df(self.logger, pareto_data.x_decomp_agg, logging.INFO)
+            RobynLogger.log_df(
+                self.logger, pareto_data.decomp_spend_dist, logging.DEBUG
+            )
+            self.logger.debug("X Spend Aggregated with response curves:\n")
+            RobynLogger.log_df(self.logger, pareto_data.x_decomp_agg, logging.DEBUG)
             self.logger.info("Response curves calculated successfully")
 
             return pareto_data

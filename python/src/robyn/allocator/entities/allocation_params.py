@@ -1,6 +1,15 @@
 from dataclasses import dataclass
 from typing import List, Optional
 import numpy as np
+from robyn.allocator.constants import (
+    SCENARIO_MAX_RESPONSE,
+    SCENARIO_TARGET_EFFICIENCY,
+    ALGO_SLSQP_AUGLAG,
+    CONSTRAINT_MODE_EQ,
+    DEFAULT_CONSTRAINT_MULTIPLIER,
+    DEFAULT_MAX_EVAL,
+    DATE_RANGE_ALL,
+)
 
 
 @dataclass
@@ -25,13 +34,13 @@ class AllocatorParams:
     scenario: str
     total_budget: Optional[float] = None
     target_value: Optional[float] = None
-    date_range: str = "all"
+    date_range: str = DATE_RANGE_ALL
     channel_constr_low: List[float] = None
     channel_constr_up: List[float] = None
-    channel_constr_multiplier: float = 3.0
-    optim_algo: str = "SLSQP_AUGLAG"
-    maxeval: int = 100000
-    constr_mode: str = "eq"
+    channel_constr_multiplier: float = DEFAULT_CONSTRAINT_MULTIPLIER
+    optim_algo: str = ALGO_SLSQP_AUGLAG
+    maxeval: int = DEFAULT_MAX_EVAL
+    constr_mode: str = CONSTRAINT_MODE_EQ
     plots: bool = True
 
     def __post_init__(self):

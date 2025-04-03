@@ -76,12 +76,23 @@ class RidgeDataBuilder:
         end_idx = self.mmm_data.mmmdata_spec.rolling_window_end_which
         dt_input_train = self.mmm_data.data.iloc[start_idx : end_idx + 1]
 
-        # Get list of paid media columns
-        paid_media_cols = [
-            col
-            for col in dt_input_train.columns
-            if col in self.mmm_data.mmmdata_spec.paid_media_spends
-        ]
+        # Use the order from mmmdata_spec.paid_media_spends directly
+        paid_media_cols = self.mmm_data.mmmdata_spec.paid_media_spends
+
+        # Add debug logging
+        self.logger.debug("Debug channel order:")
+        self.logger.debug(f"dt_input_train.columns: {dt_input_train.columns.tolist()}")
+        self.logger.debug(
+            f"mmmdata_spec.paid_media_spends: {self.mmm_data.mmmdata_spec.paid_media_spends}"
+        )
+        self.logger.debug(f"Final paid_media_cols: {paid_media_cols}")
+
+        # Also log the actual values
+        self.logger.debug("\nChannel values:")
+        for col in paid_media_cols:
+            self.logger.debug(f"{col}:")
+            self.logger.debug(f"  Mean: {float(dt_input_train[col].mean())}")
+            self.logger.debug(f"  Total: {float(dt_input_train[col].sum())}")
 
         # Calculate initial spend metrics
         total_spend = (

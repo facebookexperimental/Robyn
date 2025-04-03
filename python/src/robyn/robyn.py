@@ -22,13 +22,13 @@ from robyn.modeling.clustering.cluster_builder import ClusterBuilder
 from robyn.modeling.clustering.clustering_config import ClusteringConfig
 from robyn.modeling.feature_engineering import FeatureEngineering, FeaturizedMMMData
 
-from robyn.allocator.optimizer import BudgetAllocator
+from robyn.allocator.allocator import BudgetAllocator
 from robyn.allocator.entities.allocation_params import AllocatorParams
 from robyn.allocator.entities.allocation_result import AllocationResult
 
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.reporting.onepager_reporting import OnePager
-from robyn.visualization.allocator_visualizer import AllocatorPlotter
+from robyn.visualization.allocator_visualizer import AllocatorVisualizer
 from robyn.visualization.cluster_visualizer import ClusterVisualizer
 from robyn.visualization.feature_visualization import FeaturePlotter
 from robyn.visualization.model_convergence_visualizer import ModelConvergenceVisualizer
@@ -387,16 +387,12 @@ class Robyn:
                 params=allocator_params,
             )
 
-            allocation_result = allocator.optimize()
-
             if display_plots or export_plots:
-                allocator_visualizer = AllocatorPlotter(
-                    allocation_result=allocation_result, budget_allocator=allocator
-                )
-                allocator_visualizer.plot_all(display_plots, self.working_dir)
+                allocator_visualizer = AllocatorVisualizer(budget_allocator=allocator)
+                _ = allocator_visualizer.plot_all(display_plots, self.working_dir)
 
             logger.info("Budget optimization complete")
-            return allocation_result
+            return allocator
 
         except Exception as e:
             logger.error("Budget optimization failed: %s", str(e))

@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Optional, Union
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import logging
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.pareto_result import ParetoResult
@@ -43,8 +42,8 @@ class ResponseVisualizer(BaseVisualizer):
         pass
 
     def generate_response_curves(
-    self, solution_id: str, ax: Optional[plt.Axes] = None, trim_rate: float = 1.3
-) -> Optional[plt.Figure]:
+        self, solution_id: str, ax: Optional[plt.Axes] = None, trim_rate: float = 1.3
+    ) -> Optional[plt.Figure]:
         """Generate response curves showing relationship between spend and response."""
         logger.debug("Generating response curves with trim_rate=%.2f", trim_rate)
 
@@ -52,22 +51,64 @@ class ResponseVisualizer(BaseVisualizer):
             raise ValueError(f"Invalid solution ID: {solution_id}")
 
         try:
-            # Get plot data for specific solution
-            logger.debug("Extracting plot data from pareto results")
+            # Add debug logging to inspect plot4data structure
             plot_data = self.pareto_result.plot_data_collect[solution_id]
+
             curve_data = plot_data["plot4data"]["dt_scurvePlot"].copy()
             mean_data = plot_data["plot4data"]["dt_scurvePlotMean"].copy()
 
-            logger.debug("Initial curve data shape: %s", curve_data.shape)
-            logger.debug("Initial mean data shape: %s", mean_data.shape)
+            # Add filtering for paid media channels and trim rate
+            if trim_rate > 0:
+                max_mean_spend = mean_data["mean_spend_adstocked"].max()
+                max_mean_response = mean_data["mean_response"].max()
+                curve_data = curve_data[
+                    (curve_data["spend"] < max_mean_spend * trim_rate)
+                    & (curve_data["response"] < max_mean_response * trim_rate)
+                    & (
+                        curve_data["channel"].isin(
+                            self.mmm_data.mmmdata_spec.paid_media_spends
+                        )
+                    )
+                ]
+                # Add mean carryover information early
+                curve_data = curve_data.merge(
+                    mean_data[["channel", "mean_carryover"]], on="channel", how="left"
+                )
+
+            # Filter mean data to match curve data channels
+            mean_data = mean_data[
+                mean_data["channel"].isin(curve_data["channel"].unique())
+            ]
 
             # Scale down the values to thousands
             curve_data["spend"] = curve_data["spend"] / 1000
             curve_data["response"] = curve_data["response"] / 1000
             mean_data["mean_spend_adstocked"] = mean_data["mean_spend_adstocked"] / 1000
             mean_data["mean_response"] = mean_data["mean_response"] / 1000
-            if "mean_carryover" in mean_data.columns:
-                mean_data["mean_carryover"] = mean_data["mean_carryover"] / 1000
+
+            # Add debug logging after scaling
+            logger.debug("Scaled curve data head:\n%s", curve_data.head())
+            logger.debug("Scaled mean data:\n%s", mean_data)
+
+            # For each channel, verify the mean point exists on the curve
+            for channel in curve_data["channel"].unique():
+                channel_curve = curve_data[curve_data["channel"] == channel]
+                channel_mean = mean_data[mean_data["channel"] == channel]
+
+                if not channel_mean.empty:
+                    mean_spend = channel_mean["mean_spend_adstocked"].iloc[0]
+                    mean_response = channel_mean["mean_response"].iloc[0]
+
+                    # Find closest point on curve
+                    closest_point = channel_curve.iloc[
+                        (channel_curve["spend"] - mean_spend).abs().argsort()[:1]
+                    ]
+
+                    logger.debug(
+                        f"Channel {channel} - Mean point: ({mean_spend:.2f}, {mean_response:.2f}), "
+                        f"Closest curve point: ({closest_point['spend'].iloc[0]:.2f}, "
+                        f"{closest_point['response'].iloc[0]:.2f})"
+                    )
 
             # Add mean carryover information
             curve_data = curve_data.merge(
@@ -83,11 +124,11 @@ class ResponseVisualizer(BaseVisualizer):
 
             # Define custom colors matching the R plot
             color_map = {
-                'facebook_S': '#FF9D1C',  # Orange
-                'ooh_S': '#69B3E7',      # Light blue
-                'print_S': '#7B4EA3',    # Purple
-                'search_S': '#E41A1C',   # Red
-                'tv_S': '#4DAF4A'        # Green
+                "facebook_S": "#FF9D1C",  # Orange
+                "ooh_S": "#69B3E7",  # Light blue
+                "print_S": "#7B4EA3",  # Purple
+                "search_S": "#E41A1C",  # Red
+                "tv_S": "#4DAF4A",  # Green
             }
 
             channels = curve_data["channel"].unique()
@@ -99,8 +140,10 @@ class ResponseVisualizer(BaseVisualizer):
                     "spend"
                 )
 
-                color = color_map.get(channel, 'gray')  # Default to gray if channel not in map
-                
+                color = color_map.get(
+                    channel, "gray"
+                )  # Default to gray if channel not in map
+
                 ax.plot(
                     channel_data["spend"],
                     channel_data["response"],
@@ -116,17 +159,18 @@ class ResponseVisualizer(BaseVisualizer):
                     ]
                     ax.fill_between(
                         carryover_data["spend"],
+                        np.zeros_like(carryover_data["spend"]),
                         carryover_data["response"],
                         color="grey",
-                        alpha=0.2,
+                        alpha=0.4,
                         zorder=1,
                     )
 
             logger.debug("Adding mean points and labels")
             for idx, row in mean_data.iterrows():
-                channel = row['channel']
-                color = color_map.get(channel, 'gray')
-                
+                channel = row["channel"]
+                color = color_map.get(channel, "gray")
+
                 ax.scatter(
                     row["mean_spend_adstocked"],
                     row["mean_response"],
@@ -168,7 +212,7 @@ class ResponseVisualizer(BaseVisualizer):
             ax.yaxis.set_major_formatter(plt.FuncFormatter(custom_tick_formatter))
 
             # Grid styling to match R plot
-            ax.grid(True, alpha=0.2, linestyle='-', color='gray')
+            ax.grid(True, alpha=0.2, linestyle="-", color="gray")
             ax.set_axisbelow(True)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
@@ -179,8 +223,7 @@ class ResponseVisualizer(BaseVisualizer):
 
             # Adjust legend to match R plot
             ax.legend(
-                bbox_to_anchor=(1.02, 0.5),
-                loc="center left",
+                loc="upper left",  # or any other position: 'lower right', 'center left', etc.
                 frameon=True,
                 framealpha=0.8,
                 facecolor="white",
