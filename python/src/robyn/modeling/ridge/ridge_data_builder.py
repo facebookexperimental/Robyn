@@ -23,49 +23,6 @@ class RidgeDataBuilder:
 
     def setup_initial_data(self):
         """One-time setup and logging of environment and spend metrics"""
-        # Log step2 environment setup info
-        self.logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": "step2_environment_setup",
-                    "data": {
-                        "dt_mod_shape": [
-                            len(self.featurized_mmm_data.dt_mod),
-                            len(self.featurized_mmm_data.dt_mod.columns),
-                        ],
-                        "rolling_window": {
-                            "start": self.mmm_data.mmmdata_spec.rolling_window_start_which,
-                            "end": self.mmm_data.mmmdata_spec.rolling_window_end_which,
-                            "length": self.mmm_data.mmmdata_spec.rolling_window_length,
-                        },
-                        "refresh": {
-                            "added_start": str(
-                                self.mmm_data.mmmdata_spec.refresh_added_start
-                            ),
-                            "steps": {},
-                        },
-                        "variables": {
-                            "paid_media": self.mmm_data.mmmdata_spec.paid_media_spends,
-                            "organic": self.mmm_data.mmmdata_spec.organic_vars,
-                            "context": self.mmm_data.mmmdata_spec.context_vars,
-                            "prophet": ["trend", "season", "holiday"],
-                        },
-                        "signs": {
-                            "context": ["default"]
-                            * len(self.mmm_data.mmmdata_spec.context_vars),
-                            "paid_media": ["positive"]
-                            * len(self.mmm_data.mmmdata_spec.paid_media_spends),
-                            "prophet": ["default"] * 3,
-                            "organic": "positive",
-                        },
-                        "adstock": "geometric",
-                        "optimizer": "TwoPointsDE",
-                    },
-                },
-                indent=2,
-            )
-        )
 
         # Calculate and log spend metrics
         self.spend_metrics = self._calculate_spend_metrics()
