@@ -65,40 +65,40 @@ class RidgeMetricsCalculator:
                 self.lambda_max * self.lambda_min_ratio
             )  # Use adjusted lambda_max
 
-            # Log debug info
-            self.logger.debug(
-                json.dumps(
-                    {
-                        "step": "step4_lambda_calculation",
-                        "data": {
-                            "lambda_min_ratio": self.lambda_min_ratio,
-                            "lambda_sequence": {
-                                "length": seq_len,
-                                "min": float(
-                                    np.min(lambdas)
-                                ),  # Original sequence values
-                                "max": float(
-                                    np.max(lambdas)
-                                ),  # Original sequence values
-                                "mean": float(
-                                    np.mean(lambdas)
-                                ),  # Original sequence values
-                            },
-                            "final_values": {
-                                "lambda_max": float(self.lambda_max),  # Adjusted by 0.1
-                                "lambda_min": float(
-                                    self.lambda_min
-                                ),  # Based on adjusted lambda_max
-                            },
-                            "input_dimensions": {
-                                "x_shape": list(X.shape),
-                                "y_length": len(y),
-                            },
-                        },
-                    },
-                    indent=2,
-                )
-            )
+            # # Log debug info
+            # self.logger.debug(
+            #     json.dumps(
+            #         {
+            #             "step": "step4_lambda_calculation",
+            #             "data": {
+            #                 "lambda_min_ratio": self.lambda_min_ratio,
+            #                 "lambda_sequence": {
+            #                     "length": seq_len,
+            #                     "min": float(
+            #                         np.min(lambdas)
+            #                     ),  # Original sequence values
+            #                     "max": float(
+            #                         np.max(lambdas)
+            #                     ),  # Original sequence values
+            #                     "mean": float(
+            #                         np.mean(lambdas)
+            #                     ),  # Original sequence values
+            #                 },
+            #                 "final_values": {
+            #                     "lambda_max": float(self.lambda_max),  # Adjusted by 0.1
+            #                     "lambda_min": float(
+            #                         self.lambda_min
+            #                     ),  # Based on adjusted lambda_max
+            #                 },
+            #                 "input_dimensions": {
+            #                     "x_shape": list(X.shape),
+            #                     "y_length": len(y),
+            #                 },
+            #             },
+            #         },
+            #         indent=2,
+            #     )
+            # )
 
     def calculate_r2_score(
         self,

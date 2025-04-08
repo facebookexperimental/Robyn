@@ -36,21 +36,6 @@ class RidgeDataBuilder:
         # Use the order from mmmdata_spec.paid_media_spends directly
         paid_media_cols = self.mmm_data.mmmdata_spec.paid_media_spends
 
-        # Add debug logging
-        self.logger.debug("Debug channel order:")
-        self.logger.debug(f"dt_input_train.columns: {dt_input_train.columns.tolist()}")
-        self.logger.debug(
-            f"mmmdata_spec.paid_media_spends: {self.mmm_data.mmmdata_spec.paid_media_spends}"
-        )
-        self.logger.debug(f"Final paid_media_cols: {paid_media_cols}")
-
-        # Also log the actual values
-        self.logger.debug("\nChannel values:")
-        for col in paid_media_cols:
-            self.logger.debug(f"{col}:")
-            self.logger.debug(f"  Mean: {float(dt_input_train[col].mean())}")
-            self.logger.debug(f"  Total: {float(dt_input_train[col].sum())}")
-
         # Calculate initial spend metrics
         total_spend = (
             dt_input_train[paid_media_cols].sum().sum()
@@ -107,47 +92,47 @@ class RidgeDataBuilder:
                 refresh_means.append(col_mean)
                 refresh_shares.append(col_share)
 
-        # Log all metrics for debugging
-        self.logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": "step3_spend_share_calculation",
-                    "data": {
-                        "input_train_shape": [
-                            len(dt_input_train),
-                            len(dt_input_train.columns),
-                        ],
-                        "input_data_columns": dt_input_train.columns.tolist(),
-                        "initial_spend_share": {
-                            "rn": paid_media_cols,
-                            "total_spend": total_spends,
-                            "mean_spend": mean_spends,
-                            "spend_share": spend_shares,
-                            "total_spend_refresh": refresh_spends,
-                            "mean_spend_refresh": refresh_means,
-                            "spend_share_refresh": refresh_shares,
-                        },
-                        "refresh_spend_share": {
-                            "rn": paid_media_cols,
-                            "total_spend": refresh_spends,
-                            "mean_spend": refresh_means,
-                            "spend_share": refresh_shares,
-                        },
-                        "final_spend_share": {
-                            "rn": paid_media_cols,
-                            "total_spend": total_spends,
-                            "mean_spend": mean_spends,
-                            "spend_share": spend_shares,
-                            "total_spend_refresh": refresh_spends,
-                            "mean_spend_refresh": refresh_means,
-                            "spend_share_refresh": refresh_shares,
-                        },
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log all metrics for debugging
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": "step3_spend_share_calculation",
+        #             "data": {
+        #                 "input_train_shape": [
+        #                     len(dt_input_train),
+        #                     len(dt_input_train.columns),
+        #                 ],
+        #                 "input_data_columns": dt_input_train.columns.tolist(),
+        #                 "initial_spend_share": {
+        #                     "rn": paid_media_cols,
+        #                     "total_spend": total_spends,
+        #                     "mean_spend": mean_spends,
+        #                     "spend_share": spend_shares,
+        #                     "total_spend_refresh": refresh_spends,
+        #                     "mean_spend_refresh": refresh_means,
+        #                     "spend_share_refresh": refresh_shares,
+        #                 },
+        #                 "refresh_spend_share": {
+        #                     "rn": paid_media_cols,
+        #                     "total_spend": refresh_spends,
+        #                     "mean_spend": refresh_means,
+        #                     "spend_share": refresh_shares,
+        #                 },
+        #                 "final_spend_share": {
+        #                     "rn": paid_media_cols,
+        #                     "total_spend": total_spends,
+        #                     "mean_spend": mean_spends,
+        #                     "spend_share": spend_shares,
+        #                     "total_spend_refresh": refresh_spends,
+        #                     "mean_spend_refresh": refresh_means,
+        #                     "spend_share_refresh": refresh_shares,
+        #                 },
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
         return {
             "rn": paid_media_cols,
             "total_spend": total_spends,
@@ -292,33 +277,33 @@ class RidgeDataBuilder:
         else:
             hyper_collect["hyper_list_all"]["train_size"] = [1.0, 1.0]
 
-        # Add debug logging with pretty printing
-        logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": "step1_hyperparameter_collection",
-                    "data": {
-                        "hyper_param_names": list(
-                            hyper_collect["hyper_list_all"].keys()
-                        ),
-                        "updated_bounds": {
-                            k: {"min": v[0], "max": v[1]}
-                            for k, v in hyper_collect[
-                                "hyper_bound_list_updated"
-                            ].items()
-                        },
-                        "fixed_bounds": hyper_collect["hyper_bound_list_fixed"],
-                        "hyper_count": len(hyper_collect["hyper_list_all"]),
-                        "hyper_count_fixed": len(
-                            hyper_collect["hyper_bound_list_fixed"]
-                        ),
-                        "all_fixed": hyper_collect["all_fixed"],
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Add debug logging with pretty printing
+        # logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": "step1_hyperparameter_collection",
+        #             "data": {
+        #                 "hyper_param_names": list(
+        #                     hyper_collect["hyper_list_all"].keys()
+        #                 ),
+        #                 "updated_bounds": {
+        #                     k: {"min": v[0], "max": v[1]}
+        #                     for k, v in hyper_collect[
+        #                         "hyper_bound_list_updated"
+        #                     ].items()
+        #                 },
+        #                 "fixed_bounds": hyper_collect["hyper_bound_list_fixed"],
+        #                 "hyper_count": len(hyper_collect["hyper_list_all"]),
+        #                 "hyper_count_fixed": len(
+        #                     hyper_collect["hyper_bound_list_fixed"]
+        #                 ),
+        #                 "all_fixed": hyper_collect["all_fixed"],
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         return hyper_collect
 
@@ -386,32 +371,32 @@ class RidgeDataBuilder:
         cores: int = 1,
     ) -> Dict[str, pd.DataFrame]:
         """Run transformations exactly like R implementation"""
-        # Step7a logging (keep this part as is)
-        self.logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": f"step7a_transformation_inputs_iteration_{current_iteration}",
-                    "data": {
-                        "input_data": {
-                            "dt_mod_shape": [
-                                len(self.featurized_mmm_data.dt_mod),
-                                len(self.featurized_mmm_data.dt_mod.columns),
-                            ],
-                            "dt_mod_columns": self.featurized_mmm_data.dt_mod.columns.tolist(),
-                            "window_info": {
-                                "start": self.mmm_data.mmmdata_spec.rolling_window_start_which,
-                                "end": self.mmm_data.mmmdata_spec.rolling_window_end_which,
-                                "length": self.mmm_data.mmmdata_spec.rolling_window_length,
-                            },
-                            "media_variables": self.mmm_data.mmmdata_spec.paid_media_spends,
-                            "hyperparameters": params,
-                        }
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Step7a logging (keep this part as is)
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": f"step7a_transformation_inputs_iteration_{current_iteration}",
+        #             "data": {
+        #                 "input_data": {
+        #                     "dt_mod_shape": [
+        #                         len(self.featurized_mmm_data.dt_mod),
+        #                         len(self.featurized_mmm_data.dt_mod.columns),
+        #                     ],
+        #                     "dt_mod_columns": self.featurized_mmm_data.dt_mod.columns.tolist(),
+        #                     "window_info": {
+        #                         "start": self.mmm_data.mmmdata_spec.rolling_window_start_which,
+        #                         "end": self.mmm_data.mmmdata_spec.rolling_window_end_which,
+        #                         "length": self.mmm_data.mmmdata_spec.rolling_window_length,
+        #                     },
+        #                     "media_variables": self.mmm_data.mmmdata_spec.paid_media_spends,
+        #                     "hyperparameters": params,
+        #                 }
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         # 1. Remove 'ds' column first
         dt_modAdstocked = self.X_base.drop(
@@ -513,64 +498,64 @@ class RidgeDataBuilder:
         # Window y data using same indices
         self.y_windowed = self.y_base.iloc[window_indices]
 
-        # Enhanced step7b logging with detailed transformation info
-        self.logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": f"step7b_transformation_iteration_{current_iteration}",
-                    "data": {
-                        "transformation_info": {
-                            "dt_modSaturated": {
-                                "shape": list(dt_modSaturated.shape),
-                                "columns": list(dt_modSaturated.columns),
-                                "stats": {
-                                    "min": dt_modSaturated.min().to_dict(),
-                                    "max": dt_modSaturated.max().to_dict(),
-                                    "mean": dt_modSaturated.mean().to_dict(),
-                                    "std": dt_modSaturated.std().to_dict(),
-                                },
-                            },
-                            "dt_saturatedImmediate": {
-                                "shape": list(dt_saturatedImmediate.shape),
-                                "columns": list(dt_saturatedImmediate.columns),
-                                "stats": {
-                                    "min": dt_saturatedImmediate.min().to_dict(),
-                                    "max": dt_saturatedImmediate.max().to_dict(),
-                                    "mean": dt_saturatedImmediate.mean().to_dict(),
-                                    "std": dt_saturatedImmediate.std().to_dict(),
-                                },
-                            },
-                            "dt_saturatedCarryover": {
-                                "shape": list(dt_saturatedCarryover.shape),
-                                "columns": list(dt_saturatedCarryover.columns),
-                                "stats": {
-                                    "min": dt_saturatedCarryover.min().to_dict(),
-                                    "max": dt_saturatedCarryover.max().to_dict(),
-                                    "mean": dt_saturatedCarryover.mean().to_dict(),
-                                    "std": dt_saturatedCarryover.std().to_dict(),
-                                },
-                            },
-                        },
-                        "iteration_info": {
-                            "current_iteration": current_iteration,
-                            "total_iterations": total_iterations,
-                            "cores": cores,
-                        },
-                        "y_info": {
-                            "shape": len(self.y_windowed),
-                            "stats": {
-                                "min": float(self.y_windowed.min()),
-                                "max": float(self.y_windowed.max()),
-                                "mean": float(self.y_windowed.mean()),
-                                "std": float(self.y_windowed.std()),
-                            },
-                        },
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Enhanced step7b logging with detailed transformation info
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": f"step7b_transformation_iteration_{current_iteration}",
+        #             "data": {
+        #                 "transformation_info": {
+        #                     "dt_modSaturated": {
+        #                         "shape": list(dt_modSaturated.shape),
+        #                         "columns": list(dt_modSaturated.columns),
+        #                         "stats": {
+        #                             "min": dt_modSaturated.min().to_dict(),
+        #                             "max": dt_modSaturated.max().to_dict(),
+        #                             "mean": dt_modSaturated.mean().to_dict(),
+        #                             "std": dt_modSaturated.std().to_dict(),
+        #                         },
+        #                     },
+        #                     "dt_saturatedImmediate": {
+        #                         "shape": list(dt_saturatedImmediate.shape),
+        #                         "columns": list(dt_saturatedImmediate.columns),
+        #                         "stats": {
+        #                             "min": dt_saturatedImmediate.min().to_dict(),
+        #                             "max": dt_saturatedImmediate.max().to_dict(),
+        #                             "mean": dt_saturatedImmediate.mean().to_dict(),
+        #                             "std": dt_saturatedImmediate.std().to_dict(),
+        #                         },
+        #                     },
+        #                     "dt_saturatedCarryover": {
+        #                         "shape": list(dt_saturatedCarryover.shape),
+        #                         "columns": list(dt_saturatedCarryover.columns),
+        #                         "stats": {
+        #                             "min": dt_saturatedCarryover.min().to_dict(),
+        #                             "max": dt_saturatedCarryover.max().to_dict(),
+        #                             "mean": dt_saturatedCarryover.mean().to_dict(),
+        #                             "std": dt_saturatedCarryover.std().to_dict(),
+        #                         },
+        #                     },
+        #                 },
+        #                 "iteration_info": {
+        #                     "current_iteration": current_iteration,
+        #                     "total_iterations": total_iterations,
+        #                     "cores": cores,
+        #                 },
+        #                 "y_info": {
+        #                     "shape": len(self.y_windowed),
+        #                     "stats": {
+        #                         "min": float(self.y_windowed.min()),
+        #                         "max": float(self.y_windowed.max()),
+        #                         "mean": float(self.y_windowed.mean()),
+        #                         "std": float(self.y_windowed.std()),
+        #                     },
+        #                 },
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
         return {
             "dt_modSaturated": dt_modSaturated,  # includes dep_var
             "dt_saturatedImmediate": dt_saturatedImmediate,  # media vars only
