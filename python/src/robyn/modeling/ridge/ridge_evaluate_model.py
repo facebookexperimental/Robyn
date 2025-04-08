@@ -64,9 +64,6 @@ class RidgeModelEvaluator:
         random.seed(seed)
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
 
-        self.logger.debug(f"Starting optimization with {len(param_names)} parameters")
-        self.logger.debug(f"Parameter names: {param_names}")
-
         start_time = time.time()
         all_results = []
 
@@ -75,15 +72,9 @@ class RidgeModelEvaluator:
         ) as pbar:
             for iter_ng in range(iterations):
                 candidate = optimizer.ask()
-                self.logger.debug(
-                    f"Iteration {iter_ng + 1}: Got candidate: {candidate}"
-                )
-                self.logger.debug(f"Candidate value type: {type(candidate.value)}")
-                self.logger.debug(f"Candidate value: {candidate.value}")
 
                 # Since we're using Array instrumentation, candidate.value should be a numpy array
                 raw_values = candidate.value
-                self.logger.debug(f"Raw values: {raw_values}")
 
                 # Transform values using qunif (like R)
                 transformed_params = {}
@@ -92,48 +83,45 @@ class RidgeModelEvaluator:
                     raw_value = raw_values[i]
                     transformed_value = bounds[0] + raw_value * (bounds[1] - bounds[0])
                     transformed_params[name] = transformed_value
-                    self.logger.debug(
-                        f"Parameter {name}: raw={raw_value}, transformed={transformed_value}"
-                    )
 
-                # Log both raw and transformed values
-                self.logger.debug(
-                    json.dumps(
-                        {
-                            "step": f"step6_hyperparameter_sampling_iteration_{iter_ng + 1}",
-                            "data": {
-                                "iteration_info": {
-                                    "current_iteration": iter_ng + 1,
-                                    "total_iterations": iterations,
-                                    "cores": 1,
-                                },
-                                "sampling": {
-                                    "hyper_fixed": False,
-                                    "num_samples": 1,
-                                    "updated_params": {
-                                        "names": param_names,
-                                        "bounds": {
-                                            name: hyper_collect[
-                                                "hyper_bound_list_updated"
-                                            ][name]
-                                            for name in param_names
-                                        },
-                                    },
-                                },
-                                "results": {
-                                    "sampled_values": [
-                                        [round(v, 4) for v in raw_values]
-                                    ],
-                                    "final_hyperparams": {
-                                        name: [round(transformed_params[name], 4)]
-                                        for name in param_names
-                                    },
-                                },
-                            },
-                        },
-                        indent=2,
-                    )
-                )
+                # # Log both raw and transformed values
+                # self.logger.debug(
+                #     json.dumps(
+                #         {
+                #             "step": f"step6_hyperparameter_sampling_iteration_{iter_ng + 1}",
+                #             "data": {
+                #                 "iteration_info": {
+                #                     "current_iteration": iter_ng + 1,
+                #                     "total_iterations": iterations,
+                #                     "cores": 1,
+                #                 },
+                #                 "sampling": {
+                #                     "hyper_fixed": False,
+                #                     "num_samples": 1,
+                #                     "updated_params": {
+                #                         "names": param_names,
+                #                         "bounds": {
+                #                             name: hyper_collect[
+                #                                 "hyper_bound_list_updated"
+                #                             ][name]
+                #                             for name in param_names
+                #                         },
+                #                     },
+                #                 },
+                #                 "results": {
+                #                     "sampled_values": [
+                #                         [round(v, 4) for v in raw_values]
+                #                     ],
+                #                     "final_hyperparams": {
+                #                         name: [round(transformed_params[name], 4)]
+                #                         for name in param_names
+                #                     },
+                #                 },
+                #             },
+                #         },
+                #         indent=2,
+                #     )
+                # )
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -152,16 +140,12 @@ class RidgeModelEvaluator:
                         intercept=intercept,
                     )
 
-                self.logger.debug(
-                    f"Evaluation result - NRMSE: {result['nrmse']:.6f}, RSSD: {result.get('decomp_rssd', 0):.6f}"
-                )
-
                 if self.calibration_input is not None:
                     optimizer.tell(
                         candidate,
                         (result["nrmse"], result["decomp_rssd"], result["mape"]),
                     )
-                    self.logger.debug(f"Told optimizer with multi-objective results")
+
                 else:
                     optimizer.tell(candidate, (result["nrmse"], result["decomp_rssd"]))
 
@@ -194,11 +178,6 @@ class RidgeModelEvaluator:
 
                 all_results.append(result)
                 pbar.update(1)
-
-                if iter_ng == 0 or iter_ng % 10 == 0:
-                    self.logger.debug(
-                        f"Iteration {iter_ng+1} results - NRMSE: {result['nrmse']:.6f}, RSSD: {result.get('decomp_rssd', 0):.6f}, Loss: {result['loss']:.6f}"
-                    )
 
         end_time = time.time()
         self.logger.info(f" Finished in {(end_time - start_time) / 60:.2f} mins")
@@ -234,20 +213,7 @@ class RidgeModelEvaluator:
         best_result = min(all_results, key=lambda x: x["loss"])
         # Convert values to Series before passing to Trial
         recommendation = best_result["params"]
-        self.logger.debug(
-            f"=== Optimization Complete (Trial {trial}/{total_trials}) ==="
-        )
-        self.logger.debug(f"Best parameters: {recommendation}")
-        if (
-            hasattr(optimizer, "current_bests")
-            and "pessimistic" in optimizer.current_bests
-        ):
-            self.logger.debug(
-                f"Best observed loss: {optimizer.current_bests['pessimistic'].mean}"
-            )
-        self.logger.debug(
-            f"Final performance: NRMSE={best_result['nrmse']:.6f}, RSSD={best_result.get('decomp_rssd', 0):.6f}"
-        )
+
         return Trial(
             result_hyp_param=result_hyp_param,
             lift_calibration=best_result.get("lift_calibration", pd.DataFrame()),
@@ -302,13 +268,10 @@ class RidgeModelEvaluator:
         y = dt_modSaturated["dep_var"]
         X = dt_modSaturated.drop(columns=["dep_var"])
         # After getting dt_modSaturated
-        self.logger.debug("Step 1 - Initial data check:")
-        self.logger.debug(
-            f"dt_modSaturated has NaN: {dt_modSaturated.isna().any().any()}"
-        )
+
         if dt_modSaturated.isna().any().any():
             nan_cols = dt_modSaturated.columns[dt_modSaturated.isna().any()].tolist()
-            self.logger.debug(f"Columns with NaN in dt_modSaturated: {nan_cols}")
+
         # Continue with existing evaluation logic...
         sol_id = f"{trial}_{iter_ng + 1}_1"
 
@@ -329,86 +292,74 @@ class RidgeModelEvaluator:
             X_train, y_train = X, y
             X_val = X_test = y_val = y_test = None
 
-        # After splitting data (around line 352)
-        # Log step8 data splitting information
-        self.logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": f"step8_data_split_iteration_{iter_ng + 1}",
-                    "data": {
-                        "window_info": {
-                            "total_rows": len(X),
-                            "total_features": X.shape[1],
-                            "feature_names": X.columns.tolist(),
-                        },
-                        "split_params": {
-                            "train_size": train_size,
-                            "val_size": (1 - train_size) / 2 if ts_validation else None,
-                            "test_size": (
-                                (1 - train_size) / 2 if ts_validation else None
-                            ),
-                        },
-                        "split_indices": {
-                            "train_end": train_idx,
-                            "val_end": (
-                                train_idx + val_test_size if ts_validation else None
-                            ),
-                            "test_end": len(X) if ts_validation else None,
-                        },
-                        "split_shapes": {
-                            "x_train": X_train.shape,
-                            "y_train": len(y_train),
-                            "x_val": X_val.shape if X_val is not None else None,
-                            "y_val": len(y_val) if y_val is not None else None,
-                            "x_test": X_test.shape if X_test is not None else None,
-                            "y_test": len(y_test) if y_test is not None else None,
-                        },
-                        "data_ranges": {
-                            "y_train": {
-                                "min": float(y_train.min()),
-                                "max": float(y_train.max()),
-                                "mean": float(y_train.mean()),
-                            },
-                            "y_val": (
-                                {
-                                    "min": float(y_val.min()),
-                                    "max": float(y_val.max()),
-                                    "mean": float(y_val.mean()),
-                                }
-                                if y_val is not None
-                                else None
-                            ),
-                            "y_test": (
-                                {
-                                    "min": float(y_test.min()),
-                                    "max": float(y_test.max()),
-                                    "mean": float(y_test.mean()),
-                                }
-                                if y_test is not None
-                                else None
-                            ),
-                        },
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # After splitting data (around line 352)
+        # # Log step8 data splitting information
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": f"step8_data_split_iteration_{iter_ng + 1}",
+        #             "data": {
+        #                 "window_info": {
+        #                     "total_rows": len(X),
+        #                     "total_features": X.shape[1],
+        #                     "feature_names": X.columns.tolist(),
+        #                 },
+        #                 "split_params": {
+        #                     "train_size": train_size,
+        #                     "val_size": (1 - train_size) / 2 if ts_validation else None,
+        #                     "test_size": (
+        #                         (1 - train_size) / 2 if ts_validation else None
+        #                     ),
+        #                 },
+        #                 "split_indices": {
+        #                     "train_end": train_idx,
+        #                     "val_end": (
+        #                         train_idx + val_test_size if ts_validation else None
+        #                     ),
+        #                     "test_end": len(X) if ts_validation else None,
+        #                 },
+        #                 "split_shapes": {
+        #                     "x_train": X_train.shape,
+        #                     "y_train": len(y_train),
+        #                     "x_val": X_val.shape if X_val is not None else None,
+        #                     "y_val": len(y_val) if y_val is not None else None,
+        #                     "x_test": X_test.shape if X_test is not None else None,
+        #                     "y_test": len(y_test) if y_test is not None else None,
+        #                 },
+        #                 "data_ranges": {
+        #                     "y_train": {
+        #                         "min": float(y_train.min()),
+        #                         "max": float(y_train.max()),
+        #                         "mean": float(y_train.mean()),
+        #                     },
+        #                     "y_val": (
+        #                         {
+        #                             "min": float(y_val.min()),
+        #                             "max": float(y_val.max()),
+        #                             "mean": float(y_val.mean()),
+        #                         }
+        #                         if y_val is not None
+        #                         else None
+        #                     ),
+        #                     "y_test": (
+        #                         {
+        #                             "min": float(y_test.min()),
+        #                             "max": float(y_test.max()),
+        #                             "mean": float(y_test.mean()),
+        #                         }
+        #                         if y_test is not None
+        #                         else None
+        #                     ),
+        #                 },
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         x_norm = X_train.to_numpy()
         y_norm = y_train.to_numpy()
-
-        self.logger.debug("Data quality check:")
-        self.logger.debug(f"x_norm shape: {x_norm.shape}")
-        self.logger.debug(f"y_norm shape: {y_norm.shape}")
-        self.logger.debug(f"x_norm has NaN: {np.isnan(x_norm).any()}")
-        self.logger.debug(f"y_norm has NaN: {np.isnan(y_norm).any()}")
-        self.logger.debug(f"x_norm has inf: {np.isinf(x_norm).any()}")
-        self.logger.debug(f"y_norm has inf: {np.isinf(y_norm).any()}")
-
-        # Check value ranges
-        self.logger.debug(f"x_norm min: {np.min(x_norm)}, max: {np.max(x_norm)}")
-        self.logger.debug(f"y_norm min: {np.min(y_norm)}, max: {np.max(y_norm)}")
 
         # Get sign control parameters
         signs_grouped, lower_limits, upper_limits, check_factor = (
@@ -426,61 +377,61 @@ class RidgeModelEvaluator:
                 return val  # Already a string ("Inf" or "-Inf")
             return str(val) if isinstance(val, float) and np.isinf(val) else float(val)
 
-        # Log step9 sign control
-        self.logger.debug(
-            json.dumps(
-                {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "step": f"step9_sign_control_iteration_{iter_ng + 1}",
-                    "data": {
-                        "variable_types": {
-                            "prophet": ["trend", "season", "holiday"],
-                            "context": list(self.mmm_data.mmmdata_spec.context_vars),
-                            "paid_media": list(
-                                self.mmm_data.mmmdata_spec.paid_media_spends
-                            ),
-                            "organic": list(self.mmm_data.mmmdata_spec.organic_vars),
-                        },
-                        "signs": signs_grouped,
-                        "factor_variables": {
-                            "is_factor": factor_dict,
-                            "factor_names": [
-                                col
-                                for col, is_factor in factor_dict.items()
-                                if is_factor
-                            ],
-                        },
-                        "trend_info": (
-                            {
-                                "location": (
-                                    int(X.columns.get_loc("trend"))
-                                    if "trend" in X.columns
-                                    else None
-                                ),
-                                "negative_trend": (
-                                    bool(X["trend"].sum() < 0)
-                                    if "trend" in X.columns
-                                    else None
-                                ),
-                            }
-                            if "trend" in X.columns
-                            else None
-                        ),
-                        "constraints": {
-                            "lower_limits": [
-                                {"value": format_limit_value(val), "variable": str(col)}
-                                for col, val in zip(X.columns, lower_limits)
-                            ],
-                            "upper_limits": [
-                                {"value": format_limit_value(val), "variable": str(col)}
-                                for col, val in zip(X.columns, upper_limits)
-                            ],
-                        },
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log step9 sign control
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #             "step": f"step9_sign_control_iteration_{iter_ng + 1}",
+        #             "data": {
+        #                 "variable_types": {
+        #                     "prophet": ["trend", "season", "holiday"],
+        #                     "context": list(self.mmm_data.mmmdata_spec.context_vars),
+        #                     "paid_media": list(
+        #                         self.mmm_data.mmmdata_spec.paid_media_spends
+        #                     ),
+        #                     "organic": list(self.mmm_data.mmmdata_spec.organic_vars),
+        #                 },
+        #                 "signs": signs_grouped,
+        #                 "factor_variables": {
+        #                     "is_factor": factor_dict,
+        #                     "factor_names": [
+        #                         col
+        #                         for col, is_factor in factor_dict.items()
+        #                         if is_factor
+        #                     ],
+        #                 },
+        #                 "trend_info": (
+        #                     {
+        #                         "location": (
+        #                             int(X.columns.get_loc("trend"))
+        #                             if "trend" in X.columns
+        #                             else None
+        #                         ),
+        #                         "negative_trend": (
+        #                             bool(X["trend"].sum() < 0)
+        #                             if "trend" in X.columns
+        #                             else None
+        #                         ),
+        #                     }
+        #                     if "trend" in X.columns
+        #                     else None
+        #                 ),
+        #                 "constraints": {
+        #                     "lower_limits": [
+        #                         {"value": format_limit_value(val), "variable": str(col)}
+        #                         for col, val in zip(X.columns, lower_limits)
+        #                     ],
+        #                     "upper_limits": [
+        #                         {"value": format_limit_value(val), "variable": str(col)}
+        #                         for col, val in zip(X.columns, upper_limits)
+        #                     ],
+        #                 },
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         # Initialize lambda sequence if needed
         self.ridge_metrics_calculator.initialize_lambda_sequence(X, y)
@@ -497,20 +448,20 @@ class RidgeModelEvaluator:
         else:
             penalty_factor = [1] * x_norm.shape[1]  # rep(1, ncol(x_train))
 
-        # Log ridge regression setup
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": f"step10_ridge_regression_setup_iteration_{iter_ng + 1}",
-                    "data": {
-                        "lambda_hp": lambda_hp,
-                        "lambda_scaled": lambda_,  # Using lambda_ instead of lambda_scaled
-                        "penalty_factor": penalty_factor,
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log ridge regression setup
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": f"step10_ridge_regression_setup_iteration_{iter_ng + 1}",
+        #             "data": {
+        #                 "lambda_hp": lambda_hp,
+        #                 "lambda_scaled": lambda_,  # Using lambda_ instead of lambda_scaled
+        #                 "penalty_factor": penalty_factor,
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
         # Scale inputs for model
         N = len(x_norm)
 
@@ -526,70 +477,70 @@ class RidgeModelEvaluator:
             upper_limits=upper_limits,
             penalty_factor=penalty_factor,
         )
-        # Log data shapes and stats before fitting
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "step11a_model_refit_data_check",
-                    "data": {
-                        "shapes": {
-                            "x_norm": x_norm.shape,
-                            "y_norm": y_norm.shape,
-                            "X_val": X_val.shape if X_val is not None else None,
-                            "X_test": X_test.shape if X_test is not None else None,
-                        },
-                        "stats": {
-                            "y_norm": {
-                                "mean": float(np.mean(y_norm)),
-                                "std": float(np.std(y_norm)),
-                                "min": float(np.min(y_norm)),
-                                "max": float(np.max(y_norm)),
-                            },
-                            "x_norm_mean": float(np.mean(np.abs(x_norm))),
-                        },
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log data shapes and stats before fitting
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "step11a_model_refit_data_check",
+        #             "data": {
+        #                 "shapes": {
+        #                     "x_norm": x_norm.shape,
+        #                     "y_norm": y_norm.shape,
+        #                     "X_val": X_val.shape if X_val is not None else None,
+        #                     "X_test": X_test.shape if X_test is not None else None,
+        #                 },
+        #                 "stats": {
+        #                     "y_norm": {
+        #                         "mean": float(np.mean(y_norm)),
+        #                         "std": float(np.std(y_norm)),
+        #                         "min": float(np.min(y_norm)),
+        #                         "max": float(np.max(y_norm)),
+        #                     },
+        #                     "x_norm_mean": float(np.mean(np.abs(x_norm))),
+        #                 },
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         model.fit(x_norm, y_norm)
 
         # Calculate metrics using R-style calculations
         y_train_pred = model.predict(x_norm)
 
-        # Log prediction stats
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "step11b_model_refit_predictions",
-                    "data": {
-                        "predictions": {
-                            "y_train_pred": {
-                                "mean": float(np.mean(y_train_pred)),
-                                "std": float(np.std(y_train_pred)),
-                                "min": float(np.min(y_train_pred)),
-                                "max": float(np.max(y_train_pred)),
-                            },
-                            "y_norm": {
-                                "mean": float(np.mean(y_norm)),
-                                "std": float(np.std(y_norm)),
-                                "min": float(np.min(y_norm)),
-                                "max": float(np.max(y_norm)),
-                            },
-                        },
-                        "r2_components": {
-                            "sse": float(np.sum((y_train_pred - y_norm) ** 2)),
-                            "sst": float(np.sum((y_norm - np.mean(y_norm)) ** 2)),
-                            "n": len(y_norm),
-                            "p": x_norm.shape[1],
-                            "df_int": model.df_int,
-                        },
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log prediction stats
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "step11b_model_refit_predictions",
+        #             "data": {
+        #                 "predictions": {
+        #                     "y_train_pred": {
+        #                         "mean": float(np.mean(y_train_pred)),
+        #                         "std": float(np.std(y_train_pred)),
+        #                         "min": float(np.min(y_train_pred)),
+        #                         "max": float(np.max(y_train_pred)),
+        #                     },
+        #                     "y_norm": {
+        #                         "mean": float(np.mean(y_norm)),
+        #                         "std": float(np.std(y_norm)),
+        #                         "min": float(np.min(y_norm)),
+        #                         "max": float(np.max(y_norm)),
+        #                     },
+        #                 },
+        #                 "r2_components": {
+        #                     "sse": float(np.sum((y_train_pred - y_norm) ** 2)),
+        #                     "sst": float(np.sum((y_norm - np.mean(y_norm)) ** 2)),
+        #                     "n": len(y_norm),
+        #                     "p": x_norm.shape[1],
+        #                     "df_int": model.df_int,
+        #                 },
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
         metrics["rsq_train"] = self.ridge_metrics_calculator.calculate_r2_score(
             y_norm,
             y_train_pred,
@@ -636,25 +587,25 @@ class RidgeModelEvaluator:
             metrics["nrmse_val"] = metrics["nrmse_test"] = 0.0
             metrics["nrmse"] = metrics["nrmse_train"]
 
-        # Log ridge regression results
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": f"step11c_model_refit_mod_out_iteration_{iter_ng + 1}",
-                    "data": {
-                        "rsq_train": metrics["rsq_train"],
-                        "rsq_val": metrics["rsq_val"],
-                        "rsq_test": metrics["rsq_test"],
-                        "nrmse_train": metrics["nrmse_train"],
-                        "nrmse_val": metrics["nrmse_val"],
-                        "nrmse_test": metrics["nrmse_test"],
-                        "coefs": list(model.get_full_coefficients()),
-                        "df_int": model.df_int,
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log ridge regression results
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": f"step11c_model_refit_mod_out_iteration_{iter_ng + 1}",
+        #             "data": {
+        #                 "rsq_train": metrics["rsq_train"],
+        #                 "rsq_val": metrics["rsq_val"],
+        #                 "rsq_test": metrics["rsq_test"],
+        #                 "nrmse_train": metrics["nrmse_train"],
+        #                 "nrmse_val": metrics["nrmse_val"],
+        #                 "nrmse_test": metrics["nrmse_test"],
+        #                 "coefs": list(model.get_full_coefficients()),
+        #                 "df_int": model.df_int,
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         paid_media_cols = [
             col
@@ -662,38 +613,38 @@ class RidgeModelEvaluator:
             if col in self.mmm_data.mmmdata_spec.paid_media_spends
         ]
 
-        # Log model decomp inputs
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "step11d_model_decomp_inputs",
-                    "data": {
-                        "coefs": model.coef_.tolist(),
-                        "y_pred_length": len(y_train_pred),
-                        "dt_modSaturated_dims": dt_modSaturated.shape,
-                        "dt_saturatedImmediate_dims": transformed_data[
-                            "dt_saturatedImmediate"
-                        ].shape,
-                        "dt_saturatedCarryover_dims": transformed_data[
-                            "dt_saturatedCarryover"
-                        ].shape,
-                        "dt_modRollWind_dims": self.featurized_mmm_data.dt_modRollWind.shape,
-                        "refreshAddedStart": str(
-                            self.mmm_data.mmmdata_spec.refresh_added_start
-                        ),
-                        "dt_modSaturated_cols": dt_modSaturated.columns.tolist(),
-                        "dt_saturatedImmediate_cols": transformed_data[
-                            "dt_saturatedImmediate"
-                        ].columns.tolist(),
-                        "dt_saturatedCarryover_cols": transformed_data[
-                            "dt_saturatedCarryover"
-                        ].columns.tolist(),
-                        "dt_modRollWind_cols": self.featurized_mmm_data.dt_modRollWind.columns.tolist(),
-                    },
-                },
-                indent=2,
-            )
-        )
+        # # Log model decomp inputs
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "step11d_model_decomp_inputs",
+        #             "data": {
+        #                 "coefs": model.coef_.tolist(),
+        #                 "y_pred_length": len(y_train_pred),
+        #                 "dt_modSaturated_dims": dt_modSaturated.shape,
+        #                 "dt_saturatedImmediate_dims": transformed_data[
+        #                     "dt_saturatedImmediate"
+        #                 ].shape,
+        #                 "dt_saturatedCarryover_dims": transformed_data[
+        #                     "dt_saturatedCarryover"
+        #                 ].shape,
+        #                 "dt_modRollWind_dims": self.featurized_mmm_data.dt_modRollWind.shape,
+        #                 "refreshAddedStart": str(
+        #                     self.mmm_data.mmmdata_spec.refresh_added_start
+        #                 ),
+        #                 "dt_modSaturated_cols": dt_modSaturated.columns.tolist(),
+        #                 "dt_saturatedImmediate_cols": transformed_data[
+        #                     "dt_saturatedImmediate"
+        #                 ].columns.tolist(),
+        #                 "dt_saturatedCarryover_cols": transformed_data[
+        #                     "dt_saturatedCarryover"
+        #                 ].columns.tolist(),
+        #                 "dt_modRollWind_cols": self.featurized_mmm_data.dt_modRollWind.columns.tolist(),
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
         # Now use the concatenated predictions for decomposition
         decomp_results = self.ridge_metrics_calculator.model_decomp(
             model=model,
@@ -868,30 +819,12 @@ class RidgeModelEvaluator:
         )
         paid_media_rows = x_decomp_agg[paid_media_mask]
 
-        # Add debug logging
-        self.logger.debug("Spend metrics structure:")
-        self.logger.debug(
-            f"total_spend: {self.ridge_data_builder.spend_metrics['total_spend']}"
-        )
-        self.logger.debug(
-            f"mean_spend: {self.ridge_data_builder.spend_metrics['mean_spend']}"
-        )
-        self.logger.debug(
-            f"spend_share: {self.ridge_data_builder.spend_metrics['spend_share']}"
-        )
-
-        self.logger.debug("\nPaid media channels:")
-        self.logger.debug(
-            f"x_decomp_agg filtered rn: {x_decomp_agg.loc[paid_media_mask, 'rn'].tolist()}"
-        )
         # Create mapping of channel names to indices
         channel_to_index = {
             channel: idx
             for idx, channel in enumerate(self.mmm_data.mmmdata_spec.paid_media_spends)
         }
 
-        self.logger.debug("Channel to index mapping:")
-        self.logger.debug(channel_to_index)
         # Add all required columns with correct types
         decomp_spend_dist = pd.DataFrame(
             {
