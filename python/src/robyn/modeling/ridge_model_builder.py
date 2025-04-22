@@ -29,7 +29,6 @@ from robyn.modeling.ridge.ridge_metrics_calculator import (
 )
 from robyn.modeling.ridge.ridge_evaluate_model import RidgeModelEvaluator
 from robyn.modeling.ridge.ridge_data_builder import RidgeDataBuilder
-from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
 import json
 
 

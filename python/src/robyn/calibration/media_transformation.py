@@ -17,7 +17,6 @@ class MediaTransformation:
         """Initialize with model hyperparameters."""
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MediaTransformation with hyperparameters")
-        self.logger.debug("Hyperparameters configuration: %s", hyperparameters)
         self.hyperparameters = hyperparameters
 
     def _apply_geometric_adstock(self, values: pd.Series, theta: float) -> pd.Series:
@@ -25,16 +24,11 @@ class MediaTransformation:
         Applies geometric adstock transformation.
         x[t] = x[t] + θ * x[t-1]
         """
-        self.logger.debug(
-            "Starting geometric adstock transformation with theta=%f", theta
-        )
-        self.logger.debug("Input series shape: %s", values.shape)
 
         result = values.copy()
         for t in range(1, len(values)):
             result.iloc[t] += theta * result.iloc[t - 1]
 
-        self.logger.debug("Completed geometric adstock transformation")
         return result
 
     def apply_weibull_adstock(
@@ -44,12 +38,6 @@ class MediaTransformation:
         Applies Weibull adstock transformation.
         Uses shape and scale parameters to create decay curve.
         """
-        self.logger.debug(
-            "Starting Weibull adstock transformation with shape=%f, scale=%f",
-            shape,
-            scale,
-        )
-        self.logger.debug("Input series shape: %s", values.shape)
 
         max_lag = len(values)
         times = np.arange(max_lag)
@@ -60,12 +48,10 @@ class MediaTransformation:
         )
         weights = weights / weights.sum()  # Normalize
 
-        self.logger.debug("Calculated Weibull weights, proceeding with convolution")
         result = pd.Series(
             np.convolve(values, weights, mode="full")[: len(values)], index=values.index
         )
 
-        self.logger.debug("Completed Weibull adstock transformation")
         return result
 
     def apply_saturation(
@@ -75,14 +61,10 @@ class MediaTransformation:
         Applies Hill function saturation transformation.
         S(x) = (x^alpha) / (x^alpha + gamma^alpha)
         """
-        self.logger.debug(
-            "Starting saturation transformation with alpha=%f, gamma=%f", alpha, gamma
-        )
-        self.logger.debug("Input series shape: %s", values.shape)
+        result = (values**alpha) / (values**alpha + gamma**alpha)
 
         result = (values**alpha) / (values**alpha + gamma**alpha)
 
-        self.logger.debug("Completed saturation transformation")
         return result
 
     def apply_media_transforms(self, values: pd.Series, channel: str) -> pd.Series:
@@ -97,13 +79,9 @@ class MediaTransformation:
             pd.Series: Transformed values
         """
         self.logger.info("Starting media transformation for channel: %s", channel)
-        self.logger.debug("Input values shape: %s", values.shape)
 
         try:
             channel_params = self.hyperparameters.get_hyperparameter(channel)
-            self.logger.debug(
-                "Retrieved hyperparameters for channel %s: %s", channel, channel_params
-            )
 
             if self.hyperparameters.adstock == AdstockType.GEOMETRIC:
                 if not channel_params.thetas:
@@ -142,11 +120,9 @@ class MediaTransformation:
 
             # Ensure we return a Series with the same index
             if not isinstance(result, pd.Series):
-                self.logger.debug("Converting result to pandas Series")
                 result = pd.Series(result, index=values.index)
 
             self.logger.info("Completed media transformation for channel: %s", channel)
-            self.logger.debug("Output shape: %s", result.shape)
             return result
 
         except Exception as e:
@@ -165,15 +141,9 @@ class MediaTransformation:
         Returns:
             float: Total effect value
         """
-        self.logger.debug("Calculating carryover effect")
-        self.logger.debug(
-            "Input values shape: %s",
-            values.shape if isinstance(values, pd.Series) else np.array(values).shape,
-        )
 
         result = float(
             values.sum() if isinstance(values, pd.Series) else np.sum(values)
         )
 
-        self.logger.debug("Calculated carryover effect: %f", result)
         return result

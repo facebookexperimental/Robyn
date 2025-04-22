@@ -185,21 +185,21 @@ class BudgetAllocator:
         self.inflexions = hill_params["inflexions"]
         self.coefs_sorted = hill_params["coefs_sorted"]
 
-        # Log all hill parameters
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "hill_parameters",
-                    "data": {
-                        "alphas": self.alphas.to_dict(),
-                        "inflexions": self.inflexions.to_dict(),
-                        "coefs_sorted": self.coefs_sorted.to_dict(),
-                    },
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                },
-                indent=2,
-            )
-        )
+        # # Log all hill parameters
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "hill_parameters",
+        #             "data": {
+        #                 "alphas": self.alphas.to_dict(),
+        #                 "inflexions": self.inflexions.to_dict(),
+        #                 "coefs_sorted": self.coefs_sorted.to_dict(),
+        #             },
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
     def _setup_spend_values(self) -> None:
         """Set up spend values based on date range"""
@@ -456,10 +456,10 @@ class BudgetAllocator:
             for media in self.media_spend_sorted
             if self.init_spend_unit[media] == 0
         ]
-        if zero_spend_channels and not self.params.quiet:
-            self.logger.debug(
-                f"\nMedia variables with 0 spending during date range: {', '.join(zero_spend_channels)}"
-            )
+        # if zero_spend_channels and not self.params.quiet:
+        #     self.logger.debug(
+        #         f"\nMedia variables with 0 spending during date range: {', '.join(zero_spend_channels)}"
+        #     )
 
     def _fx_objective(
         self,
@@ -579,22 +579,22 @@ class BudgetAllocator:
             self.channel_constr_low_sorted_ext.copy()
         )
 
-        # Log initial bounds
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "initial_bounds",
-                    "data": {
-                        "temp_ub": self.temp_ub.tolist(),
-                        "temp_lb": self.temp_lb.tolist(),
-                        "temp_ub_ext": self.temp_ub_ext.tolist(),
-                        "temp_lb_ext": self.temp_lb_ext.tolist(),
-                    },
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                },
-                indent=2,
-            )
-        )
+        # # Log initial bounds
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "initial_bounds",
+        #             "data": {
+        #                 "temp_ub": self.temp_ub.tolist(),
+        #                 "temp_lb": self.temp_lb.tolist(),
+        #                 "temp_ub_ext": self.temp_ub_ext.tolist(),
+        #                 "temp_lb_ext": self.temp_lb_ext.tolist(),
+        #             },
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         # Calculate initial bounds
         self.x0 = self.x0_all = self.lb = self.lb_all = (
@@ -605,24 +605,24 @@ class BudgetAllocator:
             self.temp_init_all * self.temp_lb_ext_all
         )
         self.ub_ext = self.ub_ext_all = self.temp_init_all * self.temp_ub_ext_all
-        # Log calculated bounds
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "calculated_bounds",
-                    "data": {
-                        "x0": self.x0.tolist(),
-                        "lb": self.lb.tolist(),
-                        "ub": self.ub.tolist(),
-                        "x0_ext": self.x0_ext.tolist(),
-                        "lb_ext": self.lb_ext.tolist(),
-                        "ub_ext": self.ub_ext.tolist(),
-                    },
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                },
-                indent=2,
-            )
-        )
+        # # Log calculated bounds
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "calculated_bounds",
+        #             "data": {
+        #                 "x0": self.x0.tolist(),
+        #                 "lb": self.lb.tolist(),
+        #                 "ub": self.ub.tolist(),
+        #                 "x0_ext": self.x0_ext.tolist(),
+        #                 "lb_ext": self.lb_ext.tolist(),
+        #                 "ub_ext": self.ub_ext.tolist(),
+        #             },
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         # Identify channels to exclude
         skip_these = (self.channel_constr_low_sorted == 0) & (
@@ -671,28 +671,28 @@ class BudgetAllocator:
         self.ub = self.temp_init * self.temp_ub
         self.x0_ext = self.lb_ext = self.temp_init * self.temp_lb_ext
         self.ub_ext = self.temp_init * self.temp_ub_ext
-        # Log final bounds after dropping channels
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "final_bounds",
-                    "data": {
-                        "channels": list(self.channel_for_allocation),
-                        "temp_init": self.temp_init.tolist(),
-                        "temp_ub": self.temp_ub.tolist(),
-                        "temp_lb": self.temp_lb.tolist(),
-                        "x0": self.x0.tolist(),
-                        "lb": self.lb.tolist(),
-                        "ub": self.ub.tolist(),
-                        "x0_ext": self.x0_ext.tolist(),
-                        "lb_ext": self.lb_ext.tolist(),
-                        "ub_ext": self.ub_ext.tolist(),
-                    },
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                },
-                indent=2,
-            )
-        )
+        # # Log final bounds after dropping channels
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "final_bounds",
+        #             "data": {
+        #                 "channels": list(self.channel_for_allocation),
+        #                 "temp_init": self.temp_init.tolist(),
+        #                 "temp_ub": self.temp_ub.tolist(),
+        #                 "temp_lb": self.temp_lb.tolist(),
+        #                 "x0": self.x0.tolist(),
+        #                 "lb": self.lb.tolist(),
+        #                 "ub": self.ub.tolist(),
+        #                 "x0_ext": self.x0_ext.tolist(),
+        #                 "lb_ext": self.lb_ext.tolist(),
+        #                 "ub_ext": self.ub_ext.tolist(),
+        #             },
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
     def _setup_optimization_parameters(self):
         """Setup optimization parameters and options for nloptr."""
@@ -733,42 +733,42 @@ class BudgetAllocator:
             raise ValueError(
                 f"Unsupported optimization algorithm: {self.params.optim_algo}"
             )
-        # Log the dictionary with converted values
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "eval_dict",
-                    "data": {
-                        "coefs_eval": (
-                            list(self.coefs_eval.values())
-                            if isinstance(self.coefs_eval, dict)
-                            else self.coefs_eval.tolist()
-                        ),
-                        "alphas_eval": (
-                            list(self.alphas_eval.values())
-                            if isinstance(self.alphas_eval, dict)
-                            else self.alphas_eval.tolist()
-                        ),
-                        "inflexions_eval": (
-                            list(self.inflexions_eval.values())
-                            if isinstance(self.inflexions_eval, dict)
-                            else self.inflexions_eval.tolist()
-                        ),
-                        "total_budget": self.params.total_budget,
-                        "total_budget_unit": float(self.total_budget_unit),
-                        "hist_carryover_eval": {
-                            k: v.tolist() if hasattr(v, "tolist") else float(v)
-                            for k, v in self.hist_carryover_eval.items()
-                        },
-                        "target_value": self.params.target_value,
-                        "target_value_ext": self.target_value_ext,
-                        "dep_var_type": self.mmm_data.mmmdata_spec.dep_var_type,
-                    },
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                },
-                indent=2,
-            )
-        )
+        # # Log the dictionary with converted values
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "eval_dict",
+        #             "data": {
+        #                 "coefs_eval": (
+        #                     list(self.coefs_eval.values())
+        #                     if isinstance(self.coefs_eval, dict)
+        #                     else self.coefs_eval.tolist()
+        #                 ),
+        #                 "alphas_eval": (
+        #                     list(self.alphas_eval.values())
+        #                     if isinstance(self.alphas_eval, dict)
+        #                     else self.alphas_eval.tolist()
+        #                 ),
+        #                 "inflexions_eval": (
+        #                     list(self.inflexions_eval.values())
+        #                     if isinstance(self.inflexions_eval, dict)
+        #                     else self.inflexions_eval.tolist()
+        #                 ),
+        #                 "total_budget": self.params.total_budget,
+        #                 "total_budget_unit": float(self.total_budget_unit),
+        #                 "hist_carryover_eval": {
+        #                     k: v.tolist() if hasattr(v, "tolist") else float(v)
+        #                     for k, v in self.hist_carryover_eval.items()
+        #                 },
+        #                 "target_value": self.params.target_value,
+        #                 "target_value_ext": self.target_value_ext,
+        #                 "dep_var_type": self.mmm_data.mmmdata_spec.dep_var_type,
+        #             },
+        #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
     def _optimize(self):
         """Run optimization matching R's implementation"""
@@ -798,22 +798,22 @@ class BudgetAllocator:
                 target_value=None,
                 eval_dict=self.eval_dict,
             )
-            # Log bounded optimization results
-            self.logger.debug(
-                json.dumps(
-                    {
-                        "step": "bounded_optimization_results",
-                        "data": {
-                            "solution": nls_mod["solution"].tolist(),
-                            "objective": float(nls_mod["objective"]),
-                            "status": nls_mod.get("status", "unknown"),
-                            "message": nls_mod.get("message", "no message"),
-                            "total_spend": float(np.sum(nls_mod["solution"])),
-                        },
-                    },
-                    indent=2,
-                )
-            )
+            # # Log bounded optimization results
+            # self.logger.debug(
+            #     json.dumps(
+            #         {
+            #             "step": "bounded_optimization_results",
+            #             "data": {
+            #                 "solution": nls_mod["solution"].tolist(),
+            #                 "objective": float(nls_mod["objective"]),
+            #                 "status": nls_mod.get("status", "unknown"),
+            #                 "message": nls_mod.get("message", "no message"),
+            #                 "total_spend": float(np.sum(nls_mod["solution"])),
+            #             },
+            #         },
+            #         indent=2,
+            #     )
+            # )
             # Unbounded optimization
             nls_mod_unbound = run_optimization(
                 x0=self.x0_ext,
@@ -835,22 +835,22 @@ class BudgetAllocator:
                 target_value=None,
                 eval_dict=self.eval_dict,
             )
-            # Log unbounded optimization results
-            self.logger.debug(
-                json.dumps(
-                    {
-                        "step": "unbounded_optimization_results",
-                        "data": {
-                            "solution": nls_mod_unbound["solution"].tolist(),
-                            "objective": float(nls_mod_unbound["objective"]),
-                            "status": nls_mod_unbound.get("status", "unknown"),
-                            "message": nls_mod_unbound.get("message", "no message"),
-                            "total_spend": float(np.sum(nls_mod_unbound["solution"])),
-                        },
-                    },
-                    indent=2,
-                )
-            )
+            # # Log unbounded optimization results
+            # self.logger.debug(
+            #     json.dumps(
+            #         {
+            #             "step": "unbounded_optimization_results",
+            #             "data": {
+            #                 "solution": nls_mod_unbound["solution"].tolist(),
+            #                 "objective": float(nls_mod_unbound["objective"]),
+            #                 "status": nls_mod_unbound.get("status", "unknown"),
+            #                 "message": nls_mod_unbound.get("message", "no message"),
+            #                 "total_spend": float(np.sum(nls_mod_unbound["solution"])),
+            #             },
+            #         },
+            #         indent=2,
+            #     )
+            # )
         elif self.params.scenario == SCENARIO_TARGET_EFFICIENCY:
             # Bounded optimization
             nls_mod = run_optimization(
@@ -908,43 +908,43 @@ class BudgetAllocator:
         # Debug logging for facebook_S (assuming it's first channel)
         channel_idx = 0
         channel = self.channel_for_allocation[channel_idx]
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "marginal_response_debug",
-                    "channel": channel,
-                    "bounded": {
-                        "spend": float(optm_spend_unit[channel_idx]),
-                        "response": float(optm_response_unit[channel_idx]),
-                        "response_at_x_plus_1": float(
-                            self._fx_objective(
-                                x=optm_spend_unit[channel_idx] + 1,
-                                coeff=self.coefs_eval[channel],
-                                alpha=self.alphas_eval[f"{channel}_alphas"],
-                                inflexion=self.inflexions_eval[f"{channel}_gammas"],
-                                x_hist_carryover=x_hist_carryover[channel],
-                                get_sum=False,
-                            )
-                        ),
-                    },
-                    "unbounded": {
-                        "spend": float(optm_spend_unit_unbound[channel_idx]),
-                        "response": float(optm_response_unit_unbound[channel_idx]),
-                        "response_at_x_plus_1": float(
-                            self._fx_objective(
-                                x=optm_spend_unit_unbound[channel_idx] + 1,
-                                coeff=self.coefs_eval[channel],
-                                alpha=self.alphas_eval[f"{channel}_alphas"],
-                                inflexion=self.inflexions_eval[f"{channel}_gammas"],
-                                x_hist_carryover=x_hist_carryover[channel],
-                                get_sum=False,
-                            )
-                        ),
-                    },
-                },
-                indent=2,
-            )
-        )
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "marginal_response_debug",
+        #             "channel": channel,
+        #             "bounded": {
+        #                 "spend": float(optm_spend_unit[channel_idx]),
+        #                 "response": float(optm_response_unit[channel_idx]),
+        #                 "response_at_x_plus_1": float(
+        #                     self._fx_objective(
+        #                         x=optm_spend_unit[channel_idx] + 1,
+        #                         coeff=self.coefs_eval[channel],
+        #                         alpha=self.alphas_eval[f"{channel}_alphas"],
+        #                         inflexion=self.inflexions_eval[f"{channel}_gammas"],
+        #                         x_hist_carryover=x_hist_carryover[channel],
+        #                         get_sum=False,
+        #                     )
+        #                 ),
+        #             },
+        #             "unbounded": {
+        #                 "spend": float(optm_spend_unit_unbound[channel_idx]),
+        #                 "response": float(optm_response_unit_unbound[channel_idx]),
+        #                 "response_at_x_plus_1": float(
+        #                     self._fx_objective(
+        #                         x=optm_spend_unit_unbound[channel_idx] + 1,
+        #                         coeff=self.coefs_eval[channel],
+        #                         alpha=self.alphas_eval[f"{channel}_alphas"],
+        #                         inflexion=self.inflexions_eval[f"{channel}_gammas"],
+        #                         x_hist_carryover=x_hist_carryover[channel],
+        #                         get_sum=False,
+        #                     )
+        #                 ),
+        #             },
+        #         },
+        #         indent=2,
+        #     )
+        # )
 
         # Calculate marginal responses for bounded
         optm_response_marg_unit = (
@@ -1351,24 +1351,24 @@ class BudgetAllocator:
             }
         )
 
-        # Log main_points with more information
-        self.logger.debug(
-            json.dumps(
-                {
-                    "step": "main_points",
-                    "shape": main_points.shape,
-                    "columns": list(main_points.columns),
-                    "data": main_points.to_dict(
-                        orient="records"
-                    ),  # 'records' is usually more readable than 'index'
-                    "types": {
-                        col: str(main_points[col].dtype) for col in main_points.columns
-                    },
-                },
-                indent=2,
-                default=str,  # Handles any non-serializable objects like timestamps
-            )
-        )
+        # # Log main_points with more information
+        # self.logger.debug(
+        #     json.dumps(
+        #         {
+        #             "step": "main_points",
+        #             "shape": main_points.shape,
+        #             "columns": list(main_points.columns),
+        #             "data": main_points.to_dict(
+        #                 orient="records"
+        #             ),  # 'records' is usually more readable than 'index'
+        #             "types": {
+        #                 col: str(main_points[col].dtype) for col in main_points.columns
+        #             },
+        #         },
+        #         indent=2,
+        #         default=str,  # Handles any non-serializable objects like timestamps
+        #     )
+        # )
         # Calculate mean spend
         temp_caov = main_points[main_points["type"] == "Carryover"]
 

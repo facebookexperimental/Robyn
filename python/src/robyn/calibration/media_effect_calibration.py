@@ -72,16 +72,6 @@ class MediaEffectCalibrator:
         self.logger = logging.getLogger(__name__)
 
         self.logger.info("Initializing MediaEffectCalibrator")
-        self.logger.debug(
-            "Input parameters: MMMData shape: %s, Hyperparameters count: %d, Calibration channels: %s",
-            mmm_data.data.shape if mmm_data.data is not None else "None",
-            len(hyperparameters.channel_hyperparameters) if hyperparameters else 0,
-            (
-                list(calibration_input.channel_data.keys())
-                if calibration_input
-                else "None"
-            ),
-        )
 
         self.mmm_data = mmm_data
         self.hyperparameters = hyperparameters
@@ -92,7 +82,6 @@ class MediaEffectCalibrator:
         # Convert date column to datetime if it's not already
         date_col = self.mmm_data.mmmdata_spec.date_var
         if not pd.api.types.is_datetime64_any_dtype(self.mmm_data.data[date_col]):
-            self.logger.debug("Converting date column '%s' to datetime", date_col)
             self.mmm_data.data[date_col] = pd.to_datetime(self.mmm_data.data[date_col])
 
         self._validate_inputs()
@@ -100,13 +89,11 @@ class MediaEffectCalibrator:
 
     def _validate_inputs(self) -> None:
         """Validates that calibration inputs match model data requirements."""
-        self.logger.debug("Starting input validation")
 
         all_valid_channels = set(
             self.mmm_data.mmmdata_spec.paid_media_spends
             + self.mmm_data.mmmdata_spec.organic_vars
         )
-        self.logger.debug("Valid channels: %s", sorted(all_valid_channels))
 
         for channel_key in self.calibration_input.channel_data:
             if isinstance(channel_key, tuple):
@@ -114,7 +101,6 @@ class MediaEffectCalibrator:
             else:
                 channels = [channel_key]
 
-            self.logger.debug("Validating channel(s): %s", channels)
             invalid_channels = [ch for ch in channels if ch not in all_valid_channels]
 
             if invalid_channels:
@@ -129,15 +115,9 @@ class MediaEffectCalibrator:
         model_start = pd.to_datetime(self.mmm_data.mmmdata_spec.window_start)
         model_end = pd.to_datetime(self.mmm_data.mmmdata_spec.window_end)
 
-        self.logger.debug("Model window: %s to %s", model_start, model_end)
-
         for channel_key, data in self.calibration_input.channel_data.items():
             lift_start = pd.Timestamp(data.lift_start_date)
             lift_end = pd.Timestamp(data.lift_end_date)
-
-            self.logger.debug(
-                "Validating dates for %s: %s to %s", channel_key, lift_start, lift_end
-            )
 
             if not (
                 model_start <= lift_start <= model_end
@@ -158,10 +138,6 @@ class MediaEffectCalibrator:
         data: ChannelCalibrationData,
     ) -> float:
         """Calculates immediate effect score with detailed logging."""
-        self.logger.debug("Calculating immediate effect for channel: %s", channel)
-        self.logger.debug(
-            "Input parameters - Lift value: %.2f, Spend: %.2f", lift_value, spend
-        )
 
         # Get channel parameters
         channel_params = self.hyperparameters.get_hyperparameter(channel)
@@ -169,14 +145,6 @@ class MediaEffectCalibrator:
         alpha = channel_params.alphas[0]
         gamma = channel_params.gammas[0]
         coef = self.model_coefficients.get(channel, 1.0)
-
-        self.logger.debug(
-            "Channel parameters - Theta: %.3f, Alpha: %.3f, Gamma: %.3f, Coefficient: %.3f",
-            theta,
-            alpha,
-            gamma,
-            coef,
-        )
 
         # Calculate effects
         m_imme = predictions.copy()
@@ -190,19 +158,6 @@ class MediaEffectCalibrator:
         ).days + 1
         decomp_days = len(predictions)
         scaled_effect = (m_caov_decomp.sum() / decomp_days) * lift_days
-
-        self.logger.debug(
-            "Effect calculations - Raw sum: %.2f, Total adstock: %.2f, Carryover: %.2f",
-            predictions.sum(),
-            m_total.sum(),
-            m_caov.sum(),
-        )
-        self.logger.debug(
-            "Saturated carryover: %.2f, Final scaled effect: %.2f, Target lift: %.2f",
-            m_caov_sat.sum(),
-            scaled_effect,
-            lift_value,
-        )
 
         mape = np.abs((scaled_effect - lift_value) / lift_value)
         self.logger.info("Channel %s immediate effect MAPE: %.4f", channel, mape)
@@ -218,10 +173,6 @@ class MediaEffectCalibrator:
         data: ChannelCalibrationData,
     ) -> float:
         """Calculates total effect score with detailed logging."""
-        self.logger.debug("Calculating total effect for channel: %s", channel)
-        self.logger.debug(
-            "Input parameters - Lift value: %.2f, Spend: %.2f", lift_value, spend
-        )
 
         # Get channel parameters
         channel_params = self.hyperparameters.get_hyperparameter(channel)
@@ -229,14 +180,6 @@ class MediaEffectCalibrator:
         alpha = channel_params.alphas[0]
         gamma = channel_params.gammas[0]
         coef = self.model_coefficients.get(channel, 1.0)
-
-        self.logger.debug(
-            "Channel parameters - Theta: %.3f, Alpha: %.3f, Gamma: %.3f, Coefficient: %.3f",
-            theta,
-            alpha,
-            gamma,
-            coef,
-        )
 
         # Calculate effects
         m_imme = predictions.copy()

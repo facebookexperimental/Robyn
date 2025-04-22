@@ -618,24 +618,39 @@ class AllocatorVisualizer(BaseVisualizer):
         )
 
         # 4. Create the plot with improved layout
-        num_channels = len(plotDT_scurve["constr_label"].unique())
+        num_channels = len(plotDT_scurve["channel"].unique())
         num_rows = (num_channels + 2) // 3
+
+        # Get just the channel names and convert from numpy strings to regular strings
+        channel_names = [str(channel) for channel in plotDT_scurve["channel"].unique()]
 
         fig = make_subplots(
             rows=num_rows,
             cols=3,
-            subplot_titles=plotDT_scurve["constr_label"].unique(),
-            horizontal_spacing=0.15,  # Increased from 0.1
-            vertical_spacing=0.25,  # Increased from 0.15
+            subplot_titles=channel_names,
+            horizontal_spacing=0.15,
+            vertical_spacing=0.25,
         )
 
         # Add traces for each channel
-        for i, channel in enumerate(plotDT_scurve["constr_label"].unique()):
+        for i, channel in enumerate(channel_names):
             row = (i // 3) + 1
             col = (i % 3) + 1
 
-            channel_data = plotDT_scurve[plotDT_scurve["constr_label"] == channel]
-            channel_points = mainPoints[mainPoints["constr_label"] == channel]
+            channel_data = plotDT_scurve[plotDT_scurve["channel"] == channel]
+            channel_points = mainPoints[mainPoints["channel"] == channel]
+            # Add channel name as a text annotation above each subplot
+            fig.add_annotation(
+                text=channel,
+                xref=f"x{i+1}",
+                yref=f"y{i+1}",
+                x=0.5,  # Center of the subplot
+                y=1.15,  # Above the subplot
+                showarrow=False,
+                font=dict(size=14, color="black", family="Arial Bold"),
+                xanchor="center",
+                yanchor="bottom",
+            )
 
             # Carryover area first
             carryover_data = channel_data[
@@ -648,7 +663,7 @@ class AllocatorVisualizer(BaseVisualizer):
                         y=carryover_data["total_response"],
                         fill="tozeroy",
                         fillcolor="rgba(128, 128, 128, 0.4)",
-                        mode="none",  # Changed from line=dict(width=0)
+                        mode="none",
                         showlegend=False,
                     ),
                     row=row,
@@ -707,9 +722,7 @@ class AllocatorVisualizer(BaseVisualizer):
                                 ),
                                 name=type_label,
                                 legendgroup=type_label,
-                                showlegend=(
-                                    i == 0
-                                ),  # Only show in legend for first subplot
+                                showlegend=(i == 0),
                             ),
                             row=row,
                             col=col,
@@ -720,7 +733,7 @@ class AllocatorVisualizer(BaseVisualizer):
                     channel_points["type_lab"].isin(
                         ["Bounded", f"Bounded x{bound_mult}"]
                     )
-                ].copy()  # Add .copy() to avoid SettingWithCopyWarning
+                ].copy()
 
                 if not bounded_points.empty:
                     # First add the dotted lines between bounds
@@ -775,7 +788,7 @@ class AllocatorVisualizer(BaseVisualizer):
                     f"Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]"
                     "</span>"
                 ),
-                "y": 0.95,
+                "y": 0.98,  # Moved up
                 "x": 0.02,
                 "xanchor": "left",
                 "yanchor": "top",
@@ -793,7 +806,11 @@ class AllocatorVisualizer(BaseVisualizer):
             height=300 * num_rows,
             width=1000,
             template="plotly_white",
-            margin=dict(t=80, b=80, l=120, r=50),  # Reduced top margin from 120 to 80
+            margin=dict(t=150, b=80, l=120, r=50),  # Increased top margin
+        )
+
+        # Add axis labels
+        fig.update_layout(
             annotations=[
                 dict(
                     text=f"Spend** per {self.budget_allocator.mmm_data.mmmdata_spec.interval_type}",
@@ -806,7 +823,7 @@ class AllocatorVisualizer(BaseVisualizer):
                 ),
                 dict(
                     text=f"Total Response [{self.budget_allocator.mmm_data.mmmdata_spec.dep_var_type}]",
-                    x=-0.08,  # Adjusted position
+                    x=-0.08,
                     y=0.35,
                     xref="paper",
                     yref="paper",
@@ -814,10 +831,18 @@ class AllocatorVisualizer(BaseVisualizer):
                     textangle=-90,
                     font=dict(size=10),
                 ),
-            ],
+            ]
         )
 
-        # Update axes without titles (remove title_text from both)
+        # Update subplot titles to be more visible
+        for i in range(len(fig.layout.annotations)):
+            if i < len(channel_names):  # Only modify subplot titles, not axis labels
+                fig.layout.annotations[i].update(
+                    font=dict(size=14, color="black", family="Arial Bold"),
+                    y=fig.layout.annotations[i].y + 0.05,  # Move titles up more
+                )
+
+        # Update axes formatting
         fig.update_xaxes(
             tickfont={"size": 8},
             showgrid=True,
