@@ -331,7 +331,7 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## Exclude 0 coef and 0 constraint channels for the optimisation
   skip_these <- (channel_constr_low == 0 & channel_constr_up == 0)
-  zero_constraint_channel <- mediaSelectedSorted[skip_these]
+  zero_constraint_channel <- paid_media_selected[skip_these]
   if (any(skip_these) && !quiet) {
     message(
       "Excluded variables (constrained to 0): ",
