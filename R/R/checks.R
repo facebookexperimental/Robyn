@@ -928,11 +928,10 @@ check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL,
   } else if (is.Date(as.Date(date_range[1]))) {
     ## Using dates as date_range range
     date_range_updated <- date_range <- as.Date(date_range, origin = "1970-01-01")
-    if (!all(date_range %in% all_dates)) {
-      date_range_loc <- range(sapply(date_range, FUN = function(x) which.min(abs(x - all_dates))))
-      date_range_loc <- seq(from = date_range_loc[1], to = date_range_loc[2], by = 1)
-    } else {
-      date_range_loc <- which(all_dates %in% date_range)
+    if (length(date_range) == 2) {
+      date_range_loc <- which(all_dates >= date_range[1] & all_dates <= date_range[2])
+    } else if (length(date_range) == 1) {
+      date_range_loc <- sapply(date_range, FUN = function(x) which.min(abs(x - all_dates)))
     }
     date_range_updated <- all_dates[date_range_loc]
   } else {
@@ -964,8 +963,6 @@ check_metric_value <- function(metric_value, metric_name, all_values, metric_loc
       # message(paste0("'metric_value'", metric_value, " splitting into ", get_n, " periods evenly"))
     } else if (get_n == 1 & length(metric_value) == 1) {
       metric_value_updated <- metric_value
-    } else {
-      stop("robyn_response metric_value & date_range must have same length\n")
     }
   }
   all_values_updated <- all_values
