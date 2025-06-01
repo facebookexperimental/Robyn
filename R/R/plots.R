@@ -3,6 +3,61 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+#' Plot Placebo Test (density + violin)
+#'
+#' @param OutputCollect A robyn_outputs() object with `$placebo` filled
+#' @return patchwork of ggplots
+#' @export
+plot_placebo <- function(OutputCollect) {
+  pb <- OutputCollect$placebo
+  df <- data.frame(
+    nrmse = c(pb$orig_dist, pb$sham_dist),
+    type  = rep(c("Original","Placebo"),
+                c(length(pb$orig_dist), length(pb$sham_dist)))
+  )
+  orig_mean <- mean(pb$orig_dist); sham_mean <- mean(pb$sham_dist)
+  t_out <- pb$t_test; f_out <- pb$f_test
+
+  # Density panel
+  p1 <- ggplot(df, aes(x = nrmse, fill = type)) +
+    geom_density(alpha = 0.4) +
+    geom_vline(xintercept = orig_mean, linetype = "dashed", size = 1, color = "#00BFC4") +
+    geom_vline(xintercept = sham_mean, linetype = "dashed", size = 1, color = "#F8766D") +
+    annotate("text", x = orig_mean, y = Inf,
+             label = paste0("Orig mean = ", round(orig_mean, 4)),
+             vjust = 2, hjust = if (orig_mean < sham_mean) 1.1 else -0.1,
+             color = "#00BFC4") +
+    annotate("text", x = sham_mean, y = Inf,
+             label = paste0("Placebo mean = ", round(sham_mean, 4)),
+             vjust = 4, hjust = if (sham_mean < orig_mean) 1.1 else -0.1,
+             color = "#F8766D") +
+    labs(
+      title    = paste0("Placebo Stress-Test: NRMSE before vs. after shuffling '", pb$channel, "'"),
+      subtitle = sprintf("t-test p=%.5f", t_out$p.value),
+      x        = "NRMSE", y = "Density", fill = ""
+    ) +
+    scale_fill_manual(values = c("Original" = "#00BFC4", "Placebo" = "#F8766D")) +
+    theme_minimal()
+
+  # Violin panel
+  variance_interp <- if (f_out$p.value < 0.05) {
+    sprintf("Variance ↑ (F-test p=%.5f)", f_out$p.value)
+  } else {
+    sprintf("No variance ↑ (F-test p=%.5f)", f_out$p.value)
+  }
+  p2 <- ggplot(df, aes(x = type, y = nrmse, fill = type)) +
+    geom_violin(alpha = 0.6, draw_quantiles = 0.5) +
+    stat_summary(fun = mean, geom = "text", aes(label = round(after_stat(y), 4)), vjust = -0.5) +
+    labs(
+      title    = "NRMSE Variance: before vs. after placebo",
+      subtitle = variance_interp, x = NULL, y = "NRMSE"
+    ) +
+    scale_fill_manual(values = c("Original" = "#00BFC4", "Placebo" = "#F8766D")) +
+    theme_minimal() + theme(legend.position = "none")
+
+  # Combine and return
+  return(p1 / p2 + patchwork::plot_layout(heights = c(2, 1)))
+}
 ####################################################################
 #' Generate and Export Robyn Plots
 #'

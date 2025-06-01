@@ -17,6 +17,7 @@ Imports:
     doRNG,
     dplyr,
     foreach,
+    data.table,
     ggplot2,
     ggridges,
     glmnet,

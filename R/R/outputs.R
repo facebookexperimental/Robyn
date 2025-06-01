@@ -124,6 +124,7 @@ robyn_outputs <- function(InputCollect, OutputModels,
 
   # Final results object
   OutputCollect <- list(
+    InputCollect = InputCollect,
     resultHypParam = filter(pareto_results$resultHypParam, .data$solID %in% allSolutions),
     xDecompAgg = filter(pareto_results$xDecompAgg, .data$solID %in% allSolutions),
     mediaVecCollect = pareto_results$mediaVecCollect,
