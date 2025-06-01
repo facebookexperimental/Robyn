@@ -22,6 +22,21 @@ plot_placebo <- function(OutputCollect) {
   t_out <- pb$t_test
   f_out <- pb$f_test
 
+  # Compute dynamic interpretation based on t-test
+if (t_out$p.value < 0.05) {
+  interp_t <- paste0(
+    "shuffling worsened fit, indicating that '", pb$channel,
+    "' spend likely contributed unique predictive information to the model."
+  )
+} else {
+  interp_t <- paste0(
+    "shuffling did not worsen fit, indicating that '", pb$channel,
+    "' spend may not contribute unique predictive information given the other predictors."
+  )
+}
+
+  subtitle_density <- sprintf("t-test p=%.5f; %s", t_out$p.value, interp_t)
+
   # Density panel
   p1 <- ggplot(df, aes(x = .data$nrmse, fill = .data$type)) +
     geom_density(alpha = 0.4) +
@@ -60,7 +75,7 @@ plot_placebo <- function(OutputCollect) {
         "Placebo Stress-Test: NRMSE before vs. after shuffling '",
         pb$channel, "'"
       ),
-      subtitle = sprintf("t-test p=%.5f", t_out$p.value),
+      subtitle = subtitle_density,
       x        = "NRMSE",
       y        = "Density",
       fill     = ""
@@ -68,22 +83,23 @@ plot_placebo <- function(OutputCollect) {
     scale_fill_manual(values = c("Original" = "#00BFC4", "Placebo" = "#F8766D")) +
     theme_minimal()
 
-  # Violin panel
+  # Violin panel showing variances
   variance_interp <- if (f_out$p.value < 0.05) {
-    sprintf("Variance increase (F-test p=%.5f)", f_out$p.value)
+    sprintf("Variance increased (F-test p=%.5f)", f_out$p.value)
   } else {
     sprintf("No variance increase (F-test p=%.5f)", f_out$p.value)
   }
   p2 <- ggplot(df, aes(x = .data$type, y = .data$nrmse, fill = .data$type)) +
     geom_violin(alpha = 0.6, draw_quantiles = 0.5) +
+    # Calculate and label the sample variance for each group:
     stat_summary(
-      fun = mean,
+      fun = var,
       geom = "text",
-      aes(label = round(after_stat(y), 4)),
+      aes(label = paste0("Var=", round(after_stat(y), 4))),
       vjust = -0.5
     ) +
     labs(
-      title    = "NRMSE Variance: before vs. after placebo",
+      title    = "NRMSE Variance before vs. after placebo",
       subtitle = variance_interp,
       x        = NULL,
       y        = "NRMSE"
