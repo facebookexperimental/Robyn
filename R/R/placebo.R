@@ -9,6 +9,7 @@
 #'                     if FALSE, just returns the ggplot.
 #' @return             The same OutputCollect (now with `$placebo`), 
 #'                     and (invisibly) the ggplot object.
+#' @importFrom stats t.test var.test
 #' @export
 robyn_placebo <- function(OutputCollect,
                           channel,

@@ -29,7 +29,8 @@ Imports:
     prophet,
     reticulate,
     stringr,
-    tidyr
+    tidyr,
+    rlang
 Config/reticulate:
   list(
     packages = list(
