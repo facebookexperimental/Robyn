@@ -175,7 +175,7 @@ robyn_pareto <- function(InputCollect, OutputModels,
         )
         list_response <- list(
           dt_resp = data.frame(
-            mean_response = get_resp$mean_response_total,
+            mean_response = get_resp$mean_response,
             mean_spend_adstocked = get_resp$mean_input_immediate + get_resp$mean_input_carryover,
             mean_carryover = get_resp$mean_input_carryover,
             rn = get_media_name,
