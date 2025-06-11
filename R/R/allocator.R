@@ -300,7 +300,7 @@ robyn_allocator <- function(robyn_object = NULL,
       x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
-    initResponseUnit <- c(initResponseUnit, resp_simulate)
+    initResponseUnit <- c(initResponseUnit, resp$mean_response) # resp_simulate
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
   qa_carryover <- do.call(cbind, qa_carryover) %>% as.data.frame()
