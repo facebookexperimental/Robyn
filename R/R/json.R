@@ -90,14 +90,14 @@ robyn_write <- function(InputCollect,
       outputs <- list()
       outputs$select_model <- select_model
       sp <- select(InputCollect$dt_mod, c("ds", InputCollect$paid_media_spends))
-      df <- filter(OutputCollect$mediaVecCollect, solID %in% select_model, .data$type == "decompMedia")
+      df <- filter(OutputCollect$mediaVecCollect, .data$solID %in% select_model, .data$type == "decompMedia")
       perf_metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       performance <- left_join(
-        tidyr::gather(summarize_all(select(sp, InputCollect$paid_media_spends), sum), "channel", "spend"),
-        tidyr::gather(summarize_all(select(df, InputCollect$paid_media_spends), sum), "channel", "response"),
+        tidyr::gather(dplyr::summarize_all(select(sp, InputCollect$paid_media_spends), sum), "channel", "spend"),
+        tidyr::gather(dplyr::summarize_all(select(df, InputCollect$paid_media_spends), sum), "channel", "response"),
         by = "channel"
       ) %>%
-        rowwise() %>%
+        dplyr::rowwise() %>%
         mutate(
           metric = perf_metric,
           performance = ifelse(
@@ -108,7 +108,7 @@ robyn_write <- function(InputCollect,
         )
       outputs$performance <- performance %>%
         group_by(solID = select_model, .data$metric) %>%
-        summarize_if(is.numeric, sum) %>%
+        dplyr::summarize_if(is.numeric, sum) %>%
         mutate(solID = select_model)
       outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
         left_join(performance, by = c("rn" = "channel")) %>%
