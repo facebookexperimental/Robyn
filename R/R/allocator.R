@@ -133,8 +133,11 @@ robyn_allocator <- function(robyn_object = NULL,
 
   ## set local variables, sort & prompt
   # paid_media_spends <- InputCollect$paid_media_spends
-  paid_media_selected <- if ("paid_media_selected" %in% names(InputCollect))
-    InputCollect$paid_media_selected else InputCollect$paid_media_spends
+  paid_media_selected <- if ("paid_media_selected" %in% names(InputCollect)) {
+    InputCollect$paid_media_selected
+  } else {
+    InputCollect$paid_media_spends
+  }
   dep_var_type <- InputCollect$dep_var_type
   if (is.null(select_model) && length(OutputCollect$allSolutions == 1)) {
     select_model <- OutputCollect$allSolutions
@@ -145,7 +148,7 @@ robyn_allocator <- function(robyn_object = NULL,
   mediaSelectedSorted <- paid_media_selected[media_order]
 
   ## Checks and constraints
-  if ("max_historical_response" %in% scenario) scenario <- "max_response" #legacy
+  if ("max_historical_response" %in% scenario) scenario <- "max_response" # legacy
   check_allocator(
     OutputCollect, select_model, paid_media_selected, scenario,
     channel_constr_low, channel_constr_up, constr_mode
@@ -164,7 +167,7 @@ robyn_allocator <- function(robyn_object = NULL,
   }
   if (length(channel_constr_low) == 1) channel_constr_low <- rep(channel_constr_low, length(paid_media_selected))
   if (length(channel_constr_up) == 1) channel_constr_up <- rep(channel_constr_up, length(paid_media_selected))
-  #check_allocator_constrains(channel_constr_low, channel_constr_up)
+  # check_allocator_constrains(channel_constr_low, channel_constr_up)
   names(channel_constr_low) <- names(channel_constr_up) <- paid_media_selected
   channelConstrLowSorted <- channel_constr_low[mediaSelectedSorted]
   channelConstrUpSorted <- channel_constr_up[mediaSelectedSorted]
@@ -172,9 +175,11 @@ robyn_allocator <- function(robyn_object = NULL,
   ## get hill parameters and coefs
   dt_hyppar_sorted <- OutputCollect$resultHypParam %>%
     filter(.data$solID == select_model) %>%
-    select(c(hyper_names(InputCollect$adstock, mediaSelectedSorted),
-             paste0(mediaSelectedSorted, "_inflexion"),
-             paste0(mediaSelectedSorted, "_inflation"))) %>%
+    select(c(
+      hyper_names(InputCollect$adstock, mediaSelectedSorted),
+      paste0(mediaSelectedSorted, "_inflexion"),
+      paste0(mediaSelectedSorted, "_inflation")
+    )) %>%
     select(sort(colnames(.)))
   dt_coef_sorted <- OutputCollect$xDecompAgg %>%
     filter(.data$solID == select_model & .data$rn %in% mediaSelectedSorted) %>%
@@ -182,9 +187,15 @@ robyn_allocator <- function(robyn_object = NULL,
     arrange(.data$rn)
   non_zero_coef_sorted <- dt_coef_sorted$coef > 0
   names(non_zero_coef_sorted) <- dt_coef_sorted$rn
-  alphas <- dt_hyppar_sorted %>% select(contains("alphas")) %>% unlist
-  inflexions <- dt_hyppar_sorted %>% select(contains("inflexion")) %>% unlist
-  inflations <- dt_hyppar_sorted %>% select(contains("inflation")) %>% unlist
+  alphas <- dt_hyppar_sorted %>%
+    select(contains("alphas")) %>%
+    unlist()
+  inflexions <- dt_hyppar_sorted %>%
+    select(contains("inflexion")) %>%
+    unlist()
+  inflations <- dt_hyppar_sorted %>%
+    select(contains("inflation")) %>%
+    unlist()
   coefs_sorted <- dt_coef_sorted$coef
   names(coefs_sorted) <- dt_coef_sorted$rn
 
@@ -289,7 +300,7 @@ robyn_allocator <- function(robyn_object = NULL,
       x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
-    initResponseUnit <- c(initResponseUnit, resp_simulate)
+    initResponseUnit <- c(initResponseUnit, resp$mean_response) # resp_simulate
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
   qa_carryover <- do.call(cbind, qa_carryover) %>% as.data.frame()
