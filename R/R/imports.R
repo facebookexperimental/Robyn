@@ -25,6 +25,7 @@
 #' slice summarise summarise_all ungroup all_of bind_cols mutate_at starts_with ends_with tally n_distinct
 #' @importFrom foreach foreach %dopar% getDoParWorkers registerDoSEQ
 #' @import ggplot2
+#' @import data.table
 #' @importFrom ggridges geom_density_ridges geom_density_ridges_gradient
 #' @importFrom glmnet glmnet
 #' @importFrom jsonlite fromJSON toJSON write_json read_json
