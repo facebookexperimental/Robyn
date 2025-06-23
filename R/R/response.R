@@ -357,7 +357,11 @@ transform_decomp <- function(all_values, adstock, theta, shape, scale, alpha, ga
   ## simulate mean response of all_values periods
   mean_input_immediate <- mean(input_immediate[window_loc])
   mean_input_carryover <- mean(input_carryover_rw)
-  mean_response <- mean(saturated_total$x_saturated[window_loc] * coeff)
+  if (length(window_loc) != length(saturated_total$x_saturated)) {
+    mean_response <- mean(saturated_total$x_saturated[window_loc] * coeff)
+  } else {
+    mean_response <- mean(saturated_total$x_saturated * coeff)
+  }
   mean_response_total <- fx_objective(
     x = mean_input_immediate,
     coeff = coeff,

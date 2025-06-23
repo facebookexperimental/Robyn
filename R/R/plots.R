@@ -130,15 +130,14 @@ robyn_plots <- function(
           ),
           x = "NRMSE",
           y = "DECOMP.RSSD",
-          colour = "Iterations",
-          size = "MAPE",
-          alpha = NULL
+          colour = "Iterations"
         ) +
         theme_lares(background = "white", )
       # Add MAPE dimension when calibrated
       if (calibrated) {
         pParFront <- pParFront +
-          geom_point(data = resultHypParam, aes(size = .data$mape, alpha = 1 - .data$mape))
+          geom_point(data = resultHypParam, aes(size = .data$mape, alpha = 1 - .data$mape)) +
+          labs(size = "MAPE", alpha = NULL)
       } else {
         pParFront <- pParFront + geom_point()
       }
