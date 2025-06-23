@@ -481,15 +481,44 @@ robyn_onepagers <- function(
       }
 
       ## 4. Response curves
-      dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
+      # dt_scurvePlot <- temp[[sid]]$plot4data$dt_scurvePlot
       dt_scurvePlotMean <- temp[[sid]]$plot4data$dt_scurvePlotMean
+      curves_data <- lapply(dt_scurvePlotMean$channel, function(x) {
+        robyn_response(
+          InputCollect, OutputCollect,
+          select_model = sid,
+          metric_name = x,
+          metric_value = dt_scurvePlotMean$mean_spend[dt_scurvePlotMean$channel == x],
+          date_range = "all",
+          quiet = TRUE
+        )
+      })
+      dt_scurvePlotMean$mean_response_carryover <- unlist(
+        lapply(curves_data, function(x) x$mean_response_carryover)
+      )
+      dt_scurvePlot <- bind_rows(lapply(curves_data, function(x) x$plot$data)) %>%
+        rename("spend" = "metric") %>%
+        bind_rows(data.frame(
+          channel = dt_scurvePlotMean$channel, spend = 0, response = 0
+        )) %>%
+        left_join(
+          select(
+            dt_scurvePlotMean,
+            c("channel", "mean_spend", "mean_spend_adstocked", "mean_response_carryover")
+          ),
+          by = "channel"
+        )
+      # points_proxy <- bind_rows(lapply(curves_data, function(x)
+      #   data.frame(spend = mean(x$input_total),
+      #              response = x$mean_response))) %>%
+      #   mutate(channel = dt_scurvePlotMean$channel)
+      points_proxy <- dt_scurvePlot %>%
+        group_by(.data$channel) %>%
+        slice(which.min(abs(.data$mean_spend_adstocked - .data$spend)))
+
       trim_rate <- 1.3 # maybe enable as a parameter
       if (trim_rate > 0) {
         dt_scurvePlot <- dt_scurvePlot %>%
-          select(-"ds") %>%
-          bind_rows(data.frame(
-            channel = unique(dt_scurvePlot$channel), spend = 0, response = 0
-          )) %>%
           filter(
             .data$spend < max(dt_scurvePlotMean$mean_spend_adstocked) * trim_rate,
             .data$response < max(dt_scurvePlotMean$mean_response) * trim_rate,
@@ -502,22 +531,24 @@ robyn_onepagers <- function(
       if (!"channel" %in% colnames(dt_scurvePlotMean)) {
         dt_scurvePlotMean$channel <- dt_scurvePlotMean$rn
       }
+
       p4 <- ggplot(
         dt_scurvePlot, aes(x = .data$spend, y = .data$response, color = .data$channel)
       ) +
         geom_line() +
         geom_area(
-          data = group_by(dt_scurvePlot, .data$channel) %>% filter(.data$spend <= .data$mean_carryover),
+          data = group_by(dt_scurvePlot, .data$channel) %>%
+            filter(.data$response <= .data$mean_response_carryover),
           aes(x = .data$spend, y = .data$response, color = .data$channel),
           stat = "identity", position = "stack", size = 0.1,
           fill = "grey50", alpha = 0.4, show.legend = FALSE
         ) +
-        geom_point(data = dt_scurvePlotMean, aes(
-          x = .data$mean_spend_adstocked, y = .data$mean_response, color = .data$channel
+        geom_point(data = points_proxy, aes(
+          x = .data$spend, y = .data$response, color = .data$channel
         )) +
         geom_text(
-          data = dt_scurvePlotMean, aes(
-            x = .data$mean_spend_adstocked, y = .data$mean_response, color = .data$channel,
+          data = points_proxy, aes(
+            x = .data$spend, y = .data$response, color = .data$channel,
             label = formatNum(.data$mean_spend_adstocked, 2, abbr = TRUE)
           ),
           show.legend = FALSE, hjust = -0.2
