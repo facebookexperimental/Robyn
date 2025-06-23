@@ -787,12 +787,16 @@ exposure_handling <- function(dt_transform,
   }
   df_cpe <- bind_rows(df_cpe)
   df_expo_p <- bind_rows(df_expo_p)
-  p_expo <- df_expo_p %>% ggplot(aes(x = .data$spend, y = .data$exposure)) +
+  p_expo <- df_expo_p %>%
+    ggplot(aes(x = .data$spend, y = .data$exposure)) +
     geom_point() +
     geom_smooth(method = "lm", formula = y ~ x) +
     facet_wrap(~ .data$media, scales = "free") +
     labs(title = "Spend & exposure relationship for paid media.",
-         subtitle = "Re-consider media splits if a media shows multiple patterns.")
+         subtitle = "Re-consider media splits if a media shows multiple patterns.") +
+    scale_x_abbr() +
+    scale_y_abbr() +
+    theme_lares()
 
   # Give recommendations and show warnings
   threshold <- 0.8

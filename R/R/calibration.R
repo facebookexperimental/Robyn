@@ -368,7 +368,7 @@ robyn_calibrate_single_dim <- function(
       aes(
         x = .data$sim_spend, y = .data$sim_saturation,
         color = .data$sim
-      ), size = 2, alpha = 0.2
+      ), linewidth = 2, alpha = 0.2
     ) +
     scale_colour_grey() +
     geom_point(
@@ -396,7 +396,7 @@ robyn_calibrate_single_dim <- function(
   p_mse <- df_mse %>%
     mutate(trials = factor(.data$trials, levels = seq(max_trials))) %>%
     ggplot(aes(x = .data$iterations, y = .data$mse)) +
-    geom_line(size = 0.2) +
+    geom_line(linewidth = 0.2) +
     facet_grid(.data$trials ~ .) +
     labs(
       title = paste0(

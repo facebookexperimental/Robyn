@@ -545,7 +545,7 @@ robyn_onepagers <- function(
         xDecompVecPlotMelted,
         aes(x = .data$ds, y = .data$value, color = .data$variable)
       ) +
-        geom_path(aes(linetype = .data$variable), size = 0.5) +
+        geom_path(aes(linetype = .data$variable), linewidth = 0.5) +
         theme_lares(background = "white", legend = "top", pal = 2) +
         scale_y_abbr() +
         guides(linetype = "none") +
@@ -584,7 +584,8 @@ robyn_onepagers <- function(
 
       ## 6. Diagnostic: fitted vs residual
       xDecompVecPlot <- temp[[sid]]$plot6data$xDecompVecPlot
-      p6 <- qplot(x = .data$predicted, y = .data$actual - .data$predicted, data = xDecompVecPlot) +
+      p6 <- ggplot(xDecompVecPlot, aes(x = .data$predicted, y = .data$actual - .data$predicted)) +
+        geom_point() +
         geom_hline(yintercept = 0) +
         geom_smooth(se = TRUE, method = "loess", formula = "y ~ x") +
         scale_x_abbr() + scale_y_abbr() +
@@ -1071,7 +1072,7 @@ allocation_plots <- function(
     ggplot() +
     scale_x_abbr() +
     scale_y_abbr() +
-    geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE, size = 0.5) +
+    geom_line(aes(x = .data$spend, y = .data$total_response), show.legend = FALSE, linewidth = 0.5) +
     facet_wrap(.data$constr_label ~ ., scales = "free", ncol = 3) +
     geom_area(
       data = group_by(plotDT_scurve, .data$constr_label) %>%
@@ -1105,7 +1106,7 @@ allocation_plots <- function(
       title = paste0("Simulated Response Curve per ", str_to_title(InputCollect$intervalType)),
       x = sprintf("Spend** per %s (grey area: mean historical carryover)", InputCollect$intervalType),
       y = sprintf("Total Response [%s]", InputCollect$dep_var_type),
-      shape = NULL, color = NULL, fill = NULL,
+      color = NULL, fill = NULL,
       caption = caption
     )
 
@@ -1356,7 +1357,7 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
       )) %>%
       as_tibble()
     outputs[["pFitRF"]] <- pFitRF <- ggplot(xDecompVecPlotMelted) +
-      geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$variable), size = 0.5) +
+      geom_path(aes(x = .data$ds, y = .data$value, color = .data$variable, linetype = .data$variable), linewidth = 0.5) +
       geom_rect(
         data = dt_refreshDates,
         aes(
@@ -1550,9 +1551,10 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
 
   get_height <- max(resultHypParam$trial)
   pw <- (pNRMSE / pIters) +
-    patchwork::plot_annotation(title = "Time-series validation & Convergence") +
-    patchwork::plot_layout(heights = c(get_height, 1), guides = "collect") &
-    theme_lares(background = "white", legend = "top")
+    patchwork::plot_annotation(
+      title = "Time-series validation & Convergence",
+      theme = theme_lares(background = "white", legend = "top")) +
+    patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
   return(pw)
 }
 
