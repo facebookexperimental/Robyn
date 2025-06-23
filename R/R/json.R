@@ -58,8 +58,9 @@ robyn_write <- function(InputCollect,
   skip <- skip[!names(skip) %in% c("calibration_input", "hyperparameters", "custom_params")]
   ret[["InputCollect"]] <- InputCollect[-skip]
   # toJSON(ret$InputCollect, pretty = TRUE)
-  if (!"paid_media_selected" %in% names(InputCollect))
+  if (!"paid_media_selected" %in% names(InputCollect)) {
     InputCollect$paid_media_selected <- InputCollect$paid_media_spends
+  }
 
   # ExportedModel JSON
   if (!is.null(OutputCollect)) {
@@ -91,7 +92,7 @@ robyn_write <- function(InputCollect,
       stopifnot(select_model %in% OutputCollect$allSolutions)
       outputs <- list()
       outputs$select_model <- select_model
-      sp <- select(InputCollect$dt_mod, c("ds", InputCollect$paid_media_selected))
+      sp <- select(InputCollect$dt_mod, InputCollect$paid_media_selected)
       df <- filter(OutputCollect$mediaVecCollect, .data$solID %in% select_model, .data$type == "decompMedia")
       perf_metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
       performance <- left_join(
