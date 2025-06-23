@@ -300,10 +300,11 @@ robyn_allocator <- function(robyn_object = NULL,
       x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
-    mr <- ifelse(all(mediaSelectedSorted %in% InputCollect$paid_media_spends),
-      resp$mean_response, resp_simulate
-    )
-    initResponseUnit <- c(initResponseUnit, mr)
+    initResponseUnit <- c(initResponseUnit, ifelse(
+      all(mediaSelectedSorted %in% InputCollect$paid_media_spends),
+      resp$mean_response,
+      resp_simulate
+    ))
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
   qa_carryover <- do.call(cbind, qa_carryover) %>% as.data.frame()
