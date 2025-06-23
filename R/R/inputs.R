@@ -583,8 +583,10 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
 
   ## Standardise ds and dep_var cols
   dt_transform <- dt_input %>%
-    rename("ds" = InputCollect$date_var,
-           "dep_var" = InputCollect$dep_var) %>%
+    rename(
+      "ds" = InputCollect$date_var,
+      "dep_var" = InputCollect$dep_var
+    ) %>%
     arrange(.data$ds)
 
   ## Transform all factor variables
@@ -641,7 +643,8 @@ robyn_engineering <- function(x, quiet = FALSE, ...) {
     window_end_loc = rollingWindowEndWhich,
     paid_media_spends,
     paid_media_vars,
-    quiet)
+    quiet
+  )
 
   ################################################################
   #### Finalize enriched input
@@ -764,24 +767,30 @@ exposure_handling <- function(dt_transform,
     temp_spend_window <- temp_spend[window_start_loc:window_end_loc, ]
     temp_expo_window <- temp_expo[window_start_loc:window_end_loc, ]
     ## cpe = cost per exposure, an internal linear scaler between spend & exposure
-    temp_cpe <- sum(temp_spend)/ sum(temp_expo)
-    temp_cpe_window <- sum(temp_spend_window)/ sum(temp_expo_window)
+    temp_cpe <- sum(temp_spend) / sum(temp_expo)
+    temp_cpe_window <- sum(temp_spend_window) / sum(temp_expo_window)
     temp_spend_scaled <- ifelse(exposure_selector[i], temp_expo * temp_cpe, temp_spend)
     temp_spend_scaled_window <- ifelse(exposure_selector[i], temp_expo_window * temp_cpe_window, temp_spend_window)
     df_cpe[[i]] <- data.frame(
       paid_media_selected = paid_media_selected[i],
       cpe = temp_cpe,
       cpe_window = temp_cpe_window,
-      adj_rsq = get_rsq(true = unlist(temp_spend),
-                        predicted = unlist(temp_spend_scaled)),
-      adj_rsq_window = get_rsq(true = unlist(temp_spend_window),
-                               predicted = unlist(temp_spend_scaled_window))
+      adj_rsq = get_rsq(
+        true = unlist(temp_spend),
+        predicted = unlist(temp_spend_scaled)
+      ),
+      adj_rsq_window = get_rsq(
+        true = unlist(temp_spend_window),
+        predicted = unlist(temp_spend_scaled_window)
+      )
     )
     ## Use window cpe to predict the whole dataset to keep the window spend scale right
     spend_scaled_extrapolated <- temp_expo * temp_cpe_window
-    df_expo_p[[i]] <- data.frame(spend = unlist(temp_spend),
-                                 exposure = unlist(temp_expo),
-                                 media = paid_media_selected[i])
+    df_expo_p[[i]] <- data.frame(
+      spend = unlist(temp_spend),
+      exposure = unlist(temp_expo),
+      media = paid_media_selected[i]
+    )
     dt_transform <- dt_transform %>%
       mutate_at(vars(paid_media_selected[i]), function(x) unlist(spend_scaled_extrapolated))
   }
@@ -792,15 +801,19 @@ exposure_handling <- function(dt_transform,
     geom_point() +
     geom_smooth(method = "lm", formula = y ~ x) +
     facet_wrap(~ .data$media, scales = "free") +
-    labs(title = "Spend & exposure relationship for paid media.",
-         subtitle = "Re-consider media splits if a media shows multiple patterns.") +
+    labs(
+      title = "Spend & exposure relationship for paid media.",
+      subtitle = "Re-consider media splits if a media shows multiple patterns."
+    ) +
     scale_x_abbr() +
     scale_y_abbr() +
     theme_lares()
 
   # Give recommendations and show warnings
   threshold <- 0.8
-  temp_names <- df_cpe %>% filter(.data$adj_rsq_window < threshold) %>% pull(paid_media_selected)
+  temp_names <- df_cpe %>%
+    filter(.data$adj_rsq_window < threshold) %>%
+    pull(paid_media_selected)
   if (!quiet & any(exposure_selector) & length(temp_names) > 1) {
     message(
       paste(
@@ -811,10 +824,12 @@ exposure_handling <- function(dt_transform,
       "\n  Weak relationship for: ", v2t(temp_names), " and their spend"
     )
   }
-  return(list(df_cpe = df_cpe,
-              plot_spend_exposure = p_expo,
-              dt_transform = dt_transform,
-              paid_media_selected = paid_media_selected))
+  return(list(
+    df_cpe = df_cpe,
+    plot_spend_exposure = p_expo,
+    dt_transform = dt_transform,
+    paid_media_selected = paid_media_selected
+  ))
 }
 
 ####################################################################
@@ -875,14 +890,14 @@ set_holidays <- function(dt_transform, dt_holidays, intervalType) {
 set_default_hyppar <- function(
     adstock = NULL,
     all_media = NULL,
-    list_default = list(alpha = c(0.5, 3),
-                        gamma = c(0.01, 1),
-                        theta = c(0, 0.8),
-                        shape = c(0, 10),
-                        scale = c(0, 0.1),
-                        train_size = c(0.5, 0.9))
-
-) {
+    list_default = list(
+      alpha = c(0.5, 3),
+      gamma = c(0.01, 1),
+      theta = c(0, 0.8),
+      shape = c(0, 10),
+      scale = c(0, 0.1),
+      train_size = c(0.5, 0.9)
+    )) {
   hpnames <- hyper_names(adstock = adstock, all_media = all_media)
   hyperparameters <- list()
   for (i in seq_along(hpnames)) {
@@ -891,7 +906,8 @@ set_default_hyppar <- function(
       str_detect(hpnames[[i]], "_gammas") ~ list_default[["gamma"]],
       str_detect(hpnames[[i]], "_thetas") ~ list_default[["theta"]],
       str_detect(hpnames[[i]], "_shapes") ~ list_default[["shape"]],
-      str_detect(hpnames[[i]], "_scales") ~ list_default[["scale"]])
+      str_detect(hpnames[[i]], "_scales") ~ list_default[["scale"]]
+    )
     names(hyperparameters)[[i]] <- hpnames[[i]]
   }
   hyperparameters[["train_size"]] <- list_default[["train_size"]]

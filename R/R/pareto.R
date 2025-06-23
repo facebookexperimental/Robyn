@@ -100,7 +100,8 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
   # Bind robynPareto results
   xDecompAgg <- left_join(xDecompAgg, select(resultHypParam, .data$robynPareto, .data$solID), by = "solID")
-  xDecompAggMedia <- xDecompAgg %>% filter(.data$rn %in% InputCollect$all_media) %>%
+  xDecompAggMedia <- xDecompAgg %>%
+    filter(.data$rn %in% InputCollect$all_media) %>%
     select(c("rn", "solID", "coef", "mean_spend", "mean_exposure", "xDecompAgg", "total_spend", "robynPareto"))
 
   # Prepare parallel loop
@@ -153,53 +154,54 @@ robyn_pareto <- function(InputCollect, OutputModels,
 
   cnt_resp <- nrow(xDecompAggMediaPar)
   pb_resp <- txtProgressBar(min = 0, max = cnt_resp, style = 3)
-    resp_collect <- lapply(
-      1:cnt_resp,
-      function(respN) {
-        setTxtProgressBar(pb_resp, respN)
-        get_solID <- xDecompAggMediaPar$solID[respN]
-        get_media_name <- xDecompAggMediaPar$rn[respN]
-        window_start_loc <- InputCollect$rollingWindowStartWhich
-        window_end_loc <- InputCollect$rollingWindowEndWhich
+  resp_collect <- lapply(
+    1:cnt_resp,
+    function(respN) {
+      setTxtProgressBar(pb_resp, respN)
+      get_solID <- xDecompAggMediaPar$solID[respN]
+      get_media_name <- xDecompAggMediaPar$rn[respN]
+      window_start_loc <- InputCollect$rollingWindowStartWhich
+      window_end_loc <- InputCollect$rollingWindowEndWhich
 
-        get_resp <- robyn_response(
-          select_model = get_solID,
-          metric_name = get_media_name,
-          date_range = "all",
-          dt_hyppar = resultHypParamPar,
-          dt_coef = xDecompAggMediaPar,
-          InputCollect = InputCollect,
-          OutputCollect = OutputModels,
-          quiet = TRUE,
-          ...
-        )
-        list_response <- list(
-          dt_resp = data.frame(
-            mean_response = get_resp$mean_response,
-            mean_spend_adstocked = get_resp$mean_input_immediate + get_resp$mean_input_carryover,
-            mean_carryover = get_resp$mean_input_carryover,
-            rn = get_media_name,
-            solID = get_solID
-          ),
-          dt_resp_vec = data.frame(
-            channel = rep(get_media_name, length(get_resp$response_total)),
-            response = get_resp$response_total,
-            response_carryover = get_resp$response_carryover,
-            spend = get_resp$input_total[window_start_loc:window_end_loc],
-            solID = rep(get_solID, length(get_resp$response_total))
-          )
-        )
-        return(list_response)
-        }
+      get_resp <- robyn_response(
+        select_model = get_solID,
+        metric_name = get_media_name,
+        date_range = "all",
+        dt_hyppar = resultHypParamPar,
+        dt_coef = xDecompAggMediaPar,
+        InputCollect = InputCollect,
+        OutputCollect = OutputModels,
+        quiet = TRUE,
+        ...
       )
-    close(pb_resp)
-    dt_resp <- bind_rows(lapply(resp_collect, function(x) x[["dt_resp"]]))
-    dt_resp_vec <- bind_rows(lapply(resp_collect, function(x) x[["dt_resp_vec"]]))
+      list_response <- list(
+        dt_resp = data.frame(
+          mean_response = get_resp$mean_response,
+          mean_spend_adstocked = get_resp$mean_input_immediate + get_resp$mean_input_carryover,
+          mean_carryover = get_resp$mean_input_carryover,
+          rn = get_media_name,
+          solID = get_solID
+        ),
+        dt_resp_vec = data.frame(
+          channel = rep(get_media_name, length(get_resp$response_total)),
+          response = get_resp$response_total,
+          response_carryover = get_resp$response_carryover,
+          spend = get_resp$input_total[window_start_loc:window_end_loc],
+          solID = rep(get_solID, length(get_resp$response_total))
+        )
+      )
+      return(list_response)
+    }
+  )
+  close(pb_resp)
+  dt_resp <- bind_rows(lapply(resp_collect, function(x) x[["dt_resp"]]))
+  dt_resp_vec <- bind_rows(lapply(resp_collect, function(x) x[["dt_resp_vec"]]))
 
-  xDecompAgg <- xDecompAgg %>% left_join(
-    dt_resp,
-    by = c("solID", "rn")
-  ) %>%
+  xDecompAgg <- xDecompAgg %>%
+    left_join(
+      dt_resp,
+      by = c("solID", "rn")
+    ) %>%
     mutate(
       roi_mean = .data$mean_response / .data$mean_spend,
       roi_total = .data$xDecompAgg / .data$total_spend,
@@ -326,18 +328,20 @@ robyn_pareto <- function(InputCollect, OutputModels,
         dt_ds,
         dt_resp_vec %>%
           filter(.data$solID == sid) %>%
-          select(c("channel", "spend","response"))
+          select(c("channel", "spend", "response"))
       )
       dt_transformAdstock <- dt_resp_vec_loop %>%
-        select(c("ds","channel", "spend")) %>%
+        select(c("ds", "channel", "spend")) %>%
         pivot_wider(values_from = "spend", names_from = "channel")
       dt_transformSaturationDecomp <- dt_resp_vec_loop %>%
-        select(c("ds","channel", "response")) %>%
+        select(c("ds", "channel", "response")) %>%
         pivot_wider(values_from = "response", names_from = "channel")
       dt_scurvePlotMean <- plotWaterfall %>%
         filter(.data$solID == sid & !is.na(.data$mean_spend)) %>%
-        select(c(channel = "rn", "mean_spend", "mean_spend_adstocked",
-                 "mean_carryover", "mean_response", "solID"))
+        select(c(
+          channel = "rn", "mean_spend", "mean_spend_adstocked",
+          "mean_carryover", "mean_response", "solID"
+        ))
       # Exposure response curve
       plot4data <- list(
         dt_scurvePlot = dt_resp_vec_loop,
@@ -356,21 +360,28 @@ robyn_pareto <- function(InputCollect, OutputModels,
         pivot_wider(values_from = "coef", names_from = "rn") %>%
         mutate("(Intercept)" = ifelse(
           "(Intercept)" %in% levels(plotWaterfallLoop$rn),
-          .data$`(Intercept)`, 0))
+          .data$`(Intercept)`, 0
+        ))
       xDecompVec <- bind_cols(
         dt_transformDecomp %>% select(temp_order1),
         data.frame(mapply(
-          function(vec, coefs) {vec * coefs},
+          function(vec, coefs) {
+            vec * coefs
+          },
           vec = select(dt_transformDecomp, -temp_order1),
           coefs = xDecompVec
         ), check.names = FALSE),
         dt_transformSaturationDecomp %>% select(-"ds")
-        ) %>%
+      ) %>%
         rename("intercept" = "(Intercept)") %>%
-        mutate(depVarHat = rowSums(select(., -temp_order1)),
-               solID = sid) %>%
-        select(c("ds", "dep_var", InputCollect$all_ind_vars,
-                 "intercept", "depVarHat", "solID"))
+        mutate(
+          depVarHat = rowSums(select(., -temp_order1)),
+          solID = sid
+        ) %>%
+        select(c(
+          "ds", "dep_var", InputCollect$all_ind_vars,
+          "intercept", "depVarHat", "solID"
+        ))
 
       xDecompVecPlot <- select(xDecompVec, .data$ds, .data$dep_var, .data$depVarHat) %>%
         rename("actual" = "dep_var", "predicted" = "depVarHat")
@@ -390,10 +401,12 @@ robyn_pareto <- function(InputCollect, OutputModels,
         filter(.data$solID == sid) %>%
         group_by(.data$channel) %>%
         summarise(Total = sum(.data$response), Carryover = sum(.data$response_carryover)) %>%
-        mutate(Immediate = .data$Total - .data$Carryover,
-               perc_imme = 1 - .data$Carryover / .data$Total,
-               perc_caov = .data$Carryover / .data$Total,
-               carryover_pct = .data$Carryover / .data$Total)
+        mutate(
+          Immediate = .data$Total - .data$Carryover,
+          perc_imme = 1 - .data$Carryover / .data$Total,
+          perc_caov = .data$Carryover / .data$Total,
+          carryover_pct = .data$Carryover / .data$Total
+        )
       plot7data <- bind_cols(
         temp_p7 %>%
           select(rn = "channel", "Immediate", "Carryover") %>%
@@ -482,21 +495,25 @@ robyn_immcarr <- function(
   if (is.null(end_date)) end_date <- InputCollect$window_end
   # Get closer dates to date passed
   start_date <- InputCollect$dt_modRollWind$ds[
-    which.min(abs(as.Date(start_date) - InputCollect$dt_modRollWind$ds))]
+    which.min(abs(as.Date(start_date) - InputCollect$dt_modRollWind$ds))
+  ]
   end_date <- InputCollect$dt_modRollWind$ds[
-    which.min(abs(as.Date(end_date) - InputCollect$dt_modRollWind$ds))]
+    which.min(abs(as.Date(end_date) - InputCollect$dt_modRollWind$ds))
+  ]
   # Filter for custom window
   rollingWindowStartWhich <- which(InputCollect$dt_modRollWind$ds == start_date)
   rollingWindowEndWhich <- which(InputCollect$dt_modRollWind$ds == end_date)
   rollingWindow <- rollingWindowStartWhich:rollingWindowEndWhich
   # Calculate saturated dataframes with carryover and immediate parts
   hypParamSam <- OutputCollect$resultHypParam[OutputCollect$resultHypParam$solID == solID, ]
-  dt_saturated_dfs <- run_transformations(all_media = InputCollect$all_media,
-                                          window_start_loc = InputCollect$rollingWindowStartWhich,
-                                          window_end_loc = InputCollect$rollingWindowEndWhich,
-                                          dt_mod = InputCollect$dt_mod,
-                                          adstock = InputCollect$adstock,
-                                          dt_hyppar = hypParamSam, ...)
+  dt_saturated_dfs <- run_transformations(
+    all_media = InputCollect$all_media,
+    window_start_loc = InputCollect$rollingWindowStartWhich,
+    window_end_loc = InputCollect$rollingWindowEndWhich,
+    dt_mod = InputCollect$dt_mod,
+    adstock = InputCollect$adstock,
+    dt_hyppar = hypParamSam, ...
+  )
   # Calculate decomposition
   coefs <- OutputCollect$xDecompAgg$coef[OutputCollect$xDecompAgg$solID == solID]
   names(coefs) <- OutputCollect$xDecompAgg$rn[OutputCollect$xDecompAgg$solID == solID]
@@ -509,7 +526,8 @@ robyn_immcarr <- function(
       dt_saturatedCarryover = dt_saturated_dfs$dt_saturatedCarryover[rollingWindow, ],
       dt_modRollWind = InputCollect$dt_modRollWind[rollingWindow, ],
       refreshAddedStart = start_date
-    ))
+    )
+  )
   mediaDecompImmediate <- select(decompCollect$mediaDecompImmediate, -"ds", -"y")
   colnames(mediaDecompImmediate) <- paste0(colnames(mediaDecompImmediate), "_MDI")
   mediaDecompCarryover <- select(decompCollect$mediaDecompCarryover, -"ds", -"y")
@@ -551,7 +569,8 @@ robyn_immcarr <- function(
     group_by(.data$solID, .data$start_date, .data$end_date, .data$rn, .data$type) %>%
     summarise(response = sum(.data$value), .groups = "drop_last") %>%
     mutate(percentage = .data$response / sum(.data$response)) %>%
-    replace(., is.na(.), 0) %>% ungroup() %>%
+    replace(., is.na(.), 0) %>%
+    ungroup() %>%
     left_join(df_caov_pct, c("solID", "rn"))
   return(xDecompVecImmeCaov)
 }

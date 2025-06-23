@@ -588,7 +588,8 @@ robyn_onepagers <- function(
         geom_point() +
         geom_hline(yintercept = 0) +
         geom_smooth(se = TRUE, method = "loess", formula = "y ~ x") +
-        scale_x_abbr() + scale_y_abbr() +
+        scale_x_abbr() +
+        scale_y_abbr() +
         theme_lares(background = "white", ) +
         labs(x = "Fitted", y = "Residual", title = "Fitted vs. Residual")
 
@@ -824,7 +825,8 @@ allocation_plots <- function(
       .data$value / dplyr::first(.data$value)
     })
   metric_vals <- if (metric == "ROAS") resp_metric$total_roi else resp_metric$total_cpa
-  resp_delta <- df_roi %>% group_by(.data$type) %>%
+  resp_delta <- df_roi %>%
+    group_by(.data$type) %>%
     summarise(resp_delta = unique(.data$total_response_lift)) %>%
     pull(resp_delta)
   labs <- paste(
@@ -833,7 +835,7 @@ allocation_plots <- function(
       100 * (resp_metric$total_spend - resp_metric$total_spend[1]) / resp_metric$total_spend[1],
       signif = 3, pos = "%", sign = TRUE
     )),
-   paste("Resp:", formatNum(100 *  resp_delta, signif = 3, pos = "%", sign = TRUE)),
+    paste("Resp:", formatNum(100 * resp_delta, signif = 3, pos = "%", sign = TRUE)),
     paste(metric, ":", round(metric_vals, 2)),
     sep = "\n"
   )
@@ -1553,7 +1555,8 @@ ts_validation <- function(OutputModels, quiet = FALSE, ...) {
   pw <- (pNRMSE / pIters) +
     patchwork::plot_annotation(
       title = "Time-series validation & Convergence",
-      theme = theme_lares(background = "white", legend = "top")) +
+      theme = theme_lares(background = "white", legend = "top")
+    ) +
     patchwork::plot_layout(heights = c(get_height, 1), guides = "collect")
   return(pw)
 }
@@ -1629,11 +1632,10 @@ decomp_plot <- function(
 
 # Custom plot for geom_density interval
 geom_density_ci <- function(
-    gg_density,  # ggplot object that contains geom_density
+    gg_density, # ggplot object that contains geom_density
     ci_low,
     ci_up,
-    fill = "grey"
-) {
+    fill = "grey") {
   build_object <- ggplot_build(gg_density)
   x_dens <- build_object$data[[1]]$x
   y_dens <- build_object$data[[1]]$y
@@ -1642,14 +1644,16 @@ geom_density_ci <- function(
 
   gg_density <- gg_density +
     geom_area(
-      data=data.frame(
-        x=x_dens[ind_low:ind_up],
-        density=y_dens[ind_low:ind_up]),
-      aes(x=.data$x,y=.data$density),
-      fill=fill,
-      alpha=0.6)
+      data = data.frame(
+        x = x_dens[ind_low:ind_up],
+        density = y_dens[ind_low:ind_up]
+      ),
+      aes(x = .data$x, y = .data$density),
+      fill = fill,
+      alpha = 0.6
+    )
   return(gg_density)
-  }
+}
 
 get_evenly_separated_dates <- function(dates, n = 6) {
   dates <- sort(dates)
