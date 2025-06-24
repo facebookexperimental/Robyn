@@ -97,16 +97,18 @@ baseline_vars <- function(InputCollect, baseline_level) {
 
 # Calculate dot product
 .dot_product <- function(range, proportion) {
-  mapply(function(proportion) {
-    c(range %*% c(1 - proportion, proportion))
-  },
-  proportion = proportion)
+  mapply(
+    function(proportion) {
+      c(range %*% c(1 - proportion, proportion))
+    },
+    proportion = proportion
+  )
 }
 
 # Calculate quantile interval
 .qti <- function(x, interval = 0.95) {
   check_qti(interval)
-  int_low <- (1 - interval)/2
+  int_low <- (1 - interval) / 2
   int_up <- 1 - int_low
   qt_low <- quantile(x, int_low)
   qt_up <- quantile(x, int_up)
@@ -131,13 +133,14 @@ baseline_vars <- function(InputCollect, baseline_level) {
   } else {
     warning(paste(
       "Unable to determine frequency to calculate next logical date.",
-      "Returning last available date."))
+      "Returning last available date."
+    ))
     return(as.Date(tail(dates, 1)))
   }
-  next_date <- switch(
-    frequency,
+  next_date <- switch(frequency,
     "daily" = dates[length(dates)] + 1,
     "weekly" = dates[length(dates)] + 7,
-    "monthly" = seq(dates[length(dates)], by = "1 month", length.out = 2)[2])
+    "monthly" = seq(dates[length(dates)], by = "1 month", length.out = 2)[2]
+  )
   return(as.Date(next_date))
 }

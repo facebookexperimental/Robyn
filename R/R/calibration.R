@@ -51,7 +51,8 @@
 #' # "reach 1+" for gamma lower bound and "reach 10+" for gamma upper bound
 #' facebook_I_gammas <- c(
 #'   curve_out[["curve_collect"]][["reach 1+"]][["hill"]][["gamma_best"]],
-#'   curve_out[["curve_collect"]][["reach 10+"]][["hill"]][["gamma_best"]])
+#'   curve_out[["curve_collect"]][["reach 10+"]][["hill"]][["gamma_best"]]
+#' )
 #' print(facebook_I_gammas)
 #' }
 #' @return List. Class: \code{curve_out}. Contains the results of all trials
@@ -94,7 +95,8 @@ robyn_calibrate <- function(
         burn_in_rel,
         sim_n,
         hp_interval,
-        quiet)
+        quiet
+      )
     }
 
     df_curve_plot <- bind_rows(lapply(curve_collect, function(x) x$df_out))
@@ -108,12 +110,14 @@ robyn_calibrate <- function(
         x = "cumulative spend",
         y = "cumulative reach"
       ) +
-      #theme_lares(background = "white")+
-      #scale_alpha_discrete(range = c(1, 0.2))
-      scale_colour_discrete(h =c(120,260))
+      # theme_lares(background = "white")+
+      # scale_alpha_discrete(range = c(1, 0.2))
+      scale_colour_discrete(h = c(120, 260))
 
-    return(list(curve_collect = curve_collect,
-                plot_reach_freq = p_rnf))
+    return(list(
+      curve_collect = curve_collect,
+      plot_reach_freq = p_rnf
+    ))
   } else {
     curve_collect <- robyn_calibrate_single_dim(
       df_curve,
@@ -127,7 +131,8 @@ robyn_calibrate <- function(
       burn_in_rel,
       sim_n,
       hp_interval,
-      quiet)
+      quiet
+    )
     return(list(curve_collect = curve_collect))
   }
 }
@@ -314,7 +319,8 @@ robyn_calibrate_single_dim <- function(
 
   ## get calibration range for hyparameters
   p_alpha <- data.frame(alpha = alpha_collect_converged) %>%
-    ggplot(aes(x = alpha)) + geom_density(fill = "grey99", color = "grey")
+    ggplot(aes(x = alpha)) +
+    geom_density(fill = "grey99", color = "grey")
   alpha_den <- .den_interval(p_alpha, hp_interval, best_alpha)
 
   p_gamma <- data.frame(gamma = gamma_collect_converged) %>% ggplot(aes(x = gamma)) +
@@ -330,11 +336,12 @@ robyn_calibrate_single_dim <- function(
   # qt_coef_out <- .qti(x = coef_collect_converged, interval = hp_interval)
 
   ## plotting & prompting
-  #coef_response <- max(response_cum_sot) / max(response_sot_scaled)
+  # coef_response <- max(response_cum_sot) / max(response_sot_scaled)
   df_sot_plot <- data.frame(
     spend = spend_cum_sot,
     response = response_cum_sot,
-    response_pred = best_pred_response)
+    response_pred = best_pred_response
+  )
   temp_spend <- seq(0, max(spend_cum_sot), length.out = sim_n)
   temp_sat <- best_coef * saturation_hill(x = total_cum_spend, alpha = best_alpha, gamma = best_gamma, x_marginal = temp_spend)[["x_saturated"]]
   df_pred_sim_plot <- data.frame(spend = temp_spend, response = temp_sat)
@@ -368,7 +375,7 @@ robyn_calibrate_single_dim <- function(
       aes(
         x = .data$sim_spend, y = .data$sim_saturation,
         color = .data$sim
-      ), size = 2, alpha = 0.2
+      ), linewidth = 2, alpha = 0.2
     ) +
     scale_colour_grey() +
     geom_point(
@@ -389,14 +396,14 @@ robyn_calibrate_single_dim <- function(
     iterations = unlist(mapply(function(x) seq(x), max_iters_vec, SIMPLIFY = FALSE)),
     trials = as.character(unlist(
       mapply(function(x, y) rep(x, y),
-             x = 1:max_trials, y = max_iters_vec
+        x = 1:max_trials, y = max_iters_vec
       )
     ))
   )
   p_mse <- df_mse %>%
     mutate(trials = factor(.data$trials, levels = seq(max_trials))) %>%
     ggplot(aes(x = .data$iterations, y = .data$mse)) +
-    geom_line(size = 0.2) +
+    geom_line(linewidth = 0.2) +
     facet_grid(.data$trials ~ .) +
     labs(
       title = paste0(
@@ -415,8 +422,10 @@ robyn_calibrate_single_dim <- function(
   p_alpha <- p_alpha +
     labs(
       title = paste0("Alpha (Hill) density after ", round(burn_in_rel * 100), "% burn-in"),
-      subtitle = paste0(round(hp_interval*100), "% center density: ", round(alpha_den$interval[1], 4), "-", round(alpha_den$interval[2], 4),
-                        "\nBest alpha: ", round(best_alpha,4))
+      subtitle = paste0(
+        round(hp_interval * 100), "% center density: ", round(alpha_den$interval[1], 4), "-", round(alpha_den$interval[2], 4),
+        "\nBest alpha: ", round(best_alpha, 4)
+      )
     ) +
     theme_lares(...) +
     scale_y_abbr()
@@ -425,8 +434,10 @@ robyn_calibrate_single_dim <- function(
   p_gamma <- p_gamma +
     labs(
       title = paste0("Gamma (Hill) density after ", round(burn_in_rel * 100), "% burn-in"),
-      subtitle = paste0(round(hp_interval*100), "% center density: ", round(gamma_den$interval[1], 4), "-", round(gamma_den$interval[2], 4),
-                        "\nBest gamma: ", round(best_gamma,4))
+      subtitle = paste0(
+        round(hp_interval * 100), "% center density: ", round(gamma_den$interval[1], 4), "-", round(gamma_den$interval[2], 4),
+        "\nBest gamma: ", round(best_gamma, 4)
+      )
     ) +
     theme_lares(...) +
     scale_y_abbr()
@@ -458,13 +469,15 @@ robyn_calibrate_single_dim <- function(
   }
 
   curve_out <- list(
-    hill = list(alpha_range = c(alpha_den$interval),
-                alpha_best = best_alpha,
-                gamma_range = c(gamma_den$interval),
-                gamma_best = best_gamma,
-                coef_range = c(coef_den$interval),
-                coef_best = best_coef,
-                inflexion_max = total_cum_spend),
+    hill = list(
+      alpha_range = c(alpha_den$interval),
+      alpha_best = best_alpha,
+      gamma_range = c(gamma_den$interval),
+      gamma_best = best_gamma,
+      coef_range = c(coef_den$interval),
+      coef_best = best_coef,
+      inflexion_max = total_cum_spend
+    ),
     plot = p_lines / p_mse / (p_alpha + p_gamma) +
       plot_annotation(
         theme = theme_lares(background = "white", ...)
@@ -482,13 +495,15 @@ robyn_calibrate_single_dim <- function(
   get_den <- ggplot_build(plot_object)$data[[1]]
   # mode_loc <- which.max(get_den$y)
   mode_loc <- which.min(abs(get_den$x - best_val))
-  mode_wing <- sum(get_den$y) * hp_interval /2
+  mode_wing <- sum(get_den$y) * hp_interval / 2
   int_left <- mode_loc - which.min(abs(cumsum(get_den$y[mode_loc:1]) - mode_wing)) + 1
   int_left <- ifelse(is.na(int_left) | int_left < 1, 1, int_left)
-  int_right <- mode_loc + which.min(abs(cumsum(get_den$y[(mode_loc+1):length(get_den$y)]) - mode_wing))
-  int_right <- ifelse(length(int_right) == 0 , length(get_den$y), int_right)
-  return(list(interval = c(get_den$x[int_left],  get_den$x[int_right]),
-              mode = get_den$x[mode_loc]))
+  int_right <- mode_loc + which.min(abs(cumsum(get_den$y[(mode_loc + 1):length(get_den$y)]) - mode_wing))
+  int_right <- ifelse(length(int_right) == 0, length(get_den$y), int_right)
+  return(list(
+    interval = c(get_den$x[int_left], get_den$x[int_right]),
+    mode = get_den$x[mode_loc]
+  ))
 }
 
 

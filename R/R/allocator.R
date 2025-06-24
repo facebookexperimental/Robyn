@@ -250,8 +250,7 @@ robyn_allocator <- function(robyn_object = NULL,
   usecase <- paste(usecase, ifelse(!is.null(total_budget), "+ defined_budget", "+ historical_budget"))
 
   # Response values based on date range -> mean spend
-  initResponseUnit <- NULL
-  initResponseMargUnit <- NULL
+  initResponseUnit <- initResponseUnitSim <- initResponseMargUnit <- NULL
   hist_carryover <- list()
   qa_carryover <- list()
   for (i in seq_along(mediaSelectedSorted)) {
@@ -300,11 +299,17 @@ robyn_allocator <- function(robyn_object = NULL,
       x_hist_carryover = mean(hist_carryover_temp),
       get_sum = FALSE
     )
-    initResponseUnit <- c(initResponseUnit, resp$mean_response) # resp_simulate
+    initResponseUnit <- c(initResponseUnit, ifelse(
+      all(mediaSelectedSorted %in% InputCollect$paid_media_spends),
+      resp$mean_response,
+      resp_simulate
+    ))
+    initResponseUnitSim <- c(initResponseUnitSim, resp_simulate)
     initResponseMargUnit <- c(initResponseMargUnit, resp_simulate_plus1 - resp_simulate)
   }
   qa_carryover <- do.call(cbind, qa_carryover) %>% as.data.frame()
-  names(initResponseUnit) <- names(hist_carryover) <- names(qa_carryover) <- mediaSelectedSorted
+  names(initResponseUnit) <- names(initResponseUnitSim) <-
+    names(hist_carryover) <- names(qa_carryover) <- mediaSelectedSorted
   # QA adstock: simulated adstock should be identical to model adstock
   # qa_carryover_origin <- OutputCollect$mediaVecCollect %>%
   #   filter(.data$solID == select_model & .data$type == "adstockedMedia") %>%
@@ -591,6 +596,7 @@ robyn_allocator <- function(robyn_object = NULL,
     # adstocked_end_date = as.Date(ifelse(adstocked, tail(resp$date, 1), NA), origin = "1970-01-01"),
     # adstocked_periods = length(resp$date),
     initResponseUnit = initResponseUnit,
+    initResponseUnitSim = initResponseUnitSim,
     initResponseUnitTotal = sum(initResponseUnit),
     initResponseMargUnit = initResponseMargUnit,
     initResponseTotal = sum(initResponseUnit) * unique(simulation_period),
@@ -655,7 +661,7 @@ robyn_allocator <- function(robyn_object = NULL,
   eval_list$levs1 <- levs1
 
   dt_optimOutScurve <- rbind(
-    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnit) %>%
+    select(dt_optimOut, .data$channels, .data$initSpendUnit, .data$initResponseUnitSim) %>%
       mutate(x = levs1[1]) %>% as.matrix(),
     select(dt_optimOut, .data$channels, .data$optmSpendUnit, .data$optmResponseUnit) %>%
       mutate(x = levs1[2]) %>% as.matrix(),

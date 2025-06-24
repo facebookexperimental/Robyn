@@ -171,7 +171,7 @@ transform_adstock <- function(x, adstock, theta = NULL, shape = NULL, scale = NU
   if (adstock == "geometric") {
     x_list_sim <- adstock_geometric(x = x, theta = theta)
   } else {
-    get_type <- substr(adstock, nchar(adstock)-2, nchar(adstock))
+    get_type <- substr(adstock, nchar(adstock) - 2, nchar(adstock))
     x_list_sim <- adstock_weibull(x = x, shape = shape, scale = scale, windlen = windlen, type = get_type)
   }
   return(x_list_sim)
@@ -213,8 +213,10 @@ saturation_hill <- function(x, alpha, gamma, x_marginal = NULL) {
   } else {
     x_saturated <- x_marginal**alpha / (x_marginal**alpha + inflexion**alpha)
   }
-  return(list(x_saturated = x_saturated,
-              inflexion = inflexion))
+  return(list(
+    x_saturated = x_saturated,
+    inflexion = inflexion
+  ))
 }
 
 
@@ -413,7 +415,8 @@ run_transformations <- function(all_media,
     alpha <- dt_hyppar[paste0(all_media[v], "_alphas")][[1]][[1]]
     gamma <- dt_hyppar[paste0(all_media[v], "_gammas")][[1]][[1]]
 
-    sat_temp_total <- saturation_hill(x = input_total_rw,
+    sat_temp_total <- saturation_hill(
+      x = input_total_rw,
       alpha = alpha, gamma = gamma
     )
     sat_temp_caov <- saturation_hill(

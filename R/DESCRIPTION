@@ -1,11 +1,11 @@
 Package: Robyn
 Type: Package
 Title: Semi-Automated Marketing Mix Modeling (MMM) from Meta Marketing Science 
-Version: 3.12.0.9008
+Version: 3.12.1
 Authors@R: c(
     person("Gufeng", "Zhou", , "gufeng@meta.com", c("cre", "aut")),
-    person("Igor", "Skokan", , "igorskokan@meta.com", c("aut")),
     person("Bernardo", "Lares", , "laresbernardo@gmail.com", c("aut")),
+    person("Igor", "Skokan", , "igorskokan@meta.com", c("aut")),
     person("Leonel", "Sentana", , "leonelsentana@meta.com", c("aut")),
     person("Meta Platforms, Inc.", role = c("cph", "fnd")))
 Maintainer: Gufeng Zhou <gufeng@meta.com>
@@ -17,14 +17,14 @@ Imports:
     doRNG,
     dplyr,
     foreach,
-    ggplot2,
+    ggplot2 (>= 3.4.0),
     ggridges,
     glmnet,
     jsonlite,
     lares,
     lubridate,
     nloptr,
-    patchwork,
+    patchwork (>= 1.3.1),
     prophet,
     reticulate,
     stringr,
