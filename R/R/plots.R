@@ -78,15 +78,16 @@ robyn_plots <- function(
         ungroup() %>%
         mutate(
           type = factor(.data$type, levels = unique(.data$type)),
-          channel = factor(.data$channel, levels = rev(unique(.data$channel)))
+          channel = factor(.data$channel, levels = unique(.data$channel))
         )
       all_plots[["pSamp"]] <- ggplot(resultHypParam.melted) +
-        facet_grid(. ~ .data$type, scales = "free") +
+        facet_grid(.data$channel ~ .data$type, scales = "free") +
         geom_violin(
           aes(x = .data$value, y = .data$channel, color = .data$channel, fill = .data$channel),
           alpha = .8, size = 0
         ) +
         theme_lares(background = "white", legend = "none", pal = 1) +
+        theme(strip.text.y.right = element_blank()) +
         labs(
           title = "Hyperparameters Optimization Distributions",
           subtitle = paste0(
