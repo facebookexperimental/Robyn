@@ -546,7 +546,9 @@ robyn_mmm <- function(InputCollect,
   ) %>%
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   if (length(c(exposure_vars, organic_vars)) > 0) {
-    temp <- select(dt_inputTrain, all_of(c(exposure_vars, organic_vars))) %>% summarise_all(mean) %>% unlist
+    temp <- select(dt_inputTrain, all_of(c(exposure_vars, organic_vars))) %>%
+      summarise_all(mean) %>%
+      unlist()
     temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
     dt_spendShare <- full_join(dt_spendShare, temp, by = "rn")
   } else {
@@ -567,9 +569,10 @@ robyn_mmm <- function(InputCollect,
     mutate(spend_share = .data$total_spend / sum(.data$total_spend))
   # Join both dataframes into a single one
   if (length(c(exposure_vars, organic_vars)) > 0) {
-    temp <- select(dt_inputTrain,  all_of(c(exposure_vars, organic_vars))) %>%
+    temp <- select(dt_inputTrain, all_of(c(exposure_vars, organic_vars))) %>%
       slice(refreshAddedStartWhich:rollingWindowLength) %>%
-      summarise_all(mean) %>% unlist
+      summarise_all(mean) %>%
+      unlist()
     temp <- data.frame(rn = c(exposure_vars, organic_vars), mean_exposure = temp)
     dt_spendShareRF <- full_join(dt_spendShareRF, temp, by = "rn")
   } else {
@@ -681,12 +684,14 @@ robyn_mmm <- function(InputCollect,
             adstock <- check_adstock(adstock)
 
             #### Transform media for model fitting
-            temp <- run_transformations(all_media = InputCollect$all_media,
-                                        window_start_loc = InputCollect$rollingWindowStartWhich,
-                                        window_end_loc = InputCollect$rollingWindowEndWhich,
-                                        dt_mod = InputCollect$dt_mod,
-                                        adstock = InputCollect$adstock,
-                                        dt_hyppar = hypParamSam, ...)
+            temp <- run_transformations(
+              all_media = InputCollect$all_media,
+              window_start_loc = InputCollect$rollingWindowStartWhich,
+              window_end_loc = InputCollect$rollingWindowEndWhich,
+              dt_mod = InputCollect$dt_mod,
+              adstock = InputCollect$adstock,
+              dt_hyppar = hypParamSam, ...
+            )
 
             #####################################
             #### Split train & test and prepare data for modelling
@@ -797,7 +802,8 @@ robyn_mmm <- function(InputCollect,
                 dt_saturatedCarryover = temp$dt_saturatedCarryover,
                 dt_modRollWind = dt_modRollWind,
                 refreshAddedStart = refreshAddedStart
-              ))
+              )
+            )
             nrmse <- ifelse(ts_validation, mod_out$nrmse_val, mod_out$nrmse_train)
             mape <- 0
             df.int <- mod_out$df.int
@@ -826,14 +832,17 @@ robyn_mmm <- function(InputCollect,
               filter(.data$rn %in% c(paid_media_selected, organic_vars)) %>%
               select(
                 .data$rn, .data$xDecompPerc, .data$xDecompPercRF
-              ) %>% left_join(
-              select(
-                dt_spendShare,
-                c("rn", "spend_share", "spend_share_refresh","mean_spend",
-                  "total_spend", "mean_exposure", "mean_exposure_refresh")
-              ),
-              by = "rn"
-            )
+              ) %>%
+              left_join(
+                select(
+                  dt_spendShare,
+                  c(
+                    "rn", "spend_share", "spend_share_refresh", "mean_spend",
+                    "total_spend", "mean_exposure", "mean_exposure_refresh"
+                  )
+                ),
+                by = "rn"
+              )
             dt_loss_calc <- bind_rows(
               dt_loss_calc %>% filter(.data$rn %in% paid_media_selected) %>%
                 mutate(
@@ -842,10 +851,13 @@ robyn_mmm <- function(InputCollect,
                 ),
               dt_loss_calc %>% filter(.data$rn %in% organic_vars) %>%
                 mutate(
-                  effect_share = NA, effect_share_refresh = NA)
+                  effect_share = NA, effect_share_refresh = NA
+                )
             ) %>% select(-c("xDecompPerc", "xDecompPercRF"))
             decompCollect$xDecompAgg <- left_join(
-              decompCollect$xDecompAgg, dt_loss_calc, by = "rn")
+              decompCollect$xDecompAgg, dt_loss_calc,
+              by = "rn"
+            )
             dt_loss_calc <- dt_loss_calc %>% filter(.data$rn %in% paid_media_selected)
             if (!refresh) {
               decomp.rssd <- sqrt(sum((dt_loss_calc$effect_share - dt_loss_calc$spend_share)^2))

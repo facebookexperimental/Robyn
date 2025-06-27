@@ -132,12 +132,12 @@ robyn_response <- function(InputCollect = NULL,
     if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
     if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
   } else {
-      # Get pre-filled values
-      if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
-      if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
-      if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
-        stop("When 'json_file' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
-      }
+    # Get pre-filled values
+    if (is.null(dt_hyppar)) dt_hyppar <- OutputCollect$resultHypParam
+    if (is.null(dt_coef)) dt_coef <- OutputCollect$xDecompAgg
+    if (any(is.null(dt_hyppar), is.null(dt_coef), is.null(InputCollect), is.null(OutputCollect))) {
+      stop("When 'json_file' is not provided, 'InputCollect' & 'OutputCollect' must be provided")
+    }
   }
 
   if ("selectID" %in% names(OutputCollect)) {
@@ -202,11 +202,13 @@ robyn_response <- function(InputCollect = NULL,
   hist_transform <- transform_decomp(
     all_values = all_values,
     adstock, theta, shape, scale, alpha, gamma,
-    window_loc, coeff, metric_loc = ds_list$metric_loc)
+    window_loc, coeff, metric_loc = ds_list$metric_loc
+  )
   dt_line <- data.frame(
     metric = hist_transform$input_total[window_loc],
     response = hist_transform$response_total,
-    channel = metric_name_updated)
+    channel = metric_name_updated
+  )
   dt_point <- data.frame(
     mean_input_immediate = hist_transform$mean_input_immediate,
     mean_input_carryover = hist_transform$mean_input_carryover,
@@ -214,11 +216,12 @@ robyn_response <- function(InputCollect = NULL,
     mean_response_immediate = hist_transform$mean_response_total - hist_transform$mean_response_carryover,
     mean_response_carryover = hist_transform$mean_response_carryover,
     mean_response_total = hist_transform$mean_response_total
-    )
+  )
   if (!is.null(date_range)) {
     dt_point_sim <- data.frame(
       input = hist_transform$sim_mean_spend + hist_transform$sim_mean_carryover,
-      output = hist_transform$sim_mean_response)
+      output = hist_transform$sim_mean_response
+    )
   }
 
   ## Simulated transformation
@@ -227,10 +230,12 @@ robyn_response <- function(InputCollect = NULL,
       all_values = all_values_updated,
       adstock, theta, shape, scale, alpha, gamma,
       window_loc, coeff, metric_loc = ds_list$metric_loc,
-      calibrate_inflexion = hist_transform$inflexion)
+      calibrate_inflexion = hist_transform$inflexion
+    )
     dt_point_sim <- data.frame(
       input = hist_transform_sim$sim_mean_spend + hist_transform_sim$sim_mean_carryover,
-      output = hist_transform_sim$sim_mean_response)
+      output = hist_transform_sim$sim_mean_response
+    )
   }
 
   ## Plot optimal response
@@ -239,17 +244,20 @@ robyn_response <- function(InputCollect = NULL,
     geom_point(
       data = dt_point,
       aes(x = .data$mean_input_total, y = .data$mean_response_total),
-      size = 3, color = "grey") +
+      size = 3, color = "grey"
+    ) +
     labs(
       title = paste(
         "Saturation curve of", metric_type$metric_type,
         "media:", metric_type$metric_name_updated
       ),
-      subtitle = sprintf(paste(
-        "Response: %s @ mean input %s",
-        "Response: %s @ mean input carryover %s",
-        "Response: %s @ mean input immediate %s",
-        sep = "\n"),
+      subtitle = sprintf(
+        paste(
+          "Response: %s @ mean input %s",
+          "Response: %s @ mean input carryover %s",
+          "Response: %s @ mean input immediate %s",
+          sep = "\n"
+        ),
         num_abbr(dt_point$mean_response_total),
         num_abbr(dt_point$mean_input_total),
         num_abbr(dt_point$mean_response_carryover),
@@ -294,6 +302,7 @@ robyn_response <- function(InputCollect = NULL,
     mean_input_carryover = hist_transform$mean_input_carryover,
     mean_response_total = hist_transform$mean_response_total,
     mean_response_carryover = hist_transform$mean_response_carryover,
+    mean_response = hist_transform$mean_response,
     sim_mean_spend = sim_mean_spend,
     sim_mean_carryover = sim_mean_carryover,
     sim_mean_response = sim_mean_response,
@@ -327,7 +336,7 @@ which_usecase <- function(metric_value, date_range) {
 }
 
 transform_decomp <- function(all_values, adstock, theta, shape, scale, alpha, gamma,
-                              window_loc, coeff, metric_loc, calibrate_inflexion = NULL) {
+                             window_loc, coeff, metric_loc, calibrate_inflexion = NULL) {
   ## adstock
   x_list <- transform_adstock(x = all_values, adstock, theta, shape, scale)
   input_total <- x_list$x_decayed
@@ -348,6 +357,11 @@ transform_decomp <- function(all_values, adstock, theta, shape, scale, alpha, ga
   ## simulate mean response of all_values periods
   mean_input_immediate <- mean(input_immediate[window_loc])
   mean_input_carryover <- mean(input_carryover_rw)
+  if (length(window_loc) != length(saturated_total$x_saturated)) {
+    mean_response <- mean(saturated_total$x_saturated[window_loc] * coeff)
+  } else {
+    mean_response <- mean(saturated_total$x_saturated * coeff)
+  }
   mean_response_total <- fx_objective(
     x = mean_input_immediate,
     coeff = coeff,
@@ -392,6 +406,7 @@ transform_decomp <- function(all_values, adstock, theta, shape, scale, alpha, ga
     mean_input_immediate = mean_input_immediate,
     mean_input_carryover = mean_input_carryover,
     mean_response_total = mean_response_total,
+    mean_response = mean_response,
     mean_response_carryover = mean_response_carryover,
     sim_mean_spend = sim_mean_spend,
     sim_mean_carryover = sim_mean_carryover,

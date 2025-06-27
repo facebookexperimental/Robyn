@@ -159,8 +159,6 @@ robyn_converge <- function(OutputModels,
       x = ifelse(max(nrmse_win) == 1, "NRMSE", sprintf("NRMSE [Winsorized %s]", paste(nrmse_win, collapse = "-"))),
       y = "DECOMP.RSSD",
       colour = "Time [s]",
-      size = "MAPE",
-      alpha = NULL,
       caption = paste(conv_msg, collapse = "\n")
     ) +
     theme_lares(background = "white", )

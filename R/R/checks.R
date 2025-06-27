@@ -585,9 +585,11 @@ check_calibration <- function(dt_input, date_var, calibration_input, dayInterval
     }
     all_media <- c(paid_media_spends, organic_vars)
     cal_media <- str_split(calibration_input$channel, "\\+|,|;|\\s")
-    cal_media_selected <- lapply(cal_media, function(x) sapply(x, function(y) {
-      ifelse(y %in% c(paid_media_selected, organic_vars), y, paid_media_selected[paid_media_spends == y])
-    }))
+    cal_media_selected <- lapply(cal_media, function(x) {
+      sapply(x, function(y) {
+        ifelse(y %in% c(paid_media_selected, organic_vars), y, paid_media_selected[paid_media_spends == y])
+      })
+    })
     calibration_input$channel_selected <- sapply(cal_media_selected, function(x) paste0(x, collapse = "+"))
     if (!all(unlist(cal_media) %in% all_media)) {
       these <- unique(unlist(cal_media)[which(!unlist(cal_media) %in% all_media)])
@@ -859,14 +861,14 @@ check_allocator <- function(OutputCollect, select_model, paid_media_selected, sc
     stop("Input 'scenario' must be one of: ", paste(opts, collapse = ", "))
   }
   if ((is.null(channel_constr_low) & !is.null(channel_constr_up)) |
-      (!is.null(channel_constr_low) & is.null(channel_constr_up))) {
+    (!is.null(channel_constr_low) & is.null(channel_constr_up))) {
     stop("channel_constr_low and channel_constr_up must be both provided or both NULL")
   } else if (!is.null(channel_constr_low) & !is.null(channel_constr_up)) {
     if (any(channel_constr_low < 0)) {
       stop("Inputs 'channel_constr_low' must be >= 0")
     }
     if ((length(channel_constr_low) != 1 && length(channel_constr_low) != length(paid_media_selected)) |
-        (length(channel_constr_up) != 1 && length(channel_constr_up) != length(paid_media_selected))) {
+      (length(channel_constr_up) != 1 && length(channel_constr_up) != length(paid_media_selected))) {
       stop("'channel_constr_low' and 'channel_constr_up' require either only 1 value or the same length as 'paid_media_selected'")
     }
     if (any(channel_constr_up < channel_constr_low)) {
@@ -884,10 +886,12 @@ check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, p
     metric_type <- "organic"
     metric_name_updated <- metric_name
   } else if ((metric_name %in% paid_media_spends && length(metric_name) == 1) |
-             (metric_name %in% paid_media_vars && length(metric_name) == 1)) {
+    (metric_name %in% paid_media_vars && length(metric_name) == 1)) {
     metric_type <- "paid"
-    name_loc <- unique(c(which(metric_name == paid_media_spends),
-                         which(metric_name == paid_media_vars)))
+    name_loc <- unique(c(
+      which(metric_name == paid_media_spends),
+      which(metric_name == paid_media_vars)
+    ))
     metric_name_updated <- paid_media_selected[name_loc]
   } else {
     stop(paste(
@@ -898,8 +902,10 @@ check_metric_type <- function(metric_name, paid_media_spends, paid_media_vars, p
       paste("\n- organic_vars:", v2t(organic_vars, quotes = FALSE))
     ))
   }
-  return(list(metric_type = metric_type,
-              metric_name_updated = metric_name_updated))
+  return(list(
+    metric_type = metric_type,
+    metric_name_updated = metric_name_updated
+  ))
 }
 
 check_metric_dates <- function(date_range = NULL, all_dates, dayInterval = NULL, quiet = FALSE, is_allocator = FALSE, ...) {

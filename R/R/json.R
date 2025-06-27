@@ -58,6 +58,9 @@ robyn_write <- function(InputCollect,
   skip <- skip[!names(skip) %in% c("calibration_input", "hyperparameters", "custom_params")]
   ret[["InputCollect"]] <- InputCollect[-skip]
   # toJSON(ret$InputCollect, pretty = TRUE)
+  if (!"paid_media_selected" %in% names(InputCollect)) {
+    InputCollect$paid_media_selected <- InputCollect$paid_media_spends
+  }
 
   # ExportedModel JSON
   if (!is.null(OutputCollect)) {
@@ -89,29 +92,38 @@ robyn_write <- function(InputCollect,
       stopifnot(select_model %in% OutputCollect$allSolutions)
       outputs <- list()
       outputs$select_model <- select_model
-      df <- filter(OutputCollect$xDecompAgg, .data$solID == select_model)
+      sp <- select(InputCollect$dt_mod, InputCollect$paid_media_selected)
+      df <- filter(OutputCollect$mediaVecCollect, .data$solID %in% select_model, .data$type == "decompMedia")
       perf_metric <- ifelse(InputCollect$dep_var_type == "revenue", "ROAS", "CPA")
-      outputs$performance <- df %>%
-        filter(.data$rn %in% InputCollect$paid_media_spends) %>%
-        group_by(.data$solID) %>%
-        summarise(
+      performance <- left_join(
+        tidyr::gather(dplyr::summarize_all(select(sp, InputCollect$paid_media_selected), sum), "channel", "spend"),
+        tidyr::gather(dplyr::summarize_all(select(df, InputCollect$paid_media_selected), sum), "channel", "response"),
+        by = "channel"
+      ) %>%
+        dplyr::rowwise() %>%
+        mutate(
           metric = perf_metric,
           performance = ifelse(
             perf_metric == "ROAS",
-            sum(.data$xDecompAgg) / sum(.data$total_spend),
-            sum(.data$total_spend) / sum(.data$xDecompAgg)
-          ), .groups = "drop"
+            .data$response / .data$spend,
+            .data$spend / .data$response
+          )
         )
-      outputs$summary <- df %>%
-        mutate(
-          metric = perf_metric,
-          performance = ifelse(.data$metric == "ROAS", .data$roi_total, .data$cpa_total)
-        ) %>%
+      outputs$performance <- performance %>%
+        group_by(solID = select_model, .data$metric) %>%
+        dplyr::summarize_if(is.numeric, sum) %>%
+        mutate(solID = select_model)
+      outputs$summary <- filter(OutputCollect$xDecompAgg, .data$solID == select_model) %>%
+        left_join(performance, by = c("rn" = "channel")) %>%
         select(
           variable = .data$rn, coef = .data$coef,
           decompPer = .data$xDecompPerc, decompAgg = .data$xDecompAggRF,
-          .data$performance, .data$mean_response, .data$mean_spend,
+          .data$performance, "mean_response" = .data$response, "mean_spend" = .data$spend,
           contains("boot_mean"), contains("ci_")
+        ) %>%
+        mutate(
+          mean_response = .data$mean_response / InputCollect$totalObservations,
+          mean_spend = .data$mean_spend / InputCollect$totalObservations
         )
       outputs$errors <- filter(OutputCollect$resultHypParam, .data$solID == select_model) %>%
         select(starts_with("rsq_"), starts_with("nrmse"), .data$decomp.rssd, .data$mape)
