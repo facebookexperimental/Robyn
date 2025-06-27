@@ -230,7 +230,11 @@ robyn_refresh <- function(json_file = NULL,
       totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
       refreshStart <- InputCollectRF$window_start <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
       refreshStartWhich <- InputCollectRF$rollingWindowStartWhich <- which.min(abs(difftime(totalDates, refreshStart, units = "days")))
-      refreshEnd <- InputCollectRF$window_end <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
+      if (InputCollectRF$window_end %in% totalDates) {
+        refreshEnd <- InputCollectRF$window_end <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
+      } else {
+        refreshEnd <- InputCollectRF$window_end <- as.Date(InputCollectRF$window_end) + 1
+      }
       refreshEndWhich <- InputCollectRF$rollingWindowEndWhich <- which.min(abs(difftime(totalDates, refreshEnd, units = "days")))
       InputCollectRF$rollingWindowLength <- refreshEndWhich - refreshStartWhich + 1
     }
