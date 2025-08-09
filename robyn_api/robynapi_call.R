@@ -31,4 +31,4 @@ apiPath <- paste0(path2file,'/robynapi_enpoints.R')
 
 
 ### Command to run Robyn API
-r<-plumb(apiPath)$run(port=9999)
+r<-plumb(apiPath)$run(port=9999,host="0.0.0.0")
