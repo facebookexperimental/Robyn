@@ -46,7 +46,7 @@ remotes::install_github("facebookexperimental/Robyn/R")
   
   * Take Meta's [official Robyn blueprint course](https://www.facebookblueprint.com/student/path/253121-marketing-mix-models?utm_source=readme) online 
   
-## Quick start for Python (Beta)
+## Quick start for Python
 
 The Python version of Robyn is rewritten from Robyn's R package version `3.11.1` to Python using object oriented programming principles and modular architecture for a robust solution. It was developed by utilizing various LLMs and AI workflows like [Llama](https://www.llama.com/). As is common with any AI-based solutions, there may be potential challenges in translating code from one language to another. In this case, we anticipate that there could be some issues in the translation from R to Python. However, we believe in the power of community collaboration and open-source contribution. Therefore, we are opening this project to the community to participate and contribute. Together, we can address and resolve any issues that may arise, enhancing the functionality and efficiency of the Python version of Robyn. We look forward to your contributions and to the continuous improvement of this project.
 
