@@ -12,7 +12,7 @@ from robyn.modeling.entities.modeloutputs import Trial
 from robyn.modeling.entities.enums import NevergradAlgorithm
 from robyn.modeling.ridge.ridge_metrics_calculator import RidgeMetricsCalculator
 import logging
-from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_rpy2
+from robyn.modeling.ridge.models.ridge_utils import create_ridge_model_glmnet
 import json
 from datetime import datetime
 import random
@@ -62,6 +62,10 @@ class RidgeModelEvaluator:
 
         np.random.seed(seed)
         random.seed(seed)
+        # Nevergrad 1.x maintains its own random number generator in ``parametrization.random_state``
+        # (a dedicated ``np.random.RandomState``), which is *not* controlled by the global seed ``np.random``.
+        # This ensures reproducibility.
+        # optimizer.parametrization.random_state = np.random.RandomState(seed)
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
 
         self.logger.debug(f"Starting optimization with {len(param_names)} parameters")
@@ -515,7 +519,7 @@ class RidgeModelEvaluator:
         N = len(x_norm)
 
         # Create and fit the model
-        model = create_ridge_model_rpy2(
+        model = create_ridge_model_glmnet(
             lambda_value=lambda_,
             n_samples=N,
             fit_intercept=True,
