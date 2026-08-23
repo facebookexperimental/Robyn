@@ -62,6 +62,10 @@ class RidgeModelEvaluator:
 
         np.random.seed(seed)
         random.seed(seed)
+        # Nevergrad 1.x maintains its own random number generator in ``parametrization.random_state``
+        # (a dedicated ``np.random.RandomState``), which is *not* controlled by the global seed ``np.random``.
+        # This ensures reproducibility.
+        optimizer.parametrization.random_state = np.random.RandomState(seed)
         param_names = list(hyper_collect["hyper_bound_list_updated"].keys())
 
         self.logger.debug(f"Starting optimization with {len(param_names)} parameters")
