@@ -1,109 +1,11 @@
 import logging
+
 import numpy as np
-from sklearn.linear_model import Ridge
-import time
+
+from glmnetpp import fit_gaussian_ridge
 
 
-def create_ridge_model_sklearn(
-    lambda_value, n_samples, fit_intercept=True, standardize=True
-):
-    """Create a Ridge regression model using scikit-learn.
-
-    Args:
-        lambda_value: Regularization parameter (lambda) from glmnet
-        n_samples: Number of samples (needed for proper scaling)
-        fit_intercept: Whether to fit the intercept
-        standardize: Whether to standardize the input features
-
-    Returns:
-        A configured sklearn Ridge model that behaves like glmnet
-    """
-
-    # Create a wrapper class that matches glmnet's behavior
-    class GlmnetLikeRidge:
-        def __init__(self):
-            self.logger = logging.getLogger(__name__)
-            self.lambda_value = lambda_value  # Use raw lambda value
-            self.fit_intercept = fit_intercept
-            self.standardize = standardize
-            self.feature_means = None
-            self.feature_stds = None
-            self.y_mean = None
-            self.coef_ = None
-            self.intercept_ = 0.0
-
-        def mysd(self, y):
-            """R-like standard deviation"""
-            return np.sqrt(np.sum((y - np.mean(y)) ** 2) / len(y))
-
-        def fit(self, X, y):
-            X = np.asarray(X)
-            y = np.asarray(y)
-
-            # Debug prints matching R
-            self.logger.debug("Lambda calculation debug:")
-            self.logger.debug(f"x_means: {np.mean(np.abs(X))}")
-            x_sds = np.apply_along_axis(self.mysd, 0, X)
-            self.logger.debug(f"x_sds mean: {np.mean(x_sds)}")
-
-            # Center and scale like R's glmnet
-            if self.standardize:
-                self.feature_means = np.mean(X, axis=0)
-                self.feature_stds = np.apply_along_axis(self.mysd, 0, X)
-                self.feature_stds[self.feature_stds == 0] = 1.0
-                X_scaled = (X - self.feature_means) / self.feature_stds
-            else:
-                X_scaled = X
-                self.feature_means = np.zeros(X.shape[1])
-                self.feature_stds = np.ones(X.shape[1])
-
-            if self.fit_intercept:
-                self.y_mean = np.mean(y)
-                y_centered = y - self.y_mean
-            else:
-                y_centered = y
-                self.y_mean = 0.0
-
-            self.logger.debug(f"sx mean: {np.mean(np.abs(X_scaled))}")
-            self.logger.debug(f"sy mean: {np.mean(np.abs(y_centered))}")
-            self.logger.debug(f"lambda: {self.lambda_value}")
-
-            # Fit model using raw lambda (not scaled)
-            model = Ridge(
-                alpha=self.lambda_value,
-                fit_intercept=False,  # We handle centering manually
-                solver="cholesky",
-            )
-
-            model.fit(X_scaled, y_centered)
-
-            # Transform coefficients back to original scale
-            if self.standardize:
-                self.coef_ = model.coef_ / self.feature_stds
-            else:
-                self.coef_ = model.coef_
-
-            if self.fit_intercept:
-                self.intercept_ = self.y_mean - np.dot(self.feature_means, self.coef_)
-
-            self.logger.debug(
-                f"Coefficients range: [{np.min(self.coef_):.6f}, {np.max(self.coef_):.6f}]"
-            )
-            self.logger.debug(f"Intercept: {self.intercept_:.6f}")
-
-            return self
-
-        def predict(self, X):
-            if self.coef_ is None:
-                raise ValueError("Model must be fitted before making predictions")
-
-            # Direct prediction using coefficients and intercept
-            return np.dot(X, self.coef_) + self.intercept_
-
-    return GlmnetLikeRidge()
-
-
-def create_ridge_model_rpy2(
+def create_ridge_model_glmnet(
     lambda_value,
     n_samples,
     fit_intercept=True,
@@ -114,183 +16,153 @@ def create_ridge_model_rpy2(
     intercept_sign="non_negative",
     penalty_factor=None,
 ):
-    """Create a Ridge regression model using rpy2 to access glmnet.
+    """Create a Ridge regression model using the native ``glmnetpp`` core.
+
+    This replaces the previous rpy2/R implementation (and the transient
+    ``glmnet_python`` wrapper). It calls the same C++ ``glmnetpp`` core that
+    R's ``glmnet`` >= 4.0 uses (the header-only reimplementation behind
+    ``glmnet``), so the fitted coefficients, intercept and predictions are
+    numerically identical to R's ``glmnet(family="gaussian", alpha=0,
+    lambda=...)`` — including the ``intercept=FALSE`` refit path, which the
+    older Fortran ``GLMnet.f`` did not match.
+
+    The returned object mirrors the interface previously exposed by the rpy2
+    wrapper so the rest of Robyn (``RidgeModelEvaluator`` and
+    ``RidgeMetricsCalculator``) can use it unchanged:
+
+    - ``fit(X, y)``           -> fits the model (X: 2-D, y: 1-D)
+    - ``predict(X)``          -> 1-D predictions on the original scale
+    - ``coef_``               -> coefficients on the original scale (without intercept)
+    - ``intercept_``          -> intercept (float)
+    - ``get_full_coefficients()`` -> ``[intercept, *coef_]`` (R-style ordering)
+    - ``df_int``              -> 1 when the intercept is kept, 0 when dropped
+
+    The ``intercept_sign="non_negative"`` behaviour is preserved: the model is
+    first fit with an intercept; if that intercept is negative it is refit
+    without one and ``df_int`` becomes 0 (matching R's ``intercept=FALSE``
+    refit path).
 
     Args:
-        lambda_value: Regularization parameter
-        n_samples: Number of samples (not directly used, but kept for API consistency)
-        fit_intercept: Whether to fit the intercept
-        standardize: Whether to standardize the input features
-        **kwargs: Additional arguments to pass to glmnet
+        lambda_value: Regularization parameter (single lambda) passed to glmnet.
+        n_samples: Number of samples (kept for API consistency, unused).
+        fit_intercept: Whether an intercept is intended to be fit.
+        standardize: Whether glmnet standardizes the predictors internally
+            (R's default and Robyn's behaviour is ``True``).
+        lower_limits: per-coefficient lower bounds (R's ``lower.limits``).
+        upper_limits: per-coefficient upper bounds (R's ``upper.limits``).
+        intercept: kept for API consistency with the previous signature.
+        intercept_sign: sign constraint on the intercept
+            (``"non_negative"`` drops a negative intercept).
+        penalty_factor: per-coefficient penalty multipliers (R's
+            ``penalty.factor``).
 
     Returns:
-        A Ridge regression model using rpy2 to access glmnet.
-
-    Raises:
-        ImportError: If rpy2 is not available
-        RuntimeError: If glmnet R package cannot be imported
+        A fitted-on-demand wrapper object with the interface described above.
     """
-    try:
-        import rpy2.robjects as ro
-        from rpy2.robjects import numpy2ri
-        from rpy2.robjects.packages import importr
-        from rpy2.robjects.conversion import localconverter
-    except ImportError:
-        raise ImportError(
-            "rpy2 is required for using the R implementation. Please install rpy2."
-        )
-
-    # Import glmnet only once per Python session
-    global glmnet_imported
-    if "glmnet_imported" not in globals():
-        try:
-            importr("glmnet")
-            glmnet_imported = True
-        except Exception as e:
-            raise RuntimeError(f"Failed to import glmnet R package: {e}")
+    # Capture the limit / penalty configuration at construction time, exactly
+    # as the previous rpy2 wrapper did through its closure.
+    _lower_limits = lower_limits
+    _upper_limits = upper_limits
+    _penalty_factor = penalty_factor
 
     class GlmnetRidgeWrapper:
         def __init__(self):
-            self.lambda_value = lambda_value
+            self.logger = logging.getLogger(__name__)
+            self.lambda_value = float(lambda_value)
             self.fit_intercept = fit_intercept
             self.standardize = standardize
             self.intercept_sign = intercept_sign
             self.fitted_model = None
             self.coef_ = None
             self.intercept_ = 0.0
-            self.logger = logging.getLogger(__name__)
-            self._prediction_cache = {}
-            # Cache for performance
-            self._X_matrix_cache = {}
-            self.full_coef_ = None  # Add this to store full coefficient array
-            self.df_int = 1  # Initialize to 1
+            self.full_coef_ = None
+            # R-style degrees of freedom for the intercept: 1 when kept, 0 when
+            # dropped because of the non-negative intercept constraint.
+            self.df_int = 1
+
+        def _fit_one(self, X, y, intr):
+            """Run a single glmnet fit; return (intercept, coef, jerr).
+
+            ``coef`` is length-p on the original (unstandardized) scale, which
+            is what the C++ core returns directly (it unstandardizes
+            internally, even when ``standardize=True``).
+            """
+            n_vars = np.asarray(X).shape[1]
+            if _lower_limits is None:
+                lower = np.full(n_vars, -np.inf, dtype=np.float64)
+            else:
+                lower = np.asarray(_lower_limits, dtype=np.float64).reshape(-1)
+            if _upper_limits is None:
+                upper = np.full(n_vars, np.inf, dtype=np.float64)
+            else:
+                upper = np.asarray(_upper_limits, dtype=np.float64).reshape(-1)
+            if _penalty_factor is None:
+                pf = np.ones(n_vars, dtype=np.float64)
+            else:
+                pf = np.asarray(_penalty_factor, dtype=np.float64).reshape(-1)
+
+            intercept_, coef, jerr = fit_gaussian_ridge(
+                X,
+                y,
+                self.lambda_value,
+                alpha=0.0,
+                lower_limits=lower,
+                upper_limits=upper,
+                penalty_factor=pf,
+                standardize=self.standardize,
+                intercept=intr,
+                thresh=np.float64(1e-7),
+            )
+            return float(intercept_), np.asarray(coef, dtype=np.float64), jerr
 
         def fit(self, X, y):
-            X = np.asarray(X)
-            y = np.asarray(y)
+            X = np.asarray(X, dtype=np.float64)
+            y = np.asarray(y, dtype=np.float64)
 
-            # Convert Python objects to R
-            with localconverter(ro.default_converter + numpy2ri.converter):
-                ro.r.assign("X_r", X)
-                ro.r.assign("y_r", y)
-                ro.r.assign("lambda_value", self.lambda_value)
-                ro.r.assign(
-                    "lower_limits_r",
-                    lower_limits if lower_limits is not None else ro.r("NULL"),
-                )
-                ro.r.assign(
-                    "upper_limits_r",
-                    upper_limits if upper_limits is not None else ro.r("NULL"),
-                )
-                ro.r.assign(
-                    "penalty_factor_r",
-                    penalty_factor if penalty_factor is not None else ro.r("NULL"),
-                )
+            # First attempt: fit with an intercept (matches the previous R
+            # wrapper's first glmnet call with intercept = TRUE).
+            intercept_, coef, jerr = self._fit_one(X, y, intr=True)
 
-                # First attempt: Fit with intercept
-                r_code = """
-                # First fit with intercept
-                r_model <<- glmnet(
-                    x = X_r,
-                    y = y_r,
-                    family = "gaussian",
-                    alpha = 0,
-                    lambda = lambda_value,
-                    lower.limits = lower_limits_r,
-                    upper.limits = upper_limits_r,
-                    type.measure = "mse",
-                    penalty.factor = penalty_factor_r,
-                    intercept = TRUE
-                )
-                coef_values <<- as.numeric(coef(r_model, s = lambda_value))
-                """
-                ro.r(r_code)
+            # If the intercept must be non-negative but came out negative, refit
+            # without an intercept and drop the intercept degrees of freedom.
+            if self.intercept_sign == "non_negative" and intercept_ < 0:
+                intercept_, coef, jerr = self._fit_one(X, y, intr=False)
+                self.fit_intercept = False
+                self.df_int = 0
+            else:
+                self.df_int = 1
 
-                # Check intercept sign constraint
-                coef_array = np.array(ro.r["coef_values"])
-                if self.intercept_sign == "non_negative" and coef_array[0] < 0:
-                    # Second attempt: Refit without intercept
-                    r_code = """
-                    # Refit without intercept
-                    r_model <<- glmnet(
-                        x = X_r,
-                        y = y_r,
-                        family = "gaussian",
-                        alpha = 0,
-                        lambda = lambda_value,
-                        lower.limits = lower_limits_r,
-                        upper.limits = upper_limits_r,
-                        type.measure = "mse",
-                        penalty.factor = penalty_factor_r,
-                        intercept = FALSE
-                    )
-                    coef_values <<- as.numeric(coef(r_model, s = lambda_value))
-                    """
-                    ro.r(r_code)
-                    coef_array = np.array(ro.r["coef_values"])
-                    self.fit_intercept = False
-                    self.df_int = 0  # Set df_int to 0 when intercept is dropped
-                else:
-                    self.df_int = 1  # Keep df_int as 1 when intercept is kept
+            self.fitted_model = jerr  # status code, retained for diagnostics
+            self.intercept_ = intercept_
+            self.coef_ = coef
+            if self.fit_intercept:
+                self.full_coef_ = np.concatenate([[intercept_], coef])
+            else:
+                self.intercept_ = 0.0
+                self.full_coef_ = np.concatenate([[0.0], coef])
 
-                # Store model and coefficients
-                self.fitted_model = ro.r["r_model"]
-                if self.fit_intercept:
-                    self.intercept_ = float(coef_array[0])
-                    self.coef_ = coef_array[1:]
-                    self.full_coef_ = coef_array  # Store full array including intercept
-                else:
-                    self.intercept_ = 0.0
-                    self.coef_ = coef_array[1:]
-                    # Create full coefficient array with 0 intercept
-                    self.full_coef_ = np.concatenate([[0.0], self.coef_])
-
+            self.logger.debug(
+                "Coefficients range: [%.6f, %.6f], intercept: %.6f, df_int: %d, jerr: %d",
+                np.min(self.coef_),
+                np.max(self.coef_),
+                self.intercept_,
+                self.df_int,
+                jerr,
+            )
             return self
 
         def predict(self, X):
-            X = np.asarray(X)
+            if self.coef_ is None:
+                raise ValueError("Model must be fitted before making predictions")
 
-            if X.shape[0] < 1000:
-                predictions = np.dot(X, self.coef_) + self.intercept_
-                self.logger.debug(f"Using direct computation")
-            else:
-                # For larger matrices, use R but check cache first
-                X_hash = hash(X.tobytes())
-                if X_hash in self._prediction_cache:
-                    return self._prediction_cache[X_hash]
-
-                # Make predictions using R code directly
-                with localconverter(ro.default_converter + numpy2ri.converter):
-                    # Pass the data to R environment
-                    ro.r.assign("X_new", X)
-                    ro.r.assign("lambda_value", self.lambda_value)
-
-                    # Make predictions using R code
-                    ro.r(
-                        """
-                    predictions <<- as.numeric(predict(r_model, newx = X_new, s = lambda_value, type = "response"))
-                    """
-                    )
-
-                    # Get predictions from R
-                    predictions = np.array(ro.r["predictions"])
-                    self.logger.debug("\n=== Prediction Output ===")
-                    self.logger.debug(
-                        f"Predictions range: [{predictions.min():.6f}, {predictions.max():.6f}]"
-                    )
-                    self.logger.debug(f"Predictions mean: {predictions.mean():.6f}")
-                    # Cache the predictions
-                    self._prediction_cache[X_hash] = predictions
-
-                    self.logger.debug(f"Using R computation")
-
-            self.logger.debug(
-                f"Predictions stats - min: {predictions.min():.6f}, max: {predictions.max():.6f}, mean: {predictions.mean():.6f}"
-            )
-            return predictions
+            X = np.asarray(X, dtype=np.float64)
+            # For family="gaussian" the response is the linear predictor on the
+            # original scale, i.e. X @ beta + a0, which is exactly what R's
+            # predict(..., type="response") computes.
+            return X @ self.coef_ + self.intercept_
 
         def get_full_coefficients(self):
-            """Get full coefficient array including intercept (R-style)"""
+            """Get full coefficient array including intercept (R-style)."""
             return self.full_coef_
 
     return GlmnetRidgeWrapper()
