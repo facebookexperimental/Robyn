@@ -106,9 +106,11 @@ class FeatureEngineering:
             dt_transform[self.mmm_data.mmmdata_spec.date_var]
         ).dt.strftime("%Y-%m-%d")
         dt_transform["dep_var"] = dt_transform[self.mmm_data.mmmdata_spec.dep_var]
-        dt_transform["competitor_sales_B"] = dt_transform["competitor_sales_B"].astype(
-            "int64"
-        )
+        # Column only exists in the bundled demo dataset; do not require it.
+        if "competitor_sales_B" in dt_transform.columns:
+            dt_transform["competitor_sales_B"] = dt_transform[
+                "competitor_sales_B"
+            ].astype("int64")
         self.logger.debug("Data preparation complete")
         return dt_transform
 
