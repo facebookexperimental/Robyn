@@ -545,6 +545,7 @@ robyn_onepagers <- function(
         geom_path(aes(linetype = .data$linetype), size = 0.6) +
         theme_lares(background = "white", legend = "top", pal = 2) +
         scale_y_abbr() +
+        scale_linetype_identity() +
         guides(linetype = "none") +
         labs(
           title = "Actual vs. Predicted Response",
@@ -1367,6 +1368,7 @@ refresh_plots_json <- function(json_file, plot_folder = NULL, listInit = NULL, d
       ), color = "gray40") +
       theme_lares(background = "white", legend = "top", pal = 2) +
       scale_y_abbr() +
+      scale_linetype_identity() +
       guides(linetype = "none", fill = "none") +
       labs(
         title = "Actual vs. Predicted Response",
